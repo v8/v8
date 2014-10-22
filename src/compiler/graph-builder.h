@@ -79,7 +79,8 @@ class GraphBuilder {
 // StubGraphBuilder).
 class StructuredGraphBuilder : public GraphBuilder {
  public:
-  StructuredGraphBuilder(Graph* graph, CommonOperatorBuilder* common);
+  StructuredGraphBuilder(Zone* zone, Graph* graph,
+                         CommonOperatorBuilder* common);
   virtual ~StructuredGraphBuilder() {}
 
   // Creates a new Phi node having {count} input values.
@@ -123,7 +124,7 @@ class StructuredGraphBuilder : public GraphBuilder {
   Node* dead_control();
 
   Zone* graph_zone() const { return graph()->zone(); }
-  Zone* local_zone() { return &local_zone_; }
+  Zone* local_zone() const { return local_zone_; }
   Isolate* isolate() const { return graph_zone()->isolate(); }
   CommonOperatorBuilder* common() const { return common_; }
 
@@ -145,7 +146,7 @@ class StructuredGraphBuilder : public GraphBuilder {
   Environment* environment_;
 
   // Zone local to the builder for data not leaking into the graph.
-  Zone local_zone_;
+  Zone* local_zone_;
 
   // Node representing the control dependency for dead code.
   SetOncePointer<Node> dead_control_;

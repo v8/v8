@@ -28,8 +28,10 @@ static inline void Trace(const char* msg, ...) {
 }
 
 
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : zone_(zone),
+Scheduler::Scheduler(ZonePool* zone_pool, Zone* zone, Graph* graph,
+                     Schedule* schedule)
+    : zone_pool_(zone_pool),
+      zone_(zone),
       graph_(graph),
       schedule_(schedule),
       scheduled_nodes_(zone),
@@ -38,17 +40,17 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       has_floating_control_(false) {}
 
 
-Schedule* Scheduler::ComputeSchedule(Graph* graph) {
+Schedule* Scheduler::ComputeSchedule(ZonePool* zone_pool, Graph* graph) {
   Schedule* schedule;
   bool had_floating_control = false;
   do {
-    Zone tmp_zone(graph->zone()->isolate());
+    ZonePool::Scope zone_scope(zone_pool);
     schedule = new (graph->zone())
         Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-    Scheduler scheduler(&tmp_zone, graph, schedule);
+    Scheduler scheduler(zone_pool, zone_scope.zone(), graph, schedule);
 
     scheduler.BuildCFG();
-    Scheduler::ComputeSpecialRPO(schedule);
+    Scheduler::ComputeSpecialRPO(zone_pool, schedule);
     scheduler.GenerateImmediateDominatorTree();
 
     scheduler.PrepareUses();
@@ -281,6 +283,9 @@ class CFGBuilder {
   }
 
   void ConnectMerge(Node* merge) {
+    // Don't connect the special merge at the end to its predecessors.
+    if (IsFinalMerge(merge)) return;
+
     BasicBlock* block = schedule_->block(merge);
     DCHECK(block != NULL);
     // For all of the merge's control inputs, add a goto at the end to the
@@ -288,10 +293,8 @@ class CFGBuilder {
     for (InputIter j = merge->inputs().begin(); j != merge->inputs().end();
          ++j) {
       BasicBlock* predecessor_block = schedule_->block(*j);
-      if ((*j)->opcode() != IrOpcode::kReturn) {
-        TraceConnect(merge, predecessor_block, block);
-        schedule_->AddGoto(predecessor_block, block);
-      }
+      TraceConnect(merge, predecessor_block, block);
+      schedule_->AddGoto(predecessor_block, block);
     }
   }
 
@@ -311,6 +314,10 @@ class CFGBuilder {
       Trace("Connect #%d:%s, B%d -> B%d\n", node->id(), node->op()->mnemonic(),
             block->id().ToInt(), succ->id().ToInt());
     }
+  }
+
+  bool IsFinalMerge(Node* node) {
+    return (node == scheduler_->graph_->end()->InputAt(0));
   }
 };
 
@@ -672,10 +679,11 @@ void Scheduler::ScheduleLate() {
   ScheduleLateNodeVisitor schedule_late_visitor(this);
 
   {
-    Zone zone(zone_->isolate());
+    ZonePool::Scope zone_scope(zone_pool_);
+    Zone* zone = zone_scope.zone();
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, &zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
+        graph_, zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
         &schedule_late_visitor);
   }
 
@@ -999,9 +1007,10 @@ static void VerifySpecialRPO(int num_loops, LoopInfo* loops,
 // 2. All loops are contiguous in the order (i.e. no intervening blocks that
 //    do not belong to the loop.)
 // Note a simple RPO traversal satisfies (1) but not (3).
-BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
-  Zone tmp_zone(schedule->zone()->isolate());
-  Zone* zone = &tmp_zone;
+BasicBlockVector* Scheduler::ComputeSpecialRPO(ZonePool* zone_pool,
+                                               Schedule* schedule) {
+  ZonePool::Scope zone_scope(zone_pool);
+  Zone* zone = zone_scope.zone();
   Trace("--- COMPUTING SPECIAL RPO ----------------------------------\n");
   // RPO should not have been computed for this schedule yet.
   CHECK_EQ(kBlockUnvisited1, schedule->start()->rpo_number());

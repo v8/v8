@@ -120,9 +120,6 @@
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
 
-  # Infinite loops of the form "for(;;) ;" don't schedule or crash in verifier.
-  'asm/infinite-loops': [PASS, NO_VARIANTS],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],

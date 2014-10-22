@@ -359,9 +359,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
   WeakCell* weak_cell = reinterpret_cast<WeakCell*>(object);
   Object* undefined = heap->undefined_value();
   // Enqueue weak cell in linked list of encountered weak collections.
-  // We can ignore weak cells with cleared values because they will always point
-  // to the undefined_value.
-  if (weak_cell->next() == undefined && weak_cell->value() != undefined) {
+  // We can ignore weak cells with cleared values because they will always
+  // contain smi zero.
+  if (weak_cell->next() == undefined && !weak_cell->cleared()) {
     weak_cell->set_next(heap->encountered_weak_cells());
     heap->set_encountered_weak_cells(weak_cell);
   }

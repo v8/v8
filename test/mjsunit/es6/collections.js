@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax --harmony-tostring
 
 
 function assertSize(expected, collection) {
@@ -300,7 +300,7 @@ assertEquals("WeakSet", WeakSet.name);
 function TestPrototype(C) {
   assertTrue(C.prototype instanceof Object);
   assertEquals({
-    value: {},
+    value: C.prototype,
     writable: false,
     enumerable: false,
     configurable: false
@@ -1423,3 +1423,12 @@ function TestMapConstructorIterableValue(ctor) {
 }
 TestMapConstructorIterableValue(Map);
 TestMapConstructorIterableValue(WeakMap);
+
+function TestCollectionToString(C) {
+  assertEquals("[object " + C.name + "]",
+      Object.prototype.toString.call(new C()));
+}
+TestCollectionToString(Map);
+TestCollectionToString(Set);
+TestCollectionToString(WeakMap);
+TestCollectionToString(WeakSet);

@@ -15,10 +15,11 @@ class CommonOperatorBuilder;
 class ControlReducer {
  public:
   // Perform branch folding and dead code elimination on the graph.
-  static void ReduceGraph(JSGraph* graph, CommonOperatorBuilder* builder);
+  static void ReduceGraph(Zone* zone, JSGraph* graph,
+                          CommonOperatorBuilder* builder);
 
   // Trim nodes in the graph that are not reachable from end.
-  static void TrimGraph(JSGraph* graph);
+  static void TrimGraph(Zone* zone, JSGraph* graph);
 };
 }
 }

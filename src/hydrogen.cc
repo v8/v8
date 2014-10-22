@@ -9,6 +9,7 @@
 #include "src/v8.h"
 
 #include "src/allocation-site-scopes.h"
+#include "src/ast-numbering.h"
 #include "src/full-codegen.h"
 #include "src/hydrogen-bce.h"
 #include "src/hydrogen-bch.h"
@@ -7033,6 +7034,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   MapHandleList possible_transitioned_maps(maps->length());
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
+    DCHECK(!map->IsStringMap());
     ElementsKind elements_kind = map->elements_kind();
     if (IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
@@ -7193,6 +7195,19 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
       if (current_map->DictionaryElementsInPrototypeChainOnly()) {
         force_generic = true;
         monomorphic = false;
+        break;
+      }
+    }
+  } else if (access_type == LOAD && !monomorphic &&
+             (types != NULL && !types->is_empty())) {
+    // Polymorphic loads have to go generic if any of the maps are strings.
+    // If some, but not all of the maps are strings, we should go generic
+    // because polymorphic access wants to key on ElementsKind and isn't
+    // compatible with strings.
+    for (int i = 0; i < types->length(); i++) {
+      Handle<Map> current_map = types->at(i);
+      if (current_map->IsStringMap()) {
+        force_generic = true;
         break;
       }
     }
@@ -7830,7 +7845,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // step, but don't transfer ownership to target_info.
   target_info.SetAstValueFactory(top_info()->ast_value_factory(), false);
   Handle<SharedFunctionInfo> target_shared(target->shared());
-  if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
+  if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info) ||
+      !AstNumbering::Renumber(target_info.function(), target_info.zone())) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();

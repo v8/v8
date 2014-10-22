@@ -1930,13 +1930,12 @@ void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
 }
 
 
-HeapObject* WeakCell::value() const {
-  return HeapObject::cast(READ_FIELD(this, kValueOffset));
-}
+Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 
 
-void WeakCell::clear(HeapObject* undefined) {
-  WRITE_FIELD(this, kValueOffset, undefined);
+void WeakCell::clear() {
+  DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT);
+  WRITE_FIELD(this, kValueOffset, Smi::FromInt(0));
 }
 
 
@@ -1944,6 +1943,9 @@ void WeakCell::initialize(HeapObject* val) {
   WRITE_FIELD(this, kValueOffset, val);
   WRITE_BARRIER(GetHeap(), this, kValueOffset, val);
 }
+
+
+bool WeakCell::cleared() const { return value() == Smi::FromInt(0); }
 
 
 Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }
@@ -4171,7 +4173,8 @@ typename Traits::ElementType FixedTypedArray<Traits>::from_double(
 
 template<> inline
 uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from_double(double value) {
-  if (value < 0) return 0;
+  // Handle NaNs and less than zero values which clamp to zero.
+  if (!(value > 0)) return 0;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(lrint(value));
 }
@@ -6685,11 +6688,6 @@ String* String::GetForwardedInternalizedString() {
   DCHECK(SlowEquals(canonical));
   DCHECK(canonical->HasHashCode());
   return canonical;
-}
-
-
-Object* JSReceiver::GetConstructor() {
-  return map()->constructor();
 }
 
 

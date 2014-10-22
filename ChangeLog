@@ -1,3 +1,10 @@
+2014-10-22: Version 3.30.16
+
+        Remove v8stdint.h, it doesn't serve a purpose anymore.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-21: Version 3.30.15
 
         Avoid the Marsaglia effect in 3D (Chromium issue 423311).

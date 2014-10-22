@@ -162,7 +162,8 @@ DEFINE_IMPLICATION(harmony, es_staging)
   V(harmony_classes, "harmony classes")                           \
   V(harmony_object_literals, "harmony object literal extensions") \
   V(harmony_regexps, "reg-exp related harmony features")          \
-  V(harmony_arrow_functions, "harmony arrow functions")
+  V(harmony_arrow_functions, "harmony arrow functions")           \
+  V(harmony_tostring, "harmony Symbol.toStringTag")
 
 #define STAGED_FEATURES(V) \
   V(harmony_numeric_literals, "harmony numeric literals (0o77, 0b11)")

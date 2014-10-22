@@ -365,6 +365,8 @@ var lastMicrotaskId = 0;
 
   %CheckIsBootstrapping();
   %AddNamedProperty(global, 'Promise', $Promise, DONT_ENUM);
+  %AddNamedProperty(
+      $Promise.prototype, symbolToStringTag, "Promise", DONT_ENUM | READ_ONLY);
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
     "accept", PromiseResolved,

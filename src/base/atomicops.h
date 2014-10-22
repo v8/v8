@@ -25,7 +25,7 @@
 #ifndef V8_BASE_ATOMICOPS_H_
 #define V8_BASE_ATOMICOPS_H_
 
-#include "include/v8stdint.h"
+#include <stdint.h>
 #include "src/base/build_config.h"
 
 #if defined(_WIN32) && defined(V8_HOST_ARCH_64_BIT)

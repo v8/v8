@@ -177,33 +177,77 @@ const char* Shell::ToCString(const v8::String::Utf8Value& value) {
 }
 
 
+ScriptCompiler::CachedData* CompileForCachedData(
+    Local<String> source, Local<Value> name,
+    ScriptCompiler::CompileOptions compile_options) {
+  int source_length = source->Length();
+  uint16_t* source_buffer = new uint16_t[source_length];
+  source->Write(source_buffer, 0, source_length);
+  int name_length = 0;
+  uint16_t* name_buffer = NULL;
+  if (name->IsString()) {
+    Local<String> name_string = name->ToString();
+    name_length = name_string->Length();
+    name_buffer = new uint16_t[name_length];
+    name_string->Write(name_buffer, 0, name_length);
+  }
+  Isolate* temp_isolate = Isolate::New();
+  ScriptCompiler::CachedData* result = NULL;
+  {
+    Isolate::Scope isolate_scope(temp_isolate);
+    HandleScope handle_scope(temp_isolate);
+    Context::Scope context_scope(Context::New(temp_isolate));
+    Local<String> source_copy = v8::String::NewFromTwoByte(
+        temp_isolate, source_buffer, v8::String::kNormalString, source_length);
+    Local<Value> name_copy;
+    if (name_buffer) {
+      name_copy = v8::String::NewFromTwoByte(
+          temp_isolate, name_buffer, v8::String::kNormalString, name_length);
+    } else {
+      name_copy = v8::Undefined(temp_isolate);
+    }
+    ScriptCompiler::Source script_source(source_copy, ScriptOrigin(name_copy));
+    ScriptCompiler::CompileUnbound(temp_isolate, &script_source,
+                                   compile_options);
+    if (script_source.GetCachedData()) {
+      int length = script_source.GetCachedData()->length;
+      uint8_t* cache = new uint8_t[length];
+      memcpy(cache, script_source.GetCachedData()->data, length);
+      result = new ScriptCompiler::CachedData(
+          cache, length, ScriptCompiler::CachedData::BufferOwned);
+    }
+  }
+  temp_isolate->Dispose();
+  delete[] source_buffer;
+  delete[] name_buffer;
+  return result;
+}
+
+
 // Compile a string within the current v8 context.
 Local<UnboundScript> Shell::CompileString(
     Isolate* isolate, Local<String> source, Local<Value> name,
-    v8::ScriptCompiler::CompileOptions compile_options) {
+    ScriptCompiler::CompileOptions compile_options) {
   ScriptOrigin origin(name);
-  ScriptCompiler::Source script_source(source, origin);
-  Local<UnboundScript> script =
-      ScriptCompiler::CompileUnbound(isolate, &script_source, compile_options);
-
-  // Was caching requested & successful? Then compile again, now with cache.
-  if (script_source.GetCachedData()) {
-    if (compile_options == ScriptCompiler::kProduceCodeCache) {
-      compile_options = ScriptCompiler::kConsumeCodeCache;
-    } else if (compile_options == ScriptCompiler::kProduceParserCache) {
-      compile_options = ScriptCompiler::kConsumeParserCache;
-    } else {
-      DCHECK(false);  // A new compile option?
-    }
-    ScriptCompiler::Source cached_source(
-        source, origin, new v8::ScriptCompiler::CachedData(
-                            script_source.GetCachedData()->data,
-                            script_source.GetCachedData()->length,
-                            v8::ScriptCompiler::CachedData::BufferNotOwned));
-    script = ScriptCompiler::CompileUnbound(isolate, &cached_source,
-                                            compile_options);
+  if (compile_options == ScriptCompiler::kNoCompileOptions) {
+    ScriptCompiler::Source script_source(source, origin);
+    return ScriptCompiler::CompileUnbound(isolate, &script_source,
+                                          compile_options);
   }
-  return script;
+
+  ScriptCompiler::CachedData* data =
+      CompileForCachedData(source, name, compile_options);
+  ScriptCompiler::Source cached_source(source, origin, data);
+  if (compile_options == ScriptCompiler::kProduceCodeCache) {
+    compile_options = ScriptCompiler::kConsumeCodeCache;
+  } else if (compile_options == ScriptCompiler::kProduceParserCache) {
+    compile_options = ScriptCompiler::kConsumeParserCache;
+  } else {
+    DCHECK(false);  // A new compile option?
+  }
+  if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
+  return ScriptCompiler::CompileUnbound(isolate, &cached_source,
+                                        compile_options);
 }
 
 

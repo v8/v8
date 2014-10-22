@@ -3409,6 +3409,37 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 }
 
 
+static bool GetPredefinedToString(i::Handle<i::String> tag,
+                                  Local<String>* result) {
+  i::Isolate* i_isolate = tag->GetIsolate();
+  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+  i::Factory* factory = i_isolate->factory();
+
+  if (i::String::Equals(tag, factory->Arguments_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Arguments]");
+  } else if (i::String::Equals(tag, factory->Array_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Array]");
+  } else if (i::String::Equals(tag, factory->Boolean_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Boolean]");
+  } else if (i::String::Equals(tag, factory->Date_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Date]");
+  } else if (i::String::Equals(tag, factory->Error_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Error]");
+  } else if (i::String::Equals(tag, factory->Function_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Function]");
+  } else if (i::String::Equals(tag, factory->Number_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~Number]");
+  } else if (i::String::Equals(tag, factory->RegExp_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~RegExp]");
+  } else if (i::String::Equals(tag, factory->String_string())) {
+    *result = v8::String::NewFromUtf8(isolate, "[object ~String]");
+  } else {
+    return false;
+  }
+  return true;
+}
+
+
 Local<String> v8::Object::ObjectProtoToString() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
@@ -3418,6 +3449,7 @@ Local<String> v8::Object::ObjectProtoToString() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
   i::Handle<i::Object> name(self->class_name(), i_isolate);
+  i::Handle<i::Object> tag;
 
   // Native implementation of Object.prototype.toString (v8natives.js):
   //   var c = %_ClassOf(this);
@@ -3432,6 +3464,27 @@ Local<String> v8::Object::ObjectProtoToString() {
                           i_isolate->factory()->Arguments_string())) {
       return v8::String::NewFromUtf8(isolate, "[object Object]");
     } else {
+      if (internal::FLAG_harmony_tostring) {
+        i::Handle<i::Symbol> toStringTag =
+            Utils::OpenHandle(*Symbol::GetToStringTag(isolate));
+        EXCEPTION_PREAMBLE(i_isolate);
+        has_pending_exception =
+            !i::Runtime::GetObjectProperty(i_isolate, self, toStringTag)
+                 .ToHandle(&tag);
+        EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::String>());
+
+        if (!tag->IsUndefined()) {
+          if (!tag->IsString())
+            return v8::String::NewFromUtf8(isolate, "[object ???]");
+          i::Handle<i::String> tag_name = i::Handle<i::String>::cast(tag);
+          if (!i::String::Equals(class_name, tag_name)) {
+            Local<String> result;
+            if (GetPredefinedToString(tag_name, &result)) return result;
+
+            class_name = tag_name;
+          }
+        }
+      }
       const char* prefix = "[object ";
       Local<String> str = Utils::ToLocal(class_name);
       const char* postfix = "]";
@@ -3771,11 +3824,6 @@ void v8::Object::TurnOnAccessCheck() {
   i::Handle<i::Map> new_map = i::Map::Copy(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   i::JSObject::MigrateToMap(obj, new_map);
-}
-
-
-bool v8::Object::IsDirty() {
-  return Utils::OpenHandle(this)->IsDirty();
 }
 
 
@@ -6247,6 +6295,11 @@ Local<Symbol> v8::Symbol::GetIterator(Isolate* isolate) {
 
 Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
   return GetWellKnownSymbol(isolate, "Symbol.unscopables");
+}
+
+
+Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
+  return GetWellKnownSymbol(isolate, "Symbol.toStringTag");
 }
 
 

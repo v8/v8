@@ -25,7 +25,8 @@ class InstructionSelector FINAL {
   // Forward declarations.
   class Features;
 
-  InstructionSelector(InstructionSequence* sequence, Schedule* schedule,
+  InstructionSelector(Zone* local_zone, Linkage* linkage,
+                      InstructionSequence* sequence, Schedule* schedule,
                       SourcePositionTable* source_positions,
                       Features features = SupportedFeatures());
 
@@ -183,19 +184,20 @@ class InstructionSelector FINAL {
 
   // ===========================================================================
 
-  Linkage* linkage() const { return sequence()->linkage(); }
   Schedule* schedule() const { return schedule_; }
+  Linkage* linkage() const { return linkage_; }
   InstructionSequence* sequence() const { return sequence_; }
   Zone* instruction_zone() const { return sequence()->zone(); }
-  Zone* zone() { return &zone_; }
+  Zone* zone() const { return zone_; }
 
   // ===========================================================================
 
-  Zone zone_;
-  InstructionSequence* sequence_;
-  SourcePositionTable* source_positions_;
+  Zone* const zone_;
+  Linkage* const linkage_;
+  InstructionSequence* const sequence_;
+  SourcePositionTable* const source_positions_;
   Features features_;
-  Schedule* schedule_;
+  Schedule* const schedule_;
   BasicBlock* current_block_;
   ZoneDeque<Instruction*> instructions_;
   BoolVector defined_;

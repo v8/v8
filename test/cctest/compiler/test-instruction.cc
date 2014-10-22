@@ -51,10 +51,11 @@ class InstructionTester : public HandleAndZoneScope {
   void allocCode() {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
-      Scheduler::ComputeSpecialRPO(&schedule);
+      ZonePool zone_pool(isolate);
+      Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
       DCHECK(schedule.rpo_order()->size() > 0);
     }
-    code = new TestInstrSeq(main_zone(), &linkage, &graph, &schedule);
+    code = new TestInstrSeq(main_zone(), &graph, &schedule);
   }
 
   Node* Int32Constant(int32_t val) {
@@ -130,7 +131,7 @@ TEST(InstructionBasic) {
   CHECK_EQ(R.graph.NodeCount(), R.code->node_count());
 
   BasicBlockVector* blocks = R.schedule.rpo_order();
-  CHECK_EQ(static_cast<int>(blocks->size()), R.code->BasicBlockCount());
+  CHECK_EQ(static_cast<int>(blocks->size()), R.code->InstructionBlockCount());
 
   int index = 0;
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end();

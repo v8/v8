@@ -838,21 +838,23 @@ typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<PointerMap*> PointerMapDeque;
 typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
+typedef IntVector NodeToVregMap;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  InstructionSequence(Zone* zone, Linkage* linkage, const Graph* graph,
-                      const Schedule* schedule);
+  static const int kNodeUnmapped = -1;
+
+  InstructionSequence(Zone* zone, const Graph* graph, const Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
 
-  int node_count() const { return node_count_; }
+  int node_count() const { return static_cast<int>(node_map_.size()); }
 
-  int BasicBlockCount() const {
+  int InstructionBlockCount() const {
     return static_cast<int>(instruction_blocks_.size());
   }
 
@@ -860,24 +862,20 @@ class InstructionSequence FINAL {
     return instruction_blocks_[rpo_number.ToSize()];
   }
 
+  int LastLoopInstructionIndex(const InstructionBlock* block) {
+    return instruction_blocks_[block->loop_end().ToSize() - 1]
+        ->last_instruction_index();
+  }
+
   const InstructionBlock* InstructionBlockAt(
       BasicBlock::RpoNumber rpo_number) const {
     return instruction_blocks_[rpo_number.ToSize()];
   }
 
-  // TODO(dcarney): move to register allocator.
-  const InstructionBlock* GetContainingLoop(
-      const InstructionBlock* block) const {
-    BasicBlock::RpoNumber index = block->loop_header();
-    if (!index.IsValid()) return NULL;
-    return instruction_blocks_[index.ToInt()];
-  }
-
   const InstructionBlock* GetInstructionBlock(int instruction_index) const;
 
   int GetVirtualRegister(const Node* node);
-  // TODO(dcarney): find a way to remove this.
-  const int* GetNodeMapForTesting() const { return node_map_; }
+  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
 
   bool IsReference(int virtual_register) const;
   bool IsDouble(int virtual_register) const;
@@ -904,9 +902,7 @@ class InstructionSequence FINAL {
     return instructions_[index];
   }
 
-  Frame* frame() { return &frame_; }
   Isolate* isolate() const { return zone()->isolate(); }
-  Linkage* linkage() const { return linkage_; }
   const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
   Zone* zone() const { return zone_; }
 
@@ -962,11 +958,9 @@ class InstructionSequence FINAL {
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
-  Zone* zone_;
-  int node_count_;
-  int* node_map_;
+  Zone* const zone_;
+  NodeToVregMap node_map_;
   InstructionBlocks instruction_blocks_;
-  Linkage* linkage_;
   ConstantMap constants_;
   ConstantDeque immediates_;
   InstructionDeque instructions_;
@@ -974,7 +968,6 @@ class InstructionSequence FINAL {
   PointerMapDeque pointer_maps_;
   VirtualRegisterSet doubles_;
   VirtualRegisterSet references_;
-  Frame frame_;
   DeoptimizationVector deoptimization_entries_;
 };
 

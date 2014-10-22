@@ -245,6 +245,7 @@ action("js2c_experimental") {
     "src/harmony-array.js",
     "src/harmony-typedarray.js",
     "src/harmony-classes.js",
+    "src/harmony-tostring.js"
   ]
 
   outputs = [
@@ -433,6 +434,8 @@ source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.h",
     "src/assert-scope.cc",
+    "src/ast-numbering.cc",
+    "src/ast-numbering.h",
     "src/ast-value-factory.cc",
     "src/ast-value-factory.h",
     "src/ast.cc",
@@ -580,6 +583,8 @@ source_set("v8_base") {
     "src/compiler/value-numbering-reducer.h",
     "src/compiler/verifier.cc",
     "src/compiler/verifier.h",
+    "src/compiler/zone-pool.cc",
+    "src/compiler/zone-pool.h",
     "src/compiler.cc",
     "src/compiler.h",
     "src/contexts.cc",

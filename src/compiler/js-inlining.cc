@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ast.h"
+#include "src/ast-numbering.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
@@ -63,6 +65,7 @@ static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
   CHECK(Parser::Parse(info));
   CHECK(Rewriter::Rewrite(info));
   CHECK(Scope::Analyze(info));
+  CHECK(AstNumbering::Renumber(info->function(), info->zone()));
   CHECK(Compiler::EnsureDeoptimizationSupport(info));
 }
 
@@ -406,7 +409,7 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
   JSGraph jsgraph(&graph, jsgraph_->common(), jsgraph_->javascript(),
                   jsgraph_->machine());
 
-  AstGraphBuilder graph_builder(&info, &jsgraph);
+  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph();
   Inlinee::UnifyReturn(&jsgraph);
 

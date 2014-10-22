@@ -6,6 +6,7 @@
 
 #include "src/compiler.h"
 
+#include "src/ast-numbering.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -746,6 +747,7 @@ static bool CompileOptimizedPrologue(CompilationInfo* info) {
   if (!Parser::Parse(info)) return false;
   if (!Rewriter::Rewrite(info)) return false;
   if (!Scope::Analyze(info)) return false;
+  if (!AstNumbering::Renumber(info->function(), info->zone())) return false;
   DCHECK(info->scope() != NULL);
   return true;
 }

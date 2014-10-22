@@ -37,7 +37,7 @@ class CTrimTester : HandleAndZoneScope {
   Node* one;
   Node* half;
 
-  void Trim() { ControlReducer::TrimGraph(&jsgraph); }
+  void Trim() { ControlReducer::TrimGraph(main_zone(), &jsgraph); }
 };
 
 

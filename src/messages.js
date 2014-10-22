@@ -223,7 +223,8 @@ function NoSideEffectToString(obj) {
     return str;
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
-  if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
+  if (IS_OBJECT(obj)
+      && %GetDataProperty(obj, "toString") === DefaultObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
       var constructorName = constructor.name;
@@ -235,7 +236,8 @@ function NoSideEffectToString(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   }
-  return %_CallFunction(obj, ObjectToString);
+
+  return %_CallFunction(obj, NoSideEffectsObjectToString);
 }
 
 // To determine whether we can safely stringify an object using ErrorToString
@@ -274,7 +276,7 @@ function ToStringCheckErrorObject(obj) {
 
 
 function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === ObjectToString) {
+  if (obj != null && IS_OBJECT(obj) && obj.toString === DefaultObjectToString) {
     var constructor = obj.constructor;
     if (typeof constructor == "function") {
       var constructorName = constructor.name;
@@ -1105,12 +1107,12 @@ function GetTypeName(receiver, requireConstructor) {
   var constructor = receiver.constructor;
   if (!constructor) {
     return requireConstructor ? null :
-        %_CallFunction(receiver, ObjectToString);
+        %_CallFunction(receiver, NoSideEffectsObjectToString);
   }
   var constructorName = constructor.name;
   if (!constructorName) {
     return requireConstructor ? null :
-        %_CallFunction(receiver, ObjectToString);
+        %_CallFunction(receiver, NoSideEffectsObjectToString);
   }
   return constructorName;
 }

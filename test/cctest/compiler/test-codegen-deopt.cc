@@ -16,6 +16,7 @@
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 
+#include "src/ast-numbering.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
@@ -48,6 +49,7 @@ class DeoptCodegenTester {
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     DCHECK(info.shared_info()->has_deoptimization_support());
@@ -65,10 +67,11 @@ class DeoptCodegenTester {
 
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(&info);
-    code = new v8::internal::compiler::InstructionSequence(
-        scope_->main_zone(), linkage, graph, schedule);
+    code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
+                                                           graph, schedule);
     SourcePositionTable source_positions(graph);
-    InstructionSelector selector(code, schedule, &source_positions);
+    InstructionSelector selector(scope_->main_zone(), linkage, code, schedule,
+                                 &source_positions);
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {
@@ -76,7 +79,8 @@ class DeoptCodegenTester {
          << *code;
     }
 
-    RegisterAllocator allocator(code);
+    Frame frame;
+    RegisterAllocator allocator(scope_->main_zone(), &frame, &info, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {
@@ -84,7 +88,7 @@ class DeoptCodegenTester {
          << *code;
     }
 
-    compiler::CodeGenerator generator(code);
+    compiler::CodeGenerator generator(&frame, linkage, code);
     result_code = generator.GenerateCode();
 
 #ifdef OBJECT_PRINT

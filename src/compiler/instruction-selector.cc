@@ -13,11 +13,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-InstructionSelector::InstructionSelector(InstructionSequence* sequence,
+InstructionSelector::InstructionSelector(Zone* local_zone, Linkage* linkage,
+                                         InstructionSequence* sequence,
                                          Schedule* schedule,
                                          SourcePositionTable* source_positions,
                                          Features features)
-    : zone_(sequence->isolate()),
+    : zone_(local_zone),
+      linkage_(linkage),
       sequence_(sequence),
       source_positions_(source_positions),
       features_(features),

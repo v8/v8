@@ -731,21 +731,6 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
 }
 
 
-bool JSObject::IsDirty() {
-  Object* cons_obj = map()->constructor();
-  if (!cons_obj->IsJSFunction())
-    return true;
-  JSFunction* fun = JSFunction::cast(cons_obj);
-  if (!fun->shared()->IsApiFunction())
-    return true;
-  // If the object is fully fast case and has the same map it was
-  // created with then no changes can have been made to it.
-  return map() != fun->initial_map()
-      || !HasFastObjectElements()
-      || !HasFastProperties();
-}
-
-
 MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
                                                    Handle<Object> object,
                                                    Handle<Object> receiver,
@@ -9829,7 +9814,7 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->wrapper()->IsUndefined()) {
     Handle<WeakCell> cell(WeakCell::cast(script->wrapper()));
-    if (!cell->value()->IsUndefined()) {
+    if (!cell->cleared()) {
       // Return a handle for the existing script wrapper from the cache.
       return handle(JSObject::cast(cell->value()));
     }

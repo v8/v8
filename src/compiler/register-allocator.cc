@@ -499,10 +499,15 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
-RegisterAllocator::RegisterAllocator(InstructionSequence* code)
-    : zone_(code->isolate()),
+RegisterAllocator::RegisterAllocator(Zone* local_zone, Frame* frame,
+                                     CompilationInfo* info,
+                                     InstructionSequence* code)
+    : zone_(local_zone),
+      zone_pool_(NULL),
+      frame_(frame),
+      info_(info),
       code_(code),
-      live_in_sets_(code->BasicBlockCount(), zone()),
+      live_in_sets_(code->InstructionBlockCount(), zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, zone()),
       fixed_live_ranges_(NULL),
       fixed_double_live_ranges_(NULL),
@@ -517,7 +522,7 @@ RegisterAllocator::RegisterAllocator(InstructionSequence* code)
 
 void RegisterAllocator::InitializeLivenessAnalysis() {
   // Initialize the live_in sets for each block to NULL.
-  int block_count = code()->BasicBlockCount();
+  int block_count = code()->InstructionBlockCount();
   live_in_sets_.Initialize(block_count, zone());
   live_in_sets_.AddBlock(NULL, block_count, zone());
 }
@@ -1091,7 +1096,9 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
 }
 
 
-bool RegisterAllocator::Allocate() {
+bool RegisterAllocator::Allocate(ZonePool* zone_pool) {
+  DCHECK_EQ(NULL, zone_pool_);
+  zone_pool_ = zone_pool;
   assigned_registers_ = new (code_zone())
       BitVector(Register::NumAllocatableRegisters(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -1107,15 +1114,55 @@ bool RegisterAllocator::Allocate() {
   PopulatePointerMaps();
   ConnectRanges();
   ResolveControlFlow();
-  code()->frame()->SetAllocatedRegisters(assigned_registers_);
-  code()->frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
+  frame()->SetAllocatedRegisters(assigned_registers_);
+  frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
   return true;
 }
 
 
+class RegisterAllocatorPhase : public CompilationPhase {
+ public:
+  RegisterAllocatorPhase(const char* name, RegisterAllocator* allocator)
+      : CompilationPhase(name, allocator->info()),
+        allocator_(allocator),
+        allocator_zone_start_allocation_size_(0),
+        stats_(NULL) {
+    if (FLAG_turbo_stats) {
+      allocator_zone_start_allocation_size_ =
+          allocator->info()->zone()->allocation_size();
+      if (allocator->zone_pool() != NULL) {
+        stats_ = new ZonePool::StatsScope(allocator->zone_pool());
+      }
+    }
+  }
+
+  ~RegisterAllocatorPhase() {
+    if (FLAG_turbo_stats) {
+      unsigned size = allocator_->info()->zone()->allocation_size() -
+                      allocator_zone_start_allocation_size_;
+      if (stats_ != NULL) {
+        size += static_cast<unsigned>(stats_->GetMaxAllocatedBytes());
+      }
+      isolate()->GetTStatistics()->SaveTiming(name(), base::TimeDelta(), size);
+    }
+    delete stats_;
+#ifdef DEBUG
+    if (allocator_ != NULL) allocator_->Verify();
+#endif
+  }
+
+ private:
+  RegisterAllocator* allocator_;
+  unsigned allocator_zone_start_allocation_size_;
+  ZonePool::StatsScope* stats_;
+
+  DISALLOW_COPY_AND_ASSIGN(RegisterAllocatorPhase);
+};
+
+
 void RegisterAllocator::MeetRegisterConstraints() {
   RegisterAllocatorPhase phase("L_Register constraints", this);
-  for (int i = 0; i < code()->BasicBlockCount(); ++i) {
+  for (int i = 0; i < code()->InstructionBlockCount(); ++i) {
     MeetRegisterConstraints(
         code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(i)));
     if (!AllocationOk()) return;
@@ -1127,7 +1174,7 @@ void RegisterAllocator::ResolvePhis() {
   RegisterAllocatorPhase phase("L_Resolve phis", this);
 
   // Process the blocks in reverse order.
-  for (int i = code()->BasicBlockCount() - 1; i >= 0; --i) {
+  for (int i = code()->InstructionBlockCount() - 1; i >= 0; --i) {
     ResolvePhis(code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(i)));
   }
 }
@@ -1248,7 +1295,8 @@ bool RegisterAllocator::CanEagerlyResolveControlFlow(
 
 void RegisterAllocator::ResolveControlFlow() {
   RegisterAllocatorPhase phase("L_Resolve control flow", this);
-  for (int block_id = 1; block_id < code()->BasicBlockCount(); ++block_id) {
+  for (int block_id = 1; block_id < code()->InstructionBlockCount();
+       ++block_id) {
     const InstructionBlock* block =
         code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(block_id));
     if (CanEagerlyResolveControlFlow(block)) continue;
@@ -1271,7 +1319,7 @@ void RegisterAllocator::BuildLiveRanges() {
   RegisterAllocatorPhase phase("L_Build live ranges", this);
   InitializeLivenessAnalysis();
   // Process the blocks in reverse order.
-  for (int block_id = code()->BasicBlockCount() - 1; block_id >= 0;
+  for (int block_id = code()->InstructionBlockCount() - 1; block_id >= 0;
        --block_id) {
     const InstructionBlock* block =
         code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(block_id));
@@ -1324,11 +1372,9 @@ void RegisterAllocator::BuildLiveRanges() {
       BitVector::Iterator iterator(live);
       LifetimePosition start = LifetimePosition::FromInstructionIndex(
           block->first_instruction_index());
-      int end_index = code()
-                          ->InstructionBlockAt(block->loop_end())
-                          ->last_instruction_index();
       LifetimePosition end =
-          LifetimePosition::FromInstructionIndex(end_index).NextInstruction();
+          LifetimePosition::FromInstructionIndex(
+              code()->LastLoopInstructionIndex(block)).NextInstruction();
       while (!iterator.Done()) {
         int operand_index = iterator.Current();
         LiveRange* range = LiveRangeFor(operand_index);
@@ -1354,7 +1400,7 @@ void RegisterAllocator::BuildLiveRanges() {
                operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("  (first use is at %d)\n", range->first_pos()->pos().Value());
-        CompilationInfo* info = code()->linkage()->info();
+        CompilationInfo* info = this->info();
         if (info->IsStub()) {
           if (info->code_stub() == NULL) {
             PrintF("\n");
@@ -1944,11 +1990,19 @@ void RegisterAllocator::AllocateBlockedReg(LiveRange* current) {
 }
 
 
+static const InstructionBlock* GetContainingLoop(
+    const InstructionSequence* sequence, const InstructionBlock* block) {
+  BasicBlock::RpoNumber index = block->loop_header();
+  if (!index.IsValid()) return NULL;
+  return sequence->InstructionBlockAt(index);
+}
+
+
 LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
     LiveRange* range, LifetimePosition pos) {
   const InstructionBlock* block = GetInstructionBlock(pos.InstructionStart());
   const InstructionBlock* loop_header =
-      block->IsLoopHeader() ? block : code()->GetContainingLoop(block);
+      block->IsLoopHeader() ? block : GetContainingLoop(code(), block);
 
   if (loop_header == NULL) return pos;
 
@@ -1969,7 +2023,7 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
     }
 
     // Try hoisting out to an outer loop.
-    loop_header = code()->GetContainingLoop(loop_header);
+    loop_header = GetContainingLoop(code(), loop_header);
   }
 
   return pos;
@@ -2086,10 +2140,10 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
   const InstructionBlock* block = end_block;
   // Find header of outermost loop.
   // TODO(titzer): fix redundancy below.
-  while (code()->GetContainingLoop(block) != NULL &&
-         code()->GetContainingLoop(block)->rpo_number().ToInt() >
+  while (GetContainingLoop(code(), block) != NULL &&
+         GetContainingLoop(code(), block)->rpo_number().ToInt() >
              start_block->rpo_number().ToInt()) {
-    block = code()->GetContainingLoop(block);
+    block = GetContainingLoop(code(), block);
   }
 
   // We did not find any suitable outer loop. Split at the latest possible
@@ -2153,7 +2207,7 @@ void RegisterAllocator::Spill(LiveRange* range) {
     if (op == NULL) {
       // Allocate a new operand referring to the spill slot.
       RegisterKind kind = range->Kind();
-      int index = code()->frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
+      int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
       if (kind == DOUBLE_REGISTERS) {
         op = DoubleStackSlotOperand::Create(index, zone());
       } else {
@@ -2195,28 +2249,6 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
   range->set_assigned_register(reg, code_zone());
 }
 
-
-RegisterAllocatorPhase::RegisterAllocatorPhase(const char* name,
-                                               RegisterAllocator* allocator)
-    : CompilationPhase(name, allocator->code()->linkage()->info()),
-      allocator_(allocator) {
-  if (FLAG_turbo_stats) {
-    allocator_zone_start_allocation_size_ =
-        allocator->zone()->allocation_size();
-  }
-}
-
-
-RegisterAllocatorPhase::~RegisterAllocatorPhase() {
-  if (FLAG_turbo_stats) {
-    unsigned size = allocator_->zone()->allocation_size() -
-                    allocator_zone_start_allocation_size_;
-    isolate()->GetTStatistics()->SaveTiming(name(), base::TimeDelta(), size);
-  }
-#ifdef DEBUG
-  if (allocator_ != NULL) allocator_->Verify();
-#endif
-}
 }
 }
 }  // namespace v8::internal::compiler

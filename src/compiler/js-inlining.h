@@ -16,8 +16,8 @@ class JSCallFunctionAccessor;
 
 class JSInliner {
  public:
-  JSInliner(CompilationInfo* info, JSGraph* jsgraph)
-      : info_(info), jsgraph_(jsgraph) {}
+  JSInliner(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph)
+      : local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
 
   void Inline();
   void TryInlineJSCall(Node* node);
@@ -25,6 +25,7 @@ class JSInliner {
 
  private:
   friend class InlinerVisitor;
+  Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
 

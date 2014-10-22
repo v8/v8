@@ -1600,6 +1600,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object_literals)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_regexps)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrow_functions)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_numeric_literals)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_tostring)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1624,6 +1625,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_classes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_literals)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_literals)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2164,6 +2166,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexps_natives[] = {NULL};
   static const char* harmony_arrow_functions_natives[] = {NULL};
   static const char* harmony_numeric_literals_natives[] = {NULL};
+  static const char* harmony_tostring_natives[] = {"native harmony-tostring.js",
+                                                   NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

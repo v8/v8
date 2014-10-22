@@ -21,16 +21,17 @@ enum VisitState { kUnvisited, kOnStack, kRevisit, kVisited };
 
 class ControlReducerImpl {
  public:
-  ControlReducerImpl(JSGraph* jsgraph, CommonOperatorBuilder* common)
-      : zone_(jsgraph->zone()->isolate()),
+  ControlReducerImpl(Zone* zone, JSGraph* jsgraph,
+                     CommonOperatorBuilder* common)
+      : zone_(zone),
         jsgraph_(jsgraph),
         common_(common),
-        state_(jsgraph->graph()->NodeCount(), kUnvisited, &zone_),
-        stack_(&zone_),
-        revisit_(&zone_),
+        state_(jsgraph->graph()->NodeCount(), kUnvisited, zone_),
+        stack_(zone_),
+        revisit_(zone_),
         dead_(NULL) {}
 
-  Zone zone_;
+  Zone* zone_;
   JSGraph* jsgraph_;
   CommonOperatorBuilder* common_;
   ZoneVector<VisitState> state_;
@@ -40,7 +41,7 @@ class ControlReducerImpl {
 
   void Trim() {
     //  Mark all nodes reachable from end.
-    NodeVector nodes(&zone_);
+    NodeVector nodes(zone_);
     state_.assign(jsgraph_->graph()->NodeCount(), kUnvisited);
     Push(jsgraph_->graph()->end());
     while (!stack_.empty()) {
@@ -104,17 +105,17 @@ class ControlReducerImpl {
   }
 };
 
-void ControlReducer::ReduceGraph(JSGraph* jsgraph,
+void ControlReducer::ReduceGraph(Zone* zone, JSGraph* jsgraph,
                                  CommonOperatorBuilder* common) {
-  ControlReducerImpl impl(jsgraph, NULL);
+  ControlReducerImpl impl(zone, jsgraph, NULL);
   // Only trim the graph for now. Control reduction can reduce non-terminating
   // loops to graphs that are unschedulable at the moment.
   impl.Trim();
 }
 
 
-void ControlReducer::TrimGraph(JSGraph* jsgraph) {
-  ControlReducerImpl impl(jsgraph, NULL);
+void ControlReducer::TrimGraph(Zone* zone, JSGraph* jsgraph) {
+  ControlReducerImpl impl(zone, jsgraph, NULL);
   impl.Trim();
 }
 }

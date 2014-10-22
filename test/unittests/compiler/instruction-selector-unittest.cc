@@ -38,10 +38,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   int initial_node_count = graph()->NodeCount();
   CompilationInfo info(test_->isolate(), test_->zone());
   Linkage linkage(&info, call_descriptor());
-  InstructionSequence sequence(test_->zone(), &linkage, graph(), schedule);
+  InstructionSequence sequence(test_->zone(), graph(), schedule);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(&sequence, schedule, &source_position_table,
-                               features);
+  InstructionSelector selector(test_->zone(), &linkage, &sequence, schedule,
+                               &source_position_table, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -51,9 +51,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   Stream s;
   // Map virtual registers.
   {
-    const int* node_map = sequence.GetNodeMapForTesting();
+    const NodeToVregMap& node_map = sequence.GetNodeMapForTesting();
     for (int i = 0; i < initial_node_count; ++i) {
-      if (node_map[i] >= 0) {
+      if (node_map[i] != InstructionSequence::kNodeUnmapped) {
         s.virtual_registers_.insert(std::make_pair(i, node_map[i]));
       }
     }

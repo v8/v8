@@ -5,7 +5,8 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-#include "include/v8stdint.h"
+#include <stddef.h>
+#include <stdint.h>
 
 #include "src/base/build_config.h"
 #include "src/base/logging.h"

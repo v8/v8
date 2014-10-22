@@ -5,7 +5,7 @@
 #ifndef V8_TESTING_GTEST_SUPPORT_H_
 #define V8_TESTING_GTEST_SUPPORT_H_
 
-#include "include/v8stdint.h"
+#include <stddef.h>
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace testing {

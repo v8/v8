@@ -1640,9 +1640,6 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static inline Maybe<PropertyAttributes>
       GetOwnElementAttribute(Handle<JSReceiver> object, uint32_t index);
 
-  // Return the constructor function (may be Heap::null_value()).
-  inline Object* GetConstructor();
-
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
   inline Object* GetIdentityHash();
@@ -1855,10 +1852,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Name> name);
-
-  // Returns true if this is an instance of an api function and has
-  // been modified since it was created.  May give false positives.
-  bool IsDirty();
 
   // Accessors for hidden properties object.
   //
@@ -9590,13 +9583,15 @@ class PropertyCell: public Cell {
 
 class WeakCell : public HeapObject {
  public:
-  inline HeapObject* value() const;
+  inline Object* value() const;
 
   // This should not be called by anyone except GC.
-  inline void clear(HeapObject* undefined);
+  inline void clear();
 
   // This should not be called by anyone except allocator.
   inline void initialize(HeapObject* value);
+
+  inline bool cleared() const;
 
   DECL_ACCESSORS(next, Object)
 

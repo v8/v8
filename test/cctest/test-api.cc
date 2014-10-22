@@ -2021,6 +2021,19 @@ void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
   SimpleAccessorSetter(Local<String>::Cast(sym->Name()), value, info);
 }
 
+void SymbolAccessorGetterReturnsDefault(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(name->IsSymbol());
+  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  if (sym->Name()->IsUndefined()) return;
+  info.GetReturnValue().Set(info.Data());
+}
+
+static void ThrowingSymbolAccessorGetter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate()->ThrowException(name));
+}
+
 void EmptyInterceptorGetter(Local<String> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
@@ -13489,6 +13502,123 @@ THREADED_TEST(ObjectProtoToString) {
   Local<Value> object = v8_compile("new Object()")->Run();
   value = object.As<v8::Object>()->ObjectProtoToString();
   CHECK(value->IsString() && value->Equals(v8_str("[object Object]")));
+}
+
+
+TEST(ObjectProtoToStringES6) {
+  // TODO(dslomov, caitp): merge into ObjectProtoToString test once shipped.
+  i::FLAG_harmony_tostring = true;
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->SetClassName(v8_str("MyClass"));
+
+  Local<String> customized_tostring = v8_str("customized toString");
+
+  // Replace Object.prototype.toString
+  CompileRun(
+      "Object.prototype.toString = function() {"
+      "  return 'customized toString';"
+      "}");
+
+  // Normal ToString call should call replaced Object.prototype.toString
+  Local<v8::Object> instance = templ->GetFunction()->NewInstance();
+  Local<String> value = instance->ToString();
+  CHECK(value->IsString() && value->Equals(customized_tostring));
+
+  // ObjectProtoToString should not call replace toString function.
+  value = instance->ObjectProtoToString();
+  CHECK(value->IsString() && value->Equals(v8_str("[object MyClass]")));
+
+  // Check global
+  value = context->Global()->ObjectProtoToString();
+  CHECK(value->IsString() && value->Equals(v8_str("[object global]")));
+
+  // Check ordinary object
+  Local<Value> object = CompileRun("new Object()");
+  value = object.As<v8::Object>()->ObjectProtoToString();
+  CHECK(value->IsString() && value->Equals(v8_str("[object Object]")));
+
+  // Check that ES6 semantics using @@toStringTag work
+  Local<v8::Symbol> toStringTag = v8::Symbol::GetToStringTag(isolate);
+
+#define TEST_TOSTRINGTAG(type, tag, expected)                \
+  do {                                                       \
+    object = CompileRun("new " #type "()");                  \
+    object.As<v8::Object>()->Set(toStringTag, v8_str(#tag)); \
+    value = object.As<v8::Object>()->ObjectProtoToString();  \
+    CHECK(value->IsString() &&                               \
+          value->Equals(v8_str("[object " #expected "]")));  \
+  } while (0)
+
+  TEST_TOSTRINGTAG(Array, Object, Object);
+  TEST_TOSTRINGTAG(Object, Arguments, ~Arguments);
+  TEST_TOSTRINGTAG(Object, Array, ~Array);
+  TEST_TOSTRINGTAG(Object, Boolean, ~Boolean);
+  TEST_TOSTRINGTAG(Object, Date, ~Date);
+  TEST_TOSTRINGTAG(Object, Error, ~Error);
+  TEST_TOSTRINGTAG(Object, Function, ~Function);
+  TEST_TOSTRINGTAG(Object, Number, ~Number);
+  TEST_TOSTRINGTAG(Object, RegExp, ~RegExp);
+  TEST_TOSTRINGTAG(Object, String, ~String);
+  TEST_TOSTRINGTAG(Object, Foo, Foo);
+
+#undef TEST_TOSTRINGTAG
+
+  // @@toStringTag getter throws
+  Local<Value> obj = v8::Object::New(isolate);
+  obj.As<v8::Object>()->SetAccessor(toStringTag, ThrowingSymbolAccessorGetter);
+  {
+    TryCatch try_catch;
+    value = obj.As<v8::Object>()->ObjectProtoToString();
+    CHECK(value.IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // @@toStringTag getter does not throw
+  obj = v8::Object::New(isolate);
+  obj.As<v8::Object>()->SetAccessor(
+      toStringTag, SymbolAccessorGetterReturnsDefault, 0, v8_str("Test"));
+  {
+    TryCatch try_catch;
+    value = obj.As<v8::Object>()->ObjectProtoToString();
+    CHECK(value->IsString() && value->Equals(v8_str("[object Test]")));
+    CHECK(!try_catch.HasCaught());
+  }
+
+  // JS @@toStringTag value
+  obj = CompileRun("obj = {}; obj[Symbol.toStringTag] = 'Test'; obj");
+  {
+    TryCatch try_catch;
+    value = obj.As<v8::Object>()->ObjectProtoToString();
+    CHECK(value->IsString() && value->Equals(v8_str("[object Test]")));
+    CHECK(!try_catch.HasCaught());
+  }
+
+  // JS @@toStringTag getter throws
+  obj = CompileRun(
+      "obj = {}; Object.defineProperty(obj, Symbol.toStringTag, {"
+      "  get: function() { throw 'Test'; }"
+      "}); obj");
+  {
+    TryCatch try_catch;
+    value = obj.As<v8::Object>()->ObjectProtoToString();
+    CHECK(value.IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // JS @@toStringTag getter does not throw
+  obj = CompileRun(
+      "obj = {}; Object.defineProperty(obj, Symbol.toStringTag, {"
+      "  get: function() { return 'Test'; }"
+      "}); obj");
+  {
+    TryCatch try_catch;
+    value = obj.As<v8::Object>()->ObjectProtoToString();
+    CHECK(value->IsString() && value->Equals(v8_str("[object Test]")));
+    CHECK(!try_catch.HasCaught());
+  }
 }
 
 
