@@ -1,4 +1,5 @@
 {
+  "name": "JSTests/Classes",
   "path": ["."],
   "main": "run.js",
   "flags": ["--harmony-classes"],

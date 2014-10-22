@@ -1,4 +1,5 @@
 {
+  "name": "JSTests/Iterators",
   "path": ["."],
   "main": "run.js",
   "run_count": 5,
