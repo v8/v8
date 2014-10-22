@@ -825,6 +825,12 @@ void MacroAssembler::Frintn(const FPRegister& fd, const FPRegister& fn) {
 }
 
 
+void MacroAssembler::Frintp(const FPRegister& fd, const FPRegister& fn) {
+  DCHECK(allow_macro_instructions_);
+  frintp(fd, fn);
+}
+
+
 void MacroAssembler::Frintz(const FPRegister& fd, const FPRegister& fn) {
   DCHECK(allow_macro_instructions_);
   frintz(fd, fn);
