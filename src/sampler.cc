@@ -374,8 +374,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
-#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
-    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#if V8_LIBC_GLIBC && !V8_GLIBC_PREREQ(2, 4)
   // Old GLibc ARM versions used a gregs[] array to access the register
   // values from mcontext_t.
   state.pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
@@ -385,8 +384,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.arm_pc);
   state.sp = reinterpret_cast<Address>(mcontext.arm_sp);
   state.fp = reinterpret_cast<Address>(mcontext.arm_fp);
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
-        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#endif  // V8_LIBC_GLIBC && !V8_GLIBC_PREREQ(2, 4)
 #elif V8_HOST_ARCH_ARM64
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.sp);

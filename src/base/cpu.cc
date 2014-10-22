@@ -7,11 +7,17 @@
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
-#if V8_OS_POSIX
-#include <unistd.h>  // sysconf()
+#if V8_OS_LINUX
+#include <linux/auxvec.h>  // AT_HWCAP
+#endif
+#if V8_GLIBC_PREREQ(2, 16)
+#include <sys/auxv.h>  // getauxval()
 #endif
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
+#endif
+#if V8_OS_POSIX
+#include <unistd.h>  // sysconf()
 #endif
 
 #include <ctype.h>
@@ -92,11 +98,12 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #define HWCAP_IDIV  (HWCAP_IDIVA | HWCAP_IDIVT)
 #define HWCAP_LPAE  (1 << 20)
 
-#define AT_HWCAP 16
-
-// Read the ELF HWCAP flags by parsing /proc/self/auxv.
 static uint32_t ReadELFHWCaps() {
   uint32_t result = 0;
+#if V8_GLIBC_PREREQ(2, 16)
+  result = static_cast<uint32_t>(getauxval(AT_HWCAP));
+#else
+  // Read the ELF HWCAP flags by parsing /proc/self/auxv.
   FILE* fp = fopen("/proc/self/auxv", "r");
   if (fp != NULL) {
     struct { uint32_t tag; uint32_t value; } entry;
@@ -112,6 +119,7 @@ static uint32_t ReadELFHWCaps() {
     }
     fclose(fp);
   }
+#endif
   return result;
 }
 
@@ -310,7 +318,7 @@ CPU::CPU() : stepping_(0),
              has_vfp3_d32_(false),
              is_fp64_mode_(false) {
   memcpy(vendor_, "Unknown", 8);
-#if defined(__pnacl__)
+#if V8_OS_NACL
 // Portable host shouldn't do feature detection.
 // TODO(jfb): Remove the hardcoded ARM simulator flags in the build, and
 // hardcode them here instead.
