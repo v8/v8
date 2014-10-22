@@ -137,6 +137,7 @@ class CommonOperatorBuilder FINAL {
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* Throw();
+  const Operator* Terminate(int effects);
   const Operator* Return();
 
   const Operator* Start(int num_formal_parameters);

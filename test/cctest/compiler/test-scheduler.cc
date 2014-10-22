@@ -1888,4 +1888,31 @@ TEST(BranchHintFalse) {
   CHECK(!schedule->block(f)->deferred());
 }
 
+
+TEST(ScheduleTerminate) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
+
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  loop->ReplaceInput(1, loop);  // self loop, NTL.
+
+  Node* effect = graph.NewNode(common.EffectPhi(1), start, loop);
+  effect->ReplaceInput(0, effect);
+
+  Node* terminate = graph.NewNode(common.Terminate(1), effect, loop);
+  Node* end = graph.NewNode(common.End(), terminate);
+
+  graph.SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(5, &graph);
+  BasicBlock* block = schedule->block(loop);
+  CHECK_NE(NULL, loop);
+  CHECK_EQ(block, schedule->block(effect));
+  CHECK_GE(block->rpo_number(), 0);
+}
+
 #endif

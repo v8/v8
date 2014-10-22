@@ -7,13 +7,14 @@
 
 // Opcodes for control operators.
 #define INNER_CONTROL_OP_LIST(V) \
-  V(Dead)                  \
-  V(Loop)                  \
-  V(Branch)                \
-  V(IfTrue)                \
-  V(IfFalse)               \
-  V(Merge)                 \
-  V(Return)                \
+  V(Dead)                        \
+  V(Loop)                        \
+  V(Branch)                      \
+  V(IfTrue)                      \
+  V(IfFalse)                     \
+  V(Merge)                       \
+  V(Return)                      \
+  V(Terminate)                   \
   V(Throw)
 
 #define CONTROL_OP_LIST(V) \

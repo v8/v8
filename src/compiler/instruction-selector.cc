@@ -457,6 +457,7 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
+    case IrOpcode::kTerminate:
       // No code needed for these graph artifacts.
       return kMachNone;
     case IrOpcode::kFinish:

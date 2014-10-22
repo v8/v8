@@ -155,6 +155,13 @@ const Operator* CommonOperatorBuilder::Loop(int controls) {
 }
 
 
+const Operator* CommonOperatorBuilder::Terminate(int effects) {
+  return new (zone()) Operator1<int>(IrOpcode::kTerminate,
+                                     Operator::kNoRead | Operator::kNoWrite, 0,
+                                     0, "Terminate", effects);
+}
+
+
 const Operator* CommonOperatorBuilder::Parameter(int index) {
   return new (zone()) Operator1<int>(IrOpcode::kParameter, Operator::kPure, 1,
                                      1, "Parameter", index);

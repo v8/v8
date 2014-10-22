@@ -104,7 +104,8 @@ inline int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
 
 inline int OperatorProperties::GetEffectInputCount(const Operator* op) {
   if (op->opcode() == IrOpcode::kEffectPhi ||
-      op->opcode() == IrOpcode::kFinish) {
+      op->opcode() == IrOpcode::kFinish ||
+      op->opcode() == IrOpcode::kTerminate) {
     return OpParameter<int>(op);
   }
   if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
@@ -154,7 +155,8 @@ inline bool OperatorProperties::HasValueOutput(const Operator* op) {
 inline bool OperatorProperties::HasEffectOutput(const Operator* op) {
   return op->opcode() == IrOpcode::kStart ||
          op->opcode() == IrOpcode::kValueEffect ||
-         (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
+         (op->opcode() != IrOpcode::kFinish &&
+          op->opcode() != IrOpcode::kTerminate && GetEffectInputCount(op) > 0);
 }
 
 inline bool OperatorProperties::HasControlOutput(const Operator* op) {

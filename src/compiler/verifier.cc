@@ -243,6 +243,12 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kTerminate:
+      // Type is empty.
+      CheckNotTyped(node);
+      CHECK_EQ(1, control_count);
+      CHECK_EQ(input_count, 1 + effect_count);
+      break;
 
     // Common operators
     // ----------------
