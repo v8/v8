@@ -1418,9 +1418,8 @@ function ArrayReduce(callback, current) {
   var i = 0;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
-      current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        i++;
+      if (i in array) {
+        current = array[i++];
         break find_initial;
       }
     }
@@ -1455,9 +1454,8 @@ function ArrayReduceRight(callback, current) {
   var i = length - 1;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
-      current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        i--;
+      if (i in array) {
+        current = array[i--];
         break find_initial;
       }
     }
