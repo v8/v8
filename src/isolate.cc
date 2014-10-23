@@ -6,6 +6,7 @@
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <iostream>  // NOLINT(readability/streams)
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -1955,12 +1956,8 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   if (FLAG_trace_turbo) {
-    // Erase the file.
-    char buffer[512];
-    Vector<char> filename(buffer, sizeof(buffer));
-    GetTurboCfgFileName(filename);
-    std::ofstream turbo_cfg_stream(filename.start(),
-                                   std::fstream::out | std::fstream::trunc);
+    // Create an empty file.
+    std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
   }
 
   // If we are deserializing, log non-function code objects and compiled
@@ -2377,12 +2374,13 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 }
 
 
-void Isolate::GetTurboCfgFileName(Vector<char> filename) {
+std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == NULL) {
-    SNPrintF(filename, "turbo-%d-%d.cfg", base::OS::GetCurrentProcessId(),
-             id());
+    std::ostringstream os;
+    os << "turbo-" << base::OS::GetCurrentProcessId() << "-" << id() << ".cfg";
+    return os.str();
   } else {
-    StrNCpy(filename, FLAG_trace_turbo_cfg_file, filename.length());
+    return FLAG_trace_turbo_cfg_file;
   }
 }
 

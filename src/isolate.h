@@ -1099,7 +1099,7 @@ class Isolate {
 
   static Isolate* NewForTesting() { return new Isolate(false); }
 
-  void GetTurboCfgFileName(Vector<char> buffer);
+  std::string GetTurboCfgFileName();
 
  private:
   explicit Isolate(bool enable_serializer);

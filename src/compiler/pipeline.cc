@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/pipeline.h"
+
+#include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
 #include "src/base/platform/elapsed-timer.h"
@@ -20,7 +23,6 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/phi-reducer.h"
-#include "src/compiler/pipeline.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
@@ -47,19 +49,11 @@ static inline bool VerifyGraphs() {
 }
 
 
-void Pipeline::PrintCompilationStart() {
-  std::ofstream turbo_cfg_stream;
-  OpenTurboCfgFile(&turbo_cfg_stream);
-  turbo_cfg_stream << AsC1VCompilation(info());
-}
-
-
-void Pipeline::OpenTurboCfgFile(std::ofstream* stream) {
-  char buffer[512];
-  Vector<char> filename(buffer, sizeof(buffer));
-  isolate()->GetTurboCfgFileName(filename);
-  stream->open(filename.start(), std::fstream::out | std::fstream::app);
-}
+struct TurboCfgFile : public std::ofstream {
+  explicit TurboCfgFile(Isolate* isolate)
+      : std::ofstream(isolate->GetTurboCfgFileName().c_str(),
+                      std::ios_base::app) {}
+};
 
 
 void Pipeline::VerifyAndPrintGraph(
@@ -105,24 +99,6 @@ void Pipeline::VerifyAndPrintGraph(
     Verifier::Run(graph,
         FLAG_turbo_types && !untyped ? Verifier::TYPED : Verifier::UNTYPED);
   }
-}
-
-
-void Pipeline::PrintScheduleAndInstructions(
-    const char* phase, const Schedule* schedule,
-    const SourcePositionTable* positions,
-    const InstructionSequence* instructions) {
-  std::ofstream turbo_cfg_stream;
-  OpenTurboCfgFile(&turbo_cfg_stream);
-  turbo_cfg_stream << AsC1V(phase, schedule, positions, instructions);
-}
-
-
-void Pipeline::PrintAllocator(const char* phase,
-                              const RegisterAllocator* allocator) {
-  std::ofstream turbo_cfg_stream;
-  OpenTurboCfgFile(&turbo_cfg_stream);
-  turbo_cfg_stream << AsC1VAllocator(phase, allocator);
 }
 
 
@@ -190,7 +166,8 @@ Handle<Code> Pipeline::GenerateCode() {
        << "Begin compiling method "
        << info()->function()->debug_name()->ToCString().get()
        << " using Turbofan" << std::endl;
-    PrintCompilationStart();
+    TurboCfgFile tcf(isolate());
+    tcf << AsC1VCompilation(info());
   }
 
   // Build the graph.
@@ -448,8 +425,8 @@ Handle<Code> Pipeline::GenerateCode(PipelineStatistics* pipeline_statistics,
     OFStream os(stdout);
     os << "----- Instruction sequence before register allocation -----\n"
        << sequence;
-    PrintScheduleAndInstructions("CodeGen", schedule, source_positions,
-                                 &sequence);
+    TurboCfgFile tcf(isolate());
+    tcf << AsC1V("CodeGen", schedule, source_positions, &sequence);
   }
 
   // Allocate registers.
@@ -468,7 +445,8 @@ Handle<Code> Pipeline::GenerateCode(PipelineStatistics* pipeline_statistics,
       return Handle<Code>::null();
     }
     if (FLAG_trace_turbo) {
-      PrintAllocator("CodeGen", &allocator);
+      TurboCfgFile tcf(isolate());
+      tcf << AsC1VAllocator("CodeGen", &allocator);
     }
   }
 
