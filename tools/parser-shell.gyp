@@ -33,29 +33,6 @@
   'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'targets': [
     {
-      'target_name': 'lexer-shell',
-      'type': 'executable',
-      'dependencies': [
-        '../tools/gyp/v8.gyp:v8',
-        '../tools/gyp/v8.gyp:v8_libplatform',
-      ],
-      'conditions': [
-        ['v8_enable_i18n_support==1', {
-          'dependencies': [
-            '<(icu_gyp_path):icui18n',
-            '<(icu_gyp_path):icuuc',
-          ],
-        }],
-      ],
-      'include_dirs+': [
-        '..',
-      ],
-      'sources': [
-        'lexer-shell.cc',
-        'shell-utils.h',
-      ],
-    },
-    {
       'target_name': 'parser-shell',
       'type': 'executable',
       'dependencies': [
