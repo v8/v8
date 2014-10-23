@@ -13138,7 +13138,7 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
       } else {
         os << Brief(k);
       }
-      os << ": " << Brief(ValueAt(i)) << "\n";
+      os << ": " << Brief(ValueAt(i)) << " " << DetailsAt(i) << "\n";
     }
   }
 }

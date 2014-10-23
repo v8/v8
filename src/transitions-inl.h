@@ -134,6 +134,12 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
+Object* TransitionArray::GetTargetValue(int transition_number) {
+  Map* map = GetTarget(transition_number);
+  return map->instance_descriptors()->GetValue(map->LastAdded());
+}
+
+
 int TransitionArray::Search(Name* name) {
   if (IsSimpleTransition()) {
     Name* key = GetKey(kSimpleTransitionIndex);

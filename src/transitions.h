@@ -48,6 +48,7 @@ class TransitionArray: public FixedArray {
   inline void SetTarget(int transition_number, Map* target);
 
   inline PropertyDetails GetTargetDetails(int transition_number);
+  inline Object* GetTargetValue(int transition_number);
 
   inline bool HasElementsTransition();
 
@@ -139,8 +140,11 @@ class TransitionArray: public FixedArray {
   static const int kTransitionSize = 2;
 
 #ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   // Print all the transitions.
-  void PrintTransitions(std::ostream& os);  // NOLINT
+  void PrintTransitions(std::ostream& os, bool print_header = true);  // NOLINT
 #endif
 
 #ifdef DEBUG

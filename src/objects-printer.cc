@@ -347,39 +347,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
   if (!map()->HasTransitionArray()) return;
-  TransitionArray* transitions = map()->transitions();
-  for (int i = 0; i < transitions->number_of_transitions(); i++) {
-    Name* key = transitions->GetKey(i);
-    os << "   ";
-    key->NamePrint(os);
-    os << ": ";
-    if (key == GetHeap()->frozen_symbol()) {
-      os << " (transition to frozen)\n";
-    } else if (key == GetHeap()->elements_transition_symbol()) {
-      os << " (transition to "
-         << ElementsKindToString(transitions->GetTarget(i)->elements_kind())
-         << ")\n";
-    } else if (key == GetHeap()->observed_symbol()) {
-      os << " (transition to Object.observe)\n";
-    } else {
-      switch (transitions->GetTargetDetails(i).type()) {
-        case FIELD: {
-          os << " (transition to field)\n";
-          break;
-        }
-        case CONSTANT:
-          os << " (transition to constant)\n";
-          break;
-        case CALLBACKS:
-          os << " (transition to callback)\n";
-          break;
-        // Values below are never in the target descriptor array.
-        case NORMAL:
-          UNREACHABLE();
-          break;
-      }
-    }
-  }
+  map()->transitions()->PrintTransitions(os, false);
 }
 
 
@@ -442,6 +410,8 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - pre-allocated property fields: "
      << pre_allocated_property_fields() << "\n";
   os << " - unused property fields: " << unused_property_fields() << "\n";
+  if (is_dictionary_map()) os << " - dictionary_map\n";
+  if (is_prototype_map()) os << " - prototype_map\n";
   if (is_hidden_prototype()) os << " - hidden_prototype\n";
   if (has_named_interceptor()) os << " - named_interceptor\n";
   if (has_indexed_interceptor()) os << " - indexed_interceptor\n";
@@ -605,10 +575,13 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
 
 
 void Name::NamePrint(std::ostream& os) {  // NOLINT
-  if (IsString())
+  if (IsString()) {
     String::cast(this)->StringPrint(os);
-  else
+  } else if (IsSymbol()) {
+    Symbol::cast(this)->name()->Print(os);
+  } else {
     os << Brief(this);
+  }
 }
 
 
@@ -1082,41 +1055,70 @@ void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void DescriptorArray::Print() {
+  OFStream os(stdout);
+  this->PrintDescriptors(os);
+  os << std::flush;
+}
+
+
 void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
-  os << "Descriptor array  " << number_of_descriptors() << "\n";
+  os << "Descriptor array " << number_of_descriptors() << "\n";
   for (int i = 0; i < number_of_descriptors(); i++) {
     Descriptor desc;
     Get(i, &desc);
-    os << " " << i << ": " << desc;
+    os << " " << i << ": " << desc << "\n";
   }
   os << "\n";
 }
 
 
-void TransitionArray::PrintTransitions(std::ostream& os) {  // NOLINT
-  os << "Transition array  %d\n", number_of_transitions();
-  for (int i = 0; i < number_of_transitions(); i++) {
-    os << " " << i << ": ";
-    GetKey(i)->NamePrint(os);
-    os << ": ";
-    switch (GetTargetDetails(i).type()) {
-      case FIELD: {
-        os << " (transition to field)\n";
-        break;
-      }
-      case CONSTANT:
-        os << " (transition to constant)\n";
-        break;
-      case CALLBACKS:
-        os << " (transition to callback)\n";
-        break;
-      // Values below are never in the target descriptor array.
-      case NORMAL:
-        UNREACHABLE();
-        break;
-    }
+void TransitionArray::Print() {
+  OFStream os(stdout);
+  this->PrintTransitions(os);
+  os << std::flush;
+}
+
+
+void TransitionArray::PrintTransitions(std::ostream& os,
+                                       bool print_header) {  // NOLINT
+  if (print_header) {
+    os << "Transition array " << number_of_transitions() << "\n";
   }
-  os << "\n";
+  for (int i = 0; i < number_of_transitions(); i++) {
+    Name* key = GetKey(i);
+    os << "   ";
+    key->NamePrint(os);
+    os << ": ";
+    if (key == GetHeap()->frozen_symbol()) {
+      os << " (transition to frozen)";
+    } else if (key == GetHeap()->elements_transition_symbol()) {
+      os << " (transition to "
+         << ElementsKindToString(GetTarget(i)->elements_kind()) << ")";
+    } else if (key == GetHeap()->observed_symbol()) {
+      os << " (transition to Object.observe)";
+    } else {
+      PropertyDetails details = GetTargetDetails(i);
+      switch (details.type()) {
+        case FIELD: {
+          os << " (transition to field)";
+          break;
+        }
+        case CONSTANT:
+          os << " (transition to constant " << Brief(GetTargetValue(i)) << ")";
+          break;
+        case CALLBACKS:
+          os << " (transition to callback " << Brief(GetTargetValue(i)) << ")";
+          break;
+        // Values below are never in the target descriptor array.
+        case NORMAL:
+          UNREACHABLE();
+          break;
+      }
+      os << ", attrs: " << details.attributes();
+    }
+    os << " -> " << Brief(GetTarget(i)) << "\n";
+  }
 }
 
 

@@ -3051,6 +3051,9 @@ class DescriptorArray: public FixedArray {
   static const int kDescriptorSize = 3;
 
 #ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);  // NOLINT
 #endif
