@@ -212,7 +212,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     for (var i = start_i; i < limit; ++i) {
       var current = array[i];
       if (!IS_UNDEFINED(current) || i in array) {
-        deleted_elements[i - start_i] = current;
+        %AddElement(deleted_elements, i - start_i, current, NONE);
       }
     }
   } else {
@@ -223,7 +223,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
         if (key >= start_i) {
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
-            deleted_elements[key - start_i] = current;
+            %AddElement(deleted_elements, key - start_i, current, NONE);
           }
         }
       }
