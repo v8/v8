@@ -1594,12 +1594,15 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   int size;
   const char* resource;
   // Find the map and size for the imaginary sequential string.
+  bool internalized = object_->IsInternalizedString();
   if (object_->IsExternalOneByteString()) {
-    map = isolate->heap()->one_byte_internalized_string_map();
+    map = internalized ? isolate->heap()->one_byte_internalized_string_map()
+                       : isolate->heap()->one_byte_string_map();
     size = SeqOneByteString::SizeFor(length);
     resource = ExternalOneByteString::cast(string)->resource()->data();
   } else {
-    map = isolate->heap()->internalized_string_map();
+    map = internalized ? isolate->heap()->internalized_string_map()
+                       : isolate->heap()->string_map();
     size = SeqTwoByteString::SizeFor(length);
     resource = reinterpret_cast<const char*>(
         ExternalTwoByteString::cast(string)->resource()->data());
@@ -1910,7 +1913,7 @@ uint32_t Serializer::AllocateLargeObject(int size) {
 
 uint32_t Serializer::Allocate(int space, int size) {
   CHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
-  DCHECK(size > 0 && size < Page::kMaxRegularHeapObjectSize);
+  DCHECK(size > 0 && size <= Page::kMaxRegularHeapObjectSize);
   uint32_t new_chunk_size = pending_chunk_[space] + size;
   uint32_t allocation;
   if (new_chunk_size > static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize)) {
@@ -2081,6 +2084,8 @@ void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
     PrintF("\n");
   }
 
+  if (heap_object->IsInternalizedString()) num_internalized_strings_++;
+
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
                               where_to_point);
@@ -2201,6 +2206,11 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
     Deserializer deserializer(&payload);
 
+    // Eagerly expand string table to avoid allocations during deserialization.
+    StringTable::EnsureCapacityForDeserialization(isolate,
+                                                  scd.NumInternalizedStrings());
+
+    // Set reservations.
     STATIC_ASSERT(NEW_SPACE == 0);
     int current_space = NEW_SPACE;
     Vector<const SerializedCodeData::Reservation> res = scd.Reservations();
@@ -2254,7 +2264,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
     Vector<const uint32_t> chunks = cs->FinalAllocationChunks(i);
     for (int j = 0; j < chunks.length(); j++) {
       DCHECK(i == LO_SPACE ||
-             chunks[j] <
+             chunks[j] <=
                  static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
       uint32_t chunk = ChunkSizeBits::encode(chunks[j]) |
                        IsLastChunkBits::encode(j == chunks.length() - 1);
@@ -2277,6 +2287,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
 
   // Set header values.
   SetHeaderValue(kCheckSumOffset, CheckSum(cs->source()));
+  SetHeaderValue(kNumInternalizedStringsOffset, cs->num_internalized_strings());
   SetHeaderValue(kReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload->length());

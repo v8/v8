@@ -14769,6 +14769,16 @@ MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
 }
 
 
+void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
+                                                   int expected) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  // We need a key instance for the virtual hash function.
+  InternalizedStringKey dummy_key(Handle<String>::null());
+  table = StringTable::EnsureCapacity(table, expected, &dummy_key);
+  isolate->factory()->set_string_table(table);
+}
+
+
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
   InternalizedStringKey key(string);

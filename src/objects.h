@@ -3446,6 +3446,8 @@ class StringTable: public HashTable<StringTable,
       uint16_t c1,
       uint16_t c2);
 
+  static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
+
   DECLARE_CAST(StringTable)
 
  private:

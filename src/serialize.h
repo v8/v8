@@ -264,7 +264,7 @@ class Deserializer: public SerializerDeserializer {
     DCHECK(space >= 0);
     DCHECK(space < kNumberOfSpaces);
     DCHECK(space == LO_SPACE ||
-           chunk < static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
+           chunk <= static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
     reservations_[space].Add({chunk, NULL, NULL});
   }
 
@@ -619,17 +619,21 @@ class CodeSerializer : public Serializer {
   static const int kSourceObjectIndex = 0;
   static const int kCodeStubsBaseIndex = 1;
 
-  String* source() {
+  String* source() const {
     DCHECK(!AllowHeapAllocation::IsAllowed());
     return source_;
   }
 
   List<uint32_t>* stub_keys() { return &stub_keys_; }
+  int num_internalized_strings() const { return num_internalized_strings_; }
 
  private:
   CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source,
                  Code* main_code)
-      : Serializer(isolate, sink), source_(source), main_code_(main_code) {
+      : Serializer(isolate, sink),
+        source_(source),
+        main_code_(main_code),
+        num_internalized_strings_(0) {
     set_root_index_wave_front(Heap::kStrongRootListLength);
     InitializeCodeAddressMap();
   }
@@ -652,6 +656,7 @@ class CodeSerializer : public Serializer {
   DisallowHeapAllocation no_gc_;
   String* source_;
   Code* main_code_;
+  int num_internalized_strings_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
@@ -693,6 +698,10 @@ class SerializedCodeData {
 
     DISALLOW_COPY_AND_ASSIGN(Reservation);
   };
+
+  int NumInternalizedStrings() const {
+    return GetHeaderValue(kNumInternalizedStringsOffset);
+  }
 
   Vector<const Reservation> Reservations() const {
     return Vector<const Reservation>(reinterpret_cast<const Reservation*>(
@@ -737,13 +746,15 @@ class SerializedCodeData {
 
   // The data header consists of int-sized entries:
   // [0] version hash
-  // [1] number of code stub keys
-  // [2] payload length
-  // [3..9] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
+  // [1] number of internalized strings
+  // [2] number of code stub keys
+  // [3] payload length
+  // [4..10] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
   static const int kCheckSumOffset = 0;
-  static const int kReservationsOffset = 1;
-  static const int kNumCodeStubKeysOffset = 2;
-  static const int kPayloadLengthOffset = 3;
+  static const int kNumInternalizedStringsOffset = 1;
+  static const int kReservationsOffset = 2;
+  static const int kNumCodeStubKeysOffset = 3;
+  static const int kPayloadLengthOffset = 4;
   static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
 
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
