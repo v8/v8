@@ -51,6 +51,7 @@ class Typer {
   Type* zeroish;
   Type* falsish;
   Type* integer;
+  Type* weakint;
   Type* number_fun0_;
   Type* number_fun1_;
   Type* number_fun2_;
@@ -67,6 +68,9 @@ class Typer {
   Type* uint32_array_fun_;
   Type* float32_array_fun_;
   Type* float64_array_fun_;
+
+  ZoneVector<Handle<Object> > weaken_min_limits_;
+  ZoneVector<Handle<Object> > weaken_max_limits_;
 };
 }
 }

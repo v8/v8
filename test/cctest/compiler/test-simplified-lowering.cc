@@ -947,24 +947,50 @@ TEST(LowerNumberCmp_to_float64) {
 
 
 TEST(LowerNumberAddSub_to_int32) {
-  TestingGraph t(Type::Signed32(), Type::Signed32());
-  t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Add,
-                                t.simplified()->NumberAdd(),
-                                t.simplified()->NumberToInt32());
-  t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Sub,
-                                t.simplified()->NumberSubtract(),
-                                t.simplified()->NumberToInt32());
+  HandleAndZoneScope scope;
+  Factory* f = scope.main_zone()->isolate()->factory();
+  Type* small_range =
+      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
+  Type* large_range =
+      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
+                          large_range};
+
+  for (size_t i = 0; i < arraysize(types); i++) {
+    for (size_t j = 0; j < arraysize(types); j++) {
+      TestingGraph t(types[i], types[j]);
+      t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Add,
+                                    t.simplified()->NumberAdd(),
+                                    t.simplified()->NumberToInt32());
+      t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Sub,
+                                    t.simplified()->NumberSubtract(),
+                                    t.simplified()->NumberToInt32());
+    }
+  }
 }
 
 
 TEST(LowerNumberAddSub_to_uint32) {
-  TestingGraph t(Type::Unsigned32(), Type::Unsigned32());
-  t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Add,
-                                t.simplified()->NumberAdd(),
-                                t.simplified()->NumberToUint32());
-  t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Sub,
-                                t.simplified()->NumberSubtract(),
-                                t.simplified()->NumberToUint32());
+  HandleAndZoneScope scope;
+  Factory* f = scope.main_zone()->isolate()->factory();
+  Type* small_range =
+      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
+  Type* large_range =
+      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
+                          large_range};
+
+  for (size_t i = 0; i < arraysize(types); i++) {
+    for (size_t j = 0; j < arraysize(types); j++) {
+      TestingGraph t(types[i], types[j]);
+      t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Add,
+                                    t.simplified()->NumberAdd(),
+                                    t.simplified()->NumberToUint32());
+      t.CheckLoweringTruncatedBinop(IrOpcode::kInt32Sub,
+                                    t.simplified()->NumberSubtract(),
+                                    t.simplified()->NumberToUint32());
+    }
+  }
 }
 
 

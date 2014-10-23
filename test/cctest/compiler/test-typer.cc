@@ -194,7 +194,7 @@ static int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 
 TEST(TypeJSAdd) {
   TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Subtract(), std::plus<double>());
+  t.TestBinaryArithOp(t.javascript_.Add(), std::plus<double>());
 }
 
 

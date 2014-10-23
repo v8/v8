@@ -787,6 +787,7 @@ class TypeImpl<Config>::RangeType : public StructuralType {
 
   static RangeHandle New(
       i::Handle<i::Object> min, i::Handle<i::Object> max, Region* region) {
+    DCHECK(IsInteger(min->Number()) && IsInteger(max->Number()));
     DCHECK(min->Number() <= max->Number());
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
