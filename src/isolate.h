@@ -40,6 +40,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
+class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
 class CpuFeatures;
@@ -383,7 +384,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, pending_microtask_count, 0)                                           \
   V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
-  V(HStatistics*, tstatistics, NULL)                                           \
+  V(CompilationStatistics*, turbo_statistics, NULL)                            \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
   V(bool, fp_stubs_generated, false)                                           \
@@ -1052,7 +1053,7 @@ class Isolate {
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
-  HStatistics* GetTStatistics();
+  CompilationStatistics* GetTurboStatistics();
   HTracer* GetHTracer();
   CodeTracer* GetCodeTracer();
 

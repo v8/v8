@@ -23,9 +23,11 @@ class ZonePoolTest : public TestWithIsolate {
     ASSERT_EQ(total, zone_pool()->GetTotalAllocatedBytes());
   }
 
-  void Expect(ZonePool::StatsScope* stats, size_t current, size_t max) {
+  void Expect(ZonePool::StatsScope* stats, size_t current, size_t max,
+              size_t total) {
     ASSERT_EQ(current, stats->GetCurrentAllocatedBytes());
     ASSERT_EQ(max, stats->GetMaxAllocatedBytes());
+    ASSERT_EQ(total, stats->GetTotalAllocatedBytes());
   }
 
   size_t Allocate(Zone* zone) {
@@ -45,7 +47,7 @@ TEST_F(ZonePoolTest, Empty) {
   ExpectForPool(0, 0, 0);
   {
     ZonePool::StatsScope stats(zone_pool());
-    Expect(&stats, 0, 0);
+    Expect(&stats, 0, 0, 0);
   }
   ExpectForPool(0, 0, 0);
   {
@@ -77,7 +79,7 @@ TEST_F(ZonePoolTest, MultipleZonesWithDeletion) {
     before_deletion += Allocate(scopes[i]->zone());  // Add some stuff.
   }
 
-  Expect(&stats, before_deletion, before_deletion);
+  Expect(&stats, before_deletion, before_deletion, before_deletion);
   ExpectForPool(before_stats + before_deletion, before_stats + before_deletion,
                 before_stats + before_deletion);
 
@@ -87,7 +89,7 @@ TEST_F(ZonePoolTest, MultipleZonesWithDeletion) {
     scopes[i] = new ZonePool::Scope(zone_pool());
   }
 
-  Expect(&stats, 0, before_deletion);
+  Expect(&stats, 0, before_deletion, before_deletion);
   ExpectForPool(0, before_stats + before_deletion,
                 before_stats + before_deletion);
 
@@ -96,7 +98,8 @@ TEST_F(ZonePoolTest, MultipleZonesWithDeletion) {
     after_deletion += Allocate(scopes[i]->zone());  // Add some stuff.
   }
 
-  Expect(&stats, after_deletion, std::max(after_deletion, before_deletion));
+  Expect(&stats, after_deletion, std::max(after_deletion, before_deletion),
+         before_deletion + after_deletion);
   ExpectForPool(after_deletion,
                 std::max(after_deletion, before_stats + before_deletion),
                 before_stats + before_deletion + after_deletion);
@@ -106,7 +109,8 @@ TEST_F(ZonePoolTest, MultipleZonesWithDeletion) {
     delete scopes[i];
   }
 
-  Expect(&stats, 0, std::max(after_deletion, before_deletion));
+  Expect(&stats, 0, std::max(after_deletion, before_deletion),
+         before_deletion + after_deletion);
   ExpectForPool(0, std::max(after_deletion, before_stats + before_deletion),
                 before_stats + before_deletion + after_deletion);
 }
@@ -136,19 +140,20 @@ TEST_F(ZonePoolTest, SimpleAllocationLoop) {
           total_allocated += bytes;
           max_loop_allocation =
               std::max(max_loop_allocation, outer_allocated + allocated);
-          Expect(&inner_stats, allocated, allocated);
-          Expect(&outer_stats, outer_allocated + allocated,
-                 max_loop_allocation);
+          Expect(&inner_stats, allocated, allocated, allocated);
+          Expect(&outer_stats, outer_allocated + allocated, max_loop_allocation,
+                 total_allocated);
           ExpectForPool(outer_allocated + allocated, max_loop_allocation,
                         total_allocated);
         }
       }
-      Expect(&inner_stats, 0, allocated);
-      Expect(&outer_stats, outer_allocated, max_loop_allocation);
+      Expect(&inner_stats, 0, allocated, allocated);
+      Expect(&outer_stats, outer_allocated, max_loop_allocation,
+             total_allocated);
       ExpectForPool(outer_allocated, max_loop_allocation, total_allocated);
     }
   }
-  Expect(&outer_stats, 0, max_loop_allocation);
+  Expect(&outer_stats, 0, max_loop_allocation, total_allocated);
   ExpectForPool(0, max_loop_allocation, total_allocated);
 }
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <fstream>  // NOLINT(readability/streams)
+#include <iostream>  // NOLINT(readability/streams)
 
 #include "src/v8.h"
 
@@ -16,6 +17,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
+#include "src/compilation-statistics.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
@@ -1606,8 +1608,10 @@ void Isolate::Deinit() {
     heap_.mark_compact_collector()->EnsureSweepingCompleted();
   }
 
-  if (FLAG_turbo_stats) GetTStatistics()->Print("TurboFan");
-  if (FLAG_hydrogen_stats) GetHStatistics()->Print("Hydrogen");
+  if (turbo_statistics() != NULL) {
+    std::cout << *turbo_statistics() << std::endl;
+  }
+  if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2119,9 +2123,10 @@ HStatistics* Isolate::GetHStatistics() {
 }
 
 
-HStatistics* Isolate::GetTStatistics() {
-  if (tstatistics() == NULL) set_tstatistics(new HStatistics());
-  return tstatistics();
+CompilationStatistics* Isolate::GetTurboStatistics() {
+  if (turbo_statistics() == NULL)
+    set_turbo_statistics(new CompilationStatistics());
+  return turbo_statistics();
 }
 
 

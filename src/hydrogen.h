@@ -2760,7 +2760,7 @@ class HStatistics FINAL: public Malloced {
         source_size_(0) { }
 
   void Initialize(CompilationInfo* info);
-  void Print(const char* stats_name);
+  void Print();
   void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
 
   void IncrementFullCodeGen(base::TimeDelta full_code_gen) {

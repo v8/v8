@@ -12594,15 +12594,14 @@ void HStatistics::Initialize(CompilationInfo* info) {
 }
 
 
-void HStatistics::Print(const char* stats_name) {
+void HStatistics::Print() {
   PrintF(
       "\n"
       "----------------------------------------"
       "----------------------------------------\n"
-      "--- %s timing results:\n"
+      "--- Hydrogen timing results:\n"
       "----------------------------------------"
-      "----------------------------------------\n",
-      stats_name);
+      "----------------------------------------\n");
   base::TimeDelta sum;
   for (int i = 0; i < times_.length(); ++i) {
     sum += times_[i];

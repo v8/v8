@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/register-allocator.h"
-
 #include "src/compiler/linkage.h"
-#include "src/hydrogen.h"
+#include "src/compiler/pipeline-statistics.h"
+#include "src/compiler/register-allocator.h"
 #include "src/string-stream.h"
 
 namespace v8 {
@@ -503,7 +502,6 @@ RegisterAllocator::RegisterAllocator(Zone* local_zone, Frame* frame,
                                      CompilationInfo* info,
                                      InstructionSequence* code)
     : zone_(local_zone),
-      zone_pool_(NULL),
       frame_(frame),
       info_(info),
       code_(code),
@@ -1096,72 +1094,53 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
 }
 
 
-bool RegisterAllocator::Allocate(ZonePool* zone_pool) {
-  DCHECK_EQ(NULL, zone_pool_);
-  zone_pool_ = zone_pool;
+bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
   assigned_registers_ = new (code_zone())
       BitVector(Register::NumAllocatableRegisters(), code_zone());
   assigned_double_registers_ = new (code_zone())
       BitVector(DoubleRegister::NumAllocatableAliasedRegisters(), code_zone());
-  MeetRegisterConstraints();
+  {
+    PhaseScope phase_scope(stats, "meet register constraints");
+    MeetRegisterConstraints();
+  }
   if (!AllocationOk()) return false;
-  ResolvePhis();
-  BuildLiveRanges();
-  AllocateGeneralRegisters();
+  {
+    PhaseScope phase_scope(stats, "resolve phis");
+    ResolvePhis();
+  }
+  {
+    PhaseScope phase_scope(stats, "build live ranges");
+    BuildLiveRanges();
+  }
+  {
+    PhaseScope phase_scope(stats, "allocate general registers");
+    AllocateGeneralRegisters();
+  }
   if (!AllocationOk()) return false;
-  AllocateDoubleRegisters();
+  {
+    PhaseScope phase_scope(stats, "allocate double registers");
+    AllocateDoubleRegisters();
+  }
   if (!AllocationOk()) return false;
-  PopulatePointerMaps();
-  ConnectRanges();
-  ResolveControlFlow();
+  {
+    PhaseScope phase_scope(stats, "populate pointer maps");
+    PopulatePointerMaps();
+  }
+  {
+    PhaseScope phase_scope(stats, "connect ranges");
+    ConnectRanges();
+  }
+  {
+    PhaseScope phase_scope(stats, "resolve control flow");
+    ResolveControlFlow();
+  }
   frame()->SetAllocatedRegisters(assigned_registers_);
   frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
   return true;
 }
 
 
-class RegisterAllocatorPhase : public CompilationPhase {
- public:
-  RegisterAllocatorPhase(const char* name, RegisterAllocator* allocator)
-      : CompilationPhase(name, allocator->info()),
-        allocator_(allocator),
-        allocator_zone_start_allocation_size_(0),
-        stats_(NULL) {
-    if (FLAG_turbo_stats) {
-      allocator_zone_start_allocation_size_ =
-          allocator->info()->zone()->allocation_size();
-      if (allocator->zone_pool() != NULL) {
-        stats_ = new ZonePool::StatsScope(allocator->zone_pool());
-      }
-    }
-  }
-
-  ~RegisterAllocatorPhase() {
-    if (FLAG_turbo_stats) {
-      unsigned size = allocator_->info()->zone()->allocation_size() -
-                      allocator_zone_start_allocation_size_;
-      if (stats_ != NULL) {
-        size += static_cast<unsigned>(stats_->GetMaxAllocatedBytes());
-      }
-      isolate()->GetTStatistics()->SaveTiming(name(), base::TimeDelta(), size);
-    }
-    delete stats_;
-#ifdef DEBUG
-    if (allocator_ != NULL) allocator_->Verify();
-#endif
-  }
-
- private:
-  RegisterAllocator* allocator_;
-  unsigned allocator_zone_start_allocation_size_;
-  ZonePool::StatsScope* stats_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterAllocatorPhase);
-};
-
-
 void RegisterAllocator::MeetRegisterConstraints() {
-  RegisterAllocatorPhase phase("L_Register constraints", this);
   for (int i = 0; i < code()->InstructionBlockCount(); ++i) {
     MeetRegisterConstraints(
         code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(i)));
@@ -1171,8 +1150,6 @@ void RegisterAllocator::MeetRegisterConstraints() {
 
 
 void RegisterAllocator::ResolvePhis() {
-  RegisterAllocatorPhase phase("L_Resolve phis", this);
-
   // Process the blocks in reverse order.
   for (int i = code()->InstructionBlockCount() - 1; i >= 0; --i) {
     ResolvePhis(code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(i)));
@@ -1250,7 +1227,6 @@ const InstructionBlock* RegisterAllocator::GetInstructionBlock(
 
 
 void RegisterAllocator::ConnectRanges() {
-  RegisterAllocatorPhase phase("L_Connect ranges", this);
   for (int i = 0; i < live_ranges()->length(); ++i) {
     LiveRange* first_range = live_ranges()->at(i);
     if (first_range == NULL || first_range->parent() != NULL) continue;
@@ -1294,7 +1270,6 @@ bool RegisterAllocator::CanEagerlyResolveControlFlow(
 
 
 void RegisterAllocator::ResolveControlFlow() {
-  RegisterAllocatorPhase phase("L_Resolve control flow", this);
   for (int block_id = 1; block_id < code()->InstructionBlockCount();
        ++block_id) {
     const InstructionBlock* block =
@@ -1316,7 +1291,6 @@ void RegisterAllocator::ResolveControlFlow() {
 
 
 void RegisterAllocator::BuildLiveRanges() {
-  RegisterAllocatorPhase phase("L_Build live ranges", this);
   InitializeLivenessAnalysis();
   // Process the blocks in reverse order.
   for (int block_id = code()->InstructionBlockCount() - 1; block_id >= 0;
@@ -1457,8 +1431,6 @@ bool RegisterAllocator::SafePointsAreInOrder() const {
 
 
 void RegisterAllocator::PopulatePointerMaps() {
-  RegisterAllocatorPhase phase("L_Populate pointer maps", this);
-
   DCHECK(SafePointsAreInOrder());
 
   // Iterate over all safe point positions and record a pointer
@@ -1541,7 +1513,6 @@ void RegisterAllocator::PopulatePointerMaps() {
 
 
 void RegisterAllocator::AllocateGeneralRegisters() {
-  RegisterAllocatorPhase phase("L_Allocate general registers", this);
   num_registers_ = Register::NumAllocatableRegisters();
   mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
@@ -1549,7 +1520,6 @@ void RegisterAllocator::AllocateGeneralRegisters() {
 
 
 void RegisterAllocator::AllocateDoubleRegisters() {
-  RegisterAllocatorPhase phase("L_Allocate double registers", this);
   num_registers_ = DoubleRegister::NumAllocatableAliasedRegisters();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();

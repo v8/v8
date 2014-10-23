@@ -22,6 +22,7 @@ namespace compiler {
 class Graph;
 class InstructionSequence;
 class Linkage;
+class PipelineStatistics;
 class RegisterAllocator;
 class Schedule;
 class SourcePositionTable;
@@ -61,7 +62,8 @@ class Pipeline {
   void PrintAllocator(const char* phase, const RegisterAllocator* allocator);
   void VerifyAndPrintGraph(Graph* graph, const char* phase,
                            bool untyped = false);
-  Handle<Code> GenerateCode(ZonePool* zone_pool, Linkage* linkage, Graph* graph,
+  Handle<Code> GenerateCode(PipelineStatistics* pipeline_statistics,
+                            ZonePool* zone_pool, Linkage* linkage, Graph* graph,
                             Schedule* schedule,
                             SourcePositionTable* source_positions);
 };

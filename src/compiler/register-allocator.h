@@ -23,6 +23,8 @@ class PointerMap;
 
 namespace compiler {
 
+class PipelineStatistics;
+
 enum RegisterKind {
   UNALLOCATED_REGISTERS,
   GENERAL_REGISTERS,
@@ -331,8 +333,7 @@ class RegisterAllocator BASE_EMBEDDED {
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
-  // TODO(dcarney): fix compilation phase stats to not require this.
-  bool Allocate(ZonePool* zone_pool = NULL);
+  bool Allocate(PipelineStatistics* stats = NULL);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
@@ -344,7 +345,6 @@ class RegisterAllocator BASE_EMBEDDED {
 
   CompilationInfo* info() const { return info_; }
   inline InstructionSequence* code() const { return code_; }
-  ZonePool* zone_pool() const { return zone_pool_; }
 
   // This zone is for datastructures only needed during register allocation.
   inline Zone* zone() const { return zone_; }
@@ -501,8 +501,6 @@ class RegisterAllocator BASE_EMBEDDED {
   Frame* frame() const { return frame_; }
 
   Zone* const zone_;
-  // TODO(dcarney): remove this.
-  ZonePool* zone_pool_;
   Frame* const frame_;
   CompilationInfo* const info_;
   InstructionSequence* const code_;

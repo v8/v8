@@ -9,7 +9,9 @@ namespace internal {
 namespace compiler {
 
 ZonePool::StatsScope::StatsScope(ZonePool* zone_pool)
-    : zone_pool_(zone_pool), max_allocated_bytes_(0) {
+    : zone_pool_(zone_pool),
+      total_allocated_bytes_at_start_(zone_pool->GetTotalAllocatedBytes()),
+      max_allocated_bytes_(0) {
   zone_pool_->stats_.push_back(this);
   for (auto zone : zone_pool_->used_) {
     size_t size = static_cast<size_t>(zone->allocation_size());
@@ -43,6 +45,11 @@ size_t ZonePool::StatsScope::GetCurrentAllocatedBytes() {
     }
   }
   return total;
+}
+
+
+size_t ZonePool::StatsScope::GetTotalAllocatedBytes() {
+  return zone_pool_->GetTotalAllocatedBytes() - total_allocated_bytes_at_start_;
 }
 
 

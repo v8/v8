@@ -44,6 +44,7 @@ class ZonePool FINAL {
 
     size_t GetMaxAllocatedBytes();
     size_t GetCurrentAllocatedBytes();
+    size_t GetTotalAllocatedBytes();
 
    private:
     friend class ZonePool;
@@ -53,6 +54,7 @@ class ZonePool FINAL {
 
     ZonePool* const zone_pool_;
     InitialValues initial_values_;
+    size_t total_allocated_bytes_at_start_;
     size_t max_allocated_bytes_;
 
     DISALLOW_COPY_AND_ASSIGN(StatsScope);
