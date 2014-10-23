@@ -566,7 +566,8 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
       uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length)) {
+      if (array->byte_length()->ToUint32(&byte_length) &&
+          byte_length <= static_cast<uint32_t>(kMaxInt)) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
@@ -603,7 +604,8 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
       uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length)) {
+      if (array->byte_length()->ToUint32(&byte_length) &&
+          byte_length <= static_cast<uint32_t>(kMaxInt)) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
