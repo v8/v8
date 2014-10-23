@@ -1490,7 +1490,6 @@ Isolate::Isolate(bool enable_serializer)
       unicode_cache_(NULL),
       runtime_zone_(this),
       inner_pointer_to_code_cache_(NULL),
-      write_iterator_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
@@ -1724,8 +1723,6 @@ Isolate::~Isolate() {
   bootstrapper_ = NULL;
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = NULL;
-  delete write_iterator_;
-  write_iterator_ = NULL;
 
   delete thread_manager_;
   thread_manager_ = NULL;
@@ -1851,7 +1848,6 @@ bool Isolate::Init(Deserializer* des) {
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
-  write_iterator_ = new ConsStringIteratorOp();
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);

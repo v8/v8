@@ -9341,26 +9341,13 @@ class FlatStringReader : public Relocatable {
 };
 
 
-// A ConsStringOp that returns null.
-// Useful when the operation to apply on a ConsString
-// requires an expensive data structure.
-class ConsStringNullOp {
- public:
-  inline ConsStringNullOp() {}
-  static inline String* Operate(String*, unsigned*, int32_t*, unsigned*);
- private:
-  DISALLOW_COPY_AND_ASSIGN(ConsStringNullOp);
-};
-
-
 // This maintains an off-stack representation of the stack frames required
 // to traverse a ConsString, allowing an entirely iterative and restartable
 // traversal of the entire string
-class ConsStringIteratorOp {
+class ConsStringIterator {
  public:
-  inline ConsStringIteratorOp() {}
-  inline explicit ConsStringIteratorOp(ConsString* cons_string,
-                                       int offset = 0) {
+  inline ConsStringIterator() {}
+  inline explicit ConsStringIterator(ConsString* cons_string, int offset = 0) {
     Reset(cons_string, offset);
   }
   inline void Reset(ConsString* cons_string, int offset = 0) {
@@ -9400,14 +9387,13 @@ class ConsStringIteratorOp {
   int depth_;
   int maximum_depth_;
   int consumed_;
-  DISALLOW_COPY_AND_ASSIGN(ConsStringIteratorOp);
+  DISALLOW_COPY_AND_ASSIGN(ConsStringIterator);
 };
 
 
 class StringCharacterStream {
  public:
   inline StringCharacterStream(String* string,
-                               ConsStringIteratorOp* op,
                                int offset = 0);
   inline uint16_t GetNext();
   inline bool HasMore();
@@ -9416,13 +9402,13 @@ class StringCharacterStream {
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
  private:
+  ConsStringIterator iter_;
   bool is_one_byte_;
   union {
     const uint8_t* buffer8_;
     const uint16_t* buffer16_;
   };
   const uint8_t* end_;
-  ConsStringIteratorOp* op_;
   DISALLOW_COPY_AND_ASSIGN(StringCharacterStream);
 };
 

@@ -236,8 +236,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
   DCHECK(args.length() == 1);
 
   CONVERT_ARG_CHECKED(String, string, 0);
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(string, &op);
+  StringCharacterStream stream(string);
   while (stream.HasMore()) {
     uint16_t character = stream.GetNext();
     PrintF("%c", character);

@@ -357,10 +357,10 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
 
 void AccumulateStatsWithOperator(
     ConsString* cons_string, ConsStringStats* stats) {
-  ConsStringIteratorOp op(cons_string);
+  ConsStringIterator iter(cons_string);
   String* string;
   int offset;
-  while (NULL != (string = op.Next(&offset))) {
+  while (NULL != (string = iter.Next(&offset))) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
@@ -524,13 +524,10 @@ static Handle<String> ConstructBalanced(
 }
 
 
-static ConsStringIteratorOp cons_string_iterator_op_1;
-static ConsStringIteratorOp cons_string_iterator_op_2;
-
 static void Traverse(Handle<String> s1, Handle<String> s2) {
   int i = 0;
-  StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
-  StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
+  StringCharacterStream character_stream_1(*s1);
+  StringCharacterStream character_stream_2(*s2);
   while (character_stream_1.HasMore()) {
     CHECK(character_stream_2.HasMore());
     uint16_t c = character_stream_1.GetNext();
@@ -546,8 +543,8 @@ static void Traverse(Handle<String> s1, Handle<String> s2) {
 
 static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
   int i = 0;
-  StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
-  StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
+  StringCharacterStream character_stream_1(*s1);
+  StringCharacterStream character_stream_2(*s2);
   while (character_stream_1.HasMore() && i < chars) {
     CHECK(character_stream_2.HasMore());
     uint16_t c = character_stream_1.GetNext();
@@ -616,10 +613,8 @@ static void VerifyCharacterStream(
     if (offset < 0) offset = 0;
     // Want to test the offset == length case.
     if (offset > length) offset = length;
-    StringCharacterStream flat_stream(
-        flat_string, &cons_string_iterator_op_1, offset);
-    StringCharacterStream cons_stream(
-        cons_string, &cons_string_iterator_op_2, offset);
+    StringCharacterStream flat_stream(flat_string, offset);
+    StringCharacterStream cons_stream(cons_string, offset);
     for (int i = offset; i < length; i++) {
       uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());

@@ -3509,9 +3509,7 @@ int HGraph::TraceInlinedFunction(
         os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
            << ") id{" << info()->optimization_id() << "," << id << "} ---\n";
         {
-          ConsStringIteratorOp op;
           StringCharacterStream stream(String::cast(script->source()),
-                                       &op,
                                        shared->start_position());
           // fun->end_position() points to the last character in the stream. We
           // need to compensate by adding one to calculate the length.
