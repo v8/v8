@@ -77,7 +77,8 @@ class RepresentationSelector {
 
     Factory* f = zone->isolate()->factory();
     safe_int_additive_range_ =
-        Type::Range(f->NewNumber(-pow(2, 52)), f->NewNumber(pow(2, 52)), zone);
+        Type::Range(f->NewNumber(-std::pow(2.0, 52.0)),
+                    f->NewNumber(std::pow(2.0, 52.0)), zone);
   }
 
   void Run(SimplifiedLowering* lowering) {
