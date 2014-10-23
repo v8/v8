@@ -667,7 +667,7 @@ class StartupSerializer : public Serializer {
   }
 
  private:
-  int root_index_wave_front_;
+  intptr_t root_index_wave_front_;
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
