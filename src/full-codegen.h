@@ -609,8 +609,6 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitLoadHomeObject(SuperReference* expr);
 
-  void EmitLoadSuperConstructor(SuperReference* expr);
-
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
