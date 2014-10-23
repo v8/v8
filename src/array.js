@@ -234,6 +234,8 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
 // This function implements the optimized splice implementation that can use
 // special array operations to handle sparse arrays in a sensible fashion.
 function SmartMove(array, start_i, del_count, len, num_additional_args) {
+  // Bail out if no moving is necessary.
+  if (num_additional_args === del_count) return;
   // Move data to new array.
   var new_array = new InternalArray(len - del_count + num_additional_args);
   var indices = %GetArrayKeys(array, len);
