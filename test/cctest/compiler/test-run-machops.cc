@@ -556,6 +556,142 @@ TEST(RunInt32AddP) {
 }
 
 
+TEST(RunInt32AddAndWord32EqualP) {
+  {
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Parameter(0),
+                        m.Word32Equal(m.Parameter(1), m.Parameter(2))));
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>(bit_cast<uint32_t>(*i) + (*j == *k));
+          CHECK_EQ(expected, m.Call(*i, *j, *k));
+        }
+      }
+    }
+  }
+  {
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Word32Equal(m.Parameter(0), m.Parameter(1)),
+                        m.Parameter(2)));
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>((*i == *j) + bit_cast<uint32_t>(*k));
+          CHECK_EQ(expected, m.Call(*i, *j, *k));
+        }
+      }
+    }
+  }
+}
+
+
+TEST(RunInt32AddAndWord32EqualImm) {
+  {
+    FOR_INT32_INPUTS(i) {
+      RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+      m.Return(m.Int32Add(m.Int32Constant(*i),
+                          m.Word32Equal(m.Parameter(0), m.Parameter(1))));
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>(bit_cast<uint32_t>(*i) + (*j == *k));
+          CHECK_EQ(expected, m.Call(*j, *k));
+        }
+      }
+    }
+  }
+  {
+    FOR_INT32_INPUTS(i) {
+      RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+      m.Return(m.Int32Add(m.Word32Equal(m.Int32Constant(*i), m.Parameter(0)),
+                          m.Parameter(1)));
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>((*i == *j) + bit_cast<uint32_t>(*k));
+          CHECK_EQ(expected, m.Call(*j, *k));
+        }
+      }
+    }
+  }
+}
+
+
+TEST(RunInt32AddAndWord32NotEqualP) {
+  {
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Parameter(0),
+                        m.Word32NotEqual(m.Parameter(1), m.Parameter(2))));
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>(bit_cast<uint32_t>(*i) + (*j != *k));
+          CHECK_EQ(expected, m.Call(*i, *j, *k));
+        }
+      }
+    }
+  }
+  {
+    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Word32NotEqual(m.Parameter(0), m.Parameter(1)),
+                        m.Parameter(2)));
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>((*i != *j) + bit_cast<uint32_t>(*k));
+          CHECK_EQ(expected, m.Call(*i, *j, *k));
+        }
+      }
+    }
+  }
+}
+
+
+TEST(RunInt32AddAndWord32NotEqualImm) {
+  {
+    FOR_INT32_INPUTS(i) {
+      RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+      m.Return(m.Int32Add(m.Int32Constant(*i),
+                          m.Word32NotEqual(m.Parameter(0), m.Parameter(1))));
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>(bit_cast<uint32_t>(*i) + (*j != *k));
+          CHECK_EQ(expected, m.Call(*j, *k));
+        }
+      }
+    }
+  }
+  {
+    FOR_INT32_INPUTS(i) {
+      RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+      m.Return(m.Int32Add(m.Word32NotEqual(m.Int32Constant(*i), m.Parameter(0)),
+                          m.Parameter(1)));
+      FOR_INT32_INPUTS(j) {
+        FOR_INT32_INPUTS(k) {
+          // Use uint32_t because signed overflow is UB in C.
+          int32_t const expected =
+              bit_cast<int32_t>((*i != *j) + bit_cast<uint32_t>(*k));
+          CHECK_EQ(expected, m.Call(*j, *k));
+        }
+      }
+    }
+  }
+}
+
+
 TEST(RunInt32AddAndWord32SarP) {
   {
     RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32, kMachUint32);

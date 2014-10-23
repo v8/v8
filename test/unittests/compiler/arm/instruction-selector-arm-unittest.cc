@@ -1372,6 +1372,113 @@ TEST_F(InstructionSelectorTest, TruncateFloat64ToFloat32WithParameter) {
 
 
 // -----------------------------------------------------------------------------
+// Comparisons.
+
+
+namespace {
+
+struct Comparison {
+  Constructor constructor;
+  const char* constructor_name;
+  FlagsCondition flags_condition;
+  FlagsCondition negated_flags_condition;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const Comparison& cmp) {
+  return os << cmp.constructor_name;
+}
+
+
+const Comparison kComparisons[] = {
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kSignedLessThan,
+     kSignedGreaterThanOrEqual},
+    {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
+     kSignedLessThanOrEqual, kSignedGreaterThan},
+    {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kUnsignedLessThan,
+     kUnsignedGreaterThanOrEqual},
+    {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
+     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+
+}  // namespace
+
+
+typedef InstructionSelectorTestWithParam<Comparison>
+    InstructionSelectorComparisonTest;
+
+
+TEST_P(InstructionSelectorComparisonTest, Parameters) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const r = (m.*cmp.constructor)(p0, p1);
+  m.Return(r);
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->OutputAt(0)));
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.flags_condition, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorComparisonTest, Word32EqualWithZero) {
+  {
+    const Comparison& cmp = GetParam();
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r =
+        m.Word32Equal((m.*cmp.constructor)(p0, p1), m.Int32Constant(0));
+    m.Return(r);
+    Stream const s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->OutputAt(0)));
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(cmp.negated_flags_condition, s[0]->flags_condition());
+  }
+  {
+    const Comparison& cmp = GetParam();
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r =
+        m.Word32Equal(m.Int32Constant(0), (m.*cmp.constructor)(p0, p1));
+    m.Return(r);
+    Stream const s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->OutputAt(0)));
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(cmp.negated_flags_condition, s[0]->flags_condition());
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorComparisonTest,
+                        ::testing::ValuesIn(kComparisons));
+
+
+// -----------------------------------------------------------------------------
 // Miscellaneous.
 
 

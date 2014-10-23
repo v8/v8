@@ -456,8 +456,8 @@ class RepresentationSelector {
         if (lower()) {
           MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
           if (input & kRepBit) {
-            // BooleanNot(x: kRepBit) => WordEqual(x, #0)
-            node->set_op(lowering->machine()->WordEqual());
+            // BooleanNot(x: kRepBit) => Word32Equal(x, #0)
+            node->set_op(lowering->machine()->Word32Equal());
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
           } else {
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)

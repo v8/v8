@@ -791,7 +791,7 @@ TEST(LowerBooleanNot_bit_bit) {
   Node* use = t.Branch(inv);
   t.Lower();
   Node* cmp = use->InputAt(0);
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cmp->opcode());
+  CHECK_EQ(t.machine()->Word32Equal()->opcode(), cmp->opcode());
   CHECK(b == cmp->InputAt(0) || b == cmp->InputAt(1));
   Node* f = t.jsgraph.Int32Constant(0);
   CHECK(f == cmp->InputAt(0) || f == cmp->InputAt(1));
@@ -808,7 +808,7 @@ TEST(LowerBooleanNot_bit_tagged) {
   t.Lower();
   CHECK_EQ(IrOpcode::kChangeBitToBool, use->InputAt(0)->opcode());
   Node* cmp = use->InputAt(0)->InputAt(0);
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cmp->opcode());
+  CHECK_EQ(t.machine()->Word32Equal()->opcode(), cmp->opcode());
   CHECK(b == cmp->InputAt(0) || b == cmp->InputAt(1));
   Node* f = t.jsgraph.Int32Constant(0);
   CHECK(f == cmp->InputAt(0) || f == cmp->InputAt(1));

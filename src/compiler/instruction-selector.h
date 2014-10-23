@@ -85,19 +85,9 @@ class InstructionSelector FINAL {
     return Features(CpuFeatures::SupportedFeatures());
   }
 
-  // Checks if {node} is currently live.
-  bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
-
- private:
-  friend class OperandGenerator;
-
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================
-
-  // Checks if {block} will appear directly after {current_block_} when
-  // assembling code, in which case, a fall-through can be used.
-  bool IsNextInAssemblyOrder(const BasicBlock* block) const;
 
   // Used in pattern matching during code generation.
   // Check if {node} can be covered while generating code for the current
@@ -109,12 +99,22 @@ class InstructionSelector FINAL {
   // generated for it.
   bool IsDefined(Node* node) const;
 
-  // Inform the instruction selection that {node} was just defined.
-  void MarkAsDefined(Node* node);
-
   // Checks if {node} has any uses, and therefore code has to be generated for
   // it.
   bool IsUsed(Node* node) const;
+
+  // Checks if {node} is currently live.
+  bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
+
+ private:
+  friend class OperandGenerator;
+
+  // Checks if {block} will appear directly after {current_block_} when
+  // assembling code, in which case, a fall-through can be used.
+  bool IsNextInAssemblyOrder(const BasicBlock* block) const;
+
+  // Inform the instruction selection that {node} was just defined.
+  void MarkAsDefined(Node* node);
 
   // Inform the instruction selection that {node} has at least one use and we
   // will need to generate code for it.

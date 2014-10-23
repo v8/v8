@@ -1044,7 +1044,7 @@ Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
 
 
 Bounds Typer::Visitor::TypeBooleanToNumber(Node* node) {
-  return Bounds(Type::None(zone()), Type::Number(zone()));
+  return Bounds(Type::None(zone()), typer_->zero_or_one);
 }
 
 
