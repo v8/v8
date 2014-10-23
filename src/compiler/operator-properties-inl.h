@@ -104,7 +104,8 @@ inline int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
 
 inline int OperatorProperties::GetEffectInputCount(const Operator* op) {
   if (op->opcode() == IrOpcode::kEffectPhi ||
-      op->opcode() == IrOpcode::kFinish) {
+      op->opcode() == IrOpcode::kFinish ||
+      op->opcode() == IrOpcode::kTerminate) {
     return OpParameter<int>(op);
   }
   if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
@@ -123,6 +124,8 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
+      // Branch operator is special
+      if (op->opcode() == IrOpcode::kBranch) return 1;
       // Control operators are Operator1<int>.
       return OpParameter<int>(op);
     default:
@@ -152,7 +155,8 @@ inline bool OperatorProperties::HasValueOutput(const Operator* op) {
 inline bool OperatorProperties::HasEffectOutput(const Operator* op) {
   return op->opcode() == IrOpcode::kStart ||
          op->opcode() == IrOpcode::kValueEffect ||
-         (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
+         (op->opcode() != IrOpcode::kFinish &&
+          op->opcode() != IrOpcode::kTerminate && GetEffectInputCount(op) > 0);
 }
 
 inline bool OperatorProperties::HasControlOutput(const Operator* op) {

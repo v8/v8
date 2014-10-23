@@ -278,6 +278,20 @@ class CFGBuilder {
     TraceConnect(branch, branch_block, successor_blocks[0]);
     TraceConnect(branch, branch_block, successor_blocks[1]);
 
+    // Consider branch hints.
+    // TODO(turbofan): Propagate the deferred flag to all blocks dominated by
+    // this IfTrue/IfFalse later.
+    switch (BranchHintOf(branch->op())) {
+      case BranchHint::kNone:
+        break;
+      case BranchHint::kTrue:
+        successor_blocks[1]->set_deferred(true);
+        break;
+      case BranchHint::kFalse:
+        successor_blocks[0]->set_deferred(true);
+        break;
+    }
+
     schedule_->AddBranch(branch_block, branch, successor_blocks[0],
                          successor_blocks[1]);
   }
@@ -521,26 +535,41 @@ void Scheduler::ScheduleEarly() {
 // Phase 4: Schedule nodes late.
 
 
-class ScheduleLateNodeVisitor : public NullNodeVisitor {
+class ScheduleLateNodeVisitor {
  public:
-  explicit ScheduleLateNodeVisitor(Scheduler* scheduler)
-      : scheduler_(scheduler), schedule_(scheduler_->schedule_) {}
+  ScheduleLateNodeVisitor(Zone* zone, Scheduler* scheduler)
+      : scheduler_(scheduler), schedule_(scheduler_->schedule_), queue_(zone) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
-    // Don't schedule nodes that are already scheduled.
-    if (schedule_->IsScheduled(node)) {
-      return GenericGraphVisit::CONTINUE;
+  // Run the schedule late algorithm on a set of fixed root nodes.
+  void Run(NodeVector* roots) {
+    for (NodeVectorIter i = roots->begin(); i != roots->end(); ++i) {
+      ProcessQueue(*i);
     }
+  }
+
+ private:
+  void ProcessQueue(Node* root) {
+    for (InputIter i = root->inputs().begin(); i != root->inputs().end(); ++i) {
+      if (scheduler_->GetData(*i)->unscheduled_count_ != 0) continue;
+      queue_.push(*i);
+      while (!queue_.empty()) {
+        VisitNode(queue_.front());
+        queue_.pop();
+      }
+    }
+  }
+
+  // Visits one node from the queue of schedulable nodes and determines its
+  // schedule late position. Also hoists nodes out of loops to find a more
+  // optimal scheduling position.
+  void VisitNode(Node* node) {
+    DCHECK(scheduler_->GetData(node)->unscheduled_count_ == 0);
+
+    // Don't schedule nodes that are already scheduled.
+    if (schedule_->IsScheduled(node)) return;
 
     Scheduler::SchedulerData* data = scheduler_->GetData(node);
     DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
-
-    // If all the uses of a node have been scheduled, then the node itself can
-    // be scheduled.
-    bool eligible = data->unscheduled_count_ == 0;
-    Trace("Testing for schedule eligibility for #%d:%s = %s\n", node->id(),
-          node->op()->mnemonic(), eligible ? "true" : "false");
-    if (!eligible) return GenericGraphVisit::DEFER;
 
     // Determine the dominating block for all of the uses of this node. It is
     // the latest block that this node can be scheduled in.
@@ -586,11 +615,8 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     }
 
     ScheduleNode(block, node);
-
-    return GenericGraphVisit::CONTINUE;
   }
 
- private:
   BasicBlock* GetBlockForUse(Node::Edge edge) {
     Node* use = edge.from();
     IrOpcode::Value opcode = use->opcode();
@@ -619,7 +645,8 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     scheduler_->scheduled_nodes_[block->id().ToSize()].push_back(node);
 
     // Reduce the use count of the node's inputs to potentially make them
-    // schedulable.
+    // schedulable. If all the uses of a node have been scheduled, then the node
+    // itself can be scheduled.
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
       Scheduler::SchedulerData* data = scheduler_->GetData(*i);
       DCHECK(data->unscheduled_count_ > 0);
@@ -628,10 +655,10 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
         Trace("  Use count for #%d:%s (used by #%d:%s)-- = %d\n", (*i)->id(),
               (*i)->op()->mnemonic(), i.edge().from()->id(),
               i.edge().from()->op()->mnemonic(), data->unscheduled_count_);
-        if (data->unscheduled_count_ == 0) {
-          Trace("  newly eligible #%d:%s\n", (*i)->id(),
-                (*i)->op()->mnemonic());
-        }
+      }
+      if (data->unscheduled_count_ == 0) {
+        Trace("  newly eligible #%d:%s\n", (*i)->id(), (*i)->op()->mnemonic());
+        queue_.push(*i);
       }
     }
 
@@ -649,10 +676,11 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
                 "%d\n",
                 (*i)->id(), (*i)->op()->mnemonic(), node->id(),
                 node->op()->mnemonic(), data->unscheduled_count_);
-            if (data->unscheduled_count_ == 0) {
-              Trace("  newly eligible #%d:%s\n", (*i)->id(),
-                    (*i)->op()->mnemonic());
-            }
+          }
+          if (data->unscheduled_count_ == 0) {
+            Trace("  newly eligible #%d:%s\n", (*i)->id(),
+                  (*i)->op()->mnemonic());
+            queue_.push(*i);
           }
         }
       }
@@ -661,6 +689,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
 
   Scheduler* scheduler_;
   Schedule* schedule_;
+  ZoneQueue<Node*> queue_;
 };
 
 
@@ -676,15 +705,10 @@ void Scheduler::ScheduleLate() {
   }
 
   // Schedule: Places nodes in dominator block of all their uses.
-  ScheduleLateNodeVisitor schedule_late_visitor(this);
-
   {
     ZonePool::Scope zone_scope(zone_pool_);
-    Zone* zone = zone_scope.zone();
-    GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
-                             NodeInputIterationTraits<Node> >(
-        graph_, zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
-        &schedule_late_visitor);
+    ScheduleLateNodeVisitor schedule_late_visitor(zone_scope.zone(), this);
+    schedule_late_visitor.Run(&schedule_root_nodes_);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.
@@ -1193,6 +1217,18 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(ZonePool* zone_pool,
       Trace("B%d has loop header B%d, (depth == %d)\n", current->id().ToInt(),
             current->loop_header()->id().ToInt(), current->loop_depth());
     }
+  }
+
+  // Compute the assembly order (non-deferred code first, deferred code
+  // afterwards).
+  int32_t number = 0;
+  for (auto block : *final_order) {
+    if (block->deferred()) continue;
+    block->set_ao_number(number++);
+  }
+  for (auto block : *final_order) {
+    if (!block->deferred()) continue;
+    block->set_ao_number(number++);
   }
 
 #if DEBUG

@@ -1686,7 +1686,7 @@ int Shell::Main(int argc, char* argv[]) {
   }
 #endif
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-  vTune::InitializeVtuneForV8(create_params);
+  create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 #ifndef V8_SHARED
   create_params.constraints.ConfigureDefaults(

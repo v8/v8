@@ -795,7 +795,10 @@ class InstructionBlock FINAL : public ZoneObject {
   int32_t code_end() const { return code_end_; }
   void set_code_end(int32_t end) { code_end_ = end; }
 
+  bool IsDeferred() const { return deferred_; }
+
   BasicBlock::Id id() const { return id_; }
+  BasicBlock::RpoNumber ao_number() const { return ao_number_; }
   BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
   BasicBlock::RpoNumber loop_header() const { return loop_header_; }
   BasicBlock::RpoNumber loop_end() const {
@@ -822,12 +825,14 @@ class InstructionBlock FINAL : public ZoneObject {
   Predecessors predecessors_;
   PhiInstructions phis_;
   BasicBlock::Id id_;
+  BasicBlock::RpoNumber ao_number_;  // Assembly order number.
   // TODO(dcarney): probably dont't need this.
   BasicBlock::RpoNumber rpo_number_;
   BasicBlock::RpoNumber loop_header_;
   BasicBlock::RpoNumber loop_end_;
-  int32_t code_start_;  // start index of arch-specific code.
-  int32_t code_end_;    // end index of arch-specific code.
+  int32_t code_start_;   // start index of arch-specific code.
+  int32_t code_end_;     // end index of arch-specific code.
+  const bool deferred_;  // Block contains deferred code.
 };
 
 typedef ZoneDeque<Constant> ConstantDeque;
@@ -853,6 +858,10 @@ class InstructionSequence FINAL {
   int VirtualRegisterCount() const { return next_virtual_register_; }
 
   int node_count() const { return static_cast<int>(node_map_.size()); }
+
+  const InstructionBlocks& instruction_blocks() const {
+    return instruction_blocks_;
+  }
 
   int InstructionBlockCount() const {
     return static_cast<int>(instruction_blocks_.size());

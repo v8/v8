@@ -13,7 +13,9 @@ namespace internal {
 namespace compiler {
 
 BasicBlock::BasicBlock(Zone* zone, Id id)
-    : rpo_number_(-1),
+    : ao_number_(-1),
+      rpo_number_(-1),
+      deferred_(false),
       dominator_(NULL),
       loop_header_(NULL),
       loop_depth_(0),
@@ -194,10 +196,6 @@ void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
   SetControlInput(block, branch);
-  if (branch->opcode() == IrOpcode::kBranch) {
-    // TODO(titzer): require a Branch node here. (sloppy tests).
-    SetBlockForNode(block, branch);
-  }
 }
 
 
@@ -205,13 +203,7 @@ void Schedule::AddReturn(BasicBlock* block, Node* input) {
   DCHECK(block->control() == BasicBlock::kNone);
   block->set_control(BasicBlock::kReturn);
   SetControlInput(block, input);
-  if (block != end()) {
-    AddSuccessor(block, end());
-  }
-  if (input->opcode() == IrOpcode::kReturn) {
-    // TODO(titzer): require a Return node here. (sloppy tests).
-    SetBlockForNode(block, input);
-  }
+  if (block != end()) AddSuccessor(block, end());
 }
 
 
@@ -250,6 +242,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlockVectorIter i = rpo->begin(); i != rpo->end(); ++i) {
     BasicBlock* block = *i;
     os << "--- BLOCK B" << block->id();
+    if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;
     for (BasicBlock::Predecessors::iterator j = block->predecessors_begin();

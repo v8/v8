@@ -942,7 +942,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
           const Operator* op =
-              javascript()->CallRuntime(Runtime::kSetPrototype, 2);
+              javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
           NewNode(op, receiver, value);
         }
         break;

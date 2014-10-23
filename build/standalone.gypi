@@ -136,6 +136,14 @@
     'configurations': {
       'DebugBaseCommon': {
         'cflags': [ '-g', '-O0' ],
+        'conditions': [
+          ['(v8_target_arch=="ia32" or v8_target_arch=="x87") and \
+            OS=="linux"', {
+            'defines': [
+              '_GLIBCXX_DEBUG'
+            ],
+          }],
+        ],
       },
       'Optdebug': {
         'inherit_from': [ 'DebugBaseCommon', 'DebugBase2' ],

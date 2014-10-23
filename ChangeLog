@@ -1,3 +1,15 @@
+2014-10-23: Version 3.30.17
+
+        ARM64: Fix stack manipulation (Chromium issue 425585).
+
+        Speed up creation of Objects whose prototype has dictionary elements
+        (Chromium issue 422754).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-22: Version 3.30.16
 
         Remove v8stdint.h, it doesn't serve a purpose anymore.

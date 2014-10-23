@@ -157,7 +157,6 @@ DEFINE_IMPLICATION(harmony, es_staging)
 #define HARMONY_FEATURES(V)                                       \
   V(harmony_scoping, "harmony block scoping")                     \
   V(harmony_modules, "harmony modules (implies block scoping)")   \
-  V(harmony_strings, "harmony strings")                           \
   V(harmony_arrays, "harmony arrays")                             \
   V(harmony_classes, "harmony classes")                           \
   V(harmony_object_literals, "harmony object literal extensions") \
@@ -165,7 +164,8 @@ DEFINE_IMPLICATION(harmony, es_staging)
   V(harmony_arrow_functions, "harmony arrow functions")           \
   V(harmony_tostring, "harmony Symbol.toStringTag")
 
-#define STAGED_FEATURES(V) \
+#define STAGED_FEATURES(V)              \
+  V(harmony_strings, "harmony strings") \
   V(harmony_numeric_literals, "harmony numeric literals (0o77, 0b11)")
 
 #define SHIPPING_FEATURES(V)
@@ -509,6 +509,8 @@ DEFINE_BOOL(always_inline_smi_code, false,
 DEFINE_INT(min_semi_space_size, 0,
            "min size of a semi-space (in MBytes), the new space consists of two"
            "semi-spaces")
+DEFINE_INT(target_semi_space_size, 0,
+           "target size of a semi-space (in MBytes) before triggering a GC")
 DEFINE_INT(max_semi_space_size, 0,
            "max size of a semi-space (in MBytes), the new space consists of two"
            "semi-spaces")

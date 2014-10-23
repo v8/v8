@@ -1832,4 +1832,87 @@ TEST(PhisPushedDownToDifferentBranches) {
   ComputeAndVerifySchedule(24, &graph);
 }
 
+
+TEST(BranchHintTrue) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* tv = graph.NewNode(common.Int32Constant(6));
+  Node* fv = graph.NewNode(common.Int32Constant(7));
+  Node* br = graph.NewNode(common.Branch(BranchHint::kTrue), p0, start);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+  Node* m = graph.NewNode(common.Merge(2), t, f);
+  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 2), tv, fv, m);
+  Node* ret = graph.NewNode(common.Return(), phi, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(13, &graph);
+  // Make sure the false block is marked as deferred.
+  CHECK(!schedule->block(t)->deferred());
+  CHECK(schedule->block(f)->deferred());
+}
+
+
+TEST(BranchHintFalse) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* tv = graph.NewNode(common.Int32Constant(6));
+  Node* fv = graph.NewNode(common.Int32Constant(7));
+  Node* br = graph.NewNode(common.Branch(BranchHint::kFalse), p0, start);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+  Node* m = graph.NewNode(common.Merge(2), t, f);
+  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 2), tv, fv, m);
+  Node* ret = graph.NewNode(common.Return(), phi, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(13, &graph);
+  // Make sure the true block is marked as deferred.
+  CHECK(schedule->block(t)->deferred());
+  CHECK(!schedule->block(f)->deferred());
+}
+
+
+TEST(ScheduleTerminate) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
+
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  loop->ReplaceInput(1, loop);  // self loop, NTL.
+
+  Node* effect = graph.NewNode(common.EffectPhi(1), start, loop);
+  effect->ReplaceInput(0, effect);
+
+  Node* terminate = graph.NewNode(common.Terminate(1), effect, loop);
+  Node* end = graph.NewNode(common.End(), terminate);
+
+  graph.SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(5, &graph);
+  BasicBlock* block = schedule->block(loop);
+  CHECK_NE(NULL, loop);
+  CHECK_EQ(block, schedule->block(effect));
+  CHECK_GE(block->rpo_number(), 0);
+}
+
 #endif

@@ -23,6 +23,16 @@ struct CommonOperatorBuilderImpl;
 class Operator;
 
 
+// Prediction hint for branches.
+enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
+
+inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
+
+std::ostream& operator<<(std::ostream&, BranchHint);
+
+BranchHint BranchHintOf(const Operator* const);
+
+
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
 class OutputFrameStateCombine {
@@ -123,10 +133,11 @@ class CommonOperatorBuilder FINAL {
 
   const Operator* Dead();
   const Operator* End();
-  const Operator* Branch();
+  const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* Throw();
+  const Operator* Terminate(int effects);
   const Operator* Return();
 
   const Operator* Start(int num_formal_parameters);

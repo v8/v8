@@ -120,7 +120,6 @@
 //  V8_LIBC_BIONIC  - Bionic libc
 //  V8_LIBC_BSD     - BSD libc derivate
 //  V8_LIBC_GLIBC   - GNU C library
-//  V8_LIBC_UCLIBC  - uClibc
 //
 // Note that testing for libc must be done using #if not #ifdef. For example,
 // to test for the GNU C library, use:
@@ -133,8 +132,6 @@
 #elif defined(__BIONIC__)
 # define V8_LIBC_BIONIC 1
 # define V8_LIBC_BSD 1
-#elif defined(__UCLIBC__)
-# define V8_LIBC_UCLIBC 1
 #elif defined(__GLIBC__) || defined(__GNU_LIBRARY__)
 # define V8_LIBC_GLIBC 1
 #else

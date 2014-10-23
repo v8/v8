@@ -56,11 +56,19 @@ HarmonyToStringExtendSymbolPrototype();
 function HarmonyToStringExtendObjectPrototype() {
   %CheckIsBootstrapping();
 
+  // Can't use InstallFunctions() because will fail in Debug mode.
+  // Emulate InstallFunctions() here.
+  %FunctionSetName(ObjectToStringHarmony, "toString");
+  %FunctionRemovePrototype(ObjectToStringHarmony);
+  %SetNativeFlag(ObjectToStringHarmony);
+
   // Set up the non-enumerable functions on the Array prototype object.
   var desc = ToPropertyDescriptor({
     value: ObjectToStringHarmony
   });
   DefineOwnProperty($Object.prototype, "toString", desc, false);
+
+  %ToFastProperties($Object.prototype);
 }
 
 HarmonyToStringExtendObjectPrototype();

@@ -193,7 +193,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   }
 
   return *isolate->factory()->NewNumber(
-      StringToDouble(isolate->unicode_cache(), *subject, flags));
+      StringToDouble(isolate->unicode_cache(), subject, flags));
 }
 
 
@@ -229,8 +229,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  subject = String::Flatten(subject);
-  double value = StringToDouble(isolate->unicode_cache(), *subject,
+  double value = StringToDouble(isolate->unicode_cache(), subject,
                                 ALLOW_TRAILING_JUNK, base::OS::nan_value());
 
   return *isolate->factory()->NewNumber(value);

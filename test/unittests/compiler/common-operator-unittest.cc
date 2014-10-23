@@ -47,7 +47,6 @@ const SharedOperator kSharedOperators[] = {
   }
     SHARED(Dead, Operator::kFoldable, 0, 0, 0, 0, 1),
     SHARED(End, Operator::kFoldable, 0, 0, 1, 0, 0),
-    SHARED(Branch, Operator::kFoldable, 1, 0, 1, 0, 2),
     SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 1),
     SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 1),
     SHARED(Throw, Operator::kFoldable, 1, 0, 1, 0, 1),
@@ -158,6 +157,24 @@ const double kDoubleValues[] = {-std::numeric_limits<double>::infinity(),
                                 std::numeric_limits<double>::signaling_NaN()};
 
 }  // namespace
+
+
+TEST_F(CommonOperatorTest, Branch) {
+  static const BranchHint kHints[] = {BranchHint::kNone, BranchHint::kTrue,
+                                      BranchHint::kFalse};
+  TRACED_FOREACH(BranchHint, hint, kHints) {
+    const Operator* const op = common()->Branch(hint);
+    EXPECT_EQ(IrOpcode::kBranch, op->opcode());
+    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetEffectInputCount(op));
+    EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetValueOutputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
+    EXPECT_EQ(2, OperatorProperties::GetControlOutputCount(op));
+  }
+}
 
 
 TEST_F(CommonOperatorTest, Float32Constant) {

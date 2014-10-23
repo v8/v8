@@ -1195,6 +1195,8 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   // this chunk must be a power of two and it must be aligned to its size.
   int initial_semispace_capacity = heap()->InitialSemiSpaceSize();
 
+  int target_semispace_capacity = heap()->TargetSemiSpaceSize();
+
   size_t size = 2 * reserved_semispace_capacity;
   Address base = heap()->isolate()->memory_allocator()->ReserveAlignedMemory(
       size, size, &reservation_);
@@ -1223,9 +1225,10 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   DCHECK(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
 
   to_space_.SetUp(chunk_base_, initial_semispace_capacity,
-                  maximum_semispace_capacity);
+                  target_semispace_capacity, maximum_semispace_capacity);
   from_space_.SetUp(chunk_base_ + reserved_semispace_capacity,
-                    initial_semispace_capacity, maximum_semispace_capacity);
+                    initial_semispace_capacity, target_semispace_capacity,
+                    maximum_semispace_capacity);
   if (!to_space_.Commit()) {
     return false;
   }
@@ -1285,11 +1288,41 @@ void NewSpace::Grow() {
       if (!to_space_.ShrinkTo(from_space_.TotalCapacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
-        V8::FatalProcessOutOfMemory("Failed to grow new space.");
+        CHECK(false);
       }
     }
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+}
+
+
+bool NewSpace::GrowOnePage() {
+  if (TotalCapacity() == MaximumCapacity()) return false;
+  int new_capacity = static_cast<int>(TotalCapacity()) + Page::kPageSize;
+  if (to_space_.GrowTo(new_capacity)) {
+    // Only grow from space if we managed to grow to-space and the from space
+    // is actually committed.
+    if (from_space_.is_committed()) {
+      if (!from_space_.GrowTo(new_capacity)) {
+        // If we managed to grow to-space but couldn't grow from-space,
+        // attempt to shrink to-space.
+        if (!to_space_.ShrinkTo(from_space_.TotalCapacity())) {
+          // We are in an inconsistent state because we could not
+          // commit/uncommit memory from new space.
+          CHECK(false);
+        }
+        return false;
+      }
+    } else {
+      if (!from_space_.SetTotalCapacity(new_capacity)) {
+        // Can't really happen, but better safe than sorry.
+        CHECK(false);
+      }
+    }
+    DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+    return true;
+  }
+  return false;
 }
 
 
@@ -1306,7 +1339,7 @@ void NewSpace::Shrink() {
       if (!to_space_.GrowTo(from_space_.TotalCapacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
-        V8::FatalProcessOutOfMemory("Failed to shrink new space.");
+        CHECK(false);
       }
     }
   }
@@ -1367,8 +1400,19 @@ bool NewSpace::AddFreshPage() {
     return false;
   }
   if (!to_space_.AdvancePage()) {
-    // Failed to get a new page in to-space.
-    return false;
+    // Check if we reached the target capacity yet. If not, try to commit a page
+    // and continue.
+    if ((to_space_.TotalCapacity() < to_space_.TargetCapacity()) &&
+        GrowOnePage()) {
+      if (!to_space_.AdvancePage()) {
+        // It doesn't make sense that we managed to commit a page, but can't use
+        // it.
+        CHECK(false);
+      }
+    } else {
+      // Failed to get a new page in to-space.
+      return false;
+    }
   }
 
   // Clear remainder of current page.
@@ -1472,7 +1516,7 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-void SemiSpace::SetUp(Address start, int initial_capacity,
+void SemiSpace::SetUp(Address start, int initial_capacity, int target_capacity,
                       int maximum_capacity) {
   // Creates a space in the young generation. The constructor does not
   // allocate memory from the OS.  A SemiSpace is given a contiguous chunk of
@@ -1481,8 +1525,11 @@ void SemiSpace::SetUp(Address start, int initial_capacity,
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
   DCHECK(maximum_capacity >= Page::kPageSize);
+  DCHECK(initial_capacity <= target_capacity);
+  DCHECK(target_capacity <= maximum_capacity);
   initial_total_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   total_capacity_ = initial_capacity;
+  target_capacity_ = RoundDown(target_capacity, Page::kPageSize);
   maximum_total_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
   maximum_committed_ = 0;
   committed_ = false;
@@ -1608,6 +1655,17 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   SetCapacity(new_capacity);
 
   return true;
+}
+
+
+bool SemiSpace::SetTotalCapacity(int new_capacity) {
+  CHECK(!is_committed());
+  if (new_capacity >= initial_total_capacity_ &&
+      new_capacity <= maximum_total_capacity_) {
+    total_capacity_ = new_capacity;
+    return true;
+  }
+  return false;
 }
 
 

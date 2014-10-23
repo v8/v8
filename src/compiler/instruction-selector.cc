@@ -147,7 +147,7 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
-  return current_block_->GetRpoNumber().IsNext(block->GetRpoNumber());
+  return current_block_->GetAoNumber().IsNext(block->GetAoNumber());
 }
 
 
@@ -457,6 +457,7 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
+    case IrOpcode::kTerminate:
       // No code needed for these graph artifacts.
       return kMachNone;
     case IrOpcode::kFinish:

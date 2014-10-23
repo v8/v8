@@ -30,6 +30,26 @@ class ControlOperator : public Operator1<int> {
 }  // namespace
 
 
+std::ostream& operator<<(std::ostream& os, BranchHint hint) {
+  switch (hint) {
+    case BranchHint::kNone:
+      return os << "None";
+    case BranchHint::kTrue:
+      return os << "True";
+    case BranchHint::kFalse:
+      return os << "False";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+BranchHint BranchHintOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kBranch, op->opcode());
+  return OpParameter<BranchHint>(op);
+}
+
+
 size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_combine(sc.kind_, sc.parameter_);
 }
@@ -74,7 +94,6 @@ std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
 #define SHARED_OP_LIST(V)               \
   V(Dead, Operator::kFoldable, 0, 0)    \
   V(End, Operator::kFoldable, 0, 1)     \
-  V(Branch, Operator::kFoldable, 1, 1)  \
   V(IfTrue, Operator::kFoldable, 0, 1)  \
   V(IfFalse, Operator::kFoldable, 0, 1) \
   V(Throw, Operator::kFoldable, 1, 1)   \
@@ -110,6 +129,12 @@ SHARED_OP_LIST(SHARED)
 #undef SHARED
 
 
+const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
+  return new (zone()) Operator1<BranchHint>(
+      IrOpcode::kBranch, Operator::kFoldable, 1, 0, "Branch", hint);
+}
+
+
 const Operator* CommonOperatorBuilder::Start(int num_formal_parameters) {
   // Outputs are formal parameters, plus context, receiver, and JSFunction.
   const int value_output_count = num_formal_parameters + 3;
@@ -127,6 +152,13 @@ const Operator* CommonOperatorBuilder::Merge(int controls) {
 const Operator* CommonOperatorBuilder::Loop(int controls) {
   return new (zone()) ControlOperator(IrOpcode::kLoop, Operator::kFoldable, 0,
                                       0, controls, "Loop");
+}
+
+
+const Operator* CommonOperatorBuilder::Terminate(int effects) {
+  return new (zone()) Operator1<int>(IrOpcode::kTerminate,
+                                     Operator::kNoRead | Operator::kNoWrite, 0,
+                                     0, "Terminate", effects);
 }
 
 

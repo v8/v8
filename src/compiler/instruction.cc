@@ -336,11 +336,13 @@ InstructionBlock::InstructionBlock(Zone* zone, const BasicBlock* block)
                     BasicBlock::RpoNumber::Invalid(), zone),
       phis_(zone),
       id_(block->id()),
+      ao_number_(block->GetAoNumber()),
       rpo_number_(block->GetRpoNumber()),
       loop_header_(GetRpo(block->loop_header())),
       loop_end_(GetLoopEndRpo(block)),
       code_start_(-1),
-      code_end_(-1) {
+      code_end_(-1),
+      deferred_(block->deferred()) {
   // Map successors and precessors
   size_t index = 0;
   for (BasicBlock::Successors::const_iterator it = block->successors_begin();
@@ -604,7 +606,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     const InstructionBlock* block = code.InstructionBlockAt(rpo);
     CHECK(block->rpo_number() == rpo);
 
-    os << "RPO#" << block->rpo_number() << ": B" << block->id();
+    os << "RPO#" << block->rpo_number();
+    os << ": AO#" << block->ao_number();
+    os << ": B" << block->id();
+    if (block->IsDeferred()) os << " (deferred)";
     if (block->IsLoopHeader()) {
       os << " loop blocks: [" << block->rpo_number() << ", "
          << block->loop_end() << ")";
