@@ -45,10 +45,10 @@ class Scheduler {
   Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
-  NodeVectorVector scheduled_nodes_;
-  NodeVector schedule_root_nodes_;
-  ZoneQueue<Node*> schedule_queue_;
-  ZoneVector<SchedulerData> node_data_;
+  NodeVectorVector scheduled_nodes_;     // Per-block list of nodes in reverse.
+  NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
+  ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
+  ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
   bool has_floating_control_;
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
@@ -64,20 +64,24 @@ class Scheduler {
   inline int GetRPONumber(BasicBlock* block);
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
 
-  // Phase 1: Build control-flow graph and dominator tree.
+  // Phase 1: Build control-flow graph.
   friend class CFGBuilder;
   void BuildCFG();
+
+  // Phase 2: Compute special RPO and dominator tree.
+  friend class SpecialRPONumberer;
+  void ComputeSpecialRPONumbering();
   void GenerateImmediateDominatorTree();
 
-  // Phase 2: Prepare use counts for nodes.
+  // Phase 3: Prepare use counts for nodes.
   friend class PrepareUsesVisitor;
   void PrepareUses();
 
-  // Phase 3: Schedule nodes early.
+  // Phase 4: Schedule nodes early.
   friend class ScheduleEarlyNodeVisitor;
   void ScheduleEarly();
 
-  // Phase 4: Schedule nodes late.
+  // Phase 5: Schedule nodes late.
   friend class ScheduleLateNodeVisitor;
   void ScheduleLate();
 
