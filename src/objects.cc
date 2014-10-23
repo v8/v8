@@ -14212,9 +14212,11 @@ template
 int Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     NumberOfEnumElements();
 
-template
-int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    FindEntry(uint32_t);
+template bool Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
+                         uint32_t>::HasComplexElements();
+
+template int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape,
+                       uint32_t>::FindEntry(uint32_t);
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -15262,10 +15264,26 @@ int Dictionary<Derived, Shape, Key>::NumberOfEnumElements() {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape, typename Key>
+bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
+  int capacity = DerivedHashTable::Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = DerivedHashTable::KeyAt(i);
+    if (DerivedHashTable::IsKey(k) && !FilterKey(k, NONE)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
+      if (details.type() == CALLBACKS) return true;
+      PropertyAttributes attr = details.attributes();
+      if (attr & (READ_ONLY | DONT_DELETE)) return true;
+    }
+  }
+  return false;
+}
+
+
+template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CopyKeysTo(
-    FixedArray* storage,
-    PropertyAttributes filter,
+    FixedArray* storage, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = DerivedHashTable::Capacity();
