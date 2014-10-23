@@ -1951,12 +1951,8 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   if (FLAG_trace_turbo) {
-    // Erase the file.
-    char buffer[512];
-    Vector<char> filename(buffer, sizeof(buffer));
-    GetTurboCfgFileName(filename);
-    std::ofstream turbo_cfg_stream(filename.start(),
-                                   std::fstream::out | std::fstream::trunc);
+    // Create an empty file.
+    std::ofstream(GetTurboCfgFileName(), std::ios_base::trunc);
   }
 
   // If we are deserializing, log non-function code objects and compiled
@@ -2372,13 +2368,11 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 }
 
 
-void Isolate::GetTurboCfgFileName(Vector<char> filename) {
-  if (FLAG_trace_turbo_cfg_file == NULL) {
-    SNPrintF(filename, "turbo-%d-%d.cfg", base::OS::GetCurrentProcessId(),
-             id());
-  } else {
-    StrNCpy(filename, FLAG_trace_turbo_cfg_file, filename.length());
-  }
+std::string Isolate::GetTurboCfgFileName() {
+  return FLAG_trace_turbo_cfg_file == NULL
+             ? "turbo-" + std::to_string(base::OS::GetCurrentProcessId()) +
+                   "-" + std::to_string(id()) + ".cfg"
+             : FLAG_trace_turbo_cfg_file;
 }
 
 
