@@ -146,7 +146,7 @@ class AddressMapBase {
   }
 
   static uint32_t GetValue(HashMap::Entry* entry) {
-    return reinterpret_cast<uint32_t>(entry->value);
+    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   }
 
   static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
