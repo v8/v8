@@ -739,7 +739,7 @@ class SerializedCodeData {
   }
 
   // Used when producing.
-  SerializedCodeData(List<byte>* payload, CodeSerializer* cs);
+  SerializedCodeData(const List<byte>& payload, CodeSerializer* cs);
 
   ~SerializedCodeData() {
     if (owns_script_data_) delete script_data_;

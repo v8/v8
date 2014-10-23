@@ -1952,7 +1952,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
                                       Handle<String> source) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
-  if (FLAG_serializer_trace_level > 0) {
+  if (FLAG_trace_code_serializer) {
     PrintF("[Serializing from");
     Object* script = info->script();
     if (script->IsScript()) Script::cast(script)->name()->ShortPrint();
@@ -1960,13 +1960,8 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   }
 
   // Serialize code object.
-  List<byte> payload;
-  ListSnapshotSink list_sink(&payload);
-  DebugSnapshotSink debug_sink(&list_sink);
-  SnapshotByteSink* sink = FLAG_serializer_trace_level > 1
-                               ? static_cast<SnapshotByteSink*>(&debug_sink)
-                               : static_cast<SnapshotByteSink*>(&list_sink);
-  CodeSerializer cs(isolate, sink, *source, info->code());
+  SnapshotByteSink sink(info->code()->CodeSize() * 2);
+  CodeSerializer cs(isolate, &sink, *source, info->code());
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
@@ -1980,7 +1975,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
     }
   }
 
-  SerializedCodeData data(&payload, &cs);
+  SerializedCodeData data(sink.data(), &cs);
   ScriptData* script_data = data.GetScriptData();
 
   if (FLAG_profile_deserialization) {
@@ -1997,7 +1992,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   int root_index = root_index_map_.Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
-    if (FLAG_serializer_trace_level > 0) {
+    if (FLAG_trace_code_serializer) {
       PrintF(" Encoding root: %d\n", root_index);
     }
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
@@ -2006,7 +2001,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   BackReference back_reference = back_reference_map_.Lookup(obj);
   if (back_reference.is_valid()) {
-    if (FLAG_serializer_trace_level > 0) {
+    if (FLAG_trace_code_serializer) {
       PrintF(" Encoding back reference to: ");
       obj->ShortPrint();
       PrintF("\n");
@@ -2074,7 +2069,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
-  if (FLAG_serializer_trace_level > 0) {
+  if (FLAG_trace_code_serializer) {
     PrintF(" Encoding heap object: ");
     heap_object->ShortPrint();
     PrintF("\n");
@@ -2097,7 +2092,7 @@ void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
   DCHECK_LT(builtin_index, Builtins::builtin_count);
   DCHECK_LE(0, builtin_index);
 
-  if (FLAG_serializer_trace_level > 0) {
+  if (FLAG_trace_code_serializer) {
     PrintF(" Encoding builtin: %s\n",
            isolate()->builtins()->name(builtin_index));
   }
@@ -2117,7 +2112,7 @@ void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
 
   int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
 
-  if (FLAG_serializer_trace_level > 0) {
+  if (FLAG_trace_code_serializer) {
     PrintF(" Encoding code stub %s as %d\n",
            CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key), false),
            index);
@@ -2133,7 +2128,7 @@ void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
   // The IC may be implemented as a stub.
   uint32_t stub_key = ic->stub_key();
   if (stub_key != CodeStub::NoCacheKey()) {
-    if (FLAG_serializer_trace_level > 0) {
+    if (FLAG_trace_code_serializer) {
       PrintF(" %s is a code stub\n", Code::Kind2String(ic->kind()));
     }
     SerializeCodeStub(stub_key, how_to_code, where_to_point);
@@ -2147,7 +2142,7 @@ void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
     Builtins::Name name = static_cast<Builtins::Name>(builtin_index);
     Code* builtin = isolate()->builtins()->builtin(name);
     if (builtin == ic) {
-      if (FLAG_serializer_trace_level > 0) {
+      if (FLAG_trace_code_serializer) {
         PrintF(" %s is a builtin\n", Code::Kind2String(ic->kind()));
       }
       DCHECK(ic->kind() == Code::KEYED_LOAD_IC ||
@@ -2158,7 +2153,7 @@ void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
   }
   // The IC may also just be a piece of code kept in the non_monomorphic_cache.
   // In that case, just serialize as a normal code object.
-  if (FLAG_serializer_trace_level > 0) {
+  if (FLAG_trace_code_serializer) {
     PrintF(" %s has no special handling\n", Code::Kind2String(ic->kind()));
   }
   DCHECK(ic->kind() == Code::LOAD_IC || ic->kind() == Code::STORE_IC);
@@ -2180,7 +2175,7 @@ int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
 
 void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
                                            WhereToPoint where_to_point) {
-  if (FLAG_serializer_trace_level > 0) PrintF(" Encoding source object\n");
+  if (FLAG_trace_code_serializer) PrintF(" Encoding source object\n");
 
   DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
@@ -2248,7 +2243,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 }
 
 
-SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
+SerializedCodeData::SerializedCodeData(const List<byte>& payload,
+                                       CodeSerializer* cs)
     : script_data_(NULL), owns_script_data_(true) {
   DisallowHeapAllocation no_gc;
   List<uint32_t>* stub_keys = cs->stub_keys();
@@ -2273,7 +2269,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
   int num_stub_keys = stub_keys->length();
   int stub_keys_size = stub_keys->length() * kInt32Size;
   int data_length =
-      kHeaderSize + reservation_size + stub_keys_size + payload->length();
+      kHeaderSize + reservation_size + stub_keys_size + payload.length();
 
   // Allocate backing store and create result data.
   byte* data = NewArray<byte>(data_length);
@@ -2286,7 +2282,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
   SetHeaderValue(kNumInternalizedStringsOffset, cs->num_internalized_strings());
   SetHeaderValue(kReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, payload->length());
+  SetHeaderValue(kPayloadLengthOffset, payload.length());
 
   // Copy reservation chunk sizes.
   CopyBytes(data + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
@@ -2298,7 +2294,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
 
   // Copy serialized data.
   CopyBytes(data + kHeaderSize + reservation_size + stub_keys_size,
-            payload->begin(), static_cast<size_t>(payload->length()));
+            payload.begin(), static_cast<size_t>(payload.length()));
 }
 
 
