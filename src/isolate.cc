@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #include <fstream>  // NOLINT(readability/streams)
-#include <iostream>  // NOLINT(readability/streams)
 #include <sstream>
 
 #include "src/v8.h"
@@ -1610,7 +1609,8 @@ void Isolate::Deinit() {
   }
 
   if (turbo_statistics() != NULL) {
-    std::cout << *turbo_statistics() << std::endl;
+    OFStream os(stdout);
+    os << *turbo_statistics() << std::endl;
   }
   if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
