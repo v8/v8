@@ -29,7 +29,7 @@ class Scheduler {
                                              Schedule* schedule);
 
  private:
-  enum Placement { kUnknown, kSchedulable, kFixed };
+  enum Placement { kUnknown, kSchedulable, kFixed, kCoupled };
 
   // Per-node data tracked during scheduling.
   struct SchedulerData {
@@ -38,38 +38,30 @@ class Scheduler {
     bool is_connected_control_;  // {true} if control-connected to the end node.
     bool is_floating_control_;   // {true} if control, but not control-connected
                                  // to the end node.
-    Placement placement_ : 3;    // Whether the node is fixed, schedulable,
-                                 // or not yet known.
+    Placement placement_;        // Whether the node is fixed, schedulable,
+                                 // coupled to another node, or not yet known.
   };
 
-  ZonePool* zone_pool_;
   Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
   NodeVectorVector scheduled_nodes_;
   NodeVector schedule_root_nodes_;
+  ZoneQueue<Node*> schedule_queue_;
   ZoneVector<SchedulerData> node_data_;
   bool has_floating_control_;
 
-  Scheduler(ZonePool* zone_pool, Zone* zone, Graph* graph, Schedule* schedule);
+  Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
-  SchedulerData DefaultSchedulerData();
-
-  SchedulerData* GetData(Node* node) {
-    DCHECK(node->id() < static_cast<int>(node_data_.size()));
-    return &node_data_[node->id()];
-  }
+  inline SchedulerData DefaultSchedulerData();
+  inline SchedulerData* GetData(Node* node);
 
   Placement GetPlacement(Node* node);
 
-  int GetRPONumber(BasicBlock* block) {
-    DCHECK(block->rpo_number() >= 0 &&
-           block->rpo_number() <
-               static_cast<int>(schedule_->rpo_order_.size()));
-    DCHECK(schedule_->rpo_order_[block->rpo_number()] == block);
-    return block->rpo_number();
-  }
+  void IncrementUnscheduledUseCount(Node* node, Node* from);
+  void DecrementUnscheduledUseCount(Node* node, Node* from);
 
+  inline int GetRPONumber(BasicBlock* block);
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
 
   // Phase 1: Build control-flow graph and dominator tree.
