@@ -1975,6 +1975,8 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
+  void IdleMarkCompact(const char* message);
+
   void TryFinalizeIdleIncrementalMarking(
       size_t idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
