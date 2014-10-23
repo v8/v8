@@ -74,7 +74,6 @@ shell_g
 /tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
-/turbo.cfg
 /v8.log.ll
 /xcodebuild
 TAGS
@@ -84,5 +83,6 @@ GRTAGS
 GSYMS
 GPATH
 gtags.files
+turbo*.cfg
 turbo*.dot
 turbo*.json
