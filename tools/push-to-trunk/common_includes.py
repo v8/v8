@@ -868,7 +868,7 @@ class ScriptsBase(object):
       return None
 
     if not options.vc_interface:
-      options.vc_interface = "git_svn"
+      options.vc_interface = "git_read_svn_write"
     return options
 
   def RunSteps(self, step_classes, args=None):
