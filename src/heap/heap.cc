@@ -2906,7 +2906,7 @@ void Heap::CreateInitialObjects() {
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // The symbol registry is initialized lazily.
-  set_symbol_registry(undefined_value());
+  set_symbol_registry(Smi::FromInt(0));
 
   // Allocate object to hold object observation state.
   set_observation_state(*factory->NewJSObjectFromMap(
