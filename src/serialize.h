@@ -169,6 +169,8 @@ class RootIndexMap : public AddressMapBase {
  public:
   explicit RootIndexMap(Isolate* isolate);
 
+  ~RootIndexMap() { delete map_; }
+
   static const int kInvalidRootIndex = -1;
   int Lookup(HeapObject* obj) {
     HashMap::Entry* entry = LookupEntry(map_, obj, false);
