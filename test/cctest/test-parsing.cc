@@ -4205,3 +4205,42 @@ TEST(ObjectLiteralPropertyShorthandYieldInGeneratorError) {
   RunParserSyncTest(context_data, name_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+
+TEST(ConstParsingInForIn) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "for(const x = 1; ; ) {}",
+      "for(const x = 1, y = 2;;){}",
+      "for(const x in [1,2,3]) {}",
+      "for(const x of [1,2,3]) {}",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyScoping};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ConstParsingInForInError) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "for(const x,y = 1; ; ) {}",
+      "for(const x = 4 in [1,2,3]) {}",
+      "for(const x = 4, y in [1,2,3]) {}",
+      "for(const x = 4 of [1,2,3]) {}",
+      "for(const x = 4, y of [1,2,3]) {}",
+      "for(const x = 1, y = 2 in []) {}",
+      "for(const x,y in []) {}",
+      "for(const x = 1, y = 2 of []) {}",
+      "for(const x,y of []) {}",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyScoping};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
