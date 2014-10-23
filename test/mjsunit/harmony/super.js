@@ -1735,19 +1735,19 @@
 }());
 
 
-(function TestSuperCall() {
-  function Subclass(base, constructor) {
-    var homeObject = {
-      __proto__: base.prototype,
-      constructor: constructor
-    };
-    constructor.__proto__ = base;
-    constructor.prototype = homeObject;
-    // not doing toMethod: home object is not required for
-    // super constructor calls.
-    return constructor;
-  }
+function Subclass(base, constructor) {
+  var homeObject = {
+    __proto__: base.prototype,
+    constructor: constructor
+  };
+  constructor.__proto__ = base;
+  constructor.prototype = homeObject;
+  // not doing toMethod: home object is not required for
+  // super constructor calls.
+  return constructor;
+}
 
+(function TestSuperCall() {
   var baseCalled = 0;
   var derivedCalled = 0;
   var derivedDerivedCalled = 0;
@@ -1819,6 +1819,32 @@
 }());
 
 
+(function TestNewSuper() {
+  var baseCalled = 0;
+  var derivedCalled = 0;
+
+  function Base() {
+    baseCalled++;
+    this.x = 15;
+  }
+
+
+  var Derived = Subclass(Base, function() {
+    baseCalled = 0;
+    var b = new super();
+    assertEquals(1, baseCalled)
+    assertEquals(Base.prototype, b.__proto__);
+    assertEquals(15, b.x);
+    assertEquals(undefined, this.x);
+    derivedCalled++;
+  });
+
+  derivedCalled = 0;
+  new Derived();
+  assertEquals(1, derivedCalled);
+}());
+
+
 (function TestSuperCallErrorCases() {
   function T() {
     super();
@@ -1828,4 +1854,10 @@
   // we throw TypeError.
   // Filed https://bugs.ecmascript.org/show_bug.cgi?id=3282
   assertThrows(function() { new T(); }, TypeError);
+
+  function T1() {
+    var b = new super();
+  }
+  T1.__proto = null;
+  assertThrows(function() { new T1(); }, TypeError);
 }());
