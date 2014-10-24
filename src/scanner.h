@@ -394,16 +394,20 @@ class Scanner {
   const AstRawString* NextSymbol(AstValueFactory* ast_value_factory);
 
   double DoubleValue();
-  bool UnescapedLiteralMatches(const char* data, int length) {
+  bool LiteralMatches(const char* data, int length, bool allow_escapes = true) {
     if (is_literal_one_byte() &&
         literal_length() == length &&
-        !literal_contains_escapes()) {
+        (allow_escapes || !literal_contains_escapes())) {
       const char* token =
           reinterpret_cast<const char*>(literal_one_byte_string().start());
       return !strncmp(token, data, length);
     }
     return false;
   }
+  inline bool UnescapedLiteralMatches(const char* data, int length) {
+    return LiteralMatches(data, length, false);
+  }
+
   void IsGetOrSet(bool* is_get, bool* is_set) {
     if (is_literal_one_byte() &&
         literal_length() == 3 &&

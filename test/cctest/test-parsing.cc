@@ -3973,6 +3973,13 @@ TEST(ClassStaticPrototypeErrors) {
     "static get prototype() {}",
     "static set prototype(_) {}",
     "static *prototype() {}",
+    "static 'prototype'() {}",
+    "static *'prototype'() {}",
+    "static prot\\u006ftype() {}",
+    "static 'prot\\u006ftype'() {}",
+    "static get 'prot\\u006ftype'() {}",
+    "static set 'prot\\u006ftype'(_) {}",
+    "static *'prot\\u006ftype'() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3993,6 +4000,13 @@ TEST(ClassSpecialConstructorErrors) {
     "get constructor() {}",
     "get constructor(_) {}",
     "*constructor() {}",
+    "get 'constructor'() {}",
+    "*'constructor'() {}",
+    "get c\\u006fnstructor() {}",
+    "*c\\u006fnstructor() {}",
+    "get 'c\\u006fnstructor'() {}",
+    "get 'c\\u006fnstructor'(_) {}",
+    "*'c\\u006fnstructor'() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
