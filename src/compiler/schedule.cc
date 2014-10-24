@@ -51,7 +51,6 @@ void BasicBlock::AddNode(Node* node) { nodes_.push_back(node); }
 
 
 void BasicBlock::set_control(Control control) {
-  DCHECK(control_ == BasicBlock::kNone);
   control_ = control;
 }
 
@@ -215,9 +214,39 @@ void Schedule::AddThrow(BasicBlock* block, Node* input) {
 }
 
 
+void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
+                            BasicBlock* tblock, BasicBlock* fblock) {
+  DCHECK(block->control() != BasicBlock::kNone);
+  DCHECK(end->control() == BasicBlock::kNone);
+  end->set_control(block->control());
+  block->set_control(BasicBlock::kBranch);
+  MoveSuccessors(block, end);
+  AddSuccessor(block, tblock);
+  AddSuccessor(block, fblock);
+  if (block->control_input() != NULL) {
+    SetControlInput(end, block->control_input());
+  }
+  SetControlInput(block, branch);
+}
+
+
 void Schedule::AddSuccessor(BasicBlock* block, BasicBlock* succ) {
   block->AddSuccessor(succ);
   succ->AddPredecessor(block);
+}
+
+
+void Schedule::MoveSuccessors(BasicBlock* from, BasicBlock* to) {
+  for (BasicBlock::Predecessors::iterator i = from->successors_begin();
+       i != from->successors_end(); ++i) {
+    BasicBlock* succ = *i;
+    to->AddSuccessor(succ);
+    for (BasicBlock::Predecessors::iterator j = succ->predecessors_begin();
+         j != succ->predecessors_end(); ++j) {
+      if (*j == from) *j = to;
+    }
+  }
+  from->ClearSuccessors();
 }
 
 
