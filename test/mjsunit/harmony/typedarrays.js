@@ -265,6 +265,17 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(0, aNoParam.length);
   assertSame(0, aNoParam.byteLength);
   assertSame(0, aNoParam.byteOffset);
+
+  var a = new constr(ab, 64*elementSize, 128);
+  assertEquals("[object " + constr.name + "]",
+      Object.prototype.toString.call(a));
+  var desc = Object.getOwnPropertyDescriptor(
+      constr.prototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.enumerable);
+  assertFalse(!!desc.writable);
+  assertFalse(!!desc.set);
+  assertEquals("function", typeof desc.get);
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);
@@ -653,6 +664,19 @@ function TestDataViewPropertyTypeChecks() {
 
 
 TestDataViewPropertyTypeChecks();
+
+
+function TestDataViewToStringTag() {
+  var a = new DataView(new ArrayBuffer(10));
+  assertEquals("[object DataView]", Object.prototype.toString.call(a));
+  var desc = Object.getOwnPropertyDescriptor(
+      DataView.prototype, Symbol.toStringTag);
+  assertTrue(desc.configurable);
+  assertFalse(desc.enumerable);
+  assertFalse(desc.writable);
+  assertEquals("DataView", desc.value);
+}
+
 
 // General tests for properties
 
