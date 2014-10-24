@@ -700,9 +700,7 @@ class CodeSerializer : public Serializer {
       : Serializer(isolate, sink),
         source_(source),
         main_code_(main_code),
-        num_internalized_strings_(0) {
-    InitializeCodeAddressMap();
-  }
+        num_internalized_strings_(0) {}
 
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);

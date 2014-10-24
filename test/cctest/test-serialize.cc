@@ -1156,6 +1156,17 @@ TEST(SerializeToplevelExternalScriptName) {
 }
 
 
+static bool toplevel_test_code_event_found = false;
+
+
+static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
+  if (event->type == v8::JitCodeEvent::CODE_ADDED &&
+      memcmp(event->name.str, "Script:~test", 12) == 0) {
+    toplevel_test_code_event_found = true;
+  }
+}
+
+
 TEST(SerializeToplevelIsolates) {
   FLAG_serialize_toplevel = true;
 
@@ -1188,6 +1199,9 @@ TEST(SerializeToplevelIsolates) {
   isolate1->Dispose();
 
   v8::Isolate* isolate2 = v8::Isolate::New();
+  isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                   SerializerCodeEventListener);
+  toplevel_test_code_event_found = false;
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1206,6 +1220,7 @@ TEST(SerializeToplevelIsolates) {
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
     CHECK(result->ToString()->Equals(v8_str("abcdef")));
   }
+  DCHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
 }
 

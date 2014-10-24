@@ -2245,6 +2245,18 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
   Handle<SharedFunctionInfo> result(SharedFunctionInfo::cast(root), isolate);
   result->set_deserialized(true);
+
+  if (isolate->logger()->is_logging_code_events() ||
+      isolate->cpu_profiler()->is_profiling()) {
+    String* name = isolate->heap()->empty_string();
+    if (result->script()->IsScript()) {
+      Script* script = Script::cast(result->script());
+      if (script->name()->IsString()) name = String::cast(script->name());
+    }
+    isolate->logger()->CodeCreateEvent(Logger::SCRIPT_TAG, result->code(),
+                                       *result, NULL, name);
+  }
+
   return result;
 }
 
