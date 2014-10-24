@@ -15295,7 +15295,7 @@ bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
       if (details.IsDeleted()) continue;
       if (details.type() == CALLBACKS) return true;
       PropertyAttributes attr = details.attributes();
-      if (attr & (READ_ONLY | DONT_DELETE)) return true;
+      if (attr & (READ_ONLY | DONT_DELETE | DONT_ENUM)) return true;
     }
   }
   return false;
