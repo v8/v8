@@ -469,10 +469,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(eax)};
-  size_t temp_count = arraysize(temps);
   Emit(kIA32ImulHigh, g.DefineAsFixed(node, edx),
-       g.UseFixed(node->InputAt(0), eax), g.UseRegister(node->InputAt(1)),
-       temp_count, temps);
+       g.UseFixed(node->InputAt(0), eax), g.UseUniqueRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 

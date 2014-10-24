@@ -560,10 +560,9 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(rax)};
-  size_t temp_count = arraysize(temps);
   Emit(kX64ImulHigh32, g.DefineAsFixed(node, rdx),
-       g.UseFixed(node->InputAt(0), rax), g.UseRegister(node->InputAt(1)),
-       temp_count, temps);
+       g.UseFixed(node->InputAt(0), rax), g.UseUniqueRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 

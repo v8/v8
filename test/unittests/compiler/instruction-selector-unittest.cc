@@ -129,6 +129,24 @@ int InstructionSelectorTest::Stream::ToVreg(const Node* node) const {
 }
 
 
+bool InstructionSelectorTest::Stream::IsFixed(const InstructionOperand* operand,
+                                              Register reg) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  if (!unallocated->HasFixedRegisterPolicy()) return false;
+  const int index = Register::ToAllocationIndex(reg);
+  return unallocated->fixed_register_index() == index;
+}
+
+
+bool InstructionSelectorTest::Stream::IsUsedAtStart(
+    const InstructionOperand* operand) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->IsUsedAtStart();
+}
+
+
 // -----------------------------------------------------------------------------
 // Return.
 
