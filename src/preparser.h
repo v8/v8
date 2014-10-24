@@ -344,12 +344,16 @@ class ParserBase : public Traits {
   }
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
-    if (peek() == Token::IDENTIFIER &&
-        scanner()->is_next_contextual_keyword(keyword)) {
+    if (PeekContextualKeyword(keyword)) {
       Consume(Token::IDENTIFIER);
       return true;
     }
     return false;
+  }
+
+  bool PeekContextualKeyword(Vector<const char> keyword) {
+    return peek() == Token::IDENTIFIER &&
+           scanner()->is_next_contextual_keyword(keyword);
   }
 
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {

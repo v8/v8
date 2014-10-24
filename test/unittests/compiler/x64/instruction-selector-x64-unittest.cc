@@ -510,9 +510,12 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
   EXPECT_EQ(kX64ImulHigh32, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s.IsFixed(s[0]->InputAt(0), rax));
   EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(!s.IsUsedAtStart(s[0]->InputAt(1)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_TRUE(s.IsFixed(s[0]->OutputAt(0), rdx));
 }
 
 }  // namespace compiler

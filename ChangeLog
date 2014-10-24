@@ -1,3 +1,13 @@
+2014-10-24: Version 3.30.18
+
+        Narrow cases where Sparse/Smart versions of Array methods are used
+        (issues 2615, 3612, 3621).
+
+        Shrink new space in idle notification (Chromium issue 424423).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-23: Version 3.30.17
 
         ARM64: Fix stack manipulation (Chromium issue 425585).

@@ -114,41 +114,25 @@ TEST(ExternalReferenceDecoder) {
 }
 
 
-class FileByteSink : public SnapshotByteSink {
- public:
-  explicit FileByteSink(const char* snapshot_file) {
-    fp_ = v8::base::OS::FOpen(snapshot_file, "wb");
-    file_name_ = snapshot_file;
-    if (fp_ == NULL) {
-      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
-      exit(1);
-    }
+void WritePayload(const List<byte>& payload, const char* file_name) {
+  FILE* file = v8::base::OS::FOpen(file_name, "wb");
+  if (file == NULL) {
+    PrintF("Unable to write to snapshot file \"%s\"\n", file_name);
+    exit(1);
   }
-  virtual ~FileByteSink() {
-    if (fp_ != NULL) {
-      fclose(fp_);
-    }
+  size_t written = fwrite(payload.begin(), 1, payload.length(), file);
+  if (written != static_cast<size_t>(payload.length())) {
+    i::PrintF("Writing snapshot file failed.. Aborting.\n");
+    exit(1);
   }
-  virtual void Put(byte b, const char* description) {
-    if (fp_ != NULL) {
-      fputc(b, fp_);
-    }
-  }
-  virtual int Position() {
-    return ftell(fp_);
-  }
-  void WriteSpaceUsed(Serializer* serializer);
-
- private:
-  FILE* fp_;
-  const char* file_name_;
-};
+  fclose(file);
+}
 
 
-void FileByteSink::WriteSpaceUsed(Serializer* ser) {
-  int file_name_length = StrLength(file_name_) + 10;
+void WriteSpaceUsed(Serializer* ser, const char* file_name) {
+  int file_name_length = StrLength(file_name) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
-  SNPrintF(name, "%s.size", file_name_);
+  SNPrintF(name, "%s.size", file_name);
   FILE* fp = v8::base::OS::FOpen(name.start(), "w");
   name.Dispose();
 
@@ -181,12 +165,13 @@ void FileByteSink::WriteSpaceUsed(Serializer* ser) {
 
 
 static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
-  FileByteSink file(snapshot_file);
-  StartupSerializer ser(isolate, &file);
+  SnapshotByteSink sink;
+  StartupSerializer ser(isolate, &sink);
   ser.Serialize();
   ser.FinalizeAllocation();
 
-  file.WriteSpaceUsed(&ser);
+  WritePayload(sink.data(), snapshot_file);
+  WriteSpaceUsed(&ser, snapshot_file);
 
   return true;
 }
@@ -440,21 +425,26 @@ UNINITIALIZED_TEST(PartialSerialization) {
       }
       env.Reset();
 
-      FileByteSink startup_sink(startup_name.start());
+      SnapshotByteSink startup_sink;
       StartupSerializer startup_serializer(isolate, &startup_sink);
       startup_serializer.SerializeStrongReferences();
 
-      FileByteSink partial_sink(FLAG_testing_serialization_file);
-      PartialSerializer p_ser(isolate, &startup_serializer, &partial_sink);
-      p_ser.Serialize(&raw_foo);
+      SnapshotByteSink partial_sink;
+      PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                           &partial_sink);
+      partial_serializer.Serialize(&raw_foo);
+
       startup_serializer.SerializeWeakReferences();
 
-      p_ser.FinalizeAllocation();
+      partial_serializer.FinalizeAllocation();
       startup_serializer.FinalizeAllocation();
 
-      partial_sink.WriteSpaceUsed(&p_ser);
+      WritePayload(partial_sink.data(), FLAG_testing_serialization_file);
+      WritePayload(startup_sink.data(), startup_name.start());
 
-      startup_sink.WriteSpaceUsed(&startup_serializer);
+      WriteSpaceUsed(&partial_serializer, FLAG_testing_serialization_file);
+      WriteSpaceUsed(&startup_serializer, startup_name.start());
+
       startup_name.Dispose();
     }
     v8_isolate->Exit();
@@ -552,21 +542,25 @@ UNINITIALIZED_TEST(ContextSerialization) {
 
       env.Reset();
 
-      FileByteSink startup_sink(startup_name.start());
+      SnapshotByteSink startup_sink;
       StartupSerializer startup_serializer(isolate, &startup_sink);
       startup_serializer.SerializeStrongReferences();
 
-      FileByteSink partial_sink(FLAG_testing_serialization_file);
-      PartialSerializer p_ser(isolate, &startup_serializer, &partial_sink);
-      p_ser.Serialize(&raw_context);
+      SnapshotByteSink partial_sink;
+      PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                           &partial_sink);
+      partial_serializer.Serialize(&raw_context);
       startup_serializer.SerializeWeakReferences();
 
-      p_ser.FinalizeAllocation();
+      partial_serializer.FinalizeAllocation();
       startup_serializer.FinalizeAllocation();
 
-      partial_sink.WriteSpaceUsed(&p_ser);
+      WritePayload(partial_sink.data(), FLAG_testing_serialization_file);
+      WritePayload(startup_sink.data(), startup_name.start());
 
-      startup_sink.WriteSpaceUsed(&startup_serializer);
+      WriteSpaceUsed(&partial_serializer, FLAG_testing_serialization_file);
+      WriteSpaceUsed(&startup_serializer, startup_name.start());
+
       startup_name.Dispose();
     }
     v8_isolate->Dispose();
@@ -1060,7 +1054,7 @@ TEST(SerializeToplevelLargeExternalString) {
   // Create a huge external internalized string to use as variable name.
   Vector<const uint8_t> string =
       ConstructSource(STATIC_CHAR_VECTOR(""), STATIC_CHAR_VECTOR("abcdef"),
-                      STATIC_CHAR_VECTOR(""), 1000000);
+                      STATIC_CHAR_VECTOR(""), 999999);
   Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.start()), string.length());
@@ -1162,6 +1156,17 @@ TEST(SerializeToplevelExternalScriptName) {
 }
 
 
+static bool toplevel_test_code_event_found = false;
+
+
+static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
+  if (event->type == v8::JitCodeEvent::CODE_ADDED &&
+      memcmp(event->name.str, "Script:~test", 12) == 0) {
+    toplevel_test_code_event_found = true;
+  }
+}
+
+
 TEST(SerializeToplevelIsolates) {
   FLAG_serialize_toplevel = true;
 
@@ -1194,6 +1199,9 @@ TEST(SerializeToplevelIsolates) {
   isolate1->Dispose();
 
   v8::Isolate* isolate2 = v8::Isolate::New();
+  isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                   SerializerCodeEventListener);
+  toplevel_test_code_event_found = false;
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1212,6 +1220,7 @@ TEST(SerializeToplevelIsolates) {
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
     CHECK(result->ToString()->Equals(v8_str("abcdef")));
   }
+  DCHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
 }
 

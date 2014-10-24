@@ -216,6 +216,37 @@ class RepresentationChanger {
     }
   }
 
+  Node* GetTruncatedWord32For(Node* node, MachineTypeUnion output_type) {
+    // Eagerly fold truncations for constants.
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return node;  // No change necessary.
+      case IrOpcode::kFloat32Constant:
+        return jsgraph()->Int32Constant(
+            DoubleToInt32(OpParameter<float>(node)));
+      case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat64Constant:
+        return jsgraph()->Int32Constant(
+            DoubleToInt32(OpParameter<double>(node)));
+      default:
+        break;
+    }
+    // Select the correct X -> Word32 truncation operator.
+    const Operator* op = NULL;
+    if (output_type & kRepFloat64) {
+      op = machine()->TruncateFloat64ToInt32();
+    } else if (output_type & kRepFloat32) {
+      node = InsertChangeFloat32ToFloat64(node);
+      op = machine()->TruncateFloat64ToInt32();
+    } else if (output_type & kRepTagged) {
+      node = InsertChangeTaggedToFloat64(node);
+      op = machine()->TruncateFloat64ToInt32();
+    } else {
+      return TypeError(node, output_type, kRepWord32);
+    }
+    return jsgraph()->graph()->NewNode(op, node);
+  }
+
   Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type,
                                    bool use_unsigned) {
     // Eagerly fold representation changes for constants.
@@ -418,6 +449,11 @@ class RepresentationChanger {
 
   Node* InsertChangeFloat32ToFloat64(Node* node) {
     return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
+                                       node);
+  }
+
+  Node* InsertChangeTaggedToFloat64(Node* node) {
+    return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                                        node);
   }
 

@@ -2156,6 +2156,7 @@ Block* Parser::ParseVariableDeclarations(
   Block* block = factory()->NewBlock(NULL, 1, true, pos);
   int nvars = 0;  // the number of variables declared
   const AstRawString* name = NULL;
+  bool is_for_iteration_variable;
   do {
     if (fni_ != NULL) fni_->Enter();
 
@@ -2179,6 +2180,13 @@ Block* Parser::ParseVariableDeclarations(
     // For let/const declarations in harmony mode, we can also immediately
     // pre-resolve the proxy because it resides in the same scope as the
     // declaration.
+    is_for_iteration_variable =
+        var_context == kForStatement &&
+        (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
+    if (is_for_iteration_variable && mode == CONST) {
+      needs_init = false;
+    }
+
     Interface* interface =
         is_const ? Interface::NewConst() : Interface::NewValue();
     VariableProxy* proxy = NewUnresolved(name, mode, interface);
@@ -2224,7 +2232,8 @@ Block* Parser::ParseVariableDeclarations(
     Expression* value = NULL;
     int pos = -1;
     // Harmony consts have non-optional initializers.
-    if (peek() == Token::ASSIGN || mode == CONST) {
+    if (peek() == Token::ASSIGN ||
+        (mode == CONST && !is_for_iteration_variable)) {
       Expect(Token::ASSIGN, CHECK_OK);
       pos = position();
       value = ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
@@ -2357,7 +2366,7 @@ Block* Parser::ParseVariableDeclarations(
 
   // If there was a single non-const declaration, return it in the output
   // parameter for possible use by for/in.
-  if (nvars == 1 && !is_const) {
+  if (nvars == 1 && (!is_const || is_for_iteration_variable)) {
     *out = name;
   }
 
@@ -3094,7 +3103,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::LPAREN, CHECK_OK);
   for_scope->set_start_position(scanner()->location().beg_pos);
   if (peek() != Token::SEMICOLON) {
-    if (peek() == Token::VAR || peek() == Token::CONST) {
+    if (peek() == Token::VAR ||
+        (peek() == Token::CONST && strict_mode() == SLOPPY)) {
       bool is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
@@ -3131,8 +3141,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       } else {
         init = variable_statement;
       }
-    } else if (peek() == Token::LET && strict_mode() == STRICT) {
-      DCHECK(allow_harmony_scoping());
+    } else if ((peek() == Token::LET || peek() == Token::CONST) &&
+               strict_mode() == STRICT) {
+      bool is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
@@ -3145,13 +3156,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       if (accept_IN && CheckInOrOf(accept_OF, &mode)) {
         // Rewrite a for-in statement of the form
         //
-        //   for (let x in e) b
+        //   for (let/const x in e) b
         //
         // into
         //
         //   <let x' be a temporary variable>
         //   for (x' in e) {
-        //     let x;
+        //     let/const x;
         //     x = x';
         //     b;
         //   }
@@ -3171,13 +3182,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), name, Interface::NewValue());
+        VariableProxy* each = scope_->NewUnresolved(factory(), name);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
+        Token::Value init_op = is_const ? Token::INIT_CONST : Token::ASSIGN;
         Assignment* assignment = factory()->NewAssignment(
-            Token::ASSIGN, each, temp_proxy, RelocInfo::kNoPosition);
+            init_op, each, temp_proxy, RelocInfo::kNoPosition);
         Statement* assignment_statement = factory()->NewExpressionStatement(
             assignment, RelocInfo::kNoPosition);
         body_block->AddStatement(variable_statement, zone());

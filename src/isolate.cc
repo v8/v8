@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <fstream>  // NOLINT(readability/streams)
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -16,6 +17,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
+#include "src/compilation-statistics.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
@@ -1490,7 +1492,6 @@ Isolate::Isolate(bool enable_serializer)
       unicode_cache_(NULL),
       runtime_zone_(this),
       inner_pointer_to_code_cache_(NULL),
-      write_iterator_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
@@ -1607,8 +1608,11 @@ void Isolate::Deinit() {
     heap_.mark_compact_collector()->EnsureSweepingCompleted();
   }
 
-  if (FLAG_turbo_stats) GetTStatistics()->Print("TurboFan");
-  if (FLAG_hydrogen_stats) GetHStatistics()->Print("Hydrogen");
+  if (turbo_statistics() != NULL) {
+    OFStream os(stdout);
+    os << *turbo_statistics() << std::endl;
+  }
+  if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -1724,8 +1728,6 @@ Isolate::~Isolate() {
   bootstrapper_ = NULL;
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = NULL;
-  delete write_iterator_;
-  write_iterator_ = NULL;
 
   delete thread_manager_;
   thread_manager_ = NULL;
@@ -1851,7 +1853,6 @@ bool Isolate::Init(Deserializer* des) {
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
-  write_iterator_ = new ConsStringIteratorOp();
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
@@ -1955,12 +1956,8 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   if (FLAG_trace_turbo) {
-    // Erase the file.
-    char buffer[512];
-    Vector<char> filename(buffer, sizeof(buffer));
-    GetTurboCfgFileName(filename);
-    std::ofstream turbo_cfg_stream(filename.start(),
-                                   std::fstream::out | std::fstream::trunc);
+    // Create an empty file.
+    std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
   }
 
   // If we are deserializing, log non-function code objects and compiled
@@ -2123,9 +2120,10 @@ HStatistics* Isolate::GetHStatistics() {
 }
 
 
-HStatistics* Isolate::GetTStatistics() {
-  if (tstatistics() == NULL) set_tstatistics(new HStatistics());
-  return tstatistics();
+CompilationStatistics* Isolate::GetTurboStatistics() {
+  if (turbo_statistics() == NULL)
+    set_turbo_statistics(new CompilationStatistics());
+  return turbo_statistics();
 }
 
 
@@ -2210,7 +2208,7 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 
 
 Handle<JSObject> Isolate::GetSymbolRegistry() {
-  if (heap()->symbol_registry()->IsUndefined()) {
+  if (heap()->symbol_registry()->IsSmi()) {
     Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
     heap()->set_symbol_registry(*registry);
@@ -2376,12 +2374,13 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 }
 
 
-void Isolate::GetTurboCfgFileName(Vector<char> filename) {
+std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == NULL) {
-    SNPrintF(filename, "turbo-%d-%d.cfg", base::OS::GetCurrentProcessId(),
-             id());
+    std::ostringstream os;
+    os << "turbo-" << base::OS::GetCurrentProcessId() << "-" << id() << ".cfg";
+    return os.str();
   } else {
-    StrNCpy(filename, FLAG_trace_turbo_cfg_file, filename.length());
+    return FLAG_trace_turbo_cfg_file;
   }
 }
 

@@ -1183,8 +1183,7 @@ void String::StringShortPrint(StringStream* accumulator) {
     return;
   }
 
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(this, &op);
+  StringCharacterStream stream(this);
 
   bool truncated = false;
   if (len > kMaxShortPrintLength) {
@@ -1237,8 +1236,7 @@ void String::StringShortPrint(StringStream* accumulator) {
 
 void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
   if (end < 0) end = length();
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(this, &op, start);
+  StringCharacterStream stream(this, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
     os << AsUC16(stream.GetNext());
   }
@@ -6594,7 +6592,8 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
-      EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      EnsureDescriptorSlack(
+          map, SlackForArraySize(old_size, kMaxNumberOfDescriptors));
       descriptors = handle(map->instance_descriptors());
     }
   }
@@ -6619,8 +6618,11 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
     DCHECK(child->is_prototype_map());
   } else {
     Handle<TransitionArray> transitions =
-        TransitionArray::CopyInsert(parent, name, child, flag);
-    parent->set_transitions(*transitions);
+        TransitionArray::Insert(parent, name, child, flag);
+    if (!parent->HasTransitionArray() ||
+        *transitions != parent->transitions()) {
+      parent->set_transitions(*transitions);
+    }
     child->SetBackPointer(*parent);
   }
 }
@@ -8105,15 +8107,11 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
     return SmartArrayPointer<char>(NULL);
   }
-  Heap* heap = GetHeap();
-
   // Negative length means the to the end of the string.
   if (length < 0) length = kMaxInt - offset;
 
   // Compute the size of the UTF-8 string. Start at the specified offset.
-  Access<ConsStringIteratorOp> op(
-      heap->isolate()->objects_string_iterator());
-  StringCharacterStream stream(this, op.value(), offset);
+  StringCharacterStream stream(this, offset);
   int character_position = offset;
   int utf8_bytes = 0;
   int last = unibrow::Utf16::kNoPreviousCharacter;
@@ -8180,11 +8178,7 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
     return SmartArrayPointer<uc16>();
   }
-  Heap* heap = GetHeap();
-
-  Access<ConsStringIteratorOp> op(
-      heap->isolate()->objects_string_iterator());
-  StringCharacterStream stream(this, op.value());
+  StringCharacterStream stream(this);
 
   uc16* result = NewArray<uc16>(length() + 1);
 
@@ -8288,7 +8282,7 @@ void FlatStringReader::PostGarbageCollection() {
 }
 
 
-void ConsStringIteratorOp::Initialize(ConsString* cons_string, int offset) {
+void ConsStringIterator::Initialize(ConsString* cons_string, int offset) {
   DCHECK(cons_string != NULL);
   root_ = cons_string;
   consumed_ = offset;
@@ -8299,7 +8293,7 @@ void ConsStringIteratorOp::Initialize(ConsString* cons_string, int offset) {
 }
 
 
-String* ConsStringIteratorOp::Continue(int* offset_out) {
+String* ConsStringIterator::Continue(int* offset_out) {
   DCHECK(depth_ != 0);
   DCHECK_EQ(0, *offset_out);
   bool blew_stack = StackBlown();
@@ -8317,7 +8311,7 @@ String* ConsStringIteratorOp::Continue(int* offset_out) {
 }
 
 
-String* ConsStringIteratorOp::Search(int* offset_out) {
+String* ConsStringIterator::Search(int* offset_out) {
   ConsString* cons_string = root_;
   // Reset the stack, pushing the root string.
   depth_ = 1;
@@ -8378,7 +8372,7 @@ String* ConsStringIteratorOp::Search(int* offset_out) {
 }
 
 
-String* ConsStringIteratorOp::NextLeaf(bool* blew_stack) {
+String* ConsStringIterator::NextLeaf(bool* blew_stack) {
   while (true) {
     // Tree traversal complete.
     if (depth_ == 0) {
@@ -8655,15 +8649,14 @@ class RawStringComparator<uint8_t, uint8_t> {
 class StringComparator {
   class State {
    public:
-    explicit inline State(ConsStringIteratorOp* op)
-      : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
+    State() : is_one_byte_(true), length_(0), buffer8_(NULL) {}
 
-    inline void Init(String* string) {
+    void Init(String* string) {
       ConsString* cons_string = String::VisitFlat(this, string);
-      op_->Reset(cons_string);
+      iter_.Reset(cons_string);
       if (cons_string != NULL) {
         int offset;
-        string = op_->Next(&offset);
+        string = iter_.Next(&offset);
         String::VisitFlat(this, string, offset);
       }
     }
@@ -8694,13 +8687,13 @@ class StringComparator {
       }
       // Advance state.
       int offset;
-      String* next = op_->Next(&offset);
+      String* next = iter_.Next(&offset);
       DCHECK_EQ(0, offset);
       DCHECK(next != NULL);
       String::VisitFlat(this, next);
     }
 
-    ConsStringIteratorOp* const op_;
+    ConsStringIterator iter_;
     bool is_one_byte_;
     int length_;
     union {
@@ -8709,15 +8702,11 @@ class StringComparator {
     };
 
    private:
-    DISALLOW_IMPLICIT_CONSTRUCTORS(State);
+    DISALLOW_COPY_AND_ASSIGN(State);
   };
 
  public:
-  inline StringComparator(ConsStringIteratorOp* op_1,
-                          ConsStringIteratorOp* op_2)
-    : state_1_(op_1),
-      state_2_(op_2) {
-  }
+  inline StringComparator() {}
 
   template<typename Chars1, typename Chars2>
   static inline bool Equals(State* state_1, State* state_2, int to_check) {
@@ -8760,7 +8749,8 @@ class StringComparator {
  private:
   State state_1_;
   State state_2_;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringComparator);
+
+  DISALLOW_COPY_AND_ASSIGN(StringComparator);
 };
 
 
@@ -8801,10 +8791,7 @@ bool String::SlowEquals(String* other) {
     return CompareRawStringContents(str1, str2, len);
   }
 
-  Isolate* isolate = GetIsolate();
-  StringComparator comparator(isolate->objects_string_compare_iterator_a(),
-                              isolate->objects_string_compare_iterator_b());
-
+  StringComparator comparator;
   return comparator.Equals(this, other);
 }
 
@@ -8956,8 +8943,7 @@ uint32_t String::ComputeAndSetHash() {
 bool String::ComputeArrayIndex(uint32_t* index) {
   int length = this->length();
   if (length == 0 || length > kMaxArrayIndexSize) return false;
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(this, &op);
+  StringCharacterStream stream(this);
   return StringToArrayIndex(&stream, index);
 }
 
@@ -13156,7 +13142,7 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
       } else {
         os << Brief(k);
       }
-      os << ": " << Brief(ValueAt(i)) << "\n";
+      os << ": " << Brief(ValueAt(i)) << " " << DetailsAt(i) << "\n";
     }
   }
 }
@@ -14230,9 +14216,11 @@ template
 int Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     NumberOfEnumElements();
 
-template
-int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    FindEntry(uint32_t);
+template bool Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
+                         uint32_t>::HasComplexElements();
+
+template int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape,
+                       uint32_t>::FindEntry(uint32_t);
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -14787,6 +14775,16 @@ MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
 }
 
 
+void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
+                                                   int expected) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  // We need a key instance for the virtual hash function.
+  InternalizedStringKey dummy_key(Handle<String>::null());
+  table = StringTable::EnsureCapacity(table, expected, &dummy_key);
+  isolate->factory()->set_string_table(table);
+}
+
+
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
   InternalizedStringKey key(string);
@@ -15270,10 +15268,26 @@ int Dictionary<Derived, Shape, Key>::NumberOfEnumElements() {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape, typename Key>
+bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
+  int capacity = DerivedHashTable::Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = DerivedHashTable::KeyAt(i);
+    if (DerivedHashTable::IsKey(k) && !FilterKey(k, NONE)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
+      if (details.type() == CALLBACKS) return true;
+      PropertyAttributes attr = details.attributes();
+      if (attr & (READ_ONLY | DONT_DELETE)) return true;
+    }
+  }
+  return false;
+}
+
+
+template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CopyKeysTo(
-    FixedArray* storage,
-    PropertyAttributes filter,
+    FixedArray* storage, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = DerivedHashTable::Capacity();

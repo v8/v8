@@ -562,7 +562,6 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
     BasicBlock* current = (*rpo)[i];
     Tag block_tag(this, "block");
     PrintBlockProperty("name", current->id());
-    PrintStringProperty("deferred", current->deferred() ? "true" : "false");
     PrintIntProperty("from_bci", -1);
     PrintIntProperty("to_bci", -1);
 

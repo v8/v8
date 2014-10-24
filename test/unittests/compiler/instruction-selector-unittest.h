@@ -170,6 +170,9 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
 
     int ToVreg(const Node* node) const;
 
+    bool IsFixed(const InstructionOperand* operand, Register reg) const;
+    bool IsUsedAtStart(const InstructionOperand* operand) const;
+
     FrameStateDescriptor* GetFrameStateDescriptor(int deoptimization_id) {
       EXPECT_LT(deoptimization_id, GetFrameStateDescriptorCount());
       return deoptimization_entries_[deoptimization_id];

@@ -40,7 +40,7 @@ class CodeRange;
 class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
-class ConsStringIteratorOp;
+class CompilationStatistics;
 class ContextSlotCache;
 class Counters;
 class CpuFeatures;
@@ -384,7 +384,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, pending_microtask_count, 0)                                           \
   V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
-  V(HStatistics*, tstatistics, NULL)                                           \
+  V(CompilationStatistics*, turbo_statistics, NULL)                            \
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
   V(bool, fp_stubs_generated, false)                                           \
@@ -922,8 +922,6 @@ class Isolate {
     return inner_pointer_to_code_cache_;
   }
 
-  ConsStringIteratorOp* write_iterator() { return write_iterator_; }
-
   GlobalHandles* global_handles() { return global_handles_; }
 
   EternalHandles* eternal_handles() { return eternal_handles_; }
@@ -938,18 +936,6 @@ class Isolate {
 
   unibrow::Mapping<unibrow::CanonicalizationRange>* jsregexp_canonrange() {
     return &jsregexp_canonrange_;
-  }
-
-  ConsStringIteratorOp* objects_string_compare_iterator_a() {
-    return &objects_string_compare_iterator_a_;
-  }
-
-  ConsStringIteratorOp* objects_string_compare_iterator_b() {
-    return &objects_string_compare_iterator_b_;
-  }
-
-  StaticResource<ConsStringIteratorOp>* objects_string_iterator() {
-    return &objects_string_iterator_;
   }
 
   RuntimeState* runtime_state() { return &runtime_state_; }
@@ -1067,7 +1053,7 @@ class Isolate {
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
-  HStatistics* GetTStatistics();
+  CompilationStatistics* GetTurboStatistics();
   HTracer* GetHTracer();
   CodeTracer* GetCodeTracer();
 
@@ -1113,7 +1099,7 @@ class Isolate {
 
   static Isolate* NewForTesting() { return new Isolate(false); }
 
-  void GetTurboCfgFileName(Vector<char> buffer);
+  std::string GetTurboCfgFileName();
 
  private:
   explicit Isolate(bool enable_serializer);
@@ -1251,7 +1237,6 @@ class Isolate {
   UnicodeCache* unicode_cache_;
   Zone runtime_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
-  ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
   ThreadManager* thread_manager_;
@@ -1261,9 +1246,6 @@ class Isolate {
   StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
-  ConsStringIteratorOp objects_string_compare_iterator_a_;
-  ConsStringIteratorOp objects_string_compare_iterator_b_;
-  StaticResource<ConsStringIteratorOp> objects_string_iterator_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;

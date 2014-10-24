@@ -1570,6 +1570,8 @@ void Heap::Scavenge() {
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
+
+  gc_idle_time_handler_.NotifyScavenge();
 }
 
 
@@ -2906,7 +2908,7 @@ void Heap::CreateInitialObjects() {
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // The symbol registry is initialized lazily.
-  set_symbol_registry(undefined_value());
+  set_symbol_registry(Smi::FromInt(0));
 
   // Allocate object to hold object observation state.
   set_observation_state(*factory->NewJSObjectFromMap(
@@ -4301,6 +4303,23 @@ void Heap::MakeHeapIterable() {
 }
 
 
+void Heap::IdleMarkCompact(const char* message) {
+  bool uncommit = false;
+  if (gc_count_at_last_idle_gc_ == gc_count_) {
+    // No GC since the last full GC, the mutator is probably not active.
+    isolate_->compilation_cache()->Clear();
+    uncommit = true;
+  }
+  CollectAllGarbage(kReduceMemoryFootprintMask, message);
+  gc_idle_time_handler_.NotifyIdleMarkCompact();
+  gc_count_at_last_idle_gc_ = gc_count_;
+  if (uncommit) {
+    new_space_.Shrink();
+    UncommitFromSpace();
+  }
+}
+
+
 void Heap::TryFinalizeIdleIncrementalMarking(
     size_t idle_time_in_ms, size_t size_of_objects,
     size_t mark_compact_speed_in_bytes_per_ms) {
@@ -4309,20 +4328,7 @@ void Heap::TryFinalizeIdleIncrementalMarking(
        gc_idle_time_handler_.ShouldDoMarkCompact(
            idle_time_in_ms, size_of_objects,
            mark_compact_speed_in_bytes_per_ms))) {
-    bool uncommit = false;
-    if (gc_count_at_last_idle_gc_ == gc_count_) {
-      // No GC since the last full GC, the mutator is probably not active.
-      isolate_->compilation_cache()->Clear();
-      uncommit = true;
-    }
-    CollectAllGarbage(kReduceMemoryFootprintMask,
-                      "idle notification: finalize incremental");
-    gc_idle_time_handler_.NotifyIdleMarkCompact();
-    gc_count_at_last_idle_gc_ = gc_count_;
-    if (uncommit) {
-      new_space_.Shrink();
-      UncommitFromSpace();
-    }
+    IdleMarkCompact("idle notification: finalize incremental");
   }
 }
 
@@ -4392,11 +4398,14 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
     }
     case DO_FULL_GC: {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      const char* message = contexts_disposed_
-                                ? "idle notification: contexts disposed"
-                                : "idle notification: finalize idle round";
-      CollectAllGarbage(kReduceMemoryFootprintMask, message);
-      gc_idle_time_handler_.NotifyIdleMarkCompact();
+      if (contexts_disposed_) {
+        CollectAllGarbage(kReduceMemoryFootprintMask,
+                          "idle notification: contexts disposed");
+        gc_idle_time_handler_.NotifyIdleMarkCompact();
+        gc_count_at_last_idle_gc_ = gc_count_;
+      } else {
+        IdleMarkCompact("idle notification: finalize idle round");
+      }
       break;
     }
     case DO_SCAVENGE:

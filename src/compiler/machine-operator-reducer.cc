@@ -243,6 +243,21 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
       break;
     }
+    case IrOpcode::kWord64Equal: {
+      Int64BinopMatcher m(node);
+      if (m.IsFoldable()) {  // K == K => K
+        return ReplaceBool(m.left().Value() == m.right().Value());
+      }
+      if (m.left().IsInt64Sub() && m.right().Is(0)) {  // x - y == 0 => x == y
+        Int64BinopMatcher msub(m.left().node());
+        node->ReplaceInput(0, msub.left().node());
+        node->ReplaceInput(1, msub.right().node());
+        return Changed(node);
+      }
+      // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
+      if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
+      break;
+    }
     case IrOpcode::kInt32Add: {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.left().node());  // x + 0 => x

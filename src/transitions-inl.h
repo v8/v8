@@ -134,6 +134,12 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
+Object* TransitionArray::GetTargetValue(int transition_number) {
+  Map* map = GetTarget(transition_number);
+  return map->instance_descriptors()->GetValue(map->LastAdded());
+}
+
+
 int TransitionArray::Search(Name* name) {
   if (IsSimpleTransition()) {
     Name* key = GetKey(kSimpleTransitionIndex);
@@ -151,6 +157,15 @@ void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
       this, ToKeyIndex(transition_number), key);
   FixedArray::NoIncrementalWriteBarrierSet(
       this, ToTargetIndex(transition_number), target);
+}
+
+
+void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
+  if (IsFullTransitionArray()) {
+    DCHECK(number_of_transitions <= number_of_transitions_storage());
+    WRITE_FIELD(this, kTransitionLengthOffset,
+                Smi::FromInt(number_of_transitions));
+  }
 }
 
 

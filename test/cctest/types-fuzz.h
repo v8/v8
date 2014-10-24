@@ -103,6 +103,9 @@ class Types {
       if (!IsMinusZero(x)) integers.push_back(isolate->factory()->NewNumber(x));
     }
 
+    Integer = Type::Range(isolate->factory()->NewNumber(-V8_INFINITY),
+                          isolate->factory()->NewNumber(+V8_INFINITY), region);
+
     NumberArray = Type::Array(Number, region);
     StringArray = Type::Array(String, region);
     AnyArray = Type::Array(Any, region);
@@ -144,6 +147,8 @@ class Types {
   TypeHandle ObjectConstant2;
   TypeHandle ArrayConstant;
   TypeHandle UninitializedConstant;
+
+  TypeHandle Integer;
 
   TypeHandle NumberArray;
   TypeHandle StringArray;

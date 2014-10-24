@@ -74,6 +74,11 @@ class RepresentationSelector {
         changer_(changer),
         queue_(zone) {
     memset(info_, 0, sizeof(NodeInfo) * count_);
+
+    Factory* f = zone->isolate()->factory();
+    safe_int_additive_range_ =
+        Type::Range(f->NewNumber(-std::pow(2.0, 52.0)),
+                    f->NewNumber(std::pow(2.0, 52.0)), zone);
   }
 
   void Run(SimplifiedLowering* lowering) {
@@ -165,6 +170,30 @@ class RepresentationSelector {
     DCHECK_EQ(2, node->InputCount());
     return NodeProperties::GetBounds(node->InputAt(0)).upper->Is(type) &&
            NodeProperties::GetBounds(node->InputAt(1)).upper->Is(type);
+  }
+
+  void ProcessTruncateWord32Input(Node* node, int index, MachineTypeUnion use) {
+    Node* input = node->InputAt(index);
+    if (phase_ == PROPAGATE) {
+      // In the propagate phase, propagate the usage information backward.
+      Enqueue(input, use);
+    } else {
+      // In the change phase, insert a change before the use if necessary.
+      MachineTypeUnion output = GetInfo(input)->output;
+      if ((output & kRepWord32) == 0) {
+        // Output representation doesn't match usage.
+        TRACE(("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
+               node->op()->mnemonic(), index, input->id(),
+               input->op()->mnemonic()));
+        TRACE((" from "));
+        PrintInfo(output);
+        TRACE((" to "));
+        PrintInfo(use);
+        TRACE(("\n"));
+        Node* n = changer_->GetTruncatedWord32For(input, output);
+        node->ReplaceInput(index, n);
+      }
+    }
   }
 
   void ProcessInput(Node* node, int index, MachineTypeUnion use) {
@@ -371,8 +400,29 @@ class RepresentationSelector {
     return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
   }
 
+  bool IsSafeIntAdditiveOperand(Node* node) {
+    Type* type = NodeProperties::GetBounds(node).upper;
+    // TODO(jarin): Unfortunately, bitset types are not subtypes of larger
+    // range types, so we have to explicitly check for Integral32 here
+    // (in addition to the safe integer range). Once we fix subtyping for
+    // ranges, we should simplify this.
+    return type->Is(safe_int_additive_range_) || type->Is(Type::Integral32());
+  }
+
+  bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
+    return IsSafeIntAdditiveOperand(node->InputAt(0)) &&
+           IsSafeIntAdditiveOperand(node->InputAt(1)) &&
+           !CanObserveNonInt32(use);
+  }
+
   bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Unsigned32()) && !CanObserveNonUint32(use);
+  }
+
+  bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
+    return IsSafeIntAdditiveOperand(node->InputAt(0)) &&
+           IsSafeIntAdditiveOperand(node->InputAt(1)) &&
+           !CanObserveNonUint32(use);
   }
 
   bool CanObserveNonInt32(MachineTypeUnion use) {
@@ -456,8 +506,8 @@ class RepresentationSelector {
         if (lower()) {
           MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
           if (input & kRepBit) {
-            // BooleanNot(x: kRepBit) => WordEqual(x, #0)
-            node->set_op(lowering->machine()->WordEqual());
+            // BooleanNot(x: kRepBit) => Word32Equal(x, #0)
+            node->set_op(lowering->machine()->Word32Equal());
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
           } else {
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
@@ -516,9 +566,21 @@ class RepresentationSelector {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) node->set_op(Int32Op(node));
+        } else if (CanLowerToInt32AdditiveBinop(node, use)) {
+          // => signed Int32Add/Sub, truncating inputs
+          ProcessTruncateWord32Input(node, 0, kTypeInt32);
+          ProcessTruncateWord32Input(node, 1, kTypeInt32);
+          SetOutput(node, kMachInt32);
+          if (lower()) node->set_op(Int32Op(node));
         } else if (CanLowerToUint32Binop(node, use)) {
           // => unsigned Int32Add/Sub
           VisitUint32Binop(node);
+          if (lower()) node->set_op(Uint32Op(node));
+        } else if (CanLowerToUint32AdditiveBinop(node, use)) {
+          // => signed Int32Add/Sub, truncating inputs
+          ProcessTruncateWord32Input(node, 0, kTypeUint32);
+          ProcessTruncateWord32Input(node, 1, kTypeUint32);
+          SetOutput(node, kMachUint32);
           if (lower()) node->set_op(Uint32Op(node));
         } else {
           // => Float64Add/Sub
@@ -915,6 +977,7 @@ class RepresentationSelector {
   Phase phase_;                     // current phase of algorithm
   RepresentationChanger* changer_;  // for inserting representation changes
   ZoneQueue<Node*> queue_;          // queue for traversing the graph
+  Type* safe_int_additive_range_;
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() >= 0);

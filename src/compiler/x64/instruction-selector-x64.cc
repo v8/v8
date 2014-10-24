@@ -560,10 +560,9 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(rax)};
-  size_t temp_count = arraysize(temps);
   Emit(kX64ImulHigh32, g.DefineAsFixed(node, rdx),
-       g.UseFixed(node->InputAt(0), rax), g.UseRegister(node->InputAt(1)),
-       temp_count, temps);
+       g.UseFixed(node->InputAt(0), rax), g.UseUniqueRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 
@@ -821,6 +820,14 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
 }
 
 
+// Shared routine for comparison with zero.
+static void VisitCompareZero(InstructionSelector* selector, Node* node,
+                             InstructionCode opcode, FlagsContinuation* cont) {
+  X64OperandGenerator g(selector);
+  VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
+}
+
+
 // Shared routine for multiple float64 compare operations.
 static void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                                 FlagsContinuation* cont) {
@@ -946,16 +953,30 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
-  VisitCompare(this, kX64Cmp32, g.Use(value), g.TempImmediate(0), &cont);
+  VisitCompareZero(this, value, kX64Cmp32, &cont);
 }
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  Node* const user = node;
+  Node* user = node;
   FlagsContinuation cont(kEqual, node);
   Int32BinopMatcher m(user);
   if (m.right().Is(0)) {
-    Node* const value = m.left().node();
+    Node* value = m.left().node();
+
+    // Try to combine with comparisons against 0 by simply inverting the branch.
+    while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
+      Int32BinopMatcher m(value);
+      if (m.right().Is(0)) {
+        user = value;
+        value = m.left().node();
+        cont.Negate();
+      } else {
+        break;
+      }
+    }
+
+    // Try to combine the branch with a comparison.
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt32Sub:
@@ -966,6 +987,7 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
           break;
       }
     }
+    return VisitCompareZero(this, value, kX64Cmp32, &cont);
   }
   VisitWordCompare(this, node, kX64Cmp32, &cont);
 }
@@ -996,11 +1018,25 @@ void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
 
 
 void InstructionSelector::VisitWord64Equal(Node* const node) {
-  Node* const user = node;
+  Node* user = node;
   FlagsContinuation cont(kEqual, node);
   Int64BinopMatcher m(user);
   if (m.right().Is(0)) {
-    Node* const value = m.left().node();
+    Node* value = m.left().node();
+
+    // Try to combine with comparisons against 0 by simply inverting the branch.
+    while (CanCover(user, value) && value->opcode() == IrOpcode::kWord64Equal) {
+      Int64BinopMatcher m(value);
+      if (m.right().Is(0)) {
+        user = value;
+        value = m.left().node();
+        cont.Negate();
+      } else {
+        break;
+      }
+    }
+
+    // Try to combine the branch with a comparison.
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt64Sub:
@@ -1011,6 +1047,7 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
           break;
       }
     }
+    return VisitCompareZero(this, value, kX64Cmp, &cont);
   }
   VisitWordCompare(this, node, kX64Cmp, &cont);
 }

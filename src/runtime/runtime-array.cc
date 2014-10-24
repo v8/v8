@@ -1043,6 +1043,30 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_HasComplexElements) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
+  for (PrototypeIterator iter(isolate, array,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return isolate->heap()->true_value();
+    }
+    Handle<JSObject> current =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    if (current->HasIndexedInterceptor()) {
+      return isolate->heap()->true_value();
+    }
+    if (!current->HasDictionaryElements()) continue;
+    if (current->element_dictionary()->HasComplexElements()) {
+      return isolate->heap()->true_value();
+    }
+  }
+  return isolate->heap()->false_value();
+}
+
+
 // TODO(dcarney): remove this function when TurboFan supports it.
 // Takes the object to be iterated over and the result of GetPropertyNamesFast
 // Returns pair (cache_array, cache_type).

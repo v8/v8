@@ -469,10 +469,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(eax)};
-  size_t temp_count = arraysize(temps);
   Emit(kIA32ImulHigh, g.DefineAsFixed(node, edx),
-       g.UseFixed(node->InputAt(0), eax), g.UseRegister(node->InputAt(1)),
-       temp_count, temps);
+       g.UseFixed(node->InputAt(0), eax), g.UseUniqueRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 
@@ -647,10 +646,12 @@ void InstructionSelector::VisitCall(Node* node) {
 }
 
 
+namespace {
+
 // Shared routine for multiple compare operations.
-static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         InstructionOperand* left, InstructionOperand* right,
-                         FlagsContinuation* cont) {
+void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
+                  InstructionOperand* left, InstructionOperand* right,
+                  FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
   if (cont->IsBranch()) {
     selector->Emit(cont->Encode(opcode), NULL, left, right,
@@ -666,9 +667,9 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 
 
 // Shared routine for multiple compare operations.
-static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         Node* left, Node* right, FlagsContinuation* cont,
-                         bool commutative) {
+void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
+                  Node* left, Node* right, FlagsContinuation* cont,
+                  bool commutative) {
   IA32OperandGenerator g(selector);
   if (commutative && g.CanBeBetterLeftOperand(right)) {
     std::swap(left, right);
@@ -677,9 +678,17 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 
+// Shared routine for multiple float compare operations.
+void VisitFloat64Compare(InstructionSelector* selector, Node* node,
+                         FlagsContinuation* cont) {
+  VisitCompare(selector, kSSEFloat64Cmp, node->InputAt(0), node->InputAt(1),
+               cont, node->op()->HasProperty(Operator::kCommutative));
+}
+
+
 // Shared routine for multiple word compare operations.
-static void VisitWordCompare(InstructionSelector* selector, Node* node,
-                             InstructionCode opcode, FlagsContinuation* cont) {
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      InstructionCode opcode, FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
   Node* const left = node->InputAt(0);
   Node* const right = node->InputAt(1);
@@ -697,67 +706,52 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
 }
 
 
-// Shared routine for multiple float compare operations.
-static void VisitFloat64Compare(InstructionSelector* selector, Node* node,
-                                FlagsContinuation* cont) {
-  VisitCompare(selector, kSSEFloat64Cmp, node->InputAt(0), node->InputAt(1),
-               cont, node->op()->HasProperty(Operator::kCommutative));
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      FlagsContinuation* cont) {
+  VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
 
-void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
-                                      BasicBlock* fbranch) {
-  IA32OperandGenerator g(this);
-  Node* user = branch;
-  Node* value = branch->InputAt(0);
-
-  FlagsContinuation cont(kNotEqual, tbranch, fbranch);
-
-  // If we can fall through to the true block, invert the branch.
-  if (IsNextInAssemblyOrder(tbranch)) {
-    cont.Negate();
-    cont.SwapBlocks();
-  }
-
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
-    Int32BinopMatcher m(value);
-    if (m.right().Is(0)) {
-      user = value;
-      value = m.left().node();
-      cont.Negate();
-    } else {
-      break;
-    }
-  }
-
+// Shared routine for word comparison with zero.
+void VisitWordCompareZero(InstructionSelector* selector, Node* user,
+                          Node* value, FlagsContinuation* cont) {
   // Try to combine the branch with a comparison.
-  if (CanCover(user, value)) {
+  while (selector->CanCover(user, value)) {
     switch (value->opcode()) {
-      case IrOpcode::kWord32Equal:
-        cont.OverwriteAndNegateIfEqual(kEqual);
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+      case IrOpcode::kWord32Equal: {
+        // Try to combine with comparisons against 0 by simply inverting the
+        // continuation.
+        Int32BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          user = value;
+          value = m.left().node();
+          cont->Negate();
+          continue;
+        }
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitWordCompare(selector, value, cont);
+      }
       case IrOpcode::kInt32LessThan:
-        cont.OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+        cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+        return VisitWordCompare(selector, value, cont);
       case IrOpcode::kInt32LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+        cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+        return VisitWordCompare(selector, value, cont);
       case IrOpcode::kUint32LessThan:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitWordCompare(selector, value, cont);
       case IrOpcode::kUint32LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWordCompare(selector, value, cont);
       case IrOpcode::kFloat64Equal:
-        cont.OverwriteAndNegateIfEqual(kUnorderedEqual);
-        return VisitFloat64Compare(this, value, &cont);
+        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+        return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kFloat64LessThan:
-        cont.OverwriteAndNegateIfEqual(kUnorderedLessThan);
-        return VisitFloat64Compare(this, value, &cont);
+        cont->OverwriteAndNegateIfEqual(kUnorderedLessThan);
+        return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kFloat64LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
-        return VisitFloat64Compare(this, value, &cont);
+        cont->OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
+        return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
@@ -769,14 +763,14 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // *AFTER* this branch).
           Node* node = value->InputAt(0);
           Node* result = node->FindProjection(0);
-          if (result == NULL || IsDefined(result)) {
+          if (result == NULL || selector->IsDefined(result)) {
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
-                cont.OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Add, &cont);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kIA32Add, cont);
               case IrOpcode::kInt32SubWithOverflow:
-                cont.OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Sub, &cont);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kIA32Sub, cont);
               default:
                 break;
             }
@@ -784,61 +778,65 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         }
         break;
       case IrOpcode::kInt32Sub:
-        return VisitWordCompare(this, value, kIA32Cmp, &cont);
+        return VisitWordCompare(selector, value, cont);
       case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kIA32Test, &cont);
+        return VisitWordCompare(selector, value, kIA32Test, cont);
       default:
         break;
     }
+    break;
   }
 
-  // Branch could not be combined with a compare, emit compare against 0.
-  VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), &cont);
+  // Continuation could not be combined with a compare, emit compare against 0.
+  IA32OperandGenerator g(selector);
+  VisitCompare(selector, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
+}
+
+}  // namespace
+
+
+void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
+                                      BasicBlock* fbranch) {
+  FlagsContinuation cont(kNotEqual, tbranch, fbranch);
+  if (IsNextInAssemblyOrder(tbranch)) {  // We can fallthru to the true block.
+    cont.Negate();
+    cont.SwapBlocks();
+  }
+  VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  Node* const user = node;
   FlagsContinuation cont(kEqual, node);
-  Int32BinopMatcher m(user);
+  Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
-    Node* const value = m.left().node();
-    if (CanCover(user, value)) {
-      switch (value->opcode()) {
-        case IrOpcode::kInt32Sub:
-          return VisitWordCompare(this, value, kIA32Cmp, &cont);
-        case IrOpcode::kWord32And:
-          return VisitWordCompare(this, value, kIA32Test, &cont);
-        default:
-          break;
-      }
-    }
+    return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
   }
-  VisitWordCompare(this, node, kIA32Cmp, &cont);
+  VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThan(Node* node) {
   FlagsContinuation cont(kSignedLessThan, node);
-  VisitWordCompare(this, node, kIA32Cmp, &cont);
+  VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kSignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kIA32Cmp, &cont);
+  VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
-  VisitWordCompare(this, node, kIA32Cmp, &cont);
+  VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kIA32Cmp, &cont);
+  VisitWordCompare(this, node, &cont);
 }
 
 

@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_PIPELINE_H_
 #define V8_COMPILER_PIPELINE_H_
 
-#include <fstream>  // NOLINT(readability/streams)
-
 #include "src/v8.h"
 
 #include "src/compiler.h"
@@ -22,6 +20,7 @@ namespace compiler {
 class Graph;
 class InstructionSequence;
 class Linkage;
+class PipelineStatistics;
 class RegisterAllocator;
 class Schedule;
 class SourcePositionTable;
@@ -53,15 +52,10 @@ class Pipeline {
   Zone* zone() { return info_->zone(); }
 
   Schedule* ComputeSchedule(ZonePool* zone_pool, Graph* graph);
-  void OpenTurboCfgFile(std::ofstream* stream);
-  void PrintCompilationStart();
-  void PrintScheduleAndInstructions(const char* phase, const Schedule* schedule,
-                                    const SourcePositionTable* positions,
-                                    const InstructionSequence* instructions);
-  void PrintAllocator(const char* phase, const RegisterAllocator* allocator);
   void VerifyAndPrintGraph(Graph* graph, const char* phase,
                            bool untyped = false);
-  Handle<Code> GenerateCode(ZonePool* zone_pool, Linkage* linkage, Graph* graph,
+  Handle<Code> GenerateCode(PipelineStatistics* pipeline_statistics,
+                            ZonePool* zone_pool, Linkage* linkage, Graph* graph,
                             Schedule* schedule,
                             SourcePositionTable* source_positions);
 };

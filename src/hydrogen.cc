@@ -3509,9 +3509,7 @@ int HGraph::TraceInlinedFunction(
         os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
            << ") id{" << info()->optimization_id() << "," << id << "} ---\n";
         {
-          ConsStringIteratorOp op;
           StringCharacterStream stream(String::cast(script->source()),
-                                       &op,
                                        shared->start_position());
           // fun->end_position() points to the last character in the stream. We
           // need to compensate by adding one to calculate the length.
@@ -12596,15 +12594,14 @@ void HStatistics::Initialize(CompilationInfo* info) {
 }
 
 
-void HStatistics::Print(const char* stats_name) {
+void HStatistics::Print() {
   PrintF(
       "\n"
       "----------------------------------------"
       "----------------------------------------\n"
-      "--- %s timing results:\n"
+      "--- Hydrogen timing results:\n"
       "----------------------------------------"
-      "----------------------------------------\n",
-      stats_name);
+      "----------------------------------------\n");
   base::TimeDelta sum;
   for (int i = 0; i < times_.length(); ++i) {
     sum += times_[i];

@@ -1238,8 +1238,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
             isolate->counters()->compile_serialize());
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
-          PrintF("[Compiling and serializing %d bytes took %0.3f ms]\n",
-                 (*cached_data)->length(), timer.Elapsed().InMillisecondsF());
+          PrintF("[Compiling and serializing took %0.3f ms]\n",
+                 timer.Elapsed().InMillisecondsF());
         }
       }
     }

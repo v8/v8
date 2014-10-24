@@ -78,11 +78,9 @@ class SnapshotWriter {
                              const i::Serializer& serializer,
                              const i::List<i::byte>& context_snapshot_data,
                              const i::Serializer& context_serializer) const {
-    if (!startup_blob_file_)
-      return;
+    if (!startup_blob_file_) return;
 
-    i::List<i::byte> startup_blob;
-    i::ListSnapshotSink sink(&startup_blob);
+    i::SnapshotByteSink sink;
 
     int spaces[] = {i::NEW_SPACE,           i::OLD_POINTER_SPACE,
                     i::OLD_DATA_SPACE,      i::CODE_SPACE,
@@ -111,9 +109,10 @@ class SnapshotWriter {
       sink.PutInt(chunks[0], "spaces");
     }
 
+    const i::List<i::byte>& startup_blob = sink.data();
     size_t written = fwrite(startup_blob.begin(), 1, startup_blob.length(),
                             startup_blob_file_);
-    if (written != (size_t)startup_blob.length()) {
+    if (written != static_cast<size_t>(startup_blob.length())) {
       i::PrintF("Writing snapshot file failed.. Aborting.\n");
       exit(1);
     }
@@ -420,14 +419,12 @@ int main(int argc, char** argv) {
 
     // This results in a somewhat smaller snapshot, probably because it gets
     // rid of some things that are cached between garbage collections.
-    i::List<i::byte> snapshot_data;
-    i::ListSnapshotSink snapshot_sink(&snapshot_data);
+    i::SnapshotByteSink snapshot_sink;
     i::StartupSerializer ser(internal_isolate, &snapshot_sink);
     ser.SerializeStrongReferences();
 
-    i::List<i::byte> context_data;
-    i::ListSnapshotSink contex_sink(&context_data);
-    i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
+    i::SnapshotByteSink context_sink;
+    i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
     context_ser.Serialize(&raw_context);
     ser.SerializeWeakReferences();
 
@@ -444,7 +441,8 @@ int main(int argc, char** argv) {
       BZip2Compressor bzip2;
       writer.SetCompressor(&bzip2);
   #endif
-      writer.WriteSnapshot(snapshot_data, ser, context_data, context_ser);
+      writer.WriteSnapshot(snapshot_sink.data(), ser, context_sink.data(),
+                           context_ser);
     }
   }
 

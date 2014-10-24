@@ -3693,28 +3693,26 @@ const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
 }
 
 
-int ConsStringIteratorOp::OffsetForDepth(int depth) {
-  return depth & kDepthMask;
-}
+int ConsStringIterator::OffsetForDepth(int depth) { return depth & kDepthMask; }
 
 
-void ConsStringIteratorOp::PushLeft(ConsString* string) {
+void ConsStringIterator::PushLeft(ConsString* string) {
   frames_[depth_++ & kDepthMask] = string;
 }
 
 
-void ConsStringIteratorOp::PushRight(ConsString* string) {
+void ConsStringIterator::PushRight(ConsString* string) {
   // Inplace update.
   frames_[(depth_-1) & kDepthMask] = string;
 }
 
 
-void ConsStringIteratorOp::AdjustMaximumDepth() {
+void ConsStringIterator::AdjustMaximumDepth() {
   if (depth_ > maximum_depth_) maximum_depth_ = depth_;
 }
 
 
-void ConsStringIteratorOp::Pop() {
+void ConsStringIterator::Pop() {
   DCHECK(depth_ > 0);
   DCHECK(depth_ <= maximum_depth_);
   depth_--;
@@ -3730,11 +3728,8 @@ uint16_t StringCharacterStream::GetNext() {
 }
 
 
-StringCharacterStream::StringCharacterStream(String* string,
-                                             ConsStringIteratorOp* op,
-                                             int offset)
-  : is_one_byte_(false),
-    op_(op) {
+StringCharacterStream::StringCharacterStream(String* string, int offset)
+    : is_one_byte_(false) {
   Reset(string, offset);
 }
 
@@ -3743,9 +3738,9 @@ void StringCharacterStream::Reset(String* string, int offset) {
   buffer8_ = NULL;
   end_ = NULL;
   ConsString* cons_string = String::VisitFlat(this, string, offset);
-  op_->Reset(cons_string, offset);
+  iter_.Reset(cons_string, offset);
   if (cons_string != NULL) {
-    string = op_->Next(&offset);
+    string = iter_.Next(&offset);
     if (string != NULL) String::VisitFlat(this, string, offset);
   }
 }
@@ -3754,7 +3749,7 @@ void StringCharacterStream::Reset(String* string, int offset) {
 bool StringCharacterStream::HasMore() {
   if (buffer8_ != end_) return true;
   int offset;
-  String* string = op_->Next(&offset);
+  String* string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
   if (string == NULL) return false;
   String::VisitFlat(this, string);
@@ -5208,9 +5203,8 @@ Map* Map::elements_transition_map() {
 
 bool Map::CanHaveMoreTransitions() {
   if (!HasTransitionArray()) return true;
-  return FixedArray::SizeFor(transitions()->length() +
-                             TransitionArray::kTransitionSize)
-      <= Page::kMaxRegularHeapObjectSize;
+  return transitions()->number_of_transitions() <=
+         TransitionArray::kMaxNumberOfTransitions;
 }
 
 
@@ -6630,9 +6624,9 @@ uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
   // The string was flat.
   if (cons_string == NULL) return hasher.GetHashField();
   // This is a ConsString, iterate across it.
-  ConsStringIteratorOp op(cons_string);
+  ConsStringIterator iter(cons_string);
   int offset;
-  while (NULL != (string = op.Next(&offset))) {
+  while (NULL != (string = iter.Next(&offset))) {
     String::VisitFlat(&hasher, string, offset);
   }
   return hasher.GetHashField();
@@ -6997,6 +6991,14 @@ void Map::ClearCodeCache(Heap* heap) {
   //  - IncrementalMarking::Step
   DCHECK(!heap->InNewSpace(heap->empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
+}
+
+
+int Map::SlackForArraySize(int old_size, int size_limit) {
+  const int max_slack = size_limit - old_size;
+  DCHECK(max_slack >= 0);
+  if (old_size < 4) return Min(max_slack, 1);
+  return Min(max_slack, old_size / 2);
 }
 
 

@@ -876,8 +876,7 @@ MUST_USE_RESULT static Object* ConvertCaseHelper(
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
-  Access<ConsStringIteratorOp> op(isolate->runtime_state()->string_iterator());
-  StringCharacterStream stream(string, op.value());
+  StringCharacterStream stream(string);
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();

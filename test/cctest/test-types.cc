@@ -590,6 +590,8 @@ struct Tests : Rep {
   }
 
   void MinMax() {
+    Factory* fac = isolate->factory();
+
     // If b is regular numeric bitset, then Range(b->Min(), b->Max())->Is(b).
     // TODO(neis): Need to ignore representation for this to be true.
     /*
@@ -608,8 +610,7 @@ struct Tests : Rep {
     // If b is regular numeric bitset, then b->Min() and b->Max() are integers.
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      if (this->IsBitset(type) && type->Is(T.Number) &&
-          !type->Is(T.None) && !type->Is(T.NaN)) {
+      if (this->IsBitset(type) && type->Is(T.Number) && !type->Is(T.NaN)) {
         CHECK(IsInteger(type->Min()) && IsInteger(type->Max()));
       }
     }
@@ -636,6 +637,15 @@ struct Tests : Rep {
             Rep::BitsetType::Lub(type), T.region());
         CHECK(lub->Min() <= type->Min() && type->Max() <= lub->Max());
       }
+    }
+
+    // Rangification: If T->Is(Range(-inf,+inf)) and !T->Is(None), then
+    // T->Is(Range(T->Min(), T->Max())).
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(!(type->Is(T.Integer) && !type->Is(T.None)) ||
+            type->Is(T.Range(fac->NewNumber(type->Min()),
+                             fac->NewNumber(type->Max()))));
     }
   }
 

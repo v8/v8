@@ -2854,6 +2854,13 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
 }
 
 
+void FullCodeGenerator::EmitLoadSuperConstructor(SuperReference* super_ref) {
+  DCHECK(super_ref != NULL);
+  __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ CallRuntime(Runtime::kGetPrototype, 1);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -2964,9 +2971,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
   } else if (call_type == Call::SUPER_CALL) {
     SuperReference* super_ref = callee->AsSuperReference();
-    DCHECK(super_ref != NULL);
-    __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ CallRuntime(Runtime::kGetPrototype, 1);
+    EmitLoadSuperConstructor(super_ref);
     __ push(result_register());
     VisitForStackValue(super_ref->this_var());
     EmitCall(expr, CallICState::METHOD);
@@ -2997,7 +3002,12 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // Push constructor on the stack.  If it's not a function it's used as
   // receiver for CALL_NON_FUNCTION, otherwise the value on the stack is
   // ignored.
-  VisitForStackValue(expr->expression());
+  if (expr->expression()->IsSuperReference()) {
+    EmitLoadSuperConstructor(expr->expression()->AsSuperReference());
+    __ push(result_register());
+  } else {
+    VisitForStackValue(expr->expression());
+  }
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = expr->arguments();
