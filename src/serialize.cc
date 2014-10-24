@@ -1586,29 +1586,34 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   ExternalString* string = ExternalString::cast(object_);
   int length = string->length();
   Map* map;
-  int size;
-  const char* resource;
+  int content_size;
+  int allocation_size;
+  const byte* resource;
   // Find the map and size for the imaginary sequential string.
   bool internalized = object_->IsInternalizedString();
   if (object_->IsExternalOneByteString()) {
     map = internalized ? isolate->heap()->one_byte_internalized_string_map()
                        : isolate->heap()->one_byte_string_map();
-    size = SeqOneByteString::SizeFor(length);
-    resource = ExternalOneByteString::cast(string)->resource()->data();
+    allocation_size = SeqOneByteString::SizeFor(length);
+    content_size = length * kCharSize;
+    resource = reinterpret_cast<const byte*>(
+        ExternalOneByteString::cast(string)->resource()->data());
   } else {
     map = internalized ? isolate->heap()->internalized_string_map()
                        : isolate->heap()->string_map();
-    size = SeqTwoByteString::SizeFor(length);
-    resource = reinterpret_cast<const char*>(
+    allocation_size = SeqTwoByteString::SizeFor(length);
+    content_size = length * kShortSize;
+    resource = reinterpret_cast<const byte*>(
         ExternalTwoByteString::cast(string)->resource()->data());
   }
 
-  AllocationSpace space =
-      (size > Page::kMaxRegularHeapObjectSize) ? LO_SPACE : OLD_DATA_SPACE;
-  SerializePrologue(space, size, map);
+  AllocationSpace space = (allocation_size > Page::kMaxRegularHeapObjectSize)
+                              ? LO_SPACE
+                              : OLD_DATA_SPACE;
+  SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.
-  int bytes_to_output = size - HeapObject::kHeaderSize;
+  int bytes_to_output = allocation_size - HeapObject::kHeaderSize;
 
   // Output raw data header. Do not bother with common raw length cases here.
   sink_->Put(kRawData, "RawDataForString");
@@ -1621,10 +1626,13 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   }
 
   // Serialize string content.
-  int content_length = size - SeqString::kHeaderSize;
-  for (int i = 0; i < content_length; i++) {
-    sink_->PutSection(resource[i], "StringContent");
-  }
+  sink_->PutRaw(const_cast<byte*>(resource), content_size, "StringContent");
+
+  // Since the allocation size is rounded up to object alignment, there
+  // maybe left-over bytes that need to be padded.
+  int padding_size = allocation_size - SeqString::kHeaderSize - content_size;
+  DCHECK(0 <= padding_size && padding_size < kObjectAlignment);
+  for (int i = 0; i < padding_size; i++) sink_->PutSection(0, "StringPadding");
 
   sink_->Put(kSkip, "SkipAfterString");
   sink_->PutInt(bytes_to_output, "SkipDistance");
@@ -1871,9 +1879,7 @@ int Serializer::ObjectSerializer::OutputRawData(
     }
 
     const char* description = code_object_ ? "Code" : "Byte";
-    for (int i = 0; i < bytes_to_output; i++) {
-      sink_->PutSection(object_start[base + i], description);
-    }
+    sink_->PutRaw(object_start + base, bytes_to_output, description);
     if (code_object_) delete[] object_start;
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {

@@ -54,9 +54,7 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
 
 void SnapshotByteSink::PutRaw(byte* data, int number_of_bytes,
                               const char* description) {
-  for (int i = 0; i < number_of_bytes; ++i) {
-    Put(data[i], description);
-  }
+  data_.AddAll(Vector<byte>(data, number_of_bytes));
 }
 
 void SnapshotByteSink::PutBlob(byte* data, int number_of_bytes,

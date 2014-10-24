@@ -1054,7 +1054,7 @@ TEST(SerializeToplevelLargeExternalString) {
   // Create a huge external internalized string to use as variable name.
   Vector<const uint8_t> string =
       ConstructSource(STATIC_CHAR_VECTOR(""), STATIC_CHAR_VECTOR("abcdef"),
-                      STATIC_CHAR_VECTOR(""), 1000000);
+                      STATIC_CHAR_VECTOR(""), 999999);
   Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.start()), string.length());
