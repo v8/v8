@@ -1677,11 +1677,10 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
     while (current < end && !(*current)->IsSmi()) {
       HeapObject* current_contents = HeapObject::cast(*current);
       int root_index = serializer_->root_index_map()->Lookup(current_contents);
-      // Repeats are not subject to the write barrier so there are only some
-      // objects that can be used in a repeat encoding.  These are the early
-      // ones in the root array that are never in new space.
+      // Repeats are not subject to the write barrier so we can only use
+      // immortal immovable root members. They are never in new space.
       if (current != start && root_index != RootIndexMap::kInvalidRootIndex &&
-          root_index < kRootArrayNumberOfConstantEncodings &&
+          Heap::RootIsImmortalImmovable(root_index) &&
           current_contents == current[-1]) {
         DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;
@@ -1908,7 +1907,7 @@ BackReference Serializer::AllocateLargeObject(int size) {
   // Large objects are allocated one-by-one when deserializing. We do not
   // have to keep track of multiple chunks.
   pending_chunk_[LO_SPACE] += size;
-  return BackReference(LO_SPACE, 0, seen_large_objects_index_++);
+  return BackReference::LargeObjectReference(seen_large_objects_index_++);
 }
 
 
@@ -1925,7 +1924,8 @@ BackReference Serializer::Allocate(AllocationSpace space, int size) {
   }
   uint32_t offset = pending_chunk_[space];
   pending_chunk_[space] = new_chunk_size;
-  return BackReference(space, completed_chunks_[space].length(), offset);
+  return BackReference::Reference(space, completed_chunks_[space].length(),
+                                  offset);
 }
 
 
@@ -2007,12 +2007,17 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   BackReference back_reference = back_reference_map_.Lookup(obj);
   if (back_reference.is_valid()) {
-    if (FLAG_trace_code_serializer) {
-      PrintF(" Encoding back reference to: ");
-      obj->ShortPrint();
-      PrintF("\n");
+    if (back_reference.is_source()) {
+      DCHECK_EQ(source_, obj);
+      SerializeSourceObject(how_to_code, where_to_point);
+    } else {
+      if (FLAG_trace_code_serializer) {
+        PrintF(" Encoding back reference to: ");
+        obj->ShortPrint();
+        PrintF("\n");
+      }
+      SerializeBackReference(back_reference, how_to_code, where_to_point, skip);
     }
-    SerializeBackReference(back_reference, how_to_code, where_to_point, skip);
     return;
   }
 
@@ -2054,11 +2059,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         return;
     }
     UNREACHABLE();
-  }
-
-  if (obj == source_) {
-    SerializeSourceObject(how_to_code, where_to_point);
-    return;
   }
 
   // Past this point we should not see any (context-specific) maps anymore.

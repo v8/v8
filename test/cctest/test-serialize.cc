@@ -867,6 +867,8 @@ TEST(SerializeToplevelLargeString) {
 
   CHECK_EQ(6 * 1000000, Handle<String>::cast(copy_result)->length());
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*copy_result), LO_SPACE));
+  // Make sure we do not serialize too much, e.g. include the source string.
+  CHECK_LT(cache->length(), 7000000);
 
   delete cache;
   source.Dispose();
