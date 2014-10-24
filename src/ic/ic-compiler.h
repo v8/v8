@@ -34,6 +34,8 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                          ExtraICState extra_ic_state);
 
   // Keyed
+  static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
+      Handle<Map> receiver_map);
   static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
 
   static Handle<Code> ComputeKeyedStoreMonomorphic(

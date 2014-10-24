@@ -92,6 +92,20 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
+  Handle<Code> stub = ComputeKeyedLoadMonomorphicHandler(receiver_map);
+  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
+  Handle<Code> code =
+      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
+                                  isolate->factory()->empty_string(), ELEMENT);
+
+  Map::UpdateCodeCache(receiver_map, name, code);
+  return code;
+}
+
+
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
+    Handle<Map> receiver_map) {
+  Isolate* isolate = receiver_map->GetIsolate();
   ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
@@ -110,13 +124,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
   } else {
     stub = LoadDictionaryElementStub(isolate).GetCode();
   }
-  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
-  Handle<Code> code =
-      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
-                                  isolate->factory()->empty_string(), ELEMENT);
-
-  Map::UpdateCodeCache(receiver_map, name, code);
-  return code;
+  return stub;
 }
 
 
