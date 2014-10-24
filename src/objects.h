@@ -8654,9 +8654,13 @@ class Symbol: public Name {
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
 
+  void SymbolShortPrint(std::ostream& os);
+
  private:
   static const int kPrivateBit = 0;
   static const int kOwnBit = 1;
+
+  const char* PrivateSymbolToName() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };

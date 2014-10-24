@@ -1532,15 +1532,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
     case SYMBOL_TYPE: {
       Symbol* symbol = Symbol::cast(this);
-      os << "<Symbol: " << symbol->Hash();
-      if (!symbol->name()->IsUndefined()) {
-        os << " ";
-        HeapStringAllocator allocator;
-        StringStream accumulator(&allocator);
-        String::cast(symbol->name())->StringShortPrint(&accumulator);
-        os << accumulator.ToCString().get();
-      }
-      os << ">";
+      symbol->SymbolShortPrint(os);
       break;
     }
     case HEAP_NUMBER_TYPE: {
@@ -13613,6 +13605,31 @@ int JSObject::GetOwnElementKeys(FixedArray* storage,
 
 int JSObject::GetEnumElementKeys(FixedArray* storage) {
   return GetOwnElementKeys(storage, static_cast<PropertyAttributes>(DONT_ENUM));
+}
+
+
+const char* Symbol::PrivateSymbolToName() const {
+  Heap* heap = GetIsolate()->heap();
+#define SYMBOL_CHECK_AND_PRINT(name) \
+  if (this == heap->name()) return #name;
+  PRIVATE_SYMBOL_LIST(SYMBOL_CHECK_AND_PRINT)
+#undef SYMBOL_CHECK_AND_PRINT
+  return "UNKNOWN";
+}
+
+
+void Symbol::SymbolShortPrint(std::ostream& os) {
+  os << "<Symbol: " << Hash();
+  if (!name()->IsUndefined()) {
+    os << " ";
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    String::cast(name())->StringShortPrint(&accumulator);
+    os << accumulator.ToCString().get();
+  } else {
+    os << " (" << PrivateSymbolToName() << ")";
+  }
+  os << ">";
 }
 
 
