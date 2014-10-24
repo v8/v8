@@ -1770,6 +1770,30 @@ Bounds Typer::Visitor::TypeFloat64LessThanOrEqual(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat64Floor(Node* node) {
+  // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64Ceil(Node* node) {
+  // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64RoundTruncate(Node* node) {
+  // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64RoundTiesAway(Node* node) {
+  // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
 Bounds Typer::Visitor::TypeLoadStackPointer(Node* node) {
   return Bounds(Type::Internal());
 }

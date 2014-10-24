@@ -85,6 +85,9 @@ class InstructionSelector FINAL {
     return Features(CpuFeatures::SupportedFeatures());
   }
 
+  // TODO(sigurds) This should take a CpuFeatures argument.
+  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
+
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================

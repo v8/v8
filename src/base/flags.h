@@ -26,8 +26,9 @@ class Flags FINAL {
   typedef S mask_type;
 
   Flags() : mask_(0) {}
-  Flags(flag_type flag) : mask_(flag) {}  // NOLINT(runtime/explicit)
-  explicit Flags(mask_type mask) : mask_(mask) {}
+  Flags(flag_type flag)  // NOLINT(runtime/explicit)
+      : mask_(static_cast<S>(flag)) {}
+  explicit Flags(mask_type mask) : mask_(static_cast<S>(mask)) {}
 
   Flags& operator&=(const Flags& flags) {
     mask_ &= flags.mask_;

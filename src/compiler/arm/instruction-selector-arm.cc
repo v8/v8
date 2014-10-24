@@ -1135,6 +1135,12 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
+
+// static
+MachineOperatorBuilder::Flags
+InstructionSelector::SupportedMachineOperatorFlags() {
+  return MachineOperatorBuilder::Flag::kNoFlags;
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

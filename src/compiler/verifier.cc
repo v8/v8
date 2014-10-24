@@ -702,6 +702,10 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Sqrt:
+    case IrOpcode::kFloat64Floor:
+    case IrOpcode::kFloat64Ceil:
+    case IrOpcode::kFloat64RoundTruncate:
+    case IrOpcode::kFloat64RoundTiesAway:
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
     case IrOpcode::kFloat64LessThanOrEqual:
