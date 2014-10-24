@@ -239,6 +239,7 @@ class CFGBuilder {
     switch (node->opcode()) {
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
+      case IrOpcode::kTerminate:
         BuildBlockForNode(node);
         break;
       case IrOpcode::kBranch:
