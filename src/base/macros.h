@@ -398,4 +398,22 @@ inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
 
+
+namespace v8 {
+namespace base {
+
+// TODO(yangguo): This is a poor man's replacement for std::is_fundamental,
+// which requires C++11. Switch to std::is_fundamental once possible.
+template <typename T>
+inline bool is_fundamental() {
+  return false;
+}
+
+template <>
+inline bool is_fundamental<uint8_t>() {
+  return true;
+}
+}
+}  // namespace v8::base
+
 #endif   // V8_BASE_MACROS_H_
