@@ -330,13 +330,23 @@ const AstValue* AstValueFactory::NewSmi(int number) {
 }
 
 
-const AstValue* AstValueFactory::NewBoolean(bool b) {
-  AstValue* value = new (zone_) AstValue(b);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
+#define GENERATE_VALUE_GETTER(value, initializer) \
+  if (!value) {                                   \
+    value = new (zone_) AstValue(initializer);    \
+    if (isolate_) {                               \
+      value->Internalize(isolate_);               \
+    }                                             \
+    values_.Add(value);                           \
+  }                                               \
   return value;
+
+
+const AstValue* AstValueFactory::NewBoolean(bool b) {
+  if (b) {
+    GENERATE_VALUE_GETTER(true_value_, true);
+  } else {
+    GENERATE_VALUE_GETTER(false_value_, false);
+  }
 }
 
 
@@ -352,34 +362,21 @@ const AstValue* AstValueFactory::NewStringList(
 
 
 const AstValue* AstValueFactory::NewNull() {
-  AstValue* value = new (zone_) AstValue(AstValue::NULL_TYPE);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(null_value_, AstValue::NULL_TYPE);
 }
 
 
 const AstValue* AstValueFactory::NewUndefined() {
-  AstValue* value = new (zone_) AstValue(AstValue::UNDEFINED);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(undefined_value_, AstValue::UNDEFINED);
 }
 
 
 const AstValue* AstValueFactory::NewTheHole() {
-  AstValue* value = new (zone_) AstValue(AstValue::THE_HOLE);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  GENERATE_VALUE_GETTER(the_hole_value_, AstValue::THE_HOLE);
 }
 
+
+#undef GENERATE_VALUE_GETTER
 
 const AstRawString* AstValueFactory::GetString(
     uint32_t hash, bool is_one_byte, Vector<const byte> literal_bytes) {
