@@ -25,6 +25,8 @@
   (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
 
 
+#if V8_OS_NACL
+
 // ARRAYSIZE_UNSAFE performs essentially the same calculation as arraysize,
 // but can be used on anonymous types or types defined inside
 // functions.  It's less safe than arraysize as it accepts some
@@ -64,9 +66,6 @@
 #define ARRAYSIZE_UNSAFE(a)     \
   ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))  // NOLINT
-
-
-#if V8_OS_NACL
 
 // TODO(bmeurer): For some reason, the NaCl toolchain cannot handle the correct
 // definition of arraysize() below, so we have to use the unsafe version for
