@@ -224,6 +224,58 @@ TEST(Bits, SignedMulHighAndAdd32) {
   }
 }
 
+
+TEST(Bits, SignedDiv32) {
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(),
+            SignedDiv32(std::numeric_limits<int32_t>::min(), -1));
+  EXPECT_EQ(std::numeric_limits<int32_t>::max(),
+            SignedDiv32(std::numeric_limits<int32_t>::max(), 1));
+  TRACED_FORRANGE(int32_t, i, 0, 50) {
+    EXPECT_EQ(0, SignedDiv32(i, 0));
+    TRACED_FORRANGE(int32_t, j, 1, i) {
+      EXPECT_EQ(1, SignedDiv32(j, j));
+      EXPECT_EQ(i / j, SignedDiv32(i, j));
+      EXPECT_EQ(-i / j, SignedDiv32(i, -j));
+    }
+  }
+}
+
+
+TEST(Bits, SignedMod32) {
+  EXPECT_EQ(0, SignedMod32(std::numeric_limits<int32_t>::min(), -1));
+  EXPECT_EQ(0, SignedMod32(std::numeric_limits<int32_t>::max(), 1));
+  TRACED_FORRANGE(int32_t, i, 0, 50) {
+    EXPECT_EQ(0, SignedMod32(i, 0));
+    TRACED_FORRANGE(int32_t, j, 1, i) {
+      EXPECT_EQ(0, SignedMod32(j, j));
+      EXPECT_EQ(i % j, SignedMod32(i, j));
+      EXPECT_EQ(i % j, SignedMod32(i, -j));
+    }
+  }
+}
+
+
+TEST(Bits, UnsignedDiv32) {
+  TRACED_FORRANGE(uint32_t, i, 0, 50) {
+    EXPECT_EQ(0u, UnsignedDiv32(i, 0));
+    TRACED_FORRANGE(uint32_t, j, i + 1, 100) {
+      EXPECT_EQ(1u, UnsignedDiv32(j, j));
+      EXPECT_EQ(i / j, UnsignedDiv32(i, j));
+    }
+  }
+}
+
+
+TEST(Bits, UnsignedMod32) {
+  TRACED_FORRANGE(uint32_t, i, 0, 50) {
+    EXPECT_EQ(0u, UnsignedMod32(i, 0));
+    TRACED_FORRANGE(uint32_t, j, i + 1, 100) {
+      EXPECT_EQ(0u, UnsignedMod32(j, j));
+      EXPECT_EQ(i % j, UnsignedMod32(i, j));
+    }
+  }
+}
+
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

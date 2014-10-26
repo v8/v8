@@ -199,6 +199,32 @@ int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 // adds the accumulate value |acc|.
 int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc);
 
+
+// SignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
+// truncated to int32. If |rhs| is zero, then zero is returned. If |lhs|
+// is minint and |rhs| is -1, it returns minint.
+int32_t SignedDiv32(int32_t lhs, int32_t rhs);
+
+
+// SignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
+// truncated to int32. If either |rhs| is zero or |lhs| is minint and |rhs|
+// is -1, it returns zero.
+int32_t SignedMod32(int32_t lhs, int32_t rhs);
+
+
+// UnsignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
+// truncated to uint32. If |rhs| is zero, then zero is returned.
+inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {
+  return rhs ? lhs / rhs : 0u;
+}
+
+
+// UnsignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
+// truncated to uint32. If |rhs| is zero, then zero is returned.
+inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
+  return rhs ? lhs % rhs : 0u;
+}
+
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

@@ -1442,20 +1442,18 @@ TEST(17) {
     CHECK_EQ(expected_, t.result);
 
 
-TEST(18) {
+TEST(sdiv) {
   // Test the sdiv.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-
-  typedef struct {
-    uint32_t dividend;
-    uint32_t divisor;
-    uint32_t result;
-  } T;
-  T t;
-
   Assembler assm(isolate, NULL, 0);
+
+  struct T {
+    int32_t dividend;
+    int32_t divisor;
+    int32_t result;
+  } t;
 
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(&assm, SUDIV);
@@ -1480,6 +1478,8 @@ TEST(18) {
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     Object* dummy;
+    TEST_SDIV(0, kMinInt, 0);
+    TEST_SDIV(0, 1024, 0);
     TEST_SDIV(1073741824, kMinInt, -2);
     TEST_SDIV(kMinInt, kMinInt, -1);
     TEST_SDIV(5, 10, 2);
@@ -1496,6 +1496,62 @@ TEST(18) {
 
 
 #undef TEST_SDIV
+
+
+#define TEST_UDIV(expected_, dividend_, divisor_) \
+  t.dividend = dividend_;                         \
+  t.divisor = divisor_;                           \
+  t.result = 0;                                   \
+  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0); \
+  CHECK_EQ(expected_, t.result);
+
+
+TEST(udiv) {
+  // Test the udiv.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, NULL, 0);
+
+  struct T {
+    uint32_t dividend;
+    uint32_t divisor;
+    uint32_t result;
+  } t;
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(&assm, SUDIV);
+
+    __ mov(r3, Operand(r0));
+
+    __ ldr(r0, MemOperand(r3, OFFSET_OF(T, dividend)));
+    __ ldr(r1, MemOperand(r3, OFFSET_OF(T, divisor)));
+
+    __ sdiv(r2, r0, r1);
+    __ str(r2, MemOperand(r3, OFFSET_OF(T, result)));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    Object* dummy;
+    TEST_UDIV(0, 0, 0);
+    TEST_UDIV(0, 1024, 0);
+    TEST_UDIV(5, 10, 2);
+    TEST_UDIV(3, 10, 3);
+    USE(dummy);
+  }
+}
+
+
+#undef TEST_UDIV
 
 
 TEST(smmla) {
