@@ -155,7 +155,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kFunctionBindArguments:
     case Runtime::kGetDefaultReceiver:
     case Runtime::kGetFrameCount:
-    case Runtime::kGetImplFromInitializedIntlObject:
     case Runtime::kGetOwnProperty:
     case Runtime::kGetOwnPropertyNames:
     case Runtime::kGetPropertyNamesFast:
@@ -204,6 +203,9 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kThrow:
     case Runtime::kTypedArraySetFastCases:
     case Runtime::kTypedArrayInitializeFromArrayLike:
+#ifdef V8_I18N_SUPPORT
+    case Runtime::kGetImplFromInitializedIntlObject:
+#endif
       return true;
     default:
       return false;
