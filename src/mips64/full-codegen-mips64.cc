@@ -2523,10 +2523,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       Register scratch = a2;
       Register scratch2 = a3;
       __ mov(scratch, result_register());             // home_object
-      __ lw(v0, MemOperand(sp, kPointerSize));        // value
-      __ lw(scratch2, MemOperand(sp, 0));             // this
-      __ sw(scratch2, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 0));              // home_object
+      __ ld(v0, MemOperand(sp, kPointerSize));        // value
+      __ ld(scratch2, MemOperand(sp, 0));             // this
+      __ sd(scratch2, MemOperand(sp, kPointerSize));  // this
+      __ sd(scratch, MemOperand(sp, 0));              // home_object
       // stack: this, home_object; v0: value
       EmitNamedSuperPropertyStore(prop);
       break;
@@ -2539,13 +2539,13 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->key());
       Register scratch = a2;
       Register scratch2 = a3;
-      __ lw(scratch2, MemOperand(sp, 2 * kPointerSize));  // value
+      __ ld(scratch2, MemOperand(sp, 2 * kPointerSize));  // value
       // stack: value, this, home_object; v0: key, a3: value
-      __ lw(scratch, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 2 * kPointerSize));
-      __ lw(scratch, MemOperand(sp, 0));  // home_object
-      __ sw(scratch, MemOperand(sp, kPointerSize));
-      __ sw(v0, MemOperand(sp, 0));
+      __ ld(scratch, MemOperand(sp, kPointerSize));  // this
+      __ sd(scratch, MemOperand(sp, 2 * kPointerSize));
+      __ ld(scratch, MemOperand(sp, 0));  // home_object
+      __ sd(scratch, MemOperand(sp, kPointerSize));
+      __ sd(v0, MemOperand(sp, 0));
       __ Move(v0, scratch2);
       // stack: this, home_object, key; v0: value.
       EmitKeyedSuperPropertyStore(prop);
