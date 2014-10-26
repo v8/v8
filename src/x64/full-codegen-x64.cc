@@ -1086,6 +1086,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Push(rax);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ bind(&done_convert);
+  PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ Push(rax);
 
   // Check for proxies.
@@ -1110,6 +1111,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&call_runtime);
   __ Push(rax);  // Duplicate the enumerable object on the stack.
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+  PrepareForBailoutForId(stmt->EnumId(), TOS_REG);
 
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
@@ -1663,6 +1665,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     FastCloneShallowObjectStub stub(isolate(), properties_count);
     __ CallStub(&stub);
   }
+  PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
 
   // If result_saved is true the result is on top of the stack.  If
   // result_saved is false the result is in rax.

@@ -81,6 +81,9 @@ inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSSubtract:
 
+    // Conversions
+    case IrOpcode::kJSToObject:
+
     // Other
     case IrOpcode::kJSDeleteProperty:
       return true;

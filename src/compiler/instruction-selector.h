@@ -139,6 +139,10 @@ class InstructionSelector FINAL {
   // by {node}.
   void MarkAsRepresentation(MachineType rep, Node* node);
 
+  // Inform the register allocation of the representation of the unallocated
+  // operand {op}.
+  void MarkAsRepresentation(MachineType rep, InstructionOperand* op);
+
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
   // to the inputs and outputs of the call.

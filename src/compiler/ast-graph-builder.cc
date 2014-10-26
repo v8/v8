@@ -642,11 +642,14 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     // Convert object to jsobject.
     // PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
     obj = NewNode(javascript()->ToObject(), obj);
+    PrepareFrameState(obj, stmt->ToObjectId(), OutputFrameStateCombine::Push());
     environment()->Push(obj);
     // TODO(dcarney): should do a fast enum cache check here to skip runtime.
     environment()->Push(obj);
     Node* cache_type = ProcessArguments(
         javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), 1);
+    PrepareFrameState(cache_type, stmt->EnumId(),
+                      OutputFrameStateCombine::Push());
     // TODO(dcarney): these next runtime calls should be removed in favour of
     //                a few simplified instructions.
     environment()->Push(obj);
@@ -882,6 +885,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   const Operator* op =
       javascript()->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+  PrepareFrameState(literal, expr->CreateLiteralId(),
+                    OutputFrameStateCombine::Push());
 
   // The object is expected on the operand stack during computation of the
   // property values and is the value of the entire expression.
@@ -943,7 +948,10 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         if (property->emit_store()) {
           const Operator* op =
               javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
-          NewNode(op, receiver, value);
+          Node* set_prototype = NewNode(op, receiver, value);
+          // SetPrototype should not lazy deopt on an object
+          // literal.
+          PrepareFrameState(set_prototype, BailoutId::None());
         }
         break;
       }
@@ -970,7 +978,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     const Operator* op =
         javascript()->CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
     Node* call = NewNode(op, literal, name, getter, setter, attr);
-    PrepareFrameState(call, it->first->id());
+    // This should not lazy deopt on a new literal.
+    PrepareFrameState(call, BailoutId::None());
   }
 
   // Transform literals that contain functions to fast properties.
@@ -1237,7 +1246,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       receiver_value = NewNode(common()->Projection(1), pair);
 
       PrepareFrameState(pair, expr->EvalOrLookupId(),
-                        OutputFrameStateCombine::Push());
+                        OutputFrameStateCombine::Push(2));
       break;
     }
     case Call::PROPERTY_CALL: {

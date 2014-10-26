@@ -414,9 +414,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
-      if (FLAG_turbo_deoptimization) {
-        info()->context()->native_context()->AddOptimizedCode(*info()->code());
-      }
       return SetLastStatus(SUCCEEDED);
     }
   }
@@ -485,6 +482,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
   DCHECK(last_status() == SUCCEEDED);
   // TODO(turbofan): Currently everything is done in the first phase.
   if (!info()->code().is_null()) {
+    if (FLAG_turbo_deoptimization) {
+      info()->context()->native_context()->AddOptimizedCode(*info()->code());
+    }
     RecordOptimizationStats();
     return last_status();
   }

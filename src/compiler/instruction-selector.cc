@@ -219,6 +219,23 @@ void InstructionSelector::MarkAsReference(Node* node) {
 }
 
 
+void InstructionSelector::MarkAsRepresentation(MachineType rep,
+                                               InstructionOperand* op) {
+  UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
+  switch (RepresentationOf(rep)) {
+    case kRepFloat32:
+    case kRepFloat64:
+      sequence()->MarkAsDouble(unalloc->virtual_register());
+      break;
+    case kRepTagged:
+      sequence()->MarkAsReference(unalloc->virtual_register());
+      break;
+    default:
+      break;
+  }
+}
+
+
 void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
   DCHECK_NOT_NULL(node);
   switch (RepresentationOf(rep)) {
@@ -274,15 +291,27 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
+    size_t outputs_needed_by_framestate =
+        buffer->frame_state_descriptor == NULL
+            ? 0
+            : buffer->frame_state_descriptor->state_combine()
+                  .ConsumedOutputCount();
     for (size_t i = 0; i < buffer->output_nodes.size(); i++) {
-      if (buffer->output_nodes[i] != NULL) {
-        Node* output = buffer->output_nodes[i];
+      bool output_is_live =
+          buffer->output_nodes[i] != NULL || i < outputs_needed_by_framestate;
+      if (output_is_live) {
         MachineType type =
             buffer->descriptor->GetReturnType(static_cast<int>(i));
         LinkageLocation location =
             buffer->descriptor->GetReturnLocation(static_cast<int>(i));
-        MarkAsRepresentation(type, output);
-        buffer->outputs.push_back(g.DefineAsLocation(output, location, type));
+
+        Node* output = buffer->output_nodes[i];
+        InstructionOperand* op =
+            output == NULL ? g.TempLocation(location, type)
+                           : g.DefineAsLocation(output, location, type);
+        MarkAsRepresentation(type, op);
+
+        buffer->outputs.push_back(op);
       }
     }
   }

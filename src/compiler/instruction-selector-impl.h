@@ -128,6 +128,12 @@ class OperandGenerator {
     return ImmediateOperand::Create(index, zone());
   }
 
+  InstructionOperand* TempLocation(LinkageLocation location, MachineType type) {
+    UnallocatedOperand* op = ToUnallocatedOperand(location, type);
+    op->set_virtual_register(sequence()->NextVirtualRegister());
+    return op;
+  }
+
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
     return TempImmediate(block->rpo_number());
