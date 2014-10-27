@@ -2580,13 +2580,13 @@ bool Value::IsGeneratorObject() const {
 }
 
 
-Local<String> Value::ToString() const {
+Local<String> Value::ToString(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
   if (obj->IsString()) {
     str = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2598,13 +2598,13 @@ Local<String> Value::ToString() const {
 }
 
 
-Local<String> Value::ToDetailString() const {
+Local<String> Value::ToDetailString(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
   if (obj->IsString()) {
     str = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToDetailString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2616,13 +2616,13 @@ Local<String> Value::ToDetailString() const {
 }
 
 
-Local<v8::Object> Value::ToObject() const {
+Local<v8::Object> Value::ToObject(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> val;
   if (obj->IsJSObject()) {
     val = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToObject");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2634,12 +2634,12 @@ Local<v8::Object> Value::ToObject() const {
 }
 
 
-Local<Boolean> Value::ToBoolean() const {
+Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBoolean()) {
     return ToApiHandle<Boolean>(obj);
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToBoolean");
     ENTER_V8(isolate);
     i::Handle<i::Object> val =
@@ -2649,13 +2649,13 @@ Local<Boolean> Value::ToBoolean() const {
 }
 
 
-Local<Number> Value::ToNumber() const {
+Local<Number> Value::ToNumber(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToNumber");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2667,13 +2667,13 @@ Local<Number> Value::ToNumber() const {
 }
 
 
-Local<Integer> Value::ToInteger() const {
+Local<Integer> Value::ToInteger(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToInteger");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2935,13 +2935,13 @@ int64_t Value::IntegerValue() const {
 }
 
 
-Local<Int32> Value::ToInt32() const {
+Local<Int32> Value::ToInt32(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2952,13 +2952,13 @@ Local<Int32> Value::ToInt32() const {
 }
 
 
-Local<Uint32> Value::ToUint32() const {
+Local<Uint32> Value::ToUint32(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     LOG_API(isolate, "ToUInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -6916,7 +6916,7 @@ String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   TryCatch try_catch;
-  Handle<String> str = obj->ToString();
+  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
   if (str.IsEmpty()) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
   length_ = v8::Utf8Length(*i_str, isolate);
@@ -6937,7 +6937,7 @@ String::Value::Value(v8::Handle<v8::Value> obj)
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   TryCatch try_catch;
-  Handle<String> str = obj->ToString();
+  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
   if (str.IsEmpty()) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);

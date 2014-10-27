@@ -186,7 +186,7 @@ ScriptCompiler::CachedData* CompileForCachedData(
   int name_length = 0;
   uint16_t* name_buffer = NULL;
   if (name->IsString()) {
-    Local<String> name_string = name->ToString();
+    Local<String> name_string = Local<String>::Cast(name);
     name_length = name_string->Length();
     name_buffer = new uint16_t[name_length];
     name_string->Write(name_buffer, 0, name_length);
@@ -410,7 +410,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
-  int index = data->RealmFind(args[0]->ToObject()->CreationContext());
+  int index = data->RealmFind(args[0]->ToObject(isolate)->CreationContext());
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
@@ -480,7 +480,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
-  ScriptCompiler::Source script_source(args[1]->ToString());
+  ScriptCompiler::Source script_source(args[1]->ToString(isolate));
   Handle<UnboundScript> script = ScriptCompiler::CompileUnbound(
       isolate, &script_source);
   if (script.IsEmpty()) return;
@@ -526,7 +526,7 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     // Explicitly catch potential exceptions in toString().
     v8::TryCatch try_catch;
-    Handle<String> str_obj = args[i]->ToString();
+    Handle<String> str_obj = args[i]->ToString(args.GetIsolate());
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;

@@ -1703,14 +1703,24 @@ class V8_EXPORT Value : public Data {
    */
   bool IsDataView() const;
 
-  Local<Boolean> ToBoolean() const;
-  Local<Number> ToNumber() const;
-  Local<String> ToString() const;
-  Local<String> ToDetailString() const;
-  Local<Object> ToObject() const;
-  Local<Integer> ToInteger() const;
-  Local<Uint32> ToUint32() const;
-  Local<Int32> ToInt32() const;
+  Local<Boolean> ToBoolean(Isolate* isolate) const;
+  Local<Number> ToNumber(Isolate* isolate) const;
+  Local<String> ToString(Isolate* isolate) const;
+  Local<String> ToDetailString(Isolate* isolate) const;
+  Local<Object> ToObject(Isolate* isolate) const;
+  Local<Integer> ToInteger(Isolate* isolate) const;
+  Local<Uint32> ToUint32(Isolate* isolate) const;
+  Local<Int32> ToInt32(Isolate* isolate) const;
+
+  // TODO(dcarney): deprecate all these.
+  inline Local<Boolean> ToBoolean() const;
+  inline Local<Number> ToNumber() const;
+  inline Local<String> ToString() const;
+  inline Local<String> ToDetailString() const;
+  inline Local<Object> ToObject() const;
+  inline Local<Integer> ToInteger() const;
+  inline Local<Uint32> ToUint32() const;
+  inline Local<Int32> ToInt32() const;
 
   /**
    * Attempts to convert a string to an array index.
@@ -6636,6 +6646,44 @@ bool Value::QuickIsString() const {
 template <class T> Value* Value::Cast(T* value) {
   return static_cast<Value*>(value);
 }
+
+
+Local<Boolean> Value::ToBoolean() const {
+  return ToBoolean(Isolate::GetCurrent());
+}
+
+
+Local<Number> Value::ToNumber() const {
+  return ToNumber(Isolate::GetCurrent());
+}
+
+
+Local<String> Value::ToString() const {
+  return ToString(Isolate::GetCurrent());
+}
+
+
+Local<String> Value::ToDetailString() const {
+  return ToDetailString(Isolate::GetCurrent());
+}
+
+
+Local<Object> Value::ToObject() const {
+  return ToObject(Isolate::GetCurrent());
+}
+
+
+Local<Integer> Value::ToInteger() const {
+  return ToInteger(Isolate::GetCurrent());
+}
+
+
+Local<Uint32> Value::ToUint32() const {
+  return ToUint32(Isolate::GetCurrent());
+}
+
+
+Local<Int32> Value::ToInt32() const { return ToInt32(Isolate::GetCurrent()); }
 
 
 Name* Name::Cast(v8::Value* value) {
