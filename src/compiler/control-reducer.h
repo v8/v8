@@ -11,6 +11,7 @@ namespace compiler {
 
 class JSGraph;
 class CommonOperatorBuilder;
+class Node;
 
 class ControlReducer {
  public:
@@ -20,6 +21,16 @@ class ControlReducer {
 
   // Trim nodes in the graph that are not reachable from end.
   static void TrimGraph(Zone* zone, JSGraph* graph);
+
+  // Testing interface.
+  static Node* ReducePhiForTesting(JSGraph* graph,
+                                   CommonOperatorBuilder* builder, Node* node);
+  static Node* ReduceBranchForTesting(JSGraph* graph,
+                                      CommonOperatorBuilder* builder,
+                                      Node* node);
+  static Node* ReduceMergeForTesting(JSGraph* graph,
+                                     CommonOperatorBuilder* builder,
+                                     Node* node);
 };
 }
 }
