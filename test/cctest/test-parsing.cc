@@ -3273,7 +3273,9 @@ TEST(InnerAssignment) {
           i::Parser parser(&info, &parse_info);
           parser.set_allow_harmony_scoping(true);
           CHECK(parser.Parse());
-          CHECK(i::Compiler::Analyze(&info));
+          CHECK(i::Rewriter::Rewrite(&info));
+          CHECK(i::Scope::Analyze(&info));
+          CHECK(i::AstNumbering::Renumber(info.function(), info.zone()));
           CHECK(info.function() != NULL);
 
           i::Scope* scope = info.function()->scope();

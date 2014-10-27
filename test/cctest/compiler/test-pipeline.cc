@@ -23,7 +23,11 @@ TEST(PipelineAdd) {
       *v8::Handle<v8::Function>::Cast(CompileRun(source)));
   CompilationInfoWithZone info(function);
 
-  CHECK(Compiler::ParseAndAnalyze(&info));
+  CHECK(Parser::Parse(&info));
+  CHECK(Rewriter::Rewrite(&info));
+  CHECK(Scope::Analyze(&info));
+  CHECK(AstNumbering::Renumber(info.function(), info.zone()));
+  CHECK_NE(NULL, info.scope());
 
   Pipeline pipeline(&info);
 #if V8_TURBOFAN_TARGET

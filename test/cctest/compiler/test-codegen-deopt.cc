@@ -47,7 +47,9 @@ class DeoptCodegenTester {
         bailout_id(-1) {
     CHECK(Parser::Parse(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Rewriter::Rewrite(&info));
+    CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     DCHECK(info.shared_info()->has_deoptimization_support());

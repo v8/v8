@@ -308,6 +308,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
 
+  if (!AstNumbering::Renumber(info->function(), info->zone())) {
+    DCHECK(!isolate->has_pending_exception());
+    return false;
+  }
+
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();

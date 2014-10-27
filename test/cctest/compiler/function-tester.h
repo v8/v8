@@ -165,7 +165,9 @@ class FunctionTester : public InitializedHandleScope {
     if (flags_ & CompilationInfo::kTypingEnabled) {
       info.MarkAsTypingEnabled();
     }
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Rewriter::Rewrite(&info));
+    CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
@@ -213,7 +215,9 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Parser::Parse(&info));
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Rewriter::Rewrite(&info));
+    CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
