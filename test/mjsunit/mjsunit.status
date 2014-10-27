@@ -72,6 +72,9 @@
   'compare-known-objects-slow': [PASS, NO_VARIANTS],
   'elements-kind': [PASS, NO_VARIANTS],
 
+  # TODO(jarin) Traversal of large frame states is too slow.
+  'regress/regress-2612': [PASS, ['mode == debug', SKIP]],
+
   # Some tests are just too slow to run for now.
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
