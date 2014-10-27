@@ -3091,7 +3091,7 @@ void MacroAssembler::JumpToHandlerEntry() {
   // Compute the handler entry address and jump to it.  The handler table is
   // a fixed array of (smi-tagged) code offsets.
   // v0 = exception, a1 = code object, a2 = state.
-  Uld(a3, FieldMemOperand(a1, Code::kHandlerTableOffset));
+  ld(a3, FieldMemOperand(a1, Code::kHandlerTableOffset));
   Daddu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   dsrl(a2, a2, StackHandler::kKindWidth);  // Handler index.
   dsll(a2, a2, kPointerSizeLog2);

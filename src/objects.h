@@ -5380,8 +5380,7 @@ class Code: public HeapObject {
   static const int kMaxLoopNestingMarker = 6;
 
   // Layout description.
-  static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
-  static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kRelocationInfoOffset = HeapObject::kHeaderSize;
   static const int kHandlerTableOffset = kRelocationInfoOffset + kPointerSize;
   static const int kDeoptimizationDataOffset =
       kHandlerTableOffset + kPointerSize;
@@ -5390,8 +5389,8 @@ class Code: public HeapObject {
       kDeoptimizationDataOffset + kPointerSize;
   static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
-  static const int kICAgeOffset =
-      kGCMetadataOffset + kPointerSize;
+  static const int kInstructionSizeOffset = kGCMetadataOffset + kPointerSize;
+  static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlags2Offset =
