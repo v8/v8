@@ -22,13 +22,17 @@ class CompilationStatistics FINAL : public Malloced {
 
   class BasicStats {
    public:
-    BasicStats() : total_allocated_bytes_(0), max_allocated_bytes_(0) {}
+    BasicStats()
+        : total_allocated_bytes_(0),
+          max_allocated_bytes_(0),
+          absolute_max_allocated_bytes_(0) {}
 
     void Accumulate(const BasicStats& stats);
 
     base::TimeDelta delta_;
     size_t total_allocated_bytes_;
     size_t max_allocated_bytes_;
+    size_t absolute_max_allocated_bytes_;
     std::string function_name_;
   };
 

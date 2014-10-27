@@ -16,6 +16,10 @@ void PipelineStatistics::CommonStats::Begin(
   scope_.Reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
+  allocated_bytes_at_start_ =
+      outer_zone_initial_size_ -
+      pipeline_stats->total_stats_.outer_zone_initial_size_ +
+      pipeline_stats->zone_pool_->GetCurrentAllocatedBytes();
 }
 
 
@@ -28,6 +32,8 @@ void PipelineStatistics::CommonStats::End(
   size_t outer_zone_diff =
       pipeline_stats->OuterZoneSize() - outer_zone_initial_size_;
   diff->max_allocated_bytes_ = outer_zone_diff + scope_->GetMaxAllocatedBytes();
+  diff->absolute_max_allocated_bytes_ =
+      diff->max_allocated_bytes_ + allocated_bytes_at_start_;
   diff->total_allocated_bytes_ =
       outer_zone_diff + scope_->GetTotalAllocatedBytes();
   scope_.Reset(NULL);

@@ -47,7 +47,8 @@ void CompilationStatistics::RecordTotalStats(size_t source_size,
 void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
   delta_ += stats.delta_;
   total_allocated_bytes_ += stats.total_allocated_bytes_;
-  if (stats.max_allocated_bytes_ > max_allocated_bytes_) {
+  if (stats.absolute_max_allocated_bytes_ > absolute_max_allocated_bytes_) {
+    absolute_max_allocated_bytes_ = stats.absolute_max_allocated_bytes_;
     max_allocated_bytes_ = stats.max_allocated_bytes_;
     function_name_ = stats.function_name_;
   }
@@ -66,9 +67,12 @@ static void WriteLine(std::ostream& os, const char* name,
       static_cast<double>(stats.total_allocated_bytes_ * 100) /
       static_cast<double>(total_stats.total_allocated_bytes_);
   base::OS::SNPrintF(buffer, kBufferSize,
-                     "%28s %10.3f ms / %5.1f %% %10u total / %5.1f %% %10u max",
+                     "%28s %10.3f ms / %5.1f %%"
+                     "%10u total / %5.1f %% "
+                     "%10u max %10u abs_max",
                      name, ms, percent, stats.total_allocated_bytes_,
-                     size_percent, stats.max_allocated_bytes_);
+                     size_percent, stats.max_allocated_bytes_,
+                     stats.absolute_max_allocated_bytes_);
 
   os << buffer;
   if (stats.function_name_.size() > 0) {
@@ -79,8 +83,8 @@ static void WriteLine(std::ostream& os, const char* name,
 
 
 static void WriteFullLine(std::ostream& os) {
-  os << "-----------------------------------------------"
-        "-----------------------------------------------\n";
+  os << "--------------------------------------------------------"
+        "--------------------------------------------------------\n";
 }
 
 
@@ -92,8 +96,8 @@ static void WriteHeader(std::ostream& os) {
 
 
 static void WritePhaseKindBreak(std::ostream& os) {
-  os << "                             ------------------"
-        "-----------------------------------------------\n";
+  os << "                             ---------------------------"
+        "--------------------------------------------------------\n";
 }
 
 

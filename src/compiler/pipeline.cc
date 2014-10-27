@@ -157,7 +157,7 @@ Handle<Code> Pipeline::GenerateCode() {
   SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
-    pipeline_statistics->BeginPhaseKind("create graph");
+    pipeline_statistics->BeginPhaseKind("graph creation");
   }
 
   if (FLAG_trace_turbo) {
@@ -326,7 +326,7 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   if (!pipeline_statistics.is_empty()) {
-    pipeline_statistics->BeginPhaseKind("code generation");
+    pipeline_statistics->BeginPhaseKind("block building");
   }
 
   source_positions.RemoveDecorator();
@@ -430,6 +430,10 @@ Handle<Code> Pipeline::GenerateCode(PipelineStatistics* pipeline_statistics,
     tcf << AsC1V("CodeGen", schedule, source_positions, &sequence);
   }
 
+  if (pipeline_statistics != NULL) {
+    pipeline_statistics->BeginPhaseKind("register allocation");
+  }
+
   // Allocate registers.
   Frame frame;
   {
@@ -455,6 +459,10 @@ Handle<Code> Pipeline::GenerateCode(PipelineStatistics* pipeline_statistics,
     OFStream os(stdout);
     os << "----- Instruction sequence after register allocation -----\n"
        << sequence;
+  }
+
+  if (pipeline_statistics != NULL) {
+    pipeline_statistics->BeginPhaseKind("code generation");
   }
 
   // Generate native sequence.
