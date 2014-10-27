@@ -236,8 +236,7 @@ template <class B, class S>
 S* GenericNode<B, S>::New(GenericGraphBase* graph, int input_count, S** inputs,
                           bool has_extensible_inputs) {
   size_t node_size = sizeof(GenericNode);
-  size_t reserve_input_count =
-      has_extensible_inputs ? kDefaultReservedInputs : 0;
+  int reserve_input_count = has_extensible_inputs ? kDefaultReservedInputs : 0;
   size_t inputs_size = (input_count + reserve_input_count) * sizeof(Input);
   size_t uses_size = input_count * sizeof(Use);
   int size = static_cast<int>(node_size + inputs_size + uses_size);
