@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"

@@ -7,6 +7,7 @@
 #include "src/v8.h"
 
 #include "graph-tester.h"
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 

@@ -4,6 +4,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/js-intrinsic-builder.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/simplified-operator.h"

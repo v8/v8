@@ -413,6 +413,8 @@
         '../../src/compiler/generic-algorithm-inl.h',
         '../../src/compiler/generic-algorithm.h',
         '../../src/compiler/generic-graph.h',
+        '../../src/compiler/generic-node-inl.h',
+        '../../src/compiler/generic-node.h',
         '../../src/compiler/graph-builder.cc',
         '../../src/compiler/graph-builder.h',
         '../../src/compiler/graph-inl.h',

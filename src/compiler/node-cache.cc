@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <cstring>
-
-#include "src/v8.h"
-
 #include "src/compiler/node-cache.h"
+
+#include <cstring>
 
 #include "src/zone.h"
 #include "src/zone-containers.h"

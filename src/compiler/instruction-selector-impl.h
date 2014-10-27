@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"

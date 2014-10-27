@@ -9,6 +9,8 @@
 
 #include "src/compiler/generic-algorithm.h"
 #include "src/compiler/generic-graph.h"
+#include "src/compiler/generic-node.h"
+#include "src/compiler/generic-node-inl.h"
 
 namespace v8 {
 namespace internal {

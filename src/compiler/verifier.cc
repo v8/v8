@@ -10,6 +10,8 @@
 #include <string>
 
 #include "src/compiler/generic-algorithm.h"
+#include "src/compiler/generic-node-inl.h"
+#include "src/compiler/generic-node.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"

@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <cstring>
-
-#include "src/v8.h"
-
 #include "src/compiler/value-numbering-reducer.h"
+
+#include <cstring>
 
 #include "src/base/functional.h"
 #include "src/compiler/node.h"

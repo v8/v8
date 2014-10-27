@@ -7,6 +7,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-inlining.h"
