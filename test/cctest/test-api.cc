@@ -7469,14 +7469,13 @@ struct FlagAndPersistent {
 };
 
 
-static void DisposeAndSetFlag(
+static void SetFlag(
     const v8::WeakCallbackData<v8::Object, FlagAndPersistent>& data) {
-  data.GetParameter()->handle.Reset();
   data.GetParameter()->flag = true;
 }
 
 
-THREADED_TEST(IndependentWeakHandle) {
+static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Handle<Context> context = Context::New(iso);
@@ -7484,23 +7483,56 @@ THREADED_TEST(IndependentWeakHandle) {
 
   FlagAndPersistent object_a, object_b;
 
+  intptr_t big_heap_size;
+
   {
     v8::HandleScope handle_scope(iso);
-    object_a.handle.Reset(iso, v8::Object::New(iso));
-    object_b.handle.Reset(iso, v8::Object::New(iso));
+    Local<Object> a(v8::Object::New(iso));
+    Local<Object> b(v8::Object::New(iso));
+    object_a.handle.Reset(iso, a);
+    object_b.handle.Reset(iso, b);
+    if (interlinked) {
+      a->Set(v8_str("x"), b);
+      b->Set(v8_str("x"), a);
+    }
+    if (global_gc) {
+      CcTest::heap()->CollectAllGarbage(TestHeap::Heap::kNoGCFlags);
+    } else {
+      CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+    }
+    // We are relying on this creating a big flag array and reserving the space
+    // up front.
+    v8::Handle<Value> big_array = CompileRun("new Array(50000)");
+    a->Set(v8_str("y"), big_array);
+    big_heap_size = CcTest::heap()->SizeOfObjects();
   }
 
   object_a.flag = false;
   object_b.flag = false;
-  object_a.handle.SetWeak(&object_a, &DisposeAndSetFlag);
-  object_b.handle.SetWeak(&object_b, &DisposeAndSetFlag);
+  object_a.handle.SetPhantom(&object_a, &SetFlag);
+  object_b.handle.SetPhantom(&object_b, &SetFlag);
   CHECK(!object_b.handle.IsIndependent());
   object_a.handle.MarkIndependent();
   object_b.handle.MarkIndependent();
   CHECK(object_b.handle.IsIndependent());
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  if (global_gc) {
+    CcTest::heap()->CollectAllGarbage(TestHeap::Heap::kNoGCFlags);
+  } else {
+    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  }
+  // A single GC should be enough to reclaim the memory, since we are using
+  // phantom handles.
+  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 200000);
   CHECK(object_a.flag);
   CHECK(object_b.flag);
+}
+
+
+THREADED_TEST(IndependentWeakHandle) {
+  IndependentWeakHandle(false, false);
+  IndependentWeakHandle(false, true);
+  IndependentWeakHandle(true, false);
+  IndependentWeakHandle(true, true);
 }
 
 
