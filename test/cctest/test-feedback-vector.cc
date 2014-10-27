@@ -90,7 +90,7 @@ TEST(VectorICMetadata) {
       kind = Code::CALL_IC;
     else if (i % 3 == 1)
       kind = Code::LOAD_IC;
-    else if (i % 3 == 2)
+    else
       kind = Code::KEYED_LOAD_IC;
     vector->SetKind(FeedbackVectorICSlot(i), kind);
   }
