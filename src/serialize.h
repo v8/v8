@@ -189,16 +189,26 @@ class BackReference {
  public:
   explicit BackReference(uint32_t bitfield) : bitfield_(bitfield) {}
 
-  BackReference(AllocationSpace space, uint32_t chunk_index,
-                uint32_t chunk_offset) {
-    DCHECK(IsAligned(chunk_offset, kObjectAlignment));
-    bitfield_ = SpaceBits::encode(space) | ChunkIndexBits::encode(chunk_index) |
-                ChunkOffsetBits::encode(chunk_offset >> kObjectAlignmentBits);
-  }
-
   BackReference() : bitfield_(kInvalidValue) {}
 
+  static BackReference SourceReference() { return BackReference(kSourceValue); }
+
+  static BackReference LargeObjectReference(uint32_t index) {
+    return BackReference(SpaceBits::encode(LO_SPACE) |
+                         ChunkOffsetBits::encode(index));
+  }
+
+  static BackReference Reference(AllocationSpace space, uint32_t chunk_index,
+                                 uint32_t chunk_offset) {
+    DCHECK(IsAligned(chunk_offset, kObjectAlignment));
+    DCHECK_NE(LO_SPACE, space);
+    return BackReference(
+        SpaceBits::encode(space) | ChunkIndexBits::encode(chunk_index) |
+        ChunkOffsetBits::encode(chunk_offset >> kObjectAlignmentBits));
+  }
+
   bool is_valid() const { return bitfield_ != kInvalidValue; }
+  bool is_source() const { return bitfield_ == kSourceValue; }
 
   AllocationSpace space() const {
     DCHECK(is_valid());
@@ -224,6 +234,7 @@ class BackReference {
 
  private:
   static const uint32_t kInvalidValue = 0xFFFFFFFF;
+  static const uint32_t kSourceValue = 0xFFFFFFFE;
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
 
@@ -261,6 +272,10 @@ class BackReferenceMap : public AddressMapBase {
     DCHECK_EQ(NULL, LookupEntry(map_, obj, false));
     HashMap::Entry* entry = LookupEntry(map_, obj, true);
     SetValue(entry, b.bitfield());
+  }
+
+  void AddSourceString(String* string) {
+    Add(string, BackReference::SourceReference());
   }
 
  private:
@@ -700,7 +715,9 @@ class CodeSerializer : public Serializer {
       : Serializer(isolate, sink),
         source_(source),
         main_code_(main_code),
-        num_internalized_strings_(0) {}
+        num_internalized_strings_(0) {
+    back_reference_map_.AddSourceString(source);
+  }
 
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);

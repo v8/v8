@@ -238,7 +238,7 @@ class AstValue : public ZoneObject {
 };
 
 
-// For generating string constants.
+// For generating constants.
 #define STRING_CONSTANTS(F)                           \
   F(anonymous_function, "(anonymous function)")       \
   F(arguments, "arguments")                           \
@@ -268,6 +268,12 @@ class AstValue : public ZoneObject {
   F(use_strict, "use strict")                         \
   F(value, "value")
 
+#define OTHER_CONSTANTS(F) \
+  F(true_value)            \
+  F(false_value)           \
+  F(null_value)            \
+  F(undefined_value)       \
+  F(the_hole_value)
 
 class AstValueFactory {
  public:
@@ -276,9 +282,11 @@ class AstValueFactory {
         zone_(zone),
         isolate_(NULL),
         hash_seed_(hash_seed) {
-#define F(name, str) \
-    name##_string_ = NULL;
+#define F(name, str) name##_string_ = NULL;
     STRING_CONSTANTS(F)
+#undef F
+#define F(name) name##_ = NULL;
+    OTHER_CONSTANTS(F)
 #undef F
   }
 
@@ -299,15 +307,15 @@ class AstValueFactory {
     return isolate_ != NULL;
   }
 
-#define F(name, str) \
-  const AstRawString* name##_string() { \
-    if (name##_string_ == NULL) { \
-      const char* data = str; \
-      name##_string_ = GetOneByteString( \
+#define F(name, str)                                                    \
+  const AstRawString* name##_string() {                                 \
+    if (name##_string_ == NULL) {                                       \
+      const char* data = str;                                           \
+      name##_string_ = GetOneByteString(                                \
           Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), \
-                                static_cast<int>(strlen(data)))); \
-    } \
-    return name##_string_; \
+                                static_cast<int>(strlen(data))));       \
+    }                                                                   \
+    return name##_string_;                                              \
   }
   STRING_CONSTANTS(F)
 #undef F
@@ -338,9 +346,12 @@ class AstValueFactory {
 
   uint32_t hash_seed_;
 
-#define F(name, str) \
-  const AstRawString* name##_string_;
+#define F(name, str) const AstRawString* name##_string_;
   STRING_CONSTANTS(F)
+#undef F
+
+#define F(name) AstValue* name##_;
+  OTHER_CONSTANTS(F)
 #undef F
 };
 
@@ -351,5 +362,6 @@ bool AstRawString::IsArguments(AstValueFactory* ast_value_factory) const {
 } }  // namespace v8::internal
 
 #undef STRING_CONSTANTS
+#undef OTHER_CONSTANTS
 
 #endif  // V8_AST_VALUE_FACTORY_H_

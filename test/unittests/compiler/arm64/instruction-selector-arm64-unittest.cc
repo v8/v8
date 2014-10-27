@@ -633,6 +633,8 @@ TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnRight) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -687,6 +689,8 @@ TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnLeft) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     ASSERT_LE(1U, s[0]->InputCount());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());

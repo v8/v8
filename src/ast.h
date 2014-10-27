@@ -957,9 +957,11 @@ class ForInStatement FINAL : public ForEachStatement {
   ForInType for_in_type() const { return for_in_type_; }
   void set_for_in_type(ForInType type) { for_in_type_ = type; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
+  static int num_ids() { return parent_num_ids() + 4; }
   BailoutId BodyId() const { return BailoutId(local_id(0)); }
   BailoutId PrepareId() const { return BailoutId(local_id(1)); }
+  BailoutId EnumId() const { return BailoutId(local_id(2)); }
+  BailoutId ToObjectId() const { return BailoutId(local_id(3)); }
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
   virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
 
@@ -1568,10 +1570,14 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
   };
 
   struct Accessors: public ZoneObject {
-    Accessors() : getter(NULL), setter(NULL) { }
+    Accessors() : getter(NULL), setter(NULL) {}
     Expression* getter;
     Expression* setter;
   };
+
+  BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
+
+  static int num_ids() { return parent_num_ids() + 1; }
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
@@ -1582,8 +1588,10 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
         fast_elements_(false),
         may_store_doubles_(false),
         has_function_(has_function) {}
+  static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
   Handle<FixedArray> constant_properties_;
   ZoneList<Property*>* properties_;
   int boilerplate_properties_;

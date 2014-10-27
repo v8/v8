@@ -1116,6 +1116,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ mov(a0, v0);
   __ bind(&done_convert);
+  PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ push(a0);
 
   // Check for proxies.
@@ -1140,6 +1141,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&call_runtime);
   __ push(a0);  // Duplicate the enumerable object on the stack.
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+  PrepareForBailoutForId(stmt->EnumId(), TOS_REG);
 
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
@@ -1680,6 +1682,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     FastCloneShallowObjectStub stub(isolate(), properties_count);
     __ CallStub(&stub);
   }
+  PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
 
   // If result_saved is true the result is on top of the stack.  If
   // result_saved is false the result is in v0.
@@ -2520,10 +2523,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       Register scratch = a2;
       Register scratch2 = a3;
       __ mov(scratch, result_register());             // home_object
-      __ lw(v0, MemOperand(sp, kPointerSize));        // value
-      __ lw(scratch2, MemOperand(sp, 0));             // this
-      __ sw(scratch2, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 0));              // home_object
+      __ ld(v0, MemOperand(sp, kPointerSize));        // value
+      __ ld(scratch2, MemOperand(sp, 0));             // this
+      __ sd(scratch2, MemOperand(sp, kPointerSize));  // this
+      __ sd(scratch, MemOperand(sp, 0));              // home_object
       // stack: this, home_object; v0: value
       EmitNamedSuperPropertyStore(prop);
       break;
@@ -2536,13 +2539,13 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->key());
       Register scratch = a2;
       Register scratch2 = a3;
-      __ lw(scratch2, MemOperand(sp, 2 * kPointerSize));  // value
+      __ ld(scratch2, MemOperand(sp, 2 * kPointerSize));  // value
       // stack: value, this, home_object; v0: key, a3: value
-      __ lw(scratch, MemOperand(sp, kPointerSize));  // this
-      __ sw(scratch, MemOperand(sp, 2 * kPointerSize));
-      __ lw(scratch, MemOperand(sp, 0));  // home_object
-      __ sw(scratch, MemOperand(sp, kPointerSize));
-      __ sw(v0, MemOperand(sp, 0));
+      __ ld(scratch, MemOperand(sp, kPointerSize));  // this
+      __ sd(scratch, MemOperand(sp, 2 * kPointerSize));
+      __ ld(scratch, MemOperand(sp, 0));  // home_object
+      __ sd(scratch, MemOperand(sp, kPointerSize));
+      __ sd(v0, MemOperand(sp, 0));
       __ Move(v0, scratch2);
       // stack: this, home_object, key; v0: value.
       EmitKeyedSuperPropertyStore(prop);

@@ -85,6 +85,9 @@ class InstructionSelector FINAL {
     return Features(CpuFeatures::SupportedFeatures());
   }
 
+  // TODO(sigurds) This should take a CpuFeatures argument.
+  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
+
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================
@@ -135,6 +138,10 @@ class InstructionSelector FINAL {
   // Inform the register allocation of the representation of the value produced
   // by {node}.
   void MarkAsRepresentation(MachineType rep, Node* node);
+
+  // Inform the register allocation of the representation of the unallocated
+  // operand {op}.
+  void MarkAsRepresentation(MachineType rep, InstructionOperand* op);
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding

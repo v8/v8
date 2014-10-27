@@ -178,7 +178,8 @@ Handle<Code> Pipeline::GenerateCode() {
   // construction.  This is currently only needed for the node cache, which the
   // typer could sweep over later.
   Typer typer(&graph, info()->context());
-  MachineOperatorBuilder machine;
+  MachineOperatorBuilder machine(
+      kMachPtr, InstructionSelector::SupportedMachineOperatorFlags());
   CommonOperatorBuilder common(zone());
   JSOperatorBuilder javascript(zone());
   JSGraph jsgraph(&graph, &common, &javascript, &machine);

@@ -110,6 +110,10 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   V(Float64Div, Operator::kNoProperties, 2, 1)                                \
   V(Float64Mod, Operator::kNoProperties, 2, 1)                                \
   V(Float64Sqrt, Operator::kNoProperties, 1, 1)                               \
+  V(Float64Ceil, Operator::kNoProperties, 1, 1)                               \
+  V(Float64Floor, Operator::kNoProperties, 1, 1)                              \
+  V(Float64RoundTruncate, Operator::kNoProperties, 1, 1)                      \
+  V(Float64RoundTiesAway, Operator::kNoProperties, 1, 1)                      \
   V(Float64Equal, Operator::kCommutative, 2, 1)                               \
   V(Float64LessThan, Operator::kNoProperties, 2, 1)                           \
   V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 1)                    \
@@ -188,8 +192,8 @@ static base::LazyInstance<MachineOperatorBuilderImpl>::type kImpl =
     LAZY_INSTANCE_INITIALIZER;
 
 
-MachineOperatorBuilder::MachineOperatorBuilder(MachineType word)
-    : impl_(kImpl.Get()), word_(word) {
+MachineOperatorBuilder::MachineOperatorBuilder(MachineType word, Flags flags)
+    : impl_(kImpl.Get()), word_(word), flags_(flags) {
   DCHECK(word == kRepWord32 || word == kRepWord64);
 }
 
@@ -236,7 +240,6 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
   UNREACHABLE();
   return NULL;
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

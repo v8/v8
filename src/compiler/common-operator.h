@@ -67,6 +67,10 @@ class OutputFrameStateCombine {
     return kind_ == kPushOutput && parameter_ == 0;
   }
 
+  size_t ConsumedOutputCount() const {
+    return kind_ == kPushOutput ? GetPushCount() : 1;
+  }
+
   bool operator==(OutputFrameStateCombine const& other) const {
     return kind_ == other.kind_ && parameter_ == other.parameter_;
   }

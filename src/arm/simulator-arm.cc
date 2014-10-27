@@ -2741,15 +2741,12 @@ void Simulator::DecodeType3(Instruction* instr) {
             int rs = instr->RsValue();
             int32_t rs_val = get_register(rs);
             int32_t ret_val = 0;
-            DCHECK(rs_val != 0);
             // udiv
             if (instr->Bit(21) == 0x1) {
-              ret_val = static_cast<int32_t>(static_cast<uint32_t>(rm_val) /
-                                             static_cast<uint32_t>(rs_val));
-            } else if ((rm_val == kMinInt) && (rs_val == -1)) {
-              ret_val = kMinInt;
+              ret_val = bit_cast<int32_t>(base::bits::UnsignedDiv32(
+                  bit_cast<uint32_t>(rm_val), bit_cast<uint32_t>(rs_val)));
             } else {
-              ret_val = rm_val / rs_val;
+              ret_val = base::bits::SignedDiv32(rm_val, rs_val);
             }
             set_register(rn, ret_val);
             return;

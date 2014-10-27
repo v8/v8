@@ -24,39 +24,21 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 // TODO(titzer): pull RPO tests out to their own file.
-struct TestLoop {
-  int count;
-  BasicBlock** nodes;
-  BasicBlock* header() { return nodes[0]; }
-  BasicBlock* last() { return nodes[count - 1]; }
-  ~TestLoop() { delete[] nodes; }
-};
-
-
-static TestLoop* CreateLoop(Schedule* schedule, int count) {
-  TestLoop* loop = new TestLoop();
-  loop->count = count;
-  loop->nodes = new BasicBlock* [count];
-  for (int i = 0; i < count; i++) {
-    loop->nodes[i] = schedule->NewBasicBlock();
-    if (i > 0) schedule->AddSuccessor(loop->nodes[i - 1], loop->nodes[i]);
-  }
-  schedule->AddSuccessor(loop->nodes[count - 1], loop->nodes[0]);
-  return loop;
-}
-
-
 static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
                             bool loops_allowed) {
   CHECK(expected == order->size());
   for (int i = 0; i < static_cast<int>(order->size()); i++) {
     CHECK(order->at(i)->rpo_number() == i);
-    if (!loops_allowed) CHECK_LT(order->at(i)->loop_end(), 0);
+    if (!loops_allowed) {
+      CHECK_LT(order->at(i)->loop_end(), 0);
+      CHECK_EQ(NULL, order->at(i)->loop_header());
+    }
   }
 }
 
 
-static void CheckLoopContains(BasicBlock** blocks, int body_size) {
+static void CheckLoop(BasicBlockVector* order, BasicBlock** blocks,
+                      int body_size) {
   BasicBlock* header = blocks[0];
   CHECK_GT(header->loop_end(), 0);
   CHECK_EQ(body_size, (header->loop_end() - header->rpo_number()));
@@ -66,6 +48,38 @@ static void CheckLoopContains(BasicBlock** blocks, int body_size) {
     CHECK(header->LoopContains(blocks[i]));
     CHECK(header->IsLoopHeader() || blocks[i]->loop_header() == header);
   }
+  if (header->rpo_number() > 0) {
+    CHECK_NE(order->at(header->rpo_number() - 1)->loop_header(), header);
+  }
+  if (header->loop_end() < static_cast<int>(order->size())) {
+    CHECK_NE(order->at(header->loop_end())->loop_header(), header);
+  }
+}
+
+
+struct TestLoop {
+  int count;
+  BasicBlock** nodes;
+  BasicBlock* header() { return nodes[0]; }
+  BasicBlock* last() { return nodes[count - 1]; }
+  ~TestLoop() { delete[] nodes; }
+
+  void Check(BasicBlockVector* order) { CheckLoop(order, nodes, count); }
+};
+
+
+static TestLoop* CreateLoop(Schedule* schedule, int count) {
+  TestLoop* loop = new TestLoop();
+  loop->count = count;
+  loop->nodes = new BasicBlock* [count];
+  for (int i = 0; i < count; i++) {
+    loop->nodes[i] = schedule->NewBasicBlock();
+    if (i > 0) {
+      schedule->AddSuccessorForTesting(loop->nodes[i - 1], loop->nodes[i]);
+    }
+  }
+  schedule->AddSuccessorForTesting(loop->nodes[count - 1], loop->nodes[0]);
+  return loop;
 }
 
 
@@ -160,25 +174,25 @@ TEST(RPOLine) {
 TEST(RPOSelfLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.start(), schedule.start());
+  schedule.AddSuccessorForTesting(schedule.start(), schedule.start());
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 1, true);
   BasicBlock* loop[] = {schedule.start()};
-  CheckLoopContains(loop, 1);
+  CheckLoop(order, loop, 1);
 }
 
 
 TEST(RPOEntryLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.start(), schedule.end());
-  schedule.AddSuccessor(schedule.end(), schedule.start());
+  schedule.AddSuccessorForTesting(schedule.start(), schedule.end());
+  schedule.AddSuccessorForTesting(schedule.end(), schedule.start());
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 2, true);
   BasicBlock* loop[] = {schedule.start(), schedule.end()};
-  CheckLoopContains(loop, 2);
+  CheckLoop(order, loop, 2);
 }
 
 
@@ -186,11 +200,11 @@ TEST(RPOEndLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.start(), loop1->header());
+  schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 3, true);
-  CheckLoopContains(loop1->nodes, loop1->count);
+  loop1->Check(order);
 }
 
 
@@ -198,12 +212,12 @@ TEST(RPOEndLoopNested) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.start(), loop1->header());
-  schedule.AddSuccessor(loop1->last(), schedule.start());
+  schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
+  schedule.AddSuccessorForTesting(loop1->last(), schedule.start());
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 3, true);
-  CheckLoopContains(loop1->nodes, loop1->count);
+  loop1->Check(order);
 }
 
 
@@ -216,10 +230,10 @@ TEST(RPODiamond) {
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(A, C);
-  schedule.AddSuccessor(B, D);
-  schedule.AddSuccessor(C, D);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(A, C);
+  schedule.AddSuccessorForTesting(B, D);
+  schedule.AddSuccessorForTesting(C, D);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
@@ -241,16 +255,16 @@ TEST(RPOLoop1) {
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, C);
-  schedule.AddSuccessor(C, B);
-  schedule.AddSuccessor(C, D);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, C);
+  schedule.AddSuccessorForTesting(C, B);
+  schedule.AddSuccessorForTesting(C, D);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 4, true);
   BasicBlock* loop[] = {B, C};
-  CheckLoopContains(loop, 2);
+  CheckLoop(order, loop, 2);
 }
 
 
@@ -263,16 +277,16 @@ TEST(RPOLoop2) {
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, C);
-  schedule.AddSuccessor(C, B);
-  schedule.AddSuccessor(B, D);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, C);
+  schedule.AddSuccessorForTesting(C, B);
+  schedule.AddSuccessorForTesting(B, D);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 4, true);
   BasicBlock* loop[] = {B, C};
-  CheckLoopContains(loop, 2);
+  CheckLoop(order, loop, 2);
 }
 
 
@@ -289,34 +303,34 @@ TEST(RPOLoopN) {
     BasicBlock* F = schedule.NewBasicBlock();
     BasicBlock* G = schedule.end();
 
-    schedule.AddSuccessor(A, B);
-    schedule.AddSuccessor(B, C);
-    schedule.AddSuccessor(C, D);
-    schedule.AddSuccessor(D, E);
-    schedule.AddSuccessor(E, F);
-    schedule.AddSuccessor(F, B);
-    schedule.AddSuccessor(B, G);
+    schedule.AddSuccessorForTesting(A, B);
+    schedule.AddSuccessorForTesting(B, C);
+    schedule.AddSuccessorForTesting(C, D);
+    schedule.AddSuccessorForTesting(D, E);
+    schedule.AddSuccessorForTesting(E, F);
+    schedule.AddSuccessorForTesting(F, B);
+    schedule.AddSuccessorForTesting(B, G);
 
     // Throw in extra backedges from time to time.
-    if (i == 1) schedule.AddSuccessor(B, B);
-    if (i == 2) schedule.AddSuccessor(C, B);
-    if (i == 3) schedule.AddSuccessor(D, B);
-    if (i == 4) schedule.AddSuccessor(E, B);
-    if (i == 5) schedule.AddSuccessor(F, B);
+    if (i == 1) schedule.AddSuccessorForTesting(B, B);
+    if (i == 2) schedule.AddSuccessorForTesting(C, B);
+    if (i == 3) schedule.AddSuccessorForTesting(D, B);
+    if (i == 4) schedule.AddSuccessorForTesting(E, B);
+    if (i == 5) schedule.AddSuccessorForTesting(F, B);
 
     // Throw in extra loop exits from time to time.
-    if (i == 6) schedule.AddSuccessor(B, G);
-    if (i == 7) schedule.AddSuccessor(C, G);
-    if (i == 8) schedule.AddSuccessor(D, G);
-    if (i == 9) schedule.AddSuccessor(E, G);
-    if (i == 10) schedule.AddSuccessor(F, G);
+    if (i == 6) schedule.AddSuccessorForTesting(B, G);
+    if (i == 7) schedule.AddSuccessorForTesting(C, G);
+    if (i == 8) schedule.AddSuccessorForTesting(D, G);
+    if (i == 9) schedule.AddSuccessorForTesting(E, G);
+    if (i == 10) schedule.AddSuccessorForTesting(F, G);
 
     ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
         Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
     CheckRPONumbers(order, 7, true);
     BasicBlock* loop[] = {B, C, D, E, F};
-    CheckLoopContains(loop, 5);
+    CheckLoop(order, loop, 5);
   }
 }
 
@@ -332,22 +346,22 @@ TEST(RPOLoopNest1) {
   BasicBlock* E = schedule.NewBasicBlock();
   BasicBlock* F = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, C);
-  schedule.AddSuccessor(C, D);
-  schedule.AddSuccessor(D, C);
-  schedule.AddSuccessor(D, E);
-  schedule.AddSuccessor(E, B);
-  schedule.AddSuccessor(E, F);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, C);
+  schedule.AddSuccessorForTesting(C, D);
+  schedule.AddSuccessorForTesting(D, C);
+  schedule.AddSuccessorForTesting(D, E);
+  schedule.AddSuccessorForTesting(E, B);
+  schedule.AddSuccessorForTesting(E, F);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 6, true);
   BasicBlock* loop1[] = {B, C, D, E};
-  CheckLoopContains(loop1, 4);
+  CheckLoop(order, loop1, 4);
 
   BasicBlock* loop2[] = {C, D};
-  CheckLoopContains(loop2, 2);
+  CheckLoop(order, loop2, 2);
 }
 
 
@@ -364,29 +378,29 @@ TEST(RPOLoopNest2) {
   BasicBlock* G = schedule.NewBasicBlock();
   BasicBlock* H = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, C);
-  schedule.AddSuccessor(C, D);
-  schedule.AddSuccessor(D, E);
-  schedule.AddSuccessor(E, F);
-  schedule.AddSuccessor(F, G);
-  schedule.AddSuccessor(G, H);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, C);
+  schedule.AddSuccessorForTesting(C, D);
+  schedule.AddSuccessorForTesting(D, E);
+  schedule.AddSuccessorForTesting(E, F);
+  schedule.AddSuccessorForTesting(F, G);
+  schedule.AddSuccessorForTesting(G, H);
 
-  schedule.AddSuccessor(E, D);
-  schedule.AddSuccessor(F, C);
-  schedule.AddSuccessor(G, B);
+  schedule.AddSuccessorForTesting(E, D);
+  schedule.AddSuccessorForTesting(F, C);
+  schedule.AddSuccessorForTesting(G, B);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 8, true);
   BasicBlock* loop1[] = {B, C, D, E, F, G};
-  CheckLoopContains(loop1, 6);
+  CheckLoop(order, loop1, 6);
 
   BasicBlock* loop2[] = {C, D, E, F};
-  CheckLoopContains(loop2, 4);
+  CheckLoop(order, loop2, 4);
 
   BasicBlock* loop3[] = {D, E};
-  CheckLoopContains(loop3, 2);
+  CheckLoop(order, loop3, 2);
 }
 
 
@@ -400,19 +414,18 @@ TEST(RPOLoopFollow1) {
   BasicBlock* A = schedule.start();
   BasicBlock* E = schedule.end();
 
-  schedule.AddSuccessor(A, loop1->header());
-  schedule.AddSuccessor(loop1->header(), loop2->header());
-  schedule.AddSuccessor(loop2->last(), E);
+  schedule.AddSuccessorForTesting(A, loop1->header());
+  schedule.AddSuccessorForTesting(loop1->header(), loop2->header());
+  schedule.AddSuccessorForTesting(loop2->last(), E);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
 
-  CheckLoopContains(loop1->nodes, loop1->count);
-
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
-  CheckLoopContains(loop1->nodes, loop1->count);
-  CheckLoopContains(loop2->nodes, loop2->count);
+
+  loop1->Check(order);
+  loop2->Check(order);
 }
 
 
@@ -427,20 +440,18 @@ TEST(RPOLoopFollow2) {
   BasicBlock* S = schedule.NewBasicBlock();
   BasicBlock* E = schedule.end();
 
-  schedule.AddSuccessor(A, loop1->header());
-  schedule.AddSuccessor(loop1->header(), S);
-  schedule.AddSuccessor(S, loop2->header());
-  schedule.AddSuccessor(loop2->last(), E);
+  schedule.AddSuccessorForTesting(A, loop1->header());
+  schedule.AddSuccessorForTesting(loop1->header(), S);
+  schedule.AddSuccessorForTesting(S, loop2->header());
+  schedule.AddSuccessorForTesting(loop2->last(), E);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
 
-  CheckLoopContains(loop1->nodes, loop1->count);
-
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
-  CheckLoopContains(loop1->nodes, loop1->count);
-  CheckLoopContains(loop2->nodes, loop2->count);
+  loop1->Check(order);
+  loop2->Check(order);
 }
 
 
@@ -455,18 +466,17 @@ TEST(RPOLoopFollowN) {
       BasicBlock* A = schedule.start();
       BasicBlock* E = schedule.end();
 
-      schedule.AddSuccessor(A, loop1->header());
-      schedule.AddSuccessor(loop1->nodes[exit], loop2->header());
-      schedule.AddSuccessor(loop2->nodes[exit], E);
+      schedule.AddSuccessorForTesting(A, loop1->header());
+      schedule.AddSuccessorForTesting(loop1->nodes[exit], loop2->header());
+      schedule.AddSuccessorForTesting(loop2->nodes[exit], E);
       ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
           Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
-      CheckLoopContains(loop1->nodes, loop1->count);
 
       CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
                static_cast<int>(order->size()));
-      CheckLoopContains(loop1->nodes, loop1->count);
-      CheckLoopContains(loop2->nodes, loop2->count);
+      loop1->Check(order);
+      loop2->Check(order);
     }
   }
 }
@@ -484,25 +494,23 @@ TEST(RPONestedLoopFollow1) {
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* E = schedule.end();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, loop1->header());
-  schedule.AddSuccessor(loop1->header(), loop2->header());
-  schedule.AddSuccessor(loop2->last(), C);
-  schedule.AddSuccessor(C, E);
-  schedule.AddSuccessor(C, B);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, loop1->header());
+  schedule.AddSuccessorForTesting(loop1->header(), loop2->header());
+  schedule.AddSuccessorForTesting(loop2->last(), C);
+  schedule.AddSuccessorForTesting(C, E);
+  schedule.AddSuccessorForTesting(C, B);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
 
-  CheckLoopContains(loop1->nodes, loop1->count);
-
   CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
            static_cast<int>(order->size()));
-  CheckLoopContains(loop1->nodes, loop1->count);
-  CheckLoopContains(loop2->nodes, loop2->count);
+  loop1->Check(order);
+  loop2->Check(order);
 
   BasicBlock* loop3[] = {B, loop1->nodes[0], loop2->nodes[0], C};
-  CheckLoopContains(loop3, 4);
+  CheckLoop(order, loop3, 4);
 }
 
 
@@ -517,17 +525,17 @@ TEST(RPOLoopBackedges1) {
       BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
-      schedule.AddSuccessor(A, loop1->header());
-      schedule.AddSuccessor(loop1->last(), E);
+      schedule.AddSuccessorForTesting(A, loop1->header());
+      schedule.AddSuccessorForTesting(loop1->last(), E);
 
-      schedule.AddSuccessor(loop1->nodes[i], loop1->header());
-      schedule.AddSuccessor(loop1->nodes[j], E);
+      schedule.AddSuccessorForTesting(loop1->nodes[i], loop1->header());
+      schedule.AddSuccessorForTesting(loop1->nodes[j], E);
 
       ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
           Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-      CheckLoopContains(loop1->nodes, loop1->count);
+      loop1->Check(order);
     }
   }
 }
@@ -545,18 +553,18 @@ TEST(RPOLoopOutedges1) {
       BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
-      schedule.AddSuccessor(A, loop1->header());
-      schedule.AddSuccessor(loop1->last(), E);
+      schedule.AddSuccessorForTesting(A, loop1->header());
+      schedule.AddSuccessorForTesting(loop1->last(), E);
 
-      schedule.AddSuccessor(loop1->nodes[i], loop1->header());
-      schedule.AddSuccessor(loop1->nodes[j], D);
-      schedule.AddSuccessor(D, E);
+      schedule.AddSuccessorForTesting(loop1->nodes[i], loop1->header());
+      schedule.AddSuccessorForTesting(loop1->nodes[j], D);
+      schedule.AddSuccessorForTesting(D, E);
 
       ZonePool zone_pool(scope.main_isolate());
       BasicBlockVector* order =
           Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-      CheckLoopContains(loop1->nodes, loop1->count);
+      loop1->Check(order);
     }
   }
 }
@@ -572,20 +580,20 @@ TEST(RPOLoopOutedges2) {
     BasicBlock* E = schedule.end();
 
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
-    schedule.AddSuccessor(A, loop1->header());
-    schedule.AddSuccessor(loop1->last(), E);
+    schedule.AddSuccessorForTesting(A, loop1->header());
+    schedule.AddSuccessorForTesting(loop1->last(), E);
 
     for (int j = 0; j < size; j++) {
       BasicBlock* O = schedule.NewBasicBlock();
-      schedule.AddSuccessor(loop1->nodes[j], O);
-      schedule.AddSuccessor(O, E);
+      schedule.AddSuccessorForTesting(loop1->nodes[j], O);
+      schedule.AddSuccessorForTesting(O, E);
     }
 
     ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
         Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-    CheckLoopContains(loop1->nodes, loop1->count);
+    loop1->Check(order);
   }
 }
 
@@ -599,24 +607,24 @@ TEST(RPOLoopOutloops1) {
     BasicBlock* A = schedule.start();
     BasicBlock* E = schedule.end();
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
-    schedule.AddSuccessor(A, loop1->header());
-    schedule.AddSuccessor(loop1->last(), E);
+    schedule.AddSuccessorForTesting(A, loop1->header());
+    schedule.AddSuccessorForTesting(loop1->last(), E);
 
     TestLoop** loopN = new TestLoop* [size];
     for (int j = 0; j < size; j++) {
       loopN[j] = CreateLoop(&schedule, 2);
-      schedule.AddSuccessor(loop1->nodes[j], loopN[j]->header());
-      schedule.AddSuccessor(loopN[j]->last(), E);
+      schedule.AddSuccessorForTesting(loop1->nodes[j], loopN[j]->header());
+      schedule.AddSuccessorForTesting(loopN[j]->last(), E);
     }
 
     ZonePool zone_pool(scope.main_isolate());
     BasicBlockVector* order =
         Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-    CheckLoopContains(loop1->nodes, loop1->count);
+    loop1->Check(order);
 
     for (int j = 0; j < size; j++) {
-      CheckLoopContains(loopN[j]->nodes, loopN[j]->count);
+      loopN[j]->Check(order);
       delete loopN[j];
     }
     delete[] loopN;
@@ -634,20 +642,20 @@ TEST(RPOLoopMultibackedge) {
   BasicBlock* D = schedule.end();
   BasicBlock* E = schedule.NewBasicBlock();
 
-  schedule.AddSuccessor(A, B);
-  schedule.AddSuccessor(B, C);
-  schedule.AddSuccessor(B, D);
-  schedule.AddSuccessor(B, E);
-  schedule.AddSuccessor(C, B);
-  schedule.AddSuccessor(D, B);
-  schedule.AddSuccessor(E, B);
+  schedule.AddSuccessorForTesting(A, B);
+  schedule.AddSuccessorForTesting(B, C);
+  schedule.AddSuccessorForTesting(B, D);
+  schedule.AddSuccessorForTesting(B, E);
+  schedule.AddSuccessorForTesting(C, B);
+  schedule.AddSuccessorForTesting(D, B);
+  schedule.AddSuccessorForTesting(E, B);
 
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 5, true);
 
   BasicBlock* loop1[] = {B, C, D, E};
-  CheckLoopContains(loop1, 4);
+  CheckLoop(order, loop1, 4);
 }
 
 

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_H_
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
+#include "src/base/flags.h"
 #include "src/compiler/machine-type.h"
 
 namespace v8 {
@@ -57,7 +58,19 @@ StoreRepresentation const& StoreRepresentationOf(Operator const*);
 // for generating code to run on architectures such as ia32, x64, arm, etc.
 class MachineOperatorBuilder FINAL {
  public:
-  explicit MachineOperatorBuilder(MachineType word = kMachPtr);
+  // Flags that specify which operations are available. This is useful
+  // for operations that are unsupported by some back-ends.
+  enum class Flag : unsigned {
+    kNoFlags = 0,
+    kFloat64Floor = 1 << 0,
+    kFloat64Ceil = 1 << 1,
+    kFloat64RoundTruncate = 1 << 2,
+    kFloat64RoundTiesAway = 1 << 3
+  };
+  typedef base::Flags<Flag, unsigned> Flags;
+
+  explicit MachineOperatorBuilder(MachineType word = kMachPtr,
+                                  Flags supportedOperators = Flag::kNoFlags);
 
   const Operator* Word32And();
   const Operator* Word32Or();
@@ -135,6 +148,20 @@ class MachineOperatorBuilder FINAL {
   const Operator* Float64LessThan();
   const Operator* Float64LessThanOrEqual();
 
+  // Floating point rounding.
+  const Operator* Float64Floor();
+  const Operator* Float64Ceil();
+  const Operator* Float64RoundTruncate();
+  const Operator* Float64RoundTiesAway();
+  bool HasFloat64Floor() { return flags_ & Flag::kFloat64Floor; }
+  bool HasFloat64Ceil() { return flags_ & Flag::kFloat64Ceil; }
+  bool HasFloat64RoundTruncate() {
+    return flags_ & Flag::kFloat64RoundTruncate;
+  }
+  bool HasFloat64RoundTiesAway() {
+    return flags_ & Flag::kFloat64RoundTiesAway;
+  }
+
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
 
@@ -181,8 +208,11 @@ class MachineOperatorBuilder FINAL {
  private:
   const MachineOperatorBuilderImpl& impl_;
   const MachineType word_;
+  const Flags flags_;
 };
 
+
+DEFINE_OPERATORS_FOR_FLAGS(MachineOperatorBuilder::Flags)
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

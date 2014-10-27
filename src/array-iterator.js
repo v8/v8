@@ -112,6 +112,8 @@ function SetUpArrayIterator() {
   %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
   %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
                     ArrayIteratorIterator, DONT_ENUM);
+  %AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
+                    "Array Iterator", READ_ONLY | DONT_ENUM);
 }
 SetUpArrayIterator();
 

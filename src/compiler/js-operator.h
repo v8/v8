@@ -104,6 +104,8 @@ class VectorSlotPair {
   Handle<TypeFeedbackVector> vector() const { return vector_; }
   FeedbackVectorICSlot slot() const { return slot_; }
 
+  int index() const { return vector_->GetIndex(slot_); }
+
  private:
   const Handle<TypeFeedbackVector> vector_;
   const FeedbackVectorICSlot slot_;

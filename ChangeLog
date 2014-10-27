@@ -1,3 +1,13 @@
+2014-10-27: Version 3.30.19
+
+        Check string literals with escapes in PreParserTraits::GetSymbol()
+        (issue 3606).
+
+        only define ARRAYSIZE_UNSAFE for NaCl builds (Chromium issue 405225).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-24: Version 3.30.18
 
         Narrow cases where Sparse/Smart versions of Array methods are used

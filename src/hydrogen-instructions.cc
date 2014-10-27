@@ -2862,7 +2862,7 @@ bool HConstant::ImmortalImmovable() const {
   DCHECK(!object_.IsKnownGlobal(heap->nan_value()));
   return
 #define IMMORTAL_IMMOVABLE_ROOT(name) \
-      object_.IsKnownGlobal(heap->name()) ||
+  object_.IsKnownGlobal(heap->root(Heap::k##name##RootIndex)) ||
       IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
 #undef IMMORTAL_IMMOVABLE_ROOT
 #define INTERNALIZED_STRING(name, value) \
@@ -2873,9 +2873,6 @@ bool HConstant::ImmortalImmovable() const {
       object_.IsKnownGlobal(heap->name##_map()) ||
       STRING_TYPE_LIST(STRING_TYPE)
 #undef STRING_TYPE
-#define SYMBOL(name) object_.IsKnownGlobal(heap->name()) ||
-      PRIVATE_SYMBOL_LIST(SYMBOL)
-#undef SYMBOL
       false;
 }
 

@@ -59,10 +59,10 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   if (scanner->UnescapedLiteralMatches("arguments", 9)) {
     return PreParserIdentifier::Arguments();
   }
-  if (scanner->UnescapedLiteralMatches("prototype", 9)) {
+  if (scanner->LiteralMatches("prototype", 9)) {
     return PreParserIdentifier::Prototype();
   }
-  if (scanner->UnescapedLiteralMatches("constructor", 11)) {
+  if (scanner->LiteralMatches("constructor", 11)) {
     return PreParserIdentifier::Constructor();
   }
   return PreParserIdentifier::Default();

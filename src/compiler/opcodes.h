@@ -226,6 +226,10 @@
   V(Float64Equal)             \
   V(Float64LessThan)          \
   V(Float64LessThanOrEqual)   \
+  V(Float64Floor)             \
+  V(Float64Ceil)              \
+  V(Float64RoundTruncate)     \
+  V(Float64RoundTiesAway)     \
   V(LoadStackPointer)
 
 #define VALUE_OP_LIST(V) \

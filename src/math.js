@@ -321,6 +321,8 @@ function SetUpMath() {
   %AddNamedProperty(global, "Math", $Math, DONT_ENUM);
   %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
+  %AddNamedProperty($Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
+
   // Set up math constants.
   InstallConstants($Math, $Array(
     // ECMA-262, section 15.8.1.1.

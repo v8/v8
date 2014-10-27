@@ -395,6 +395,9 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << " - hash: " << Hash();
   os << "\n - name: " << Brief(name());
+  if (name()->IsUndefined()) {
+    os << " (" << PrivateSymbolToName() << ")";
+  }
   os << "\n - private: " << is_private();
   os << "\n - own: " << is_own();
   os << "\n";

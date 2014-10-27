@@ -4551,6 +4551,19 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 }
 
 
+bool Heap::RootIsImmortalImmovable(int root_index) {
+  switch (root_index) {
+#define CASE(name)               \
+  case Heap::k##name##RootIndex: \
+    return true;
+    IMMORTAL_IMMOVABLE_ROOT_LIST(CASE);
+#undef CASE
+    default:
+      return false;
+  }
+}
+
+
 #ifdef VERIFY_HEAP
 void Heap::Verify() {
   CHECK(HasBeenSetUp());

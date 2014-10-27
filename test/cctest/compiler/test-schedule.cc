@@ -30,11 +30,10 @@ TEST(TestScheduleAllocation) {
 
 TEST(TestScheduleAddNode) {
   HandleAndZoneScope scope;
+  Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator);
-
-  Schedule schedule(scope.main_zone());
 
   BasicBlock* entry = schedule.start();
   schedule.AddNode(entry, n0);
@@ -51,8 +50,8 @@ TEST(TestScheduleAddNode) {
 
 TEST(TestScheduleAddGoto) {
   HandleAndZoneScope scope;
-
   Schedule schedule(scope.main_zone());
+
   BasicBlock* entry = schedule.start();
   BasicBlock* next = schedule.NewBasicBlock();
 
@@ -71,15 +70,14 @@ TEST(TestScheduleAddGoto) {
 TEST(TestScheduleAddBranch) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-
-  BasicBlock* entry = schedule.start();
-  BasicBlock* tblock = schedule.NewBasicBlock();
-  BasicBlock* fblock = schedule.NewBasicBlock();
-
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* b = graph.NewNode(common.Branch(), n0);
+
+  BasicBlock* entry = schedule.start();
+  BasicBlock* tblock = schedule.NewBasicBlock();
+  BasicBlock* fblock = schedule.NewBasicBlock();
 
   schedule.AddBranch(entry, b, tblock, fblock);
 
@@ -123,6 +121,40 @@ TEST(TestScheduleAddThrow) {
   CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
   CHECK_EQ(1, static_cast<int>(entry->SuccessorCount()));
   CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
+}
+
+
+TEST(TestScheduleInsertBranch) {
+  HandleAndZoneScope scope;
+  Schedule schedule(scope.main_zone());
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  Node* n0 = graph.NewNode(&dummy_operator);
+  Node* n1 = graph.NewNode(&dummy_operator);
+  Node* b = graph.NewNode(common.Branch(), n1);
+
+  BasicBlock* entry = schedule.start();
+  BasicBlock* tblock = schedule.NewBasicBlock();
+  BasicBlock* fblock = schedule.NewBasicBlock();
+  BasicBlock* merge = schedule.NewBasicBlock();
+  schedule.AddReturn(entry, n0);
+  schedule.AddGoto(tblock, merge);
+  schedule.AddGoto(fblock, merge);
+
+  schedule.InsertBranch(entry, merge, b, tblock, fblock);
+
+  CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
+  CHECK_EQ(2, static_cast<int>(entry->SuccessorCount()));
+  CHECK_EQ(tblock, entry->SuccessorAt(0));
+  CHECK_EQ(fblock, entry->SuccessorAt(1));
+
+  CHECK_EQ(2, static_cast<int>(merge->PredecessorCount()));
+  CHECK_EQ(1, static_cast<int>(merge->SuccessorCount()));
+  CHECK_EQ(schedule.end(), merge->SuccessorAt(0));
+
+  CHECK_EQ(1, static_cast<int>(schedule.end()->PredecessorCount()));
+  CHECK_EQ(0, static_cast<int>(schedule.end()->SuccessorCount()));
+  CHECK_EQ(merge, schedule.end()->PredecessorAt(0));
 }
 
 

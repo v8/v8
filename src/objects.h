@@ -3551,7 +3551,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   int NumberOfEnumElements();
 
   // Returns true if the dictionary contains any elements that are non-writable,
-  // non-configurable, or have getters/setters.
+  // non-configurable, non-enumerable, or have getters/setters.
   bool HasComplexElements();
 
   enum SortMode { UNSORTED, SORTED };
@@ -8654,9 +8654,13 @@ class Symbol: public Name {
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
 
+  void SymbolShortPrint(std::ostream& os);
+
  private:
   static const int kPrivateBit = 0;
   static const int kOwnBit = 1;
+
+  const char* PrivateSymbolToName() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };

@@ -37,6 +37,7 @@ class MachineOperatorReducer FINAL : public Reducer {
   Node* Word32And(Node* lhs, uint32_t rhs);
   Node* Word32Sar(Node* lhs, uint32_t rhs);
   Node* Word32Shr(Node* lhs, uint32_t rhs);
+  Node* Word32Equal(Node* lhs, Node* rhs);
   Node* Int32Add(Node* lhs, Node* rhs);
   Node* Int32Sub(Node* lhs, Node* rhs);
   Node* Int32Mul(Node* lhs, Node* rhs);
@@ -53,12 +54,17 @@ class MachineOperatorReducer FINAL : public Reducer {
   Reduction ReplaceInt32(int32_t value) {
     return Replace(Int32Constant(value));
   }
+  Reduction ReplaceUint32(uint32_t value) {
+    return Replace(Uint32Constant(value));
+  }
   Reduction ReplaceInt64(int64_t value) {
     return Replace(Int64Constant(value));
   }
 
   Reduction ReduceInt32Div(Node* node);
+  Reduction ReduceUint32Div(Node* node);
   Reduction ReduceInt32Mod(Node* node);
+  Reduction ReduceUint32Mod(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);
 
   Graph* graph() const;

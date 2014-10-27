@@ -284,11 +284,8 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    // The spec could also be interpreted such that %HasOwnProperty
-    // would be the appropriate test.  We follow KJS in consulting the
-    // prototype.
-    var current = array[index];
-    if (!IS_UNDEFINED(current) || index in array) {
+    if (index in array) {
+      var current = array[index];
       // The spec requires [[DefineOwnProperty]] here, %AddElement is close
       // enough (in that it ignores the prototype).
       %AddElement(deleted_elements, i, current, NONE);

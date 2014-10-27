@@ -58,6 +58,11 @@ Node* MachineOperatorReducer::Word32Shr(Node* lhs, uint32_t rhs) {
 }
 
 
+Node* MachineOperatorReducer::Word32Equal(Node* lhs, Node* rhs) {
+  return graph()->NewNode(machine()->Word32Equal(), lhs, rhs);
+}
+
+
 Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Int32Add(), lhs, rhs);
 }
@@ -299,40 +304,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kInt32Div:
       return ReduceInt32Div(node);
-    case IrOpcode::kUint32Div: {
-      Uint32BinopMatcher m(node);
-      if (m.right().Is(1)) return Replace(m.left().node());  // x / 1 => x
-      // TODO(turbofan): if (m.left().Is(0))
-      // TODO(turbofan): if (m.right().Is(0))
-      // TODO(turbofan): if (m.LeftEqualsRight())
-      if (m.IsFoldable() && !m.right().Is(0)) {  // K / K => K
-        return ReplaceInt32(m.left().Value() / m.right().Value());
-      }
-      if (m.right().IsPowerOf2()) {  // x / 2^n => x >> n
-        node->set_op(machine()->Word32Shr());
-        node->ReplaceInput(1, Int32Constant(WhichPowerOf2(m.right().Value())));
-        return Changed(node);
-      }
-      break;
-    }
+    case IrOpcode::kUint32Div:
+      return ReduceUint32Div(node);
     case IrOpcode::kInt32Mod:
       return ReduceInt32Mod(node);
-    case IrOpcode::kUint32Mod: {
-      Uint32BinopMatcher m(node);
-      if (m.right().Is(1)) return ReplaceInt32(0);  // x % 1 => 0
-      // TODO(turbofan): if (m.left().Is(0))
-      // TODO(turbofan): if (m.right().Is(0))
-      // TODO(turbofan): if (m.LeftEqualsRight())
-      if (m.IsFoldable() && !m.right().Is(0)) {  // K % K => K
-        return ReplaceInt32(m.left().Value() % m.right().Value());
-      }
-      if (m.right().IsPowerOf2()) {  // x % 2^n => x & 2^n-1
-        node->set_op(machine()->Word32And());
-        node->ReplaceInput(1, Int32Constant(m.right().Value() - 1));
-        return Changed(node);
-      }
-      break;
-    }
+    case IrOpcode::kUint32Mod:
+      return ReduceUint32Mod(node);
     case IrOpcode::kInt32LessThan: {
       Int32BinopMatcher m(node);
       if (m.IsFoldable()) {  // K < K => K
@@ -554,13 +531,16 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
 
 Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
   Int32BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
   if (m.right().Is(0)) return Replace(m.right().node());  // x / 0 => 0
   if (m.right().Is(1)) return Replace(m.left().node());   // x / 1 => x
-  // TODO(turbofan): if (m.left().Is(0))
-  // TODO(turbofan): if (m.LeftEqualsRight())
-  if (m.IsFoldable() && !m.right().Is(0)) {  // K / K => K
-    if (m.right().Is(-1)) return ReplaceInt32(-m.left().Value());
-    return ReplaceInt32(m.left().Value() / m.right().Value());
+  if (m.IsFoldable()) {                                   // K / K => K
+    return ReplaceInt32(
+        base::bits::SignedDiv32(m.left().Value(), m.right().Value()));
+  }
+  if (m.LeftEqualsRight()) {  // x / x => x != 0
+    Node* const zero = Int32Constant(0);
+    return Replace(Word32Equal(Word32Equal(m.left().node(), zero), zero));
   }
   if (m.right().Is(-1)) {  // x / -1 => 0 - x
     node->set_op(machine()->Int32Sub());
@@ -595,15 +575,38 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
 }
 
 
+Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
+  Uint32BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x / 0 => 0
+  if (m.right().Is(1)) return Replace(m.left().node());   // x / 1 => x
+  if (m.IsFoldable()) {                                   // K / K => K
+    return ReplaceUint32(
+        base::bits::UnsignedDiv32(m.left().Value(), m.right().Value()));
+  }
+  if (m.LeftEqualsRight()) {  // x / x => x != 0
+    Node* const zero = Int32Constant(0);
+    return Replace(Word32Equal(Word32Equal(m.left().node(), zero), zero));
+  }
+  if (m.right().IsPowerOf2()) {  // x / 2^n => x >> n
+    node->set_op(machine()->Word32Shr());
+    node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+
 Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.right().Is(1)) return ReplaceInt32(0);   // x % 1  => 0
-  if (m.right().Is(-1)) return ReplaceInt32(0);  // x % -1 => 0
-  // TODO(turbofan): if (m.left().Is(0))
-  // TODO(turbofan): if (m.right().Is(0))
-  // TODO(turbofan): if (m.LeftEqualsRight())
-  if (m.IsFoldable() && !m.right().Is(0)) {  // K % K => K
-    return ReplaceInt32(m.left().Value() % m.right().Value());
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x  => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x % 0  => 0
+  if (m.right().Is(1)) return ReplaceInt32(0);            // x % 1  => 0
+  if (m.right().Is(-1)) return ReplaceInt32(0);           // x % -1 => 0
+  if (m.LeftEqualsRight()) return ReplaceInt32(0);        // x % x  => 0
+  if (m.IsFoldable()) {                                   // K % K => K
+    return ReplaceInt32(
+        base::bits::SignedMod32(m.left().Value(), m.right().Value()));
   }
   if (m.right().HasValue()) {
     Node* const dividend = m.left().node();
@@ -634,6 +637,25 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
       node->ReplaceInput(1, Int32Mul(quotient, Int32Constant(divisor)));
       return Changed(node);
     }
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
+  Uint32BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x % 0 => 0
+  if (m.right().Is(1)) return ReplaceUint32(0);           // x % 1 => 0
+  if (m.LeftEqualsRight()) return ReplaceInt32(0);        // x % x  => 0
+  if (m.IsFoldable()) {                                   // K % K => K
+    return ReplaceUint32(
+        base::bits::UnsignedMod32(m.left().Value(), m.right().Value()));
+  }
+  if (m.right().IsPowerOf2()) {  // x % 2^n => x & 2^n-1
+    node->set_op(machine()->Word32And());
+    node->ReplaceInput(1, Uint32Constant(m.right().Value() - 1));
+    return Changed(node);
   }
   return NoChange();
 }

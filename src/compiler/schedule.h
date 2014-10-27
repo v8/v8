@@ -95,6 +95,7 @@ class BasicBlock FINAL : public ZoneObject {
   }
   size_t PredecessorCount() const { return predecessors_.size(); }
   BasicBlock* PredecessorAt(size_t index) { return predecessors_[index]; }
+  void ClearPredecessors() { predecessors_.clear(); }
   void AddPredecessor(BasicBlock* predecessor);
 
   typedef ZoneVector<BasicBlock*> Successors;
@@ -108,6 +109,7 @@ class BasicBlock FINAL : public ZoneObject {
   }
   size_t SuccessorCount() const { return successors_.size(); }
   BasicBlock* SuccessorAt(size_t index) { return successors_[index]; }
+  void ClearSuccessors() { successors_.clear(); }
   void AddSuccessor(BasicBlock* successor);
 
   // Nodes in the basic block.
@@ -240,7 +242,14 @@ class Schedule FINAL : public ZoneObject {
   // BasicBlock building: add a throw at the end of {block}.
   void AddThrow(BasicBlock* block, Node* input);
 
-  void AddSuccessor(BasicBlock* block, BasicBlock* succ);
+  // BasicBlock mutation: insert a branch into the end of {block}.
+  void InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
+                    BasicBlock* tblock, BasicBlock* fblock);
+
+  // Exposed publicly for testing only.
+  void AddSuccessorForTesting(BasicBlock* block, BasicBlock* succ) {
+    return AddSuccessor(block, succ);
+  }
 
   BasicBlockVector* rpo_order() { return &rpo_order_; }
   const BasicBlockVector* rpo_order() const { return &rpo_order_; }
@@ -255,6 +264,9 @@ class Schedule FINAL : public ZoneObject {
   friend class CodeGenerator;
   friend class ScheduleVisualizer;
   friend class BasicBlockInstrumentor;
+
+  void AddSuccessor(BasicBlock* block, BasicBlock* succ);
+  void MoveSuccessors(BasicBlock* from, BasicBlock* to);
 
   void SetControlInput(BasicBlock* block, Node* node);
   void SetBlockForNode(BasicBlock* block, Node* node);

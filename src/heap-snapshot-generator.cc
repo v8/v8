@@ -1711,11 +1711,11 @@ bool V8HeapExplorer::ExtractAccessorPairProperty(
   AccessorPair* accessors = AccessorPair::cast(callback_obj);
   Object* getter = accessors->getter();
   if (!getter->IsOddball()) {
-    SetPropertyReference(js_obj, entry, String::cast(key), getter, "get %s");
+    SetPropertyReference(js_obj, entry, Name::cast(key), getter, "get %s");
   }
   Object* setter = accessors->setter();
   if (!setter->IsOddball()) {
-    SetPropertyReference(js_obj, entry, String::cast(key), setter, "set %s");
+    SetPropertyReference(js_obj, entry, Name::cast(key), setter, "set %s");
   }
   return true;
 }

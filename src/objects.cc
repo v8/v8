@@ -1532,15 +1532,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
     case SYMBOL_TYPE: {
       Symbol* symbol = Symbol::cast(this);
-      os << "<Symbol: " << symbol->Hash();
-      if (!symbol->name()->IsUndefined()) {
-        os << " ";
-        HeapStringAllocator allocator;
-        StringStream accumulator(&allocator);
-        String::cast(symbol->name())->StringShortPrint(&accumulator);
-        os << accumulator.ToCString().get();
-      }
-      os << ">";
+      symbol->SymbolShortPrint(os);
       break;
     }
     case HEAP_NUMBER_TYPE: {
@@ -13616,6 +13608,31 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 }
 
 
+const char* Symbol::PrivateSymbolToName() const {
+  Heap* heap = GetIsolate()->heap();
+#define SYMBOL_CHECK_AND_PRINT(name) \
+  if (this == heap->name()) return #name;
+  PRIVATE_SYMBOL_LIST(SYMBOL_CHECK_AND_PRINT)
+#undef SYMBOL_CHECK_AND_PRINT
+  return "UNKNOWN";
+}
+
+
+void Symbol::SymbolShortPrint(std::ostream& os) {
+  os << "<Symbol: " << Hash();
+  if (!name()->IsUndefined()) {
+    os << " ";
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    String::cast(name())->StringShortPrint(&accumulator);
+    os << accumulator.ToCString().get();
+  } else {
+    os << " (" << PrivateSymbolToName() << ")";
+  }
+  os << ">";
+}
+
+
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:
@@ -15278,7 +15295,7 @@ bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
       if (details.IsDeleted()) continue;
       if (details.type() == CALLBACKS) return true;
       PropertyAttributes attr = details.attributes();
-      if (attr & (READ_ONLY | DONT_DELETE)) return true;
+      if (attr & (READ_ONLY | DONT_DELETE | DONT_ENUM)) return true;
     }
   }
   return false;

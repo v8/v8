@@ -239,6 +239,7 @@ class CFGBuilder {
     switch (node->opcode()) {
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
+      case IrOpcode::kTerminate:
         BuildBlockForNode(node);
         break;
       case IrOpcode::kBranch:
@@ -561,15 +562,26 @@ class SpecialRPONumberer {
     BasicBlockVector* final_order = schedule_->rpo_order();
     order->Serialize(final_order);
 
-    // Compute the correct loop header for every block and set the correct loop
-    // ends.
+    // Compute the correct loop headers and set the correct loop ends.
     LoopInfo* current_loop = NULL;
     BasicBlock* current_header = NULL;
     int loop_depth = 0;
     for (BasicBlockVectorIter i = final_order->begin(); i != final_order->end();
          ++i) {
       BasicBlock* current = *i;
+
+      // Finish the previous loop(s) if we just exited them.
+      while (current_header != NULL &&
+             current->rpo_number() >= current_header->loop_end()) {
+        DCHECK(current_header->IsLoopHeader());
+        DCHECK(current_loop != NULL);
+        current_loop = current_loop->prev;
+        current_header = current_loop == NULL ? NULL : current_loop->header;
+        --loop_depth;
+      }
       current->set_loop_header(current_header);
+
+      // Push a new loop onto the stack if this loop is a loop header.
       if (current->IsLoopHeader()) {
         loop_depth++;
         current_loop = &loops[current->loop_end()];
@@ -580,17 +592,10 @@ class SpecialRPONumberer {
         current_header = current_loop->header;
         Trace("B%d is a loop header, increment loop depth to %d\n",
               current->id().ToInt(), loop_depth);
-      } else {
-        while (current_header != NULL &&
-               current->rpo_number() >= current_header->loop_end()) {
-          DCHECK(current_header->IsLoopHeader());
-          DCHECK(current_loop != NULL);
-          current_loop = current_loop->prev;
-          current_header = current_loop == NULL ? NULL : current_loop->header;
-          --loop_depth;
-        }
       }
+
       current->set_loop_depth(loop_depth);
+
       if (current->loop_header() == NULL) {
         Trace("B%d is not in a loop (depth == %d)\n", current->id().ToInt(),
               current->loop_depth());
@@ -755,6 +760,12 @@ class SpecialRPONumberer {
         os << " range: [" << block->rpo_number() << ", " << block->loop_end()
            << ")";
       }
+      if (block->loop_header() != NULL) {
+        os << " header: B" << block->loop_header()->id();
+      }
+      if (block->loop_depth() > 0) {
+        os << " depth: " << block->loop_depth();
+      }
       os << "\n";
     }
   }
@@ -774,6 +785,7 @@ class SpecialRPONumberer {
       DCHECK(header->loop_end() >= 0);
       DCHECK(header->loop_end() <= static_cast<int>(order->size()));
       DCHECK(header->loop_end() > header->rpo_number());
+      DCHECK(header->loop_header() != header);
 
       // Verify the start ... end list relationship.
       int links = 0;
@@ -1073,31 +1085,29 @@ class ScheduleLateNodeVisitor {
     // Hoist nodes out of loops if possible. Nodes can be hoisted iteratively
     // into enclosing loop pre-headers until they would preceed their
     // ScheduleEarly position.
-    BasicBlock* hoist_block = block;
+    BasicBlock* hoist_block = GetPreHeader(block);
     while (hoist_block != NULL && hoist_block->rpo_number() >= min_rpo) {
-      if (hoist_block->loop_depth() < block->loop_depth()) {
-        block = hoist_block;
-        Trace("  hoisting #%d:%s to block %d\n", node->id(),
-              node->op()->mnemonic(), block->id().ToInt());
-      }
-      // Try to hoist to the pre-header of the loop header.
-      hoist_block = hoist_block->loop_header();
-      if (hoist_block != NULL) {
-        BasicBlock* pre_header = hoist_block->dominator();
-        DCHECK(pre_header == NULL ||
-               *hoist_block->predecessors_begin() == pre_header);
-        Trace(
-            "  hoist to pre-header B%d of loop header B%d, depth would be %d\n",
-            pre_header->id().ToInt(), hoist_block->id().ToInt(),
-            pre_header->loop_depth());
-        hoist_block = pre_header;
-      }
+      Trace("  hoisting #%d:%s to block %d\n", node->id(),
+            node->op()->mnemonic(), hoist_block->id().ToInt());
+      DCHECK_LT(hoist_block->loop_depth(), block->loop_depth());
+      block = hoist_block;
+      hoist_block = GetPreHeader(hoist_block);
     }
 
     ScheduleNode(block, node);
   }
 
  private:
+  BasicBlock* GetPreHeader(BasicBlock* block) {
+    if (block->IsLoopHeader()) {
+      return block->dominator();
+    } else if (block->loop_header() != NULL) {
+      return block->loop_header()->dominator();
+    } else {
+      return NULL;
+    }
+  }
+
   BasicBlock* GetCommonDominatorOfUses(Node* node) {
     BasicBlock* block = NULL;
     Node::Uses uses = node->uses();
