@@ -2517,10 +2517,8 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
     HeapEntry* group_entry =
         filler_->FindOrAddEntry(group_info, native_entries_allocator_);
     DCHECK(group_entry != NULL);
-    filler_->SetIndexedAutoIndexReference(
-        HeapGraphEdge::kElement,
-        snapshot_->root()->index(),
-        group_entry);
+    filler_->SetNamedAutoIndexReference(
+        HeapGraphEdge::kShortcut, snapshot_->root()->index(), group_entry);
   }
 }
 
