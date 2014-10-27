@@ -594,7 +594,10 @@ ScriptCache::ScriptCache(Isolate* isolate) : HashMap(HashMap::PointersMatch),
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
 
-  // Perform a GC to get rid of all unreferenced scripts.
+  // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
+  // rid of all the cached script wrappers and the second gets rid of the
+  // scripts which are no longer referenced.
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "ScriptCache");
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "ScriptCache");
 
   // Scan heap for Script objects.
@@ -691,7 +694,13 @@ void Debug::HandleWeakDebugInfo(
   Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
   DebugInfoListNode* node =
       reinterpret_cast<DebugInfoListNode*>(data.GetParameter());
-  debug->RemoveDebugInfo(node->debug_info().location());
+  // We need to clear all breakpoints associated with the function to restore
+  // original code and avoid patching the code twice later because
+  // the function will live in the heap until next gc, and can be found by
+  // Debug::FindSharedFunctionInfoInScript.
+  BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
+  it.ClearAllDebugBreak();
+  debug->RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG
   for (DebugInfoListNode* n = debug->debug_info_list_;
        n != NULL;
@@ -707,8 +716,8 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
   GlobalHandles::MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
-                          this, Debug::HandleWeakDebugInfo,
-                          GlobalHandles::Phantom);
+                          this,
+                          Debug::HandleWeakDebugInfo);
 }
 
 
@@ -1163,7 +1172,7 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       // If there are no more break points left remove the debug info for this
       // function.
       if (debug_info->GetBreakPointCount() == 0) {
-        RemoveDebugInfoAndClearFromShared(debug_info);
+        RemoveDebugInfo(debug_info);
       }
 
       return;
@@ -1184,7 +1193,7 @@ void Debug::ClearAllBreakPoints() {
 
   // Remove all debug info.
   while (debug_info_list_ != NULL) {
-    RemoveDebugInfoAndClearFromShared(debug_info_list_->debug_info());
+    RemoveDebugInfo(debug_info_list_->debug_info());
   }
 }
 
@@ -2186,23 +2195,21 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 }
 
 
-// This uses the location of a handle to look up the debug info in the debug
-// info list, but it doesn't use the actual debug info for anything.  Therefore
-// if the debug info has been collected by the GC, we can be sure that this
-// method will not attempt to resurrect it.
-void Debug::RemoveDebugInfo(DebugInfo** debug_info) {
+void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
   DCHECK(debug_info_list_ != NULL);
   // Run through the debug info objects to find this one and remove it.
   DebugInfoListNode* prev = NULL;
   DebugInfoListNode* current = debug_info_list_;
   while (current != NULL) {
-    if (current->debug_info().location() == debug_info) {
+    if (*current->debug_info() == *debug_info) {
       // Unlink from list. If prev is NULL we are looking at the first element.
       if (prev == NULL) {
         debug_info_list_ = current->next();
       } else {
         prev->set_next(current->next());
       }
+      current->debug_info()->shared()->set_debug_info(
+              isolate_->heap()->undefined_value());
       delete current;
 
       // If there are no more debug info objects there are not more break
@@ -2216,16 +2223,6 @@ void Debug::RemoveDebugInfo(DebugInfo** debug_info) {
     current = current->next();
   }
   UNREACHABLE();
-}
-
-
-void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
-  HandleScope scope(isolate_);
-  Handle<SharedFunctionInfo> shared(debug_info->shared());
-
-  RemoveDebugInfo(debug_info.location());
-
-  shared->set_debug_info(isolate_->heap()->undefined_value());
 }
 
 
@@ -2323,7 +2320,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
   // If there are no break points this cannot be break at return, as
-  // the debugger statement and stack guard debug break cannot be at
+  // the debugger statement and stack guard bebug break cannot be at
   // return.
   if (!has_break_points_) {
     return false;
@@ -3243,7 +3240,7 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
   Isolate* isolate = event_data_->GetIsolate();
   v8::Handle<v8::Context> context = GetDebugEventContext(isolate);
-  // Isolate::context() may be NULL when "script collected" event occurs.
+  // Isolate::context() may be NULL when "script collected" event occures.
   DCHECK(!context.IsEmpty());
   return context;
 }

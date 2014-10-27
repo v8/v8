@@ -146,13 +146,6 @@ class GlobalHandles::Node {
     flags_ = IsInNewSpaceList::update(flags_, v);
   }
 
-  bool is_zapped_during_weak_callback() {
-    return IsZappedDuringWeakCallback::decode(flags_);
-  }
-  void set_is_zapped_during_weak_callback(bool v) {
-    flags_ = IsZappedDuringWeakCallback::update(flags_, v);
-  }
-
   bool IsNearDeath() const {
     // Check for PENDING to ensure correct answer when processing callbacks.
     return state() == PENDING || state() == NEAR_DEATH;
@@ -211,14 +204,12 @@ class GlobalHandles::Node {
     parameter_or_next_free_.next_free = value;
   }
 
-  void MakeWeak(void* parameter, WeakCallback weak_callback,
-                bool is_zapped_during_weak_callback = false) {
+  void MakeWeak(void* parameter, WeakCallback weak_callback) {
     DCHECK(weak_callback != NULL);
     DCHECK(state() != FREE);
     CHECK(object_ != NULL);
     set_state(WEAK);
     set_parameter(parameter);
-    set_is_zapped_during_weak_callback(is_zapped_during_weak_callback);
     weak_callback_ = weak_callback;
   }
 
@@ -236,7 +227,7 @@ class GlobalHandles::Node {
       Release();
       return false;
     }
-    void* param = parameter();
+    void* par = parameter();
     set_state(NEAR_DEATH);
     set_parameter(NULL);
 
@@ -249,28 +240,14 @@ class GlobalHandles::Node {
       DCHECK(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
-      VMState<EXTERNAL> vmstate(isolate);
+      VMState<EXTERNAL> state(isolate);
       HandleScope handle_scope(isolate);
-      if (is_zapped_during_weak_callback()) {
-        // Phantom weak pointer case.
-        DCHECK(*object == Smi::FromInt(kPhantomReferenceZap));
-        // Make data with a null handle.
-        v8::WeakCallbackData<v8::Value, void> data(
-            reinterpret_cast<v8::Isolate*>(isolate), v8::Local<v8::Object>(),
-            param);
-        weak_callback_(data);
-        if (state() != FREE) {
-          // Callback does not have to clear the global handle if it is a
-          // phantom handle.
-          Release();
-        }
-      } else {
-        Handle<Object> handle(object);
-        v8::WeakCallbackData<v8::Value, void> data(
-            reinterpret_cast<v8::Isolate*>(isolate), v8::Utils::ToLocal(handle),
-            param);
-        weak_callback_(data);
-      }
+      Handle<Object> handle(*object, isolate);
+      v8::WeakCallbackData<v8::Value, void> data(
+          reinterpret_cast<v8::Isolate*>(isolate),
+          v8::Utils::ToLocal(handle),
+          par);
+      weak_callback_(data);
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -300,11 +277,10 @@ class GlobalHandles::Node {
 
   // This stores three flags (independent, partially_dependent and
   // in_new_space_list) and a State.
-  class NodeState : public BitField<State, 0, 4> {};
-  class IsIndependent : public BitField<bool, 4, 1> {};
-  class IsPartiallyDependent : public BitField<bool, 5, 1> {};
-  class IsInNewSpaceList : public BitField<bool, 6, 1> {};
-  class IsZappedDuringWeakCallback : public BitField<bool, 7, 1> {};
+  class NodeState:            public BitField<State, 0, 4> {};
+  class IsIndependent:        public BitField<bool,  4, 1> {};
+  class IsPartiallyDependent: public BitField<bool,  5, 1> {};
+  class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
 
   uint8_t flags_;
 
@@ -499,10 +475,10 @@ void GlobalHandles::Destroy(Object** location) {
 }
 
 
-void GlobalHandles::MakeWeak(Object** location, void* parameter,
-                             WeakCallback weak_callback, PhantomState phantom) {
-  Node::FromLocation(location)
-      ->MakeWeak(parameter, weak_callback, phantom == Phantom);
+void GlobalHandles::MakeWeak(Object** location,
+                             void* parameter,
+                             WeakCallback weak_callback) {
+  Node::FromLocation(location)->MakeWeak(parameter, weak_callback);
 }
 
 
@@ -538,15 +514,7 @@ bool GlobalHandles::IsWeak(Object** location) {
 
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
-    Node* node = it.node();
-    if (node->IsWeakRetainer()) {
-      if (node->state() == Node::PENDING &&
-          node->is_zapped_during_weak_callback()) {
-        *(node->location()) = Smi::FromInt(kPhantomReferenceZap);
-      } else {
-        v->VisitPointer(node->location());
-      }
-    }
+    if (it.node()->IsWeakRetainer()) v->VisitPointer(it.node()->location());
   }
 }
 
@@ -591,11 +559,7 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || node->is_partially_dependent()) &&
         node->IsWeakRetainer()) {
-      if (node->is_zapped_during_weak_callback()) {
-        *(node->location()) = Smi::FromInt(kPhantomReferenceZap);
-      } else {
-        v->VisitPointer(node->location());
-      }
+      v->VisitPointer(node->location());
     }
   }
 }
