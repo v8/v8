@@ -7,7 +7,6 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties-inl.h"

@@ -5,7 +5,6 @@
 #include "src/compiler/instruction.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 
 namespace v8 {

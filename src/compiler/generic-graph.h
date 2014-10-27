@@ -5,14 +5,13 @@
 #ifndef V8_COMPILER_GENERIC_GRAPH_H_
 #define V8_COMPILER_GENERIC_GRAPH_H_
 
-#include "src/compiler/generic-node.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
-
-class Zone;
-
 namespace compiler {
+
+typedef int NodeId;
 
 class GenericGraphBase : public ZoneObject {
  public:

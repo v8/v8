@@ -8,7 +8,6 @@
 #include <stack>
 
 #include "src/compiler/generic-graph.h"
-#include "src/compiler/generic-node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -99,12 +98,12 @@ class GenericGraphVisit {
     Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }
 
-  template <class B, class S>
+  template <class Node>
   struct NullNodeVisitor {
-    Control Pre(GenericNode<B, S>* node) { return CONTINUE; }
-    Control Post(GenericNode<B, S>* node) { return CONTINUE; }
-    void PreEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
-    void PostEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
+    Control Pre(Node* node) { return CONTINUE; }
+    Control Post(Node* node) { return CONTINUE; }
+    void PreEdge(Node* from, int index, Node* to) {}
+    void PostEdge(Node* from, int index, Node* to) {}
   };
 
  private:

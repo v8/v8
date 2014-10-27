@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "graph-tester.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-reducer.h"
 
 using namespace v8::internal;

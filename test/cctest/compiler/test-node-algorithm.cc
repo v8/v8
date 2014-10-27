@@ -8,8 +8,6 @@
 
 #include "graph-tester.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"

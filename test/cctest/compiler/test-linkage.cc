@@ -8,7 +8,6 @@
 #include "src/zone.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
