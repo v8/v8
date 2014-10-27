@@ -129,16 +129,18 @@ class CallDescriptor FINAL : public ZoneObject {
  private:
   friend class Linkage;
 
-  Kind kind_;
-  MachineType target_type_;
-  LinkageLocation target_loc_;
-  MachineSignature* machine_sig_;
-  LocationSignature* location_sig_;
-  size_t js_param_count_;
-  Operator::Properties properties_;
-  RegList callee_saved_registers_;
-  Flags flags_;
-  const char* debug_name_;
+  const Kind kind_;
+  const MachineType target_type_;
+  const LinkageLocation target_loc_;
+  const MachineSignature* const machine_sig_;
+  const LocationSignature* const location_sig_;
+  const size_t js_param_count_;
+  const Operator::Properties properties_;
+  const RegList callee_saved_registers_;
+  const Flags flags_;
+  const char* const debug_name_;
+
+  DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
@@ -161,25 +163,28 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:
-  explicit Linkage(CompilationInfo* info);
-  explicit Linkage(CompilationInfo* info, CallDescriptor* incoming)
-      : info_(info), incoming_(incoming) {}
+  Linkage(Zone* zone, CompilationInfo* info)
+      : zone_(zone), incoming_(ComputeIncoming(zone, info)) {}
+  Linkage(Zone* zone, CallDescriptor* incoming)
+      : zone_(zone), incoming_(incoming) {}
+
+  static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
 
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).
-  CallDescriptor* GetIncomingDescriptor() { return incoming_; }
-  CallDescriptor* GetJSCallDescriptor(int parameter_count);
+  CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
+  CallDescriptor* GetJSCallDescriptor(int parameter_count) const;
   static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone);
-  CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
-                                           int parameter_count,
-                                           Operator::Properties properties);
+  CallDescriptor* GetRuntimeCallDescriptor(
+      Runtime::FunctionId function, int parameter_count,
+      Operator::Properties properties) const;
   static CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, Zone* zone);
 
   CallDescriptor* GetStubCallDescriptor(
       CallInterfaceDescriptor descriptor, int stack_parameter_count = 0,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags) const;
   static CallDescriptor* GetStubCallDescriptor(
       CallInterfaceDescriptor descriptor, int stack_parameter_count,
       CallDescriptor::Flags flags, Zone* zone);
@@ -192,37 +197,37 @@ class Linkage : public ZoneObject {
                                                   MachineSignature* sig);
 
   // Get the location of an (incoming) parameter to this function.
-  LinkageLocation GetParameterLocation(int index) {
+  LinkageLocation GetParameterLocation(int index) const {
     return incoming_->GetInputLocation(index + 1);  // + 1 to skip target.
   }
 
   // Get the machine type of an (incoming) parameter to this function.
-  MachineType GetParameterType(int index) {
+  MachineType GetParameterType(int index) const {
     return incoming_->GetInputType(index + 1);  // + 1 to skip target.
   }
 
   // Get the location where this function should place its return value.
-  LinkageLocation GetReturnLocation() {
+  LinkageLocation GetReturnLocation() const {
     return incoming_->GetReturnLocation(0);
   }
 
   // Get the machine type of this function's return value.
-  MachineType GetReturnType() { return incoming_->GetReturnType(0); }
+  MachineType GetReturnType() const { return incoming_->GetReturnType(0); }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be
   // architecture-specific. Negative spill slots indicate arguments on the
   // caller's frame. The {extra} parameter indicates an additional offset from
   // the frame offset, e.g. to index into part of a double slot.
-  FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0);
-
-  CompilationInfo* info() const { return info_; }
+  FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0) const;
 
   static bool NeedsFrameState(Runtime::FunctionId function);
 
  private:
-  CompilationInfo* info_;
-  CallDescriptor* incoming_;
+  Zone* const zone_;
+  CallDescriptor* const incoming_;
+
+  DISALLOW_COPY_AND_ASSIGN(Linkage);
 };
 
 }  // namespace compiler

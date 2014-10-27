@@ -45,7 +45,7 @@ TEST(TestLinkageCreate) {
   InitializedHandleScope handles;
   Handle<JSFunction> function = Compile("a + b");
   CompilationInfoWithZone info(function);
-  Linkage linkage(&info);
+  Linkage linkage(info.zone(), &info);
 }
 
 
@@ -60,7 +60,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function = v8::Utils::OpenHandle(
         *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
     CompilationInfoWithZone info(function);
-    Linkage linkage(&info);
+    Linkage linkage(info.zone(), &info);
 
     CallDescriptor* descriptor = linkage.GetIncomingDescriptor();
     CHECK_NE(NULL, descriptor);
@@ -76,7 +76,7 @@ TEST(TestLinkageJSFunctionIncoming) {
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   CompilationInfoWithZone info(static_cast<HydrogenCodeStub*>(NULL), isolate);
-  Linkage linkage(&info);
+  Linkage linkage(info.zone(), &info);
   // TODO(titzer): test linkage creation with a bonafide code stub.
   // this just checks current behavior.
   CHECK_EQ(NULL, linkage.GetIncomingDescriptor());
@@ -87,7 +87,7 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   CompilationInfoWithZone info(function);
-  Linkage linkage(&info);
+  Linkage linkage(info.zone(), &info);
 
   for (int i = 0; i < 32; i++) {
     CallDescriptor* descriptor = linkage.GetJSCallDescriptor(i);

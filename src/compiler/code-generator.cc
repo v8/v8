@@ -13,10 +13,11 @@ namespace internal {
 namespace compiler {
 
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
-                             InstructionSequence* code)
+                             InstructionSequence* code, CompilationInfo* info)
     : frame_(frame),
       linkage_(linkage),
       code_(code),
+      info_(info),
       current_block_(BasicBlock::RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
       masm_(code->zone()->isolate(), NULL, 0),
@@ -29,7 +30,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
 
 
 Handle<Code> CodeGenerator::GenerateCode() {
-  CompilationInfo* info = linkage()->info();
+  CompilationInfo* info = this->info();
 
   // Emit a code line info recording start event.
   PositionsRecorder* recorder = masm()->positions_recorder();
@@ -166,7 +167,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePositionInstruction* instr) {
     masm()->positions_recorder()->WriteRecordedPositions();
     if (FLAG_code_comments) {
       Vector<char> buffer = Vector<char>::New(256);
-      CompilationInfo* info = linkage()->info();
+      CompilationInfo* info = this->info();
       int ln = Script::GetLineNumber(info->script(), code_pos);
       int cn = Script::GetColumnNumber(info->script(), code_pos);
       if (info->script()->name()->IsString()) {
@@ -196,7 +197,7 @@ void CodeGenerator::AssembleGap(GapInstruction* instr) {
 
 
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
-  CompilationInfo* info = linkage()->info();
+  CompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
   if (deopt_count == 0) return;
   Handle<DeoptimizationInputData> data =

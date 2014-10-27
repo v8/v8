@@ -397,7 +397,7 @@ Handle<Code> Pipeline::GenerateCode() {
       PhaseScope phase_scope(pipeline_statistics.get(), "change lowering");
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
-      Linkage linkage(info());
+      Linkage linkage(data.graph_zone(), info());
       ValueNumberingReducer vn_reducer(data.graph_zone());
       SimplifiedOperatorReducer simple_reducer(data.jsgraph());
       ChangeLowering lowering(data.jsgraph(), &linkage);
@@ -452,7 +452,7 @@ Handle<Code> Pipeline::GenerateCode() {
   Handle<Code> code = Handle<Code>::null();
   {
     // Generate optimized code.
-    Linkage linkage(info());
+    Linkage linkage(data.instruction_zone(), info());
     code = GenerateCode(&linkage, &data);
     info()->SetCode(code);
   }
@@ -552,14 +552,13 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
   {
     int node_count = sequence.VirtualRegisterCount();
     if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
-      linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersForValues);
+      info()->AbortOptimization(kNotEnoughVirtualRegistersForValues);
       return Handle<Code>::null();
     }
     ZonePool::Scope zone_scope(data->zone_pool());
-    RegisterAllocator allocator(zone_scope.zone(), &frame, linkage->info(),
-                                &sequence);
+    RegisterAllocator allocator(zone_scope.zone(), &frame, info(), &sequence);
     if (!allocator.Allocate(data->pipeline_statistics())) {
-      linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
+      info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }
     if (FLAG_trace_turbo) {
@@ -582,7 +581,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
   Handle<Code> code;
   {
     PhaseScope phase_scope(data->pipeline_statistics(), "generate code");
-    CodeGenerator generator(&frame, linkage, &sequence);
+    CodeGenerator generator(&frame, linkage, &sequence, info());
     code = generator.GenerateCode();
   }
   if (profiler_data != NULL) {

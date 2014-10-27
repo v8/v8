@@ -36,8 +36,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   }
   EXPECT_NE(0, graph()->NodeCount());
   int initial_node_count = graph()->NodeCount();
-  CompilationInfo info(test_->isolate(), test_->zone());
-  Linkage linkage(&info, call_descriptor());
+  Linkage linkage(test_->zone(), call_descriptor());
   InstructionSequence sequence(test_->zone(), graph(), schedule);
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), &linkage, &sequence, schedule,

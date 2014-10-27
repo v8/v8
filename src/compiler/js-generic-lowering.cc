@@ -19,7 +19,7 @@ namespace compiler {
 JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph)
     : info_(info),
       jsgraph_(jsgraph),
-      linkage_(new (jsgraph->zone()) Linkage(info)) {}
+      linkage_(new (jsgraph->zone()) Linkage(jsgraph->zone(), info)) {}
 
 
 void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {

@@ -221,7 +221,7 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
-    Linkage linkage(&info);
+    Linkage linkage(info.zone(), &info);
     Handle<Code> code = pipeline.GenerateCodeForMachineGraph(&linkage, graph);
     CHECK(!code.is_null());
     function->ReplaceCode(*code);

@@ -66,7 +66,7 @@ class DeoptCodegenTester {
     }
 
     // Initialize the codegen and generate code.
-    Linkage* linkage = new (scope_->main_zone()) Linkage(&info);
+    Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
     code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
                                                            graph, schedule);
     SourcePositionTable source_positions(graph);
@@ -88,7 +88,7 @@ class DeoptCodegenTester {
          << *code;
     }
 
-    compiler::CodeGenerator generator(&frame, linkage, code);
+    compiler::CodeGenerator generator(&frame, linkage, code, &info);
     result_code = generator.GenerateCode();
 
 #ifdef OBJECT_PRINT

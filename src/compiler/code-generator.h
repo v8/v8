@@ -21,7 +21,7 @@ namespace compiler {
 class CodeGenerator FINAL : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
-                         InstructionSequence* code);
+                         InstructionSequence* code, CompilationInfo* info);
 
   // Generate native code.
   Handle<Code> GenerateCode();
@@ -36,6 +36,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   Zone* zone() const { return code()->zone(); }
+  CompilationInfo* info() const { return info_; }
 
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
@@ -118,6 +119,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Frame* const frame_;
   Linkage* const linkage_;
   InstructionSequence* const code_;
+  CompilationInfo* const info_;
   BasicBlock::RpoNumber current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;

@@ -682,7 +682,7 @@ void CodeGenerator::AssemblePrologue() {
       __ stm(db_w, sp, saves);
     }
   } else if (descriptor->IsJSFunctionCall()) {
-    CompilationInfo* info = linkage()->info();
+    CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -914,7 +914,7 @@ void CodeGenerator::AddNopForSmiCodeInlining() {
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
   int space_needed = Deoptimizer::patch_size();
-  if (!linkage()->info()->IsStub()) {
+  if (!info()->IsStub()) {
     // Ensure that we have enough space after the previous lazy-bailout
     // instruction for patching the code here.
     int current_pc = masm()->pc_offset();
