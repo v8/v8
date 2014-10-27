@@ -2521,14 +2521,13 @@ void MarkCompactCollector::ClearMapTransitions(Map* map) {
 
   // Note that we never eliminate a transition array, though we might right-trim
   // such that number_of_transitions() == 0. If this assumption changes,
-  // TransitionArray::Insert() will need to deal with the case that a transition
-  // array disappeared during GC.
-  int trim = t->number_of_transitions_storage() - transition_index;
+  // TransitionArray::CopyInsert() will need to deal with the case that a
+  // transition array disappeared during GC.
+  int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
     heap_->RightTrimFixedArray<Heap::FROM_GC>(
         t, t->IsSimpleTransition() ? trim
                                    : trim * TransitionArray::kTransitionSize);
-    t->SetNumberOfTransitions(transition_index);
   }
   DCHECK(map->HasTransitionArray());
 }
