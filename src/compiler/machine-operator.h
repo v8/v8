@@ -56,7 +56,7 @@ StoreRepresentation const& StoreRepresentationOf(Operator const*);
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
-class MachineOperatorBuilder FINAL {
+class MachineOperatorBuilder FINAL : public ZoneObject {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.
@@ -209,6 +209,7 @@ class MachineOperatorBuilder FINAL {
   const MachineOperatorBuilderImpl& impl_;
   const MachineType word_;
   const Flags flags_;
+  DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };
 
 

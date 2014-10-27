@@ -128,6 +128,8 @@ class JSGraph : public ZoneObject {
   Node* NumberConstant(double value);
 
   Factory* factory() { return isolate()->factory(); }
+
+  DISALLOW_COPY_AND_ASSIGN(JSGraph);
 };
 
 }  // namespace compiler
