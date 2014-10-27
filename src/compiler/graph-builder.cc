@@ -25,13 +25,26 @@ StructuredGraphBuilder::StructuredGraphBuilder(Zone* local_zone, Graph* graph,
       common_(common),
       environment_(NULL),
       local_zone_(local_zone),
+      input_buffer_size_(0),
+      input_buffer_(NULL),
       current_context_(NULL),
-      exit_control_(NULL) {}
+      exit_control_(NULL) {
+  EnsureInputBufferSize(kInputBufferSizeIncrement);
+}
+
+
+Node** StructuredGraphBuilder::EnsureInputBufferSize(int size) {
+  if (size > input_buffer_size_) {
+    size += kInputBufferSizeIncrement;
+    input_buffer_ = local_zone()->NewArray<Node*>(size);
+  }
+  return input_buffer_;
+}
 
 
 Node* StructuredGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
-                                       Node** value_inputs) {
+                                       Node** value_inputs, bool incomplete) {
   DCHECK(op->InputCount() == value_input_count);
 
   bool has_context = OperatorProperties::HasContextInput(op);
@@ -44,14 +57,14 @@ Node* StructuredGraphBuilder::MakeNode(const Operator* op,
 
   Node* result = NULL;
   if (!has_context && !has_framestate && !has_control && !has_effect) {
-    result = graph()->NewNode(op, value_input_count, value_inputs);
+    result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
     if (has_framestate) ++input_count_with_deps;
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
-    Node** buffer = local_zone()->NewArray<Node*>(input_count_with_deps);
+    Node** buffer = EnsureInputBufferSize(input_count_with_deps);
     memcpy(buffer, value_inputs, kPointerSize * value_input_count);
     Node** current_input = buffer + value_input_count;
     if (has_context) {
@@ -69,7 +82,7 @@ Node* StructuredGraphBuilder::MakeNode(const Operator* op,
     if (has_control) {
       *current_input++ = environment_->GetControlDependency();
     }
-    result = graph()->NewNode(op, input_count_with_deps, buffer);
+    result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
     if (has_effect) {
       environment_->UpdateEffectDependency(result);
     }
@@ -125,7 +138,9 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
   // placing a singleton merge as the new control dependency.
   if (this->IsMarkedAsUnreachable()) {
     Node* other_control = other->control_dependency_;
-    control_dependency_ = graph()->NewNode(common()->Merge(1), other_control);
+    Node* inputs[] = {other_control};
+    control_dependency_ =
+        graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
     return;
@@ -164,7 +179,7 @@ void StructuredGraphBuilder::Environment::PrepareForLoop() {
 
 Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
   const Operator* phi_op = common()->Phi(kMachAnyTagged, count);
-  Node** buffer = local_zone()->NewArray<Node*>(count + 1);
+  Node** buffer = EnsureInputBufferSize(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer, true);
@@ -175,7 +190,7 @@ Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
 Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
                                            Node* control) {
   const Operator* phi_op = common()->EffectPhi(count);
-  Node** buffer = local_zone()->NewArray<Node*>(count + 1);
+  Node** buffer = EnsureInputBufferSize(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer, true);
@@ -197,7 +212,8 @@ Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
   } else {
     // Control node is a singleton, introduce a merge.
     const Operator* op = common()->Merge(inputs);
-    control = graph()->NewNode(op, control, other);
+    Node* inputs[] = {control, other};
+    control = graph()->NewNode(op, arraysize(inputs), inputs, true);
   }
   return control;
 }

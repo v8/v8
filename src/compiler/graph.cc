@@ -11,6 +11,7 @@
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator-properties-inl.h"
 
@@ -29,12 +30,14 @@ void Graph::Decorate(Node* node) {
 }
 
 
-Node* Graph::NewNode(
-    const Operator* op, int input_count, Node** inputs, bool incomplete) {
+Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
+                     bool incomplete) {
   DCHECK_LE(op->InputCount(), input_count);
-  Node* result = Node::New(this, input_count, inputs);
+  Node* result = Node::New(this, input_count, inputs, incomplete);
   result->Initialize(op);
-  if (!incomplete) Decorate(result);
+  if (!incomplete) {
+    Decorate(result);
+  }
   return result;
 }
 

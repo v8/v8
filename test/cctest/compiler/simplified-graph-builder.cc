@@ -45,7 +45,7 @@ void SimplifiedGraphBuilder::End() {
 
 Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
-                                       Node** value_inputs) {
+                                       Node** value_inputs, bool incomplete) {
   DCHECK(op->InputCount() == value_input_count);
 
   DCHECK(!OperatorProperties::HasContextInput(op));
@@ -58,7 +58,7 @@ Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
 
   Node* result = NULL;
   if (!has_control && !has_effect) {
-    result = graph()->NewNode(op, value_input_count, value_inputs);
+    result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
     int input_count_with_deps = value_input_count;
     if (has_control) ++input_count_with_deps;
@@ -72,7 +72,7 @@ Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
     if (has_control) {
       *current_input++ = graph()->start();
     }
-    result = graph()->NewNode(op, input_count_with_deps, buffer);
+    result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
     if (has_effect) {
       effect_ = result;
     }
