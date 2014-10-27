@@ -3144,7 +3144,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-  void increase_node_count() { properties_.add_node_count(1); }
   void add_flag(AstPropertiesFlag flag) { properties_.flags()->Add(flag); }
   void set_dont_crankshaft_reason(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;

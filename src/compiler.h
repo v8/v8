@@ -675,10 +675,15 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
       Handle<JSFunction> function);
 
+  // Parser::Parse, then Compiler::Analyze.
+  static bool ParseAndAnalyze(CompilationInfo* info);
+  // Rewrite, analyze scopes, and renumber.
+  static bool Analyze(CompilationInfo* info);
+  // Adds deoptimization support, requires ParseAndAnalyze.
+  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
+
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-
-  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
 
   static void CompileForLiveEdit(Handle<Script> script);
 

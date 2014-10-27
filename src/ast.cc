@@ -998,36 +998,30 @@ CaseClause::CaseClause(Zone* zone, Expression* label,
 
 #define REGULAR_NODE(NodeType)                                   \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
   }
 #define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType)               \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
   }
 #define DONT_OPTIMIZE_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_TURBOFAN_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     set_dont_crankshaft_reason(k##NodeType);                     \
     set_dont_turbofan_reason(k##NodeType);                       \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
     set_dont_crankshaft_reason(k##NodeType);                     \
     set_dont_turbofan_reason(k##NodeType);                       \
@@ -1035,18 +1029,15 @@ CaseClause::CaseClause(Zone* zone, Expression* label,
   }
 #define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)     \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     add_slot_node(node);                                         \
     add_flag(kDontSelfOptimize);                                 \
   }
 #define DONT_CACHE_NODE(NodeType)                                \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count();                                       \
     set_dont_crankshaft_reason(k##NodeType);                     \
     add_flag(kDontSelfOptimize);                                 \
     add_flag(kDontCache);                                        \
@@ -1120,7 +1111,6 @@ DONT_CACHE_NODE(ModuleLiteral)
 
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
-  increase_node_count();
   add_slot_node(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
