@@ -1071,6 +1071,13 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   UNIMPLEMENTED();
 }
 
+
+// static
+MachineOperatorBuilder::Flags
+InstructionSelector::SupportedMachineOperatorFlags() {
+  return MachineOperatorBuilder::Flag::kNoFlags;
+}
+
 #endif  // !V8_TURBOFAN_BACKEND
 
 }  // namespace compiler
