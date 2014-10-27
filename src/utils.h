@@ -239,6 +239,46 @@ class BitField64 : public BitFieldBase<T, shift, size, uint64_t> { };
 
 
 // ----------------------------------------------------------------------------
+// BitSetComputer is a help template for encoding and decoding information for
+// a variable number of items in an array.
+//
+// To encode boolean data in a smi array you would use:
+// typedef BitSetComputer<bool, 1, kSmiValueSize, uint32_t> BoolComputer;
+//
+template <class T, int kBitsPerItem, int kBitsPerWord, class U>
+class BitSetComputer {
+ public:
+  static const int kItemsPerWord = kBitsPerWord / kBitsPerItem;
+  static const int kMask = (1 << kBitsPerItem) - 1;
+
+  // The number of array elements required to embed T information for each item.
+  static int word_count(int items) {
+    if (items == 0) return 0;
+    return (items - 1) / kItemsPerWord + 1;
+  }
+
+  // The array index to look at for item.
+  static int index(int base_index, int item) {
+    return base_index + item / kItemsPerWord;
+  }
+
+  // Extract T data for a given item from data.
+  static T decode(U data, int item) {
+    return static_cast<T>((data >> shift(item)) & kMask);
+  }
+
+  // Return the encoding for a store of value for item in previous.
+  static U encode(U previous, int item, T value) {
+    int shift_value = shift(item);
+    int set_bits = (static_cast<int>(value) << shift_value);
+    return (previous & ~(kMask << shift_value)) | set_bits;
+  }
+
+  static int shift(int item) { return (item % kItemsPerWord) * kBitsPerItem; }
+};
+
+
+// ----------------------------------------------------------------------------
 // Hash function.
 
 static const uint32_t kZeroHashSeed = 0;

@@ -12,10 +12,75 @@ namespace v8 {
 namespace internal {
 
 // static
+TypeFeedbackVector::VectorICKind TypeFeedbackVector::FromCodeKind(
+    Code::Kind kind) {
+  switch (kind) {
+    case Code::CALL_IC:
+      return KindCallIC;
+    case Code::LOAD_IC:
+      return KindLoadIC;
+    case Code::KEYED_LOAD_IC:
+      return KindKeyedLoadIC;
+    default:
+      // Shouldn't get here.
+      UNREACHABLE();
+  }
+
+  return KindUnused;
+}
+
+
+// static
+Code::Kind TypeFeedbackVector::FromVectorICKind(VectorICKind kind) {
+  switch (kind) {
+    case KindCallIC:
+      return Code::CALL_IC;
+    case KindLoadIC:
+      return Code::LOAD_IC;
+    case KindKeyedLoadIC:
+      return Code::KEYED_LOAD_IC;
+    case KindUnused:
+      break;
+  }
+  // Sentinel for no information.
+  return Code::NUMBER_OF_KINDS;
+}
+
+
+Code::Kind TypeFeedbackVector::GetKind(FeedbackVectorICSlot slot) const {
+  if (!FLAG_vector_ics) {
+    // We only have CALL_ICs
+    return Code::CALL_IC;
+  }
+
+  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
+  int data = Smi::cast(get(index))->value();
+  VectorICKind b = VectorICComputer::decode(data, slot.ToInt());
+  return FromVectorICKind(b);
+}
+
+
+void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
+  if (!FLAG_vector_ics) {
+    // Nothing to do if we only have CALL_ICs
+    return;
+  }
+
+  VectorICKind b = FromCodeKind(kind);
+  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
+  int data = Smi::cast(get(index))->value();
+  int new_data = VectorICComputer::encode(data, slot.ToInt(), b);
+  set(index, Smi::FromInt(new_data));
+}
+
+
+// static
 Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
                                                         int slot_count,
                                                         int ic_slot_count) {
-  int length = slot_count + ic_slot_count + kReservedIndexCount;
+  int index_count =
+      FLAG_vector_ics ? VectorICComputer::word_count(ic_slot_count) : 0;
+  int length = slot_count + ic_slot_count + index_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
     return Handle<TypeFeedbackVector>::cast(
         isolate->factory()->empty_fixed_array());
@@ -24,17 +89,21 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length, TENURED);
   if (ic_slot_count > 0) {
     array->set(kFirstICSlotIndex,
-               Smi::FromInt(slot_count + kReservedIndexCount));
+               Smi::FromInt(slot_count + index_count + kReservedIndexCount));
   } else {
     array->set(kFirstICSlotIndex, Smi::FromInt(length));
   }
   array->set(kWithTypesIndex, Smi::FromInt(0));
   array->set(kGenericCountIndex, Smi::FromInt(0));
+  // Fill the indexes with zeros.
+  for (int i = 0; i < index_count; i++) {
+    array->set(kReservedIndexCount + i, Smi::FromInt(0));
+  }
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
   DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
-  for (int i = kReservedIndexCount; i < length; i++) {
+  for (int i = kReservedIndexCount + index_count; i < length; i++) {
     array->set(i, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
   }
   return Handle<TypeFeedbackVector>::cast(array);

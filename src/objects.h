@@ -2415,7 +2415,7 @@ class IncrementalMarking;
 class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
-  inline Object* get(int index);
+  inline Object* get(int index) const;
   static inline Handle<Object> get(Handle<FixedArray> array, int index);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);

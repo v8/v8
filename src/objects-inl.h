@@ -2205,7 +2205,7 @@ void Object::VerifyApiCallResultType() {
 }
 
 
-Object* FixedArray::get(int index) {
+Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
