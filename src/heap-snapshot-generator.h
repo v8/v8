@@ -332,7 +332,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   virtual ~V8HeapExplorer();
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
@@ -473,7 +472,6 @@ class NativeObjectsExplorer {
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFiller* filler);
 
