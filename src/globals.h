@@ -67,11 +67,7 @@ namespace internal {
 #endif
 
 // Determine whether the architecture uses an out-of-line constant pool.
-#if V8_TARGET_ARCH_ARM
-#define V8_OOL_CONSTANT_POOL 1
-#else
 #define V8_OOL_CONSTANT_POOL 0
-#endif
 
 #ifdef V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because
