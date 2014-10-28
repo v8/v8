@@ -546,7 +546,38 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
     return ReplaceWith(inv);
   }
-  // TODO(turbofan): js-typed-lowering of ToBoolean(string)
+  if (input_type->Is(Type::String())) {
+    // JSToBoolean(x:string) => BooleanNot(NumberEqual(x.length, #0))
+    FieldAccess access = AccessBuilder::ForStringLength();
+    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
+                                    graph()->start(), graph()->start());
+    Node* cmp = graph()->NewNode(simplified()->NumberEqual(), length,
+                                 jsgraph()->ZeroConstant());
+    Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
+    return ReplaceWith(inv);
+  }
+  if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
+    // JSToBoolean(phi(x1,...,xn):primitive)
+    //   => phi(JSToBoolean(x1),...,JSToBoolean(xn))
+    int input_count = input->InputCount() - 1;
+    Node** inputs = zone()->NewArray<Node*>(input_count + 1);
+    for (int i = 0; i < input_count; ++i) {
+      Node* value = input->InputAt(i);
+      // Recursively try to reduce the value first.
+      Reduction result = ReduceJSToBooleanInput(value);
+      if (result.Changed()) {
+        inputs[i] = result.replacement();
+      } else {
+        inputs[i] = graph()->NewNode(javascript()->ToBoolean(), value,
+                                     jsgraph()->ZeroConstant(),
+                                     graph()->start(), graph()->start());
+      }
+    }
+    inputs[input_count] = input->InputAt(input_count);
+    Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, input_count),
+                                 input_count + 1, inputs);
+    return ReplaceWith(phi);
+  }
   return NoChange();
 }
 
