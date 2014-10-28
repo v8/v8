@@ -651,8 +651,12 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::Flag::kNoFlags;
+  return MachineOperatorBuilder::kInt32DivIsSafe |
+         MachineOperatorBuilder::kInt32ModIsSafe |
+         MachineOperatorBuilder::kUint32DivIsSafe |
+         MachineOperatorBuilder::kUint32ModIsSafe;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
