@@ -2919,12 +2919,15 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
 
 
 void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
-  // t2: copy of the first argument or undefined if it doesn't exist.
+  // t3: copy of the first argument or undefined if it doesn't exist.
   if (arg_count > 0) {
-    __ lw(t2, MemOperand(sp, arg_count * kPointerSize));
+    __ lw(t3, MemOperand(sp, arg_count * kPointerSize));
   } else {
-    __ LoadRoot(t2, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(t3, Heap::kUndefinedValueRootIndex);
   }
+
+  // t2: the receiver of the enclosing function.
+  __ lw(t2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
   // t1: the receiver of the enclosing function.
   int receiver_offset = 2 + info_->scope()->num_parameters();
@@ -2937,8 +2940,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ li(a1, Operand(Smi::FromInt(scope()->start_position())));
 
   // Do the runtime call.
+  __ Push(t3);
   __ Push(t2, t1, t0, a1);
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 
