@@ -32,9 +32,9 @@ void IfBuilder::End() {
 }
 
 
-void LoopBuilder::BeginLoop() {
+void LoopBuilder::BeginLoop(BitVector* assigned) {
   builder_->NewLoop();
-  loop_environment_ = environment()->CopyForLoop();
+  loop_environment_ = environment()->CopyForLoop(assigned);
   continue_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
 }

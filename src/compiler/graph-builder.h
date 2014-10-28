@@ -14,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+
+class BitVector;
+
 namespace compiler {
 
 class Node;
@@ -215,8 +218,8 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
   }
 
   // Copies this environment at a loop header control-flow point.
-  Environment* CopyForLoop() {
-    PrepareForLoop();
+  Environment* CopyForLoop(BitVector* assigned) {
+    PrepareForLoop(assigned);
     return builder()->CopyEnvironment(this);
   }
 
@@ -230,7 +233,7 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
   NodeVector* values() { return &values_; }
 
   // Prepare environment to be used as loop header.
-  void PrepareForLoop();
+  void PrepareForLoop(BitVector* assigned);
 
  private:
   StructuredGraphBuilder* builder_;

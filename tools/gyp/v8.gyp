@@ -393,6 +393,8 @@
         '../../src/compiler/access-builder.h',
         '../../src/compiler/ast-graph-builder.cc',
         '../../src/compiler/ast-graph-builder.h',
+        '../../src/compiler/ast-loop-assignment-analyzer.cc',
+        '../../src/compiler/ast-loop-assignment-analyzer.h',
         '../../src/compiler/basic-block-instrumentor.cc',
         '../../src/compiler/basic-block-instrumentor.h',
         '../../src/compiler/change-lowering.cc',

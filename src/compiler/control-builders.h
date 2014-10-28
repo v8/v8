@@ -69,7 +69,7 @@ class LoopBuilder : public ControlBuilder {
         break_environment_(NULL) {}
 
   // Primitive control commands.
-  void BeginLoop();
+  void BeginLoop(BitVector* assigned);
   void EndBody();
   void EndLoop();
 
