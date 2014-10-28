@@ -761,7 +761,8 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git svn fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s svn/bleeding_edge" % TEST_CONFIG["BRANCHNAME"],
+      Cmd(("git new-branch %s --upstream svn/bleeding_edge" %
+           TEST_CONFIG["BRANCHNAME"]),
           ""),
       Cmd("git svn find-rev r123455", "push_hash\n"),
       Cmd(("git log -1 --format=%H --grep="
@@ -798,8 +799,8 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git checkout -f svn/bleeding_edge", ""),
       Cmd("git diff svn/trunk push_hash", "patch content\n"),
       Cmd("git svn find-rev push_hash", "123455\n"),
-      Cmd("git checkout -b %s svn/trunk" % TEST_CONFIG["TRUNKBRANCH"], "",
-          cb=ResetToTrunk),
+      Cmd(("git new-branch %s --upstream svn/trunk" %
+           TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
       Cmd("git checkout -f svn/trunk -- %s" % TEST_CONFIG["CHANGELOG_FILE"], "",
           cb=ResetChangeLog),
@@ -908,7 +909,8 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git svn fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s origin/master" % TEST_CONFIG["BRANCHNAME"],
+      Cmd(("git new-branch %s --upstream origin/master" %
+           TEST_CONFIG["BRANCHNAME"]),
           ""),
       Cmd("git svn find-rev r123455", "push_hash\n"),
       Cmd(("git log -1 --format=%H --grep="
@@ -931,7 +933,8 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git checkout -f origin/master", ""),
       Cmd("git diff origin/candidates push_hash", "patch content\n"),
       Cmd("git svn find-rev push_hash", "123455\n"),
-      Cmd("git checkout -b %s origin/candidates" % TEST_CONFIG["TRUNKBRANCH"],
+      Cmd(("git new-branch %s --upstream origin/candidates" %
+           TEST_CONFIG["TRUNKBRANCH"]),
           "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
       Cmd("git checkout -f origin/candidates -- %s" %
@@ -1021,7 +1024,7 @@ def get_list():
       Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
-      Cmd("git checkout -b v8-roll-push_hash", "", cwd=chrome_dir),
+      Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
       Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r22622).\n\n"
@@ -1223,7 +1226,8 @@ LOG=N
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git svn fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s svn/trunk" % TEST_CONFIG["BRANCHNAME"], ""),
+      Cmd("git new-branch %s --upstream svn/trunk" % TEST_CONFIG["BRANCHNAME"],
+          ""),
       Cmd(("git log --format=%H --grep=\"Port r12345\" "
            "--reverse svn/bleeding_edge"),
           "hash1\nhash2"),
@@ -1353,7 +1357,7 @@ LOG=N
       Cmd("git fetch", ""),
       Cmd("git svn fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s origin/candidates" %
+      Cmd("git new-branch %s --upstream origin/candidates" %
           TEST_CONFIG["BRANCHNAME"], ""),
       Cmd(("git log --format=%H --grep=\"Port r12345\" "
            "--reverse origin/master"),
@@ -1526,7 +1530,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git fetch", ""),
       Cmd("git svn fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s" % TEST_CONFIG["BRANCHNAME"], ""),
+      Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git branch -r", "  branch-heads/3.21\n  branch-heads/3.3\n"),
       Cmd("git reset --hard branch-heads/3.3", ""),
       Cmd("git log --format=%H", "hash1\nhash_234"),
@@ -1575,7 +1579,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
-      Cmd("git checkout -b %s" % TEST_CONFIG["BRANCHNAME"], "",
+      Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], "",
           cwd=chrome_dir),
       Cmd("git fetch origin", "", cwd=chrome_v8_dir),
       Cmd("git log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\nc_hash3\n",
@@ -1720,7 +1724,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd(("git log --format=%H --grep="
            "\"^git-svn-id: [^@]*@12345 [A-Za-z0-9-]*$\""),
           "lkgr_hash"),
-      Cmd("git checkout -b auto-bump-up-version lkgr_hash", ""),
+      Cmd("git new-branch auto-bump-up-version --upstream lkgr_hash", ""),
       Cmd("git checkout -f master", ""),
       Cmd("git branch", "auto-bump-up-version\n* master"),
       Cmd("git branch -D auto-bump-up-version", ""),
@@ -1729,7 +1733,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git pull", ""),
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is open\"}"),
-      Cmd("git checkout -b auto-bump-up-version master", "",
+      Cmd("git new-branch auto-bump-up-version --upstream master", "",
           cb=ResetVersion(11, 4)),
       Cmd("git commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
           "TBR=author@chromium.org\" "
