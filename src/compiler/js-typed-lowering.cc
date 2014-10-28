@@ -556,15 +556,25 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
     return ReplaceWith(inv);
   }
-  if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
-    // JSToBoolean(phi(x1,...,xn):primitive)
+  // TODO(turbofan): We need some kinda of PrimitiveToBoolean simplified
+  // operator, then we can do the pushing in the SimplifiedOperatorReducer
+  // and do not need to protect against stack overflow (because of backedges
+  // in phis) below.
+  if (input->opcode() == IrOpcode::kPhi &&
+      input_type->Is(
+          Type::Union(Type::Boolean(), Type::OrderedNumber(), zone()))) {
+    // JSToBoolean(phi(x1,...,xn):ordered-number|boolean)
     //   => phi(JSToBoolean(x1),...,JSToBoolean(xn))
     int input_count = input->InputCount() - 1;
     Node** inputs = zone()->NewArray<Node*>(input_count + 1);
     for (int i = 0; i < input_count; ++i) {
       Node* value = input->InputAt(i);
+      Type* value_type = NodeProperties::GetBounds(value).upper;
       // Recursively try to reduce the value first.
-      Reduction result = ReduceJSToBooleanInput(value);
+      Reduction result = (value_type->Is(Type::Boolean()) ||
+                          value_type->Is(Type::OrderedNumber()))
+                             ? ReduceJSToBooleanInput(value)
+                             : NoChange();
       if (result.Changed()) {
         inputs[i] = result.replacement();
       } else {
