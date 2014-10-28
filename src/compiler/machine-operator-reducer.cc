@@ -555,6 +555,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     node->set_op(machine()->Int32Sub());
     node->ReplaceInput(0, Int32Constant(0));
     node->ReplaceInput(1, m.left().node());
+    node->TrimInputCount(2);
     return Changed(node);
   }
   if (m.right().HasValue()) {
@@ -576,6 +577,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
       node->set_op(machine()->Int32Sub());
       node->ReplaceInput(0, Int32Constant(0));
       node->ReplaceInput(1, quotient);
+      node->TrimInputCount(2);
       return Changed(node);
     }
     return Replace(quotient);
@@ -644,6 +646,7 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
       node->set_op(machine()->Int32Sub());
       DCHECK_EQ(dividend, node->InputAt(0));
       node->ReplaceInput(1, Int32Mul(quotient, Int32Constant(divisor)));
+      node->TrimInputCount(2);
       return Changed(node);
     }
   }

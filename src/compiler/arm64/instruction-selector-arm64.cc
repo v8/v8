@@ -1300,8 +1300,9 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::Flag::kNoFlags;
+  return MachineOperatorBuilder::kNoFlags;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

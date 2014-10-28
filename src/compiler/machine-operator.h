@@ -60,17 +60,21 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.
-  enum class Flag : unsigned {
-    kNoFlags = 0,
-    kFloat64Floor = 1 << 0,
-    kFloat64Ceil = 1 << 1,
-    kFloat64RoundTruncate = 1 << 2,
-    kFloat64RoundTiesAway = 1 << 3
+  enum Flag {
+    kNoFlags = 0u,
+    kFloat64Floor = 1u << 0,
+    kFloat64Ceil = 1u << 1,
+    kFloat64RoundTruncate = 1u << 2,
+    kFloat64RoundTiesAway = 1u << 3,
+    kInt32DivIsSafe = 1u << 4,
+    kInt32ModIsSafe = 1u << 5,
+    kUint32DivIsSafe = 1u << 6,
+    kUint32ModIsSafe = 1u << 7
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
   explicit MachineOperatorBuilder(MachineType word = kMachPtr,
-                                  Flags supportedOperators = Flag::kNoFlags);
+                                  Flags supportedOperators = kNoFlags);
 
   const Operator* Word32And();
   const Operator* Word32Or();
@@ -104,6 +108,10 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Uint32LessThan();
   const Operator* Uint32LessThanOrEqual();
   const Operator* Uint32Mod();
+  bool Int32DivIsSafe() const { return flags_ & kInt32DivIsSafe; }
+  bool Int32ModIsSafe() const { return flags_ & kInt32ModIsSafe; }
+  bool Uint32DivIsSafe() const { return flags_ & kUint32DivIsSafe; }
+  bool Uint32ModIsSafe() const { return flags_ & kUint32ModIsSafe; }
 
   const Operator* Int64Add();
   const Operator* Int64Sub();
@@ -153,14 +161,10 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Float64Ceil();
   const Operator* Float64RoundTruncate();
   const Operator* Float64RoundTiesAway();
-  bool HasFloat64Floor() { return flags_ & Flag::kFloat64Floor; }
-  bool HasFloat64Ceil() { return flags_ & Flag::kFloat64Ceil; }
-  bool HasFloat64RoundTruncate() {
-    return flags_ & Flag::kFloat64RoundTruncate;
-  }
-  bool HasFloat64RoundTiesAway() {
-    return flags_ & Flag::kFloat64RoundTiesAway;
-  }
+  bool HasFloat64Floor() { return flags_ & kFloat64Floor; }
+  bool HasFloat64Ceil() { return flags_ & kFloat64Ceil; }
+  bool HasFloat64RoundTruncate() { return flags_ & kFloat64RoundTruncate; }
+  bool HasFloat64RoundTiesAway() { return flags_ & kFloat64RoundTiesAway; }
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
