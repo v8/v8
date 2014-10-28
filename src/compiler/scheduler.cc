@@ -1002,6 +1002,12 @@ class ScheduleEarlyNodeVisitor {
     // No need to propagate to fixed node, it's guaranteed to be a root.
     if (scheduler_->GetPlacement(node) == Scheduler::kFixed) return;
 
+    // Coupled nodes influence schedule early position of their control.
+    if (scheduler_->GetPlacement(node) == Scheduler::kCoupled) {
+      Node* control = NodeProperties::GetControlInput(node);
+      PropagateMinimumRPOToNode(block, control);
+    }
+
     // Propagate new position if it is larger than the current.
     if (block->rpo_number() > data->minimum_block_->rpo_number()) {
       data->minimum_block_ = block;

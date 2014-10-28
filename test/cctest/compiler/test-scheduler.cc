@@ -1802,6 +1802,45 @@ TEST(NestedFloatingDiamonds) {
 }
 
 
+TEST(LoopedFloatingDiamond) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  SimplifiedOperatorBuilder simplified(scope.main_zone());
+  MachineOperatorBuilder machine;
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* c = graph.NewNode(common.Int32Constant(7));
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+  Node* add = graph.NewNode(machine.IntAdd(), ind, c);
+
+  Node* br = graph.NewNode(common.Branch(), add, loop);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  Node* br1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+  Node* m1 = graph.NewNode(common.Merge(2), t1, f1);
+  Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), add, p0, m1);
+
+  loop->ReplaceInput(1, t);    // close loop.
+  ind->ReplaceInput(1, phi1);  // close induction variable.
+
+  Node* ret = graph.NewNode(common.Return(), ind, start, f);
+  Node* end = graph.NewNode(common.End(), ret, f);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(20, &graph);
+}
+
+
 TEST(PhisPushedDownToDifferentBranches) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
