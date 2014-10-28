@@ -114,6 +114,11 @@ struct MaybeBoolFlag {
 #else
 #define ENABLE_ARMV7_DEFAULT false
 #endif
+#if (defined CAN_USE_ARMV8_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
+#define ENABLE_ARMV8_DEFAULT true
+#else
+#define ENABLE_ARMV8_DEFAULT false
+#endif
 #if (defined CAN_USE_VFP32DREGS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 #define ENABLE_32DREGS_DEFAULT true
 #else
@@ -402,6 +407,8 @@ DEFINE_BOOL(enable_vfp3, ENABLE_VFP3_DEFAULT,
             "enable use of VFP3 instructions if available")
 DEFINE_BOOL(enable_armv7, ENABLE_ARMV7_DEFAULT,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_BOOL(enable_armv8, ENABLE_ARMV8_DEFAULT,
+            "enable use of ARMv8 instructions if available (ARM 32-bit only)")
 DEFINE_BOOL(enable_neon, ENABLE_NEON_DEFAULT,
             "enable use of NEON instructions if available (ARM only)")
 DEFINE_BOOL(enable_sudiv, true,

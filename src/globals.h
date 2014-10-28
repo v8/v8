@@ -609,28 +609,29 @@ struct AccessorDescriptor {
 
 // CPU feature flags.
 enum CpuFeature {
-    // x86
-    SSE4_1,
-    SSE3,
-    SAHF,
-    // ARM
-    VFP3,
-    ARMv7,
-    SUDIV,
-    MLS,
-    UNALIGNED_ACCESSES,
-    MOVW_MOVT_IMMEDIATE_LOADS,
-    VFP32DREGS,
-    NEON,
-    // MIPS, MIPS64
-    FPU,
-    FP64FPU,
-    MIPSr1,
-    MIPSr2,
-    MIPSr6,
-    // ARM64
-    ALWAYS_ALIGN_CSP,
-    NUMBER_OF_CPU_FEATURES
+  // x86
+  SSE4_1,
+  SSE3,
+  SAHF,
+  // ARM
+  VFP3,
+  ARMv7,
+  ARMv8,
+  SUDIV,
+  MLS,
+  UNALIGNED_ACCESSES,
+  MOVW_MOVT_IMMEDIATE_LOADS,
+  VFP32DREGS,
+  NEON,
+  // MIPS, MIPS64
+  FPU,
+  FP64FPU,
+  MIPSr1,
+  MIPSr2,
+  MIPSr6,
+  // ARM64
+  ALWAYS_ALIGN_CSP,
+  NUMBER_OF_CPU_FEATURES
 };
 
 
