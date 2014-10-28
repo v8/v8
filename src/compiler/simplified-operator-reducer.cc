@@ -102,8 +102,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kLoadElement: {
       ElementAccess access = ElementAccessOf(node->op());
       if (access.bounds_check == kTypedArrayBoundsCheck) {
-        NumericValueMatcher mkey(node->InputAt(1));
-        NumericValueMatcher mlength(node->InputAt(2));
+        NumberMatcher mkey(node->InputAt(1));
+        NumberMatcher mlength(node->InputAt(2));
         if (mkey.HasValue() && mlength.HasValue()) {
           // Skip the typed array bounds check if key and length are constant.
           if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {
@@ -118,8 +118,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kStoreElement: {
       ElementAccess access = ElementAccessOf(node->op());
       if (access.bounds_check == kTypedArrayBoundsCheck) {
-        NumericValueMatcher mkey(node->InputAt(1));
-        NumericValueMatcher mlength(node->InputAt(2));
+        NumberMatcher mkey(node->InputAt(1));
+        NumberMatcher mlength(node->InputAt(2));
         if (mkey.HasValue() && mlength.HasValue()) {
           // Skip the typed array bounds check if key and length are constant.
           if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {

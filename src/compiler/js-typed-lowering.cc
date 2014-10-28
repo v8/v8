@@ -565,15 +565,13 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length) &&
-          byte_length <= static_cast<uint32_t>(kMaxInt)) {
+      double byte_length = array->byte_length()->Number();
+      if (byte_length <= kMaxInt) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Uint32Constant(
-            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* length = jsgraph()->Constant(byte_length / array->element_size());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         Node* load = graph()->NewNode(
@@ -603,15 +601,13 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length) &&
-          byte_length <= static_cast<uint32_t>(kMaxInt)) {
+      double byte_length = array->byte_length()->Number();
+      if (byte_length <= kMaxInt) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Uint32Constant(
-            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* length = jsgraph()->Constant(byte_length / array->element_size());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         Node* store = graph()->NewNode(

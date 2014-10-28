@@ -102,8 +102,8 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
         r.replacement(),
         IsLoadElement(AccessBuilder::ForTypedArrayElement(type, true),
                       IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsInt32Constant(static_cast<int>(kLength)), effect,
-                      control));
+                      key, IsNumberConstant(static_cast<double>(kLength)),
+                      effect, control));
   }
 }
 
@@ -142,8 +142,8 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
                   IsStoreElement(
                       AccessBuilder::ForTypedArrayElement(type, true),
                       IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsInt32Constant(static_cast<int>(kLength)), value,
-                      effect, control));
+                      key, IsNumberConstant(static_cast<double>(kLength)),
+                      value, effect, control));
     }
   }
 }

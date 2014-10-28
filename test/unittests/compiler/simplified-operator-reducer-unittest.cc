@@ -508,8 +508,8 @@ TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
                                                length, effect, control));
   }
   {
-    Node* const key = Int32Constant(0);
-    Node* const length = Int32Constant(1);
+    Node* const key = NumberConstant(0);
+    Node* const length = NumberConstant(1);
     Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
                                           base, key, length, effect, control));
     ASSERT_TRUE(r.Changed());
@@ -518,7 +518,7 @@ TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
   }
   {
     Node* const key = NumberConstant(42.2);
-    Node* const length = Int32Constant(128);
+    Node* const length = NumberConstant(128);
     Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
                                           base, key, length, effect, control));
     ASSERT_TRUE(r.Changed());
@@ -558,7 +558,7 @@ TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
   }
   {
     Node* const key = NumberConstant(-0.0);
-    Node* const length = Int32Constant(999);
+    Node* const length = NumberConstant(999);
     Reduction r =
         Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
                                 length, value, effect, control));
@@ -568,8 +568,8 @@ TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
                                control));
   }
   {
-    Node* const key = Int32Constant(0);
-    Node* const length = Int32Constant(1);
+    Node* const key = NumberConstant(0);
+    Node* const length = NumberConstant(1);
     Reduction r =
         Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
                                 length, value, effect, control));
@@ -580,7 +580,7 @@ TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
   }
   {
     Node* const key = NumberConstant(42.2);
-    Node* const length = Int32Constant(128);
+    Node* const length = NumberConstant(128);
     Reduction r =
         Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
                                 length, value, effect, control));
