@@ -2300,7 +2300,6 @@ NativeObjectsExplorer::NativeObjectsExplorer(
     : isolate_(snapshot->profiler()->heap_object_map()->heap()->isolate()),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
-      progress_(progress),
       embedder_queried_(false),
       objects_by_info_(RetainedInfosMatch),
       native_groups_(StringsMatch),
