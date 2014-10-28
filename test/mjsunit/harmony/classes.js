@@ -172,6 +172,7 @@ function assertMethodDescriptor(object, name) {
   assertTrue(descr.enumerable);
   assertTrue(descr.writable);
   assertEquals('function', typeof descr.value);
+  assertFalse('prototype' in descr.value);
 }
 
 function assertGetterDescriptor(object, name) {
