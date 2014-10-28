@@ -598,7 +598,7 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-static void KeyedStoreGenerateGenericHelper(
+static void KeyedStoreGenerateMegamorphicHelper(
     MacroAssembler* masm, Label* fast_object, Label* fast_double, Label* slow,
     KeyedStoreCheckMap check_map, KeyedStoreIncrementLength increment_length,
     Register value, Register key, Register receiver, Register receiver_map,
@@ -739,9 +739,8 @@ static void KeyedStoreGenerateGenericHelper(
 }
 
 
-void KeyedStoreIC::GenerateGeneric(
-    MacroAssembler* masm, StrictMode strict_mode,
-    KeyedStoreStubCacheRequirement handler_requirement) {
+void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                       StrictMode strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -808,12 +807,7 @@ void KeyedStoreIC::GenerateGeneric(
   masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
                                                key, r3, r4, r5, r6);
   // Cache miss.
-  if (handler_requirement == kCallRuntimeOnMissingHandler) {
-    __ b(&slow);
-  } else {
-    DCHECK(handler_requirement == kMissOnMissingHandler);
-    __ b(&miss);
-  }
+  __ b(&miss);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -848,13 +842,13 @@ void KeyedStoreIC::GenerateGeneric(
   __ cmp(key, Operand(ip));
   __ b(hs, &extra);
 
-  KeyedStoreGenerateGenericHelper(
+  KeyedStoreGenerateMegamorphicHelper(
       masm, &fast_object, &fast_double, &slow, kCheckMap, kDontIncrementLength,
       value, key, receiver, receiver_map, elements_map, elements);
-  KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
-                                  &slow, kDontCheckMap, kIncrementLength, value,
-                                  key, receiver, receiver_map, elements_map,
-                                  elements);
+  KeyedStoreGenerateMegamorphicHelper(masm, &fast_object_grow,
+                                      &fast_double_grow, &slow, kDontCheckMap,
+                                      kIncrementLength, value, key, receiver,
+                                      receiver_map, elements_map, elements);
 
   __ bind(&miss);
   GenerateMiss(masm);

@@ -539,12 +539,6 @@ enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
 
-enum KeyedStoreStubCacheRequirement {
-  kCallRuntimeOnMissingHandler,
-  kMissOnMissingHandler
-};
-
-
 class KeyedStoreIC : public StoreIC {
  public:
   // ExtraICState bits (building on IC)
@@ -585,9 +579,8 @@ class KeyedStoreIC : public StoreIC {
   }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateGeneric(
-      MacroAssembler* masm, StrictMode strict_mode,
-      KeyedStoreStubCacheRequirement handler_requirement);
+  static void GenerateMegamorphic(MacroAssembler* masm, StrictMode strict_mode);
+  static void GenerateGeneric(MacroAssembler* masm, StrictMode strict_mode);
   static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:

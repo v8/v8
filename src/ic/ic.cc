@@ -1672,11 +1672,10 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return generic_stub();
   }
 
-  // If the maximum number of receiver maps has been exceeded, use the generic
-  // version of the IC.
+  // If the maximum number of receiver maps has been exceeded, use the
+  // megamorphic version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "max polymorph exceeded");
-    return generic_stub();
+    return megamorphic_stub();
   }
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
@@ -1937,6 +1936,13 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   TRACE_IC("StoreIC", key);
 
   return store_handle;
+}
+
+
+// static
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictMode strict_mode) {
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
 }
 
 
