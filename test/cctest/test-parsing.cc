@@ -4041,9 +4041,6 @@ TEST(ClassConstructorNoErrors) {
 
 
 TEST(ClassMultipleConstructorErrors) {
-  // We currently do not allow any duplicate properties in class bodies. This
-  // test ensures that when we change that we still throw on duplicate
-  // constructors.
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -4061,9 +4058,7 @@ TEST(ClassMultipleConstructorErrors) {
 }
 
 
-// TODO(arv): We should allow duplicate property names.
-// https://code.google.com/p/v8/issues/detail?id=3570
-DISABLED_TEST(ClassMultiplePropertyNamesNoErrors) {
+TEST(ClassMultiplePropertyNamesNoErrors) {
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -4072,6 +4067,8 @@ DISABLED_TEST(ClassMultiplePropertyNamesNoErrors) {
     "constructor() {}; static constructor() {}",
     "m() {}; static m() {}",
     "m() {}; m() {}",
+    "static m() {}; static m() {}",
+    "get m() {}; set m(_) {}; get m() {}; set m(_) {};",
     NULL};
 
   static const ParserFlag always_flags[] = {

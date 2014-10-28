@@ -476,6 +476,7 @@ class ParserBase : public Traits {
   ExpressionT ParseObjectLiteral(bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(ObjectLiteralChecker* checker,
                                                  bool in_class, bool is_static,
+                                                 bool* has_seen_constructor,
                                                  bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -1183,10 +1184,7 @@ class PreParserTraits {
     return false;
   }
 
-  bool IsConstructorProperty(PreParserExpression property) { return false; }
-
   static PreParserExpression GetPropertyValue(PreParserExpression property) {
-    UNREACHABLE();
     return PreParserExpression::Default();
   }
 
@@ -1925,7 +1923,9 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParsePropertyName(
 template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
-                                     bool in_class, bool is_static, bool* ok) {
+                                     bool in_class, bool is_static,
+                                     bool* has_seen_constructor, bool* ok) {
+  DCHECK(!in_class || is_static || has_seen_constructor != NULL);
   ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
@@ -1942,8 +1942,10 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   if (!in_class && !is_generator && peek() == Token::COLON) {
     // PropertyDefinition : PropertyName ':' AssignmentExpression
-    checker->CheckProperty(name_token, kValueProperty,
-                           CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    if (checker != NULL) {
+      checker->CheckProperty(name_token, kValueProperty,
+                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    }
     Consume(Token::COLON);
     value = this->ParseAssignmentExpression(
         true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1968,11 +1970,20 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
         return this->EmptyObjectLiteralProperty();
       }
 
+      if (*has_seen_constructor) {
+        ReportMessageAt(scanner()->location(), "duplicate_constructor");
+        *ok = false;
+        return this->EmptyObjectLiteralProperty();
+      }
+
+      *has_seen_constructor = true;
       kind = FunctionKind::kNormalFunction;
     }
 
-    checker->CheckProperty(name_token, kValueProperty,
-                           CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    if (checker != NULL) {
+      checker->CheckProperty(name_token, kValueProperty,
+                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    }
 
     value = this->ParseFunctionLiteral(
         name, scanner()->location(),
@@ -1983,7 +1994,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   } else if (in_class && name_is_static && !is_static) {
     // static MethodDefinition
-    return ParsePropertyDefinition(checker, true, true, ok);
+    return ParsePropertyDefinition(checker, true, true, NULL, ok);
 
   } else if (is_get || is_set) {
     // Accessor
@@ -1998,16 +2009,15 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     } else if (in_class && !is_static && this->IsConstructor(name)) {
-      // ES6, spec draft rev 27, treats static get constructor as an error too.
-      // https://bugs.ecmascript.org/show_bug.cgi?id=3223
-      // TODO(arv): Update when bug is resolved.
       ReportMessageAt(scanner()->location(), "constructor_special_method");
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     }
-    checker->CheckProperty(name_token,
-                           is_get ? kGetterProperty : kSetterProperty,
-                           CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    if (checker != NULL) {
+      checker->CheckProperty(name_token,
+                             is_get ? kGetterProperty : kSetterProperty,
+                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    }
 
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
         name, scanner()->location(),
@@ -2061,8 +2071,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
 
     const bool in_class = false;
     const bool is_static = false;
-    ObjectLiteralPropertyT property =
-        this->ParsePropertyDefinition(&checker, in_class, is_static, CHECK_OK);
+    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
+        &checker, in_class, is_static, NULL, CHECK_OK);
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -2744,22 +2754,22 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
   scope_->SetStrictMode(STRICT);
   scope_->SetScopeName(name);
 
-  ObjectLiteralChecker checker(this, STRICT);
   typename Traits::Type::PropertyList properties =
       this->NewPropertyList(4, zone_);
   ExpressionT constructor = this->EmptyExpression();
+  bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     if (fni_ != NULL) fni_->Enter();
-
     const bool in_class = true;
     const bool is_static = false;
-    ObjectLiteralPropertyT property =
-        this->ParsePropertyDefinition(&checker, in_class, is_static, CHECK_OK);
+    bool old_has_seen_constructor = has_seen_constructor;
+    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
+        NULL, in_class, is_static, &has_seen_constructor, CHECK_OK);
 
-    if (this->IsConstructorProperty(property)) {
+    if (has_seen_constructor != old_has_seen_constructor) {
       constructor = this->GetPropertyValue(property);
     } else {
       properties->Add(property, zone());
