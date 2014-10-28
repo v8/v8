@@ -99,8 +99,8 @@ class StructuredGraphBuilder : public GraphBuilder {
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
-  Node* NewBranch(Node* condition) {
-    return NewNode(common()->Branch(), condition);
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
+    return NewNode(common()->Branch(hint), condition);
   }
 
  protected:

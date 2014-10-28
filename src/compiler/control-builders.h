@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
 // Base class for all control builders. Also provides a common interface for
 // control builders to handle 'break' and 'continue' statements when they are
 // used to model breakable statements.
@@ -49,7 +48,7 @@ class IfBuilder : public ControlBuilder {
         else_environment_(NULL) {}
 
   // Primitive control commands.
-  void If(Node* condition);
+  void If(Node* condition, BranchHint hint = BranchHint::kNone);
   void Then();
   void Else();
   void End();

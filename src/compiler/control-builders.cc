@@ -9,8 +9,8 @@ namespace internal {
 namespace compiler {
 
 
-void IfBuilder::If(Node* condition) {
-  builder_->NewBranch(condition);
+void IfBuilder::If(Node* condition, BranchHint hint) {
+  builder_->NewBranch(condition, hint);
   else_environment_ = environment()->CopyForConditional();
 }
 
