@@ -175,6 +175,7 @@ function assertMethodDescriptor(object, name) {
   assertFalse('prototype' in descr.value);
 }
 
+
 function assertGetterDescriptor(object, name) {
   var descr = Object.getOwnPropertyDescriptor(object, name);
   assertTrue(descr.configurable);
@@ -387,6 +388,56 @@ function assertAccessorDescriptor(object, name) {
   assertEquals(1, new C().m());
   assertEquals(2, C.staticM());
 })();
+
+
+(function TestConstructableButNoPrototype() {
+  var Base = function() {}.bind();
+  assertThrows(function() {
+    class C extends Base {}
+  }, TypeError);
+})();
+
+
+(function TestPrototypeGetter() {
+  var calls = 0;
+  var Base = function() {}.bind();
+  Object.defineProperty(Base, 'prototype', {
+    get: function() {
+      calls++;
+      return null;
+    },
+    configurable: true
+  });
+  class C extends Base {}
+  assertEquals(1, calls);
+
+  calls = 0;
+  Object.defineProperty(Base, 'prototype', {
+    get: function() {
+      calls++;
+      return 42;
+    },
+    configurable: true
+  });
+  assertThrows(function() {
+    class C extends Base {}
+  }, TypeError);
+  assertEquals(1, calls);
+})();
+
+
+(function TestPrototypeSetter() {
+  var Base = function() {}.bind();
+  Object.defineProperty(Base, 'prototype', {
+    set: function() {
+      assertUnreachable();
+    }
+  });
+  assertThrows(function() {
+    class C extends Base {}
+  }, TypeError);
+})();
+
 
 /* TODO(arv): Implement
 (function TestNameBindingInConstructor() {
