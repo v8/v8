@@ -521,7 +521,7 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_RETURN_PAIR(F)              \
   F(LoadLookupSlot, 2, 2)                                 \
   F(LoadLookupSlotNoReferenceError, 2, 2)                 \
-  F(ResolvePossiblyDirectEval, 5, 2)                      \
+  F(ResolvePossiblyDirectEval, 6, 2)                      \
   F(ForInInit, 2, 2) /* TODO(turbofan): Only temporary */ \
   F(ForInNext, 4, 2) /* TODO(turbofan): Only temporary */
 

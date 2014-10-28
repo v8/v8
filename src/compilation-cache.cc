@@ -221,10 +221,8 @@ void CompilationCacheScript::Put(Handle<String> source,
 
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
-    Handle<String> source,
-    Handle<Context> context,
-    StrictMode strict_mode,
-    int scope_position) {
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    StrictMode strict_mode, int scope_position) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -233,14 +231,14 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   int generation;
   for (generation = 0; generation < generations(); generation++) {
     Handle<CompilationCacheTable> table = GetTable(generation);
-    result = table->LookupEval(source, context, strict_mode, scope_position);
+    result = table->LookupEval(source, outer_info, strict_mode, scope_position);
     if (result->IsSharedFunctionInfo()) break;
   }
   if (result->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo> function_info =
         Handle<SharedFunctionInfo>::cast(result);
     if (generation != 0) {
-      Put(source, context, function_info, scope_position);
+      Put(source, outer_info, function_info, scope_position);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
     return scope.CloseAndEscape(function_info);
@@ -252,12 +250,12 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
 
 
 void CompilationCacheEval::Put(Handle<String> source,
-                               Handle<Context> context,
+                               Handle<SharedFunctionInfo> outer_info,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  table = CompilationCacheTable::PutEval(table, source, context,
+  table = CompilationCacheTable::PutEval(table, source, outer_info,
                                          function_info, scope_position);
   SetFirstTable(table);
 }
@@ -324,20 +322,18 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
 
 
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
-    Handle<String> source,
-    Handle<Context> context,
-    StrictMode strict_mode,
-    int scope_position) {
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    Handle<Context> context, StrictMode strict_mode, int scope_position) {
   if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   MaybeHandle<SharedFunctionInfo> result;
   if (context->IsNativeContext()) {
-    result = eval_global_.Lookup(
-        source, context, strict_mode, scope_position);
+    result =
+        eval_global_.Lookup(source, outer_info, strict_mode, scope_position);
   } else {
     DCHECK(scope_position != RelocInfo::kNoPosition);
-    result = eval_contextual_.Lookup(
-        source, context, strict_mode, scope_position);
+    result = eval_contextual_.Lookup(source, outer_info, strict_mode,
+                                     scope_position);
   }
   return result;
 }
@@ -361,6 +357,7 @@ void CompilationCache::PutScript(Handle<String> source,
 
 
 void CompilationCache::PutEval(Handle<String> source,
+                               Handle<SharedFunctionInfo> outer_info,
                                Handle<Context> context,
                                Handle<SharedFunctionInfo> function_info,
                                int scope_position) {
@@ -368,10 +365,10 @@ void CompilationCache::PutEval(Handle<String> source,
 
   HandleScope scope(isolate());
   if (context->IsNativeContext()) {
-    eval_global_.Put(source, context, function_info, scope_position);
+    eval_global_.Put(source, outer_info, function_info, scope_position);
   } else {
     DCHECK(scope_position != RelocInfo::kNoPosition);
-    eval_contextual_.Put(source, context, function_info, scope_position);
+    eval_contextual_.Put(source, outer_info, function_info, scope_position);
   }
 }
 
