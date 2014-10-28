@@ -109,6 +109,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() & m.right().Value());
       }
       if (m.LeftEqualsRight()) return Replace(m.left().node());  // x & x => x
+      if (m.left().IsWord32And() && m.right().HasValue()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().HasValue()) {  // (x & K) & K => x & K
+          node->ReplaceInput(0, mleft.left().node());
+          node->ReplaceInput(
+              1, Int32Constant(m.right().Value() & mleft.right().Value()));
+          return Changed(node);
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Or: {
