@@ -2421,6 +2421,67 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 }
 
 
+void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
+  // Constructor is in eax.
+  DCHECK(lit != NULL);
+  __ push(eax);
+
+  // No access check is needed here since the constructor is created by the
+  // class literal.
+  Register scratch = ebx;
+  __ mov(scratch, FieldOperand(eax, JSFunction::kPrototypeOrInitialMapOffset));
+  __ Push(scratch);
+
+  for (int i = 0; i < lit->properties()->length(); i++) {
+    ObjectLiteral::Property* property = lit->properties()->at(i);
+    Literal* key = property->key()->AsLiteral();
+    Expression* value = property->value();
+    DCHECK(key != NULL);
+
+    if (property->is_static()) {
+      __ push(Operand(esp, kPointerSize));  // constructor
+    } else {
+      __ push(Operand(esp, 0));  // prototype
+    }
+    VisitForStackValue(key);
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::PROTOTYPE:
+        VisitForStackValue(value);
+        __ push(Immediate(Smi::FromInt(NONE)));
+        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        break;
+
+      case ObjectLiteral::Property::GETTER:
+        VisitForStackValue(value);
+        __ push(Immediate(isolate()->factory()->null_value()));
+        __ push(Immediate(Smi::FromInt(NONE)));
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      case ObjectLiteral::Property::SETTER:
+        __ push(Immediate(isolate()->factory()->null_value()));
+        VisitForStackValue(value);
+        __ push(Immediate(Smi::FromInt(NONE)));
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // prototype
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+
+  // constructor
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+}
+
+
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {

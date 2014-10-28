@@ -1585,9 +1585,9 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   __ Push(Smi::FromInt(lit->start_position()));
   __ Push(Smi::FromInt(lit->end_position()));
 
-  // TODO(arv): Process methods
-
   __ CallRuntime(Runtime::kDefineClass, 6);
+  EmitClassDefineProperties(lit);
+
   context()->Plug(result_register());
 }
 

@@ -1512,6 +1512,8 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
   void set_emit_store(bool emit_store);
   bool emit_store();
 
+  bool is_static() const { return is_static_; }
+
  protected:
   template<class> friend class AstNodeFactory;
 

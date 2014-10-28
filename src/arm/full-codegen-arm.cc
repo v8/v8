@@ -2505,6 +2505,74 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 }
 
 
+void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
+  // Constructor is in r0.
+  DCHECK(lit != NULL);
+  __ push(r0);
+
+  // No access check is needed here since the constructor is created by the
+  // class literal.
+  Register scratch = r1;
+  __ ldr(scratch,
+         FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ push(scratch);
+
+  for (int i = 0; i < lit->properties()->length(); i++) {
+    ObjectLiteral::Property* property = lit->properties()->at(i);
+    Literal* key = property->key()->AsLiteral();
+    Expression* value = property->value();
+    DCHECK(key != NULL);
+
+    if (property->is_static()) {
+      __ ldr(scratch, MemOperand(sp, kPointerSize));  // constructor
+    } else {
+      __ ldr(scratch, MemOperand(sp, 0));  // prototype
+    }
+    __ push(scratch);
+    VisitForStackValue(key);
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::PROTOTYPE:
+        VisitForStackValue(value);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        break;
+
+      case ObjectLiteral::Property::GETTER:
+        VisitForStackValue(value);
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      case ObjectLiteral::Property::SETTER:
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        VisitForStackValue(value);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // prototype
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+
+  // constructor
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+}
+
+
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
