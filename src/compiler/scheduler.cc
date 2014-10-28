@@ -64,7 +64,7 @@ Schedule* Scheduler::ComputeSchedule(ZonePool* zone_pool, Graph* graph) {
 
 
 Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
-  SchedulerData def = {NULL, 0, false, false, kUnknown};
+  SchedulerData def = {schedule_->start(), 0, false, false, kUnknown};
   return def;
 }
 
@@ -952,76 +952,86 @@ void Scheduler::PrepareUses() {
 // Phase 4: Schedule nodes early.
 
 
-class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
+class ScheduleEarlyNodeVisitor {
  public:
-  explicit ScheduleEarlyNodeVisitor(Scheduler* scheduler)
-      : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
+  ScheduleEarlyNodeVisitor(Zone* zone, Scheduler* scheduler)
+      : scheduler_(scheduler), schedule_(scheduler->schedule_), queue_(zone) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
-    Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
-      // Fixed nodes already know their schedule early position.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = schedule_->block(node);
-        Trace("Preschedule #%d:%s minimum_rpo = %d (fixed)\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
-      }
-    } else {
-      // For unfixed nodes the minimum RPO is the max of all of the inputs.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = ComputeMaximumInputRPO(node);
-        if (data->minimum_block_ == NULL) return GenericGraphVisit::REENTER;
-        Trace("Preschedule #%d:%s minimum_rpo = %d\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
+  // Run the schedule early algorithm on a set of fixed root nodes.
+  void Run(NodeVector* roots) {
+    for (NodeVectorIter i = roots->begin(); i != roots->end(); ++i) {
+      queue_.push(*i);
+      while (!queue_.empty()) {
+        VisitNode(queue_.front());
+        queue_.pop();
       }
     }
-    DCHECK_NE(data->minimum_block_, NULL);
-    return GenericGraphVisit::CONTINUE;
-  }
-
-  GenericGraphVisit::Control Post(Node* node) {
-    Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    if (scheduler_->GetPlacement(node) != Scheduler::kFixed) {
-      // For unfixed nodes the minimum RPO is the max of all of the inputs.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = ComputeMaximumInputRPO(node);
-        Trace("Postschedule #%d:%s minimum_rpo = %d\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
-      }
-    }
-    DCHECK_NE(data->minimum_block_, NULL);
-    return GenericGraphVisit::CONTINUE;
-  }
-
-  // Computes the maximum of the minimum RPOs for all inputs. If the maximum
-  // cannot be determined (i.e. minimum RPO for at least one input is {NULL}),
-  // then {NULL} is returned.
-  BasicBlock* ComputeMaximumInputRPO(Node* node) {
-    BasicBlock* max_block = schedule_->start();
-    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      DCHECK_NE(node, *i);  // Loops only exist for fixed nodes.
-      BasicBlock* block = scheduler_->GetData(*i)->minimum_block_;
-      if (block == NULL) return NULL;
-      if (block->rpo_number() > max_block->rpo_number()) {
-        max_block = block;
-      }
-    }
-    return max_block;
   }
 
  private:
+  // Visits one node from the queue and propagates its current schedule early
+  // position to all uses. This in turn might push more nodes onto the queue.
+  void VisitNode(Node* node) {
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+
+    // Fixed nodes already know their schedule early position.
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+      DCHECK_EQ(schedule_->start(), data->minimum_block_);
+      data->minimum_block_ = schedule_->block(node);
+      Trace("Fixing #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), data->minimum_block_->rpo_number());
+    }
+
+    // No need to propagate unconstrained schedule early positions.
+    if (data->minimum_block_ == schedule_->start()) return;
+
+    // Propagate schedule early position.
+    DCHECK(data->minimum_block_ != NULL);
+    Node::Uses uses = node->uses();
+    for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
+      PropagateMinimumRPOToNode(data->minimum_block_, *i);
+    }
+  }
+
+  // Propagates {block} as another minimum RPO placement into the given {node}.
+  // This has the net effect of computing the maximum of the minimum RPOs for
+  // all inputs to {node} when the queue has been fully processed.
+  void PropagateMinimumRPOToNode(BasicBlock* block, Node* node) {
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+
+    // No need to propagate to fixed node, it's guaranteed to be a root.
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) return;
+
+    // Propagate new position if it is larger than the current.
+    if (block->rpo_number() > data->minimum_block_->rpo_number()) {
+      data->minimum_block_ = block;
+      queue_.push(node);
+      Trace("Propagating #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), data->minimum_block_->rpo_number());
+    }
+  }
+
   Scheduler* scheduler_;
   Schedule* schedule_;
+  ZoneQueue<Node*> queue_;
 };
 
 
 void Scheduler::ScheduleEarly() {
   Trace("--- SCHEDULE EARLY -----------------------------------------\n");
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("roots: ");
+    for (NodeVectorIter i = schedule_root_nodes_.begin();
+         i != schedule_root_nodes_.end(); ++i) {
+      Trace("#%d:%s ", (*i)->id(), (*i)->op()->mnemonic());
+    }
+    Trace("\n");
+  }
 
   // Compute the minimum RPO for each node thereby determining the earliest
   // position each node could be placed within a valid schedule.
-  ScheduleEarlyNodeVisitor visitor(this);
-  graph_->VisitNodeInputsFromEnd(&visitor);
+  ScheduleEarlyNodeVisitor schedule_early_visitor(zone_, this);
+  schedule_early_visitor.Run(&schedule_root_nodes_);
 }
 
 
@@ -1098,7 +1108,6 @@ class ScheduleLateNodeVisitor {
     ScheduleNode(block, node);
   }
 
- private:
   BasicBlock* GetPreHeader(BasicBlock* block) {
     if (block->IsLoopHeader()) {
       return block->dominator();
