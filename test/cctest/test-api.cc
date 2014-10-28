@@ -17627,6 +17627,7 @@ TEST(CaptureStackTrace) {
 static void StackTraceForUncaughtExceptionListener(
     v8::Handle<v8::Message> message,
     v8::Handle<Value>) {
+  report_count++;
   v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK_EQ(2, stack_trace->GetFrameCount());
   checkStackFrame("origin", "foo", 2, 3, false, false,
@@ -17657,6 +17658,38 @@ TEST(CaptureStackTraceForUncaughtException) {
   Function::Cast(*trouble)->Call(global, 0, NULL);
   v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
   v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
+  CHECK_EQ(1, report_count);
+}
+
+
+TEST(GetStackTraceForUncaughtExceptionFromSimpleStackTrace) {
+  report_count = 0;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create an Error object first.
+  CompileRunWithOrigin(
+      "function foo() {\n"
+      "e=new Error('err');\n"
+      "};\n"
+      "function bar() {\n"
+      "  foo();\n"
+      "};\n"
+      "var e;",
+      "origin");
+  v8::Local<v8::Object> global = env->Global();
+  Local<Value> trouble = global->Get(v8_str("bar"));
+  CHECK(trouble->IsFunction());
+  Function::Cast(*trouble)->Call(global, 0, NULL);
+
+  // Enable capturing detailed stack trace late, and throw the exception.
+  // The detailed stack trace should be extracted from the simple stack.
+  v8::V8::AddMessageListener(StackTraceForUncaughtExceptionListener);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRunWithOrigin("throw e", "origin");
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
+  CHECK_EQ(1, report_count);
 }
 
 

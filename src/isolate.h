@@ -746,6 +746,9 @@ class Isolate {
   void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
   void CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
                                      Handle<Object> caller);
+  Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
+  Handle<JSArray> GetDetailedFromSimpleStackTrace(
+      Handle<JSObject> error_object);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be

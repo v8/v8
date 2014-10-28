@@ -6960,12 +6960,7 @@ Local<StackTrace> Exception::GetStackTrace(Handle<Value> exception) {
   i::Handle<i::JSObject> js_obj = i::Handle<i::JSObject>::cast(obj);
   i::Isolate* isolate = js_obj->GetIsolate();
   ENTER_V8(isolate);
-  i::Handle<i::Name> key = isolate->factory()->detailed_stack_trace_symbol();
-  i::Handle<i::Object> property = i::JSObject::GetDataProperty(js_obj, key);
-  if (property->IsJSArray()) {
-    return Utils::StackTraceToLocal(i::Handle<i::JSArray>::cast(property));
-  }
-  return Local<StackTrace>();
+  return Utils::StackTraceToLocal(isolate->GetDetailedStackTrace(js_obj));
 }
 
 
