@@ -113,6 +113,7 @@ TEST(BitSetComputer) {
     unsigned char data = buffer[index];
     CHECK_EQ(i % 4, TwoBits::decode(data, i));
   }
+  buffer.Dispose();
 }
 
 
