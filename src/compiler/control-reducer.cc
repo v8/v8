@@ -18,7 +18,7 @@ enum VisitState { kUnvisited = 0, kOnStack = 1, kRevisit = 2, kVisited = 3 };
 enum Reachability { kFromStart = 8 };
 
 #define TRACE(x) \
-  if (FLAG_trace_turbo) PrintF x
+  if (FLAG_trace_turbo_reduction) PrintF x
 
 class ControlReducerImpl {
  public:
