@@ -89,8 +89,8 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_trace_ic) {
-    State new_state =
-        UseVector() ? nexus()->StateFromFeedback() : raw_target()->ic_state();
+    Code* new_target = raw_target();
+    State new_state = new_target->ic_state();
     TraceIC(type, name, state(), new_state);
   }
 }
@@ -134,16 +134,12 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   }
 }
 
-
 #define TRACE_IC(type, name) TraceIC(type, name)
+#define TRACE_VECTOR_IC(type, name, old_state, new_state) \
+  TraceIC(type, name, old_state, new_state)
 
-
-IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus,
-       bool for_queries_only)
-    : isolate_(isolate),
-      target_set_(false),
-      target_maps_set_(false),
-      nexus_(nexus) {
+IC::IC(FrameDepth depth, Isolate* isolate)
+    : isolate_(isolate), target_set_(false), target_maps_set_(false) {
   // To improve the performance of the (much used) IC code, we unfold a few
   // levels of the stack frame iteration code. This yields a ~35% speedup when
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
@@ -182,10 +178,8 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus,
   }
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
+  state_ = target_->ic_state();
   kind_ = target_->kind();
-  state_ = (!for_queries_only && UseVector()) ? nexus->StateFromFeedback()
-                                              : target_->ic_state();
-  old_state_ = state_;
   extra_ic_state_ = target_->extra_ic_state();
 }
 
@@ -425,30 +419,6 @@ void IC::OnTypeFeedbackChanged(Isolate* isolate, Address address,
 }
 
 
-// static
-void IC::OnTypeFeedbackChanged(Isolate* isolate, Code* host,
-                               TypeFeedbackVector* vector, State old_state,
-                               State new_state) {
-  if (host->kind() != Code::FUNCTION) return;
-
-  if (FLAG_type_info_threshold > 0) {
-    int polymorphic_delta = 0;  // "Polymorphic" here includes monomorphic.
-    int generic_delta = 0;      // "Generic" here includes megamorphic.
-    ComputeTypeInfoCountDelta(old_state, new_state, &polymorphic_delta,
-                              &generic_delta);
-    vector->change_ic_with_type_info_count(polymorphic_delta);
-    vector->change_ic_generic_count(generic_delta);
-  }
-  TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
-  info->change_own_type_change_checksum();
-  host->set_profiler_ticks(0);
-  isolate->runtime_profiler()->NotifyICChanged();
-  // TODO(2029): When an optimized function is patched, it would
-  // be nice to propagate the corresponding type information to its
-  // unoptimized version for the benefit of later inlining.
-}
-
-
 void IC::PostPatching(Address address, Code* target, Code* old_target) {
   // Type vector based ICs update these statistics at a different time because
   // they don't always patch on state change.
@@ -537,19 +507,15 @@ void IC::Clear(Isolate* isolate, Address address,
 }
 
 
-template <class Nexus>
-void IC::Clear(Isolate* isolate, Code::Kind kind, Code* host, Nexus* nexus) {
+void IC::Clear(Isolate* isolate, Code::Kind kind, Code* host,
+               TypeFeedbackVector* vector, FeedbackVectorICSlot slot) {
   switch (kind) {
     case Code::CALL_IC:
-      return CallIC::Clear(isolate, host, nexus);
+      return CallIC::Clear(isolate, host, vector, slot);
     default:
       UNREACHABLE();
   }
 }
-
-
-// Force instantiation of template instances for vector-based IC clearing.
-template void IC::Clear(Isolate*, Code::Kind, Code*, CallICNexus*);
 
 
 void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target,
@@ -563,15 +529,18 @@ void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target,
 }
 
 
-void CallIC::Clear(Isolate* isolate, Code* host, CallICNexus* nexus) {
+void CallIC::Clear(Isolate* isolate, Code* host, TypeFeedbackVector* vector,
+                   FeedbackVectorICSlot slot) {
+  DCHECK(vector != NULL && !slot.IsInvalid());
+  Object* feedback = vector->Get(slot);
   // Determine our state.
-  Object* feedback = nexus->vector()->Get(nexus->slot());
-  State state = nexus->StateFromFeedback();
+  State state = FeedbackToState(isolate, vector, slot);
 
   if (state != UNINITIALIZED && !feedback->IsAllocationSite()) {
-    nexus->ConfigureUninitialized();
+    vector->Set(slot, isolate->heap()->uninitialized_symbol(),
+                SKIP_WRITE_BARRIER);
     // The change in state must be processed.
-    OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, UNINITIALIZED);
+    OnTypeFeedbackChanged(isolate, host, vector, state, UNINITIALIZED);
   }
 }
 
@@ -1977,8 +1946,34 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 }
 
 
+// static
+void CallIC::OnTypeFeedbackChanged(Isolate* isolate, Code* host,
+                                   TypeFeedbackVector* vector, State old_state,
+                                   State new_state) {
+  if (host->kind() != Code::FUNCTION) return;
+
+  if (FLAG_type_info_threshold > 0) {
+    int polymorphic_delta = 0;  // "Polymorphic" here includes monomorphic.
+    int generic_delta = 0;      // "Generic" here includes megamorphic.
+    ComputeTypeInfoCountDelta(old_state, new_state, &polymorphic_delta,
+                              &generic_delta);
+    vector->change_ic_with_type_info_count(polymorphic_delta);
+    vector->change_ic_generic_count(generic_delta);
+  }
+  TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
+  info->change_own_type_change_checksum();
+  host->set_profiler_ticks(0);
+  isolate->runtime_profiler()->NotifyICChanged();
+  // TODO(2029): When an optimized function is patched, it would
+  // be nice to propagate the corresponding type information to its
+  // unoptimized version for the benefit of later inlining.
+}
+
+
 bool CallIC::DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
-                             const CallICState& callic_state) {
+                             Handle<TypeFeedbackVector> vector,
+                             FeedbackVectorICSlot slot,
+                             const CallICState& state) {
   DCHECK(FLAG_use_ic && function->IsJSFunction());
 
   // Are we the array function?
@@ -1986,33 +1981,42 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
       Handle<JSFunction>(isolate()->native_context()->array_function());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
-    CallICNexus* nexus = casted_nexus<CallICNexus>();
-    nexus->ConfigureMonomorphicArray();
+    IC::State old_state = FeedbackToState(isolate(), *vector, slot);
+    Object* feedback = vector->Get(slot);
+    if (!feedback->IsAllocationSite()) {
+      Handle<AllocationSite> new_site =
+          isolate()->factory()->NewAllocationSite();
+      vector->Set(slot, *new_site);
+    }
 
-    CallIC_ArrayStub stub(isolate(), callic_state);
+    CallIC_ArrayStub stub(isolate(), state);
     set_target(*stub.GetCode());
     Handle<String> name;
     if (array_function->shared()->name()->IsString()) {
       name = Handle<String>(String::cast(array_function->shared()->name()),
                             isolate());
     }
-    TRACE_IC("CallIC", name);
-    OnTypeFeedbackChanged(isolate(), get_host(), nexus->vector(), state(),
-                          MONOMORPHIC);
+
+    IC::State new_state = FeedbackToState(isolate(), *vector, slot);
+    OnTypeFeedbackChanged(isolate(), get_host(), *vector, old_state, new_state);
+    TRACE_VECTOR_IC("CallIC (custom handler)", name, old_state, new_state);
     return true;
   }
   return false;
 }
 
 
-void CallIC::PatchMegamorphic(Handle<Object> function) {
-  CallICState callic_state(target()->extra_ic_state());
+void CallIC::PatchMegamorphic(Handle<Object> function,
+                              Handle<TypeFeedbackVector> vector,
+                              FeedbackVectorICSlot slot) {
+  CallICState state(target()->extra_ic_state());
+  IC::State old_state = FeedbackToState(isolate(), *vector, slot);
 
   // We are going generic.
-  CallICNexus* nexus = casted_nexus<CallICNexus>();
-  nexus->ConfigureGeneric();
+  vector->Set(slot, *TypeFeedbackVector::MegamorphicSentinel(isolate()),
+              SKIP_WRITE_BARRIER);
 
-  CallICStub stub(isolate(), callic_state);
+  CallICStub stub(isolate(), state);
   Handle<Code> code = stub.GetCode();
   set_target(*code);
 
@@ -2022,24 +2026,27 @@ void CallIC::PatchMegamorphic(Handle<Object> function) {
     name = handle(js_function->shared()->name(), isolate());
   }
 
-  TRACE_IC("CallIC", name);
-  OnTypeFeedbackChanged(isolate(), get_host(), nexus->vector(), state(),
-                        GENERIC);
+  IC::State new_state = FeedbackToState(isolate(), *vector, slot);
+  OnTypeFeedbackChanged(isolate(), get_host(), *vector, old_state, new_state);
+  TRACE_VECTOR_IC("CallIC", name, old_state, new_state);
 }
 
 
-void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
-  CallICState callic_state(target()->extra_ic_state());
+void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function,
+                        Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
+  CallICState state(target()->extra_ic_state());
+  IC::State old_state = FeedbackToState(isolate(), *vector, slot);
   Handle<Object> name = isolate()->factory()->empty_string();
-  CallICNexus* nexus = casted_nexus<CallICNexus>();
-  Object* feedback = nexus->GetFeedback();
+  Object* feedback = vector->Get(slot);
 
   // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
   DCHECK(!feedback->IsSmi());
 
   if (feedback->IsJSFunction() || !function->IsJSFunction()) {
     // We are going generic.
-    nexus->ConfigureGeneric();
+    vector->Set(slot, *TypeFeedbackVector::MegamorphicSentinel(isolate()),
+                SKIP_WRITE_BARRIER);
   } else {
     // The feedback is either uninitialized or an allocation site.
     // It might be an allocation site because if we re-compile the full code
@@ -2051,11 +2058,12 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
            feedback->IsAllocationSite());
 
     // Do we want to install a custom handler?
-    if (FLAG_use_ic && DoCustomHandler(receiver, function, callic_state)) {
+    if (FLAG_use_ic &&
+        DoCustomHandler(receiver, function, vector, slot, state)) {
       return;
     }
 
-    nexus->ConfigureMonomorphic(Handle<JSFunction>::cast(function));
+    vector->Set(slot, *function);
   }
 
   if (function->IsJSFunction()) {
@@ -2063,9 +2071,9 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
     name = handle(js_function->shared()->name(), isolate());
   }
 
-  IC::State new_state = nexus->StateFromFeedback();
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), state(), new_state);
-  TRACE_IC("CallIC", name);
+  IC::State new_state = FeedbackToState(isolate(), *vector, slot);
+  OnTypeFeedbackChanged(isolate(), get_host(), *vector, old_state, new_state);
+  TRACE_VECTOR_IC("CallIC", name, old_state, new_state);
 }
 
 
@@ -2081,14 +2089,13 @@ RUNTIME_FUNCTION(CallIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
+  CallIC ic(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> function = args.at<Object>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
   Handle<Smi> slot = args.at<Smi>(3);
   FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
-  CallICNexus nexus(vector, vector_slot);
-  CallIC ic(isolate, &nexus);
-  ic.HandleMiss(receiver, function);
+  ic.HandleMiss(receiver, function, vector, vector_slot);
   return *function;
 }
 
@@ -2097,14 +2104,13 @@ RUNTIME_FUNCTION(CallIC_Customization_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
+  // A miss on a custom call ic always results in going megamorphic.
+  CallIC ic(isolate);
   Handle<Object> function = args.at<Object>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
   Handle<Smi> slot = args.at<Smi>(3);
   FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
-  CallICNexus nexus(vector, vector_slot);
-  // A miss on a custom call ic always results in going megamorphic.
-  CallIC ic(isolate, &nexus);
-  ic.PatchMegamorphic(function);
+  ic.PatchMegamorphic(function, vector, vector_slot);
   return *function;
 }
 

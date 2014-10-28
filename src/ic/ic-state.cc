@@ -18,16 +18,10 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 
 
 // static
-template <class Nexus>
 void ICUtility::Clear(Isolate* isolate, Code::Kind kind, Code* host,
-                      Nexus* nexus) {
-  IC::Clear<Nexus>(isolate, kind, host, nexus);
+                      TypeFeedbackVector* vector, FeedbackVectorICSlot slot) {
+  IC::Clear(isolate, kind, host, vector, slot);
 }
-
-
-// Force instantiation of template instances for vector-based IC clearing.
-template void ICUtility::Clear<CallICNexus>(Isolate*, Code::Kind, Code*,
-                                            CallICNexus*);
 
 
 CallICState::CallICState(ExtraICState extra_ic_state)

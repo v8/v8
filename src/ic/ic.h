@@ -59,8 +59,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL,
-     bool for_queries_only = false);
+  IC(FrameDepth depth, Isolate* isolate);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -72,7 +71,6 @@ class IC {
   bool IsNameCompatibleWithPrototypeFailure(Handle<Object> name);
   void MarkPrototypeFailure(Handle<Object> name) {
     DCHECK(IsNameCompatibleWithPrototypeFailure(name));
-    old_state_ = state_;
     state_ = PROTOTYPE_FAILURE;
   }
 
@@ -89,9 +87,8 @@ class IC {
                     ConstantPoolArray* constant_pool);
 
   // Clear the vector-based inline cache to initial state.
-  template <class Nexus>
   static void Clear(Isolate* isolate, Code::Kind kind, Code* host,
-                    Nexus* nexus);
+                    TypeFeedbackVector* vector, FeedbackVectorICSlot slot);
 
 #ifdef DEBUG
   bool IsLoadStub() const {
@@ -117,11 +114,6 @@ class IC {
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
-    return state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
-  static bool IsCleared(FeedbackNexus* nexus) {
-    InlineCacheState state = nexus->StateFromFeedback();
     return state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
@@ -157,15 +149,6 @@ class IC {
   inline void set_target(Code* code);
   bool is_target_set() { return target_set_; }
 
-  bool UseVector() const {
-    bool use = (FLAG_vector_ics &&
-                (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC)) ||
-               kind() == Code::CALL_IC;
-    // If we are supposed to use the nexus, verify the nexus is non-null.
-    DCHECK(!use || nexus_ != NULL);
-    return use;
-  }
-
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
   void TraceIC(const char* type, Handle<Object> name, State old_state,
@@ -183,10 +166,6 @@ class IC {
   static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
                                     State old_state, State new_state,
                                     bool target_remains_ic_stub);
-  // As a vector-based IC, type feedback must be updated differently.
-  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host,
-                                    TypeFeedbackVector* vector, State old_state,
-                                    State new_state);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
@@ -250,20 +229,6 @@ class IC {
 
   inline void UpdateTarget();
 
-  Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
-  FeedbackVectorICSlot slot() const { return nexus()->slot(); }
-  State saved_state() const {
-    return state() == PROTOTYPE_FAILURE ? old_state_ : state();
-  }
-
-  template <class NexusClass>
-  NexusClass* casted_nexus() {
-    return static_cast<NexusClass*>(nexus_);
-  }
-  FeedbackNexus* nexus() const { return nexus_; }
-
-  inline Code* get_host();
-
  private:
   inline Code* raw_target() const;
   inline ConstantPoolArray* constant_pool() const;
@@ -298,7 +263,6 @@ class IC {
   // The original code target that missed.
   Handle<Code> target_;
   bool target_set_;
-  State old_state_;  // For saving if we marked as prototype failure.
   State state_;
   Code::Kind kind_;
   Handle<HeapType> receiver_type_;
@@ -307,8 +271,6 @@ class IC {
   ExtraICState extra_ic_state_;
   MapHandleList target_maps_;
   bool target_maps_set_;
-
-  FeedbackNexus* nexus_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -333,24 +295,38 @@ class IC_Utility {
 
 class CallIC : public IC {
  public:
-  CallIC(Isolate* isolate, CallICNexus* nexus)
-      : IC(EXTRA_CALL_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
-  }
+  explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  void PatchMegamorphic(Handle<Object> function);
+  void PatchMegamorphic(Handle<Object> function,
+                        Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot);
 
-  void HandleMiss(Handle<Object> receiver, Handle<Object> function);
+  void HandleMiss(Handle<Object> receiver, Handle<Object> function,
+                  Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot);
 
   // Returns true if a custom handler was installed.
   bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
-                       const CallICState& callic_state);
+                       Handle<TypeFeedbackVector> vector,
+                       FeedbackVectorICSlot slot, const CallICState& state);
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
                                       CallICState::CallType call_type);
 
-  static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
+  static void Clear(Isolate* isolate, Code* host, TypeFeedbackVector* vector,
+                    FeedbackVectorICSlot slot);
+
+ private:
+  static inline IC::State FeedbackToState(Isolate* isolate,
+                                          TypeFeedbackVector* vector,
+                                          FeedbackVectorICSlot slot);
+
+  inline Code* get_host();
+
+  // As a vector-based IC, type feedback must be updated differently.
+  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host,
+                                    TypeFeedbackVector* vector, State old_state,
+                                    State new_state);
 };
 
 
