@@ -173,6 +173,102 @@ class TypeFeedbackVector : public FixedArray {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
 };
+
+
+// A FeedbackNexus is the combination of a TypeFeedbackVector and a slot.
+// Derived classes customize the update and retrieval of feedback.
+class FeedbackNexus {
+ public:
+  FeedbackNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : vector_handle_(vector), vector_(NULL), slot_(slot) {}
+  FeedbackNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : vector_(vector), slot_(slot) {}
+  virtual ~FeedbackNexus() {}
+
+  Handle<TypeFeedbackVector> vector_handle() const {
+    DCHECK(vector_ == NULL);
+    return vector_handle_;
+  }
+  TypeFeedbackVector* vector() const {
+    return vector_handle_.is_null() ? vector_ : *vector_handle_;
+  }
+  FeedbackVectorICSlot slot() const { return slot_; }
+
+  InlineCacheState ic_state() const { return StateFromFeedback(); }
+  Map* FindFirstMap() const {
+    MapHandleList maps;
+    ExtractMaps(&maps);
+    if (maps.length() > 0) return *maps.at(0);
+    return NULL;
+  }
+
+  virtual InlineCacheState StateFromFeedback() const = 0;
+  virtual int ExtractMaps(MapHandleList* maps) const = 0;
+  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const = 0;
+  virtual bool FindHandlers(CodeHandleList* code_list, int length = -1) const {
+    return length == 0;
+  }
+  virtual Name* FindFirstName() const { return NULL; }
+
+  Object* GetFeedback() const { return vector()->Get(slot()); }
+
+ protected:
+  Isolate* GetIsolate() const { return vector()->GetIsolate(); }
+
+  void SetFeedback(Object* feedback,
+                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER) {
+    vector()->Set(slot(), feedback, mode);
+  }
+
+  Handle<FixedArray> EnsureArrayOfSize(int length);
+  void InstallHandlers(int start_index, TypeHandleList* types,
+                       CodeHandleList* handlers);
+  int ExtractMaps(int start_index, MapHandleList* maps) const;
+  MaybeHandle<Code> FindHandlerForMap(int start_index, Handle<Map> map) const;
+  bool FindHandlers(int start_index, CodeHandleList* code_list,
+                    int length) const;
+
+ private:
+  // The reason for having a vector handle and a raw pointer is that we can and
+  // should use handles during IC miss, but not during GC when we clear ICs. If
+  // you have a handle to the vector that is better because more operations can
+  // be done, like allocation.
+  Handle<TypeFeedbackVector> vector_handle_;
+  TypeFeedbackVector* vector_;
+  FeedbackVectorICSlot slot_;
+};
+
+
+class CallICNexus : public FeedbackNexus {
+ public:
+  CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::CALL_IC);
+  }
+  CallICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::CALL_IC);
+  }
+
+  void ConfigureUninitialized();
+  void ConfigureGeneric();
+  void ConfigureMonomorphicArray();
+  void ConfigureMonomorphic(Handle<JSFunction> function);
+
+  virtual InlineCacheState StateFromFeedback() const OVERRIDE;
+
+  virtual int ExtractMaps(MapHandleList* maps) const OVERRIDE {
+    // CallICs don't record map feedback.
+    return 0;
+  }
+  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
+    return MaybeHandle<Code>();
+  }
+  virtual bool FindHandlers(CodeHandleList* code_list,
+                            int length = -1) const OVERRIDE {
+    return length == 0;
+  }
+};
 }
 }  // namespace v8::internal
 
