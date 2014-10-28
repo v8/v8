@@ -1698,7 +1698,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           continue;
         }
         if (ExtractAccessorPairProperty(js_obj, entry, k, value)) continue;
-        SetPropertyReference(js_obj, entry, String::cast(k), value);
+        SetPropertyReference(js_obj, entry, Name::cast(k), value);
       }
     }
   }
