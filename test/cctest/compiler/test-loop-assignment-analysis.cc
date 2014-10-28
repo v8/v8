@@ -15,14 +15,14 @@ namespace {
 const int kBufferSize = 1024;
 
 struct TestHelper : public HandleAndZoneScope {
-  char buffer[kBufferSize];
   Handle<JSFunction> function;
   LoopAssignmentAnalysis* result;
 
   explicit TestHelper(const char* body)
       : function(Handle<JSFunction>::null()), result(NULL) {
-    snprintf(buffer, kBufferSize, "function f(a,b,c) { %s; } f;", body);
-    v8::Local<v8::Value> v = CompileRun(buffer);
+    ScopedVector<char> program(kBufferSize);
+    SNPrintF(program, "function f(a,b,c) { %s; } f;", body);
+    v8::Local<v8::Value> v = CompileRun(program.start());
     Handle<Object> obj = v8::Utils::OpenHandle(*v);
     function = Handle<JSFunction>::cast(obj);
   }
