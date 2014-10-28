@@ -77,8 +77,7 @@ Matcher<Node*> IsLoadElement(const Matcher<ElementAccess>& access_matcher,
                              const Matcher<Node*>& base_matcher,
                              const Matcher<Node*>& index_matcher,
                              const Matcher<Node*>& length_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher);
+                             const Matcher<Node*>& effect_matcher);
 Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& base_matcher,
                               const Matcher<Node*>& index_matcher,

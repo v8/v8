@@ -1079,23 +1079,23 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
   const ElementAccess& access = ElementAccessOf(node->op());
   const Operator* op = machine()->Load(access.machine_type);
   Node* key = node->InputAt(1);
+  Node* effect = node->InputAt(3);
   Node* index = ComputeIndex(access, key);
   if (access.bounds_check == kNoBoundsCheck) {
     DCHECK_EQ(access.machine_type, output_type);
     node->set_op(op);
     node->ReplaceInput(1, index);
-    node->RemoveInput(2);
+    node->ReplaceInput(2, effect);
+    node->ReplaceInput(3, graph()->start());
   } else {
     DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
 
     Node* base = node->InputAt(0);
     Node* length = node->InputAt(2);
-    Node* effect = node->InputAt(3);
-    Node* control = node->InputAt(4);
 
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
+                                    graph()->start());
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* load = graph()->NewNode(op, base, index, effect, if_true);

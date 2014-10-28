@@ -143,7 +143,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
         IsLoadElement(AccessBuilder::ForTypedArrayElement(type, true),
                       IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
                       key, IsNumberConstant(static_cast<double>(kLength)),
-                      effect, control));
+                      effect));
   }
 }
 

@@ -614,11 +614,10 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
             bit_cast<intptr_t>(elements->external_pointer()));
         Node* length = jsgraph()->Constant(byte_length / array->element_size());
         Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
         Node* load = graph()->NewNode(
             simplified()->LoadElement(
                 AccessBuilder::ForTypedArrayElement(type, true)),
-            pointer, key, length, effect, control);
+            pointer, key, length, effect);
         return ReplaceEagerly(node, load);
       }
     }
