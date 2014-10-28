@@ -117,6 +117,7 @@ inline int OperatorProperties::GetEffectInputCount(const Operator* op) {
 }
 
 inline int OperatorProperties::GetControlInputCount(const Operator* op) {
+  // TODO(titzer): fix this mess; just make them a count on the operator.
   switch (op->opcode()) {
     case IrOpcode::kPhi:
     case IrOpcode::kEffectPhi:
@@ -127,8 +128,8 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
-      // Branch operator is special
       if (op->opcode() == IrOpcode::kBranch) return 1;
+      if (op->opcode() == IrOpcode::kTerminate) return 1;
       // Control operators are Operator1<int>.
       return OpParameter<int>(op);
     default:

@@ -195,7 +195,7 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
-class JSOperatorBuilder FINAL {
+class JSOperatorBuilder FINAL : public ZoneObject {
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
@@ -266,6 +266,8 @@ class JSOperatorBuilder FINAL {
 
   const JSOperatorBuilderImpl& impl_;
   Zone* const zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(JSOperatorBuilder);
 };
 
 }  // namespace compiler

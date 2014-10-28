@@ -118,7 +118,7 @@ class JSONGraphEdgeWriter : public NullNodeVisitor {
 
   void Print() { const_cast<Graph*>(graph_)->VisitNodeInputsFromEnd(this); }
 
-  GenericGraphVisit::Control PreEdge(Node* from, int index, Node* to);
+  void PreEdge(Node* from, int index, Node* to);
 
  private:
   std::ostream& os_;
@@ -129,8 +129,7 @@ class JSONGraphEdgeWriter : public NullNodeVisitor {
 };
 
 
-GenericGraphVisit::Control JSONGraphEdgeWriter::PreEdge(Node* from, int index,
-                                                        Node* to) {
+void JSONGraphEdgeWriter::PreEdge(Node* from, int index, Node* to) {
   if (first_edge_) {
     first_edge_ = false;
   } else {
@@ -152,7 +151,6 @@ GenericGraphVisit::Control JSONGraphEdgeWriter::PreEdge(Node* from, int index,
   }
   os_ << "{\"source\":" << to->id() << ",\"target\":" << from->id()
       << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
-  return GenericGraphVisit::CONTINUE;
 }
 
 
@@ -174,7 +172,6 @@ class GraphVisualizer : public NullNodeVisitor {
   void Print();
 
   GenericGraphVisit::Control Pre(Node* node);
-  GenericGraphVisit::Control PreEdge(Node* from, int index, Node* to);
 
  private:
   void AnnotateNode(Node* node);
@@ -218,17 +215,6 @@ GenericGraphVisit::Control GraphVisualizer::Pre(Node* node) {
     if (use_to_def_) white_nodes_.insert(node);
   }
   return GenericGraphVisit::CONTINUE;
-}
-
-
-GenericGraphVisit::Control GraphVisualizer::PreEdge(Node* from, int index,
-                                                    Node* to) {
-  if (use_to_def_) return GenericGraphVisit::CONTINUE;
-  // When going from def to use, only consider white -> other edges, which are
-  // the dead nodes that use live nodes. We're probably not interested in
-  // dead nodes that only use other dead nodes.
-  if (white_nodes_.count(from) > 0) return GenericGraphVisit::CONTINUE;
-  return GenericGraphVisit::SKIP;
 }
 
 

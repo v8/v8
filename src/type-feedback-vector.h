@@ -18,7 +18,9 @@ namespace internal {
 // 0: first_ic_slot_index (== length() if no ic slots are present)
 // 1: ics_with_types
 // 2: ics_with_generic_info
-// 3: first feedback slot
+// 3: type information for ic slots, if any
+// ...
+// N: first feedback slot (N >= 3)
 // ...
 // [<first_ic_slot_index>: feedback slot]
 // ...to length() - 1
@@ -36,7 +38,7 @@ class TypeFeedbackVector : public FixedArray {
   static const int kWithTypesIndex = 1;
   static const int kGenericCountIndex = 2;
 
-  int first_ic_slot_index() {
+  int first_ic_slot_index() const {
     DCHECK(length() >= kReservedIndexCount);
     return Smi::cast(get(kFirstICSlotIndex))->value();
   }
@@ -66,53 +68,64 @@ class TypeFeedbackVector : public FixedArray {
     }
   }
 
-  int Slots() {
+  inline int ic_metadata_length() const;
+
+  int Slots() const {
     if (length() == 0) return 0;
-    return Max(0, first_ic_slot_index() - kReservedIndexCount);
+    return Max(
+        0, first_ic_slot_index() - ic_metadata_length() - kReservedIndexCount);
   }
 
-  int ICSlots() {
+  int ICSlots() const {
     if (length() == 0) return 0;
     return length() - first_ic_slot_index();
   }
 
   // Conversion from a slot or ic slot to an integer index to the underlying
   // array.
-  int GetIndex(FeedbackVectorSlot slot) {
-    return kReservedIndexCount + slot.ToInt();
+  int GetIndex(FeedbackVectorSlot slot) const {
+    return kReservedIndexCount + ic_metadata_length() + slot.ToInt();
   }
 
-  int GetIndex(FeedbackVectorICSlot slot) {
+  int GetIndex(FeedbackVectorICSlot slot) const {
     int first_ic_slot = first_ic_slot_index();
     DCHECK(slot.ToInt() < ICSlots());
     return first_ic_slot + slot.ToInt();
   }
 
-
   // Conversion from an integer index to either a slot or an ic slot. The caller
   // should know what kind she expects.
-  FeedbackVectorSlot ToSlot(int index) {
+  FeedbackVectorSlot ToSlot(int index) const {
     DCHECK(index >= kReservedIndexCount && index < first_ic_slot_index());
-    return FeedbackVectorSlot(index - kReservedIndexCount);
+    return FeedbackVectorSlot(index - ic_metadata_length() -
+                              kReservedIndexCount);
   }
 
-  FeedbackVectorICSlot ToICSlot(int index) {
+  FeedbackVectorICSlot ToICSlot(int index) const {
     DCHECK(index >= first_ic_slot_index() && index < length());
     return FeedbackVectorICSlot(index - first_ic_slot_index());
   }
 
-  Object* Get(FeedbackVectorSlot slot) { return get(GetIndex(slot)); }
+  Object* Get(FeedbackVectorSlot slot) const { return get(GetIndex(slot)); }
   void Set(FeedbackVectorSlot slot, Object* value,
            WriteBarrierMode mode = UPDATE_WRITE_BARRIER) {
     set(GetIndex(slot), value, mode);
   }
 
-  Object* Get(FeedbackVectorICSlot slot) { return get(GetIndex(slot)); }
+  Object* Get(FeedbackVectorICSlot slot) const { return get(GetIndex(slot)); }
   void Set(FeedbackVectorICSlot slot, Object* value,
            WriteBarrierMode mode = UPDATE_WRITE_BARRIER) {
     set(GetIndex(slot), value, mode);
   }
 
+  // IC slots need metadata to recognize the type of IC. Set a Kind for every
+  // slot. If GetKind() returns Code::NUMBER_OF_KINDS, then there is
+  // no kind associated with this slot. This may happen in the current design
+  // if a decision is made at compile time not to emit an IC that was planned
+  // for at parse time. This can be eliminated if we encode kind at parse
+  // time.
+  Code::Kind GetKind(FeedbackVectorICSlot slot) const;
+  void SetKind(FeedbackVectorICSlot slot, Code::Kind kind);
 
   static Handle<TypeFeedbackVector> Allocate(Isolate* isolate, int slot_count,
                                              int ic_slot_count);
@@ -145,6 +158,19 @@ class TypeFeedbackVector : public FixedArray {
   static inline Object* RawUninitializedSentinel(Heap* heap);
 
  private:
+  enum VectorICKind {
+    KindUnused = 0x0,
+    KindCallIC = 0x1,
+    KindLoadIC = 0x2,
+    KindKeyedLoadIC = 0x3
+  };
+
+  static const int kVectorICKindBits = 2;
+  static VectorICKind FromCodeKind(Code::Kind kind);
+  static Code::Kind FromVectorICKind(VectorICKind kind);
+  typedef BitSetComputer<VectorICKind, kVectorICKindBits, kSmiValueSize,
+                         uint32_t> VectorICComputer;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
 };
 }

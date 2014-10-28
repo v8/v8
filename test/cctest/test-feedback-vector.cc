@@ -45,15 +45,73 @@ TEST(VectorStructure) {
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
 
+  int metadata_length = vector->ic_metadata_length();
+  if (!FLAG_vector_ics) {
+    CHECK_EQ(0, metadata_length);
+  } else {
+    CHECK(metadata_length > 0);
+  }
+
   int index = vector->GetIndex(FeedbackVectorSlot(0));
-  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount, index);
+  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length, index);
   CHECK(FeedbackVectorSlot(0) == vector->ToSlot(index));
 
   index = vector->GetIndex(FeedbackVectorICSlot(0));
-  CHECK_EQ(index, TypeFeedbackVector::kReservedIndexCount + 3);
+  CHECK_EQ(index,
+           TypeFeedbackVector::kReservedIndexCount + metadata_length + 3);
   CHECK(FeedbackVectorICSlot(0) == vector->ToICSlot(index));
 
-  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3 + 5, vector->length());
+  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3 + 5,
+           vector->length());
+}
+
+
+// IC slots need an encoding to recognize what is in there.
+TEST(VectorICMetadata) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  if (!FLAG_vector_ics) {
+    // If FLAG_vector_ics is false, we only store CALL_ICs in the vector, so
+    // there is no need for metadata to describe the slots.
+    return;
+  }
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TypeFeedbackVector> vector =
+      factory->NewTypeFeedbackVector(10, 3 * 10);
+  CHECK_EQ(10, vector->Slots());
+  CHECK_EQ(3 * 10, vector->ICSlots());
+
+  // Set metadata.
+  for (int i = 0; i < 30; i++) {
+    Code::Kind kind;
+    if (i % 3 == 0)
+      kind = Code::CALL_IC;
+    else if (i % 3 == 1)
+      kind = Code::LOAD_IC;
+    else
+      kind = Code::KEYED_LOAD_IC;
+    vector->SetKind(FeedbackVectorICSlot(i), kind);
+  }
+
+  // Meanwhile set some feedback values and type feedback values to
+  // verify the data structure remains intact.
+  vector->change_ic_with_type_info_count(100);
+  vector->change_ic_generic_count(3333);
+  vector->Set(FeedbackVectorSlot(0), *vector);
+
+  // Verify the metadata remains the same.
+  for (int i = 0; i < 30; i++) {
+    Code::Kind kind = vector->GetKind(FeedbackVectorICSlot(i));
+    if (i % 3 == 0) {
+      CHECK_EQ(Code::CALL_IC, kind);
+    } else if (i % 3 == 1) {
+      CHECK_EQ(Code::LOAD_IC, kind);
+    } else {
+      CHECK_EQ(Code::KEYED_LOAD_IC, kind);
+    }
+  }
 }
 
 
@@ -129,11 +187,14 @@ TEST(VectorICProfilerStatistics) {
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(0))->IsAllocationSite());
+  int ic_slot = FLAG_vector_ics ? 1 : 0;
+  CHECK(
+      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(0))->IsAllocationSite());
+  CHECK(
+      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
 }
 }

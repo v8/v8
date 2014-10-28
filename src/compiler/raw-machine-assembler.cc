@@ -151,10 +151,10 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 
 Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
-                                    Node** inputs) {
+                                    Node** inputs, bool incomplete) {
   DCHECK(ScheduleValid());
   DCHECK(current_block_ != NULL);
-  Node* node = graph()->NewNode(op, input_count, inputs);
+  Node* node = graph()->NewNode(op, input_count, inputs, incomplete);
   BasicBlock* block = op->opcode() == IrOpcode::kParameter ? schedule()->start()
                                                            : CurrentBlock();
   schedule()->AddNode(block, node);

@@ -382,7 +382,8 @@ class CFGBuilder {
   }
 
   bool IsFinalMerge(Node* node) {
-    return (node == scheduler_->graph_->end()->InputAt(0));
+    return (node->opcode() == IrOpcode::kMerge &&
+            node == scheduler_->graph_->end()->InputAt(0));
   }
 };
 

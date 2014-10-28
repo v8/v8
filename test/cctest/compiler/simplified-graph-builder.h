@@ -139,7 +139,7 @@ class SimplifiedGraphBuilder : public GraphBuilder {
 
  protected:
   virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs) FINAL;
+                         Node** value_inputs, bool incomplete) FINAL;
 
  private:
   Node* effect_;

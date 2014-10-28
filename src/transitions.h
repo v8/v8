@@ -30,9 +30,8 @@ namespace internal {
 // The full format is:
 // [0] Undefined or back pointer map
 // [1] Smi(0) or fixed array of prototype transitions
-// [2] Number of transitions
-// [3] First transition
-// [3 + number of transitions * kTransitionSize]: start of slack
+// [2] First transition
+// [length() - kTransitionSize] Last transition
 class TransitionArray: public FixedArray {
  public:
   // Accessors for fetching instance transition at transition number.
@@ -68,21 +67,10 @@ class TransitionArray: public FixedArray {
   // Returns the number of transitions in the array.
   int number_of_transitions() {
     if (IsSimpleTransition()) return 1;
-    if (length() <= kFirstIndex) return 0;
-    return Smi::cast(get(kTransitionLengthIndex))->value();
+    int len = length();
+    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kTransitionSize;
   }
 
-  int number_of_transitions_storage() {
-    if (IsSimpleTransition()) return 1;
-    if (length() <= kFirstIndex) return 0;
-    return (length() - kFirstIndex) / kTransitionSize;
-  }
-
-  int NumberOfSlackTransitions() {
-    return number_of_transitions_storage() - number_of_transitions();
-  }
-
-  inline void SetNumberOfTransitions(int number_of_transitions);
   inline int number_of_entries() { return number_of_transitions(); }
 
   // Creates a FullTransitionArray from a SimpleTransitionArray in
@@ -90,22 +78,21 @@ class TransitionArray: public FixedArray {
   static Handle<TransitionArray> ExtendToFullTransitionArray(
       Handle<Map> containing_map);
 
-  // Return a transition array, using the array from the owning map if it
-  // already has one (copying into a larger array if necessary), otherwise
-  // creating a new one according to flag.
+  // Create a transition array, copying from the owning map if it already has
+  // one, otherwise creating a new one according to flag.
   // TODO(verwaest): This should not cause an existing transition to be
   // overwritten.
-  static Handle<TransitionArray> Insert(Handle<Map> map, Handle<Name> name,
-                                        Handle<Map> target,
-                                        SimpleTransitionFlag flag);
+  static Handle<TransitionArray> CopyInsert(Handle<Map> map,
+                                            Handle<Name> name,
+                                            Handle<Map> target,
+                                            SimpleTransitionFlag flag);
 
   // Search a transition for a given property name.
   inline int Search(Name* name);
 
   // Allocates a TransitionArray.
-  static Handle<TransitionArray> Allocate(Isolate* isolate,
-                                          int number_of_transitions,
-                                          int slack = 0);
+  static Handle<TransitionArray> Allocate(
+      Isolate* isolate, int number_of_transitions);
 
   bool IsSimpleTransition() {
     return length() == kSimpleTransitionSize &&
@@ -133,8 +120,7 @@ class TransitionArray: public FixedArray {
 
   // Layout for full transition arrays.
   static const int kPrototypeTransitionsIndex = 1;
-  static const int kTransitionLengthIndex = 2;
-  static const int kFirstIndex = 3;
+  static const int kFirstIndex = 2;
 
   // Layout for simple transition arrays.
   static const int kSimpleTransitionTarget = 1;
@@ -147,8 +133,6 @@ class TransitionArray: public FixedArray {
   // Layout for the full transition array header.
   static const int kPrototypeTransitionsOffset = kBackPointerStorageOffset +
                                                  kPointerSize;
-  static const int kTransitionLengthOffset =
-      kPrototypeTransitionsOffset + kPointerSize;
 
   // Layout of map transition entries in full transition arrays.
   static const int kTransitionKey = 0;
@@ -172,12 +156,6 @@ class TransitionArray: public FixedArray {
   // The maximum number of transitions we want in a transition array (should
   // fit in a page).
   static const int kMaxNumberOfTransitions = 1024 + 512;
-
-  // Returns the fixed array length required to hold number_of_transitions
-  // transitions.
-  static int LengthFor(int number_of_transitions) {
-    return ToKeyIndex(number_of_transitions);
-  }
 
  private:
   // Conversion from transition number to array indices.

@@ -22,10 +22,10 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
     : StructuredGraphBuilder(local_zone, jsgraph->graph(), jsgraph->common()),
       info_(info),
       jsgraph_(jsgraph),
-      globals_(0, info->zone()),
+      globals_(0, local_zone),
       breakable_(NULL),
       execution_context_(NULL) {
-  InitializeAstVisitor(info->zone());
+  InitializeAstVisitor(local_zone);
 }
 
 

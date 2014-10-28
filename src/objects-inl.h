@@ -2205,7 +2205,7 @@ void Object::VerifyApiCallResultType() {
 }
 
 
-Object* FixedArray::get(int index) {
+Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
@@ -5203,8 +5203,9 @@ Map* Map::elements_transition_map() {
 
 bool Map::CanHaveMoreTransitions() {
   if (!HasTransitionArray()) return true;
-  return transitions()->number_of_transitions() <=
-         TransitionArray::kMaxNumberOfTransitions;
+  return FixedArray::SizeFor(transitions()->length() +
+                             TransitionArray::kTransitionSize)
+      <= Page::kMaxRegularHeapObjectSize;
 }
 
 
@@ -6991,14 +6992,6 @@ void Map::ClearCodeCache(Heap* heap) {
   //  - IncrementalMarking::Step
   DCHECK(!heap->InNewSpace(heap->empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
-}
-
-
-int Map::SlackForArraySize(int old_size, int size_limit) {
-  const int max_slack = size_limit - old_size;
-  DCHECK(max_slack >= 0);
-  if (old_size < 4) return Min(max_slack, 1);
-  return Min(max_slack, old_size / 2);
 }
 
 

@@ -39,6 +39,7 @@ class PipelineStatistics : public Malloced {
     SmartPointer<ZonePool::StatsScope> scope_;
     base::ElapsedTimer timer_;
     size_t outer_zone_initial_size_;
+    size_t allocated_bytes_at_start_;
   };
 
   bool InPhaseKind() { return !phase_kind_stats_.scope_.is_empty(); }

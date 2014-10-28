@@ -277,6 +277,8 @@ class Schedule FINAL : public ZoneObject {
   BasicBlockVector rpo_order_;            // Reverse-post-order block list.
   BasicBlock* start_;
   BasicBlock* end_;
+
+  DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
 std::ostream& operator<<(std::ostream& os, const Schedule& s);

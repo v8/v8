@@ -302,12 +302,8 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = len - del_count; i > start_i; i--) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
-        // The spec could also be interpreted such that
-        // %HasOwnProperty would be the appropriate test.  We follow
-        // KJS in consulting the prototype.
-        var current = array[from_index];
-        if (!IS_UNDEFINED(current) || from_index in array) {
-          array[to_index] = current;
+        if (from_index in array) {
+          array[to_index] = array[from_index];
         } else {
           delete array[to_index];
         }
@@ -316,12 +312,8 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = start_i; i < len - del_count; i++) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
-        // The spec could also be interpreted such that
-        // %HasOwnProperty would be the appropriate test.  We follow
-        // KJS in consulting the prototype.
-        var current = array[from_index];
-        if (!IS_UNDEFINED(current) || from_index in array) {
-          array[to_index] = current;
+        if (from_index in array) {
+          array[to_index] = array[from_index];
         } else {
           delete array[to_index];
         }

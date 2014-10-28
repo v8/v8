@@ -160,15 +160,6 @@ void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
 }
 
 
-void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
-  if (IsFullTransitionArray()) {
-    DCHECK(number_of_transitions <= number_of_transitions_storage());
-    WRITE_FIELD(this, kTransitionLengthOffset,
-                Smi::FromInt(number_of_transitions));
-  }
-}
-
-
 #undef FIELD_ADDR
 #undef WRITE_FIELD
 #undef CONDITIONAL_WRITE_BARRIER

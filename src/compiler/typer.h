@@ -71,6 +71,7 @@ class Typer {
 
   ZoneVector<Handle<Object> > weaken_min_limits_;
   ZoneVector<Handle<Object> > weaken_max_limits_;
+  DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 }
 }

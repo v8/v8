@@ -1,3 +1,8 @@
+2014-10-28: Version 3.30.20
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-27: Version 3.30.19
 
         Check string literals with escapes in PreParserTraits::GetSymbol()

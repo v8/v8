@@ -66,7 +66,7 @@ class MachineAssemblerTester : public HandleAndZoneScope,
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       CompilationInfo info(graph->zone()->isolate(), graph->zone());
-      Linkage linkage(&info, call_descriptor);
+      Linkage linkage(graph->zone(), call_descriptor);
       Pipeline pipeline(&info);
       code_ = pipeline.GenerateCodeForMachineGraph(&linkage, graph, schedule);
     }

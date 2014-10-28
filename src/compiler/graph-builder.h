@@ -24,42 +24,44 @@ class GraphBuilder {
   explicit GraphBuilder(Graph* graph) : graph_(graph) {}
   virtual ~GraphBuilder() {}
 
-  Node* NewNode(const Operator* op) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  Node* NewNode(const Operator* op, bool incomplete = false) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL), incomplete);
   }
 
-  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
+  Node* NewNode(const Operator* op, Node* n1) {
+    return MakeNode(op, 1, &n1, false);
+  }
 
   Node* NewNode(const Operator* op, Node* n1, Node* n2) {
     Node* buffer[] = {n1, n2};
-    return MakeNode(op, arraysize(buffer), buffer);
+    return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
   Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
     Node* buffer[] = {n1, n2, n3};
-    return MakeNode(op, arraysize(buffer), buffer);
+    return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
   Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
     Node* buffer[] = {n1, n2, n3, n4};
-    return MakeNode(op, arraysize(buffer), buffer);
+    return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
   Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
                 Node* n5) {
     Node* buffer[] = {n1, n2, n3, n4, n5};
-    return MakeNode(op, arraysize(buffer), buffer);
+    return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
   Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
                 Node* n5, Node* n6) {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return MakeNode(op, arraysize(nodes), nodes);
+    return MakeNode(op, arraysize(nodes), nodes, false);
   }
 
-  Node* NewNode(const Operator* op, int value_input_count,
-                Node** value_inputs) {
-    return MakeNode(op, value_input_count, value_inputs);
+  Node* NewNode(const Operator* op, int value_input_count, Node** value_inputs,
+                bool incomplete = false) {
+    return MakeNode(op, value_input_count, value_inputs, incomplete);
   }
 
   Graph* graph() const { return graph_; }
@@ -67,7 +69,7 @@ class GraphBuilder {
  protected:
   // Base implementation used by all factory methods.
   virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs) = 0;
+                         Node** value_inputs, bool incomplete) = 0;
 
  private:
   Graph* graph_;
@@ -95,8 +97,8 @@ class StructuredGraphBuilder : public GraphBuilder {
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
-  Node* NewMerge() { return NewNode(common()->Merge(1)); }
-  Node* NewLoop() { return NewNode(common()->Loop(1)); }
+  Node* NewMerge() { return NewNode(common()->Merge(1), true); }
+  Node* NewLoop() { return NewNode(common()->Loop(1), true); }
   Node* NewBranch(Node* condition) {
     return NewNode(common()->Branch(), condition);
   }
@@ -110,7 +112,7 @@ class StructuredGraphBuilder : public GraphBuilder {
   // ensures effect and control dependencies are wired up. The dependencies
   // tracked by the environment might be mutated.
   virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs) FINAL;
+                         Node** value_inputs, bool incomplete) FINAL;
 
   Environment* environment() const { return environment_; }
   void set_environment(Environment* env) { environment_ = env; }
@@ -148,6 +150,10 @@ class StructuredGraphBuilder : public GraphBuilder {
   // Zone local to the builder for data not leaking into the graph.
   Zone* local_zone_;
 
+  // Temporary storage for building node input lists.
+  int input_buffer_size_;
+  Node** input_buffer_;
+
   // Node representing the control dependency for dead code.
   SetOncePointer<Node> dead_control_;
 
@@ -156,6 +162,12 @@ class StructuredGraphBuilder : public GraphBuilder {
 
   // Merge of all control nodes that exit the function body.
   Node* exit_control_;
+
+  // Growth increment for the temporary buffer used to construct input lists to
+  // new nodes.
+  static const int kInputBufferSizeIncrement = 64;
+
+  Node** EnsureInputBufferSize(int size);
 
   DISALLOW_COPY_AND_ASSIGN(StructuredGraphBuilder);
 };

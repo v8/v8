@@ -416,8 +416,8 @@ class RawMachineAssembler : public GraphBuilder {
   Schedule* Export();
 
  protected:
-  virtual Node* MakeNode(const Operator* op, int input_count,
-                         Node** inputs) FINAL;
+  virtual Node* MakeNode(const Operator* op, int input_count, Node** inputs,
+                         bool incomplete) FINAL;
 
   bool ScheduleValid() { return schedule_ != NULL; }
 

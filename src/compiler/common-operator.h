@@ -131,7 +131,7 @@ std::ostream& operator<<(std::ostream&, FrameStateCallInfo const&);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
-class CommonOperatorBuilder FINAL {
+class CommonOperatorBuilder FINAL : public ZoneObject {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
 
@@ -174,6 +174,8 @@ class CommonOperatorBuilder FINAL {
 
   const CommonOperatorBuilderImpl& impl_;
   Zone* const zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
 
 }  // namespace compiler

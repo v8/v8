@@ -826,19 +826,25 @@ TEST(SerializeToplevelLargeCodeObject) {
 }
 
 
-TEST(SerializeToplevelLargeString) {
+TEST(SerializeToplevelLargeStrings) {
   FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
+  Factory* f = isolate->factory();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
 
   v8::HandleScope scope(CcTest::isolate());
 
-  Vector<const uint8_t> source = ConstructSource(
+  Vector<const uint8_t> source_s = ConstructSource(
       STATIC_CHAR_VECTOR("var s = \""), STATIC_CHAR_VECTOR("abcdef"),
-      STATIC_CHAR_VECTOR("\"; s"), 1000000);
+      STATIC_CHAR_VECTOR("\";"), 1000000);
+  Vector<const uint8_t> source_t = ConstructSource(
+      STATIC_CHAR_VECTOR("var t = \""), STATIC_CHAR_VECTOR("uvwxyz"),
+      STATIC_CHAR_VECTOR("\"; s + t"), 999999);
   Handle<String> source_str =
-      isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
+      f->NewConsString(f->NewStringFromOneByte(source_s).ToHandleChecked(),
+                       f->NewStringFromOneByte(source_t).ToHandleChecked())
+          .ToHandleChecked();
 
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
@@ -865,13 +871,19 @@ TEST(SerializeToplevelLargeString) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(6 * 1000000, Handle<String>::cast(copy_result)->length());
-  CHECK(isolate->heap()->InSpace(HeapObject::cast(*copy_result), LO_SPACE));
+  CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
+  Handle<Object> property = JSObject::GetDataProperty(
+      isolate->global_object(), f->NewStringFromAsciiChecked("s"));
+  CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
+  property = JSObject::GetDataProperty(isolate->global_object(),
+                                       f->NewStringFromAsciiChecked("t"));
+  CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
   // Make sure we do not serialize too much, e.g. include the source string.
-  CHECK_LT(cache->length(), 7000000);
+  CHECK_LT(cache->length(), 13000000);
 
   delete cache;
-  source.Dispose();
+  source_s.Dispose();
+  source_t.Dispose();
 }
 
 
