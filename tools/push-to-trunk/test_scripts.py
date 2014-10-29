@@ -813,8 +813,8 @@ Performance and stability improvements on all platforms.""", commit)
     expectations += [
       Cmd("git svn dcommit 2>&1", ""),
       Cmd("git fetch", ""),
-      Cmd("git log -1 --format=%H --grep="	
-          "\"Version 3.22.5 (based on push_hash)\""	
+      Cmd("git log -1 --format=%H --grep="
+          "\"Version 3.22.5 (based on push_hash)\""
           " origin/candidates", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
       Cmd("git push origin 3.22.5", ""),
