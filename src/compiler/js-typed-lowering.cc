@@ -84,13 +84,13 @@ class JSBinopReduction {
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
   Reduction ChangeToPureOperator(const Operator* op, bool invert = false) {
-    DCHECK_EQ(0, OperatorProperties::GetEffectInputCount(op));
+    DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
-    DCHECK_EQ(0, OperatorProperties::GetControlInputCount(op));
-    DCHECK_EQ(2, OperatorProperties::GetValueInputCount(op));
+    DCHECK_EQ(0, op->ControlInputCount());
+    DCHECK_EQ(2, op->ValueInputCount());
 
     // Remove the effects from the node, if any, and update its effect usages.
-    if (OperatorProperties::GetEffectInputCount(node_->op()) > 0) {
+    if (node_->op()->EffectInputCount() > 0) {
       RelaxEffects(node_);
     }
     // Remove the inputs corresponding to context, effect, and control.
@@ -677,7 +677,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
   if (NodeProperties::IsTyped(node) &&
       NodeProperties::GetBounds(node).upper->IsConstant() &&
       !IrOpcode::IsLeafOpcode(node->opcode()) &&
-      !OperatorProperties::HasEffectOutput(node->op())) {
+      node->op()->EffectOutputCount() == 0) {
     return ReplaceEagerly(node, jsgraph()->Constant(
         NodeProperties::GetBounds(node).upper->AsConstant()->Value()));
     // TODO(neis): Extend this to Range(x,x), NaN, MinusZero, ...?

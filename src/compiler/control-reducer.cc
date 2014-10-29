@@ -306,7 +306,7 @@ class ControlReducerImpl {
   // Reducer implementation: perform reductions on a node.
   //===========================================================================
   Node* ReduceNode(Node* node) {
-    if (OperatorProperties::GetControlInputCount(node->op()) == 1) {
+    if (node->op()->ControlInputCount() == 1) {
       // If a node has only one control input and it is dead, replace with dead.
       Node* control = NodeProperties::GetControlInput(node);
       if (control->opcode() == IrOpcode::kDead) {

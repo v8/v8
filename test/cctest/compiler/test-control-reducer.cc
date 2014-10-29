@@ -37,7 +37,7 @@ static int CheckMerge(Node* node, Node* i0 = NULL, Node* i1 = NULL,
                       Node* i2 = NULL) {
   CHECK_EQ(IrOpcode::kMerge, node->opcode());
   int count = CheckInputs(node, i0, i1, i2);
-  CHECK_EQ(count, OperatorProperties::GetControlInputCount(node->op()));
+  CHECK_EQ(count, node->op()->ControlInputCount());
   return count;
 }
 
@@ -46,7 +46,7 @@ static int CheckLoop(Node* node, Node* i0 = NULL, Node* i1 = NULL,
                      Node* i2 = NULL) {
   CHECK_EQ(IrOpcode::kLoop, node->opcode());
   int count = CheckInputs(node, i0, i1, i2);
-  CHECK_EQ(count, OperatorProperties::GetControlInputCount(node->op()));
+  CHECK_EQ(count, node->op()->ControlInputCount());
   return count;
 }
 
@@ -792,7 +792,7 @@ TEST(CMergeReduce_edit_effect_phi1) {
     R.ReduceMerge(merge, merge);
     CHECK_EQ(IrOpcode::kEffectPhi, phi->opcode());
     CHECK_EQ(0, phi->op()->InputCount());
-    CHECK_EQ(2, OperatorProperties::GetEffectInputCount(phi->op()));
+    CHECK_EQ(2, phi->op()->EffectInputCount());
     CHECK_EQ(3, phi->InputCount());
     CHECK_EQ(R.leaf[i < 1 ? 1 : 0], phi->InputAt(0));
     CHECK_EQ(R.leaf[i < 2 ? 2 : 1], phi->InputAt(1));
@@ -885,7 +885,7 @@ TEST(CMergeReduce_exhaustive_4) {
       CHECK_EQ(ephi, ephi_use->InputAt(0));
       CHECK_EQ(count, phi->op()->InputCount());
       CHECK_EQ(count + 1, phi->InputCount());
-      CHECK_EQ(count, OperatorProperties::GetEffectInputCount(ephi->op()));
+      CHECK_EQ(count, ephi->op()->EffectInputCount());
       CHECK_EQ(count + 1, ephi->InputCount());
     }
   }
@@ -1274,8 +1274,8 @@ TEST(CNonTermLoop_terminate1) {
   Node* terminate = end->InputAt(0);
   CHECK_EQ(IrOpcode::kTerminate, terminate->opcode());
   CHECK_EQ(2, terminate->InputCount());
-  CHECK_EQ(1, OperatorProperties::GetEffectInputCount(terminate->op()));
-  CHECK_EQ(1, OperatorProperties::GetControlInputCount(terminate->op()));
+  CHECK_EQ(1, terminate->op()->EffectInputCount());
+  CHECK_EQ(1, terminate->op()->ControlInputCount());
   CheckInputs(terminate, effect, loop);
 }
 
@@ -1299,8 +1299,8 @@ TEST(CNonTermLoop_terminate2) {
   Node* terminate = end->InputAt(0);
   CHECK_EQ(IrOpcode::kTerminate, terminate->opcode());
   CHECK_EQ(3, terminate->InputCount());
-  CHECK_EQ(2, OperatorProperties::GetEffectInputCount(terminate->op()));
-  CHECK_EQ(1, OperatorProperties::GetControlInputCount(terminate->op()));
+  CHECK_EQ(2, terminate->op()->EffectInputCount());
+  CHECK_EQ(1, terminate->op()->ControlInputCount());
   Node* e0 = terminate->InputAt(0);
   Node* e1 = terminate->InputAt(1);
   CHECK(e0 == effect1 || e1 == effect1);
@@ -1322,14 +1322,14 @@ TEST(CNonTermLoop_terminate_m1) {
   Node* merge = end->InputAt(0);
   CHECK_EQ(IrOpcode::kMerge, merge->opcode());
   CHECK_EQ(2, merge->InputCount());
-  CHECK_EQ(2, OperatorProperties::GetControlInputCount(merge->op()));
+  CHECK_EQ(2, merge->op()->ControlInputCount());
   CHECK_EQ(R.start, merge->InputAt(0));
 
   Node* terminate = merge->InputAt(1);
   CHECK_EQ(IrOpcode::kTerminate, terminate->opcode());
   CHECK_EQ(2, terminate->InputCount());
-  CHECK_EQ(1, OperatorProperties::GetEffectInputCount(terminate->op()));
-  CHECK_EQ(1, OperatorProperties::GetControlInputCount(terminate->op()));
+  CHECK_EQ(1, terminate->op()->EffectInputCount());
+  CHECK_EQ(1, terminate->op()->ControlInputCount());
   CHECK_EQ(effect, terminate->InputAt(0));
   CHECK_EQ(loop, terminate->InputAt(1));
 }

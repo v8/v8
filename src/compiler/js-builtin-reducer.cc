@@ -80,7 +80,7 @@ class JSCallReduction {
   int GetJSCallArity() {
     DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
-    return OperatorProperties::GetValueInputCount(node_->op()) - 2;
+    return node_->op()->ValueInputCount() - 2;
   }
 
   Node* GetJSCallInput(int index) {

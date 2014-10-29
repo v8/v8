@@ -15,21 +15,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-inline bool OperatorProperties::HasValueInput(const Operator* op) {
-  return op->ValueInputCount() > 0;
-}
-
 inline bool OperatorProperties::HasContextInput(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
   return IrOpcode::IsJsOpcode(opcode);
-}
-
-inline bool OperatorProperties::HasEffectInput(const Operator* op) {
-  return op->EffectInputCount() > 0;
-}
-
-inline bool OperatorProperties::HasControlInput(const Operator* op) {
-  return op->ControlInputCount() > 0;
 }
 
 inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
@@ -93,10 +81,6 @@ inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   }
 }
 
-inline int OperatorProperties::GetValueInputCount(const Operator* op) {
-  return op->ValueInputCount();
-}
-
 inline int OperatorProperties::GetContextInputCount(const Operator* op) {
   return OperatorProperties::HasContextInput(op) ? 1 : 0;
 }
@@ -105,48 +89,14 @@ inline int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
   return OperatorProperties::HasFrameStateInput(op) ? 1 : 0;
 }
 
-inline int OperatorProperties::GetEffectInputCount(const Operator* op) {
-  return op->EffectInputCount();
-}
-
-inline int OperatorProperties::GetControlInputCount(const Operator* op) {
-  return op->ControlInputCount();
-}
-
 inline int OperatorProperties::GetTotalInputCount(const Operator* op) {
-  return GetValueInputCount(op) + GetContextInputCount(op) +
-         GetFrameStateInputCount(op) + GetEffectInputCount(op) +
-         GetControlInputCount(op);
+  return op->ValueInputCount() + GetContextInputCount(op) +
+         GetFrameStateInputCount(op) + op->EffectInputCount() +
+         op->ControlInputCount();
 }
 
 // -----------------------------------------------------------------------------
 // Output properties.
-
-inline bool OperatorProperties::HasValueOutput(const Operator* op) {
-  return op->ValueOutputCount() > 0;
-}
-
-inline bool OperatorProperties::HasEffectOutput(const Operator* op) {
-  return op->EffectOutputCount() > 0;
-}
-
-inline bool OperatorProperties::HasControlOutput(const Operator* op) {
-  return op->ControlOutputCount() > 0;
-}
-
-
-inline int OperatorProperties::GetValueOutputCount(const Operator* op) {
-  return op->ValueOutputCount();
-}
-
-inline int OperatorProperties::GetEffectOutputCount(const Operator* op) {
-  return op->EffectOutputCount();
-}
-
-inline int OperatorProperties::GetControlOutputCount(const Operator* op) {
-  return op->ControlOutputCount();
-}
-
 
 inline bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
   uint8_t opcode = op->opcode();

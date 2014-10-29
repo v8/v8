@@ -278,7 +278,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   DCHECK_EQ(call->op()->OutputCount(),
             static_cast<int>(buffer->descriptor->ReturnCount()));
   DCHECK_EQ(
-      OperatorProperties::GetValueInputCount(call->op()),
+      call->op()->ValueInputCount(),
       static_cast<int>(buffer->input_count() + buffer->frame_state_count()));
 
   if (buffer->descriptor->ReturnCount() > 0) {

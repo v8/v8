@@ -191,7 +191,7 @@ class GraphVisualizer : public NullNodeVisitor {
 static Node* GetControlCluster(Node* node) {
   if (OperatorProperties::IsBasicBlockBegin(node->op())) {
     return node;
-  } else if (OperatorProperties::GetControlInputCount(node->op()) == 1) {
+  } else if (node->op()->ControlInputCount() == 1) {
     Node* control = NodeProperties::GetControlInput(node, 0);
     return OperatorProperties::IsBasicBlockBegin(control->op()) ? control
                                                                 : NULL;
@@ -259,8 +259,7 @@ void GraphVisualizer::AnnotateNode(Node* node) {
   os_ << "    label=\"{{#" << node->id() << ":" << Escaped(label);
 
   InputIter i = node->inputs().begin();
-  for (int j = OperatorProperties::GetValueInputCount(node->op()); j > 0;
-       ++i, j--) {
+  for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
     os_ << "|<I" << i.index() << ">#" << (*i)->id();
   }
   for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
@@ -271,15 +270,13 @@ void GraphVisualizer::AnnotateNode(Node* node) {
        ++i, j--) {
     os_ << "|<I" << i.index() << ">F #" << (*i)->id();
   }
-  for (int j = OperatorProperties::GetEffectInputCount(node->op()); j > 0;
-       ++i, j--) {
+  for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
     os_ << "|<I" << i.index() << ">E #" << (*i)->id();
   }
 
   if (!use_to_def_ || OperatorProperties::IsBasicBlockBegin(node->op()) ||
       GetControlCluster(node) == NULL) {
-    for (int j = OperatorProperties::GetControlInputCount(node->op()); j > 0;
-         ++i, j--) {
+    for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
       os_ << "|<I" << i.index() << ">C #" << (*i)->id();
     }
   }
@@ -307,7 +304,7 @@ void GraphVisualizer::PrintEdge(Node::Edge edge) {
     os_ << ":I" << index << ":n -> DEAD_INPUT";
   } else if (OperatorProperties::IsBasicBlockBegin(from->op()) ||
              GetControlCluster(from) == NULL ||
-             (OperatorProperties::GetControlInputCount(from->op()) > 0 &&
+             (from->op()->ControlInputCount() > 0 &&
               NodeProperties::GetControlInput(from) != to)) {
     os_ << ":I" << index << ":n -> ID" << to->id() << ":s"
         << "[" << (unconstrained ? "constraint=false, " : "")
@@ -515,14 +512,13 @@ void GraphC1Visualizer::PrintInputs(InputIter* i, int count,
 
 void GraphC1Visualizer::PrintInputs(Node* node) {
   InputIter i = node->inputs().begin();
-  PrintInputs(&i, OperatorProperties::GetValueInputCount(node->op()), " ");
+  PrintInputs(&i, node->op()->ValueInputCount(), " ");
   PrintInputs(&i, OperatorProperties::GetContextInputCount(node->op()),
               " Ctx:");
   PrintInputs(&i, OperatorProperties::GetFrameStateInputCount(node->op()),
               " FS:");
-  PrintInputs(&i, OperatorProperties::GetEffectInputCount(node->op()), " Eff:");
-  PrintInputs(&i, OperatorProperties::GetControlInputCount(node->op()),
-              " Ctrl:");
+  PrintInputs(&i, node->op()->EffectInputCount(), " Eff:");
+  PrintInputs(&i, node->op()->ControlInputCount(), " Ctrl:");
 }
 
 

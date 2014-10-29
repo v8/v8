@@ -49,11 +49,11 @@ Node* StructuredGraphBuilder::MakeNode(const Operator* op,
 
   bool has_context = OperatorProperties::HasContextInput(op);
   bool has_framestate = OperatorProperties::HasFrameStateInput(op);
-  bool has_control = OperatorProperties::GetControlInputCount(op) == 1;
-  bool has_effect = OperatorProperties::GetEffectInputCount(op) == 1;
+  bool has_control = op->ControlInputCount() == 1;
+  bool has_effect = op->EffectInputCount() == 1;
 
-  DCHECK(OperatorProperties::GetControlInputCount(op) < 2);
-  DCHECK(OperatorProperties::GetEffectInputCount(op) < 2);
+  DCHECK(op->ControlInputCount() < 2);
+  DCHECK(op->EffectInputCount() < 2);
 
   Node* result = NULL;
   if (!has_context && !has_framestate && !has_control && !has_effect) {
@@ -86,7 +86,7 @@ Node* StructuredGraphBuilder::MakeNode(const Operator* op,
     if (has_effect) {
       environment_->UpdateEffectDependency(result);
     }
-    if (OperatorProperties::HasControlOutput(result->op()) &&
+    if (result->op()->ControlOutputCount() > 0 &&
         !environment()->IsMarkedAsUnreachable()) {
       environment_->UpdateControlDependency(result);
     }
@@ -209,7 +209,7 @@ Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
 
 
 Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op()) + 1;
+  int inputs = control->op()->ControlInputCount() + 1;
   if (control->opcode() == IrOpcode::kLoop) {
     // Control node for loop exists, add input.
     const Operator* op = common()->Loop(inputs);
@@ -232,7 +232,7 @@ Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
 
 Node* StructuredGraphBuilder::MergeEffect(Node* value, Node* other,
                                           Node* control) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op());
+  int inputs = control->op()->ControlInputCount();
   if (value->opcode() == IrOpcode::kEffectPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
@@ -249,7 +249,7 @@ Node* StructuredGraphBuilder::MergeEffect(Node* value, Node* other,
 
 Node* StructuredGraphBuilder::MergeValue(Node* value, Node* other,
                                          Node* control) {
-  int inputs = OperatorProperties::GetControlInputCount(control->op());
+  int inputs = control->op()->ControlInputCount();
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.

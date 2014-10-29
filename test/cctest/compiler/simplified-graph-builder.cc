@@ -50,11 +50,11 @@ Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
 
   DCHECK(!OperatorProperties::HasContextInput(op));
   DCHECK(!OperatorProperties::HasFrameStateInput(op));
-  bool has_control = OperatorProperties::GetControlInputCount(op) == 1;
-  bool has_effect = OperatorProperties::GetEffectInputCount(op) == 1;
+  bool has_control = op->ControlInputCount() == 1;
+  bool has_effect = op->EffectInputCount() == 1;
 
-  DCHECK(OperatorProperties::GetControlInputCount(op) < 2);
-  DCHECK(OperatorProperties::GetEffectInputCount(op) < 2);
+  DCHECK(op->ControlInputCount() < 2);
+  DCHECK(op->EffectInputCount() < 2);
 
   Node* result = NULL;
   if (!has_control && !has_effect) {

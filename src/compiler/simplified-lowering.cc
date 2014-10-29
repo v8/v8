@@ -239,20 +239,17 @@ class RepresentationSelector {
   // {kRepTagged} representation and can observe all output values {kTypeAny}.
   void VisitInputs(Node* node) {
     InputIter i = node->inputs().begin();
-    for (int j = OperatorProperties::GetValueInputCount(node->op()); j > 0;
-         ++i, j--) {
+    for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
       ProcessInput(node, i.index(), kMachAnyTagged);  // Value inputs
     }
     for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
          ++i, j--) {
       ProcessInput(node, i.index(), kMachAnyTagged);  // Context inputs
     }
-    for (int j = OperatorProperties::GetEffectInputCount(node->op()); j > 0;
-         ++i, j--) {
+    for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
       Enqueue(*i);  // Effect inputs: just visit
     }
-    for (int j = OperatorProperties::GetControlInputCount(node->op()); j > 0;
-         ++i, j--) {
+    for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
       Enqueue(*i);  // Control inputs: just visit
     }
     SetOutput(node, kMachAnyTagged);
@@ -434,7 +431,7 @@ class RepresentationSelector {
         static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
 
-    int values = OperatorProperties::GetValueInputCount(node->op());
+    int values = node->op()->ValueInputCount();
 
     if (lower()) {
       // Update the phi operator.
