@@ -1779,7 +1779,8 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+      int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
   TRACED_FORRANGE(int32_t, lsb, 1, 31) {
@@ -1793,15 +1794,16 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+      int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
 }
 
 
 TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
-    TRACED_FORRANGE(int32_t, width, 1, 31) {
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb)),
@@ -1811,11 +1813,12 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+      int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
-    TRACED_FORRANGE(int32_t, width, 1, 31) {
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64And(m.Int64Constant(msk),
@@ -1825,7 +1828,8 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+      int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
 }
