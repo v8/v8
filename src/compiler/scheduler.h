@@ -69,8 +69,9 @@ class Scheduler {
   Placement GetPlacement(Node* node);
   void UpdatePlacement(Node* node, Placement placement);
 
-  void IncrementUnscheduledUseCount(Node* node, Node* from);
-  void DecrementUnscheduledUseCount(Node* node, Node* from);
+  inline bool IsCoupledControlEdge(Node* node, int index);
+  void IncrementUnscheduledUseCount(Node* node, int index, Node* from);
+  void DecrementUnscheduledUseCount(Node* node, int index, Node* from);
 
   inline int GetRPONumber(BasicBlock* block);
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
