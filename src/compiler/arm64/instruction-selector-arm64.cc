@@ -1157,6 +1157,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kWord32And:
         return VisitWordCompare(this, value, kArm64Tst32, &cont, true,
                                 kLogical32Imm);
+      case IrOpcode::kWord64And:
+        return VisitWordCompare(this, value, kArm64Tst, &cont, true,
+                                kLogical64Imm);
       default:
         break;
     }
