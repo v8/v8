@@ -2956,10 +2956,15 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsExternal() const;
 
   /**
+   * Returns true if this ArrayBuffer may be neutered.
+   */
+  bool IsNeuterable() const;
+
+  /**
    * Neuters this ArrayBuffer and all its views (typed arrays).
    * Neutering sets the byte length of the buffer and all typed arrays to zero,
    * preventing JavaScript from ever accessing underlying backing store.
-   * ArrayBuffer should have been externalized.
+   * ArrayBuffer should have been externalized and must be neuterable.
    */
   void Neuter();
 

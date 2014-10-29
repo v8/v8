@@ -6038,6 +6038,11 @@ bool v8::ArrayBuffer::IsExternal() const {
 }
 
 
+bool v8::ArrayBuffer::IsNeuterable() const {
+  return Utils::OpenHandle(this)->is_neuterable();
+}
+
+
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   Utils::ApiCheck(!obj->is_external(),
@@ -6058,6 +6063,8 @@ void v8::ArrayBuffer::Neuter() {
   Utils::ApiCheck(obj->is_external(),
                   "v8::ArrayBuffer::Neuter",
                   "Only externalized ArrayBuffers can be neutered");
+  Utils::ApiCheck(obj->is_neuterable(), "v8::ArrayBuffer::Neuter",
+                  "Only neuterable ArrayBuffers can be neutered");
   LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
   ENTER_V8(isolate);
   i::Runtime::NeuterArrayBuffer(obj);

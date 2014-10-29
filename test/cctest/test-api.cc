@@ -3293,6 +3293,24 @@ THREADED_TEST(ArrayBuffer_External) {
 }
 
 
+THREADED_TEST(ArrayBuffer_DisableNeuter) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<uint8_t> my_data(100);
+  memset(my_data.start(), 0, 100);
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, my_data.start(), 100);
+  CHECK(ab->IsNeuterable());
+
+  i::Handle<i::JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+  buf->set_is_neuterable(false);
+
+  CHECK(!ab->IsNeuterable());
+}
+
+
 static void CheckDataViewIsNeutered(v8::Handle<v8::DataView> dv) {
   CHECK_EQ(0, static_cast<int>(dv->ByteLength()));
   CHECK_EQ(0, static_cast<int>(dv->ByteOffset()));

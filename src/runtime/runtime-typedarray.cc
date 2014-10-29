@@ -44,6 +44,7 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_backing_store(data);
   array_buffer->set_flag(Smi::FromInt(0));
   array_buffer->set_is_external(is_external);
+  array_buffer->set_is_neuterable(true);
 
   Handle<Object> byte_length =
       isolate->factory()->NewNumberFromSize(allocated_length);

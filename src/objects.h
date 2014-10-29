@@ -9961,6 +9961,9 @@ class JSArrayBuffer: public JSObject {
   inline bool should_be_freed();
   inline void set_should_be_freed(bool value);
 
+  inline bool is_neuterable();
+  inline void set_is_neuterable(bool value);
+
   // [weak_next]: linked list of array buffers.
   DECL_ACCESSORS(weak_next, Object)
 
@@ -9990,6 +9993,7 @@ class JSArrayBuffer: public JSObject {
   // Bit position in a flag
   static const int kIsExternalBit = 0;
   static const int kShouldBeFreed = 1;
+  static const int kIsNeuterableBit = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
