@@ -2202,34 +2202,22 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
     __ Push(scratch);
     VisitForStackValue(key);
+    VisitForStackValue(value);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
-        VisitForStackValue(value);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 
       case ObjectLiteral::Property::GETTER:
-        VisitForStackValue(value);
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassGetter, 3);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        VisitForStackValue(value);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassSetter, 3);
         break;
 
       default:

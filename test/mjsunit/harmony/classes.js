@@ -439,6 +439,156 @@ function assertAccessorDescriptor(object, name) {
 })();
 
 
+(function TestSuperInMethods() {
+  class B {
+    method() {
+      return 1;
+    }
+    get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    method() {
+      assertEquals(2, super.x);
+      return super.method();
+    }
+  }
+  assertEquals(1, new C().method());
+})();
+
+
+(function TestSuperInGetter() {
+  class B {
+    method() {
+      return 1;
+    }
+    get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    get y() {
+      assertEquals(2, super.x);
+      return super.method();
+    }
+  }
+  assertEquals(1, new C().y);
+})();
+
+
+(function TestSuperInSetter() {
+  class B {
+    method() {
+      return 1;
+    }
+    get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    set y(v) {
+      assertEquals(3, v);
+      assertEquals(2, super.x);
+      assertEquals(1, super.method());
+    }
+  }
+  assertEquals(3, new C().y = 3);
+})();
+
+
+(function TestSuperInStaticMethods() {
+  class B {
+    static method() {
+      return 1;
+    }
+    static get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    static method() {
+      assertEquals(2, super.x);
+      return super.method();
+    }
+  }
+  assertEquals(1, C.method());
+})();
+
+
+(function TestSuperInStaticGetter() {
+  class B {
+    static method() {
+      return 1;
+    }
+    static get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    static get x() {
+      assertEquals(2, super.x);
+      return super.method();
+    }
+  }
+  assertEquals(1, C.x);
+})();
+
+
+(function TestSuperInStaticSetter() {
+  class B {
+    static method() {
+      return 1;
+    }
+    static get x() {
+      return 2;
+    }
+  }
+  class C extends B {
+    static set x(v) {
+      assertEquals(3, v);
+      assertEquals(2, super.x);
+      assertEquals(1, super.method());
+    }
+  }
+  assertEquals(3, C.x = 3);
+})();
+
+
+(function TestNumericPropertyNames() {
+  class B {
+    1() { return 1; }
+    get 2() { return 2; }
+    set 3(_) {}
+
+    static 4() { return 4; }
+    static get 5() { return 5; }
+    static set 6(_) {}
+  }
+
+  assertMethodDescriptor(B.prototype, '1');
+  assertGetterDescriptor(B.prototype, '2');
+  assertSetterDescriptor(B.prototype, '3');
+
+  assertMethodDescriptor(B, '4');
+  assertGetterDescriptor(B, '5');
+  assertSetterDescriptor(B, '6');
+
+  class C extends B {
+    1() { return super[1](); }
+    get 2() { return super[2]; }
+
+    static 4() { return super[4](); }
+    static get 5() { return super[5]; }
+  }
+
+  assertEquals(1, new C()[1]());
+  assertEquals(2, new C()[2]);
+  assertEquals(4, C[4]());
+  assertEquals(5, C[5]);
+})();
+
+
 /* TODO(arv): Implement
 (function TestNameBindingInConstructor() {
   class C {
