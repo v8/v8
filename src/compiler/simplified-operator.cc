@@ -140,53 +140,55 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ObjectIsNonNegativeSmi, Operator::kNoProperties, 1)
 
 
-#define ACCESS_OP_LIST(V)                                 \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1)     \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 0)
-
-
-struct SimplifiedOperatorBuilderImpl FINAL {
-#define PURE(Name, properties, input_count)                               \
-  struct Name##Operator FINAL : public SimpleOperator {                   \
-    Name##Operator()                                                      \
-        : SimpleOperator(IrOpcode::k##Name, Operator::kPure | properties, \
-                         input_count, 1, #Name) {}                        \
-  };                                                                      \
+struct SimplifiedOperatorGlobalCache FINAL {
+#define PURE(Name, properties, input_count)                                \
+  struct Name##Operator FINAL : public Operator {                          \
+    Name##Operator()                                                       \
+        : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name, \
+                   input_count, 0, 0, 1, 0, 0) {}                          \
+  };                                                                       \
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
 };
 
 
-static base::LazyInstance<SimplifiedOperatorBuilderImpl>::type kImpl =
+static base::LazyInstance<SimplifiedOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
-    : impl_(kImpl.Get()), zone_(zone) {}
+    : cache_(kCache.Get()), zone_(zone) {}
 
 
 #define PURE(Name, properties, input_count) \
-  const Operator* SimplifiedOperatorBuilder::Name() { return &impl_.k##Name; }
+  const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(PURE)
 #undef PURE
 
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   // TODO(titzer): What about the type parameter?
-  return new (zone()) SimpleOperator(IrOpcode::kReferenceEqual,
-                                     Operator::kCommutative | Operator::kPure,
-                                     2, 1, "ReferenceEqual");
+  return new (zone()) Operator(IrOpcode::kReferenceEqual,
+                               Operator::kCommutative | Operator::kPure,
+                               "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
 
-#define ACCESS(Name, Type, properties, input_count, output_count)           \
-  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) {     \
-    return new (zone())                                                     \
-        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties, \
-                        input_count, output_count, #Name, access);          \
+#define ACCESS_OP_LIST(V)                                    \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)     \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 0, 1) \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 1, 0)
+
+
+#define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
+               output_count)                                                   \
+  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) {        \
+    return new (zone())                                                        \
+        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties,    \
+                        #Name, value_input_count, 1, control_input_count,      \
+                        output_count, 1, 0, access);                           \
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS

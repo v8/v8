@@ -76,10 +76,8 @@ Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
     if (has_effect) {
       effect_ = result;
     }
-    if (OperatorProperties::HasControlOutput(result->op())) {
-      // This graph builder does not support control flow.
-      UNREACHABLE();
-    }
+    // This graph builder does not support control flow.
+    CHECK_EQ(0, op->ControlOutputCount());
   }
 
   return result;

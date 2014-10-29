@@ -49,9 +49,12 @@ class Operator : public ZoneObject {
   };
   typedef base::Flags<Property, uint8_t> Properties;
 
-  Operator(Opcode opcode, Properties properties, const char* mnemonic)
-      : opcode_(opcode), properties_(properties), mnemonic_(mnemonic) {}
-  virtual ~Operator();
+  // Constructor.
+  Operator(Opcode opcode, Properties properties, const char* mnemonic,
+           size_t value_in, size_t effect_in, size_t control_in,
+           size_t value_out, size_t effect_out, size_t control_out);
+
+  virtual ~Operator() {}
 
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
@@ -65,12 +68,14 @@ class Operator : public ZoneObject {
   // Check if this operator equals another operator. Equivalent operators can
   // be merged, and nodes with equivalent operators and equivalent inputs
   // can be merged.
-  virtual bool Equals(const Operator*) const = 0;
+  virtual bool Equals(const Operator* that) const {
+    return this->opcode() == that->opcode();
+  }
 
   // Compute a hashcode to speed up equivalence-set checking.
   // Equal operators should always have equal hashcodes, and unequal operators
   // should have unequal hashcodes with high probability.
-  virtual size_t HashCode() const = 0;
+  virtual size_t HashCode() const { return base::hash<Opcode>()(opcode()); }
 
   // Check whether this operator has the given property.
   bool HasProperty(Property property) const {
@@ -78,24 +83,45 @@ class Operator : public ZoneObject {
   }
 
   // Number of data inputs to the operator, for verifying graph structure.
-  virtual int InputCount() const = 0;
+  // TODO(titzer): convert callers to ValueInputCount();
+  int InputCount() const { return ValueInputCount(); }
 
   // Number of data outputs from the operator, for verifying graph structure.
-  virtual int OutputCount() const = 0;
+  // TODO(titzer): convert callers to ValueOutputCount();
+  int OutputCount() const { return ValueOutputCount(); }
 
   Properties properties() const { return properties_; }
+
+  // TODO(titzer): convert return values here to size_t.
+  int ValueInputCount() const { return value_in_; }
+  int EffectInputCount() const { return effect_in_; }
+  int ControlInputCount() const { return control_in_; }
+
+  int ValueOutputCount() const { return value_out_; }
+  int EffectOutputCount() const { return effect_out_; }
+  int ControlOutputCount() const { return control_out_; }
+
+  static inline size_t ZeroIfPure(Properties properties) {
+    return (properties & kPure) == kPure ? 0 : 1;
+  }
 
   // TODO(titzer): API for input and output types, for typechecking graph.
  protected:
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual void PrintTo(std::ostream& os) const = 0;  // NOLINT
+  virtual void PrintTo(std::ostream& os) const;
   friend std::ostream& operator<<(std::ostream& os, const Operator& op);
 
  private:
   Opcode opcode_;
   Properties properties_;
   const char* mnemonic_;
+  uint32_t value_in_;
+  uint16_t effect_in_;
+  uint16_t control_in_;
+  uint16_t value_out_;
+  uint8_t effect_out_;
+  uint8_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };
@@ -105,42 +131,18 @@ DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 std::ostream& operator<<(std::ostream& os, const Operator& op);
 
 
-// An implementation of Operator that has no static parameters. Such operators
-// have just a name, an opcode, and a fixed number of inputs and outputs.
-// They can represented by singletons and shared globally.
-class SimpleOperator : public Operator {
- public:
-  SimpleOperator(Opcode opcode, Properties properties, size_t input_count,
-                 size_t output_count, const char* mnemonic);
-  ~SimpleOperator();
-
-  virtual bool Equals(const Operator* that) const FINAL;
-  virtual size_t HashCode() const FINAL;
-  virtual int InputCount() const FINAL;
-  virtual int OutputCount() const FINAL;
-
- private:
-  virtual void PrintTo(std::ostream& os) const FINAL;
-
-  uint8_t input_count_;
-  uint8_t output_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(SimpleOperator);
-};
-
-
 // A templatized implementation of Operator that has one static parameter of
 // type {T}.
 template <typename T, typename Pred = std::equal_to<T>,
           typename Hash = base::hash<T>>
 class Operator1 : public Operator {
  public:
-  Operator1(Opcode opcode, Properties properties, int input_count,
-            int output_count, const char* mnemonic, T parameter,
-            Pred const& pred = Pred(), Hash const& hash = Hash())
-      : Operator(opcode, properties, mnemonic),
-        input_count_(input_count),
-        output_count_(output_count),
+  Operator1(Opcode opcode, Properties properties, const char* mnemonic,
+            size_t value_in, size_t effect_in, size_t control_in,
+            size_t value_out, size_t effect_out, size_t control_out,
+            T parameter, Pred const& pred = Pred(), Hash const& hash = Hash())
+      : Operator(opcode, properties, mnemonic, value_in, effect_in, control_in,
+                 value_out, effect_out, control_out),
         parameter_(parameter),
         pred_(pred),
         hash_(hash) {}
@@ -155,8 +157,6 @@ class Operator1 : public Operator {
   virtual size_t HashCode() const FINAL {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
-  virtual int InputCount() const FINAL { return input_count_; }
-  virtual int OutputCount() const FINAL { return output_count_; }
   virtual void PrintParameter(std::ostream& os) const {
     os << "[" << this->parameter() << "]";
   }
@@ -168,8 +168,6 @@ class Operator1 : public Operator {
   }
 
  private:
-  int const input_count_;
-  int const output_count_;
   T const parameter_;
   Pred const pred_;
   Hash const hash_;

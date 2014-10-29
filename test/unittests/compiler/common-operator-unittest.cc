@@ -49,8 +49,8 @@ const SharedOperator kSharedOperators[] = {
     SHARED(End, Operator::kFoldable, 0, 0, 1, 0, 0),
     SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 1),
     SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 1),
-    SHARED(Throw, Operator::kFoldable, 1, 0, 1, 0, 1),
-    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 1, 1)
+    SHARED(Throw, Operator::kFoldable, 1, 1, 1, 0, 1),
+    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 0, 1)
 #undef SHARED
 };
 
@@ -130,7 +130,7 @@ class CommonOperatorTest : public TestWithZone {
 };
 
 
-const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
+const int kArguments[] = {1, 5, 6, 42, 100, 10000, 65000};
 
 
 const float kFloatValues[] = {-std::numeric_limits<float>::infinity(),

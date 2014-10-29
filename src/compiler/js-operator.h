@@ -14,7 +14,7 @@ namespace compiler {
 
 // Forward declarations.
 class Operator;
-struct JSOperatorBuilderImpl;
+struct JSOperatorGlobalCache;
 
 
 // Defines the arity and the call flags for a JavaScript function call. This is
@@ -264,7 +264,7 @@ class JSOperatorBuilder FINAL : public ZoneObject {
  private:
   Zone* zone() const { return zone_; }
 
-  const JSOperatorBuilderImpl& impl_;
+  const JSOperatorGlobalCache& cache_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(JSOperatorBuilder);

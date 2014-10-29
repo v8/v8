@@ -301,7 +301,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
-      int index = OpParameter<int>(node->op());
+      int index = static_cast<int>(OpParameter<size_t>(node->op()));
       Node* input = NodeProperties::GetValueInput(node, 0);
       CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index);
       // Type can be anything.

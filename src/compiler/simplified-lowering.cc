@@ -1122,7 +1122,7 @@ void SimplifiedLowering::DoLoadField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   node->set_op(machine()->Load(access.machine_type));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
-  node->InsertInput(zone(), 1, offset);
+  node->InsertInput(graph()->zone(), 1, offset);
 }
 
 
@@ -1133,7 +1133,7 @@ void SimplifiedLowering::DoStoreField(Node* node) {
   node->set_op(
       machine()->Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
-  node->InsertInput(zone(), 1, offset);
+  node->InsertInput(graph()->zone(), 1, offset);
 }
 
 
@@ -1336,10 +1336,11 @@ void SimplifiedLowering::DoStringAdd(Node* node) {
   CallDescriptor* desc =
       Linkage::GetStubCallDescriptor(callable.descriptor(), 0, flags, zone());
   node->set_op(common()->Call(desc));
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(callable.code()));
-  node->AppendInput(zone(), jsgraph()->UndefinedConstant());
-  node->AppendInput(zone(), graph()->start());
-  node->AppendInput(zone(), graph()->start());
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  node->AppendInput(graph()->zone(), jsgraph()->UndefinedConstant());
+  node->AppendInput(graph()->zone(), graph()->start());
+  node->AppendInput(graph()->zone(), graph()->start());
 }
 
 

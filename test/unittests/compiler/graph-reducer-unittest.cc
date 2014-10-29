@@ -18,10 +18,18 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+struct TestOperator : public Operator {
+  TestOperator(Operator::Opcode opcode, Operator::Properties properties,
+               size_t value_in, size_t value_out)
+      : Operator(opcode, properties, "TestOp", value_in, 0, 0, value_out, 0,
+                 0) {}
+};
+
+
 namespace {
 
-SimpleOperator OP0(0, Operator::kNoWrite, 0, 1, "op0");
-SimpleOperator OP1(1, Operator::kNoProperties, 1, 1, "op1");
+TestOperator OP0(0, Operator::kNoWrite, 0, 1);
+TestOperator OP1(1, Operator::kNoProperties, 1, 1);
 
 
 struct MockReducer : public Reducer {

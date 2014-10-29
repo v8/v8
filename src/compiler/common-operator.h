@@ -19,7 +19,7 @@ namespace compiler {
 
 // Forward declarations.
 class CallDescriptor;
-struct CommonOperatorBuilderImpl;
+struct CommonOperatorGlobalCache;
 class Operator;
 
 
@@ -197,7 +197,7 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
  private:
   Zone* zone() const { return zone_; }
 
-  const CommonOperatorBuilderImpl& impl_;
+  const CommonOperatorGlobalCache& cache_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);

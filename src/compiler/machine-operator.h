@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
-struct MachineOperatorBuilderImpl;
+struct MachineOperatorGlobalCache;
 class Operator;
 
 
@@ -210,7 +210,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
-  const MachineOperatorBuilderImpl& impl_;
+  const MachineOperatorGlobalCache& cache_;
   const MachineType word_;
   const Flags flags_;
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);

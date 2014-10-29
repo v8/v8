@@ -165,8 +165,8 @@ class CopyVisitor : public NullNodeVisitor {
         source_graph_(source_graph),
         target_graph_(target_graph),
         temp_zone_(temp_zone),
-        sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, 0, 0,
-                     "sentinel") {}
+        sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "sentinel", 0, 0,
+                     0, 0, 0, 0) {}
 
   GenericGraphVisit::Control Post(Node* original) {
     NodeVector inputs(temp_zone_);
@@ -224,7 +224,7 @@ class CopyVisitor : public NullNodeVisitor {
   Graph* source_graph_;
   Graph* target_graph_;
   Zone* temp_zone_;
-  SimpleOperator sentinel_op_;
+  Operator sentinel_op_;
 };
 
 
@@ -453,7 +453,7 @@ class JSCallRuntimeAccessor {
   Node* effect() const { return NodeProperties::GetEffectInput(call_); }
 
   const Runtime::Function* function() const {
-    return Runtime::FunctionForId(OpParameter<Runtime::FunctionId>(call_));
+    return Runtime::FunctionForId(CallRuntimeParametersOf(call_->op()).id());
   }
 
   NodeVector inputs(Zone* zone) const {

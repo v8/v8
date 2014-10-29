@@ -264,6 +264,7 @@ class IrOpcode {
 
   // Returns the mnemonic name of an opcode.
   static const char* Mnemonic(Value val) {
+    // TODO(turbofan): make this a table lookup.
     switch (val) {
 #define RETURN_NAME(x) \
   case k##x:           \
@@ -277,6 +278,7 @@ class IrOpcode {
 
   static bool IsJsOpcode(Value val) {
     switch (val) {
+// TODO(turbofan): make this a range check.
 #define RETURN_NAME(x) \
   case k##x:           \
     return true;
@@ -289,6 +291,7 @@ class IrOpcode {
 
   static bool IsControlOpcode(Value val) {
     switch (val) {
+// TODO(turbofan): make this a range check.
 #define RETURN_NAME(x) \
   case k##x:           \
     return true;
@@ -301,6 +304,7 @@ class IrOpcode {
 
   static bool IsLeafOpcode(Value val) {
     switch (val) {
+// TODO(turbofan): make this a table lookup.
 #define RETURN_NAME(x) \
   case k##x:           \
     return true;
@@ -313,6 +317,7 @@ class IrOpcode {
 
   static bool IsCommonOpcode(Value val) {
     switch (val) {
+// TODO(turbofan): make this a table lookup or a range check.
 #define RETURN_NAME(x) \
   case k##x:           \
     return true;
