@@ -2277,22 +2277,25 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
-  __ Allocate(map->instance_size(), rax, rcx, rdx, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, rax, rcx, rdx, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ movp(context_register(),
           Operand(rbp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
-  __ Move(rbx, map);
+  __ movp(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+  __ movp(rbx, ContextOperand(rbx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(rcx);
   __ Move(rdx, isolate()->factory()->ToBoolean(done));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
   __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
           isolate()->factory()->empty_fixed_array());
