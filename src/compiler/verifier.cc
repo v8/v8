@@ -310,6 +310,12 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       CheckUpperIs(node, Type::Any());
       break;
     }
+    case IrOpcode::kSelect: {
+      CHECK_EQ(0, effect_count);
+      CHECK_EQ(0, control_count);
+      CHECK_EQ(3, value_count);
+      break;
+    }
     case IrOpcode::kPhi: {
       // Phi input count matches parent control node.
       CHECK_EQ(0, effect_count);

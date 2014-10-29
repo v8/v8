@@ -50,6 +50,8 @@ enum MachineType {
   kMachUint32 = kRepWord32 | kTypeUint32,
   kMachInt64 = kRepWord64 | kTypeInt64,
   kMachUint64 = kRepWord64 | kTypeUint64,
+  kMachIntPtr = (kPointerSize == 4) ? kMachInt32 : kMachInt64,
+  kMachUintPtr = (kPointerSize == 4) ? kMachUint32 : kMachUint64,
   kMachPtr = (kPointerSize == 4) ? kRepWord32 : kRepWord64,
   kMachAnyTagged = kRepTagged | kTypeAny
 };

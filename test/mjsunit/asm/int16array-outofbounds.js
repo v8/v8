@@ -10,16 +10,28 @@ function Module(stdlib, foreign, heap) {
     i = MEM16[i >> 1] | 0;
     return i;
   }
+  function loadm1() {
+    return MEM16[-1] | 0;
+  }
   function store(i, v) {
     i = i|0;
     v = v|0;
     MEM16[i >> 1] = v;
   }
-  return { load: load, store: store };
+  function storem1(v) {
+    v = v|0;
+    MEM16[-1] = v;
+  }
+  return {load: load, loadm1: loadm1, store: store, storem1: storem1};
 }
 
 var m = Module(this, {}, new ArrayBuffer(2));
 
+m.store(-1000, 4);
+assertEquals(0, m.load(-1000));
+assertEquals(0, m.loadm1());
+m.storem1(1);
+assertEquals(0, m.loadm1());
 m.store(0, 32767);
 for (var i = 1; i < 64; ++i) {
   m.store(i * 2 * 32 * 1024, i);

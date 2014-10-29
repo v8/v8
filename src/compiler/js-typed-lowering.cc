@@ -612,7 +612,7 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Constant(byte_length / array->element_size());
+        Node* length = jsgraph()->Constant(array->length()->Number());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* load = graph()->NewNode(
             simplified()->LoadElement(
@@ -647,7 +647,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Constant(byte_length / array->element_size());
+        Node* length = jsgraph()->Constant(array->length()->Number());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         Node* store = graph()->NewNode(

@@ -81,6 +81,13 @@ typedef IntMatcher<int32_t, IrOpcode::kInt32Constant> Int32Matcher;
 typedef IntMatcher<uint32_t, IrOpcode::kInt32Constant> Uint32Matcher;
 typedef IntMatcher<int64_t, IrOpcode::kInt64Constant> Int64Matcher;
 typedef IntMatcher<uint64_t, IrOpcode::kInt64Constant> Uint64Matcher;
+#if V8_HOST_ARCH_32_BIT
+typedef Int32Matcher IntPtrMatcher;
+typedef Uint32Matcher UintPtrMatcher;
+#else
+typedef Int64Matcher IntPtrMatcher;
+typedef Uint64Matcher UintPtrMatcher;
+#endif
 
 
 // A pattern matcher for floating point constants.
@@ -138,6 +145,8 @@ typedef BinopMatcher<Int32Matcher, Int32Matcher> Int32BinopMatcher;
 typedef BinopMatcher<Uint32Matcher, Uint32Matcher> Uint32BinopMatcher;
 typedef BinopMatcher<Int64Matcher, Int64Matcher> Int64BinopMatcher;
 typedef BinopMatcher<Uint64Matcher, Uint64Matcher> Uint64BinopMatcher;
+typedef BinopMatcher<IntPtrMatcher, IntPtrMatcher> IntPtrBinopMatcher;
+typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
 

@@ -299,6 +299,85 @@ class RepresentationSelector {
   void VisitInt64Cmp(Node* node) { VisitBinop(node, kMachInt64, kRepBit); }
   void VisitUint64Cmp(Node* node) { VisitBinop(node, kMachUint64, kRepBit); }
 
+  // Helper for handling selects.
+  // TODO(turbofan): Share some code with VisitPhi() below?
+  void VisitSelect(Node* node, MachineTypeUnion use,
+                   SimplifiedLowering* lowering) {
+    ProcessInput(node, 0, kRepBit);
+
+    // Selects adapt to the output representation their uses demand, pushing
+    // representation changes to their inputs.
+    Type* upper = NodeProperties::GetBounds(node).upper;
+    MachineType output = kMachNone;
+    MachineType propagate = kMachNone;
+
+    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      // legal = kRepTagged | kRepFloat64 | kRepWord32;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else if ((use & kRepMask) == kRepFloat64) {
+        // only float64 uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
+      } else {
+        // multiple uses.
+        output = kRepWord32;
+        propagate = kRepWord32;
+      }
+    } else if (upper->Is(Type::Boolean())) {
+      // legal = kRepTagged | kRepBit;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepBit;
+        propagate = kRepBit;
+      }
+    } else if (upper->Is(Type::Number())) {
+      // legal = kRepTagged | kRepFloat64;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
+      }
+    } else {
+      // legal = kRepTagged;
+      output = kRepTagged;
+      propagate = kRepTagged;
+    }
+
+    MachineType output_type =
+        static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
+    SetOutput(node, output_type);
+
+    if (lower()) {
+      // Update the select operator.
+      SelectParameters p = SelectParametersOf(node->op());
+      MachineType type = static_cast<MachineType>(output_type);
+      if (type != p.type()) {
+        node->set_op(lowering->common()->Select(type, p.hint()));
+      }
+
+      // Convert inputs to the output representation of this select.
+      ProcessInput(node, 1, output_type);
+      ProcessInput(node, 2, output_type);
+    } else {
+      // Propagate {use} of the select to value inputs.
+      MachineType use_type =
+          static_cast<MachineType>((use & kTypeMask) | propagate);
+      ProcessInput(node, 1, use_type);
+      ProcessInput(node, 2, use_type);
+    }
+  }
+
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use,
                 SimplifiedLowering* lowering) {
@@ -481,6 +560,8 @@ class RepresentationSelector {
         ProcessInput(node, 0, kRepBit);
         Enqueue(NodeProperties::GetControlInput(node, 0));
         break;
+      case IrOpcode::kSelect:
+        return VisitSelect(node, use, lowering);
       case IrOpcode::kPhi:
         return VisitPhi(node, use, lowering);
 
@@ -1057,25 +1138,67 @@ void SimplifiedLowering::DoStoreField(Node* node) {
 
 
 Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
-                                       Node* index) {
-  int element_size = ElementSizeOf(access.machine_type);
+                                       Node* const key) {
+  Node* index = key;
+  const int element_size = ElementSizeOf(access.machine_type);
   if (element_size != 1) {
-    index = graph()->NewNode(machine()->Int32Mul(),
-                             jsgraph()->Int32Constant(element_size), index);
+    index = graph()->NewNode(machine()->Int32Mul(), index,
+                             jsgraph()->Int32Constant(element_size));
   }
-  int fixed_offset = access.header_size - access.tag();
-  if (fixed_offset == 0) return index;
-  return graph()->NewNode(machine()->Int32Add(), index,
-                          jsgraph()->Int32Constant(fixed_offset));
+  const int fixed_offset = access.header_size - access.tag();
+  if (fixed_offset != 0) {
+    index = graph()->NewNode(machine()->Int32Add(), index,
+                             jsgraph()->Int32Constant(fixed_offset));
+  }
+  // TODO(bmeurer): 64-Bit
+  // if (machine()->Is64()) {
+  //   index = graph()->NewNode(machine()->ChangeInt32ToInt64(), index);
+  // }
+  return index;
 }
+
+
+namespace {
+
+intptr_t AddressForOutOfBoundsLoad(MachineType type) {
+  switch (RepresentationOf(type)) {
+    case kRepFloat32: {
+      static const float dummy = std::numeric_limits<float>::quiet_NaN();
+      return bit_cast<intptr_t>(&dummy);
+    }
+    case kRepFloat64: {
+      static const double dummy = std::numeric_limits<double>::quiet_NaN();
+      return bit_cast<intptr_t>(&dummy);
+    }
+    case kRepBit:
+    case kRepWord8:
+    case kRepWord16:
+    case kRepWord32: {
+      static const int32_t dummy = 0;
+      return bit_cast<intptr_t>(&dummy);
+    }
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return 0;
+}
+
+
+intptr_t AddressForOutOfBoundsStore() {
+  static volatile double dummy = 0;
+  return bit_cast<intptr_t>(&dummy);
+}
+
+}  // namespace
 
 
 void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
   const ElementAccess& access = ElementAccessOf(node->op());
   const Operator* op = machine()->Load(access.machine_type);
   Node* key = node->InputAt(1);
-  Node* effect = node->InputAt(3);
   Node* index = ComputeIndex(access, key);
+  Node* effect = node->InputAt(3);
   if (access.bounds_check == kNoBoundsCheck) {
     DCHECK_EQ(access.machine_type, output_type);
     node->set_op(op);
@@ -1087,54 +1210,68 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
 
     Node* base = node->InputAt(0);
     Node* length = node->InputAt(2);
-
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
-                                    graph()->start());
 
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* load = graph()->NewNode(op, base, index, effect, if_true);
-    Node* result = load;
-    if (output_type & kRepTagged) {
-      // TODO(turbofan): This is ugly as hell!
-      SimplifiedOperatorBuilder simplified(graph()->zone());
-      RepresentationChanger changer(jsgraph(), &simplified,
-                                    graph()->zone()->isolate());
-      result = changer.GetTaggedRepresentationFor(result, access.machine_type);
-    }
+    IntPtrMatcher mbase(base);
+    if (mbase.HasValue() && (output_type & kRepTagged) == 0) {
+      Node* select = graph()->NewNode(
+          common()->Select(kMachIntPtr, BranchHint::kTrue), check, index,
+          jsgraph()->IntPtrConstant(AddressForOutOfBoundsLoad(output_type) -
+                                    mbase.Value()));
 
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* undefined;
-    if (output_type & kRepTagged) {
-      DCHECK(!(access.machine_type & kRepTagged));
-      undefined = jsgraph()->UndefinedConstant();
-    } else if (output_type & kRepFloat32) {
-      undefined =
-          jsgraph()->Float32Constant(std::numeric_limits<float>::quiet_NaN());
-    } else if (output_type & kRepFloat64) {
-      undefined =
-          jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      node->set_op(op);
+      node->ReplaceInput(1, select);
+      node->ReplaceInput(2, effect);
+      node->ReplaceInput(3, graph()->start());
     } else {
-      undefined = jsgraph()->Int32Constant(0);
-    }
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                      check, graph()->start());
 
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    Node* phi = graph()->NewNode(common()->EffectPhi(2), load, effect, merge);
-
-    // Replace effect uses of node with the effect phi.
-    for (UseIter i = node->uses().begin(); i != node->uses().end();) {
-      if (NodeProperties::IsEffectEdge(i.edge())) {
-        i = i.UpdateToAndIncrement(phi);
-      } else {
-        ++i;
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* load = graph()->NewNode(op, base, index, effect, if_true);
+      Node* result = load;
+      if (output_type & kRepTagged) {
+        // TODO(turbofan): This is ugly as hell!
+        SimplifiedOperatorBuilder simplified(graph()->zone());
+        RepresentationChanger changer(jsgraph(), &simplified,
+                                      graph()->zone()->isolate());
+        result =
+            changer.GetTaggedRepresentationFor(result, access.machine_type);
       }
-    }
 
-    node->set_op(common()->Phi(output_type, 2));
-    node->ReplaceInput(0, result);
-    node->ReplaceInput(1, undefined);
-    node->ReplaceInput(2, merge);
-    node->TrimInputCount(3);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* undefined;
+      if (output_type & kRepTagged) {
+        DCHECK_EQ(0, access.machine_type & kRepTagged);
+        undefined = jsgraph()->UndefinedConstant();
+      } else if (output_type & kRepFloat32) {
+        undefined =
+            jsgraph()->Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      } else if (output_type & kRepFloat64) {
+        undefined = jsgraph()->Float64Constant(
+            std::numeric_limits<double>::quiet_NaN());
+      } else {
+        undefined = jsgraph()->Int32Constant(0);
+      }
+
+      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      Node* phi = graph()->NewNode(common()->EffectPhi(2), load, effect, merge);
+
+      // Replace effect uses of node with the effect phi.
+      for (UseIter i = node->uses().begin(); i != node->uses().end();) {
+        if (NodeProperties::IsEffectEdge(i.edge())) {
+          i = i.UpdateToAndIncrement(phi);
+        } else {
+          ++i;
+        }
+      }
+
+      node->set_op(common()->Phi(output_type, 2));
+      node->ReplaceInput(0, result);
+      node->ReplaceInput(1, undefined);
+      node->ReplaceInput(2, merge);
+      node->TrimInputCount(3);
+    }
   }
 }
 
@@ -1159,23 +1296,35 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
     Node* value = node->InputAt(3);
     Node* effect = node->InputAt(4);
     Node* control = node->InputAt(5);
-
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* store = graph()->NewNode(op, base, index, value, effect, if_true);
+    IntPtrMatcher mbase(base);
+    if (mbase.HasValue()) {
+      Node* select = graph()->NewNode(
+          common()->Select(kMachIntPtr, BranchHint::kTrue), check, index,
+          jsgraph()->IntPtrConstant(AddressForOutOfBoundsStore() -
+                                    mbase.Value()));
 
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      node->set_op(op);
+      node->ReplaceInput(1, select);
+      node->RemoveInput(2);
+    } else {
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* store = graph()->NewNode(op, base, index, value, effect, if_true);
 
-    node->set_op(common()->EffectPhi(2));
-    node->ReplaceInput(0, store);
-    node->ReplaceInput(1, effect);
-    node->ReplaceInput(2, merge);
-    node->TrimInputCount(3);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+
+      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+
+      node->set_op(common()->EffectPhi(2));
+      node->ReplaceInput(0, store);
+      node->ReplaceInput(1, effect);
+      node->ReplaceInput(2, merge);
+      node->TrimInputCount(3);
+    }
   }
 }
 
@@ -1374,7 +1523,6 @@ void SimplifiedLowering::DoStringLessThanOrEqual(Node* node) {
   node->ReplaceInput(0, StringComparison(node, true));
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
-
 
 }  // namespace compiler
 }  // namespace internal

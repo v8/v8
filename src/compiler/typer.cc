@@ -535,6 +535,11 @@ Bounds Typer::Visitor::TypeExternalConstant(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeSelect(Node* node) {
+  return Bounds::Either(Operand(node, 1), Operand(node, 2), zone());
+}
+
+
 Bounds Typer::Visitor::TypePhi(Node* node) {
   int arity = OperatorProperties::GetValueInputCount(node->op());
   Bounds bounds = Operand(node, 0);

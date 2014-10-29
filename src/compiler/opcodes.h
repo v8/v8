@@ -33,6 +33,7 @@
   V(HeapConstant)
 
 #define INNER_OP_LIST(V) \
+  V(Select)              \
   V(Phi)                 \
   V(EffectPhi)           \
   V(ValueEffect)         \

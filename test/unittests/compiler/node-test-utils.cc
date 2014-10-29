@@ -208,6 +208,52 @@ class IsConstantMatcher FINAL : public NodeMatcher {
 };
 
 
+class IsSelectMatcher FINAL : public NodeMatcher {
+ public:
+  IsSelectMatcher(const Matcher<MachineType>& type_matcher,
+                  const Matcher<Node*>& value0_matcher,
+                  const Matcher<Node*>& value1_matcher,
+                  const Matcher<Node*>& value2_matcher)
+      : NodeMatcher(IrOpcode::kSelect),
+        type_matcher_(type_matcher),
+        value0_matcher_(value0_matcher),
+        value1_matcher_(value1_matcher),
+        value2_matcher_(value2_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose type (";
+    type_matcher_.DescribeTo(os);
+    *os << "), value0 (";
+    value0_matcher_.DescribeTo(os);
+    *os << "), value1 (";
+    value1_matcher_.DescribeTo(os);
+    *os << ") and value2 (";
+    value2_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node,
+                               MatchResultListener* listener) const OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<MachineType>(node), "type",
+                                 type_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value0", value0_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "value1", value1_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
+                                 "value2", value2_matcher_, listener));
+  }
+
+ private:
+  const Matcher<MachineType> type_matcher_;
+  const Matcher<Node*> value0_matcher_;
+  const Matcher<Node*> value1_matcher_;
+  const Matcher<Node*> value2_matcher_;
+};
+
+
 class IsPhiMatcher FINAL : public NodeMatcher {
  public:
   IsPhiMatcher(const Matcher<MachineType>& type_matcher,
@@ -765,6 +811,15 @@ Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher) {
 }
 
 
+Matcher<Node*> IsSelect(const Matcher<MachineType>& type_matcher,
+                        const Matcher<Node*>& value0_matcher,
+                        const Matcher<Node*>& value1_matcher,
+                        const Matcher<Node*>& value2_matcher) {
+  return MakeMatcher(new IsSelectMatcher(type_matcher, value0_matcher,
+                                         value1_matcher, value2_matcher));
+}
+
+
 Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
@@ -857,6 +912,7 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
 IS_BINOP_MATCHER(NumberEqual)
 IS_BINOP_MATCHER(NumberLessThan)
 IS_BINOP_MATCHER(NumberSubtract)
+IS_BINOP_MATCHER(NumberMultiply)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)

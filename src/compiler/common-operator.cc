@@ -50,6 +50,32 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
+  return lhs.type() == rhs.type() && lhs.hint() == rhs.hint();
+}
+
+
+bool operator!=(SelectParameters const& lhs, SelectParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(SelectParameters const& p) {
+  return base::hash_combine(p.type(), p.hint());
+}
+
+
+std::ostream& operator<<(std::ostream& os, SelectParameters const& p) {
+  return os << p.type() << "|" << p.hint();
+}
+
+
+SelectParameters const& SelectParametersOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kSelect, op->opcode());
+  return OpParameter<SelectParameters>(op);
+}
+
+
 size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_combine(sc.kind_, sc.parameter_);
 }
@@ -216,6 +242,14 @@ const Operator* CommonOperatorBuilder::HeapConstant(
     const Unique<HeapObject>& value) {
   return new (zone()) Operator1<Unique<HeapObject>>(
       IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
+}
+
+
+const Operator* CommonOperatorBuilder::Select(MachineType type,
+                                              BranchHint hint) {
+  return new (zone())
+      Operator1<SelectParameters>(IrOpcode::kSelect, Operator::kPure, 3, 1,
+                                  "Select", SelectParameters(type, hint));
 }
 
 
