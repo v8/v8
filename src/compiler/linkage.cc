@@ -195,6 +195,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kStoreLookupSlot:
     case Runtime::kStringBuilderConcat:
     case Runtime::kStringBuilderJoin:
+    case Runtime::kStringMatch:
     case Runtime::kStringReplaceGlobalRegExpWithString:
     case Runtime::kThrowNonMethodError:
     case Runtime::kThrowNotDateError:
