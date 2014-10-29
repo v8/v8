@@ -4,7 +4,8 @@
 
 
 var MapBenchmark = new BenchmarkSuite('WeakMap', [1000], [
-  new Benchmark('Set', false, false, 0, WeakMapSet),
+  new Benchmark('Set', false, false, 0, WeakMapSet, WeakMapSetupBase,
+      WeakMapTearDown),
   new Benchmark('Has', false, false, 0, WeakMapHas, WeakMapSetup,
       WeakMapTearDown),
   new Benchmark('Get', false, false, 0, WeakMapGet, WeakMapSetup,
@@ -15,20 +16,17 @@ var MapBenchmark = new BenchmarkSuite('WeakMap', [1000], [
 
 
 var wm;
-var N = 10;
-var keys = [];
 
 
-for (var i = 0; i < N * 2; i++) {
-  keys[i] = {};
+function WeakMapSetupBase() {
+  SetupObjectKeys();
+  wm = new WeakMap;
 }
 
 
 function WeakMapSetup() {
-  wm = new WeakMap;
-  for (var i = 0; i < N; i++) {
-    wm.set(keys[i], i);
-  }
+  WeakMapSetupBase();
+  WeakMapSet();
 }
 
 
@@ -38,8 +36,9 @@ function WeakMapTearDown() {
 
 
 function WeakMapSet() {
-  WeakMapSetup();
-  WeakMapTearDown();
+  for (var i = 0; i < N; i++) {
+    wm.set(keys[i], i);
+  }
 }
 
 
