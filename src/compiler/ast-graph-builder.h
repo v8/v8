@@ -56,7 +56,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Support for control flow builders. The concrete type of the environment
   // depends on the graph builder, but environments themselves are not virtual.
   typedef StructuredGraphBuilder::Environment BaseEnvironment;
-  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env);
+  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
 
   // TODO(mstarzinger): The pipeline only needs to be a friend to access the
   // function context. Remove as soon as the context is a parameter.
@@ -110,13 +110,13 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder for stack-check guards.
   Node* BuildStackCheck();
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
  private:
   CompilationInfo* info_;

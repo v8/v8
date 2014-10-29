@@ -24,12 +24,12 @@ class AstNumberingVisitor FINAL : public AstVisitor {
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node);
+#define DEFINE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
-  void VisitStatements(ZoneList<Statement*>* statements);
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 

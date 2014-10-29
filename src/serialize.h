@@ -630,7 +630,7 @@ class PartialSerializer : public Serializer {
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
+                               WhereToPoint where_to_point, int skip) OVERRIDE;
 
  private:
   int PartialSnapshotCacheIndex(HeapObject* o);
@@ -675,7 +675,7 @@ class StartupSerializer : public Serializer {
   // 3) Weak references (e.g. the string table).
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
+                               WhereToPoint where_to_point, int skip) OVERRIDE;
   void SerializeWeakReferences();
   void Serialize() {
     SerializeStrongReferences();
@@ -720,7 +720,7 @@ class CodeSerializer : public Serializer {
   }
 
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
+                               WhereToPoint where_to_point, int skip) OVERRIDE;
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);

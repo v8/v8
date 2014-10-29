@@ -941,10 +941,10 @@ class ForInStatement FINAL : public ForEachStatement {
   }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(1, 0);
   }
-  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
     for_in_feedback_slot_ = slot;
   }
 
@@ -1710,10 +1710,10 @@ class VariableProxy FINAL : public Expression {
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
-  virtual void SetFirstICFeedbackSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     variable_feedback_slot_ = slot;
   }
 
@@ -1764,7 +1764,7 @@ class Property FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
     return STANDARD_STORE;
   }
-  virtual IcCheckType GetKeyType() {
+  virtual IcCheckType GetKeyType() OVERRIDE {
     // PROPERTY key types currently aren't implemented for KeyedLoadICs.
     return ELEMENT;
   }
@@ -1781,10 +1781,10 @@ class Property FINAL : public Expression {
     return obj()->IsSuperReference();
   }
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     property_feedback_slot_ = slot;
   }
 
@@ -1824,10 +1824,10 @@ class Call FINAL : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(0, 1);
   }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     call_feedback_slot_ = slot;
   }
 
@@ -1924,10 +1924,10 @@ class CallNew FINAL : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(FLAG_pretenuring_call_new ? 2 : 1, 0);
   }
-  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
     callnew_feedback_slot_ = slot;
   }
 
@@ -1986,11 +1986,11 @@ class CallRuntime FINAL : public Expression {
   bool is_jsruntime() const { return function_ == NULL; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(
         0, (FLAG_vector_ics && is_jsruntime()) ? 1 : 0);
   }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     callruntime_feedback_slot_ = slot;
   }
 
@@ -2347,11 +2347,11 @@ class Yield FINAL : public Expression {
   }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(
         0, (FLAG_vector_ics && yield_kind() == kDelegating) ? 3 : 0);
   }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     yield_first_feedback_slot_ = slot;
   }
 
@@ -2667,10 +2667,10 @@ class SuperReference FINAL : public Expression {
   TypeFeedbackId HomeObjectFeedbackId() { return TypeFeedbackId(local_id(0)); }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     homeobject_feedback_slot_ = slot;
   }
 
