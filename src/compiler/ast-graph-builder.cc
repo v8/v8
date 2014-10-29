@@ -588,13 +588,6 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
-    IterationStatement* stmt) {
-  if (loop_assignment_analysis_ == NULL) return NULL;
-  return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
-}
-
-
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
   while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
@@ -826,8 +819,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Create node to instantiate a new closure.
   Node* info = jsgraph()->Constant(shared_info);
-  Node* pretenure = expr->pretenure() ? jsgraph()->TrueConstant()
-                                      : jsgraph()->FalseConstant();
+  Node* pretenure = jsgraph()->BooleanConstant(expr->pretenure());
   const Operator* op = javascript()->CallRuntime(Runtime::kNewClosure, 3);
   Node* value = NewNode(op, context, info, pretenure);
   ast_context()->ProduceValue(value);
@@ -1933,8 +1925,7 @@ Node* AstGraphBuilder::BuildVariableDelete(
     case Variable::LOCAL:
     case Variable::CONTEXT:
       // Local var, const, or let variable or context variable.
-      return variable->is_this() ? jsgraph()->TrueConstant()
-                                 : jsgraph()->FalseConstant();
+      return jsgraph()->BooleanConstant(variable->is_this());
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
@@ -2172,6 +2163,13 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
   }
 }
 
+
+BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
+    IterationStatement* stmt) {
+  if (loop_assignment_analysis_ == NULL) return NULL;
+  return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
 }
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

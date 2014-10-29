@@ -136,6 +136,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
+  // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
 
   CompilationInfo* info() const { return info_; }
@@ -188,8 +189,6 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void PrepareFrameState(
       Node* node, BailoutId ast_id,
       OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-
-  OutputFrameStateCombine StateCombineFromAstContext();
 
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
@@ -439,8 +438,9 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
 Scope* AstGraphBuilder::current_scope() const {
   return execution_context_->scope();
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_AST_GRAPH_BUILDER_H_
