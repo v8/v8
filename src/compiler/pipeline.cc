@@ -259,6 +259,24 @@ static void TraceSchedule(Schedule* schedule) {
 }
 
 
+static SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
+  SmartArrayPointer<char> name;
+  if (info->IsStub()) {
+    if (info->code_stub() != NULL) {
+      CodeStub::Major major_key = info->code_stub()->MajorKey();
+      const char* major_name = CodeStub::MajorName(major_key, false);
+      size_t len = strlen(major_name);
+      name.Reset(new char[len]);
+      memcpy(name.get(), major_name, len);
+    }
+  } else {
+    AllowHandleDereference allow_deref;
+    name = info->function()->debug_name()->ToCString();
+  }
+  return name;
+}
+
+
 Handle<Code> Pipeline::GenerateCode() {
   // This list must be kept in sync with DONT_TURBOFAN_NODE in ast.cc.
   if (info()->function()->dont_optimize_reason() == kTryCatchStatement ||
@@ -285,8 +303,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Begin compiling method "
-       << info()->function()->debug_name()->ToCString().get()
+       << "Begin compiling method " << GetDebugName(info()).get()
        << " using Turbofan" << std::endl;
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
@@ -463,8 +480,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "--------------------------------------------------\n"
-       << "Finished compiling method "
-       << info()->function()->debug_name()->ToCString().get()
+       << "Finished compiling method " << GetDebugName(info()).get()
        << " using Turbofan" << std::endl;
   }
 
@@ -556,7 +572,14 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
       return Handle<Code>::null();
     }
     ZonePool::Scope zone_scope(data->zone_pool());
-    RegisterAllocator allocator(zone_scope.zone(), &frame, info(), &sequence);
+
+    SmartArrayPointer<char> debug_name;
+#ifdef DEBUG
+    debug_name = GetDebugName(info());
+#endif
+
+    RegisterAllocator allocator(zone_scope.zone(), &frame, &sequence,
+                                debug_name.get());
     if (!allocator.Allocate(data->pipeline_statistics())) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
