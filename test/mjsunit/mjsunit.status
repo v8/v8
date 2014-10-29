@@ -234,6 +234,8 @@
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
   'math-floor-of-div': [PASS, NO_VARIANTS],
+  'unicodelctest': [PASS, NO_VARIANTS],
+  'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
