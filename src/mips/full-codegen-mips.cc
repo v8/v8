@@ -2308,23 +2308,26 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
-  __ Allocate(map->instance_size(), v0, a2, a3, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, v0, a2, a3, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ lw(context_register(),
         MemOperand(fp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
-  __ li(a1, Operand(map));
+  __ lw(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ lw(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
+  __ lw(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(a2);
   __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
   __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
