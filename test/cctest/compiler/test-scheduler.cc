@@ -1955,7 +1955,7 @@ TEST(ScheduleTerminate) {
 
   graph.SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(5, &graph);
+  Schedule* schedule = ComputeAndVerifySchedule(6, &graph);
   BasicBlock* block = schedule->block(loop);
   CHECK_NE(NULL, loop);
   CHECK_EQ(block, schedule->block(effect));

@@ -67,6 +67,11 @@ class JSGraph : public ZoneObject {
     return Int32Constant(bit_cast<int32_t>(value));
   }
 
+  // Creates a HeapConstant node for either true or false.
+  Node* BooleanConstant(bool is_true) {
+    return is_true ? TrueConstant() : FalseConstant();
+  }
+
   // Creates a Int64Constant node, usually canonicalized.
   Node* Int64Constant(int64_t value);
   Node* Uint64Constant(uint64_t value) {

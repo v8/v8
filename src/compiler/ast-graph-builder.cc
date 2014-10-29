@@ -8,6 +8,7 @@
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/full-codegen.h"
@@ -2059,9 +2060,31 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
 }
 
 
-Node* AstGraphBuilder::BuildToBoolean(Node* value) {
-  // TODO(mstarzinger): Possible optimization is to NOP for boolean values.
-  return NewNode(javascript()->ToBoolean(), value);
+Node* AstGraphBuilder::BuildToBoolean(Node* input) {
+  // TODO(titzer): this should be in a JSOperatorReducer.
+  switch (input->opcode()) {
+    case IrOpcode::kInt32Constant:
+      return jsgraph_->BooleanConstant(!Int32Matcher(input).Is(0));
+    case IrOpcode::kFloat64Constant:
+      return jsgraph_->BooleanConstant(!Float64Matcher(input).Is(0));
+    case IrOpcode::kNumberConstant:
+      return jsgraph_->BooleanConstant(!NumberMatcher(input).Is(0));
+    case IrOpcode::kHeapConstant: {
+      Handle<Object> object = HeapObjectMatcher<Object>(input).Value().handle();
+      if (object->IsTrue()) return jsgraph_->TrueConstant();
+      if (object->IsFalse()) return jsgraph_->FalseConstant();
+      // TODO(turbofan): other constants.
+      break;
+    }
+    default:
+      break;
+  }
+  if (NodeProperties::IsTyped(input)) {
+    Type* upper = NodeProperties::GetBounds(input).upper;
+    if (upper->Is(Type::Boolean())) return input;
+  }
+
+  return NewNode(javascript()->ToBoolean(), input);
 }
 
 

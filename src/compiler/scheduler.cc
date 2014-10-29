@@ -241,9 +241,7 @@ class CFGBuilder {
   // backwards from end through control edges, building and connecting the
   // basic blocks for control nodes.
   void Run() {
-    Graph* graph = scheduler_->graph_;
-    FixNode(schedule_->start(), graph->start());
-    Queue(graph->end());
+    Queue(scheduler_->graph_->end());
 
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
       Node* node = queue_.front();
@@ -257,8 +255,6 @@ class CFGBuilder {
     for (NodeVector::iterator i = control_.begin(); i != control_.end(); ++i) {
       ConnectBlocks(*i);  // Connect block to its predecessor/successors.
     }
-
-    FixNode(schedule_->end(), graph->end());
   }
 
   // Run the control flow graph construction for a minimal control-connected
@@ -293,29 +289,40 @@ class CFGBuilder {
  private:
   void FixNode(BasicBlock* block, Node* node) {
     schedule_->AddNode(block, node);
-    scheduler_->GetData(node)->is_connected_control_ = true;
     scheduler_->UpdatePlacement(node, Scheduler::kFixed);
   }
 
   void Queue(Node* node) {
-    // Mark the connected control nodes as they queued.
+    // Mark the connected control nodes as they are queued.
     Scheduler::SchedulerData* data = scheduler_->GetData(node);
     if (!data->is_connected_control_) {
+      data->is_connected_control_ = true;
       BuildBlocks(node);
       queue_.push(node);
       control_.push_back(node);
-      data->is_connected_control_ = true;
     }
   }
 
 
   void BuildBlocks(Node* node) {
     switch (node->opcode()) {
+      case IrOpcode::kEnd:
+        FixNode(schedule_->end(), node);
+        break;
+      case IrOpcode::kStart:
+        FixNode(schedule_->start(), node);
+        break;
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
-      case IrOpcode::kTerminate:
         BuildBlockForNode(node);
         break;
+      case IrOpcode::kTerminate: {
+        // Put Terminate in the loop to which it refers.
+        Node* loop = NodeProperties::GetControlInput(node);
+        BasicBlock* block = BuildBlockForNode(loop);
+        FixNode(block, node);
+        break;
+      }
       case IrOpcode::kBranch:
         BuildBlocksForSuccessors(node, IrOpcode::kIfTrue, IrOpcode::kIfFalse);
         break;
@@ -343,13 +350,15 @@ class CFGBuilder {
     }
   }
 
-  void BuildBlockForNode(Node* node) {
-    if (schedule_->block(node) == NULL) {
-      BasicBlock* block = schedule_->NewBasicBlock();
+  BasicBlock* BuildBlockForNode(Node* node) {
+    BasicBlock* block = schedule_->block(node);
+    if (block == NULL) {
+      block = schedule_->NewBasicBlock();
       Trace("Create block B%d for #%d:%s\n", block->id().ToInt(), node->id(),
             node->op()->mnemonic());
       FixNode(block, node);
     }
+    return block;
   }
 
   void BuildBlocksForSuccessors(Node* node, IrOpcode::Value a,

@@ -22,7 +22,6 @@
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator-reducer.h"
-#include "src/compiler/phi-reducer.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
@@ -323,18 +322,20 @@ Handle<Code> Pipeline::GenerateCode() {
     graph_builder.CreateGraph();
     context_node = graph_builder.GetFunctionContext();
   }
-  {
-    PhaseScope phase_scope(pipeline_statistics.get(), "phi reduction");
-    PhiReducer phi_reducer;
-    GraphReducer graph_reducer(data.graph());
-    graph_reducer.AddReducer(&phi_reducer);
-    graph_reducer.ReduceGraph();
-    // TODO(mstarzinger): Running reducer once ought to be enough for everyone.
-    graph_reducer.ReduceGraph();
-    graph_reducer.ReduceGraph();
-  }
 
   VerifyAndPrintGraph(data.graph(), "Initial untyped", true);
+
+  {
+    PhaseScope phase_scope(pipeline_statistics.get(),
+                           "early control reduction");
+    SourcePositionTable::Scope pos(data.source_positions(),
+                                   SourcePosition::Unknown());
+    ZonePool::Scope zone_scope(data.zone_pool());
+    ControlReducer::ReduceGraph(zone_scope.zone(), data.jsgraph(),
+                                data.common());
+
+    VerifyAndPrintGraph(data.graph(), "Early Control reduced", true);
+  }
 
   if (info()->is_context_specializing()) {
     SourcePositionTable::Scope pos(data.source_positions(),
@@ -432,14 +433,15 @@ Handle<Code> Pipeline::GenerateCode() {
     }
 
     {
-      PhaseScope phase_scope(pipeline_statistics.get(), "control reduction");
+      PhaseScope phase_scope(pipeline_statistics.get(),
+                             "late control reduction");
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
       ZonePool::Scope zone_scope(data.zone_pool());
       ControlReducer::ReduceGraph(zone_scope.zone(), data.jsgraph(),
                                   data.common());
 
-      VerifyAndPrintGraph(data.graph(), "Control reduced");
+      VerifyAndPrintGraph(data.graph(), "Late Control reduced");
     }
   }
 
