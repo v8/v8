@@ -2844,6 +2844,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
     __ push(Immediate(isolate()->factory()->undefined_value()));
   }
 
+  // Push the enclosing function.
+  __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   // Push the receiver of the enclosing function.
   __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
   // Push the language mode.
@@ -2853,7 +2855,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ push(Immediate(Smi::FromInt(scope()->start_position())));
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 
