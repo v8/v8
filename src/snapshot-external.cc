@@ -136,6 +136,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
   snapshot_impl_->context_map_space_used = source.GetInt();
   snapshot_impl_->context_cell_space_used = source.GetInt();
   snapshot_impl_->context_property_cell_space_used = source.GetInt();
+  snapshot_impl_->context_lo_space_used = source.GetInt();
 
   DCHECK(success);
 }
