@@ -1437,8 +1437,10 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
 
 bool Compiler::DebuggerWantsEagerCompilation(CompilationInfo* info,
                                              bool allow_lazy_without_ctx) {
-  return LiveEditFunctionTracker::IsActive(info->isolate()) ||
-         (info->isolate()->DebuggerHasBreakPoints() && !allow_lazy_without_ctx);
+  if (LiveEditFunctionTracker::IsActive(info->isolate())) return true;
+  Debug* debug = info->isolate()->debug();
+  bool debugging = debug->is_active() || debug->has_break_points();
+  return debugging && !allow_lazy_without_ctx;
 }
 
 
