@@ -109,6 +109,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (cpu.architecture() >= 7) {
     if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
+    if (FLAG_enable_armv8 && cpu.architecture() >= 8) {
+      supported_ |= 1u << ARMv8;
+    }
     if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
     // Use movw/movt for QUALCOMM ARMv7 cores.
     if (FLAG_enable_movw_movt && cpu.implementer() == base::CPU::QUALCOMM) {

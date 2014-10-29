@@ -186,12 +186,6 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
 }
 
 
-bool V8::IsDead() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->IsDead();
-}
-
-
 static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
   if (isolate->has_scheduled_exception()) {
     return isolate->scheduled_exception() ==
@@ -344,19 +338,6 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 #else
   CHECK(false);
 #endif
-}
-
-
-void V8::SetFatalErrorHandler(FatalErrorCallback that) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->set_exception_behavior(that);
-}
-
-
-void V8::SetAllowCodeGenerationFromStringsCallback(
-    AllowCodeGenerationFromStringsCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->set_allow_code_gen_callback(callback);
 }
 
 
@@ -5191,60 +5172,6 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   heap_size_limit_(0) { }
 
 
-void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->VisitExternalResources(visitor);
-}
-
-
-class VisitorAdapter : public i::ObjectVisitor {
- public:
-  explicit VisitorAdapter(PersistentHandleVisitor* visitor)
-      : visitor_(visitor) {}
-  virtual void VisitPointers(i::Object** start, i::Object** end) {
-    UNREACHABLE();
-  }
-  virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
-    Value* value = ToApi<Value>(i::Handle<i::Object>(p));
-    visitor_->VisitPersistentHandle(
-        reinterpret_cast<Persistent<Value>*>(&value), class_id);
-  }
- private:
-  PersistentHandleVisitor* visitor_;
-};
-
-
-void v8::V8::VisitHandlesWithClassIds(v8::Isolate* exported_isolate,
-    PersistentHandleVisitor* visitor) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  i::DisallowHeapAllocation no_allocation;
-
-  VisitorAdapter visitor_adapter(visitor);
-  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
-}
-
-
-void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
-  i::Isolate* isolate = i::Isolate::Current();
-  i::DisallowHeapAllocation no_allocation;
-
-  VisitorAdapter visitor_adapter(visitor);
-  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
-}
-
-
-void v8::V8::VisitHandlesForPartialDependence(
-    Isolate* exported_isolate, PersistentHandleVisitor* visitor) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  DCHECK(isolate == i::Isolate::Current());
-  i::DisallowHeapAllocation no_allocation;
-
-  VisitorAdapter visitor_adapter(visitor);
-  isolate->global_handles()->IterateAllRootsInNewSpaceWithClassIds(
-      &visitor_adapter);
-}
-
-
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }
@@ -6371,57 +6298,6 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 }
 
 
-bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  NeanderArray listeners(isolate->factory()->message_listeners());
-  NeanderObject obj(isolate, 2);
-  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
-  obj.set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
-          : *Utils::OpenHandle(*data));
-  listeners.add(obj.value());
-  return true;
-}
-
-
-void V8::RemoveMessageListeners(MessageCallback that) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ON_BAILOUT(isolate, "v8::V8::RemoveMessageListeners()", return);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  NeanderArray listeners(isolate->factory()->message_listeners());
-  for (int i = 0; i < listeners.length(); i++) {
-    if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
-
-    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
-    if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
-      listeners.set(i, isolate->heap()->undefined_value());
-    }
-  }
-}
-
-
-void V8::SetCaptureStackTraceForUncaughtExceptions(
-    bool capture,
-    int frame_limit,
-    StackTrace::StackTraceOptions options) {
-  i::Isolate::Current()->SetCaptureStackTraceForUncaughtExceptions(
-      capture,
-      frame_limit,
-      options);
-}
-
-
-void V8::SetFailedAccessCheckCallbackFunction(
-    FailedAccessCheckCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->SetFailedAccessCheckCallback(callback);
-}
-
-
 void Isolate::CollectAllGarbage(const char* gc_reason) {
   reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
       i::Heap::kNoGCFlags, gc_reason);
@@ -6551,13 +6427,6 @@ void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
 }
 
 
-void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->RemoveGCPrologueCallback(
-      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback));
-}
-
-
 void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->heap()->AddGCEpilogueCallback(
@@ -6567,62 +6436,55 @@ void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
 }
 
 
-void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->RemoveGCEpilogueCallback(
-      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback));
-}
-
-
-void V8::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
-                                     ObjectSpace space,
-                                     AllocationAction action) {
-  i::Isolate* isolate = i::Isolate::Current();
+void Isolate::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                          ObjectSpace space,
+                                          AllocationAction action) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->memory_allocator()->AddMemoryAllocationCallback(
       callback, space, action);
 }
 
 
-void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
+void Isolate::RemoveMemoryAllocationCallback(
+    MemoryAllocationCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->memory_allocator()->RemoveMemoryAllocationCallback(
       callback);
 }
 
 
-void V8::TerminateExecution(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->stack_guard()->RequestTerminateExecution();
+void Isolate::TerminateExecution() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->stack_guard()->RequestTerminateExecution();
 }
 
 
-bool V8::IsExecutionTerminating(Isolate* isolate) {
-  i::Isolate* i_isolate = isolate != NULL ?
-      reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
-  return IsExecutionTerminatingCheck(i_isolate);
+bool Isolate::IsExecutionTerminating() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return IsExecutionTerminatingCheck(isolate);
 }
 
 
-void V8::CancelTerminateExecution(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->stack_guard()->ClearTerminateExecution();
-  i_isolate->CancelTerminateExecution();
+void Isolate::CancelTerminateExecution() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->stack_guard()->ClearTerminateExecution();
+  isolate->CancelTerminateExecution();
 }
 
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->set_api_interrupt_callback(callback);
-  i_isolate->set_api_interrupt_callback_data(data);
-  i_isolate->stack_guard()->RequestApiInterrupt();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_api_interrupt_callback(callback);
+  isolate->set_api_interrupt_callback_data(data);
+  isolate->stack_guard()->RequestApiInterrupt();
 }
 
 
 void Isolate::ClearInterrupt() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->stack_guard()->ClearApiInterrupt();
-  i_isolate->set_api_interrupt_callback(NULL);
-  i_isolate->set_api_interrupt_callback_data(NULL);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->stack_guard()->ClearApiInterrupt();
+  isolate->set_api_interrupt_callback(NULL);
+  isolate->set_api_interrupt_callback_data(NULL);
 }
 
 
@@ -6856,7 +6718,7 @@ void Isolate::SetAddHistogramSampleFunction(
 }
 
 
-bool v8::Isolate::IdleNotification(int idle_time_in_ms) {
+bool Isolate::IdleNotification(int idle_time_in_ms) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -6865,7 +6727,7 @@ bool v8::Isolate::IdleNotification(int idle_time_in_ms) {
 }
 
 
-void v8::Isolate::LowMemoryNotification() {
+void Isolate::LowMemoryNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   {
     i::HistogramTimerScope idle_notification_scope(
@@ -6875,14 +6737,14 @@ void v8::Isolate::LowMemoryNotification() {
 }
 
 
-int v8::Isolate::ContextDisposedNotification() {
+int Isolate::ContextDisposedNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->heap()->NotifyContextDisposed();
 }
 
 
-void v8::Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
-                                         JitCodeEventHandler event_handler) {
+void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
+                                     JitCodeEventHandler event_handler) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   // Ensure that logging is initialized for our isolate.
   isolate->InitializeLoggingAndCounters();
@@ -6890,14 +6752,14 @@ void v8::Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
 }
 
 
-void v8::Isolate::SetStackLimit(uintptr_t stack_limit) {
+void Isolate::SetStackLimit(uintptr_t stack_limit) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   CHECK(stack_limit);
   isolate->stack_guard()->SetStackLimit(stack_limit);
 }
 
 
-void v8::Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
+void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (isolate->code_range()->valid()) {
     *start = isolate->code_range()->start();
@@ -6906,6 +6768,115 @@ void v8::Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
     *start = NULL;
     *length_in_bytes = 0;
   }
+}
+
+
+void Isolate::SetFatalErrorHandler(FatalErrorCallback that) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_exception_behavior(that);
+}
+
+
+void Isolate::SetAllowCodeGenerationFromStringsCallback(
+    AllowCodeGenerationFromStringsCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_allow_code_gen_callback(callback);
+}
+
+
+bool Isolate::IsDead() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->IsDead();
+}
+
+
+bool Isolate::AddMessageListener(MessageCallback that, Handle<Value> data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  NeanderArray listeners(isolate->factory()->message_listeners());
+  NeanderObject obj(isolate, 2);
+  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
+  obj.set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
+                            : *Utils::OpenHandle(*data));
+  listeners.add(obj.value());
+  return true;
+}
+
+
+void Isolate::RemoveMessageListeners(MessageCallback that) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  ON_BAILOUT(isolate, "v8::V8::RemoveMessageListeners()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  NeanderArray listeners(isolate->factory()->message_listeners());
+  for (int i = 0; i < listeners.length(); i++) {
+    if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
+
+    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
+    if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
+      listeners.set(i, isolate->heap()->undefined_value());
+    }
+  }
+}
+
+
+void Isolate::SetFailedAccessCheckCallbackFunction(
+    FailedAccessCheckCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetFailedAccessCheckCallback(callback);
+}
+
+
+void Isolate::SetCaptureStackTraceForUncaughtExceptions(
+    bool capture, int frame_limit, StackTrace::StackTraceOptions options) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetCaptureStackTraceForUncaughtExceptions(capture, frame_limit,
+                                                     options);
+}
+
+
+void Isolate::VisitExternalResources(ExternalResourceVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->VisitExternalResources(visitor);
+}
+
+
+class VisitorAdapter : public i::ObjectVisitor {
+ public:
+  explicit VisitorAdapter(PersistentHandleVisitor* visitor)
+      : visitor_(visitor) {}
+  virtual void VisitPointers(i::Object** start, i::Object** end) {
+    UNREACHABLE();
+  }
+  virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+    Value* value = ToApi<Value>(i::Handle<i::Object>(p));
+    visitor_->VisitPersistentHandle(
+        reinterpret_cast<Persistent<Value>*>(&value), class_id);
+  }
+
+ private:
+  PersistentHandleVisitor* visitor_;
+};
+
+
+void Isolate::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::DisallowHeapAllocation no_allocation;
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
+void Isolate::VisitHandlesForPartialDependence(
+    PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::DisallowHeapAllocation no_allocation;
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsInNewSpaceWithClassIds(
+      &visitor_adapter);
 }
 
 
@@ -6989,12 +6960,7 @@ Local<StackTrace> Exception::GetStackTrace(Handle<Value> exception) {
   i::Handle<i::JSObject> js_obj = i::Handle<i::JSObject>::cast(obj);
   i::Isolate* isolate = js_obj->GetIsolate();
   ENTER_V8(isolate);
-  i::Handle<i::Name> key = isolate->factory()->detailed_stack_trace_symbol();
-  i::Handle<i::Object> property = i::JSObject::GetDataProperty(js_obj, key);
-  if (property->IsJSArray()) {
-    return Utils::StackTraceToLocal(i::Handle<i::JSArray>::cast(property));
-  }
-  return Local<StackTrace>();
+  return Utils::StackTraceToLocal(isolate->GetDetailedStackTrace(js_obj));
 }
 
 

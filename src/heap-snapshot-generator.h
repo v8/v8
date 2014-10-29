@@ -176,7 +176,6 @@ class HeapSnapshot {
   void FillChildren();
 
   void Print(int max_depth);
-  void PrintEntriesSize();
 
  private:
   HeapEntry* AddRootEntry();
@@ -332,7 +331,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   virtual ~V8HeapExplorer();
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
@@ -473,7 +471,6 @@ class NativeObjectsExplorer {
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
-  void AddRootEntries(SnapshotFiller* filler);
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFiller* filler);
 
@@ -506,7 +503,6 @@ class NativeObjectsExplorer {
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
-  SnapshottingProgressReportingInterface* progress_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
   // RetainedObjectInfo* -> List<HeapObject*>*

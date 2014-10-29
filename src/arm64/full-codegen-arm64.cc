@@ -300,7 +300,8 @@ void FullCodeGenerator::Generate() {
       VisitDeclarations(scope()->declarations());
     }
 
-    { Comment cmnt(masm_, "[ Stack check");
+    {
+      Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
       Label ok;
       DCHECK(jssp.Is(__ StackPointer()));
@@ -312,7 +313,8 @@ void FullCodeGenerator::Generate() {
       __ Bind(&ok);
     }
 
-    { Comment cmnt(masm_, "[ Body");
+    {
+      Comment cmnt(masm_, "[ Body");
       DCHECK(loop_depth() == 0);
       VisitStatements(function()->body());
       DCHECK(loop_depth() == 0);
@@ -2040,7 +2042,7 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
-  // Call keyed load IC. It has arguments key and receiver in r0 and r1.
+  // Call keyed load IC. It has arguments key and receiver in x0 and x1.
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   if (FLAG_vector_ics) {
     __ Mov(VectorLoadICDescriptor::SlotRegister(),
@@ -2172,6 +2174,74 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
     patch_site.EmitPatchInfo();
   }
   context()->Plug(x0);
+}
+
+
+void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
+  // Constructor is in x0.
+  DCHECK(lit != NULL);
+  __ push(x0);
+
+  // No access check is needed here since the constructor is created by the
+  // class literal.
+  Register scratch = x1;
+  __ Ldr(scratch,
+         FieldMemOperand(x0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ Push(scratch);
+
+  for (int i = 0; i < lit->properties()->length(); i++) {
+    ObjectLiteral::Property* property = lit->properties()->at(i);
+    Literal* key = property->key()->AsLiteral();
+    Expression* value = property->value();
+    DCHECK(key != NULL);
+
+    if (property->is_static()) {
+      __ Peek(scratch, kPointerSize);  // constructor
+    } else {
+      __ Peek(scratch, 0);  // prototype
+    }
+    __ Push(scratch);
+    VisitForStackValue(key);
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::PROTOTYPE:
+        VisitForStackValue(value);
+        __ Mov(scratch, Smi::FromInt(NONE));
+        __ Push(scratch);
+        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        break;
+
+      case ObjectLiteral::Property::GETTER:
+        VisitForStackValue(value);
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        __ Mov(scratch, Smi::FromInt(NONE));
+        __ Push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      case ObjectLiteral::Property::SETTER:
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        VisitForStackValue(value);
+        __ Mov(scratch, Smi::FromInt(NONE));
+        __ Push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // prototype
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+
+  // constructor
+  __ CallRuntime(Runtime::kToFastProperties, 1);
 }
 
 
@@ -2609,11 +2679,12 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // Prepare to push a copy of the first argument or undefined if it doesn't
   // exist.
   if (arg_count > 0) {
-    __ Peek(x10, arg_count * kXRegSize);
+    __ Peek(x9, arg_count * kXRegSize);
   } else {
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(x9, Heap::kUndefinedValueRootIndex);
   }
 
+  __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   // Prepare to push the receiver of the enclosing function.
   int receiver_offset = 2 + info_->scope()->num_parameters();
   __ Ldr(x11, MemOperand(fp, receiver_offset * kPointerSize));
@@ -2624,10 +2695,10 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Mov(x13, Smi::FromInt(scope()->start_position()));
 
   // Push.
-  __ Push(x10, x11, x12, x13);
+  __ Push(x9, x10, x11, x12, x13);
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 
@@ -4858,7 +4929,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // The value stays in x0, and is ultimately read by the resumed generator, as
   // if CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
-  // is read to throw the value when the resumed generator is already closed. r1
+  // is read to throw the value when the resumed generator is already closed. x1
   // will hold the generator object until the activation has been resumed.
   VisitForStackValue(generator);
   VisitForAccumulatorValue(value);

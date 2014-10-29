@@ -29,7 +29,18 @@ class Scheduler {
                                              Schedule* schedule);
 
  private:
-  enum Placement { kUnknown, kSchedulable, kFixed, kCoupled };
+  // Placement of a node changes during scheduling. The placement state
+  // transitions over time while the scheduler is choosing a position:
+  //
+  //                   +---------------------+-----+----> kFixed
+  //                  /                     /     /
+  //    kUnknown ----+------> kCoupled ----+     /
+  //                  \                         /
+  //                   +----> kSchedulable ----+--------> kScheduled
+  //
+  // 1) GetPlacement(): kUnknown -> kCoupled|kSchedulable|kFixed
+  // 2) UpdatePlacement(): kCoupled|kSchedulable -> kFixed|kScheduled
+  enum Placement { kUnknown, kSchedulable, kFixed, kCoupled, kScheduled };
 
   // Per-node data tracked during scheduling.
   struct SchedulerData {
@@ -49,7 +60,6 @@ class Scheduler {
   NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
   ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
   ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
-  bool has_floating_control_;
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
@@ -57,6 +67,7 @@ class Scheduler {
   inline SchedulerData* GetData(Node* node);
 
   Placement GetPlacement(Node* node);
+  void UpdatePlacement(Node* node, Placement placement);
 
   void IncrementUnscheduledUseCount(Node* node, Node* from);
   void DecrementUnscheduledUseCount(Node* node, Node* from);
@@ -85,8 +96,8 @@ class Scheduler {
   friend class ScheduleLateNodeVisitor;
   void ScheduleLate();
 
-  bool ConnectFloatingControl();
-  void ConnectFloatingControlSubgraph(BasicBlock* block, Node* node);
+  void FuseFloatingControl(BasicBlock* block, Node* node);
+  void MovePlannedNodes(BasicBlock* from, BasicBlock* to);
 };
 
 }  // namespace compiler

@@ -1720,11 +1720,11 @@ TEST(NumberDivide_TruncatingToInt32) {
     TestingGraph t(Type::Signed32());
     Node* k = t.jsgraph.Constant(constants[i]);
     Node* div = t.graph()->NewNode(t.simplified()->NumberDivide(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), div);
-    t.Return(trunc);
+    Node* use = t.Use(div, kMachInt32);
+    t.Return(use);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kInt32Div, div->opcode());
+    CHECK_EQ(IrOpcode::kInt32Div, use->InputAt(0)->opcode());
   }
 }
 
@@ -1761,11 +1761,11 @@ TEST(NumberDivide_TruncatingToUint32) {
     TestingGraph t(Type::Unsigned32());
     Node* k = t.jsgraph.Constant(constants[i]);
     Node* div = t.graph()->NewNode(t.simplified()->NumberDivide(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), div);
-    t.Return(trunc);
+    Node* use = t.Use(div, kMachUint32);
+    t.Return(use);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kUint32Div, div->opcode());
+    CHECK_EQ(IrOpcode::kUint32Div, use->InputAt(0)->opcode());
   }
 }
 
@@ -1795,28 +1795,39 @@ TEST(RunNumberDivide_TruncatingToUint32) {
 
 
 TEST(NumberDivide_BadConstants) {
-  int32_t constants[] = {-1, 0};
-
-  for (size_t i = 0; i < arraysize(constants); i++) {
+  {
     TestingGraph t(Type::Signed32());
-    Node* k = t.jsgraph.Constant(constants[i]);
+    Node* k = t.jsgraph.Constant(-1);
     Node* div = t.graph()->NewNode(t.simplified()->NumberDivide(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), div);
-    t.Return(trunc);
+    Node* use = t.Use(div, kMachInt32);
+    t.Return(use);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kFloat64Div, div->opcode());
+    CHECK_EQ(IrOpcode::kInt32Sub, use->InputAt(0)->opcode());
+  }
+
+  {
+    TestingGraph t(Type::Signed32());
+    Node* k = t.jsgraph.Constant(0);
+    Node* div = t.graph()->NewNode(t.simplified()->NumberDivide(), t.p0, k);
+    Node* use = t.Use(div, kMachInt32);
+    t.Return(use);
+    t.Lower();
+
+    CHECK_EQ(IrOpcode::kInt32Constant, use->InputAt(0)->opcode());
+    CHECK_EQ(0, OpParameter<int32_t>(use->InputAt(0)));
   }
 
   {
     TestingGraph t(Type::Unsigned32());
     Node* k = t.jsgraph.Constant(0);
     Node* div = t.graph()->NewNode(t.simplified()->NumberDivide(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), div);
-    t.Return(trunc);
+    Node* use = t.Use(div, kMachUint32);
+    t.Return(use);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kFloat64Div, div->opcode());
+    CHECK_EQ(IrOpcode::kInt32Constant, use->InputAt(0)->opcode());
+    CHECK_EQ(0, OpParameter<int32_t>(use->InputAt(0)));
   }
 }
 
@@ -1828,11 +1839,11 @@ TEST(NumberModulus_TruncatingToInt32) {
     TestingGraph t(Type::Signed32());
     Node* k = t.jsgraph.Constant(constants[i]);
     Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), mod);
-    t.Return(trunc);
+    Node* use = t.Use(mod, kMachInt32);
+    t.Return(use);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kInt32Mod, mod->opcode());
+    CHECK_EQ(IrOpcode::kInt32Mod, use->InputAt(0)->opcode());
   }
 }
 
@@ -1870,10 +1881,10 @@ TEST(NumberModulus_TruncatingToUint32) {
     Node* k = t.jsgraph.Constant(constants[i]);
     Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
     Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), mod);
-    t.Return(trunc);
+    Node* ret = t.Return(trunc);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kUint32Mod, mod->opcode());
+    CHECK_EQ(IrOpcode::kUint32Mod, ret->InputAt(0)->opcode());
   }
 }
 
@@ -1914,47 +1925,5 @@ TEST(NumberModulus_Int32) {
     t.Lower();
 
     CHECK_EQ(IrOpcode::kFloat64Mod, mod->opcode());  // Pesky -0 behavior.
-  }
-}
-
-
-TEST(NumberModulus_Uint32) {
-  double constants[] = {1, 3, 100, 1000, 100998348};
-
-  for (size_t i = 0; i < arraysize(constants); i++) {
-    TestingGraph t(Type::Unsigned32());
-    Node* k = t.jsgraph.Constant(constants[i]);
-    Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
-    t.Return(mod);
-    t.Lower();
-
-    CHECK_EQ(IrOpcode::kUint32Mod, mod->opcode());
-  }
-}
-
-
-TEST(NumberModulus_BadConstants) {
-  int32_t constants[] = {-1, 0};
-
-  for (size_t i = 0; i < arraysize(constants); i++) {
-    TestingGraph t(Type::Signed32());
-    Node* k = t.jsgraph.Constant(constants[i]);
-    Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), mod);
-    t.Return(trunc);
-    t.Lower();
-
-    CHECK_EQ(IrOpcode::kFloat64Mod, mod->opcode());
-  }
-
-  {
-    TestingGraph t(Type::Unsigned32());
-    Node* k = t.jsgraph.Constant(0);
-    Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), mod);
-    t.Return(trunc);
-    t.Lower();
-
-    CHECK_EQ(IrOpcode::kFloat64Mod, mod->opcode());
   }
 }

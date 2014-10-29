@@ -2505,6 +2505,74 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 }
 
 
+void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
+  // Constructor is in r0.
+  DCHECK(lit != NULL);
+  __ push(r0);
+
+  // No access check is needed here since the constructor is created by the
+  // class literal.
+  Register scratch = r1;
+  __ ldr(scratch,
+         FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ push(scratch);
+
+  for (int i = 0; i < lit->properties()->length(); i++) {
+    ObjectLiteral::Property* property = lit->properties()->at(i);
+    Literal* key = property->key()->AsLiteral();
+    Expression* value = property->value();
+    DCHECK(key != NULL);
+
+    if (property->is_static()) {
+      __ ldr(scratch, MemOperand(sp, kPointerSize));  // constructor
+    } else {
+      __ ldr(scratch, MemOperand(sp, 0));  // prototype
+    }
+    __ push(scratch);
+    VisitForStackValue(key);
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::PROTOTYPE:
+        VisitForStackValue(value);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        break;
+
+      case ObjectLiteral::Property::GETTER:
+        VisitForStackValue(value);
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      case ObjectLiteral::Property::SETTER:
+        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+        __ push(scratch);
+        VisitForStackValue(value);
+        __ mov(scratch, Operand(Smi::FromInt(NONE)));
+        __ push(scratch);
+        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // prototype
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+
+  // constructor
+  __ CallRuntime(Runtime::kToFastProperties, 1);
+}
+
+
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
@@ -2944,12 +3012,15 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
 
 
 void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
-  // r4: copy of the first argument or undefined if it doesn't exist.
+  // r5: copy of the first argument or undefined if it doesn't exist.
   if (arg_count > 0) {
-    __ ldr(r4, MemOperand(sp, arg_count * kPointerSize));
+    __ ldr(r5, MemOperand(sp, arg_count * kPointerSize));
   } else {
-    __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
   }
+
+  // r4: the receiver of the enclosing function.
+  __ ldr(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
   // r3: the receiver of the enclosing function.
   int receiver_offset = 2 + info_->scope()->num_parameters();
@@ -2962,8 +3033,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ mov(r1, Operand(Smi::FromInt(scope()->start_position())));
 
   // Do the runtime call.
+  __ Push(r5);
   __ Push(r4, r3, r2, r1);
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 

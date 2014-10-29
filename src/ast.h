@@ -1512,6 +1512,8 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
   void set_emit_store(bool emit_store);
   bool emit_store();
 
+  bool is_static() const { return is_static_; }
+
  protected:
   template<class> friend class AstNodeFactory;
 
@@ -3144,7 +3146,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-  void increase_node_count() { properties_.add_node_count(1); }
   void add_flag(AstPropertiesFlag flag) { properties_.flags()->Add(flag); }
   void set_dont_crankshaft_reason(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;

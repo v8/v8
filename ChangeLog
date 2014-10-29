@@ -1,3 +1,24 @@
+2014-10-29: Version 3.30.21
+
+        MIPS: Classes: Add basic support for properties (issue 3330).
+
+        Classes: Add more tests for prototype edge cases (Chromium issue 3655).
+
+        Classes: Add test for method prototype (issue 3330).
+
+        Get stack trace for uncaught exceptions/promise rejections from the
+        simple stack when available.
+
+        Classes: Add basic support for properties (issue 3330).
+
+        Allow duplicate property names in classes (issue 3570).
+
+        Windows: use SystemTimeToTzSpecificLocalTime instead of localtime_s
+        (Chromium issue 417640).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-28: Version 3.30.20
 
         Performance and stability improvements on all platforms.

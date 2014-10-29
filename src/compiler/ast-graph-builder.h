@@ -16,8 +16,9 @@ namespace internal {
 namespace compiler {
 
 class ControlBuilder;
-class LoopBuilder;
 class Graph;
+class LoopAssignmentAnalysis;
+class LoopBuilder;
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
 // underlying AST. The produced graph can either be compiled into a
@@ -135,6 +136,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
+  LoopAssignmentAnalysis* loop_assignment_analysis_;
+
   CompilationInfo* info() const { return info_; }
   inline StrictMode strict_mode() const;
   JSGraph* jsgraph() { return jsgraph_; }
@@ -187,6 +190,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
       OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
 
   OutputFrameStateCombine StateCombineFromAstContext();
+
+  BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);

@@ -109,6 +109,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() & m.right().Value());
       }
       if (m.LeftEqualsRight()) return Replace(m.left().node());  // x & x => x
+      if (m.left().IsWord32And() && m.right().HasValue()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().HasValue()) {  // (x & K) & K => x & K
+          node->ReplaceInput(0, mleft.left().node());
+          node->ReplaceInput(
+              1, Int32Constant(m.right().Value() & mleft.right().Value()));
+          return Changed(node);
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Or: {
@@ -546,6 +555,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     node->set_op(machine()->Int32Sub());
     node->ReplaceInput(0, Int32Constant(0));
     node->ReplaceInput(1, m.left().node());
+    node->TrimInputCount(2);
     return Changed(node);
   }
   if (m.right().HasValue()) {
@@ -567,6 +577,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
       node->set_op(machine()->Int32Sub());
       node->ReplaceInput(0, Int32Constant(0));
       node->ReplaceInput(1, quotient);
+      node->TrimInputCount(2);
       return Changed(node);
     }
     return Replace(quotient);
@@ -635,6 +646,7 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
       node->set_op(machine()->Int32Sub());
       DCHECK_EQ(dividend, node->InputAt(0));
       node->ReplaceInput(1, Int32Mul(quotient, Int32Constant(divisor)));
+      node->TrimInputCount(2);
       return Changed(node);
     }
   }

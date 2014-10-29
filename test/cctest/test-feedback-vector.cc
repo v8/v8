@@ -86,12 +86,13 @@ TEST(VectorICMetadata) {
   // Set metadata.
   for (int i = 0; i < 30; i++) {
     Code::Kind kind;
-    if (i % 3 == 0)
+    if (i % 3 == 0) {
       kind = Code::CALL_IC;
-    else if (i % 3 == 1)
+    } else if (i % 3 == 1) {
       kind = Code::LOAD_IC;
-    else
+    } else {
       kind = Code::KEYED_LOAD_IC;
+    }
     vector->SetKind(FeedbackVectorICSlot(i), kind);
   }
 
@@ -196,5 +197,46 @@ TEST(VectorICProfilerStatistics) {
   CHECK_EQ(0, feedback_vector->ic_generic_count());
   CHECK(
       feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
+}
+
+
+TEST(VectorCallICStates) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "function foo() { return 17; }"
+      "function f(a) { a(); } f(foo);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorICSlot slot(FLAG_vector_ics ? 1 : 0);
+  CallICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  // CallIC doesn't return map feedback.
+  CHECK_EQ(NULL, nexus.FindFirstMap());
+
+  CompileRun("f(function() { return 16; })");
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+
+  // After a collection, state should be reset to UNINITIALIZED.
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(UNINITIALIZED, nexus.StateFromFeedback());
+
+  // Array is special. It will remain monomorphic across gcs and it contains an
+  // AllocationSite.
+  CompileRun("f(Array)");
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot))->IsAllocationSite());
+
+  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 }

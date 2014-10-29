@@ -309,6 +309,10 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
+
+  # TODO(bmeurer, Rodolph.Perfetta@arm.com): Fails with turbo fan.
+  'numops-fuzz-part1': [PASS, NO_VARIANTS],
+  'numops-fuzz-part2': [PASS, NO_VARIANTS],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {

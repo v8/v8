@@ -5,10 +5,11 @@
 #include "src/compiler/ast-graph-builder.h"
 
 #include "src/compiler.h"
+#include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/scopes.h"
@@ -24,7 +25,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       jsgraph_(jsgraph),
       globals_(0, local_zone),
       breakable_(NULL),
-      execution_context_(NULL) {
+      execution_context_(NULL),
+      loop_assignment_analysis_(NULL) {
   InitializeAstVisitor(local_zone);
 }
 
@@ -58,6 +60,12 @@ bool AstGraphBuilder::CreateGraph() {
   // Set up the basic structure of the graph.
   int parameter_count = info()->num_parameters();
   graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
+
+  if (FLAG_loop_assignment_analysis) {
+    // TODO(turbofan): use a temporary zone for the loop assignment analysis.
+    AstLoopAssignmentAnalyzer analyzer(zone(), info());
+    loop_assignment_analysis_ = analyzer.Analyze();
+  }
 
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());
@@ -579,9 +587,16 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
+BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
+    IterationStatement* stmt) {
+  if (loop_assignment_analysis_ == NULL) return NULL;
+  return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
+}
+
+
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
-  while_loop.BeginLoop();
+  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
   VisitIterationBody(stmt, &while_loop, 0);
   while_loop.EndBody();
   VisitForTest(stmt->cond());
@@ -593,7 +608,7 @@ void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   LoopBuilder while_loop(this);
-  while_loop.BeginLoop();
+  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
   while_loop.BreakUnless(condition);
@@ -606,7 +621,7 @@ void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
 void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
   LoopBuilder for_loop(this);
   VisitIfNotNull(stmt->init());
-  for_loop.BeginLoop();
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
   if (stmt->cond() != NULL) {
     VisitForTest(stmt->cond());
     Node* condition = environment()->Pop();
@@ -682,7 +697,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         environment()->Push(jsgraph()->ZeroConstant());
         // PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
         LoopBuilder for_loop(this);
-        for_loop.BeginLoop();
+        for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
         // Check loop termination condition.
         Node* index = environment()->Peek(0);
         Node* exit_cond =
@@ -1308,12 +1323,14 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 
     // Create node to ask for help resolving potential eval call. This will
     // provide a fully resolved callee and the corresponding receiver.
+    Node* function = GetFunctionClosure();
     Node* receiver = environment()->Lookup(info()->scope()->receiver());
     Node* strict = jsgraph()->Constant(strict_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
     const Operator* op =
-        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
-    Node* pair = NewNode(op, callee, source, receiver, strict, position);
+        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
+    Node* pair =
+        NewNode(op, callee, source, function, receiver, strict, position);
     PrepareFrameState(pair, expr->EvalOrLookupId(),
                       OutputFrameStateCombine::PokeAt(arg_count + 1));
     Node* new_callee = NewNode(common()->Projection(0), pair);
@@ -2113,7 +2130,7 @@ Node* AstGraphBuilder::BuildStackCheck() {
               jsgraph()->ZeroConstant());
   Node* stack = NewNode(jsgraph()->machine()->LoadStackPointer());
   Node* tag = NewNode(jsgraph()->machine()->UintLessThan(), limit, stack);
-  stack_check.If(tag);
+  stack_check.If(tag, BranchHint::kTrue);
   stack_check.Then();
   stack_check.Else();
   Node* guard = NewNode(javascript()->CallRuntime(Runtime::kStackGuard, 0));

@@ -482,6 +482,37 @@ TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32WithConstant) {
 
 
 // -----------------------------------------------------------------------------
+// Word32And
+
+
+TEST_F(MachineOperatorReducerTest, Word32AndWithWord32AndWithConstant) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FOREACH(int32_t, k, kInt32Values) {
+    TRACED_FOREACH(int32_t, l, kInt32Values) {
+      if (k == 0 || k == -1 || l == 0 || l == -1) continue;
+
+      // (x & K) & L => x & (K & L)
+      Reduction const r1 = Reduce(graph()->NewNode(
+          machine()->Word32And(),
+          graph()->NewNode(machine()->Word32And(), p0, Int32Constant(k)),
+          Int32Constant(l)));
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_THAT(r1.replacement(), IsWord32And(p0, IsInt32Constant(k & l)));
+
+      // (K & x) & L => x & (K & L)
+      Reduction const r2 = Reduce(graph()->NewNode(
+          machine()->Word32And(),
+          graph()->NewNode(machine()->Word32And(), Int32Constant(k), p0),
+          Int32Constant(l)));
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_THAT(r2.replacement(), IsWord32And(p0, IsInt32Constant(k & l)));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Word32Xor
 
 

@@ -546,7 +546,48 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
     return ReplaceWith(inv);
   }
-  // TODO(turbofan): js-typed-lowering of ToBoolean(string)
+  if (input_type->Is(Type::String())) {
+    // JSToBoolean(x:string) => BooleanNot(NumberEqual(x.length, #0))
+    FieldAccess access = AccessBuilder::ForStringLength();
+    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
+                                    graph()->start(), graph()->start());
+    Node* cmp = graph()->NewNode(simplified()->NumberEqual(), length,
+                                 jsgraph()->ZeroConstant());
+    Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
+    return ReplaceWith(inv);
+  }
+  // TODO(turbofan): We need some kinda of PrimitiveToBoolean simplified
+  // operator, then we can do the pushing in the SimplifiedOperatorReducer
+  // and do not need to protect against stack overflow (because of backedges
+  // in phis) below.
+  if (input->opcode() == IrOpcode::kPhi &&
+      input_type->Is(
+          Type::Union(Type::Boolean(), Type::OrderedNumber(), zone()))) {
+    // JSToBoolean(phi(x1,...,xn):ordered-number|boolean)
+    //   => phi(JSToBoolean(x1),...,JSToBoolean(xn))
+    int input_count = input->InputCount() - 1;
+    Node** inputs = zone()->NewArray<Node*>(input_count + 1);
+    for (int i = 0; i < input_count; ++i) {
+      Node* value = input->InputAt(i);
+      Type* value_type = NodeProperties::GetBounds(value).upper;
+      // Recursively try to reduce the value first.
+      Reduction result = (value_type->Is(Type::Boolean()) ||
+                          value_type->Is(Type::OrderedNumber()))
+                             ? ReduceJSToBooleanInput(value)
+                             : NoChange();
+      if (result.Changed()) {
+        inputs[i] = result.replacement();
+      } else {
+        inputs[i] = graph()->NewNode(javascript()->ToBoolean(), value,
+                                     jsgraph()->ZeroConstant(),
+                                     graph()->start(), graph()->start());
+      }
+    }
+    inputs[input_count] = input->InputAt(input_count);
+    Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, input_count),
+                                 input_count + 1, inputs);
+    return ReplaceWith(phi);
+  }
   return NoChange();
 }
 
@@ -565,21 +606,18 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length) &&
-          byte_length <= static_cast<uint32_t>(kMaxInt)) {
+      double byte_length = array->byte_length()->Number();
+      if (byte_length <= kMaxInt) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Uint32Constant(
-            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* length = jsgraph()->Constant(byte_length / array->element_size());
         Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
         Node* load = graph()->NewNode(
             simplified()->LoadElement(
                 AccessBuilder::ForTypedArrayElement(type, true)),
-            pointer, key, length, effect, control);
+            pointer, key, length, effect);
         return ReplaceEagerly(node, load);
       }
     }
@@ -603,15 +641,13 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t byte_length;
-      if (array->byte_length()->ToUint32(&byte_length) &&
-          byte_length <= static_cast<uint32_t>(kMaxInt)) {
+      double byte_length = array->byte_length()->Number();
+      if (byte_length <= kMaxInt) {
         Handle<ExternalArray> elements =
             Handle<ExternalArray>::cast(handle(array->elements()));
         Node* pointer = jsgraph()->IntPtrConstant(
             bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Uint32Constant(
-            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* length = jsgraph()->Constant(byte_length / array->element_size());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         Node* store = graph()->NewNode(

@@ -59,17 +59,6 @@ void JSInliner::Inline() {
 }
 
 
-// TODO(sigurds) Find a home for this function and reuse it everywhere (esp. in
-// test cases, where similar code is currently duplicated).
-static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
-  CHECK(Parser::Parse(info));
-  CHECK(Rewriter::Rewrite(info));
-  CHECK(Scope::Analyze(info));
-  CHECK(AstNumbering::Renumber(info->function(), info->zone()));
-  CHECK(Compiler::EnsureDeoptimizationSupport(info));
-}
-
-
 // A facade on a JSFunction's graph to facilitate inlining. It assumes the
 // that the function graph has only one return statement, and provides
 // {UnifyReturn} to convert a function graph to that end.
@@ -385,7 +374,9 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
   }
 
   CompilationInfoWithZone info(function);
-  Parse(function, &info);
+  // TODO(wingo): ParseAndAnalyze can fail due to stack overflow.
+  CHECK(Compiler::ParseAndAnalyze(&info));
+  CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
   if (info.scope()->arguments() != NULL && info.strict_mode() != STRICT) {
     // For now do not inline functions that use their arguments array.

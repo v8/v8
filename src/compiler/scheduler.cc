@@ -35,36 +35,29 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
       schedule_queue_(zone),
-      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone),
-      has_floating_control_(false) {}
+      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone) {}
 
 
 Schedule* Scheduler::ComputeSchedule(ZonePool* zone_pool, Graph* graph) {
-  Schedule* schedule;
-  bool had_floating_control = false;
-  do {
-    ZonePool::Scope zone_scope(zone_pool);
-    schedule = new (graph->zone())
-        Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-    Scheduler scheduler(zone_scope.zone(), graph, schedule);
+  ZonePool::Scope zone_scope(zone_pool);
+  Schedule* schedule = new (graph->zone())
+      Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
+  Scheduler scheduler(zone_scope.zone(), graph, schedule);
 
-    scheduler.BuildCFG();
-    scheduler.ComputeSpecialRPONumbering();
-    scheduler.GenerateImmediateDominatorTree();
+  scheduler.BuildCFG();
+  scheduler.ComputeSpecialRPONumbering();
+  scheduler.GenerateImmediateDominatorTree();
 
-    scheduler.PrepareUses();
-    scheduler.ScheduleEarly();
-    scheduler.ScheduleLate();
-
-    had_floating_control = scheduler.ConnectFloatingControl();
-  } while (had_floating_control);
+  scheduler.PrepareUses();
+  scheduler.ScheduleEarly();
+  scheduler.ScheduleLate();
 
   return schedule;
 }
 
 
 Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
-  SchedulerData def = {NULL, 0, false, false, kUnknown};
+  SchedulerData def = {schedule_->start(), 0, false, false, kUnknown};
   return def;
 }
 
@@ -92,25 +85,78 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
         break;
       }
 #define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
-        CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
+      CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
 #undef DEFINE_FLOATING_CONTROL_CASE
-        {
-          // Control nodes that were not control-reachable from end may float.
-          data->placement_ = kSchedulable;
-          if (!data->is_connected_control_) {
-            data->is_floating_control_ = true;
-            has_floating_control_ = true;
-            Trace("Floating control found: #%d:%s\n", node->id(),
-                  node->op()->mnemonic());
-          }
-          break;
+      {
+        // Control nodes that were not control-reachable from end may float.
+        data->placement_ = kSchedulable;
+        if (!data->is_connected_control_) {
+          data->is_floating_control_ = true;
+          Trace("Floating control found: #%d:%s\n", node->id(),
+                node->op()->mnemonic());
         }
+        break;
+      }
       default:
         data->placement_ = kSchedulable;
         break;
     }
   }
   return data->placement_;
+}
+
+
+void Scheduler::UpdatePlacement(Node* node, Placement placement) {
+  SchedulerData* data = GetData(node);
+  if (data->placement_ != kUnknown) {  // Trap on mutation, not initialization.
+    switch (node->opcode()) {
+      case IrOpcode::kParameter:
+        // Parameters are fixed once and for all.
+        UNREACHABLE();
+        break;
+      case IrOpcode::kPhi:
+      case IrOpcode::kEffectPhi: {
+        // Phis and effect phis are coupled to their respective blocks.
+        DCHECK_EQ(Scheduler::kCoupled, data->placement_);
+        DCHECK_EQ(Scheduler::kFixed, placement);
+        Node* control = NodeProperties::GetControlInput(node);
+        BasicBlock* block = schedule_->block(control);
+        schedule_->AddNode(block, node);
+        // TODO(mstarzinger): Cheap hack to make sure unscheduled use count of
+        // control does not drop below zero. This might cause the control to be
+        // queued for scheduling more than once, which makes this ugly!
+        ++(GetData(control)->unscheduled_count_);
+        break;
+      }
+#define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
+      CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
+#undef DEFINE_FLOATING_CONTROL_CASE
+      {
+        // Control nodes force coupled uses to be placed.
+        Node::Uses uses = node->uses();
+        for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
+          if (GetPlacement(*i) == Scheduler::kCoupled) {
+            DCHECK_EQ(node, NodeProperties::GetControlInput(*i));
+            UpdatePlacement(*i, placement);
+          }
+        }
+        break;
+      }
+      default:
+        DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
+        DCHECK_EQ(Scheduler::kScheduled, placement);
+        break;
+    }
+    // Reduce the use count of the node's inputs to potentially make them
+    // schedulable. If all the uses of a node have been scheduled, then the node
+    // itself can be scheduled.
+    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
+      // TODO(mstarzinger): Another cheap hack for use counts.
+      if (GetData(*i)->placement_ == kFixed) continue;
+      DecrementUnscheduledUseCount(*i, i.edge().from());
+    }
+  }
+  data->placement_ = placement;
 }
 
 
@@ -177,21 +223,19 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
 
 
 // Internal class to build a control flow graph (i.e the basic blocks and edges
-// between them within a Schedule) from the node graph.
-// Visits the control edges of the graph backwards from end in order to find
-// the connected control subgraph, needed for scheduling.
+// between them within a Schedule) from the node graph. Visits control edges of
+// the graph backwards from an end node in order to find the connected control
+// subgraph, needed for scheduling.
 class CFGBuilder {
  public:
-  Scheduler* scheduler_;
-  Schedule* schedule_;
-  ZoneQueue<Node*> queue_;
-  NodeVector control_;
-
   CFGBuilder(Zone* zone, Scheduler* scheduler)
       : scheduler_(scheduler),
         schedule_(scheduler->schedule_),
         queue_(zone),
-        control_(zone) {}
+        control_(zone),
+        component_head_(NULL),
+        component_start_(NULL),
+        component_end_(NULL) {}
 
   // Run the control flow graph construction algorithm by walking the graph
   // backwards from end through control edges, building and connecting the
@@ -217,10 +261,40 @@ class CFGBuilder {
     FixNode(schedule_->end(), graph->end());
   }
 
+  // Run the control flow graph construction for a minimal control-connected
+  // component ending in {node} and merge that component into an existing
+  // control flow graph at the bottom of {block}.
+  void Run(BasicBlock* block, Node* node) {
+    Queue(node);
+
+    component_start_ = block;
+    component_end_ = schedule_->block(node);
+    while (!queue_.empty()) {  // Breadth-first backwards traversal.
+      Node* node = queue_.front();
+      queue_.pop();
+      bool is_dom = true;
+      int max = NodeProperties::PastControlIndex(node);
+      for (int i = NodeProperties::FirstControlIndex(node); i < max; i++) {
+        is_dom = is_dom &&
+            !scheduler_->GetData(node->InputAt(i))->is_floating_control_;
+        Queue(node->InputAt(i));
+      }
+      // TODO(mstarzinger): This is a hacky way to find component dominator.
+      if (is_dom) component_head_ = node;
+    }
+    DCHECK_NOT_NULL(component_head_);
+
+    for (NodeVector::iterator i = control_.begin(); i != control_.end(); ++i) {
+      scheduler_->GetData(*i)->is_floating_control_ = false;
+      ConnectBlocks(*i);  // Connect block to its predecessor/successors.
+    }
+  }
+
+ private:
   void FixNode(BasicBlock* block, Node* node) {
     schedule_->AddNode(block, node);
     scheduler_->GetData(node)->is_connected_control_ = true;
-    scheduler_->GetData(node)->placement_ = Scheduler::kFixed;
+    scheduler_->UpdatePlacement(node, Scheduler::kFixed);
   }
 
   void Queue(Node* node) {
@@ -257,11 +331,11 @@ class CFGBuilder {
         ConnectMerge(node);
         break;
       case IrOpcode::kBranch:
-        scheduler_->schedule_root_nodes_.push_back(node);
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectBranch(node);
         break;
       case IrOpcode::kReturn:
-        scheduler_->schedule_root_nodes_.push_back(node);
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectReturn(node);
         break;
       default:
@@ -318,16 +392,9 @@ class CFGBuilder {
   }
 
   void ConnectBranch(Node* branch) {
-    Node* branch_block_node = NodeProperties::GetControlInput(branch);
-    BasicBlock* branch_block = schedule_->block(branch_block_node);
-    DCHECK(branch_block != NULL);
-
     BasicBlock* successor_blocks[2];
     CollectSuccessorBlocks(branch, successor_blocks, IrOpcode::kIfTrue,
                            IrOpcode::kIfFalse);
-
-    TraceConnect(branch, branch_block, successor_blocks[0]);
-    TraceConnect(branch, branch_block, successor_blocks[1]);
 
     // Consider branch hints.
     // TODO(turbofan): Propagate the deferred flag to all blocks dominated by
@@ -343,8 +410,21 @@ class CFGBuilder {
         break;
     }
 
-    schedule_->AddBranch(branch_block, branch, successor_blocks[0],
-                         successor_blocks[1]);
+    if (branch == component_head_) {
+      TraceConnect(branch, component_start_, successor_blocks[0]);
+      TraceConnect(branch, component_start_, successor_blocks[1]);
+      schedule_->InsertBranch(component_start_, component_end_, branch,
+                              successor_blocks[0], successor_blocks[1]);
+    } else {
+      Node* branch_block_node = NodeProperties::GetControlInput(branch);
+      BasicBlock* branch_block = schedule_->block(branch_block_node);
+      DCHECK(branch_block != NULL);
+
+      TraceConnect(branch, branch_block, successor_blocks[0]);
+      TraceConnect(branch, branch_block, successor_blocks[1]);
+      schedule_->AddBranch(branch_block, branch, successor_blocks[0],
+                           successor_blocks[1]);
+    }
   }
 
   void ConnectMerge(Node* merge) {
@@ -385,13 +465,25 @@ class CFGBuilder {
     return (node->opcode() == IrOpcode::kMerge &&
             node == scheduler_->graph_->end()->InputAt(0));
   }
+
+  Scheduler* scheduler_;
+  Schedule* schedule_;
+  ZoneQueue<Node*> queue_;
+  NodeVector control_;
+  Node* component_head_;
+  BasicBlock* component_start_;
+  BasicBlock* component_end_;
 };
 
 
 void Scheduler::BuildCFG() {
   Trace("--- CREATING CFG -------------------------------------------\n");
+
+  // Build a control-flow graph for the main control-connected component that
+  // is being spanned by the graph's start and end nodes.
   CFGBuilder cfg_builder(zone_, this);
   cfg_builder.Run();
+
   // Initialize per-block data.
   scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
 }
@@ -867,7 +959,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
       DCHECK(current_pred != end);
       BasicBlock* dominator = *current_pred;
       ++current_pred;
-      // For multiple predecessors, walk up the rpo ordering until a common
+      // For multiple predecessors, walk up the RPO ordering until a common
       // dominator is found.
       int current_rpo_pos = GetRPONumber(current_rpo);
       while (current_pred != end) {
@@ -952,76 +1044,92 @@ void Scheduler::PrepareUses() {
 // Phase 4: Schedule nodes early.
 
 
-class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
+class ScheduleEarlyNodeVisitor {
  public:
-  explicit ScheduleEarlyNodeVisitor(Scheduler* scheduler)
-      : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
+  ScheduleEarlyNodeVisitor(Zone* zone, Scheduler* scheduler)
+      : scheduler_(scheduler), schedule_(scheduler->schedule_), queue_(zone) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
-    Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
-      // Fixed nodes already know their schedule early position.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = schedule_->block(node);
-        Trace("Preschedule #%d:%s minimum_rpo = %d (fixed)\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
-      }
-    } else {
-      // For unfixed nodes the minimum RPO is the max of all of the inputs.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = ComputeMaximumInputRPO(node);
-        if (data->minimum_block_ == NULL) return GenericGraphVisit::REENTER;
-        Trace("Preschedule #%d:%s minimum_rpo = %d\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
+  // Run the schedule early algorithm on a set of fixed root nodes.
+  void Run(NodeVector* roots) {
+    for (NodeVectorIter i = roots->begin(); i != roots->end(); ++i) {
+      queue_.push(*i);
+      while (!queue_.empty()) {
+        VisitNode(queue_.front());
+        queue_.pop();
       }
     }
-    DCHECK_NE(data->minimum_block_, NULL);
-    return GenericGraphVisit::CONTINUE;
-  }
-
-  GenericGraphVisit::Control Post(Node* node) {
-    Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    if (scheduler_->GetPlacement(node) != Scheduler::kFixed) {
-      // For unfixed nodes the minimum RPO is the max of all of the inputs.
-      if (data->minimum_block_ == NULL) {
-        data->minimum_block_ = ComputeMaximumInputRPO(node);
-        Trace("Postschedule #%d:%s minimum_rpo = %d\n", node->id(),
-              node->op()->mnemonic(), data->minimum_block_->rpo_number());
-      }
-    }
-    DCHECK_NE(data->minimum_block_, NULL);
-    return GenericGraphVisit::CONTINUE;
-  }
-
-  // Computes the maximum of the minimum RPOs for all inputs. If the maximum
-  // cannot be determined (i.e. minimum RPO for at least one input is {NULL}),
-  // then {NULL} is returned.
-  BasicBlock* ComputeMaximumInputRPO(Node* node) {
-    BasicBlock* max_block = schedule_->start();
-    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      DCHECK_NE(node, *i);  // Loops only exist for fixed nodes.
-      BasicBlock* block = scheduler_->GetData(*i)->minimum_block_;
-      if (block == NULL) return NULL;
-      if (block->rpo_number() > max_block->rpo_number()) {
-        max_block = block;
-      }
-    }
-    return max_block;
   }
 
  private:
+  // Visits one node from the queue and propagates its current schedule early
+  // position to all uses. This in turn might push more nodes onto the queue.
+  void VisitNode(Node* node) {
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+
+    // Fixed nodes already know their schedule early position.
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+      DCHECK_EQ(schedule_->start(), data->minimum_block_);
+      data->minimum_block_ = schedule_->block(node);
+      Trace("Fixing #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), data->minimum_block_->rpo_number());
+    }
+
+    // No need to propagate unconstrained schedule early positions.
+    if (data->minimum_block_ == schedule_->start()) return;
+
+    // Propagate schedule early position.
+    DCHECK(data->minimum_block_ != NULL);
+    Node::Uses uses = node->uses();
+    for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
+      PropagateMinimumRPOToNode(data->minimum_block_, *i);
+    }
+  }
+
+  // Propagates {block} as another minimum RPO placement into the given {node}.
+  // This has the net effect of computing the maximum of the minimum RPOs for
+  // all inputs to {node} when the queue has been fully processed.
+  void PropagateMinimumRPOToNode(BasicBlock* block, Node* node) {
+    Scheduler::SchedulerData* data = scheduler_->GetData(node);
+
+    // No need to propagate to fixed node, it's guaranteed to be a root.
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) return;
+
+    // Coupled nodes influence schedule early position of their control.
+    if (scheduler_->GetPlacement(node) == Scheduler::kCoupled) {
+      Node* control = NodeProperties::GetControlInput(node);
+      PropagateMinimumRPOToNode(block, control);
+    }
+
+    // Propagate new position if it is larger than the current.
+    if (block->rpo_number() > data->minimum_block_->rpo_number()) {
+      data->minimum_block_ = block;
+      queue_.push(node);
+      Trace("Propagating #%d:%s minimum_rpo = %d\n", node->id(),
+            node->op()->mnemonic(), data->minimum_block_->rpo_number());
+    }
+  }
+
   Scheduler* scheduler_;
   Schedule* schedule_;
+  ZoneQueue<Node*> queue_;
 };
 
 
 void Scheduler::ScheduleEarly() {
   Trace("--- SCHEDULE EARLY -----------------------------------------\n");
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("roots: ");
+    for (NodeVectorIter i = schedule_root_nodes_.begin();
+         i != schedule_root_nodes_.end(); ++i) {
+      Trace("#%d:%s ", (*i)->id(), (*i)->op()->mnemonic());
+    }
+    Trace("\n");
+  }
 
   // Compute the minimum RPO for each node thereby determining the earliest
   // position each node could be placed within a valid schedule.
-  ScheduleEarlyNodeVisitor visitor(this);
-  graph_->VisitNodeInputsFromEnd(&visitor);
+  ScheduleEarlyNodeVisitor schedule_early_visitor(zone_, this);
+  schedule_early_visitor.Run(&schedule_root_nodes_);
 }
 
 
@@ -1075,6 +1183,7 @@ class ScheduleLateNodeVisitor {
 
     // Determine the dominating block for all of the uses of this node. It is
     // the latest block that this node can be scheduled in.
+    Trace("Scheduling #%d:%s\n", node->id(), node->op()->mnemonic());
     BasicBlock* block = GetCommonDominatorOfUses(node);
     DCHECK_NOT_NULL(block);
 
@@ -1095,10 +1204,14 @@ class ScheduleLateNodeVisitor {
       hoist_block = GetPreHeader(hoist_block);
     }
 
-    ScheduleNode(block, node);
+    // Schedule the node or a floating control structure.
+    if (NodeProperties::IsControl(node)) {
+      ScheduleFloatingControl(block, node);
+    } else {
+      ScheduleNode(block, node);
+    }
   }
 
- private:
   BasicBlock* GetPreHeader(BasicBlock* block) {
     if (block->IsLoopHeader()) {
       return block->dominator();
@@ -1129,7 +1242,7 @@ class ScheduleLateNodeVisitor {
       // If the use is from a coupled (i.e. floating) phi, compute the common
       // dominator of its uses. This will not recurse more than one level.
       if (scheduler_->GetPlacement(use) == Scheduler::kCoupled) {
-        Trace("  inspecting uses of coupled phi #%d:%s\n", use->id(),
+        Trace("  inspecting uses of coupled #%d:%s\n", use->id(),
               use->op()->mnemonic());
         DCHECK_EQ(edge.to(), NodeProperties::GetControlInput(use));
         return GetCommonDominatorOfUses(use);
@@ -1152,16 +1265,15 @@ class ScheduleLateNodeVisitor {
     return result;
   }
 
+  void ScheduleFloatingControl(BasicBlock* block, Node* node) {
+    DCHECK(scheduler_->GetData(node)->is_floating_control_);
+    scheduler_->FuseFloatingControl(block, node);
+  }
+
   void ScheduleNode(BasicBlock* block, Node* node) {
     schedule_->PlanNode(block, node);
     scheduler_->scheduled_nodes_[block->id().ToSize()].push_back(node);
-
-    // Reduce the use count of the node's inputs to potentially make them
-    // schedulable. If all the uses of a node have been scheduled, then the node
-    // itself can be scheduled.
-    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      scheduler_->DecrementUnscheduledUseCount(*i, i.edge().from());
-    }
+    scheduler_->UpdatePlacement(node, Scheduler::kScheduled);
   }
 
   Scheduler* scheduler_;
@@ -1199,97 +1311,53 @@ void Scheduler::ScheduleLate() {
 // -----------------------------------------------------------------------------
 
 
-bool Scheduler::ConnectFloatingControl() {
-  if (!has_floating_control_) return false;
-
-  Trace("Connecting floating control...\n");
-
-  // Process blocks and instructions backwards to find and connect floating
-  // control nodes into the control graph according to the block they were
-  // scheduled into.
-  int max = static_cast<int>(schedule_->rpo_order()->size());
-  for (int i = max - 1; i >= 0; i--) {
-    BasicBlock* block = schedule_->rpo_order()->at(i);
-    // TODO(titzer): we place at most one floating control structure per
-    // basic block because scheduling currently can interleave phis from
-    // one subgraph with the merges from another subgraph.
-    for (size_t j = 0; j < block->NodeCount(); j++) {
-      Node* node = block->NodeAt(block->NodeCount() - 1 - j);
-      SchedulerData* data = GetData(node);
-      if (data->is_floating_control_ && !data->is_connected_control_) {
-        Trace("  Floating control #%d:%s was scheduled in B%d\n", node->id(),
-              node->op()->mnemonic(), block->id().ToInt());
-        ConnectFloatingControlSubgraph(block, node);
-        break;
-      }
-    }
+void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
+  Trace("--- FUSE FLOATING CONTROL ----------------------------------\n");
+  if (FLAG_trace_turbo_scheduler) {
+    OFStream os(stdout);
+    os << "Schedule before control flow fusion:\n" << *schedule_;
   }
 
-  return true;
+  // Iterate on phase 1: Build control-flow graph.
+  CFGBuilder cfg_builder(zone_, this);
+  cfg_builder.Run(block, node);
+
+  // Iterate on phase 2: Compute special RPO and dominator tree.
+  // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
+  BasicBlockVector* rpo = schedule_->rpo_order();
+  for (BasicBlockVectorIter i = rpo->begin(); i != rpo->end(); ++i) {
+    BasicBlock* block = *i;
+    block->set_rpo_number(-1);
+    block->set_loop_header(NULL);
+    block->set_loop_depth(0);
+    block->set_loop_end(-1);
+  }
+  schedule_->rpo_order()->clear();
+  SpecialRPONumberer numberer(zone_, schedule_);
+  numberer.ComputeSpecialRPO();
+  GenerateImmediateDominatorTree();
+  scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
+
+  // Move previously planned nodes.
+  // TODO(mstarzinger): Improve that by supporting bulk moves.
+  MovePlannedNodes(block, schedule_->block(node));
+
+  if (FLAG_trace_turbo_scheduler) {
+    OFStream os(stdout);
+    os << "Schedule after control flow fusion:" << *schedule_;
+  }
 }
 
 
-void Scheduler::ConnectFloatingControlSubgraph(BasicBlock* block, Node* end) {
-  Node* block_start = block->NodeAt(0);
-  DCHECK(IrOpcode::IsControlOpcode(block_start->opcode()));
-  // Find the current "control successor" of the node that starts the block
-  // by searching the control uses for a control input edge from a connected
-  // control node.
-  Node* control_succ = NULL;
-  for (UseIter i = block_start->uses().begin(); i != block_start->uses().end();
-       ++i) {
-    Node::Edge edge = i.edge();
-    if (NodeProperties::IsControlEdge(edge) &&
-        GetData(edge.from())->is_connected_control_) {
-      DCHECK_EQ(NULL, control_succ);
-      control_succ = edge.from();
-      control_succ->ReplaceInput(edge.index(), end);
-    }
+void Scheduler::MovePlannedNodes(BasicBlock* from, BasicBlock* to) {
+  Trace("Move planned nodes from B%d to B%d\n", from->id().ToInt(),
+        to->id().ToInt());
+  NodeVector* nodes = &(scheduled_nodes_[from->id().ToSize()]);
+  for (NodeVectorIter i = nodes->begin(); i != nodes->end(); ++i) {
+    schedule_->SetBlockForNode(to, *i);
+    scheduled_nodes_[to->id().ToSize()].push_back(*i);
   }
-  DCHECK_NE(NULL, control_succ);
-  Trace("  Inserting floating control end %d:%s between %d:%s -> %d:%s\n",
-        end->id(), end->op()->mnemonic(), control_succ->id(),
-        control_succ->op()->mnemonic(), block_start->id(),
-        block_start->op()->mnemonic());
-
-  // Find the "start" node of the control subgraph, which should be the
-  // unique node that is itself floating control but has a control input that
-  // is not floating.
-  Node* start = NULL;
-  ZoneQueue<Node*> queue(zone_);
-  queue.push(end);
-  GetData(end)->is_connected_control_ = true;
-  while (!queue.empty()) {
-    Node* node = queue.front();
-    queue.pop();
-    Trace("  Search #%d:%s for control subgraph start\n", node->id(),
-          node->op()->mnemonic());
-    int max = NodeProperties::PastControlIndex(node);
-    for (int i = NodeProperties::FirstControlIndex(node); i < max; i++) {
-      Node* input = node->InputAt(i);
-      SchedulerData* data = GetData(input);
-      if (data->is_floating_control_) {
-        // {input} is floating control.
-        if (!data->is_connected_control_) {
-          // First time seeing {input} during this traversal, queue it.
-          queue.push(input);
-          data->is_connected_control_ = true;
-        }
-      } else {
-        // Otherwise, {node} is the start node, because it is floating control
-        // but is connected to {input} that is not floating control.
-        DCHECK_EQ(NULL, start);  // There can be only one.
-        start = node;
-      }
-    }
-  }
-
-  DCHECK_NE(NULL, start);
-  start->ReplaceInput(NodeProperties::FirstControlIndex(start), block_start);
-
-  Trace("  Connecting floating control start %d:%s to %d:%s\n", start->id(),
-        start->op()->mnemonic(), block_start->id(),
-        block_start->op()->mnemonic());
+  nodes->clear();
 }
 
 }  // namespace compiler

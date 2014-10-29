@@ -37,6 +37,9 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access to Map::instance_type() field.
   static FieldAccess ForMapInstanceType();
 
+  // Provides access to String::length() field.
+  static FieldAccess ForStringLength();
+
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 

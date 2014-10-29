@@ -391,7 +391,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
       DCHECK(cursor + 4 <= elements->length());
 
-
       Handle<Code> code = frames[i].code();
       Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
       // The stack trace API should not expose receivers and function
@@ -440,29 +439,197 @@ void Isolate::CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
 }
 
 
+Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
+  Handle<Name> key_detailed = factory()->detailed_stack_trace_symbol();
+  Handle<Object> stack_trace =
+      JSObject::GetDataProperty(error_object, key_detailed);
+  if (stack_trace->IsJSArray()) return Handle<JSArray>::cast(stack_trace);
+
+  if (!capture_stack_trace_for_uncaught_exceptions_) return Handle<JSArray>();
+
+  // Try to get details from simple stack trace.
+  Handle<JSArray> detailed_stack_trace =
+      GetDetailedFromSimpleStackTrace(error_object);
+  if (!detailed_stack_trace.is_null()) {
+    // Save the detailed stack since the simple one might be withdrawn later.
+    JSObject::SetProperty(error_object, key_detailed, detailed_stack_trace,
+                          STRICT).Assert();
+  }
+  return detailed_stack_trace;
+}
+
+
+class CaptureStackTraceHelper {
+ public:
+  CaptureStackTraceHelper(Isolate* isolate,
+                          StackTrace::StackTraceOptions options)
+      : isolate_(isolate) {
+    if (options & StackTrace::kColumnOffset) {
+      column_key_ =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("column"));
+    }
+    if (options & StackTrace::kLineNumber) {
+      line_key_ =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("lineNumber"));
+    }
+    if (options & StackTrace::kScriptId) {
+      script_id_key_ =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptId"));
+    }
+    if (options & StackTrace::kScriptName) {
+      script_name_key_ =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptName"));
+    }
+    if (options & StackTrace::kScriptNameOrSourceURL) {
+      script_name_or_source_url_key_ = factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("scriptNameOrSourceURL"));
+    }
+    if (options & StackTrace::kFunctionName) {
+      function_key_ = factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("functionName"));
+    }
+    if (options & StackTrace::kIsEval) {
+      eval_key_ =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isEval"));
+    }
+    if (options & StackTrace::kIsConstructor) {
+      constructor_key_ = factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("isConstructor"));
+    }
+  }
+
+  Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun,
+                                       Handle<Code> code, Address pc,
+                                       bool is_constructor) {
+    Handle<JSObject> stack_frame =
+        factory()->NewJSObject(isolate_->object_function());
+
+    Handle<Script> script(Script::cast(fun->shared()->script()));
+
+    if (!line_key_.is_null()) {
+      int script_line_offset = script->line_offset()->value();
+      int position = code->SourcePosition(pc);
+      int line_number = Script::GetLineNumber(script, position);
+      // line_number is already shifted by the script_line_offset.
+      int relative_line_number = line_number - script_line_offset;
+      if (!column_key_.is_null() && relative_line_number >= 0) {
+        Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+        int start = (relative_line_number == 0) ? 0 :
+            Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
+        int column_offset = position - start;
+        if (relative_line_number == 0) {
+          // For the case where the code is on the same line as the script
+          // tag.
+          column_offset += script->column_offset()->value();
+        }
+        JSObject::AddProperty(stack_frame, column_key_,
+                              handle(Smi::FromInt(column_offset + 1), isolate_),
+                              NONE);
+      }
+      JSObject::AddProperty(stack_frame, line_key_,
+                            handle(Smi::FromInt(line_number + 1), isolate_),
+                            NONE);
+    }
+
+    if (!script_id_key_.is_null()) {
+      JSObject::AddProperty(stack_frame, script_id_key_,
+                            handle(script->id(), isolate_), NONE);
+    }
+
+    if (!script_name_key_.is_null()) {
+      JSObject::AddProperty(stack_frame, script_name_key_,
+                            handle(script->name(), isolate_), NONE);
+    }
+
+    if (!script_name_or_source_url_key_.is_null()) {
+      Handle<Object> result = Script::GetNameOrSourceURL(script);
+      JSObject::AddProperty(stack_frame, script_name_or_source_url_key_, result,
+                            NONE);
+    }
+
+    if (!function_key_.is_null()) {
+      Handle<Object> fun_name(fun->shared()->DebugName(), isolate_);
+      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
+    }
+
+    if (!eval_key_.is_null()) {
+      Handle<Object> is_eval = factory()->ToBoolean(
+          script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+      JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
+    }
+
+    if (!constructor_key_.is_null()) {
+      Handle<Object> is_constructor_obj = factory()->ToBoolean(is_constructor);
+      JSObject::AddProperty(stack_frame, constructor_key_, is_constructor_obj,
+                            NONE);
+    }
+
+    return stack_frame;
+  }
+
+ private:
+  inline Factory* factory() { return isolate_->factory(); }
+
+  Isolate* isolate_;
+  Handle<String> column_key_;
+  Handle<String> line_key_;
+  Handle<String> script_id_key_;
+  Handle<String> script_name_key_;
+  Handle<String> script_name_or_source_url_key_;
+  Handle<String> function_key_;
+  Handle<String> eval_key_;
+  Handle<String> constructor_key_;
+};
+
+
+Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
+    Handle<JSObject> error_object) {
+  Handle<Name> key = factory()->stack_trace_symbol();
+  Handle<Object> property = JSObject::GetDataProperty(error_object, key);
+  if (!property->IsJSArray()) return Handle<JSArray>();
+  Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
+
+  CaptureStackTraceHelper helper(this,
+                                 stack_trace_for_uncaught_exceptions_options_);
+
+  int frames_seen = 0;
+  Handle<FixedArray> elements(FixedArray::cast(simple_stack_trace->elements()));
+  int elements_limit = Smi::cast(simple_stack_trace->length())->value();
+
+  int frame_limit = stack_trace_for_uncaught_exceptions_frame_limit_;
+  if (frame_limit < 0) frame_limit = (elements_limit - 1) / 4;
+
+  Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
+  for (int i = 1; i < elements_limit && frames_seen < frame_limit; i += 4) {
+    Handle<Object> recv = handle(elements->get(i), this);
+    Handle<JSFunction> fun =
+        handle(JSFunction::cast(elements->get(i + 1)), this);
+    Handle<Code> code = handle(Code::cast(elements->get(i + 2)), this);
+    Handle<Smi> offset = handle(Smi::cast(elements->get(i + 3)), this);
+    Address pc = code->address() + offset->value();
+    bool is_constructor =
+        recv->IsJSObject() &&
+        Handle<JSObject>::cast(recv)->map()->constructor() == *fun;
+
+    Handle<JSObject> stack_frame =
+        helper.NewStackFrameObject(fun, code, pc, is_constructor);
+
+    FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
+    frames_seen++;
+  }
+
+  stack_trace->set_length(Smi::FromInt(frames_seen));
+  return stack_trace;
+}
+
+
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
+  CaptureStackTraceHelper helper(this, options);
+
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
-
-  Handle<String> column_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("column"));
-  Handle<String> line_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("lineNumber"));
-  Handle<String> script_id_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptId"));
-  Handle<String> script_name_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptName"));
-  Handle<String> script_name_or_source_url_key =
-      factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("scriptNameOrSourceURL"));
-  Handle<String> function_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("functionName"));
-  Handle<String> eval_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isEval"));
-  Handle<String> constructor_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isConstructor"));
 
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
@@ -478,70 +645,8 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
           !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
 
-      // Create a JSObject to hold the information for the StackFrame.
-      Handle<JSObject> stack_frame = factory()->NewJSObject(object_function());
-
-      Handle<Script> script(Script::cast(fun->shared()->script()));
-
-      if (options & StackTrace::kLineNumber) {
-        int script_line_offset = script->line_offset()->value();
-        int position = frames[i].code()->SourcePosition(frames[i].pc());
-        int line_number = Script::GetLineNumber(script, position);
-        // line_number is already shifted by the script_line_offset.
-        int relative_line_number = line_number - script_line_offset;
-        if (options & StackTrace::kColumnOffset && relative_line_number >= 0) {
-          Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-          int start = (relative_line_number == 0) ? 0 :
-              Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
-          int column_offset = position - start;
-          if (relative_line_number == 0) {
-            // For the case where the code is on the same line as the script
-            // tag.
-            column_offset += script->column_offset()->value();
-          }
-          JSObject::AddProperty(
-              stack_frame, column_key,
-              handle(Smi::FromInt(column_offset + 1), this), NONE);
-        }
-       JSObject::AddProperty(
-            stack_frame, line_key,
-            handle(Smi::FromInt(line_number + 1), this), NONE);
-      }
-
-      if (options & StackTrace::kScriptId) {
-        JSObject::AddProperty(
-            stack_frame, script_id_key, handle(script->id(), this), NONE);
-      }
-
-      if (options & StackTrace::kScriptName) {
-        JSObject::AddProperty(
-            stack_frame, script_name_key, handle(script->name(), this), NONE);
-      }
-
-      if (options & StackTrace::kScriptNameOrSourceURL) {
-        Handle<Object> result = Script::GetNameOrSourceURL(script);
-        JSObject::AddProperty(
-            stack_frame, script_name_or_source_url_key, result, NONE);
-      }
-
-      if (options & StackTrace::kFunctionName) {
-        Handle<Object> fun_name(fun->shared()->DebugName(), this);
-        JSObject::AddProperty(stack_frame, function_key, fun_name, NONE);
-      }
-
-      if (options & StackTrace::kIsEval) {
-        Handle<Object> is_eval =
-            script->compilation_type() == Script::COMPILATION_TYPE_EVAL ?
-                factory()->true_value() : factory()->false_value();
-        JSObject::AddProperty(stack_frame, eval_key, is_eval, NONE);
-      }
-
-      if (options & StackTrace::kIsConstructor) {
-        Handle<Object> is_constructor = (frames[i].is_constructor()) ?
-            factory()->true_value() : factory()->false_value();
-        JSObject::AddProperty(
-            stack_frame, constructor_key, is_constructor, NONE);
-      }
+      Handle<JSObject> stack_frame = helper.NewStackFrameObject(
+          fun, frames[i].code(), frames[i].pc(), frames[i].is_constructor());
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
       frames_seen++;
@@ -912,9 +1017,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     // Advance to the next JavaScript frame and determine if the
     // current frame is the top-level frame.
     it.Advance();
-    Handle<Object> is_top_level = it.done()
-        ? factory()->true_value()
-        : factory()->false_value();
+    Handle<Object> is_top_level = factory()->ToBoolean(it.done());
     // Generate and print stack trace line.
     Handle<String> line =
         Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
@@ -1006,17 +1109,11 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (IsErrorObject(exception)) {
       // We fetch the stack trace that corresponds to this error object.
-      Handle<Name> key = factory()->detailed_stack_trace_symbol();
-      // Look up as own property.  If the lookup fails, the exception is
-      // probably not a valid Error object.  In that case, we fall through
-      // and capture the stack trace at this throw site.
-      LookupIterator lookup(exception, key,
-                            LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Handle<Object> stack_trace_property;
-      if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
-          stack_trace_property->IsJSArray()) {
-        stack_trace_object = Handle<JSArray>::cast(stack_trace_property);
-      }
+      // If the lookup fails, the exception is probably not a valid Error
+      // object. In that case, we fall through and capture the stack trace
+      // at this throw site.
+      stack_trace_object =
+          GetDetailedStackTrace(Handle<JSObject>::cast(exception));
     }
     if (stack_trace_object.is_null()) {
       // Not an error object, we capture at throw site.
@@ -2271,10 +2368,7 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
   if (promise_reject_callback_ == NULL) return;
   Handle<JSArray> stack_trace;
   if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
-    Handle<JSObject> error_obj = Handle<JSObject>::cast(value);
-    Handle<Name> key = factory()->detailed_stack_trace_symbol();
-    Handle<Object> property = JSObject::GetDataProperty(error_obj, key);
-    if (property->IsJSArray()) stack_trace = Handle<JSArray>::cast(property);
+    stack_trace = GetDetailedStackTrace(Handle<JSObject>::cast(value));
   }
   promise_reject_callback_(v8::PromiseRejectMessage(
       v8::Utils::PromiseToLocal(promise), event, v8::Utils::ToLocal(value),

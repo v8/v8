@@ -2043,6 +2043,7 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeArgumentsObject(
 
 // Compile and evaluate source for the given context.
 static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
+                                         Handle<SharedFunctionInfo> outer_info,
                                          Handle<Context> context,
                                          Handle<Object> context_extension,
                                          Handle<Object> receiver,
@@ -2054,11 +2055,11 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
   }
 
   Handle<JSFunction> eval_fun;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, eval_fun, Compiler::GetFunctionFromEval(source, context, SLOPPY,
-                                                       NO_PARSE_RESTRICTION,
-                                                       RelocInfo::kNoPosition),
-      Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, eval_fun,
+                             Compiler::GetFunctionFromEval(
+                                 source, outer_info, context, SLOPPY,
+                                 NO_PARSE_RESTRICTION, RelocInfo::kNoPosition),
+                             Object);
 
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -2118,6 +2119,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   JavaScriptFrame* frame = it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  Handle<SharedFunctionInfo> outer_info(function->shared());
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -2177,8 +2179,8 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   }
 
   Handle<Object> receiver(frame->receiver(), isolate);
-  MaybeHandle<Object> maybe_result =
-      DebugEvaluate(isolate, eval_context, context_extension, receiver, source);
+  MaybeHandle<Object> maybe_result = DebugEvaluate(
+      isolate, outer_info, eval_context, context_extension, receiver, source);
 
   // Remove with-context if it was inserted in between.
   if (!inner_context.is_null()) inner_context->set_previous(*function_context);
@@ -2224,10 +2226,11 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   // debugger was invoked.
   Handle<Context> context = isolate->native_context();
   Handle<JSObject> receiver(context->global_proxy());
+  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      DebugEvaluate(isolate, context, context_extension, receiver, source));
+      isolate, result, DebugEvaluate(isolate, outer_info, context,
+                                     context_extension, receiver, source));
   return *result;
 }
 

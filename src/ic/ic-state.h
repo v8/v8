@@ -20,8 +20,9 @@ class ICUtility : public AllStatic {
   static void Clear(Isolate* isolate, Address address,
                     ConstantPoolArray* constant_pool);
   // Clear a vector-based inline cache to initial state.
+  template <class Nexus>
   static void Clear(Isolate* isolate, Code::Kind kind, Code* host,
-                    TypeFeedbackVector* vector, FeedbackVectorICSlot slot);
+                    Nexus* nexus);
 };
 
 

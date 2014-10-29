@@ -355,11 +355,13 @@ class IsLoadFieldMatcher FINAL : public NodeMatcher {
  public:
   IsLoadFieldMatcher(const Matcher<FieldAccess>& access_matcher,
                      const Matcher<Node*>& base_matcher,
-                     const Matcher<Node*>& effect_matcher)
+                     const Matcher<Node*>& effect_matcher,
+                     const Matcher<Node*>& control_matcher)
       : NodeMatcher(IrOpcode::kLoadField),
         access_matcher_(access_matcher),
         base_matcher_(base_matcher),
-        effect_matcher_(effect_matcher) {}
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
@@ -367,8 +369,10 @@ class IsLoadFieldMatcher FINAL : public NodeMatcher {
     access_matcher_.DescribeTo(os);
     *os << "), base (";
     base_matcher_.DescribeTo(os);
-    *os << ") and effect (";
+    *os << "), effect (";
     effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
     *os << ")";
   }
 
@@ -380,13 +384,16 @@ class IsLoadFieldMatcher FINAL : public NodeMatcher {
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener));
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
   }
 
  private:
   const Matcher<FieldAccess> access_matcher_;
   const Matcher<Node*> base_matcher_;
   const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
 };
 
 
@@ -396,15 +403,13 @@ class IsLoadElementMatcher FINAL : public NodeMatcher {
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
                        const Matcher<Node*>& length_matcher,
-                       const Matcher<Node*>& effect_matcher,
-                       const Matcher<Node*>& control_matcher)
+                       const Matcher<Node*>& effect_matcher)
       : NodeMatcher(IrOpcode::kLoadElement),
         access_matcher_(access_matcher),
         base_matcher_(base_matcher),
         index_matcher_(index_matcher),
         length_matcher_(length_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
+        effect_matcher_(effect_matcher) {}
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
@@ -416,10 +421,8 @@ class IsLoadElementMatcher FINAL : public NodeMatcher {
     index_matcher_.DescribeTo(os);
     *os << "), length (";
     length_matcher_.DescribeTo(os);
-    *os << "), effect (";
+    *os << ") and effect (";
     effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
     *os << ")";
   }
 
@@ -435,9 +438,7 @@ class IsLoadElementMatcher FINAL : public NodeMatcher {
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
                                  "length", length_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+                                 effect_matcher_, listener));
   }
 
  private:
@@ -446,7 +447,6 @@ class IsLoadElementMatcher FINAL : public NodeMatcher {
   const Matcher<Node*> index_matcher_;
   const Matcher<Node*> length_matcher_;
   const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
 };
 
 
@@ -795,9 +795,10 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 
 Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
                            const Matcher<Node*>& base_matcher,
-                           const Matcher<Node*>& effect_matcher) {
-  return MakeMatcher(
-      new IsLoadFieldMatcher(access_matcher, base_matcher, effect_matcher));
+                           const Matcher<Node*>& effect_matcher,
+                           const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsLoadFieldMatcher(access_matcher, base_matcher,
+                                            effect_matcher, control_matcher));
 }
 
 
@@ -805,11 +806,10 @@ Matcher<Node*> IsLoadElement(const Matcher<ElementAccess>& access_matcher,
                              const Matcher<Node*>& base_matcher,
                              const Matcher<Node*>& index_matcher,
                              const Matcher<Node*>& length_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher) {
+                             const Matcher<Node*>& effect_matcher) {
   return MakeMatcher(new IsLoadElementMatcher(access_matcher, base_matcher,
                                               index_matcher, length_matcher,
-                                              effect_matcher, control_matcher));
+                                              effect_matcher));
 }
 
 
@@ -854,6 +854,7 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
     return MakeMatcher(                                                   \
         new IsBinopMatcher(IrOpcode::k##Name, lhs_matcher, rhs_matcher)); \
   }
+IS_BINOP_MATCHER(NumberEqual)
 IS_BINOP_MATCHER(NumberLessThan)
 IS_BINOP_MATCHER(NumberSubtract)
 IS_BINOP_MATCHER(Word32And)
@@ -881,6 +882,7 @@ IS_BINOP_MATCHER(Uint32LessThanOrEqual)
   Matcher<Node*> Is##Name(const Matcher<Node*>& input_matcher) {             \
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
+IS_UNOP_MATCHER(BooleanNot)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToUint32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)

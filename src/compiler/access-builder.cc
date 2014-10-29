@@ -59,6 +59,13 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 
 
 // static
+FieldAccess AccessBuilder::ForStringLength() {
+  return {kTaggedBase, String::kLengthOffset, Handle<Name>(),
+          Type::SignedSmall(), kMachAnyTagged};
+}
+
+
+// static
 FieldAccess AccessBuilder::ForValue() {
   return {kTaggedBase, JSValue::kValueOffset, Handle<Name>(), Type::Any(),
           kMachAnyTagged};

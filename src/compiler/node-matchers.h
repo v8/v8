@@ -96,42 +96,6 @@ typedef FloatMatcher<double, IrOpcode::kFloat64Constant> Float64Matcher;
 typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 
-// A pattern matcher for any numberic constant.
-struct NumericValueMatcher : public NodeMatcher {
-  explicit NumericValueMatcher(Node* const node) : NodeMatcher(node) {
-    switch (opcode()) {
-      case IrOpcode::kInt32Constant:
-        has_value_ = true;
-        value_ = OpParameter<int32_t>(node);
-        break;
-      case IrOpcode::kFloat32Constant:
-        has_value_ = true;
-        value_ = OpParameter<float>(node);
-        break;
-      case IrOpcode::kFloat64Constant:
-      case IrOpcode::kNumberConstant:
-        has_value_ = true;
-        value_ = OpParameter<double>(node);
-        break;
-      default:
-        has_value_ = false;
-        value_ = 0;  // Make the compiler happy.
-        break;
-    }
-  }
-
-  bool HasValue() const { return has_value_; }
-  double Value() const {
-    DCHECK(HasValue());
-    return value_;
-  }
-
- private:
-  double value_;
-  bool has_value_;
-};
-
-
 // A pattern matcher for heap object constants.
 template <typename T>
 struct HeapObjectMatcher FINAL
@@ -175,6 +139,7 @@ typedef BinopMatcher<Uint32Matcher, Uint32Matcher> Uint32BinopMatcher;
 typedef BinopMatcher<Int64Matcher, Int64Matcher> Int64BinopMatcher;
 typedef BinopMatcher<Uint64Matcher, Uint64Matcher> Uint64BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
+typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
 
 
 // Fairly intel-specify node matcher used for matching scale factors in

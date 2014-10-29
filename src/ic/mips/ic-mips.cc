@@ -594,7 +594,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-static void KeyedStoreGenerateGenericHelper(
+static void KeyedStoreGenerateMegamorphicHelper(
     MacroAssembler* masm, Label* fast_object, Label* fast_double, Label* slow,
     KeyedStoreCheckMap check_map, KeyedStoreIncrementLength increment_length,
     Register value, Register key, Register receiver, Register receiver_map,
@@ -740,9 +740,8 @@ static void KeyedStoreGenerateGenericHelper(
 }
 
 
-void KeyedStoreIC::GenerateGeneric(
-    MacroAssembler* masm, StrictMode strict_mode,
-    KeyedStoreStubCacheRequirement handler_requirement) {
+void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                       StrictMode strict_mode) {
   // ---------- S t a t e --------------
   //  -- a0     : value
   //  -- a1     : key
@@ -805,12 +804,7 @@ void KeyedStoreIC::GenerateGeneric(
   masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
                                                key, a3, t0, t1, t2);
   // Cache miss.
-  if (handler_requirement == kCallRuntimeOnMissingHandler) {
-    __ Branch(&slow);
-  } else {
-    DCHECK(handler_requirement == kMissOnMissingHandler);
-    __ Branch(&miss);
-  }
+  __ Branch(&miss);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -843,13 +837,13 @@ void KeyedStoreIC::GenerateGeneric(
   __ lw(t0, FieldMemOperand(receiver, JSArray::kLengthOffset));
   __ Branch(&extra, hs, key, Operand(t0));
 
-  KeyedStoreGenerateGenericHelper(
+  KeyedStoreGenerateMegamorphicHelper(
       masm, &fast_object, &fast_double, &slow, kCheckMap, kDontIncrementLength,
       value, key, receiver, receiver_map, elements_map, elements);
-  KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
-                                  &slow, kDontCheckMap, kIncrementLength, value,
-                                  key, receiver, receiver_map, elements_map,
-                                  elements);
+  KeyedStoreGenerateMegamorphicHelper(masm, &fast_object_grow,
+                                      &fast_double_grow, &slow, kDontCheckMap,
+                                      kIncrementLength, value, key, receiver,
+                                      receiver_map, elements_map, elements);
 
   __ bind(&miss);
   GenerateMiss(masm);

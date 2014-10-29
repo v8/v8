@@ -166,11 +166,22 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
 }
 
 
-void StructuredGraphBuilder::Environment::PrepareForLoop() {
+void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned) {
   Node* control = GetControlDependency();
-  for (int i = 0; i < static_cast<int>(values()->size()); ++i) {
-    Node* phi = builder_->NewPhi(1, values()->at(i), control);
-    values()->at(i) = phi;
+  int size = static_cast<int>(values()->size());
+  if (assigned == NULL) {
+    // Assume that everything is updated in the loop.
+    for (int i = 0; i < size; ++i) {
+      Node* phi = builder_->NewPhi(1, values()->at(i), control);
+      values()->at(i) = phi;
+    }
+  } else {
+    // Only build phis for those locals assigned in this loop.
+    for (int i = 0; i < size; ++i) {
+      if (i < assigned->length() && !assigned->Contains(i)) continue;
+      Node* phi = builder_->NewPhi(1, values()->at(i), control);
+      values()->at(i) = phi;
+    }
   }
   Node* effect = builder_->NewEffectPhi(1, GetEffectDependency(), control);
   UpdateEffectDependency(effect);

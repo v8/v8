@@ -176,7 +176,8 @@ var kMessages = {
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
   unexpected_super:              ["'super' keyword unexpected here"],
   extends_value_not_a_function:  ["Class extends value ", "%0", " is not a function or null"],
-  prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"]
+  prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"],
+  duplicate_constructor:         ["A class may only have one constructor"]
 };
 
 

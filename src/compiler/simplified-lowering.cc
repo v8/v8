@@ -605,19 +605,17 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberDivide: {
-        NumberMatcher right(node->InputAt(1));
-        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
-          if (CanLowerToInt32Binop(node, use)) {
-            // => signed Int32Div
-            VisitInt32Binop(node);
-            if (lower()) node->set_op(Int32Op(node));
-            break;
-          } else if (CanLowerToUint32Binop(node, use)) {
-            // => unsigned Uint32Div
-            VisitUint32Binop(node);
-            if (lower()) node->set_op(Uint32Op(node));
-            break;
-          }
+        if (CanLowerToInt32Binop(node, use)) {
+          // => signed Int32Div
+          VisitInt32Binop(node);
+          if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+          break;
+        }
+        if (CanLowerToUint32Binop(node, use)) {
+          // => unsigned Uint32Div
+          VisitUint32Binop(node);
+          if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
+          break;
         }
         // => Float64Div
         VisitFloat64Binop(node);
@@ -625,20 +623,17 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberModulus: {
-        NumberMatcher right(node->InputAt(1));
-        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
-          if (BothInputsAre(node, Type::Signed32()) &&
-              !CanObserveMinusZero(use)) {
-            // => signed Int32Mod
-            VisitInt32Binop(node);
-            if (lower()) node->set_op(Int32Op(node));
-            break;
-          } else if (BothInputsAre(node, Type::Unsigned32())) {
-            // => unsigned Uint32Mod
-            VisitUint32Binop(node);
-            if (lower()) node->set_op(Uint32Op(node));
-            break;
-          }
+        if (CanLowerToInt32Binop(node, use)) {
+          // => signed Int32Mod
+          VisitInt32Binop(node);
+          if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+          break;
+        }
+        if (CanLowerToUint32Binop(node, use)) {
+          // => unsigned Uint32Mod
+          VisitUint32Binop(node);
+          if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+          break;
         }
         // => Float64Mod
         VisitFloat64Binop(node);
@@ -1079,23 +1074,23 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
   const ElementAccess& access = ElementAccessOf(node->op());
   const Operator* op = machine()->Load(access.machine_type);
   Node* key = node->InputAt(1);
+  Node* effect = node->InputAt(3);
   Node* index = ComputeIndex(access, key);
   if (access.bounds_check == kNoBoundsCheck) {
     DCHECK_EQ(access.machine_type, output_type);
     node->set_op(op);
     node->ReplaceInput(1, index);
-    node->RemoveInput(2);
+    node->ReplaceInput(2, effect);
+    node->ReplaceInput(3, graph()->start());
   } else {
     DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
 
     Node* base = node->InputAt(0);
     Node* length = node->InputAt(2);
-    Node* effect = node->InputAt(3);
-    Node* control = node->InputAt(4);
 
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
+                                    graph()->start());
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* load = graph()->NewNode(op, base, index, effect, if_true);
@@ -1215,6 +1210,148 @@ Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
                           jsgraph()->ExternalConstant(ref),
                           jsgraph()->Int32Constant(2),
                           jsgraph()->UndefinedConstant());
+}
+
+
+Node* SimplifiedLowering::Int32Div(Node* const node) {
+  Int32BinopMatcher m(node);
+  Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const lhs = m.left().node();
+  Node* const rhs = m.right().node();
+
+  if (m.right().Is(-1)) {
+    return graph()->NewNode(machine()->Int32Sub(), zero, lhs);
+  } else if (m.right().Is(0)) {
+    return rhs;
+  } else if (machine()->Int32DivIsSafe() || m.right().HasValue()) {
+    return graph()->NewNode(machine()->Int32Div(), lhs, rhs, graph()->start());
+  }
+
+  Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
+                                   graph()->start());
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* true0 = zero;
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0 = nullptr;
+  {
+    Node* check1 = graph()->NewNode(machine()->Word32Equal(), rhs,
+                                    jsgraph()->Int32Constant(-1));
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(machine()->Int32Sub(), zero, lhs);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_false1);
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    false0 = graph()->NewNode(common()->Phi(kMachInt32, 2), true1, false1,
+                              if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  return graph()->NewNode(common()->Phi(kMachInt32, 2), true0, false0, merge0);
+}
+
+
+Node* SimplifiedLowering::Int32Mod(Node* const node) {
+  Int32BinopMatcher m(node);
+  Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const lhs = m.left().node();
+  Node* const rhs = m.right().node();
+
+  if (m.right().Is(-1) || m.right().Is(0)) {
+    return zero;
+  } else if (machine()->Int32ModIsSafe() || m.right().HasValue()) {
+    return graph()->NewNode(machine()->Int32Mod(), lhs, rhs, graph()->start());
+  }
+
+  Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
+                                   graph()->start());
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* true0 = zero;
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0 = nullptr;
+  {
+    Node* check1 = graph()->NewNode(machine()->Word32Equal(), rhs,
+                                    jsgraph()->Int32Constant(-1));
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = zero;
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_false1);
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    false0 = graph()->NewNode(common()->Phi(kMachInt32, 2), true1, false1,
+                              if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  return graph()->NewNode(common()->Phi(kMachInt32, 2), true0, false0, merge0);
+}
+
+
+Node* SimplifiedLowering::Uint32Div(Node* const node) {
+  Uint32BinopMatcher m(node);
+  Node* const zero = jsgraph()->Uint32Constant(0);
+  Node* const lhs = m.left().node();
+  Node* const rhs = m.right().node();
+
+  if (m.right().Is(0)) {
+    return zero;
+  } else if (machine()->Uint32DivIsSafe() || m.right().HasValue()) {
+    return graph()->NewNode(machine()->Uint32Div(), lhs, rhs, graph()->start());
+  }
+
+  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse), check,
+                                  graph()->start());
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = zero;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, if_false);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  return graph()->NewNode(common()->Phi(kMachUint32, 2), vtrue, vfalse, merge);
+}
+
+
+Node* SimplifiedLowering::Uint32Mod(Node* const node) {
+  Uint32BinopMatcher m(node);
+  Node* const zero = jsgraph()->Uint32Constant(0);
+  Node* const lhs = m.left().node();
+  Node* const rhs = m.right().node();
+
+  if (m.right().Is(0)) {
+    return zero;
+  } else if (machine()->Uint32ModIsSafe() || m.right().HasValue()) {
+    return graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, graph()->start());
+  }
+
+  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse), check,
+                                  graph()->start());
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = zero;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, if_false);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  return graph()->NewNode(common()->Phi(kMachUint32, 2), vtrue, vfalse, merge);
 }
 
 
