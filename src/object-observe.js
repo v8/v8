@@ -33,28 +33,83 @@
 // implementation of (1) and (2) have "optimized" states which represent
 // common cases which can be handled more efficiently.
 
-var observationState = %GetObservationState();
+var observationState;
 
-// This is run during the first context creation in an isolate.
-if (IS_UNDEFINED(observationState.callbackInfoMap)) {
-  observationState.callbackInfoMap = %ObservationWeakMapCreate();
-  observationState.objectInfoMap = %ObservationWeakMapCreate();
-  observationState.notifierObjectInfoMap = %ObservationWeakMapCreate();
-  observationState.pendingObservers = null;
-  observationState.nextCallbackPriority = 0;
-  observationState.lastMicrotaskId = 0;
+function GetObservationStateJS() {
+  if (IS_UNDEFINED(observationState))
+    observationState = %GetObservationState();
+
+  if (IS_UNDEFINED(observationState.callbackInfoMap)) {
+    observationState.callbackInfoMap = %ObservationWeakMapCreate();
+    observationState.objectInfoMap = %ObservationWeakMapCreate();
+    observationState.notifierObjectInfoMap = %ObservationWeakMapCreate();
+    observationState.pendingObservers = null;
+    observationState.nextCallbackPriority = 0;
+    observationState.lastMicrotaskId = 0;
+  }
+
+  return observationState;
+}
+
+function GetWeakMapWrapper() {
+  function MapWrapper(map) {
+    this.map_ = map;
+  };
+
+  MapWrapper.prototype = {
+    __proto__: null,
+    get: function(key) {
+      return %WeakCollectionGet(this.map_, key);
+    },
+    set: function(key, value) {
+      %WeakCollectionSet(this.map_, key, value);
+    },
+    has: function(key) {
+      return !IS_UNDEFINED(this.get(key));
+    }
+  };
+
+  return MapWrapper;
+}
+
+var contextMaps;
+
+function GetContextMaps() {
+  if (IS_UNDEFINED(contextMaps)) {
+    var map = GetWeakMapWrapper();
+    var observationState = GetObservationStateJS();
+    contextMaps = {
+      callbackInfoMap: new map(observationState.callbackInfoMap),
+      objectInfoMap: new map(observationState.objectInfoMap),
+      notifierObjectInfoMap: new map(observationState.notifierObjectInfoMap)
+    };
+  }
+
+  return contextMaps;
+}
+
+function GetCallbackInfoMap() {
+  return GetContextMaps().callbackInfoMap;
+}
+
+function GetObjectInfoMap() {
+  return GetContextMaps().objectInfoMap;
+}
+
+function GetNotifierObjectInfoMap() {
+  return GetContextMaps().notifierObjectInfoMap;
 }
 
 function GetPendingObservers() {
-  return observationState.pendingObservers;
+  return GetObservationStateJS().pendingObservers;
 }
 
 function SetPendingObservers(pendingObservers) {
-  observationState.pendingObservers = pendingObservers;
+  GetObservationStateJS().pendingObservers = pendingObservers;
 }
 
 function GetNextCallbackPriority() {
-  return observationState.nextCallbackPriority++;
+  return GetObservationStateJS().nextCallbackPriority++;
 }
 
 function nullProtoObject() {
@@ -149,32 +204,35 @@ function ObjectInfoGetOrCreate(object) {
       performing: null,
       performingCount: 0,
     };
-    %WeakCollectionSet(observationState.objectInfoMap, object, objectInfo);
+    GetObjectInfoMap().set(object, objectInfo);
   }
   return objectInfo;
 }
 
 function ObjectInfoGet(object) {
-  return %WeakCollectionGet(observationState.objectInfoMap, object);
+  return GetObjectInfoMap().get(object);
 }
 
 function ObjectInfoGetFromNotifier(notifier) {
-  return %WeakCollectionGet(observationState.notifierObjectInfoMap, notifier);
+  return GetNotifierObjectInfoMap().get(notifier);
 }
 
 function ObjectInfoGetNotifier(objectInfo) {
   if (IS_NULL(objectInfo.notifier)) {
     objectInfo.notifier = { __proto__: notifierPrototype };
-    %WeakCollectionSet(observationState.notifierObjectInfoMap,
-                       objectInfo.notifier, objectInfo);
+    GetNotifierObjectInfoMap().set(objectInfo.notifier, objectInfo);
   }
 
   return objectInfo.notifier;
 }
 
+function ObjectInfoGetObject(objectInfo) {
+  return objectInfo.object;
+}
+
 function ChangeObserversIsOptimized(changeObservers) {
-  return IS_SPEC_FUNCTION(changeObservers) ||
-         IS_SPEC_FUNCTION(changeObservers.callback);
+  return typeof changeObservers === 'function' ||
+         typeof changeObservers.callback === 'function';
 }
 
 // The set of observers on an object is called 'changeObservers'. The first
@@ -270,20 +328,16 @@ function ConvertAcceptListToTypeMap(arg) {
 // priority. When a change record must be enqueued for the callback, it
 // normalizes. When delivery clears any pending change records, it re-optimizes.
 function CallbackInfoGet(callback) {
-  return %WeakCollectionGet(observationState.callbackInfoMap, callback);
-}
-
-function CallbackInfoSet(callback, callbackInfo) {
-  %WeakCollectionSet(observationState.callbackInfoMap, callback, callbackInfo);
+  return GetCallbackInfoMap().get(callback);
 }
 
 function CallbackInfoGetOrCreate(callback) {
-  var callbackInfo = CallbackInfoGet(callback);
+  var callbackInfo = GetCallbackInfoMap().get(callback);
   if (!IS_UNDEFINED(callbackInfo))
     return callbackInfo;
 
-  var priority = GetNextCallbackPriority();
-  CallbackInfoSet(callback, priority);
+  var priority =  GetNextCallbackPriority();
+  GetCallbackInfoMap().set(callback, priority);
   return priority;
 }
 
@@ -295,12 +349,12 @@ function CallbackInfoGetPriority(callbackInfo) {
 }
 
 function CallbackInfoNormalize(callback) {
-  var callbackInfo = CallbackInfoGet(callback);
+  var callbackInfo = GetCallbackInfoMap().get(callback);
   if (IS_NUMBER(callbackInfo)) {
     var priority = callbackInfo;
     callbackInfo = new InternalArray;
     callbackInfo.priority = priority;
-    CallbackInfoSet(callback, callbackInfo);
+    GetCallbackInfoMap().set(callback, callbackInfo);
   }
   return callbackInfo;
 }
@@ -369,7 +423,7 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   if (IS_NULL(GetPendingObservers())) {
     SetPendingObservers(nullProtoObject());
     if (DEBUG_IS_ACTIVE) {
-      var id = ++observationState.lastMicrotaskId;
+      var id = ++GetObservationStateJS().lastMicrotaskId;
       var name = "Object.observe";
       %EnqueueMicrotask(function() {
         %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
@@ -391,8 +445,8 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
 
   var hasType = !IS_UNDEFINED(type);
   var newRecord = hasType ?
-      { object: objectInfo.object, type: type } :
-      { object: objectInfo.object };
+      { object: ObjectInfoGetObject(objectInfo), type: type } :
+      { object: ObjectInfoGetObject(objectInfo) };
 
   for (var prop in changeRecord) {
     if (prop === 'object' || (hasType && prop === 'type')) continue;
@@ -540,18 +594,17 @@ function NativeObjectGetNotifier(object) {
 }
 
 function CallbackDeliverPending(callback) {
-  var callbackInfo = CallbackInfoGet(callback);
+  var callbackInfo = GetCallbackInfoMap().get(callback);
   if (IS_UNDEFINED(callbackInfo) || IS_NUMBER(callbackInfo))
     return false;
 
   // Clear the pending change records from callback and return it to its
   // "optimized" state.
   var priority = callbackInfo.priority;
-  CallbackInfoSet(callback, priority);
+  GetCallbackInfoMap().set(callback, priority);
 
-  var pendingObservers = GetPendingObservers();
-  if (!IS_NULL(pendingObservers))
-    delete pendingObservers[priority];
+  if (GetPendingObservers())
+    delete GetPendingObservers()[priority];
 
   var delivered = [];
   %MoveArrayContents(callbackInfo, delivered);
@@ -571,7 +624,7 @@ function ObjectDeliverChangeRecords(callback) {
 
 function ObserveMicrotaskRunner() {
   var pendingObservers = GetPendingObservers();
-  if (!IS_NULL(pendingObservers)) {
+  if (pendingObservers) {
     SetPendingObservers(null);
     for (var i in pendingObservers) {
       CallbackDeliverPending(pendingObservers[i]);
