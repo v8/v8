@@ -3415,13 +3415,6 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(Literal, lit)
   }
 
-  Literal* NewStringListLiteral(ZoneList<const AstRawString*>* strings,
-                                int pos) {
-    Literal* lit = new (zone_)
-        Literal(zone_, ast_value_factory_->NewStringList(strings), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
   Literal* NewNullLiteral(int pos) {
     Literal* lit =
         new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
