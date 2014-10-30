@@ -845,14 +845,17 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
 
 
 MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
-  DCHECK(!function->GetIsolate()->has_pending_exception());
+  Isolate* isolate = function->GetIsolate();
+  DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
-
-  if (FLAG_turbo_asm && function->shared()->asm_function()) {
+  // If the debugger is active, do not compile with turbofan unless we can
+  // deopt from turbofan code.
+  if (FLAG_turbo_asm && function->shared()->asm_function() &&
+      (FLAG_turbo_deoptimization || !isolate->debug()->is_active())) {
     CompilationInfoWithZone info(function);
 
-    VMState<COMPILER> state(info.isolate());
-    PostponeInterruptsScope postpone(info.isolate());
+    VMState<COMPILER> state(isolate);
+    PostponeInterruptsScope postpone(isolate);
 
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
@@ -861,7 +864,10 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
     info.MarkAsTypingEnabled();
     info.MarkAsInliningDisabled();
 
-    if (GetOptimizedCodeNow(&info)) return info.code();
+    if (GetOptimizedCodeNow(&info)) {
+      DCHECK(function->shared()->is_compiled());
+      return info.code();
+    }
   }
 
   if (function->shared()->is_compiled()) {
@@ -870,13 +876,12 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 
   CompilationInfoWithZone info(function);
   Handle<Code> result;
-  ASSIGN_RETURN_ON_EXCEPTION(info.isolate(), result,
-                             GetUnoptimizedCodeCommon(&info), Code);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCodeCommon(&info),
+                             Code);
 
-  if (FLAG_always_opt &&
-      info.isolate()->use_crankshaft() &&
+  if (FLAG_always_opt && isolate->use_crankshaft() &&
       !info.shared_info()->optimization_disabled() &&
-      !info.isolate()->DebuggerHasBreakPoints()) {
+      !isolate->DebuggerHasBreakPoints()) {
     Handle<Code> opt_code;
     if (Compiler::GetOptimizedCode(
             function, result,
