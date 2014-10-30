@@ -387,10 +387,8 @@ static void InitializeInstructionBlocks(Zone* zone, const Schedule* schedule,
 
 
 InstructionSequence::InstructionSequence(Zone* instruction_zone,
-                                         const Graph* graph,
                                          const Schedule* schedule)
     : zone_(instruction_zone),
-      node_map_(graph->NodeCount(), kNodeUnmapped, zone()),
       instruction_blocks_(static_cast<int>(schedule->rpo_order()->size()), NULL,
                           zone()),
       constants_(ConstantMap::key_compare(),
@@ -403,14 +401,6 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       deoptimization_entries_(zone()) {
   InitializeInstructionBlocks(zone(), schedule, &instruction_blocks_);
-}
-
-
-int InstructionSequence::GetVirtualRegister(const Node* node) {
-  if (node_map_[node->id()] == kNodeUnmapped) {
-    node_map_[node->id()] = NextVirtualRegister();
-  }
-  return node_map_[node->id()];
 }
 
 

@@ -842,21 +842,16 @@ typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<PointerMap*> PointerMapDeque;
 typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
-typedef IntVector NodeToVregMap;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  static const int kNodeUnmapped = -1;
-
-  InstructionSequence(Zone* zone, const Graph* graph, const Schedule* schedule);
+  InstructionSequence(Zone* zone, const Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
-
-  int node_count() const { return static_cast<int>(node_map_.size()); }
 
   const InstructionBlocks& instruction_blocks() const {
     return instruction_blocks_;
@@ -881,9 +876,6 @@ class InstructionSequence FINAL {
   }
 
   const InstructionBlock* GetInstructionBlock(int instruction_index) const;
-
-  int GetVirtualRegister(const Node* node);
-  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
 
   bool IsReference(int virtual_register) const;
   bool IsDouble(int virtual_register) const;
@@ -919,8 +911,8 @@ class InstructionSequence FINAL {
   void StartBlock(BasicBlock* block);
   void EndBlock(BasicBlock* block);
 
-  int AddConstant(Node* node, Constant constant) {
-    int virtual_register = GetVirtualRegister(node);
+  int AddConstant(int virtual_register, Constant constant) {
+    DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
     return virtual_register;
@@ -967,7 +959,6 @@ class InstructionSequence FINAL {
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
   Zone* const zone_;
-  NodeToVregMap node_map_;
   InstructionBlocks instruction_blocks_;
   ConstantMap constants_;
   ConstantDeque immediates_;

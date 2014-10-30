@@ -4,6 +4,7 @@
 
 #include "src/compiler/instruction-selector.h"
 
+#include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
@@ -13,7 +14,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-InstructionSelector::InstructionSelector(Zone* local_zone, Linkage* linkage,
+InstructionSelector::InstructionSelector(Zone* local_zone, Graph* graph,
+                                         Linkage* linkage,
                                          InstructionSequence* sequence,
                                          Schedule* schedule,
                                          SourcePositionTable* source_positions,
@@ -24,10 +26,11 @@ InstructionSelector::InstructionSelector(Zone* local_zone, Linkage* linkage,
       source_positions_(source_positions),
       features_(features),
       schedule_(schedule),
+      node_map_(graph->NodeCount(), kNodeUnmapped, zone()),
       current_block_(NULL),
       instructions_(zone()),
-      defined_(sequence->node_count(), false, zone()),
-      used_(sequence->node_count(), false, zone()) {}
+      defined_(graph->NodeCount(), false, zone()),
+      used_(graph->NodeCount(), false, zone()) {}
 
 
 void InstructionSelector::SelectInstructions() {
@@ -157,6 +160,19 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
 }
 
 
+int InstructionSelector::GetVirtualRegister(const Node* node) {
+  if (node_map_[node->id()] == kNodeUnmapped) {
+    node_map_[node->id()] = sequence()->NextVirtualRegister();
+  }
+  return node_map_[node->id()];
+}
+
+
+int InstructionSelector::GetMappedVirtualRegister(const Node* node) const {
+  return node_map_[node->id()];
+}
+
+
 bool InstructionSelector::IsDefined(Node* node) const {
   DCHECK_NOT_NULL(node);
   NodeId id = node->id();
@@ -195,27 +211,31 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 
 bool InstructionSelector::IsDouble(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsDouble(sequence()->GetVirtualRegister(node));
+  int virtual_register = GetMappedVirtualRegister(node);
+  if (virtual_register == kNodeUnmapped) return false;
+  return sequence()->IsDouble(virtual_register);
 }
 
 
 void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsReference(node));
-  sequence()->MarkAsDouble(sequence()->GetVirtualRegister(node));
+  sequence()->MarkAsDouble(GetVirtualRegister(node));
 }
 
 
 bool InstructionSelector::IsReference(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsReference(sequence()->GetVirtualRegister(node));
+  int virtual_register = GetMappedVirtualRegister(node);
+  if (virtual_register == kNodeUnmapped) return false;
+  return sequence()->IsReference(virtual_register);
 }
 
 
 void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsDouble(node));
-  sequence()->MarkAsReference(sequence()->GetVirtualRegister(node));
+  sequence()->MarkAsReference(GetVirtualRegister(node));
 }
 
 
@@ -892,14 +912,14 @@ void InstructionSelector::VisitParameter(Node* node) {
 void InstructionSelector::VisitPhi(Node* node) {
   // TODO(bmeurer): Emit a PhiInstruction here.
   PhiInstruction* phi = new (instruction_zone())
-      PhiInstruction(instruction_zone(), sequence()->GetVirtualRegister(node));
+      PhiInstruction(instruction_zone(), GetVirtualRegister(node));
   sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
   const int input_count = node->op()->InputCount();
   phi->operands().reserve(static_cast<size_t>(input_count));
   for (int i = 0; i < input_count; ++i) {
     Node* const input = node->InputAt(i);
     MarkAsUsed(input);
-    phi->operands().push_back(sequence()->GetVirtualRegister(input));
+    phi->operands().push_back(GetVirtualRegister(input));
   }
 }
 

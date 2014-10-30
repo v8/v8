@@ -46,7 +46,8 @@ class OperandGenerator {
 
   InstructionOperand* DefineAsConstant(Node* node) {
     selector()->MarkAsDefined(node);
-    int virtual_register = sequence()->AddConstant(node, ToConstant(node));
+    int virtual_register = selector_->GetVirtualRegister(node);
+    sequence()->AddConstant(virtual_register, ToConstant(node));
     return ConstantOperand::Create(virtual_register, zone());
   }
 
@@ -172,8 +173,7 @@ class OperandGenerator {
   UnallocatedOperand* Define(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(
-        selector_->sequence()->GetVirtualRegister(node));
+    operand->set_virtual_register(selector_->GetVirtualRegister(node));
     selector()->MarkAsDefined(node);
     return operand;
   }
@@ -181,8 +181,7 @@ class OperandGenerator {
   UnallocatedOperand* Use(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(
-        selector_->sequence()->GetVirtualRegister(node));
+    operand->set_virtual_register(selector_->GetVirtualRegister(node));
     selector()->MarkAsUsed(node);
     return operand;
   }

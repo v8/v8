@@ -538,15 +538,15 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
                                                        data->schedule());
   }
 
-  InstructionSequence sequence(data->instruction_zone(), data->graph(),
-                               data->schedule());
+  InstructionSequence sequence(data->instruction_zone(), data->schedule());
 
   // Select and schedule instructions covering the scheduled graph.
   {
     PhaseScope phase_scope(data->pipeline_statistics(), "select instructions");
     ZonePool::Scope zone_scope(data->zone_pool());
-    InstructionSelector selector(zone_scope.zone(), linkage, &sequence,
-                                 data->schedule(), data->source_positions());
+    InstructionSelector selector(zone_scope.zone(), data->graph(), linkage,
+                                 &sequence, data->schedule(),
+                                 data->source_positions());
     selector.SelectInstructions();
   }
 
