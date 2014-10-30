@@ -5,10 +5,12 @@
 #ifndef V8_COMPILER_CODE_GENERATOR_IMPL_H_
 #define V8_COMPILER_CODE_GENERATOR_IMPL_H_
 
+#include "src/code-stubs.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

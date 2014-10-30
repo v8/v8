@@ -9,6 +9,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

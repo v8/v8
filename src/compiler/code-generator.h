@@ -17,6 +17,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Linkage;
+
 // Generates native code for a sequence of instructions.
 class CodeGenerator FINAL : public GapResolver::Assembler {
  public:

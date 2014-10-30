@@ -5,10 +5,8 @@
 #ifndef V8_REGISTER_ALLOCATOR_H_
 #define V8_REGISTER_ALLOCATOR_H_
 
-#include "src/allocation.h"
 #include "src/compiler/instruction.h"
-#include "src/macro-assembler.h"
-#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -321,8 +319,19 @@ class LiveRange FINAL : public ZoneObject {
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
-  explicit RegisterAllocator(Zone* local_zone, Frame* frame,
-                             InstructionSequence* code,
+  class Config {
+   public:
+    int num_general_registers_;
+    int num_double_registers_;
+    int num_aliased_double_registers_;
+    const char* (*GeneralRegisterName)(int allocation_index);
+    const char* (*DoubleRegisterName)(int allocation_index);
+  };
+
+  static Config PlatformConfig();
+
+  explicit RegisterAllocator(const Config& config, Zone* local_zone,
+                             Frame* frame, InstructionSequence* code,
                              const char* debug_name = nullptr);
 
   bool Allocate(PipelineStatistics* stats = NULL);
@@ -330,12 +339,12 @@ class RegisterAllocator BASE_EMBEDDED {
   BitVector* assigned_registers() { return assigned_registers_; }
   BitVector* assigned_double_registers() { return assigned_double_registers_; }
 
-  const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
-  const Vector<LiveRange*>* fixed_live_ranges() const {
-    return &fixed_live_ranges_;
+  const ZoneList<LiveRange*>& live_ranges() const { return live_ranges_; }
+  const ZoneVector<LiveRange*>& fixed_live_ranges() const {
+    return fixed_live_ranges_;
   }
-  const Vector<LiveRange*>* fixed_double_live_ranges() const {
-    return &fixed_double_live_ranges_;
+  const ZoneVector<LiveRange*>& fixed_double_live_ranges() const {
+    return fixed_double_live_ranges_;
   }
   InstructionSequence* code() const { return code_; }
 
@@ -481,7 +490,7 @@ class RegisterAllocator BASE_EMBEDDED {
   // Helper methods for the fixed registers.
   int RegisterCount() const;
   static int FixedLiveRangeID(int index) { return -index - 1; }
-  static int FixedDoubleLiveRangeID(int index);
+  int FixedDoubleLiveRangeID(int index);
   LiveRange* FixedLiveRangeFor(int index);
   LiveRange* FixedDoubleLiveRangeFor(int index);
   LiveRange* LiveRangeFor(int index);
@@ -493,11 +502,14 @@ class RegisterAllocator BASE_EMBEDDED {
 
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
+  const Config& config() const { return config_; }
 
   Zone* const zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
   const char* const debug_name_;
+
+  const Config config_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.
@@ -507,10 +519,8 @@ class RegisterAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> live_ranges_;
 
   // Lists of live ranges
-  EmbeddedVector<LiveRange*, Register::kMaxNumAllocatableRegisters>
-      fixed_live_ranges_;
-  EmbeddedVector<LiveRange*, DoubleRegister::kMaxNumAllocatableRegisters>
-      fixed_double_live_ranges_;
+  ZoneVector<LiveRange*> fixed_live_ranges_;
+  ZoneVector<LiveRange*> fixed_double_live_ranges_;
   ZoneList<LiveRange*> unhandled_live_ranges_;
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;

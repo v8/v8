@@ -19,6 +19,7 @@ namespace compiler {
 // Forward declarations.
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
+class Linkage;
 
 class InstructionSelector FINAL {
  public:

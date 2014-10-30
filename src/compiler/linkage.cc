@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/linkage.h"
-
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/scopes.h"
@@ -102,7 +101,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CallInterfaceDescriptor descriptor, int stack_parameter_count,
+    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags) const {
   return GetStubCallDescriptor(descriptor, stack_parameter_count, flags, zone_);
 }
@@ -233,7 +232,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CallInterfaceDescriptor descriptor, int stack_parameter_count,
+    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;

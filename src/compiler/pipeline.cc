@@ -580,7 +580,9 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     debug_name = GetDebugName(info());
 #endif
 
-    RegisterAllocator allocator(zone_scope.zone(), &frame, &sequence,
+
+    RegisterAllocator allocator(RegisterAllocator::PlatformConfig(),
+                                zone_scope.zone(), &frame, &sequence,
                                 debug_name.get());
     if (!allocator.Allocate(data->pipeline_statistics())) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);

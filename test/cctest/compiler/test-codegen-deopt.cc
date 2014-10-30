@@ -78,7 +78,8 @@ class DeoptCodegenTester {
     }
 
     Frame frame;
-    RegisterAllocator allocator(scope_->main_zone(), &frame, code);
+    RegisterAllocator allocator(RegisterAllocator::PlatformConfig(),
+                                scope_->main_zone(), &frame, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {

@@ -163,7 +163,7 @@ class CallInterfaceDescriptor {
 
   static const Register ContextRegister();
 
-  const char* DebugName(Isolate* isolate);
+  const char* DebugName(Isolate* isolate) const;
 
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }

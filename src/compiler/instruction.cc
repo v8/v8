@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction.h"
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/instruction.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+STATIC_ASSERT(kMaxGeneralRegisters >= Register::kNumRegisters);
+STATIC_ASSERT(kMaxDoubleRegisters >= DoubleRegister::kMaxNumRegisters);
+
 
 std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
   switch (op.kind()) {
