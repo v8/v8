@@ -1047,6 +1047,40 @@ void Isolate::ComputeLocation(MessageLocation* target) {
 }
 
 
+void Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
+                                            Handle<Object> exception) {
+  *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
+
+  if (!exception->IsJSObject()) return;
+  Handle<Name> key = factory()->stack_trace_symbol();
+  Handle<Object> property =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(exception), key);
+  if (!property->IsJSArray()) return;
+  Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
+
+  Handle<FixedArray> elements(FixedArray::cast(simple_stack_trace->elements()));
+  int elements_limit = Smi::cast(simple_stack_trace->length())->value();
+
+  for (int i = 1; i < elements_limit; i += 4) {
+    Handle<JSFunction> fun =
+        handle(JSFunction::cast(elements->get(i + 1)), this);
+    if (fun->IsFromNativeScript()) continue;
+    Handle<Code> code = handle(Code::cast(elements->get(i + 2)), this);
+    Handle<Smi> offset = handle(Smi::cast(elements->get(i + 3)), this);
+    Address pc = code->address() + offset->value();
+
+    Object* script = fun->shared()->script();
+    if (script->IsScript() &&
+        !(Script::cast(script)->source()->IsUndefined())) {
+      int pos = code->SourcePosition(pc);
+      Handle<Script> casted_script(Script::cast(script));
+      *target = MessageLocation(casted_script, pos, pos + 1);
+      break;
+    }
+  }
+}
+
+
 bool Isolate::ShouldReportException(bool* can_be_caught_externally,
                                     bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
@@ -1106,6 +1140,7 @@ static int fatal_exception_depth = 0;
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<JSArray> stack_trace_object;
+  MessageLocation potential_computed_location;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (IsErrorObject(exception)) {
       // We fetch the stack trace that corresponds to this error object.
@@ -1114,13 +1149,21 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
       // at this throw site.
       stack_trace_object =
           GetDetailedStackTrace(Handle<JSObject>::cast(exception));
+      if (!location) {
+        ComputeLocationFromStackTrace(&potential_computed_location, exception);
+        location = &potential_computed_location;
+      }
     }
     if (stack_trace_object.is_null()) {
-      // Not an error object, we capture at throw site.
+      // Not an error object, we capture stack and location at throw site.
       stack_trace_object = CaptureCurrentStackTrace(
           stack_trace_for_uncaught_exceptions_frame_limit_,
           stack_trace_for_uncaught_exceptions_options_);
     }
+  }
+  if (!location) {
+    ComputeLocation(&potential_computed_location);
+    location = &potential_computed_location;
   }
 
   // If the exception argument is a custom object, turn it into a string
@@ -1227,11 +1270,9 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       Handle<Object> message_obj = CreateMessage(exception_handle, location);
 
       thread_local_top()->pending_message_obj_ = *message_obj;
-      if (location != NULL) {
-        thread_local_top()->pending_message_script_ = *location->script();
-        thread_local_top()->pending_message_start_pos_ = location->start_pos();
-        thread_local_top()->pending_message_end_pos_ = location->end_pos();
-      }
+      thread_local_top()->pending_message_script_ = *location->script();
+      thread_local_top()->pending_message_start_pos_ = location->start_pos();
+      thread_local_top()->pending_message_end_pos_ = location->end_pos();
 
       // If the abort-on-uncaught-exception flag is specified, abort on any
       // exception not caught by JavaScript, even when an external handler is
@@ -1334,7 +1375,6 @@ MessageLocation Isolate::GetMessageLocation() {
 
   if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
       thread_local_top_.has_pending_message_ &&
-      !thread_local_top_.pending_message_obj_->IsTheHole() &&
       !thread_local_top_.pending_message_obj_->IsTheHole()) {
     Handle<Script> script(
         Script::cast(thread_local_top_.pending_message_script_));

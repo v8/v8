@@ -4164,6 +4164,9 @@ class V8_EXPORT Exception {
   static Local<Value> TypeError(Handle<String> message);
   static Local<Value> Error(Handle<String> message);
 
+  static Local<Message> GetMessage(Handle<Value> exception);
+
+  // DEPRECATED. Use GetMessage()->GetStackTrace()
   static Local<StackTrace> GetStackTrace(Handle<Value> exception);
 };
 
@@ -4224,6 +4227,8 @@ class PromiseRejectMessage {
   V8_INLINE Handle<Promise> GetPromise() const { return promise_; }
   V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
   V8_INLINE Handle<Value> GetValue() const { return value_; }
+
+  // DEPRECATED. Use v8::Exception::GetMessage(GetValue())->GetStackTrace()
   V8_INLINE Handle<StackTrace> GetStackTrace() const { return stack_trace_; }
 
  private:
