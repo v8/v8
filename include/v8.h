@@ -5505,7 +5505,15 @@ class V8_EXPORT TryCatch {
    * all TryCatch blocks should be stack allocated because the memory
    * location itself is compared against JavaScript try/catch blocks.
    */
+  // TODO(dcarney): deprecate.
   TryCatch();
+
+  /**
+   * Creates a new try/catch block and registers it with v8.  Note that
+   * all TryCatch blocks should be stack allocated because the memory
+   * location itself is compared against JavaScript try/catch blocks.
+   */
+  TryCatch(Isolate* isolate);
 
   /**
    * Unregisters and deletes this try/catch block.
