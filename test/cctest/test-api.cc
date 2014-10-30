@@ -8547,7 +8547,7 @@ static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 
-THREADED_TEST(ExceptionGetMessage) {
+THREADED_TEST(ExceptionGetStackTrace) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -8559,25 +8559,16 @@ THREADED_TEST(ExceptionGetMessage) {
   global->Set(v8_str("throwV8Exception"), fun->GetFunction());
 
   TryCatch try_catch;
-  CompileRun(
-      "function f1() {\n"
-      "  throwV8Exception();\n"
-      "};\n"
-      "f1();");
+  CompileRun("function f1() { throwV8Exception(); }; f1();");
   CHECK(try_catch.HasCaught());
 
   v8::Handle<v8::Value> error = try_catch.Exception();
-  v8::Handle<String> foo_str = v8_str("foo");
-  v8::Handle<String> message_str = v8_str("message");
+  v8::Handle<String> foo = v8_str("foo");
+  v8::Handle<String> message = v8_str("message");
   CHECK(error->IsObject());
-  CHECK(error.As<v8::Object>()->Get(message_str)->Equals(foo_str));
+  CHECK(error.As<v8::Object>()->Get(message)->Equals(foo));
 
-  v8::Handle<v8::Message> message = v8::Exception::GetMessage(error);
-  CHECK(!message.IsEmpty());
-  CHECK_EQ(2, message->GetLineNumber());
-  CHECK_EQ(2, message->GetStartColumn());
-
-  v8::Handle<v8::StackTrace> stackTrace = message->GetStackTrace();
+  v8::Handle<v8::StackTrace> stackTrace = v8::Exception::GetStackTrace(error);
   CHECK(!stackTrace.IsEmpty());
   CHECK_EQ(2, stackTrace->GetFrameCount());
 
@@ -17882,8 +17873,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage message) {
     promise_reject_counter++;
     CcTest::global()->Set(v8_str("rejected"), message.GetPromise());
     CcTest::global()->Set(v8_str("value"), message.GetValue());
-    v8::Handle<v8::StackTrace> stack_trace =
-        v8::Exception::GetMessage(message.GetValue())->GetStackTrace();
+    v8::Handle<v8::StackTrace> stack_trace = message.GetStackTrace();
     if (!stack_trace.IsEmpty()) {
       promise_reject_frame_count = stack_trace->GetFrameCount();
       if (promise_reject_frame_count > 0) {
@@ -17897,6 +17887,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage message) {
     promise_revoke_counter++;
     CcTest::global()->Set(v8_str("revoked"), message.GetPromise());
     CHECK(message.GetValue().IsEmpty());
+    CHECK(message.GetStackTrace().IsEmpty());
   }
 }
 

@@ -6971,17 +6971,6 @@ DEFINE_ERROR(Error)
 #undef DEFINE_ERROR
 
 
-Local<Message> Exception::GetMessage(Handle<Value> exception) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(*exception);
-  if (!obj->IsHeapObject()) return Local<Message>();
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  return Utils::MessageToLocal(
-      scope.CloseAndEscape(isolate->CreateMessage(obj, NULL)));
-}
-
-
 Local<StackTrace> Exception::GetStackTrace(Handle<Value> exception) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*exception);
   if (!obj->IsJSObject()) return Local<StackTrace>();
