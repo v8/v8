@@ -1089,10 +1089,9 @@ TEST_F(MachineOperatorReducerTest, Uint32LessThanWithWord32Sar) {
 
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsUint32LessThan(p0, IsInt32Constant(bit_cast<int32_t>(
-                                 (limit << shift) | ((1u << shift) - 1)))));
+    EXPECT_THAT(r.replacement(),
+                IsUint32LessThan(
+                    p0, IsInt32Constant(bit_cast<int32_t>(limit << shift))));
   }
 }
 
