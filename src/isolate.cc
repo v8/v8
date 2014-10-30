@@ -1051,8 +1051,10 @@ void Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
                                             Handle<Object> exception) {
   *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
 
+  if (!exception->IsJSObject()) return;
   Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> property = JSObject::GetDataProperty(exception, key);
+  Handle<Object> property =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(exception), key);
   if (!property->IsJSArray()) return;
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
