@@ -600,6 +600,7 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
     return Replace(Word32Equal(Word32Equal(m.left().node(), zero), zero));
   }
   if (m.right().IsPowerOf2()) {  // x / 2^n => x >> n
+    node->TrimInputCount(2);
     node->set_op(machine()->Word32Shr());
     node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
     return Changed(node);
@@ -665,6 +666,7 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
         base::bits::UnsignedMod32(m.left().Value(), m.right().Value()));
   }
   if (m.right().IsPowerOf2()) {  // x % 2^n => x & 2^n-1
+    node->TrimInputCount(2);
     node->set_op(machine()->Word32And());
     node->ReplaceInput(1, Uint32Constant(m.right().Value() - 1));
     return Changed(node);

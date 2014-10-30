@@ -16,8 +16,8 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-static SimpleOperator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
-                                     0, 0, "dummy");
+static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
+                               "dummy", 0, 0, 0, 0, 0, 0);
 
 TEST(TestScheduleAllocation) {
   HandleAndZoneScope scope;

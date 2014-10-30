@@ -1894,6 +1894,23 @@ static void RecompileAndRelocateSuspendedGenerators(
 }
 
 
+static bool SkipSharedFunctionInfo(SharedFunctionInfo* shared,
+                                   Object* active_code_marker) {
+  if (!shared->allows_lazy_compilation()) return true;
+  if (!shared->script()->IsScript()) return true;
+  Object* script = shared->script();
+  if (!script->IsScript()) return true;
+  if (Script::cast(script)->type()->value() == Script::TYPE_NATIVE) return true;
+  Code* shared_code = shared->code();
+  return shared_code->gc_metadata() == active_code_marker;
+}
+
+
+static inline bool HasDebugBreakSlots(Code* code) {
+  return code->kind() == Code::FUNCTION && code->has_debug_break_slots();
+}
+
+
 void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
@@ -1959,35 +1976,28 @@ void Debug::PrepareForBreakPoints() {
         if (obj->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(obj);
           SharedFunctionInfo* shared = function->shared();
-
-          if (!shared->allows_lazy_compilation()) continue;
-          if (!shared->script()->IsScript()) continue;
-          if (function->IsFromNativeScript()) continue;
-          if (shared->code()->gc_metadata() == active_code_marker) continue;
-
+          if (SkipSharedFunctionInfo(shared, active_code_marker)) continue;
           if (shared->is_generator()) {
             generator_functions.Add(Handle<JSFunction>(function, isolate_));
             continue;
           }
-
+          if (HasDebugBreakSlots(function->code())) continue;
+          Code* fallback = HasDebugBreakSlots(shared->code()) ? shared->code()
+                                                              : *lazy_compile;
           Code::Kind kind = function->code()->kind();
-          if (kind == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots()) {
-            function->ReplaceCode(*lazy_compile);
-            function->shared()->ReplaceCode(*lazy_compile);
-          } else if (kind == Code::BUILTIN &&
-              (function->IsInOptimizationQueue() ||
-               function->IsMarkedForOptimization() ||
-               function->IsMarkedForConcurrentOptimization())) {
-            // Abort in-flight compilation.
-            Code* shared_code = function->shared()->code();
-            if (shared_code->kind() == Code::FUNCTION &&
-                shared_code->has_debug_break_slots()) {
-              function->ReplaceCode(shared_code);
-            } else {
-              function->ReplaceCode(*lazy_compile);
-              function->shared()->ReplaceCode(*lazy_compile);
-            }
+          if (kind == Code::FUNCTION ||
+              (kind == Code::BUILTIN &&  // Abort in-flight compilation.
+               (function->IsInOptimizationQueue() ||
+                function->IsMarkedForOptimization() ||
+                function->IsMarkedForConcurrentOptimization()))) {
+            function->ReplaceCode(fallback);
+          }
+          if (kind == Code::OPTIMIZED_FUNCTION) {
+            // Optimized code can only get here if DeoptimizeAll did not
+            // deoptimize turbo fan code.
+            DCHECK(!FLAG_turbo_deoptimization);
+            DCHECK(function->code()->is_turbofanned());
+            function->ReplaceCode(fallback);
           }
         } else if (obj->IsJSGeneratorObject()) {
           JSGeneratorObject* gen = JSGeneratorObject::cast(obj);
@@ -2007,6 +2017,12 @@ void Debug::PrepareForBreakPoints() {
           gen->set_continuation(code_offset);
 
           suspended_generators.Add(Handle<JSGeneratorObject>(gen, isolate_));
+        } else if (obj->IsSharedFunctionInfo()) {
+          SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+          if (SkipSharedFunctionInfo(shared, active_code_marker)) continue;
+          if (shared->is_generator()) continue;
+          if (HasDebugBreakSlots(shared->code())) continue;
+          shared->ReplaceCode(*lazy_compile);
         }
       }
 

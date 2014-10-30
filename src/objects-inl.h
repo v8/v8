@@ -6300,6 +6300,16 @@ void JSArrayBuffer::set_should_be_freed(bool value) {
 }
 
 
+bool JSArrayBuffer::is_neuterable() {
+  return BooleanBit::get(flag(), kIsNeuterableBit);
+}
+
+
+void JSArrayBuffer::set_is_neuterable(bool value) {
+  set_flag(BooleanBit::set(flag(), kIsNeuterableBit, value));
+}
+
+
 ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
 ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
 

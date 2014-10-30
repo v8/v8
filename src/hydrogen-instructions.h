@@ -1512,7 +1512,7 @@ class HCompareMap FINAL : public HUnaryControlInstruction {
   DECLARE_CONCRETE_INSTRUCTION(CompareMap)
 
  protected:
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   HCompareMap(HValue* value,
@@ -2800,7 +2800,7 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
     return this->maps()->Equals(HCheckMaps::cast(other)->maps());
   }
 
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, bool maps_are_stable)
@@ -2952,7 +2952,7 @@ class HCheckInstanceType FINAL : public HUnaryOperation {
     return check_ == b->check_;
   }
 
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   const char* GetCheckName() const;
@@ -4175,7 +4175,8 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
     return r;
   }
 
-  virtual void initialize_output_representation(Representation observed) {
+  virtual void initialize_output_representation(
+      Representation observed) OVERRIDE {
     if (observed.IsDouble()) observed = Representation::Integer32();
     HBinaryOperation::initialize_output_representation(observed);
   }
@@ -4474,7 +4475,7 @@ class HIsStringAndBranch FINAL : public HUnaryControlInstruction {
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
  protected:
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   HIsStringAndBranch(HValue* value, HBasicBlock* true_target = NULL,
@@ -4502,7 +4503,7 @@ class HIsSmiAndBranch FINAL : public HUnaryControlInstruction {
 
  protected:
   virtual bool DataEquals(HValue* other) OVERRIDE { return true; }
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   HIsSmiAndBranch(HValue* value,
@@ -5390,7 +5391,7 @@ class HUnknownOSRValue FINAL : public HTemplateInstruction<0> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HUnknownOSRValue, HEnvironment*, int);
 
-  virtual std::ostream& PrintDataTo(std::ostream& os) const;  // NOLINT
+  virtual std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::None();
@@ -5713,7 +5714,7 @@ class HStoreCodeEntry FINAL: public HTemplateInstruction<2> {
     return new(zone) HStoreCodeEntry(function, code);
   }
 
-  virtual Representation RequiredInputRepresentation(int index) {
+  virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::Tagged();
   }
 
@@ -6597,11 +6598,13 @@ class HLoadKeyed FINAL
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
   uint32_t base_offset() const { return BaseOffsetField::decode(bit_field_); }
-  bool TryIncreaseBaseOffset(uint32_t increase_by_value);
-  HValue* GetKey() { return key(); }
-  void SetKey(HValue* key) { SetOperandAt(1, key); }
-  bool IsDehoisted() const { return IsDehoistedField::decode(bit_field_); }
-  void SetDehoisted(bool is_dehoisted) {
+  bool TryIncreaseBaseOffset(uint32_t increase_by_value) OVERRIDE;
+  HValue* GetKey() OVERRIDE { return key(); }
+  void SetKey(HValue* key) OVERRIDE { SetOperandAt(1, key); }
+  bool IsDehoisted() const OVERRIDE {
+    return IsDehoistedField::decode(bit_field_);
+  }
+  void SetDehoisted(bool is_dehoisted) OVERRIDE {
     bit_field_ = IsDehoistedField::update(bit_field_, is_dehoisted);
   }
   virtual ElementsKind elements_kind() const OVERRIDE {
@@ -7075,13 +7078,15 @@ class HStoreKeyed FINAL
     return IsFastSmiElementsKind(elements_kind_);
   }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
-  ElementsKind elements_kind() const { return elements_kind_; }
+  ElementsKind elements_kind() const OVERRIDE { return elements_kind_; }
   uint32_t base_offset() const { return base_offset_; }
-  bool TryIncreaseBaseOffset(uint32_t increase_by_value);
-  HValue* GetKey() { return key(); }
-  void SetKey(HValue* key) { SetOperandAt(1, key); }
-  bool IsDehoisted() const { return is_dehoisted_; }
-  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
+  bool TryIncreaseBaseOffset(uint32_t increase_by_value) OVERRIDE;
+  HValue* GetKey() OVERRIDE { return key(); }
+  void SetKey(HValue* key) OVERRIDE { SetOperandAt(1, key); }
+  bool IsDehoisted() const OVERRIDE { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) OVERRIDE {
+    is_dehoisted_ = is_dehoisted;
+  }
   bool IsUninitialized() { return is_uninitialized_; }
   void SetUninitialized(bool is_uninitialized) {
     is_uninitialized_ = is_uninitialized;
@@ -7243,7 +7248,7 @@ class HTransitionElementsKind FINAL : public HTemplateInstruction<2> {
            transitioned_map_ == instr->transitioned_map_;
   }
 
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
   HTransitionElementsKind(HValue* context,
@@ -7336,7 +7341,7 @@ class HStringCharCodeAt FINAL : public HTemplateInstruction<3> {
                                               HValue*,
                                               HValue*);
 
-  virtual Representation RequiredInputRepresentation(int index) {
+  virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     // The index is supposed to be Integer32.
     return index == 2
         ? Representation::Integer32()
@@ -7729,7 +7734,7 @@ class HCheckMapValue FINAL : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(CheckMapValue)
 
  protected:
-  virtual int RedefinedOperandIndex() { return 0; }
+  virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
   virtual bool DataEquals(HValue* other) OVERRIDE {
     return true;
@@ -7862,7 +7867,7 @@ class HStoreFrameContext: public HUnaryOperation {
 
   HValue* context() { return OperandAt(0); }
 
-  virtual Representation RequiredInputRepresentation(int index) {
+  virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::Tagged();
   }
 
@@ -7884,11 +7889,11 @@ class HAllocateBlockContext: public HTemplateInstruction<2> {
   HValue* function() const { return OperandAt(1); }
   Handle<ScopeInfo> scope_info() const { return scope_info_; }
 
-  virtual Representation RequiredInputRepresentation(int index) {
+  virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::Tagged();
   }
 
-  virtual std::ostream& PrintDataTo(std::ostream& os) const;  // NOLINT
+  virtual std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateBlockContext)
 

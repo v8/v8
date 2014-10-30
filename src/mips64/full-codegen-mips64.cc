@@ -2305,23 +2305,26 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
-  __ Allocate(map->instance_size(), v0, a2, a3, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, v0, a2, a3, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ ld(context_register(),
         MemOperand(fp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
-  __ li(a1, Operand(map));
+  __ ld(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ ld(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
+  __ ld(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(a2);
   __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
   __ li(a4, Operand(isolate()->factory()->empty_fixed_array()));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   __ sd(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ sd(a4, FieldMemOperand(v0, JSObject::kPropertiesOffset));
   __ sd(a4, FieldMemOperand(v0, JSObject::kElementsOffset));
@@ -2504,34 +2507,22 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
     __ push(scratch);
     VisitForStackValue(key);
+    VisitForStackValue(value);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
-        VisitForStackValue(value);
-        __ li(scratch, Operand(Smi::FromInt(NONE)));
-        __ push(scratch);
-        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 
       case ObjectLiteral::Property::GETTER:
-        VisitForStackValue(value);
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        __ li(scratch, Operand(Smi::FromInt(NONE)));
-        __ push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassGetter, 3);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        VisitForStackValue(value);
-        __ li(scratch, Operand(Smi::FromInt(NONE)));
-        __ push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassSetter, 3);
         break;
 
       default:

@@ -752,7 +752,7 @@ class StringTableInsertionKey : public HashTableKey {
     DCHECK(string->IsInternalizedString());
   }
 
-  virtual bool IsMatch(Object* string) {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
     if (hash_ != HashForObject(string)) return false;

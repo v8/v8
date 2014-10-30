@@ -306,7 +306,7 @@ class ControlReducerImpl {
   // Reducer implementation: perform reductions on a node.
   //===========================================================================
   Node* ReduceNode(Node* node) {
-    if (OperatorProperties::GetControlInputCount(node->op()) == 1) {
+    if (node->op()->ControlInputCount() == 1) {
       // If a node has only one control input and it is dead, replace with dead.
       Node* control = NodeProperties::GetControlInput(node);
       if (control->opcode() == IrOpcode::kDead) {
@@ -322,12 +322,40 @@ class ControlReducerImpl {
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
         return ReduceMerge(node);
+      case IrOpcode::kSelect:
+        return ReduceSelect(node);
       case IrOpcode::kPhi:
       case IrOpcode::kEffectPhi:
         return ReducePhi(node);
       default:
         return node;
     }
+  }
+
+  // Reduce redundant selects.
+  Node* ReduceSelect(Node* const node) {
+    Node* const cond = node->InputAt(0);
+    Node* const tvalue = node->InputAt(1);
+    Node* const fvalue = node->InputAt(2);
+    if (tvalue == fvalue) return tvalue;
+    switch (cond->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return Int32Matcher(cond).Is(0) ? fvalue : tvalue;
+      case IrOpcode::kInt64Constant:
+        return Int64Matcher(cond).Is(0) ? fvalue : tvalue;
+      case IrOpcode::kNumberConstant:
+        return NumberMatcher(cond).Is(0) ? fvalue : tvalue;
+      case IrOpcode::kHeapConstant: {
+        Handle<Object> object =
+            HeapObjectMatcher<Object>(cond).Value().handle();
+        if (object->IsTrue()) return tvalue;
+        if (object->IsFalse()) return fvalue;
+        break;
+      }
+      default:
+        break;
+    }
+    return node;
   }
 
   // Reduce redundant phis.
@@ -405,6 +433,9 @@ class ControlReducerImpl {
     switch (cond->opcode()) {
       case IrOpcode::kInt32Constant:
         is_true = !Int32Matcher(cond).Is(0);
+        break;
+      case IrOpcode::kInt64Constant:
+        is_true = !Int64Matcher(cond).Is(0);
         break;
       case IrOpcode::kNumberConstant:
         is_true = !NumberMatcher(cond).Is(0);

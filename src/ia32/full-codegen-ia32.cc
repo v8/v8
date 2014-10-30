@@ -2245,22 +2245,25 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
-  __ Allocate(map->instance_size(), eax, ecx, edx, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, eax, ecx, edx, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ mov(context_register(),
          Operand(ebp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
-  __ mov(ebx, map);
+  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
+  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(ecx);
   __ mov(edx, isolate()->factory()->ToBoolean(done));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
          isolate()->factory()->empty_fixed_array());
@@ -2444,29 +2447,22 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
       __ push(Operand(esp, 0));  // prototype
     }
     VisitForStackValue(key);
+    VisitForStackValue(value);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
-        VisitForStackValue(value);
-        __ push(Immediate(Smi::FromInt(NONE)));
-        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 
       case ObjectLiteral::Property::GETTER:
-        VisitForStackValue(value);
-        __ push(Immediate(isolate()->factory()->null_value()));
-        __ push(Immediate(Smi::FromInt(NONE)));
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassGetter, 3);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ push(Immediate(isolate()->factory()->null_value()));
-        VisitForStackValue(value);
-        __ push(Immediate(Smi::FromInt(NONE)));
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassSetter, 3);
         break;
 
       default:

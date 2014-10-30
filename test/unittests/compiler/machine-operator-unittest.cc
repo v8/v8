@@ -57,14 +57,14 @@ TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
   MachineOperatorBuilder machine(type());
   const Operator* op = machine.Load(GetParam());
 
-  EXPECT_EQ(2, OperatorProperties::GetValueInputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetEffectInputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(2, op->ValueInputCount());
+  EXPECT_EQ(1, op->EffectInputCount());
+  EXPECT_EQ(1, op->ControlInputCount());
   EXPECT_EQ(4, OperatorProperties::GetTotalInputCount(op));
 
-  EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(1, op->ValueOutputCount());
+  EXPECT_EQ(1, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ControlOutputCount());
 }
 
 
@@ -115,14 +115,14 @@ TEST_P(MachineStoreOperatorTest, NumberOfInputsAndOutputs) {
   MachineOperatorBuilder machine(type());
   const Operator* op = machine.Store(GetParam());
 
-  EXPECT_EQ(3, OperatorProperties::GetValueInputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetEffectInputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(3, op->ValueInputCount());
+  EXPECT_EQ(1, op->EffectInputCount());
+  EXPECT_EQ(1, op->ControlInputCount());
   EXPECT_EQ(5, OperatorProperties::GetTotalInputCount(op));
 
-  EXPECT_EQ(0, OperatorProperties::GetValueOutputCount(op));
-  EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(0, op->ValueOutputCount());
+  EXPECT_EQ(1, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ControlOutputCount());
 }
 
 
@@ -226,17 +226,15 @@ TEST_P(MachinePureOperatorTest, NumberOfInputsAndOutputs) {
   const PureOperator& pop = GetParam();
   const Operator* op = (machine.*pop.constructor)();
 
-  EXPECT_EQ(pop.value_input_count, OperatorProperties::GetValueInputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetEffectInputCount(op));
-  EXPECT_EQ(pop.control_input_count,
-            OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(pop.value_input_count, op->ValueInputCount());
+  EXPECT_EQ(0, op->EffectInputCount());
+  EXPECT_EQ(pop.control_input_count, op->ControlInputCount());
   EXPECT_EQ(pop.value_input_count + pop.control_input_count,
             OperatorProperties::GetTotalInputCount(op));
 
-  EXPECT_EQ(pop.value_output_count,
-            OperatorProperties::GetValueOutputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(pop.value_output_count, op->ValueOutputCount());
+  EXPECT_EQ(0, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ControlOutputCount());
 }
 
 

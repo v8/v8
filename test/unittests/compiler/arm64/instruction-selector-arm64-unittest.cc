@@ -74,7 +74,7 @@ static const MachInst2 kLogicalInstructions[] = {
 // ARM64 logical immediates: contiguous set bits, rotated about a power of two
 // sized block. The block is then duplicated across the word. Below is a random
 // subset of the 32-bit immediates.
-static const uint32_t kLogicalImmediates[] = {
+static const uint32_t kLogical32Immediates[] = {
     0x00000002, 0x00000003, 0x00000070, 0x00000080, 0x00000100, 0x000001c0,
     0x00000300, 0x000007e0, 0x00003ffc, 0x00007fc0, 0x0003c000, 0x0003f000,
     0x0003ffc0, 0x0003fff8, 0x0007ff00, 0x0007ffe0, 0x000e0000, 0x001e0000,
@@ -92,6 +92,31 @@ static const uint32_t kLogicalImmediates[] = {
     0xffe00003, 0xffe1ffff, 0xfff0001f, 0xfff07fff, 0xfff80007, 0xfff87fff,
     0xfffc00ff, 0xfffe07ff, 0xffff00ff, 0xffffc001, 0xfffff007, 0xfffff3ff,
     0xfffff807, 0xfffff9ff, 0xfffffc0f, 0xfffffeff};
+
+
+// Random subset of 64-bit logical immediates.
+static const uint64_t kLogical64Immediates[] = {
+    0x0000000000000001, 0x0000000000000002, 0x0000000000000003,
+    0x0000000000000070, 0x0000000000000080, 0x0000000000000100,
+    0x00000000000001c0, 0x0000000000000300, 0x0000000000000600,
+    0x00000000000007e0, 0x0000000000003ffc, 0x0000000000007fc0,
+    0x0000000600000000, 0x0000003ffffffffc, 0x000000f000000000,
+    0x000001f800000000, 0x0003fc0000000000, 0x0003fc000003fc00,
+    0x0003ffffffc00000, 0x0003ffffffffffc0, 0x0006000000060000,
+    0x003ffffffffc0000, 0x0180018001800180, 0x01f801f801f801f8,
+    0x0600000000000000, 0x1000000010000000, 0x1000100010001000,
+    0x1010101010101010, 0x1111111111111111, 0x1f001f001f001f00,
+    0x1f1f1f1f1f1f1f1f, 0x1ffffffffffffffe, 0x3ffc3ffc3ffc3ffc,
+    0x5555555555555555, 0x7f7f7f7f7f7f7f7f, 0x8000000000000000,
+    0x8000001f8000001f, 0x8181818181818181, 0x9999999999999999,
+    0x9fff9fff9fff9fff, 0xaaaaaaaaaaaaaaaa, 0xdddddddddddddddd,
+    0xe0000000000001ff, 0xf800000000000000, 0xf8000000000001ff,
+    0xf807f807f807f807, 0xfefefefefefefefe, 0xfffefffefffefffe,
+    0xfffff807fffff807, 0xfffff9fffffff9ff, 0xfffffc0ffffffc0f,
+    0xfffffc0fffffffff, 0xfffffefffffffeff, 0xfffffeffffffffff,
+    0xffffff8000000000, 0xfffffffefffffffe, 0xffffffffefffffff,
+    0xfffffffff9ffffff, 0xffffffffff800000, 0xffffffffffffc0ff,
+    0xfffffffffffffffe};
 
 
 // ARM64 arithmetic instructions.
@@ -138,7 +163,8 @@ static const int32_t kAddSubImmediates[] = {
 static const MachInst2 kDPFlagSetInstructions[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArm64Tst32, kMachInt32},
     {&RawMachineAssembler::Int32Add, "Int32Add", kArm64Cmn32, kMachInt32},
-    {&RawMachineAssembler::Int32Sub, "Int32Sub", kArm64Cmp32, kMachInt32}};
+    {&RawMachineAssembler::Int32Sub, "Int32Sub", kArm64Cmp32, kMachInt32},
+    {&RawMachineAssembler::Word64And, "Word64And", kArm64Tst, kMachInt64}};
 
 
 // ARM64 arithmetic with overflow instructions.
@@ -287,7 +313,7 @@ TEST_P(InstructionSelectorLogicalTest, Immediate) {
   // TODO(all): Add support for testing 64-bit immediates.
   if (type == kMachInt32) {
     // Immediate on the right.
-    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+    TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
       StreamBuilder m(this, type, type);
       m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
@@ -300,7 +326,7 @@ TEST_P(InstructionSelectorLogicalTest, Immediate) {
     }
 
     // Immediate on the left; all logical ops should commute.
-    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+    TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
       StreamBuilder m(this, type, type);
       m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
       Stream s = m.Build();
@@ -621,8 +647,8 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         ::testing::ValuesIn(kDPFlagSetInstructions));
 
 
-TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnRight) {
-  TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
+  TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
@@ -633,6 +659,26 @@ TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnRight) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
+  TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(imm)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
@@ -677,8 +723,8 @@ TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
 }
 
 
-TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnLeft) {
-  TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
+  TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32And(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
@@ -689,6 +735,27 @@ TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnLeft) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    ASSERT_LE(1U, s[0]->InputCount());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
+  TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(m.Word64And(m.Int64Constant(imm), m.Parameter(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     ASSERT_LE(1U, s[0]->InputCount());
@@ -1712,7 +1779,8 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+      int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
   TRACED_FORRANGE(int32_t, lsb, 1, 31) {
@@ -1726,15 +1794,16 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+      int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
 }
 
 
 TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
-    TRACED_FORRANGE(int32_t, width, 1, 31) {
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb)),
@@ -1744,11 +1813,12 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+      int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
-    TRACED_FORRANGE(int32_t, width, 1, 31) {
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64And(m.Int64Constant(msk),
@@ -1758,7 +1828,8 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
-      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+      int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
+      EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
 }

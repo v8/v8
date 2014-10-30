@@ -56,7 +56,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Support for control flow builders. The concrete type of the environment
   // depends on the graph builder, but environments themselves are not virtual.
   typedef StructuredGraphBuilder::Environment BaseEnvironment;
-  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env);
+  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
 
   // TODO(mstarzinger): The pipeline only needs to be a friend to access the
   // function context. Remove as soon as the context is a parameter.
@@ -110,13 +110,13 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder for stack-check guards.
   Node* BuildStackCheck();
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
  private:
   CompilationInfo* info_;
@@ -136,6 +136,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
+  // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
 
   CompilationInfo* info() const { return info_; }
@@ -188,8 +189,6 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void PrepareFrameState(
       Node* node, BailoutId ast_id,
       OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-
-  OutputFrameStateCombine StateCombineFromAstContext();
 
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
@@ -439,8 +438,9 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
 Scope* AstGraphBuilder::current_scope() const {
   return execution_context_->scope();
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_AST_GRAPH_BUILDER_H_

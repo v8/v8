@@ -4,7 +4,8 @@
 
 
 var SetBenchmark = new BenchmarkSuite('WeakSet', [1000], [
-  new Benchmark('Add', false, false, 0, WeakSetAdd),
+  new Benchmark('Add', false, false, 0, WeakSetAdd, WeakSetSetupBase,
+      WeakSetTearDown),
   new Benchmark('Has', false, false, 0, WeakSetHas, WeakSetSetup,
       WeakSetTearDown),
   new Benchmark('Delete', false, false, 0, WeakSetDelete, WeakSetSetup,
@@ -13,20 +14,17 @@ var SetBenchmark = new BenchmarkSuite('WeakSet', [1000], [
 
 
 var ws;
-var N = 10;
-var keys = [];
 
 
-for (var i = 0; i < N * 2; i++) {
-  keys[i] = {};
+function WeakSetSetupBase() {
+  SetupObjectKeys();
+  ws = new WeakSet;
 }
 
 
 function WeakSetSetup() {
-  ws = new WeakSet;
-  for (var i = 0; i < N; i++) {
-    ws.add(keys[i]);
-  }
+  WeakSetSetupBase();
+  WeakSetAdd();
 }
 
 
@@ -36,8 +34,9 @@ function WeakSetTearDown() {
 
 
 function WeakSetAdd() {
-  WeakSetSetup();
-  WeakSetTearDown();
+  for (var i = 0; i < N; i++) {
+    ws.add(keys[i]);
+  }
 }
 
 

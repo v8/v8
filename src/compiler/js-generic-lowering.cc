@@ -64,6 +64,7 @@ Reduction JSGenericLowering::Reduce(Node* node) {
     Lower##x(node);     \
     break;
     DECLARE_CASE(Branch)
+    DECLARE_CASE(Select)
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
     default:
@@ -238,6 +239,23 @@ void JSGenericLowering::LowerBranch(Node* node) {
                                   jsgraph()->TrueConstant());
     node->ReplaceInput(0, test);
   }
+}
+
+
+void JSGenericLowering::LowerSelect(Node* node) {
+  // TODO(bmeurer): This should probably be moved into a separate file.
+  SelectParameters const& p = SelectParametersOf(node->op());
+  Node* branch = graph()->NewNode(common()->Branch(p.hint()), node->InputAt(0),
+                                  graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = node->InputAt(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = node->InputAt(2);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->set_op(common()->Phi(p.type(), 2));
+  node->ReplaceInput(0, vtrue);
+  node->ReplaceInput(1, vfalse);
+  node->ReplaceInput(2, merge);
 }
 
 

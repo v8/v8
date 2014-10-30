@@ -2202,34 +2202,22 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
     __ Push(scratch);
     VisitForStackValue(key);
+    VisitForStackValue(value);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
-        VisitForStackValue(value);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 
       case ObjectLiteral::Property::GETTER:
-        VisitForStackValue(value);
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassGetter, 3);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-        __ push(scratch);
-        VisitForStackValue(value);
-        __ Mov(scratch, Smi::FromInt(NONE));
-        __ Push(scratch);
-        __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        __ CallRuntime(Runtime::kDefineClassSetter, 3);
         break;
 
       default:
@@ -5043,16 +5031,18 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
   // Allocate and populate an object with this form: { value: VAL, done: DONE }
 
   Register result = x0;
-  __ Allocate(map->instance_size(), result, x10, x11, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, result, x10, x11, &gc_required, TAG_OBJECT);
   __ B(&allocated);
 
   __ Bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ Ldr(context_register(),
          MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -5063,11 +5053,13 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Register boolean_done = x3;
   Register empty_fixed_array = x4;
   Register untagged_result = x5;
-  __ Mov(map_reg, Operand(map));
+  __ Ldr(map_reg, GlobalObjectMemOperand());
+  __ Ldr(map_reg, FieldMemOperand(map_reg, GlobalObject::kNativeContextOffset));
+  __ Ldr(map_reg,
+         ContextMemOperand(map_reg, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(result_value);
   __ Mov(boolean_done, Operand(isolate()->factory()->ToBoolean(done)));
   __ Mov(empty_fixed_array, Operand(isolate()->factory()->empty_fixed_array()));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   STATIC_ASSERT(JSObject::kPropertiesOffset + kPointerSize ==
                 JSObject::kElementsOffset);
   STATIC_ASSERT(JSGeneratorObject::kResultValuePropertyOffset + kPointerSize ==

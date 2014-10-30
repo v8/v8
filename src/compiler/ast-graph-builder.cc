@@ -8,6 +8,7 @@
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/full-codegen.h"
@@ -587,13 +588,6 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
-    IterationStatement* stmt) {
-  if (loop_assignment_analysis_ == NULL) return NULL;
-  return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
-}
-
-
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
   while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt));
@@ -825,8 +819,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Create node to instantiate a new closure.
   Node* info = jsgraph()->Constant(shared_info);
-  Node* pretenure = expr->pretenure() ? jsgraph()->TrueConstant()
-                                      : jsgraph()->FalseConstant();
+  Node* pretenure = jsgraph()->BooleanConstant(expr->pretenure());
   const Operator* op = javascript()->CallRuntime(Runtime::kNewClosure, 3);
   Node* value = NewNode(op, context, info, pretenure);
   ast_context()->ProduceValue(value);
@@ -1932,8 +1925,7 @@ Node* AstGraphBuilder::BuildVariableDelete(
     case Variable::LOCAL:
     case Variable::CONTEXT:
       // Local var, const, or let variable or context variable.
-      return variable->is_this() ? jsgraph()->TrueConstant()
-                                 : jsgraph()->FalseConstant();
+      return jsgraph()->BooleanConstant(variable->is_this());
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
@@ -2059,9 +2051,31 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
 }
 
 
-Node* AstGraphBuilder::BuildToBoolean(Node* value) {
-  // TODO(mstarzinger): Possible optimization is to NOP for boolean values.
-  return NewNode(javascript()->ToBoolean(), value);
+Node* AstGraphBuilder::BuildToBoolean(Node* input) {
+  // TODO(titzer): this should be in a JSOperatorReducer.
+  switch (input->opcode()) {
+    case IrOpcode::kInt32Constant:
+      return jsgraph_->BooleanConstant(!Int32Matcher(input).Is(0));
+    case IrOpcode::kFloat64Constant:
+      return jsgraph_->BooleanConstant(!Float64Matcher(input).Is(0));
+    case IrOpcode::kNumberConstant:
+      return jsgraph_->BooleanConstant(!NumberMatcher(input).Is(0));
+    case IrOpcode::kHeapConstant: {
+      Handle<Object> object = HeapObjectMatcher<Object>(input).Value().handle();
+      if (object->IsTrue()) return jsgraph_->TrueConstant();
+      if (object->IsFalse()) return jsgraph_->FalseConstant();
+      // TODO(turbofan): other constants.
+      break;
+    }
+    default:
+      break;
+  }
+  if (NodeProperties::IsTyped(input)) {
+    Type* upper = NodeProperties::GetBounds(input).upper;
+    if (upper->Is(Type::Boolean())) return input;
+  }
+
+  return NewNode(javascript()->ToBoolean(), input);
 }
 
 
@@ -2149,6 +2163,13 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
   }
 }
 
+
+BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
+    IterationStatement* stmt) {
+  if (loop_assignment_analysis_ == NULL) return NULL;
+  return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
 }
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

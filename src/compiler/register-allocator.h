@@ -7,20 +7,11 @@
 
 #include "src/allocation.h"
 #include "src/compiler/instruction.h"
-#include "src/compiler/zone-pool.h"
 #include "src/macro-assembler.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class BitVector;
-class InstructionOperand;
-class UnallocatedOperand;
-class ParallelMove;
-class PointerMap;
-
 namespace compiler {
 
 class PipelineStatistics;
@@ -36,7 +27,7 @@ enum RegisterKind {
 // each instruction there are exactly two lifetime positions: the beginning and
 // the end of the instruction. Lifetime positions for different instructions are
 // disjoint.
-class LifetimePosition {
+class LifetimePosition FINAL {
  public:
   // Return the lifetime position that corresponds to the beginning of
   // the instruction with the given index.
@@ -115,7 +106,7 @@ class LifetimePosition {
 
 
 // Representation of the non-empty interval [start,end[.
-class UseInterval : public ZoneObject {
+class UseInterval FINAL : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(NULL) {
@@ -148,10 +139,14 @@ class UseInterval : public ZoneObject {
   LifetimePosition start_;
   LifetimePosition end_;
   UseInterval* next_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(UseInterval);
 };
 
+
 // Representation of a use position.
-class UsePosition : public ZoneObject {
+class UsePosition FINAL : public ZoneObject {
  public:
   UsePosition(LifetimePosition pos, InstructionOperand* operand,
               InstructionOperand* hint);
@@ -173,13 +168,17 @@ class UsePosition : public ZoneObject {
   InstructionOperand* const hint_;
   LifetimePosition const pos_;
   UsePosition* next_;
-  bool requires_reg_;
-  bool register_beneficial_;
+  bool requires_reg_ : 1;
+  bool register_beneficial_ : 1;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(UsePosition);
 };
+
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
-class LiveRange : public ZoneObject {
+class LiveRange FINAL : public ZoneObject {
  public:
   static const int kInvalidAssignment = 0x7fffffff;
 
@@ -315,25 +314,21 @@ class LiveRange : public ZoneObject {
   int spill_start_index_;
 
   friend class RegisterAllocator;  // Assigns to kind_.
+
+  DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
-  // TODO(dcarney): remove info
   explicit RegisterAllocator(Zone* local_zone, Frame* frame,
-                             CompilationInfo* info, InstructionSequence* code);
-
-  static void TraceAlloc(const char* msg, ...);
-
-  // Checks whether the value of a given virtual register is a reference.
-  // TODO(titzer): rename this to IsReference.
-  bool HasTaggedValue(int virtual_register) const;
-
-  // Returns the register kind required by the given virtual register.
-  RegisterKind RequiredRegisterKind(int virtual_register) const;
+                             InstructionSequence* code,
+                             const char* debug_name = nullptr);
 
   bool Allocate(PipelineStatistics* stats = NULL);
+  bool AllocationOk() { return allocation_ok_; }
+  BitVector* assigned_registers() { return assigned_registers_; }
+  BitVector* assigned_double_registers() { return assigned_double_registers_; }
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
@@ -342,17 +337,9 @@ class RegisterAllocator BASE_EMBEDDED {
   const Vector<LiveRange*>* fixed_double_live_ranges() const {
     return &fixed_double_live_ranges_;
   }
+  InstructionSequence* code() const { return code_; }
 
-  CompilationInfo* info() const { return info_; }
-  inline InstructionSequence* code() const { return code_; }
-
-  // This zone is for datastructures only needed during register allocation.
-  inline Zone* zone() const { return zone_; }
-
-  // This zone is for InstructionOperands and moves that live beyond register
-  // allocation.
-  inline Zone* code_zone() const { return code()->zone(); }
-
+ private:
   int GetVirtualRegister() {
     int vreg = code()->NextVirtualRegister();
     if (vreg >= UnallocatedOperand::kMaxVirtualRegisters) {
@@ -363,16 +350,24 @@ class RegisterAllocator BASE_EMBEDDED {
     return vreg;
   }
 
-  bool AllocationOk() { return allocation_ok_; }
+  // Checks whether the value of a given virtual register is a reference.
+  // TODO(titzer): rename this to IsReference.
+  bool HasTaggedValue(int virtual_register) const;
+
+  // Returns the register kind required by the given virtual register.
+  RegisterKind RequiredRegisterKind(int virtual_register) const;
+
+  // This zone is for datastructures only needed during register allocation.
+  Zone* zone() const { return zone_; }
+
+  // This zone is for InstructionOperands and moves that live beyond register
+  // allocation.
+  Zone* code_zone() const { return code()->zone(); }
 
 #ifdef DEBUG
   void Verify() const;
 #endif
 
-  BitVector* assigned_registers() { return assigned_registers_; }
-  BitVector* assigned_double_registers() { return assigned_double_registers_; }
-
- private:
   void MeetRegisterConstraints();
   void ResolvePhis();
   void BuildLiveRanges();
@@ -383,7 +378,7 @@ class RegisterAllocator BASE_EMBEDDED {
   void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
   void AllocateRegisters();
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
-  inline bool SafePointsAreInOrder() const;
+  bool SafePointsAreInOrder() const;
 
   // Liveness analysis support.
   void InitializeLivenessAnalysis();
@@ -474,7 +469,7 @@ class RegisterAllocator BASE_EMBEDDED {
   void ResolveControlFlow(LiveRange* range, const InstructionBlock* block,
                           const InstructionBlock* pred);
 
-  inline void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
+  void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
 
   // Return parallel move that should be used to connect ranges split at the
   // given position.
@@ -494,16 +489,15 @@ class RegisterAllocator BASE_EMBEDDED {
 
   const char* RegisterName(int allocation_index);
 
-  inline Instruction* InstructionAt(int index) {
-    return code()->InstructionAt(index);
-  }
+  Instruction* InstructionAt(int index) { return code()->InstructionAt(index); }
 
   Frame* frame() const { return frame_; }
+  const char* debug_name() const { return debug_name_; }
 
   Zone* const zone_;
   Frame* const frame_;
-  CompilationInfo* const info_;
   InstructionSequence* const code_;
+  const char* const debug_name_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.

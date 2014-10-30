@@ -234,6 +234,8 @@
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
   'math-floor-of-div': [PASS, NO_VARIANTS],
+  'unicodelctest': [PASS, NO_VARIANTS],
+  'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -309,10 +311,6 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
-
-  # TODO(bmeurer, Rodolph.Perfetta@arm.com): Fails with turbo fan.
-  'numops-fuzz-part1': [PASS, NO_VARIANTS],
-  'numops-fuzz-part2': [PASS, NO_VARIANTS],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {

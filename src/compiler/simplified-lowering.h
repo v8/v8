@@ -40,7 +40,7 @@ class SimplifiedLowering FINAL {
   Node* IsTagged(Node* node);
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
-  Node* ComputeIndex(const ElementAccess& access, Node* index);
+  Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Node* StringComparison(Node* node, bool requires_ordering);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);

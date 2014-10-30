@@ -416,7 +416,7 @@ class LoadIC : public IC {
 
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> unused,
-                                      CacheHolderFlag cache_holder);
+                                      CacheHolderFlag cache_holder) OVERRIDE;
 
  private:
   virtual Handle<Code> pre_monomorphic_stub() const;
@@ -545,7 +545,7 @@ class StoreIC : public IC {
                     JSReceiver::StoreFromKeyed store_mode);
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> value,
-                                      CacheHolderFlag cache_holder);
+                                      CacheHolderFlag cache_holder) OVERRIDE;
 
  private:
   inline void set_target(Code* code);

@@ -4,6 +4,7 @@
 
 
 load('../base.js');
+load('common.js');
 load('map.js');
 load('set.js');
 load('weakmap.js');

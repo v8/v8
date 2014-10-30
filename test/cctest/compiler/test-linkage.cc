@@ -23,8 +23,8 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-static SimpleOperator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
-                                     0, 0, "dummy");
+static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
+                               "dummy", 0, 0, 0, 0, 0, 0);
 
 // So we can get a real JS function.
 static Handle<JSFunction> Compile(const char* source) {

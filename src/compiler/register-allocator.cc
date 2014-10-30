@@ -21,6 +21,16 @@ static inline LifetimePosition Max(LifetimePosition a, LifetimePosition b) {
 }
 
 
+static void TraceAlloc(const char* msg, ...) {
+  if (FLAG_trace_alloc) {
+    va_list arguments;
+    va_start(arguments, msg);
+    base::OS::VPrint(msg, arguments);
+    va_end(arguments);
+  }
+}
+
+
 UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
                          InstructionOperand* hint)
     : operand_(operand),
@@ -348,8 +358,7 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
 
 
 void LiveRange::ShortenTo(LifetimePosition start) {
-  RegisterAllocator::TraceAlloc("Shorten live range %d to [%d\n", id_,
-                                start.Value());
+  TraceAlloc("Shorten live range %d to [%d\n", id_, start.Value());
   DCHECK(first_interval_ != NULL);
   DCHECK(first_interval_->start().Value() <= start.Value());
   DCHECK(start.Value() < first_interval_->end().Value());
@@ -359,8 +368,8 @@ void LiveRange::ShortenTo(LifetimePosition start) {
 
 void LiveRange::EnsureInterval(LifetimePosition start, LifetimePosition end,
                                Zone* zone) {
-  RegisterAllocator::TraceAlloc("Ensure live range %d in interval [%d %d[\n",
-                                id_, start.Value(), end.Value());
+  TraceAlloc("Ensure live range %d in interval [%d %d[\n", id_, start.Value(),
+             end.Value());
   LifetimePosition new_end = end;
   while (first_interval_ != NULL &&
          first_interval_->start().Value() <= end.Value()) {
@@ -381,8 +390,8 @@ void LiveRange::EnsureInterval(LifetimePosition start, LifetimePosition end,
 
 void LiveRange::AddUseInterval(LifetimePosition start, LifetimePosition end,
                                Zone* zone) {
-  RegisterAllocator::TraceAlloc("Add to live range %d interval [%d %d[\n", id_,
-                                start.Value(), end.Value());
+  TraceAlloc("Add to live range %d interval [%d %d[\n", id_, start.Value(),
+             end.Value());
   if (first_interval_ == NULL) {
     UseInterval* interval = new (zone) UseInterval(start, end);
     first_interval_ = interval;
@@ -409,8 +418,7 @@ void LiveRange::AddUseInterval(LifetimePosition start, LifetimePosition end,
 void LiveRange::AddUsePosition(LifetimePosition pos,
                                InstructionOperand* operand,
                                InstructionOperand* hint, Zone* zone) {
-  RegisterAllocator::TraceAlloc("Add to live range %d use position %d\n", id_,
-                                pos.Value());
+  TraceAlloc("Add to live range %d use position %d\n", id_, pos.Value());
   UsePosition* use_pos = new (zone) UsePosition(pos, operand, hint);
   UsePosition* prev_hint = NULL;
   UsePosition* prev = NULL;
@@ -499,12 +507,12 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 
 
 RegisterAllocator::RegisterAllocator(Zone* local_zone, Frame* frame,
-                                     CompilationInfo* info,
-                                     InstructionSequence* code)
+                                     InstructionSequence* code,
+                                     const char* debug_name)
     : zone_(local_zone),
       frame_(frame),
-      info_(info),
       code_(code),
+      debug_name_(debug_name),
       live_in_sets_(code->InstructionBlockCount(), zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, zone()),
       fixed_live_ranges_(NULL),
@@ -1374,19 +1382,10 @@ void RegisterAllocator::BuildLiveRanges() {
                operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("  (first use is at %d)\n", range->first_pos()->pos().Value());
-        CompilationInfo* info = this->info();
-        if (info->IsStub()) {
-          if (info->code_stub() == NULL) {
-            PrintF("\n");
-          } else {
-            CodeStub::Major major_key = info->code_stub()->MajorKey();
-            PrintF("  (function: %s)\n", CodeStub::MajorName(major_key, false));
-          }
+        if (debug_name() == nullptr) {
+          PrintF("\n");
         } else {
-          DCHECK(info->IsOptimizing());
-          AllowHandleDereference allow_deref;
-          PrintF("  (function: %s)\n",
-                 info->function()->debug_name()->ToCString().get());
+          PrintF("  (function: %s)\n", debug_name());
         }
         iterator.Advance();
       }
@@ -1640,16 +1639,6 @@ const char* RegisterAllocator::RegisterName(int allocation_index) {
     return Register::AllocationIndexToString(allocation_index);
   } else {
     return DoubleRegister::AllocationIndexToString(allocation_index);
-  }
-}
-
-
-void RegisterAllocator::TraceAlloc(const char* msg, ...) {
-  if (FLAG_trace_alloc) {
-    va_list arguments;
-    va_start(arguments, msg);
-    base::OS::VPrint(msg, arguments);
-    va_end(arguments);
   }
 }
 

@@ -252,8 +252,7 @@ class Typer::RunVisitor : public Typer::Visitor {
         redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
   GenericGraphVisit::Control Post(Node* node) {
-    if (OperatorProperties::HasValueOutput(node->op()) &&
-        !NodeProperties::IsTyped(node)) {
+    if (node->op()->ValueOutputCount() > 0 && !NodeProperties::IsTyped(node)) {
       Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
       // Remember incompletely typed nodes for least fixpoint iteration.
@@ -271,7 +270,7 @@ class Typer::NarrowVisitor : public Typer::Visitor {
   explicit NarrowVisitor(Typer* typer) : Visitor(typer) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    if (OperatorProperties::HasValueOutput(node->op())) {
+    if (node->op()->ValueOutputCount() > 0) {
       Bounds previous = NodeProperties::GetBounds(node);
       Bounds current = TypeNode(node);
       NodeProperties::SetBounds(node, Bounds::Both(current, previous, zone()));
@@ -295,7 +294,7 @@ class Typer::WidenVisitor : public Typer::Visitor {
   explicit WidenVisitor(Typer* typer) : Visitor(typer) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    if (OperatorProperties::HasValueOutput(node->op())) {
+    if (node->op()->ValueOutputCount() > 0) {
       Bounds previous = BoundsOrNone(node);
       Bounds current = TypeNode(node);
 
@@ -340,7 +339,7 @@ void Typer::Narrow(Node* start) {
 
 
 void Typer::Decorator::Decorate(Node* node) {
-  if (OperatorProperties::HasValueOutput(node->op())) {
+  if (node->op()->ValueOutputCount() > 0) {
     // Only eagerly type-decorate nodes with known input types.
     // Other cases will generally require a proper fixpoint iteration with Run.
     bool is_typed = NodeProperties::IsTyped(node);
@@ -535,8 +534,13 @@ Bounds Typer::Visitor::TypeExternalConstant(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeSelect(Node* node) {
+  return Bounds::Either(Operand(node, 1), Operand(node, 2), zone());
+}
+
+
 Bounds Typer::Visitor::TypePhi(Node* node) {
-  int arity = OperatorProperties::GetValueInputCount(node->op());
+  int arity = node->op()->ValueInputCount();
   Bounds bounds = Operand(node, 0);
   for (int i = 1; i < arity; ++i) {
     bounds = Bounds::Either(bounds, Operand(node, i), zone());

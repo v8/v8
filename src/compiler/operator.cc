@@ -10,7 +10,26 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Operator::~Operator() {}
+
+template <typename N>
+static inline N CheckRange(size_t val) {
+  CHECK(val <= std::numeric_limits<N>::max());
+  return static_cast<N>(val);
+}
+
+
+Operator::Operator(Opcode opcode, Properties properties, const char* mnemonic,
+                   size_t value_in, size_t effect_in, size_t control_in,
+                   size_t value_out, size_t effect_out, size_t control_out)
+    : opcode_(opcode),
+      properties_(properties),
+      mnemonic_(mnemonic),
+      value_in_(CheckRange<uint32_t>(value_in)),
+      effect_in_(CheckRange<uint16_t>(effect_in)),
+      control_in_(CheckRange<uint16_t>(control_in)),
+      value_out_(CheckRange<uint16_t>(value_out)),
+      effect_out_(CheckRange<uint8_t>(effect_out)),
+      control_out_(CheckRange<uint8_t>(control_out)) {}
 
 
 std::ostream& operator<<(std::ostream& os, const Operator& op) {
@@ -19,37 +38,7 @@ std::ostream& operator<<(std::ostream& os, const Operator& op) {
 }
 
 
-SimpleOperator::SimpleOperator(Opcode opcode, Properties properties,
-                               size_t input_count, size_t output_count,
-                               const char* mnemonic)
-    : Operator(opcode, properties, mnemonic),
-      input_count_(static_cast<uint8_t>(input_count)),
-      output_count_(static_cast<uint8_t>(output_count)) {
-  DCHECK(input_count <= std::numeric_limits<uint8_t>::max());
-  DCHECK(output_count <= std::numeric_limits<uint8_t>::max());
-}
-
-
-SimpleOperator::~SimpleOperator() {}
-
-
-bool SimpleOperator::Equals(const Operator* that) const {
-  return opcode() == that->opcode();
-}
-
-
-size_t SimpleOperator::HashCode() const {
-  return base::hash<Opcode>()(opcode());
-}
-
-
-int SimpleOperator::InputCount() const { return input_count_; }
-
-
-int SimpleOperator::OutputCount() const { return output_count_; }
-
-
-void SimpleOperator::PrintTo(std::ostream& os) const { os << mnemonic(); }
+void Operator::PrintTo(std::ostream& os) const { os << mnemonic(); }
 
 }  // namespace compiler
 }  // namespace internal

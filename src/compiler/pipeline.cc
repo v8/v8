@@ -22,7 +22,6 @@
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator-reducer.h"
-#include "src/compiler/phi-reducer.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
@@ -259,6 +258,24 @@ static void TraceSchedule(Schedule* schedule) {
 }
 
 
+static SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
+  SmartArrayPointer<char> name;
+  if (info->IsStub()) {
+    if (info->code_stub() != NULL) {
+      CodeStub::Major major_key = info->code_stub()->MajorKey();
+      const char* major_name = CodeStub::MajorName(major_key, false);
+      size_t len = strlen(major_name);
+      name.Reset(new char[len]);
+      memcpy(name.get(), major_name, len);
+    }
+  } else {
+    AllowHandleDereference allow_deref;
+    name = info->function()->debug_name()->ToCString();
+  }
+  return name;
+}
+
+
 Handle<Code> Pipeline::GenerateCode() {
   // This list must be kept in sync with DONT_TURBOFAN_NODE in ast.cc.
   if (info()->function()->dont_optimize_reason() == kTryCatchStatement ||
@@ -285,8 +302,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Begin compiling method "
-       << info()->function()->debug_name()->ToCString().get()
+       << "Begin compiling method " << GetDebugName(info()).get()
        << " using Turbofan" << std::endl;
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
@@ -306,18 +322,20 @@ Handle<Code> Pipeline::GenerateCode() {
     graph_builder.CreateGraph();
     context_node = graph_builder.GetFunctionContext();
   }
-  {
-    PhaseScope phase_scope(pipeline_statistics.get(), "phi reduction");
-    PhiReducer phi_reducer;
-    GraphReducer graph_reducer(data.graph());
-    graph_reducer.AddReducer(&phi_reducer);
-    graph_reducer.ReduceGraph();
-    // TODO(mstarzinger): Running reducer once ought to be enough for everyone.
-    graph_reducer.ReduceGraph();
-    graph_reducer.ReduceGraph();
-  }
 
   VerifyAndPrintGraph(data.graph(), "Initial untyped", true);
+
+  {
+    PhaseScope phase_scope(pipeline_statistics.get(),
+                           "early control reduction");
+    SourcePositionTable::Scope pos(data.source_positions(),
+                                   SourcePosition::Unknown());
+    ZonePool::Scope zone_scope(data.zone_pool());
+    ControlReducer::ReduceGraph(zone_scope.zone(), data.jsgraph(),
+                                data.common());
+
+    VerifyAndPrintGraph(data.graph(), "Early Control reduced", true);
+  }
 
   if (info()->is_context_specializing()) {
     SourcePositionTable::Scope pos(data.source_positions(),
@@ -415,14 +433,15 @@ Handle<Code> Pipeline::GenerateCode() {
     }
 
     {
-      PhaseScope phase_scope(pipeline_statistics.get(), "control reduction");
+      PhaseScope phase_scope(pipeline_statistics.get(),
+                             "late control reduction");
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
       ZonePool::Scope zone_scope(data.zone_pool());
       ControlReducer::ReduceGraph(zone_scope.zone(), data.jsgraph(),
                                   data.common());
 
-      VerifyAndPrintGraph(data.graph(), "Control reduced");
+      VerifyAndPrintGraph(data.graph(), "Late Control reduced");
     }
   }
 
@@ -463,8 +482,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "--------------------------------------------------\n"
-       << "Finished compiling method "
-       << info()->function()->debug_name()->ToCString().get()
+       << "Finished compiling method " << GetDebugName(info()).get()
        << " using Turbofan" << std::endl;
   }
 
@@ -556,7 +574,14 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
       return Handle<Code>::null();
     }
     ZonePool::Scope zone_scope(data->zone_pool());
-    RegisterAllocator allocator(zone_scope.zone(), &frame, info(), &sequence);
+
+    SmartArrayPointer<char> debug_name;
+#ifdef DEBUG
+    debug_name = GetDebugName(info());
+#endif
+
+    RegisterAllocator allocator(zone_scope.zone(), &frame, &sequence,
+                                debug_name.get());
     if (!allocator.Allocate(data->pipeline_statistics())) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();

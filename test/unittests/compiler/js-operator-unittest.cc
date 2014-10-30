@@ -68,7 +68,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(ToName, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
     SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(Create, Operator::kEliminatable, 0, 0, 1, 0, 1, 1),
+    SHARED(Create, Operator::kEliminatable, 0, 0, 1, 1, 1, 1),
     SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
     SHARED(TypeOf, Operator::kPure, 1, 0, 0, 0, 1, 0),
     SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
@@ -106,24 +106,20 @@ TEST_P(JSSharedOperatorTest, NumberOfInputsAndOutputs) {
   // TODO(jarin): Get rid of this hack.
   const int frame_state_input_count =
       FLAG_turbo_deoptimization ? sop.frame_state_input_count : 0;
-  EXPECT_EQ(sop.value_input_count, OperatorProperties::GetValueInputCount(op));
+  EXPECT_EQ(sop.value_input_count, op->ValueInputCount());
   EXPECT_EQ(context_input_count, OperatorProperties::GetContextInputCount(op));
   EXPECT_EQ(frame_state_input_count,
             OperatorProperties::GetFrameStateInputCount(op));
-  EXPECT_EQ(sop.effect_input_count,
-            OperatorProperties::GetEffectInputCount(op));
-  EXPECT_EQ(sop.control_input_count,
-            OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(sop.effect_input_count, op->EffectInputCount());
+  EXPECT_EQ(sop.control_input_count, op->ControlInputCount());
   EXPECT_EQ(sop.value_input_count + context_input_count +
                 frame_state_input_count + sop.effect_input_count +
                 sop.control_input_count,
             OperatorProperties::GetTotalInputCount(op));
 
-  EXPECT_EQ(sop.value_output_count,
-            OperatorProperties::GetValueOutputCount(op));
-  EXPECT_EQ(sop.effect_output_count,
-            OperatorProperties::GetEffectOutputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(sop.value_output_count, op->ValueOutputCount());
+  EXPECT_EQ(sop.effect_output_count, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ControlOutputCount());
 }
 
 

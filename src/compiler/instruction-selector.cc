@@ -278,7 +278,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   DCHECK_EQ(call->op()->OutputCount(),
             static_cast<int>(buffer->descriptor->ReturnCount()));
   DCHECK_EQ(
-      OperatorProperties::GetValueInputCount(call->op()),
+      call->op()->ValueInputCount(),
       static_cast<int>(buffer->input_count() + buffer->frame_state_count()));
 
   if (buffer->descriptor->ReturnCount() > 0) {
@@ -962,7 +962,7 @@ void InstructionSelector::VisitThrow(Node* value) {
 void InstructionSelector::FillTypeVectorFromStateValues(
     ZoneVector<MachineType>* types, Node* state_values) {
   DCHECK(state_values->opcode() == IrOpcode::kStateValues);
-  int count = OpParameter<int>(state_values);
+  int count = state_values->InputCount();
   types->reserve(static_cast<size_t>(count));
   for (int i = 0; i < count; i++) {
     types->push_back(GetMachineType(state_values->InputAt(i)));
@@ -974,11 +974,14 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
   DCHECK_EQ(5, state->InputCount());
+  DCHECK_EQ(IrOpcode::kStateValues, state->InputAt(0)->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, state->InputAt(1)->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, state->InputAt(2)->opcode());
   FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
 
-  int parameters = OpParameter<int>(state->InputAt(0));
-  int locals = OpParameter<int>(state->InputAt(1));
-  int stack = OpParameter<int>(state->InputAt(2));
+  int parameters = state->InputAt(0)->InputCount();
+  int locals = state->InputAt(1)->InputCount();
+  int stack = state->InputAt(2)->InputCount();
 
   FrameStateDescriptor* outer_state = NULL;
   Node* outer_node = state->InputAt(4);

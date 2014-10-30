@@ -122,10 +122,6 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
         Node* control = NodeProperties::GetControlInput(node);
         BasicBlock* block = schedule_->block(control);
         schedule_->AddNode(block, node);
-        // TODO(mstarzinger): Cheap hack to make sure unscheduled use count of
-        // control does not drop below zero. This might cause the control to be
-        // queued for scheduling more than once, which makes this ugly!
-        ++(GetData(control)->unscheduled_count_);
         break;
       }
 #define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
@@ -153,19 +149,30 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
       // TODO(mstarzinger): Another cheap hack for use counts.
       if (GetData(*i)->placement_ == kFixed) continue;
-      DecrementUnscheduledUseCount(*i, i.edge().from());
+      DecrementUnscheduledUseCount(*i, i.index(), i.edge().from());
     }
   }
   data->placement_ = placement;
 }
 
 
-void Scheduler::IncrementUnscheduledUseCount(Node* node, Node* from) {
+bool Scheduler::IsCoupledControlEdge(Node* node, int index) {
+  return GetPlacement(node) == kCoupled &&
+         NodeProperties::FirstControlIndex(node) == index;
+}
+
+
+void Scheduler::IncrementUnscheduledUseCount(Node* node, int index,
+                                             Node* from) {
+  // Make sure that control edges from coupled nodes are not counted.
+  if (IsCoupledControlEdge(from, index)) return;
+
+  // Use count for coupled nodes is summed up on their control.
   if (GetPlacement(node) == kCoupled) {
-    // Use count for coupled nodes is summed up on their control.
     Node* control = NodeProperties::GetControlInput(node);
-    return IncrementUnscheduledUseCount(control, from);
+    return IncrementUnscheduledUseCount(control, index, from);
   }
+
   ++(GetData(node)->unscheduled_count_);
   if (FLAG_trace_turbo_scheduler) {
     Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", node->id(),
@@ -175,12 +182,17 @@ void Scheduler::IncrementUnscheduledUseCount(Node* node, Node* from) {
 }
 
 
-void Scheduler::DecrementUnscheduledUseCount(Node* node, Node* from) {
+void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
+                                             Node* from) {
+  // Make sure that control edges from coupled nodes are not counted.
+  if (IsCoupledControlEdge(from, index)) return;
+
+  // Use count for coupled nodes is summed up on their control.
   if (GetPlacement(node) == kCoupled) {
-    // Use count for coupled nodes is summed up on their control.
     Node* control = NodeProperties::GetControlInput(node);
-    return DecrementUnscheduledUseCount(control, from);
+    return DecrementUnscheduledUseCount(control, index, from);
   }
+
   DCHECK(GetData(node)->unscheduled_count_ > 0);
   --(GetData(node)->unscheduled_count_);
   if (FLAG_trace_turbo_scheduler) {
@@ -241,9 +253,7 @@ class CFGBuilder {
   // backwards from end through control edges, building and connecting the
   // basic blocks for control nodes.
   void Run() {
-    Graph* graph = scheduler_->graph_;
-    FixNode(schedule_->start(), graph->start());
-    Queue(graph->end());
+    Queue(scheduler_->graph_->end());
 
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
       Node* node = queue_.front();
@@ -257,8 +267,6 @@ class CFGBuilder {
     for (NodeVector::iterator i = control_.begin(); i != control_.end(); ++i) {
       ConnectBlocks(*i);  // Connect block to its predecessor/successors.
     }
-
-    FixNode(schedule_->end(), graph->end());
   }
 
   // Run the control flow graph construction for a minimal control-connected
@@ -293,29 +301,40 @@ class CFGBuilder {
  private:
   void FixNode(BasicBlock* block, Node* node) {
     schedule_->AddNode(block, node);
-    scheduler_->GetData(node)->is_connected_control_ = true;
     scheduler_->UpdatePlacement(node, Scheduler::kFixed);
   }
 
   void Queue(Node* node) {
-    // Mark the connected control nodes as they queued.
+    // Mark the connected control nodes as they are queued.
     Scheduler::SchedulerData* data = scheduler_->GetData(node);
     if (!data->is_connected_control_) {
+      data->is_connected_control_ = true;
       BuildBlocks(node);
       queue_.push(node);
       control_.push_back(node);
-      data->is_connected_control_ = true;
     }
   }
 
 
   void BuildBlocks(Node* node) {
     switch (node->opcode()) {
+      case IrOpcode::kEnd:
+        FixNode(schedule_->end(), node);
+        break;
+      case IrOpcode::kStart:
+        FixNode(schedule_->start(), node);
+        break;
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
-      case IrOpcode::kTerminate:
         BuildBlockForNode(node);
         break;
+      case IrOpcode::kTerminate: {
+        // Put Terminate in the loop to which it refers.
+        Node* loop = NodeProperties::GetControlInput(node);
+        BasicBlock* block = BuildBlockForNode(loop);
+        FixNode(block, node);
+        break;
+      }
       case IrOpcode::kBranch:
         BuildBlocksForSuccessors(node, IrOpcode::kIfTrue, IrOpcode::kIfFalse);
         break;
@@ -343,13 +362,15 @@ class CFGBuilder {
     }
   }
 
-  void BuildBlockForNode(Node* node) {
-    if (schedule_->block(node) == NULL) {
-      BasicBlock* block = schedule_->NewBasicBlock();
+  BasicBlock* BuildBlockForNode(Node* node) {
+    BasicBlock* block = schedule_->block(node);
+    if (block == NULL) {
+      block = schedule_->NewBasicBlock();
       Trace("Create block B%d for #%d:%s\n", block->id().ToInt(), node->id(),
             node->op()->mnemonic());
       FixNode(block, node);
     }
+    return block;
   }
 
   void BuildBlocksForSuccessors(Node* node, IrOpcode::Value a,
@@ -1010,18 +1031,12 @@ class PrepareUsesVisitor : public NullNodeVisitor {
 
   void PostEdge(Node* from, int index, Node* to) {
     // If the edge is from an unscheduled node, then tally it in the use count
-    // for all of its inputs. Also make sure that control edges from coupled
-    // nodes are not counted. The same criterion will be used in ScheduleLate
+    // for all of its inputs. The same criterion will be used in ScheduleLate
     // for decrementing use counts.
-    if (!schedule_->IsScheduled(from) && !IsCoupledControlEdge(from, index)) {
+    if (!schedule_->IsScheduled(from)) {
       DCHECK_NE(Scheduler::kFixed, scheduler_->GetPlacement(from));
-      scheduler_->IncrementUnscheduledUseCount(to, from);
+      scheduler_->IncrementUnscheduledUseCount(to, index, from);
     }
-  }
-
-  bool IsCoupledControlEdge(Node* node, int index) {
-    return scheduler_->GetPlacement(node) == Scheduler::kCoupled &&
-           NodeProperties::FirstControlIndex(node) == index;
   }
 
  private:

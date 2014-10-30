@@ -121,12 +121,12 @@ class Verifier::Visitor : public NullNodeVisitor {
 
 
 GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
-  int value_count = OperatorProperties::GetValueInputCount(node->op());
+  int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
   int frame_state_count =
       OperatorProperties::GetFrameStateInputCount(node->op());
-  int effect_count = OperatorProperties::GetEffectInputCount(node->op());
-  int control_count = OperatorProperties::GetControlInputCount(node->op());
+  int effect_count = node->op()->EffectInputCount();
+  int control_count = node->op()->ControlInputCount();
 
   // Verify number of inputs matches up.
   int input_count = value_count + context_count + frame_state_count +
@@ -147,7 +147,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   // Verify all value inputs actually produce a value.
   for (int i = 0; i < value_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, i);
-    CHECK(OperatorProperties::HasValueOutput(value->op()));
+    CHECK(value->op()->ValueOutputCount() > 0);
     CHECK(IsDefUseChainLinkPresent(value, node));
     CHECK(IsUseDefChainLinkPresent(value, node));
   }
@@ -155,7 +155,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   // Verify all context inputs are value nodes.
   for (int i = 0; i < context_count; ++i) {
     Node* context = NodeProperties::GetContextInput(node);
-    CHECK(OperatorProperties::HasValueOutput(context->op()));
+    CHECK(context->op()->ValueOutputCount() > 0);
     CHECK(IsDefUseChainLinkPresent(context, node));
     CHECK(IsUseDefChainLinkPresent(context, node));
   }
@@ -163,7 +163,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   // Verify all effect inputs actually have an effect.
   for (int i = 0; i < effect_count; ++i) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    CHECK(OperatorProperties::HasEffectOutput(effect->op()));
+    CHECK(effect->op()->EffectOutputCount() > 0);
     CHECK(IsDefUseChainLinkPresent(effect, node));
     CHECK(IsUseDefChainLinkPresent(effect, node));
   }
@@ -171,13 +171,13 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   // Verify all control inputs are control nodes.
   for (int i = 0; i < control_count; ++i) {
     Node* control = NodeProperties::GetControlInput(node, i);
-    CHECK(OperatorProperties::HasControlOutput(control->op()));
+    CHECK(control->op()->ControlOutputCount() > 0);
     CHECK(IsDefUseChainLinkPresent(control, node));
     CHECK(IsUseDefChainLinkPresent(control, node));
   }
 
   // Verify all successors are projections if multiple value outputs exist.
-  if (OperatorProperties::GetValueOutputCount(node->op()) > 1) {
+  if (node->op()->ValueOutputCount() > 1) {
     Node::Uses uses = node->uses();
     for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
       CHECK(!NodeProperties::IsValueEdge(it.edge()) ||
@@ -196,9 +196,9 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kEnd:
       // End has no outputs.
-      CHECK(!OperatorProperties::HasValueOutput(node->op()));
-      CHECK(!OperatorProperties::HasEffectOutput(node->op()));
-      CHECK(!OperatorProperties::HasControlOutput(node->op()));
+      CHECK(node->op()->ValueOutputCount() == 0);
+      CHECK(node->op()->EffectOutputCount() == 0);
+      CHECK(node->op()->ControlOutputCount() == 0);
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -261,7 +261,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       int index = OpParameter<int>(node);
       Node* input = NodeProperties::GetValueInput(node, 0);
       // Currently, parameter indices start at -1 instead of 0.
-      CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index + 1);
+      CHECK_GT(input->op()->ValueOutputCount(), index + 1);
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;
@@ -301,13 +301,19 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
-      int index = OpParameter<int>(node->op());
+      int index = static_cast<int>(OpParameter<size_t>(node->op()));
       Node* input = NodeProperties::GetValueInput(node, 0);
-      CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index);
+      CHECK_GT(input->op()->ValueOutputCount(), index);
       // Type can be anything.
       // TODO(rossberg): Introduce tuple types for this.
       // TODO(titzer): Convince rossberg not to.
       CheckUpperIs(node, Type::Any());
+      break;
+    }
+    case IrOpcode::kSelect: {
+      CHECK_EQ(0, effect_count);
+      CHECK_EQ(0, control_count);
+      CHECK_EQ(3, value_count);
       break;
     }
     case IrOpcode::kPhi: {
@@ -315,8 +321,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       CHECK_EQ(0, effect_count);
       CHECK_EQ(1, control_count);
       Node* control = NodeProperties::GetControlInput(node, 0);
-      CHECK_EQ(value_count,
-               OperatorProperties::GetControlInputCount(control->op()));
+      CHECK_EQ(value_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + value_count);
       // Type must be subsumed by all input types.
       // TODO(rossberg): for now at least, narrowing does not really hold.
@@ -334,8 +339,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       CHECK_EQ(0, value_count);
       CHECK_EQ(1, control_count);
       Node* control = NodeProperties::GetControlInput(node, 0);
-      CHECK_EQ(effect_count,
-               OperatorProperties::GetControlInputCount(control->op()));
+      CHECK_EQ(effect_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + effect_count);
       break;
     }
@@ -771,8 +775,7 @@ static bool Dominates(Schedule* schedule, Node* dominator, Node* dominatee) {
 
 static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                                 Node* node, int use_pos) {
-  for (int j = OperatorProperties::GetValueInputCount(node->op()) - 1; j >= 0;
-       j--) {
+  for (int j = node->op()->ValueInputCount() - 1; j >= 0; j--) {
     BasicBlock* use_block = block;
     if (node->opcode() == IrOpcode::kPhi) {
       use_block = use_block->PredecessorAt(j);
@@ -790,7 +793,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
   // Ensure that nodes are dominated by their control inputs;
   // kEnd is an exception, as unreachable blocks resulting from kMerge
   // are not in the RPO.
-  if (OperatorProperties::GetControlInputCount(node->op()) == 1 &&
+  if (node->op()->ControlInputCount() == 1 &&
       node->opcode() != IrOpcode::kEnd) {
     Node* ctl = NodeProperties::GetControlInput(node);
     if (!Dominates(schedule, ctl, node)) {
@@ -945,8 +948,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       if (phi->opcode() != IrOpcode::kPhi) continue;
       // TODO(titzer): Nasty special case. Phis from RawMachineAssembler
       // schedules don't have control inputs.
-      if (phi->InputCount() >
-          OperatorProperties::GetValueInputCount(phi->op())) {
+      if (phi->InputCount() > phi->op()->ValueInputCount()) {
         Node* control = NodeProperties::GetControlInput(phi);
         CHECK(control->opcode() == IrOpcode::kMerge ||
               control->opcode() == IrOpcode::kLoop);

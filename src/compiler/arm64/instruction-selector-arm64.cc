@@ -438,6 +438,13 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // significant bits.
       Int32BinopMatcher mleft(m.left().node());
       if (mleft.right().IsInRange(0, 31)) {
+        // Ubfx cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use ubfx with a smaller mask and the remaining bits will be
+        // zeros.
+        uint32_t lsb = mleft.right().Value();
+        if (lsb + mask_width > 32) mask_width = 32 - lsb;
+
         Emit(kArm64Ubfx32, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
              g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
@@ -468,6 +475,13 @@ void InstructionSelector::VisitWord64And(Node* node) {
       // significant bits.
       Int64BinopMatcher mleft(m.left().node());
       if (mleft.right().IsInRange(0, 63)) {
+        // Ubfx cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use ubfx with a smaller mask and the remaining bits will be
+        // zeros.
+        uint64_t lsb = mleft.right().Value();
+        if (lsb + mask_width > 64) mask_width = 64 - lsb;
+
         Emit(kArm64Ubfx, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
              g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
@@ -1157,6 +1171,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kWord32And:
         return VisitWordCompare(this, value, kArm64Tst32, &cont, true,
                                 kLogical32Imm);
+      case IrOpcode::kWord64And:
+        return VisitWordCompare(this, value, kArm64Tst, &cont, true,
+                                kLogical64Imm);
       default:
         break;
     }

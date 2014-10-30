@@ -114,9 +114,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumberAndBoolean) {
 
 TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   const size_t kLength = 17;
-  uint8_t backing_store[kLength * 8];
+  double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, arraysize(backing_store));
+      NewArrayBuffer(backing_store, sizeof(backing_store));
   VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
                           FeedbackVectorICSlot::Invalid());
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
@@ -138,12 +138,11 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Reduction r = Reduce(node);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsLoadElement(AccessBuilder::ForTypedArrayElement(type, true),
-                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsNumberConstant(static_cast<double>(kLength)),
-                      effect));
+    EXPECT_THAT(r.replacement(),
+                IsLoadElement(
+                    AccessBuilder::ForTypedArrayElement(type, true),
+                    IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                    key, IsNumberConstant(array->length()->Number()), effect));
   }
 }
 
@@ -154,9 +153,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
 
 TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
   const size_t kLength = 17;
-  uint8_t backing_store[kLength * 8];
+  double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, arraysize(backing_store));
+      NewArrayBuffer(backing_store, sizeof(backing_store));
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
       Handle<JSTypedArray> array =
@@ -182,8 +181,8 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
                   IsStoreElement(
                       AccessBuilder::ForTypedArrayElement(type, true),
                       IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsNumberConstant(static_cast<double>(kLength)),
-                      value, effect, control));
+                      key, IsNumberConstant(array->length()->Number()), value,
+                      effect, control));
     }
   }
 }

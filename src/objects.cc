@@ -16365,13 +16365,15 @@ void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
 
 
 void JSArrayBuffer::Neuter() {
-  DCHECK(is_external());
+  CHECK(is_neuterable());
+  CHECK(is_external());
   set_backing_store(NULL);
   set_byte_length(Smi::FromInt(0));
 }
 
 
 void JSArrayBufferView::NeuterView() {
+  CHECK(JSArrayBuffer::cast(buffer())->is_neuterable());
   set_byte_offset(Smi::FromInt(0));
   set_byte_length(Smi::FromInt(0));
 }
