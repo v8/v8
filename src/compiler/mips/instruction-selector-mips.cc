@@ -409,6 +409,22 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Floor(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat64Ceil(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  UNREACHABLE();
+}
+
+
+void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitCall(Node* node) {
   MipsOperandGenerator g(this);
   CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);

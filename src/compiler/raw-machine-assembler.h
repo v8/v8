@@ -45,7 +45,9 @@ class RawMachineAssembler : public GraphBuilder {
   };
 
   RawMachineAssembler(Graph* graph, MachineSignature* machine_sig,
-                      MachineType word = kMachPtr);
+                      MachineType word = kMachPtr,
+                      MachineOperatorBuilder::Flags flags =
+                          MachineOperatorBuilder::Flag::kNoFlags);
   virtual ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }
@@ -379,6 +381,14 @@ class RawMachineAssembler : public GraphBuilder {
   }
   Node* TruncateInt64ToInt32(Node* a) {
     return NewNode(machine()->TruncateInt64ToInt32(), a);
+  }
+  Node* Float64Floor(Node* a) { return NewNode(machine()->Float64Floor(), a); }
+  Node* Float64Ceil(Node* a) { return NewNode(machine()->Float64Ceil(), a); }
+  Node* Float64RoundTruncate(Node* a) {
+    return NewNode(machine()->Float64RoundTruncate(), a);
+  }
+  Node* Float64RoundTiesAway(Node* a) {
+    return NewNode(machine()->Float64RoundTiesAway(), a);
   }
 
   // Parameters.

@@ -86,6 +86,14 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
 };
 
 
+static void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  Arm64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)));
+}
+
+
 static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   Arm64OperandGenerator g(selector);
@@ -899,9 +907,27 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
-  Arm64OperandGenerator g(this);
-  Emit(kArm64Float64Sqrt, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRRFloat64(this, kArm64Float64Sqrt, node);
+}
+
+
+void InstructionSelector::VisitFloat64Floor(Node* node) {
+  VisitRRFloat64(this, kArm64Float64Floor, node);
+}
+
+
+void InstructionSelector::VisitFloat64Ceil(Node* node) {
+  VisitRRFloat64(this, kArm64Float64Ceil, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  VisitRRFloat64(this, kArm64Float64RoundTruncate, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  VisitRRFloat64(this, kArm64Float64RoundTiesAway, node);
 }
 
 
@@ -1317,9 +1343,11 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kNoFlags;
+  return MachineOperatorBuilder::kFloat64Floor |
+         MachineOperatorBuilder::kFloat64Ceil |
+         MachineOperatorBuilder::kFloat64RoundTruncate |
+         MachineOperatorBuilder::kFloat64RoundTiesAway;
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

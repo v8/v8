@@ -120,6 +120,14 @@ class AddressingModeMatcher {
 };
 
 
+static void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  X64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
@@ -723,6 +731,29 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Floor(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(SSE4_1));
+  VisitRRFloat64(this, kSSEFloat64Floor, node);
+}
+
+
+void InstructionSelector::VisitFloat64Ceil(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(SSE4_1));
+  VisitRRFloat64(this, kSSEFloat64Ceil, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(SSE4_1));
+  VisitRRFloat64(this, kSSEFloat64RoundTruncate, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitCall(Node* node) {
   X64OperandGenerator g(this);
   CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
@@ -1112,9 +1143,13 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    return MachineOperatorBuilder::kFloat64Floor |
+           MachineOperatorBuilder::kFloat64Ceil |
+           MachineOperatorBuilder::kFloat64RoundTruncate;
+  }
   return MachineOperatorBuilder::kNoFlags;
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

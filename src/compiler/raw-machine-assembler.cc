@@ -13,10 +13,11 @@ namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(Graph* graph,
                                          MachineSignature* machine_sig,
-                                         MachineType word)
+                                         MachineType word,
+                                         MachineOperatorBuilder::Flags flags)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(word),
+      machine_(word, flags),
       common_(zone()),
       machine_sig_(machine_sig),
       call_descriptor_(

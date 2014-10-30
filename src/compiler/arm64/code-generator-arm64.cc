@@ -222,6 +222,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float64Ceil:
+      __ Frintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64Floor:
+      __ Frintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64RoundTruncate:
+      __ Frintz(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64RoundTiesAway:
+      __ Frinta(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64Add:
       __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;

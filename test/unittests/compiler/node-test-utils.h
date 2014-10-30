@@ -149,6 +149,10 @@ Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Sqrt(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64Floor(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64Ceil(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64RoundTruncate(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64RoundTiesAway(const Matcher<Node*>& input_matcher);
 
 }  // namespace compiler
 }  // namespace internal

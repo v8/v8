@@ -78,6 +78,10 @@ namespace compiler {
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
   V(Arm64Float64Sqrt)              \
+  V(Arm64Float64Floor)             \
+  V(Arm64Float64Ceil)              \
+  V(Arm64Float64RoundTruncate)     \
+  V(Arm64Float64RoundTiesAway)     \
   V(Arm64Float32ToFloat64)         \
   V(Arm64Float64ToFloat32)         \
   V(Arm64Float64ToInt32)           \

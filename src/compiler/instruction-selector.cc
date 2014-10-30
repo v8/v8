@@ -603,6 +603,10 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Sqrt:
+    case IrOpcode::kFloat64Floor:
+    case IrOpcode::kFloat64Ceil:
+    case IrOpcode::kFloat64RoundTruncate:
+    case IrOpcode::kFloat64RoundTiesAway:
       return kMachFloat64;
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
@@ -792,11 +796,20 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat64LessThan(node);
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
+    case IrOpcode::kFloat64Floor:
+      return MarkAsDouble(node), VisitFloat64Floor(node);
+    case IrOpcode::kFloat64Ceil:
+      return MarkAsDouble(node), VisitFloat64Ceil(node);
+    case IrOpcode::kFloat64RoundTruncate:
+      return MarkAsDouble(node), VisitFloat64RoundTruncate(node);
+    case IrOpcode::kFloat64RoundTiesAway:
+      return MarkAsDouble(node), VisitFloat64RoundTiesAway(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
+      break;
   }
 }
 
