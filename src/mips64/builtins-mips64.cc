@@ -782,11 +782,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // a3: argc
     // s0: argv, i.e. points to first arg
     Label loop, entry;
-    // TODO(plind): At least on simulator, argc in a3 is an int32_t with junk
-    //    in upper bits. Should fix the root cause, rather than use below
-    //    workaround to clear upper bits.
-    __ dsll32(a3, a3, 0);  // int32_t -> int64_t.
-    __ dsrl32(a3, a3, 0);
     __ dsll(a4, a3, kPointerSizeLog2);
     __ daddu(a6, s0, a4);
     __ b(&entry);
