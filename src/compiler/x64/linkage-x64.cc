@@ -49,8 +49,9 @@ struct X64LinkageHelperTraits {
 
 typedef LinkageHelper<X64LinkageHelperTraits> LH;
 
-CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
-  return LH::GetJSCallDescriptor(zone, parameter_count);
+CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
+                                             CallDescriptor::Flags flags) {
+  return LH::GetJSCallDescriptor(zone, parameter_count, flags);
 }
 
 

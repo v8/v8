@@ -66,6 +66,8 @@ class JSGenericLowering : public Reducer {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Linkage* linkage_;
+
+  bool TryLowerDirectJSCall(Node* node);
 };
 
 }  // namespace compiler
