@@ -675,8 +675,10 @@ class Constant FINAL {
   Type type() const { return type_; }
 
   int32_t ToInt32() const {
-    DCHECK_EQ(kInt32, type());
-    return static_cast<int32_t>(value_);
+    DCHECK(type() == kInt32 || type() == kInt64);
+    const int32_t value = static_cast<int32_t>(value_);
+    DCHECK_EQ(value_, static_cast<int64_t>(value));
+    return value;
   }
 
   int64_t ToInt64() const {

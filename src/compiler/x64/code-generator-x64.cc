@@ -34,12 +34,7 @@ class X64OperandConverter : public InstructionOperandConverter {
   Operand OutputOperand() { return ToOperand(instr_->Output()); }
 
   Immediate ToImmediate(InstructionOperand* operand) {
-    Constant constant = ToConstant(operand);
-    if (constant.type() == Constant::kInt32) {
-      return Immediate(constant.ToInt32());
-    }
-    UNREACHABLE();
-    return Immediate(-1);
+    return Immediate(ToConstant(operand).ToInt32());
   }
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {

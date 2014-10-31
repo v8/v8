@@ -46,14 +46,14 @@ Node* ChangeLowering::HeapNumberValueIndexConstant() {
   STATIC_ASSERT(HeapNumber::kValueOffset % kPointerSize == 0);
   const int heap_number_value_offset =
       ((HeapNumber::kValueOffset / kPointerSize) * (machine()->Is64() ? 8 : 4));
-  return jsgraph()->Int32Constant(heap_number_value_offset - kHeapObjectTag);
+  return jsgraph()->IntPtrConstant(heap_number_value_offset - kHeapObjectTag);
 }
 
 
 Node* ChangeLowering::SmiMaxValueConstant() {
   const int smi_value_size = machine()->Is32() ? SmiTagging<4>::SmiValueSize()
                                                : SmiTagging<8>::SmiValueSize();
-  return jsgraph()->Int32Constant(
+  return jsgraph()->IntPtrConstant(
       -(static_cast<int>(0xffffffffu << (smi_value_size - 1)) + 1));
 }
 
@@ -61,7 +61,7 @@ Node* ChangeLowering::SmiMaxValueConstant() {
 Node* ChangeLowering::SmiShiftBitsConstant() {
   const int smi_shift_size = machine()->Is32() ? SmiTagging<4>::SmiShiftSize()
                                                : SmiTagging<8>::SmiShiftSize();
-  return jsgraph()->Int32Constant(smi_shift_size + kSmiTagSize);
+  return jsgraph()->IntPtrConstant(smi_shift_size + kSmiTagSize);
 }
 
 
@@ -166,7 +166,7 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
   STATIC_ASSERT(kSmiTagMask == 1);
 
   Node* tag = graph()->NewNode(machine()->WordAnd(), val,
-                               jsgraph()->Int32Constant(kSmiTagMask));
+                               jsgraph()->IntPtrConstant(kSmiTagMask));
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -192,7 +192,7 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
   STATIC_ASSERT(kSmiTagMask == 1);
 
   Node* tag = graph()->NewNode(machine()->WordAnd(), val,
-                               jsgraph()->Int32Constant(kSmiTagMask));
+                               jsgraph()->IntPtrConstant(kSmiTagMask));
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);

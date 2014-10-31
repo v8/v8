@@ -10,16 +10,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-// Immediates (random subset).
-static const int32_t kImmediates[] = {
-    kMinInt, -42, -1, 0,  1,  2,    3,      4,          5,
-    6,       7,   8,  16, 42, 0xff, 0xffff, 0x0f0f0f0f, kMaxInt};
-
-}  // namespace
-
-
 // -----------------------------------------------------------------------------
 // Conversions.
 
@@ -79,39 +69,6 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
-}
-
-
-// -----------------------------------------------------------------------------
-// Better left operand for commutative binops
-
-TEST_F(InstructionSelectorTest, BetterLeftOperandTestAddBinop) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  Node* param1 = m.Parameter(0);
-  Node* param2 = m.Parameter(1);
-  Node* add = m.Int32Add(param1, param2);
-  m.Return(m.Int32Add(add, param1));
-  Stream s = m.Build();
-  ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
-}
-
-
-TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  Node* param1 = m.Parameter(0);
-  Node* param2 = m.Parameter(1);
-  Node* mul = m.Int32Mul(param1, param2);
-  m.Return(m.Int32Mul(mul, param1));
-  Stream s = m.Build();
-  ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -181,322 +138,150 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         ::testing::ValuesIn(kMemoryAccesses));
 
 // -----------------------------------------------------------------------------
-// AddressingMode for loads and stores.
+// ChangeUint32ToUint64.
 
-class AddressingModeUnitTest : public InstructionSelectorTest {
- public:
-  AddressingModeUnitTest() : m(NULL) { Reset(); }
-  ~AddressingModeUnitTest() { delete m; }
 
-  void Run(Node* base, Node* index, AddressingMode mode) {
-    Node* load = m->Load(kMachInt32, base, index);
-    m->Store(kMachInt32, base, index, load);
-    m->Return(m->Int32Constant(0));
-    Stream s = m->Build();
-    ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(mode, s[0]->addressing_mode());
-    EXPECT_EQ(mode, s[1]->addressing_mode());
-  }
+namespace {
 
-  Node* zero;
-  Node* null_ptr;
-  Node* non_zero;
-  Node* base_reg;   // opaque value to generate base as register
-  Node* index_reg;  // opaque value to generate index as register
-  Node* scales[arraysize(ScaleFactorMatcher::kMatchedFactors)];
-  StreamBuilder* m;
+typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
 
-  void Reset() {
-    delete m;
-    m = new StreamBuilder(this, kMachInt32, kMachInt32, kMachInt32);
-    zero = m->Int32Constant(0);
-    null_ptr = m->Int64Constant(0);
-    non_zero = m->Int32Constant(127);
-    base_reg = m->Parameter(0);
-    index_reg = m->Parameter(0);
-    for (size_t i = 0; i < arraysize(ScaleFactorMatcher::kMatchedFactors);
-         ++i) {
-      scales[i] = m->Int32Constant(ScaleFactorMatcher::kMatchedFactors[i]);
-    }
-  }
+
+struct BinaryOperation {
+  Constructor constructor;
+  const char* constructor_name;
 };
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MR) {
-  Node* base = base_reg;
-  Node* index = zero;
-  Run(base, index, kMode_MR);
+std::ostream& operator<<(std::ostream& os, const BinaryOperation& bop) {
+  return os << bop.constructor_name;
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MRI) {
-  Node* base = base_reg;
-  Node* index = non_zero;
-  Run(base, index, kMode_MRI);
+const BinaryOperation kWord32BinaryOperations[] = {
+    {&RawMachineAssembler::Word32And, "Word32And"},
+    {&RawMachineAssembler::Word32Or, "Word32Or"},
+    {&RawMachineAssembler::Word32Xor, "Word32Xor"},
+    {&RawMachineAssembler::Word32Shl, "Word32Shl"},
+    {&RawMachineAssembler::Word32Shr, "Word32Shr"},
+    {&RawMachineAssembler::Word32Sar, "Word32Sar"},
+    {&RawMachineAssembler::Word32Ror, "Word32Ror"},
+    {&RawMachineAssembler::Word32Equal, "Word32Equal"},
+    {&RawMachineAssembler::Int32Add, "Int32Add"},
+    {&RawMachineAssembler::Int32Sub, "Int32Sub"},
+    {&RawMachineAssembler::Int32Mul, "Int32Mul"},
+    {&RawMachineAssembler::Int32MulHigh, "Int32MulHigh"},
+    {&RawMachineAssembler::Int32Div, "Int32Div"},
+    {&RawMachineAssembler::Int32LessThan, "Int32LessThan"},
+    {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual"},
+    {&RawMachineAssembler::Int32Mod, "Int32Mod"},
+    {&RawMachineAssembler::Uint32Div, "Uint32Div"},
+    {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan"},
+    {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual"},
+    {&RawMachineAssembler::Uint32Mod, "Uint32Mod"}};
+
+}  // namespace
+
+
+typedef InstructionSelectorTestWithParam<BinaryOperation>
+    InstructionSelectorChangeUint32ToUint64Test;
+
+
+TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
+  const BinaryOperation& bop = GetParam();
+  StreamBuilder m(this, kMachUint64, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(m.ChangeUint32ToUint64((m.*bop.constructor)(p0, p1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MR1) {
-  Node* base = base_reg;
-  Node* index = index_reg;
-  Run(base, index, kMode_MR1);
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorChangeUint32ToUint64Test,
+                        ::testing::ValuesIn(kWord32BinaryOperations));
+
+
+// -----------------------------------------------------------------------------
+// TruncateInt64ToInt32.
+
+
+TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Sar) {
+  StreamBuilder m(this, kMachInt32, kMachInt64);
+  Node* const p = m.Parameter(0);
+  Node* const t = m.TruncateInt64ToInt32(m.Word64Sar(p, m.Int64Constant(32)));
+  m.Return(t);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Shr, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(32, s.ToInt32(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s.IsSameAsFirst(s[0]->OutputAt(0)));
+  EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MRN) {
-  AddressingMode expected[] = {kMode_MR1, kMode_MR2, kMode_MR4, kMode_MR8};
-  for (size_t i = 0; i < arraysize(scales); ++i) {
-    Reset();
-    Node* base = base_reg;
-    Node* index = m->Int32Mul(index_reg, scales[i]);
-    Run(base, index, expected[i]);
-  }
+TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
+  StreamBuilder m(this, kMachInt32, kMachInt64);
+  Node* const p = m.Parameter(0);
+  Node* const t = m.TruncateInt64ToInt32(m.Word64Shr(p, m.Int64Constant(32)));
+  m.Return(t);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Shr, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(32, s.ToInt32(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s.IsSameAsFirst(s[0]->OutputAt(0)));
+  EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
 }
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MR1I) {
-  Node* base = base_reg;
-  Node* index = m->Int32Add(index_reg, non_zero);
-  Run(base, index, kMode_MR1I);
-}
+// -----------------------------------------------------------------------------
+// Addition.
 
 
-TEST_F(AddressingModeUnitTest, AddressingMode_MRNI) {
-  AddressingMode expected[] = {kMode_MR1I, kMode_MR2I, kMode_MR4I, kMode_MR8I};
-  for (size_t i = 0; i < arraysize(scales); ++i) {
-    Reset();
-    Node* base = base_reg;
-    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
-    Run(base, index, expected[i]);
-  }
-}
-
-
-TEST_F(AddressingModeUnitTest, AddressingMode_M1) {
-  Node* base = null_ptr;
-  Node* index = index_reg;
-  Run(base, index, kMode_M1);
-}
-
-
-TEST_F(AddressingModeUnitTest, AddressingMode_MN) {
-  AddressingMode expected[] = {kMode_M1, kMode_M2, kMode_M4, kMode_M8};
-  for (size_t i = 0; i < arraysize(scales); ++i) {
-    Reset();
-    Node* base = null_ptr;
-    Node* index = m->Int32Mul(index_reg, scales[i]);
-    Run(base, index, expected[i]);
-  }
-}
-
-
-TEST_F(AddressingModeUnitTest, AddressingMode_M1I) {
-  Node* base = null_ptr;
-  Node* index = m->Int32Add(index_reg, non_zero);
-  Run(base, index, kMode_M1I);
-}
-
-
-TEST_F(AddressingModeUnitTest, AddressingMode_MNI) {
-  AddressingMode expected[] = {kMode_M1I, kMode_M2I, kMode_M4I, kMode_M8I};
-  for (size_t i = 0; i < arraysize(scales); ++i) {
-    Reset();
-    Node* base = null_ptr;
-    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
-    Run(base, index, expected[i]);
-  }
+TEST_F(InstructionSelectorTest, Int32AddWithInt32AddWithParameters) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const a0 = m.Int32Add(p0, p1);
+  m.Return(m.Int32Add(a0, p0));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
 }
 
 
 // -----------------------------------------------------------------------------
 // Multiplication.
 
-namespace {
 
-struct MultParam {
-  int value;
-  bool lea_expected;
-  AddressingMode addressing_mode;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const MultParam& m) {
-  return os << m.value << "." << m.lea_expected << "." << m.addressing_mode;
-}
-
-
-const MultParam kMultParams[] = {{-1, false, kMode_None},
-                                 {0, false, kMode_None},
-                                 {1, true, kMode_M1},
-                                 {2, true, kMode_M2},
-                                 {3, true, kMode_MR2},
-                                 {4, true, kMode_M4},
-                                 {5, true, kMode_MR4},
-                                 {6, false, kMode_None},
-                                 {7, false, kMode_None},
-                                 {8, true, kMode_M8},
-                                 {9, true, kMode_MR8},
-                                 {10, false, kMode_None},
-                                 {11, false, kMode_None}};
-
-}  // namespace
-
-
-typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
-
-
-static unsigned InputCountForLea(AddressingMode mode) {
-  switch (mode) {
-    case kMode_MR1I:
-    case kMode_MR2I:
-    case kMode_MR4I:
-    case kMode_MR8I:
-      return 3U;
-    case kMode_M1I:
-    case kMode_M2I:
-    case kMode_M4I:
-    case kMode_M8I:
-      return 2U;
-    case kMode_MR1:
-    case kMode_MR2:
-    case kMode_MR4:
-    case kMode_MR8:
-      return 2U;
-    case kMode_M1:
-    case kMode_M2:
-    case kMode_M4:
-    case kMode_M8:
-      return 1U;
-    default:
-      UNREACHABLE();
-      return 0U;
-  }
-}
-
-
-static AddressingMode AddressingModeForAddMult(const MultParam& m) {
-  switch (m.addressing_mode) {
-    case kMode_MR1:
-      return kMode_MR1I;
-    case kMode_MR2:
-      return kMode_MR2I;
-    case kMode_MR4:
-      return kMode_MR4I;
-    case kMode_MR8:
-      return kMode_MR8I;
-    case kMode_M1:
-      return kMode_M1I;
-    case kMode_M2:
-      return kMode_M2I;
-    case kMode_M4:
-      return kMode_M4I;
-    case kMode_M8:
-      return kMode_M8I;
-    default:
-      UNREACHABLE();
-      return kMode_None;
-  }
-}
-
-
-TEST_P(InstructionSelectorMultTest, Mult32) {
-  const MultParam m_param = GetParam();
-  StreamBuilder m(this, kMachInt32, kMachInt32);
-  Node* param = m.Parameter(0);
-  Node* mult = m.Int32Mul(param, m.Int32Constant(m_param.value));
-  m.Return(mult);
+TEST_F(InstructionSelectorTest, Int32MulWithInt32MulWithParameters) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const m0 = m.Int32Mul(p0, p1);
+  m.Return(m.Int32Mul(m0, p0));
   Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(m_param.addressing_mode, s[0]->addressing_mode());
-  if (m_param.lea_expected) {
-    EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
-    ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
-  } else {
-    EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-  }
-  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(m0), s.ToVreg(s[0]->OutputAt(0)));
+  EXPECT_EQ(kX64Imul32, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m0), s.ToVreg(s[1]->InputAt(1)));
 }
-
-
-TEST_P(InstructionSelectorMultTest, Mult64) {
-  const MultParam m_param = GetParam();
-  StreamBuilder m(this, kMachInt64, kMachInt64);
-  Node* param = m.Parameter(0);
-  Node* mult = m.Int64Mul(param, m.Int64Constant(m_param.value));
-  m.Return(mult);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(m_param.addressing_mode, s[0]->addressing_mode());
-  if (m_param.lea_expected) {
-    EXPECT_EQ(kX64Lea, s[0]->arch_opcode());
-    ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
-  } else {
-    EXPECT_EQ(kX64Imul, s[0]->arch_opcode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    // TODO(dcarney): why is this happening?
-    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(1)));
-  }
-}
-
-
-TEST_P(InstructionSelectorMultTest, MultAdd32) {
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    const MultParam m_param = GetParam();
-    StreamBuilder m(this, kMachInt32, kMachInt32);
-    Node* param = m.Parameter(0);
-    Node* mult = m.Int32Add(m.Int32Mul(param, m.Int32Constant(m_param.value)),
-                            m.Int32Constant(imm));
-    m.Return(mult);
-    Stream s = m.Build();
-    if (m_param.lea_expected) {
-      ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
-      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
-      unsigned input_count = InputCountForLea(s[0]->addressing_mode());
-      ASSERT_EQ(input_count, s[0]->InputCount());
-      ASSERT_EQ(InstructionOperand::IMMEDIATE,
-                s[0]->InputAt(input_count - 1)->kind());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
-    } else {
-      ASSERT_EQ(2U, s.size());
-      EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
-      EXPECT_EQ(kX64Add32, s[1]->arch_opcode());
-    }
-  }
-}
-
-
-TEST_P(InstructionSelectorMultTest, MultAdd64) {
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    const MultParam m_param = GetParam();
-    StreamBuilder m(this, kMachInt64, kMachInt64);
-    Node* param = m.Parameter(0);
-    Node* mult = m.Int64Add(m.Int64Mul(param, m.Int64Constant(m_param.value)),
-                            m.Int64Constant(imm));
-    m.Return(mult);
-    Stream s = m.Build();
-    if (m_param.lea_expected) {
-      ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kX64Lea, s[0]->arch_opcode());
-      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
-      unsigned input_count = InputCountForLea(s[0]->addressing_mode());
-      ASSERT_EQ(input_count, s[0]->InputCount());
-      ASSERT_EQ(InstructionOperand::IMMEDIATE,
-                s[0]->InputAt(input_count - 1)->kind());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
-    } else {
-      ASSERT_EQ(2U, s.size());
-      EXPECT_EQ(kX64Imul, s[0]->arch_opcode());
-      EXPECT_EQ(kX64Add, s[1]->arch_opcode());
-    }
-  }
-}
-
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMultTest,
-                        ::testing::ValuesIn(kMultParams));
 
 
 TEST_F(InstructionSelectorTest, Int32MulHigh) {

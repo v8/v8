@@ -88,7 +88,7 @@ namespace compiler {
 // M = memory operand
 // R = base register
 // N = index register * N for N in {1, 2, 4, 8}
-// I = immediate displacement (int32_t)
+// I = immediate displacement (32-bit signed integer)
 
 #define TARGET_ADDRESSING_MODE_LIST(V) \
   V(MR)   /* [%r1            ] */      \

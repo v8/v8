@@ -138,6 +138,14 @@ bool InstructionSelectorTest::Stream::IsFixed(const InstructionOperand* operand,
 }
 
 
+bool InstructionSelectorTest::Stream::IsSameAsFirst(
+    const InstructionOperand* operand) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->HasSameAsInputPolicy();
+}
+
+
 bool InstructionSelectorTest::Stream::IsUsedAtStart(
     const InstructionOperand* operand) const {
   if (!operand->IsUnallocated()) return false;
