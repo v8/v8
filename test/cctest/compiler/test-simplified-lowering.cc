@@ -1010,8 +1010,10 @@ TEST(LowerNumberDivMod_to_float64) {
     TestingGraph t(test_types[i], test_types[i]);
 
     t.CheckLoweringBinop(IrOpcode::kFloat64Div, t.simplified()->NumberDivide());
-    t.CheckLoweringBinop(IrOpcode::kFloat64Mod,
-                         t.simplified()->NumberModulus());
+    if (!test_types[i]->Is(Type::Unsigned32())) {
+      t.CheckLoweringBinop(IrOpcode::kFloat64Mod,
+                           t.simplified()->NumberModulus());
+    }
   }
 }
 
@@ -1934,5 +1936,24 @@ TEST(NumberModulus_Int32) {
     t.Lower();
 
     CHECK_EQ(IrOpcode::kFloat64Mod, mod->opcode());  // Pesky -0 behavior.
+  }
+}
+
+
+TEST(NumberModulus_Uint32) {
+  const double kConstants[] = {2, 100, 1000, 1024, 2048};
+  const MachineType kTypes[] = {kMachInt32, kMachUint32};
+
+  for (auto const type : kTypes) {
+    for (auto const c : kConstants) {
+      TestingGraph t(Type::Unsigned32());
+      Node* k = t.jsgraph.Constant(c);
+      Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
+      Node* use = t.Use(mod, type);
+      t.Return(use);
+      t.Lower();
+
+      CHECK_EQ(IrOpcode::kUint32Mod, use->InputAt(0)->opcode());
+    }
   }
 }

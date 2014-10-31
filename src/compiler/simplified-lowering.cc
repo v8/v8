@@ -510,6 +510,10 @@ class RepresentationSelector {
     return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
   }
 
+  bool CanObserveNaN(MachineTypeUnion use) {
+    return (use & (kTypeNumber | kTypeAny)) != 0;
+  }
+
   bool CanObserveNonUint32(MachineTypeUnion use) {
     return (use & (kTypeInt32 | kTypeNumber | kTypeAny)) != 0;
   }
@@ -707,7 +711,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
           break;
         }
-        if (CanLowerToUint32Binop(node, use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
           // => unsigned Uint32Mod
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
