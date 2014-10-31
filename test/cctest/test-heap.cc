@@ -4608,6 +4608,46 @@ TEST(Regress388880) {
 }
 
 
+TEST(Regress3631) {
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  v8::Local<v8::Value> result = CompileRun(
+      "var weak_map = new WeakMap();"
+      "var future_keys = [];"
+      "for (var i = 0; i < 50; i++) {"
+      "  var key = {'k' : i + 0.1};"
+      "  weak_map.set(key, 1);"
+      "  future_keys.push({'x' : i + 0.2});"
+      "}"
+      "weak_map");
+  if (marking->IsStopped()) {
+    marking->Start();
+  }
+  // Incrementally mark the backing store.
+  Handle<JSObject> obj =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+  Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
+  while (!Marking::IsBlack(
+             Marking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
+         !marking->IsStopped()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  // Stash the backing store in a handle.
+  Handle<Object> save(weak_map->table(), isolate);
+  // The following line will update the backing store.
+  CompileRun(
+      "for (var i = 0; i < 50; i++) {"
+      "  weak_map.set(future_keys[i], i);"
+      "}");
+  heap->incremental_marking()->set_should_hurry(true);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
