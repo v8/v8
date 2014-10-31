@@ -296,61 +296,46 @@ class RepresentationSelector {
   void VisitInt64Cmp(Node* node) { VisitBinop(node, kMachInt64, kRepBit); }
   void VisitUint64Cmp(Node* node) { VisitBinop(node, kMachUint64, kRepBit); }
 
+  // Infer representation for phi-like nodes.
+  MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
+    // Phis adapt to the output representation their uses demand.
+    Type* upper = NodeProperties::GetBounds(node).upper;
+    if ((use & kRepMask) == kRepTagged) {
+      // only tagged uses.
+      return kRepTagged;
+    } else if (IsSafeIntAdditiveOperand(node)) {
+      // Integer within [-2^52, 2^52] range.
+      if ((use & kRepMask) == kRepFloat64) {
+        // only float64 uses.
+        return kRepFloat64;
+      } else if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+        // multiple uses, but we are within 32 bits range => pick kRepWord32.
+        return kRepWord32;
+      } else if ((use & kRepMask) == kRepWord32 ||
+                 (use & kTypeMask) == kTypeInt32 ||
+                 (use & kTypeMask) == kTypeUint32) {
+        // The type is a safe integer, but we only use 32 bits.
+        return kRepWord32;
+      } else {
+        return kRepFloat64;
+      }
+    } else if (upper->Is(Type::Boolean())) {
+      // multiple uses => pick kRepBit.
+      return kRepBit;
+    } else if (upper->Is(Type::Number())) {
+      // multiple uses => pick kRepFloat64.
+      return kRepFloat64;
+    }
+    return kRepTagged;
+  }
+
   // Helper for handling selects.
-  // TODO(turbofan): Share some code with VisitPhi() below?
   void VisitSelect(Node* node, MachineTypeUnion use,
                    SimplifiedLowering* lowering) {
     ProcessInput(node, 0, kRepBit);
+    MachineType output = GetRepresentationForPhi(node, use);
 
-    // Selects adapt to the output representation their uses demand, pushing
-    // representation changes to their inputs.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    MachineType output = kMachNone;
-    MachineType propagate = kMachNone;
-
-    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
-      // legal = kRepTagged | kRepFloat64 | kRepWord32;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else if ((use & kRepMask) == kRepFloat64) {
-        // only float64 uses.
-        output = kRepFloat64;
-        propagate = kRepFloat64;
-      } else {
-        // multiple uses.
-        output = kRepWord32;
-        propagate = kRepWord32;
-      }
-    } else if (upper->Is(Type::Boolean())) {
-      // legal = kRepTagged | kRepBit;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else {
-        // multiple uses.
-        output = kRepBit;
-        propagate = kRepBit;
-      }
-    } else if (upper->Is(Type::Number())) {
-      // legal = kRepTagged | kRepFloat64;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else {
-        // multiple uses.
-        output = kRepFloat64;
-        propagate = kRepFloat64;
-      }
-    } else {
-      // legal = kRepTagged;
-      output = kRepTagged;
-      propagate = kRepTagged;
-    }
-
     MachineType output_type =
         static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
@@ -369,7 +354,7 @@ class RepresentationSelector {
     } else {
       // Propagate {use} of the select to value inputs.
       MachineType use_type =
-          static_cast<MachineType>((use & kTypeMask) | propagate);
+          static_cast<MachineType>((use & kTypeMask) | output);
       ProcessInput(node, 1, use_type);
       ProcessInput(node, 2, use_type);
     }
@@ -378,55 +363,9 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use,
                 SimplifiedLowering* lowering) {
-    // Phis adapt to the output representation their uses demand, pushing
-    // representation changes to their inputs.
+    MachineType output = GetRepresentationForPhi(node, use);
+
     Type* upper = NodeProperties::GetBounds(node).upper;
-    MachineType output = kMachNone;
-    MachineType propagate = kMachNone;
-
-    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
-      // legal = kRepTagged | kRepFloat64 | kRepWord32;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else if ((use & kRepMask) == kRepFloat64) {
-        // only float64 uses.
-        output = kRepFloat64;
-        propagate = kRepFloat64;
-      } else {
-        // multiple uses.
-        output = kRepWord32;
-        propagate = kRepWord32;
-      }
-    } else if (upper->Is(Type::Boolean())) {
-      // legal = kRepTagged | kRepBit;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else {
-        // multiple uses.
-        output = kRepBit;
-        propagate = kRepBit;
-      }
-    } else if (upper->Is(Type::Number())) {
-      // legal = kRepTagged | kRepFloat64;
-      if ((use & kRepMask) == kRepTagged) {
-        // only tagged uses.
-        output = kRepTagged;
-        propagate = kRepTagged;
-      } else {
-        // multiple uses.
-        output = kRepFloat64;
-        propagate = kRepFloat64;
-      }
-    } else {
-      // legal = kRepTagged;
-      output = kRepTagged;
-      propagate = kRepTagged;
-    }
-
     MachineType output_type =
         static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
@@ -451,7 +390,7 @@ class RepresentationSelector {
       // Propagate {use} of the phi to value inputs, and 0 to control.
       Node::Inputs inputs = node->inputs();
       MachineType use_type =
-          static_cast<MachineType>((use & kTypeMask) | propagate);
+          static_cast<MachineType>((use & kTypeMask) | output);
       for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
            ++iter, --values) {
         // TODO(titzer): it'd be nice to have distinguished edge kinds here.
@@ -725,13 +664,15 @@ class RepresentationSelector {
       case IrOpcode::kNumberToInt32: {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
+        Type* in_upper = NodeProperties::GetBounds(input).upper;
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32())) {
+        if (in_upper->Is(Type::Signed32())) {
           // If the input has type int32, pass through representation.
           VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
                    (in & kTypeMask) == kTypeInt32 ||
+                   in_upper->Is(Type::Unsigned32()) ||
                    (in & kRepMask) == kRepWord32) {
           // Just change representation if necessary.
           VisitUnop(node, kTypeInt32 | kRepWord32, kTypeInt32 | kRepWord32);
@@ -748,13 +689,15 @@ class RepresentationSelector {
       case IrOpcode::kNumberToUint32: {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
+        Type* in_upper = NodeProperties::GetBounds(input).upper;
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32())) {
+        if (in_upper->Is(Type::Unsigned32())) {
           // If the input has type uint32, pass through representation.
           VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
                    (in & kTypeMask) == kTypeInt32 ||
+                   in_upper->Is(Type::Signed32()) ||
                    (in & kRepMask) == kRepWord32) {
           // Just change representation if necessary.
           VisitUnop(node, kTypeUint32 | kRepWord32, kTypeUint32 | kRepWord32);

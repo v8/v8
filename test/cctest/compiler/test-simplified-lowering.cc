@@ -1957,3 +1957,51 @@ TEST(NumberModulus_Uint32) {
     }
   }
 }
+
+
+TEST(PhiRepresentation) {
+  HandleAndZoneScope scope;
+  Zone* z = scope.main_zone();
+
+  Factory* f = z->isolate()->factory();
+  Handle<Object> range_min = f->NewNumber(-1e13);
+  Handle<Object> range_max = f->NewNumber(1e+15);
+  Type* range = Type::Range(range_min, range_max, z);
+
+  struct TestData {
+    Type* arg1;
+    Type* arg2;
+    MachineType use;
+    MachineTypeUnion expected;
+  };
+
+  TestData test_data[] = {
+      {Type::Signed32(), Type::Unsigned32(), kMachInt32,
+       kRepWord32 | kTypeNumber},
+      {range, range, kMachUint32, kRepWord32 | kTypeNumber},
+      {Type::Signed32(), Type::Signed32(), kMachInt32, kMachInt32},
+      {Type::Unsigned32(), Type::Unsigned32(), kMachInt32, kMachUint32},
+      {Type::Number(), Type::Signed32(), kMachInt32, kMachFloat64},
+      {Type::Signed32(), Type::String(), kMachInt32, kMachAnyTagged}};
+
+  for (auto const d : test_data) {
+    TestingGraph t(d.arg1, d.arg2, Type::Boolean());
+
+    Node* br = t.graph()->NewNode(t.common()->Branch(), t.p2, t.start);
+    Node* tb = t.graph()->NewNode(t.common()->IfTrue(), br);
+    Node* fb = t.graph()->NewNode(t.common()->IfFalse(), br);
+    Node* m = t.graph()->NewNode(t.common()->Merge(2), tb, fb);
+
+    Node* phi =
+        t.graph()->NewNode(t.common()->Phi(kMachAnyTagged, 2), t.p0, t.p1, m);
+
+    Bounds phi_bounds = Bounds::Either(Bounds(d.arg1), Bounds(d.arg2), z);
+    NodeProperties::SetBounds(phi, phi_bounds);
+
+    Node* use = t.Use(phi, d.use);
+    t.Return(use);
+    t.Lower();
+
+    CHECK_EQ(d.expected, OpParameter<MachineType>(phi));
+  }
+}
