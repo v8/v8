@@ -5362,6 +5362,10 @@ class Code: public HeapObject {
   void VerifyEmbeddedObjectsDependency();
 #endif
 
+#ifdef DEBUG
+  void VerifyEmbeddedObjectsInFullCode();
+#endif  // DEBUG
+
   inline bool CanContainWeakObjects() {
     return is_optimized_code() || is_weak_stub();
   }
