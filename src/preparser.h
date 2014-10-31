@@ -1704,7 +1704,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   IdentifierT js_pattern = this->GetNextSymbol(scanner());
   if (!scanner()->ScanRegExpFlags()) {
     Next();
-    ReportMessage("invalid_regexp_flags");
+    ReportMessage("malformed_regexp_flags");
     *ok = false;
     return Traits::EmptyExpression();
   }
