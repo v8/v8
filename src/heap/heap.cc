@@ -939,6 +939,8 @@ bool Heap::ReserveSpace(Reservation* reservations) {
         for (auto& chunk : *reservation) {
           AllocationResult allocation;
           int size = chunk.size;
+          DCHECK_LE(size, MemoryAllocator::PageAreaSize(
+                              static_cast<AllocationSpace>(space)));
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRaw(size);
           } else {
