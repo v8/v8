@@ -159,6 +159,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitIfNotNull(Statement* stmt);
 
   // Visit expressions.
+  void Visit(Expression* expr);
   void VisitForTest(Expression* expr);
   void VisitForEffect(Expression* expr);
   void VisitForValue(Expression* expr);

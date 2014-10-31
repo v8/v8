@@ -339,24 +339,40 @@ void AstGraphBuilder::VisitForValues(ZoneList<Expression*>* exprs) {
 
 void AstGraphBuilder::VisitForValue(Expression* expr) {
   AstValueContext for_value(this);
-  if (!HasStackOverflow()) {
+  if (!CheckStackOverflow()) {
     expr->Accept(this);
+  } else {
+    ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
   }
 }
 
 
 void AstGraphBuilder::VisitForEffect(Expression* expr) {
   AstEffectContext for_effect(this);
-  if (!HasStackOverflow()) {
+  if (!CheckStackOverflow()) {
     expr->Accept(this);
+  } else {
+    ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
   }
 }
 
 
 void AstGraphBuilder::VisitForTest(Expression* expr) {
   AstTestContext for_condition(this);
-  if (!HasStackOverflow()) {
+  if (!CheckStackOverflow()) {
     expr->Accept(this);
+  } else {
+    ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
+  }
+}
+
+
+void AstGraphBuilder::Visit(Expression* expr) {
+  // Reuses enclosing AstContext.
+  if (!CheckStackOverflow()) {
+    expr->Accept(this);
+  } else {
+    ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
   }
 }
 
