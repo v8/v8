@@ -1548,6 +1548,8 @@ void Heap::Scavenge() {
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
+
+  gc_idle_time_handler_.NotifyScavenge();
 }
 
 
@@ -4257,25 +4259,29 @@ void Heap::MakeHeapIterable() {
 }
 
 
+void Heap::IdleMarkCompact(const char* message) {
+  bool uncommit = false;
+  if (gc_count_at_last_idle_gc_ == gc_count_) {
+    // No GC since the last full GC, the mutator is probably not active.
+    isolate_->compilation_cache()->Clear();
+    uncommit = true;
+  }
+  CollectAllGarbage(kReduceMemoryFootprintMask, message);
+  gc_idle_time_handler_.NotifyIdleMarkCompact();
+  gc_count_at_last_idle_gc_ = gc_count_;
+  if (uncommit) {
+    new_space_.Shrink();
+    UncommitFromSpace();
+  }
+}
+
+
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD, true);
 
   if (incremental_marking()->IsComplete()) {
-    bool uncommit = false;
-    if (gc_count_at_last_idle_gc_ == gc_count_) {
-      // No GC since the last full GC, the mutator is probably not active.
-      isolate_->compilation_cache()->Clear();
-      uncommit = true;
-    }
-    CollectAllGarbage(kReduceMemoryFootprintMask,
-                      "idle notification: finalize incremental");
-    gc_idle_time_handler_.NotifyIdleMarkCompact();
-    gc_count_at_last_idle_gc_ = gc_count_;
-    if (uncommit) {
-      new_space_.Shrink();
-      UncommitFromSpace();
-    }
+    IdleMarkCompact("idle notification: finalize incremental");
   }
 }
 
@@ -4333,11 +4339,14 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       break;
     case DO_FULL_GC: {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      const char* message = contexts_disposed_
-                                ? "idle notification: contexts disposed"
-                                : "idle notification: finalize idle round";
-      CollectAllGarbage(kReduceMemoryFootprintMask, message);
-      gc_idle_time_handler_.NotifyIdleMarkCompact();
+      if (contexts_disposed_) {
+        CollectAllGarbage(kReduceMemoryFootprintMask,
+                          "idle notification: contexts disposed");
+        gc_idle_time_handler_.NotifyIdleMarkCompact();
+        gc_count_at_last_idle_gc_ = gc_count_;
+      } else {
+        IdleMarkCompact("idle notification: finalize idle round");
+      }
       break;
     }
     case DO_SCAVENGE:

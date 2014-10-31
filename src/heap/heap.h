@@ -1926,6 +1926,8 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
+  void IdleMarkCompact(const char* message);
+
   void AdvanceIdleIncrementalMarking(intptr_t step_size);
 
   bool WorthActivatingIncrementalMarking();
