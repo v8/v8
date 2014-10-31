@@ -686,6 +686,30 @@ TEST(Vfp) {
 }
 
 
+TEST(ARMv8_vrintX_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    COMPARE(vrinta(d0, d0), "feb80b40       vrinta.f64.f64 d0, d0");
+    COMPARE(vrinta(d2, d3), "feb82b43       vrinta.f64.f64 d2, d3");
+
+    COMPARE(vrintp(d0, d0), "feba0b40       vrintp.f64.f64 d0, d0");
+    COMPARE(vrintp(d2, d3), "feba2b43       vrintp.f64.f64 d2, d3");
+
+    COMPARE(vrintn(d0, d0), "feb90b40       vrintn.f64.f64 d0, d0");
+    COMPARE(vrintn(d2, d3), "feb92b43       vrintn.f64.f64 d2, d3");
+
+    COMPARE(vrintm(d0, d0), "febb0b40       vrintm.f64.f64 d0, d0");
+    COMPARE(vrintm(d2, d3), "febb2b43       vrintm.f64.f64 d2, d3");
+
+    COMPARE(vrintz(d0, d0), "eeb60bc0       vrintz.f64.f64 d0, d0");
+    COMPARE(vrintz(d2, d3, ne), "1eb62bc3       vrintzne.f64.f64 d2, d3");
+  }
+
+  VERIFY_RUN();
+}
+
+
 TEST(Neon) {
   SET_UP();
 

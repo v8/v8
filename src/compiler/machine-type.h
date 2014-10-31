@@ -81,26 +81,34 @@ inline MachineType RepresentationOf(MachineType machine_type) {
   return static_cast<MachineType>(result);
 }
 
-// Gets the element size in bytes of the machine type.
-inline int ElementSizeOf(MachineType machine_type) {
+// Gets the log2 of the element size in bytes of the machine type.
+inline int ElementSizeLog2Of(MachineType machine_type) {
   switch (RepresentationOf(machine_type)) {
     case kRepBit:
     case kRepWord8:
-      return 1;
+      return 0;
     case kRepWord16:
-      return 2;
+      return 1;
     case kRepWord32:
     case kRepFloat32:
-      return 4;
+      return 2;
     case kRepWord64:
     case kRepFloat64:
-      return 8;
+      return 3;
     case kRepTagged:
-      return kPointerSize;
+      return kPointerSizeLog2;
     default:
-      UNREACHABLE();
-      return kPointerSize;
+      break;
   }
+  UNREACHABLE();
+  return -1;
+}
+
+// Gets the element size in bytes of the machine type.
+inline int ElementSizeOf(MachineType machine_type) {
+  const int shift = ElementSizeLog2Of(machine_type);
+  DCHECK_NE(-1, shift);
+  return 1 << shift;
 }
 
 // Describes the inputs and outputs of a function or call.

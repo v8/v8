@@ -370,15 +370,16 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.left().IsWord32Sar() && m.right().HasValue()) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().HasValue()) {
-          // (x >> K) < C => x < (C << K) | (2^K - 1)
+          // (x >> K) < C => x < (C << K)
           // when C < (M >> K)
           const uint32_t c = m.right().Value();
           const uint32_t k = mleft.right().Value() & 0x1f;
           if (c < static_cast<uint32_t>(kMaxInt >> k)) {
             node->ReplaceInput(0, mleft.left().node());
-            node->ReplaceInput(1, Uint32Constant((c << k) | ((1 << k) - 1)));
+            node->ReplaceInput(1, Uint32Constant(c << k));
             return Changed(node);
           }
+          // TODO(turbofan): else the comparison is always true.
         }
       }
       break;

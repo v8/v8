@@ -19,13 +19,19 @@ namespace compiler {
 // Forward declarations.
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
+class Linkage;
+
+typedef IntVector NodeToVregMap;
 
 class InstructionSelector FINAL {
  public:
+  static const int kNodeUnmapped = -1;
+
   // Forward declarations.
   class Features;
 
-  InstructionSelector(Zone* local_zone, Linkage* linkage,
+  // TODO(dcarney): pass in vreg mapping instead of graph.
+  InstructionSelector(Zone* local_zone, Graph* graph, Linkage* linkage,
                       InstructionSequence* sequence, Schedule* schedule,
                       SourcePositionTable* source_positions,
                       Features features = SupportedFeatures());
@@ -108,6 +114,11 @@ class InstructionSelector FINAL {
 
   // Checks if {node} is currently live.
   bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
+
+  int GetVirtualRegister(const Node* node);
+  // Gets the current mapping if it exists, kNodeUnmapped otherwise.
+  int GetMappedVirtualRegister(const Node* node) const;
+  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
 
  private:
   friend class OperandGenerator;
@@ -205,6 +216,7 @@ class InstructionSelector FINAL {
   SourcePositionTable* const source_positions_;
   Features features_;
   Schedule* const schedule_;
+  NodeToVregMap node_map_;
   BasicBlock* current_block_;
   ZoneDeque<Instruction*> instructions_;
   BoolVector defined_;

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LINKAGE_IMPL_H_
 #define V8_COMPILER_LINKAGE_IMPL_H_
 
+#include "src/code-stubs.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -129,8 +131,8 @@ class LinkageHelper {
 
   // TODO(turbofan): cache call descriptors for code stub calls.
   static CallDescriptor* GetStubCallDescriptor(
-      Zone* zone, CallInterfaceDescriptor descriptor, int stack_parameter_count,
-      CallDescriptor::Flags flags) {
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
+      int stack_parameter_count, CallDescriptor::Flags flags) {
     const int register_parameter_count =
         descriptor.GetEnvironmentParameterCount();
     const int js_parameter_count =

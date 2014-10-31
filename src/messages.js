@@ -367,6 +367,23 @@ function MakeError(type, args) {
   return MakeGenericError($Error, type, args);
 }
 
+
+// The embedded versions are called from unoptimized code, with embedded
+// arguments. Those arguments cannot be arrays, which are context-dependent.
+function MakeTypeErrorEmbedded(type, arg) {
+  return MakeGenericError($TypeError, type, [arg]);
+}
+
+
+function MakeSyntaxErrorEmbedded(type, arg) {
+  return MakeGenericError($SyntaxError, type, [arg]);
+}
+
+
+function MakeReferenceErrorEmbedded(type, arg) {
+  return MakeGenericError($ReferenceError, type, [arg]);
+}
+
 /**
  * Find a line number given a specific source position.
  * @param {number} position The source position.

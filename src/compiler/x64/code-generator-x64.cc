@@ -34,12 +34,7 @@ class X64OperandConverter : public InstructionOperandConverter {
   Operand OutputOperand() { return ToOperand(instr_->Output()); }
 
   Immediate ToImmediate(InstructionOperand* operand) {
-    Constant constant = ToConstant(operand);
-    if (constant.type() == Constant::kInt32) {
-      return Immediate(constant.ToInt32());
-    }
-    UNREACHABLE();
-    return Immediate(-1);
+    return Immediate(ToConstant(operand).ToInt32());
   }
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
@@ -407,6 +402,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
+    case kSSEFloat64Floor: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                 v8::internal::Assembler::kRoundDown);
+      break;
+    }
+    case kSSEFloat64Ceil: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                 v8::internal::Assembler::kRoundUp);
+      break;
+    }
+    case kSSEFloat64RoundTruncate: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                 v8::internal::Assembler::kRoundToZero);
+      break;
+    }
     case kSSECvtss2sd:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));

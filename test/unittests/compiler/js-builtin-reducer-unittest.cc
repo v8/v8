@@ -21,8 +21,9 @@ class JSBuiltinReducerTest : public TypedGraphTest {
   JSBuiltinReducerTest() : javascript_(zone()) {}
 
  protected:
-  Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine;
+  Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
+                                   MachineOperatorBuilder::Flag::kNoFlags) {
+    MachineOperatorBuilder machine(kMachPtr, flags);
     JSGraph jsgraph(graph(), common(), javascript(), &machine);
     JSBuiltinReducer reducer(&jsgraph);
     return reducer.Reduce(node);
@@ -237,6 +238,79 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// Math.floor
+
+
+TEST_F(JSBuiltinReducerTest, MathFloorAvailable) {
+  Handle<JSFunction> f = MathFunction("floor");
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kFloat64Floor);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Floor(p0));
+  }
+}
+
+
+TEST_F(JSBuiltinReducerTest, MathFloorUnavailable) {
+  Handle<JSFunction> f = MathFunction("floor");
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kNoFlags);
+
+    ASSERT_FALSE(r.Changed());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Math.ceil
+
+
+TEST_F(JSBuiltinReducerTest, MathCeilAvailable) {
+  Handle<JSFunction> f = MathFunction("ceil");
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kFloat64Ceil);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Ceil(p0));
+  }
+}
+
+
+TEST_F(JSBuiltinReducerTest, MathCeilUnavailable) {
+  Handle<JSFunction> f = MathFunction("ceil");
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kNoFlags);
+
+    ASSERT_FALSE(r.Changed());
+  }
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

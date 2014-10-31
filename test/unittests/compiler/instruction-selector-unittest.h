@@ -11,6 +11,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/macro-assembler.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -171,6 +172,7 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     int ToVreg(const Node* node) const;
 
     bool IsFixed(const InstructionOperand* operand, Register reg) const;
+    bool IsSameAsFirst(const InstructionOperand* operand) const;
     bool IsUsedAtStart(const InstructionOperand* operand) const;
 
     FrameStateDescriptor* GetFrameStateDescriptor(int deoptimization_id) {

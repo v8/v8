@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-stubs.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
@@ -89,8 +90,11 @@ class ChangeLoweringTest : public GraphTest {
   Matcher<Node*> IsLoadHeapNumber(const Matcher<Node*>& value_matcher,
                                   const Matcher<Node*>& control_matcher) {
     return IsLoad(kMachFloat64, value_matcher,
-                  IsInt32Constant(HeapNumberValueOffset()), graph()->start(),
+                  IsIntPtrConstant(HeapNumberValueOffset()), graph()->start(),
                   control_matcher);
+  }
+  Matcher<Node*> IsIntPtrConstant(int value) {
+    return Is32() ? IsInt32Constant(value) : IsInt64Constant(value);
   }
   Matcher<Node*> IsWordEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher) {
@@ -161,7 +165,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeFloat64ToTagged) {
                 IsAllocateHeapNumber(IsValueEffect(val), graph()->start())),
           IsStore(StoreRepresentation(kMachFloat64, kNoWriteBarrier),
                   CaptureEq(&heap_number),
-                  IsInt32Constant(HeapNumberValueOffset()), val,
+                  IsIntPtrConstant(HeapNumberValueOffset()), val,
                   CaptureEq(&heap_number), graph()->start())));
 }
 
@@ -206,7 +210,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
                            IsAllocateHeapNumber(_, CaptureEq(&if_true))),
                      IsStore(StoreRepresentation(kMachFloat64, kNoWriteBarrier),
                              CaptureEq(&heap_number),
-                             IsInt32Constant(HeapNumberValueOffset()),
+                             IsIntPtrConstant(HeapNumberValueOffset()),
                              IsChangeInt32ToFloat64(val),
                              CaptureEq(&heap_number), CaptureEq(&if_true))),
             IsProjection(
@@ -345,7 +349,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
 
   EXPECT_THAT(reduction.replacement(),
               IsWord64Shl(IsChangeInt32ToInt64(val),
-                          IsInt32Constant(SmiShiftAmount())));
+                          IsInt64Constant(SmiShiftAmount())));
 }
 
 
@@ -365,12 +369,12 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
       IsPhi(
           kMachFloat64, IsLoadHeapNumber(val, CaptureEq(&if_true)),
           IsChangeInt32ToFloat64(IsTruncateInt64ToInt32(
-              IsWord64Sar(val, IsInt32Constant(SmiShiftAmount())))),
+              IsWord64Sar(val, IsInt64Constant(SmiShiftAmount())))),
           IsMerge(
               AllOf(CaptureEq(&if_true),
                     IsIfTrue(AllOf(
                         CaptureEq(&branch),
-                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                        IsBranch(IsWord64And(val, IsInt64Constant(kSmiTagMask)),
                                  graph()->start())))),
               IsIfFalse(CaptureEq(&branch)))));
 }
@@ -392,11 +396,11 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
       IsPhi(kMachInt32,
             IsChangeFloat64ToInt32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsTruncateInt64ToInt32(
-                IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
+                IsWord64Sar(val, IsInt64Constant(SmiShiftAmount()))),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
                     IsIfFalse(AllOf(
                         CaptureEq(&branch),
-                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                        IsBranch(IsWord64And(val, IsInt64Constant(kSmiTagMask)),
                                  graph()->start()))))));
 }
 
@@ -417,11 +421,11 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
       IsPhi(kMachUint32,
             IsChangeFloat64ToUint32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsTruncateInt64ToInt32(
-                IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
+                IsWord64Sar(val, IsInt64Constant(SmiShiftAmount()))),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
                     IsIfFalse(AllOf(
                         CaptureEq(&branch),
-                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                        IsBranch(IsWord64And(val, IsInt64Constant(kSmiTagMask)),
                                  graph()->start()))))));
 }
 
@@ -441,18 +445,18 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
       phi,
       IsPhi(
           kMachAnyTagged, IsWord64Shl(IsChangeUint32ToUint64(val),
-                                      IsInt32Constant(SmiShiftAmount())),
+                                      IsInt64Constant(SmiShiftAmount())),
           IsFinish(AllOf(CaptureEq(&heap_number),
                          IsAllocateHeapNumber(_, CaptureEq(&if_false))),
                    IsStore(StoreRepresentation(kMachFloat64, kNoWriteBarrier),
                            CaptureEq(&heap_number),
-                           IsInt32Constant(HeapNumberValueOffset()),
+                           IsInt64Constant(HeapNumberValueOffset()),
                            IsChangeUint32ToFloat64(val),
                            CaptureEq(&heap_number), CaptureEq(&if_false))),
           IsMerge(
               IsIfTrue(AllOf(CaptureEq(&branch),
                              IsBranch(IsUint32LessThanOrEqual(
-                                          val, IsInt32Constant(SmiMaxValue())),
+                                          val, IsInt64Constant(SmiMaxValue())),
                                       graph()->start()))),
               AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
 }

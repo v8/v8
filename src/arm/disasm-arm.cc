@@ -1277,6 +1277,14 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         } else {
           Unknown(instr);  // Not used by V8.
         }
+      } else if (((instr->Opc2Value() == 0x6)) && instr->Opc3Value() == 0x3) {
+        bool dp_operation = (instr->SzValue() == 1);
+        // vrintz - round towards zero (truncate)
+        if (dp_operation) {
+          Format(instr, "vrintz'cond.f64.f64 'Dd, 'Dm");
+        } else {
+          Unknown(instr);  // Not used by V8.
+        }
       } else {
         Unknown(instr);  // Not used by V8.
       }
@@ -1622,6 +1630,50 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         } else {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                       "pld [r%d, #+%d]", Rn, offset);
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 0x1D:
+      if (instr->Opc1Value() == 0x7 && instr->Bits(19, 18) == 0x2 &&
+          instr->Bits(11, 9) == 0x5 && instr->Bits(7, 6) == 0x1 &&
+          instr->Bit(4) == 0x0) {
+        // VRINTA, VRINTN, VRINTP, VRINTM (floating-point)
+        bool dp_operation = (instr->SzValue() == 1);
+        int rounding_mode = instr->Bits(17, 16);
+        switch (rounding_mode) {
+          case 0x0:
+            if (dp_operation) {
+              Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x1:
+            if (dp_operation) {
+              Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x2:
+            if (dp_operation) {
+              Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          case 0x3:
+            if (dp_operation) {
+              Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
+            } else {
+              Unknown(instr);
+            }
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
         }
       } else {
         Unknown(instr);

@@ -1010,8 +1010,10 @@ TEST(LowerNumberDivMod_to_float64) {
     TestingGraph t(test_types[i], test_types[i]);
 
     t.CheckLoweringBinop(IrOpcode::kFloat64Div, t.simplified()->NumberDivide());
-    t.CheckLoweringBinop(IrOpcode::kFloat64Mod,
-                         t.simplified()->NumberModulus());
+    if (!test_types[i]->Is(Type::Unsigned32())) {
+      t.CheckLoweringBinop(IrOpcode::kFloat64Mod,
+                           t.simplified()->NumberModulus());
+    }
   }
 }
 
@@ -1324,45 +1326,54 @@ TEST(InsertChangesAroundFloat64Cmp) {
 }
 
 
+namespace {
+
 void CheckFieldAccessArithmetic(FieldAccess access, Node* load_or_store) {
-  Int32Matcher index = Int32Matcher(load_or_store->InputAt(1));
-  CHECK(index.Is(access.offset - access.tag()));
+  IntPtrMatcher mindex(load_or_store->InputAt(1));
+  CHECK(mindex.Is(access.offset - access.tag()));
 }
 
 
 Node* CheckElementAccessArithmetic(ElementAccess access, Node* load_or_store) {
-  Int32BinopMatcher index(load_or_store->InputAt(1));
-  CHECK_EQ(IrOpcode::kInt32Add, index.node()->opcode());
-  CHECK(index.right().Is(access.header_size - access.tag()));
+  Node* index = load_or_store->InputAt(1);
+  if (kPointerSize == 8) {
+    CHECK_EQ(IrOpcode::kChangeUint32ToUint64, index->opcode());
+    index = index->InputAt(0);
+  }
 
-  int element_size = ElementSizeOf(access.machine_type);
+  Int32BinopMatcher mindex(index);
+  CHECK_EQ(IrOpcode::kInt32Add, mindex.node()->opcode());
+  CHECK(mindex.right().Is(access.header_size - access.tag()));
 
-  if (element_size != 1) {
-    Int32BinopMatcher mul(index.left().node());
-    CHECK_EQ(IrOpcode::kInt32Mul, mul.node()->opcode());
-    CHECK(mul.right().Is(element_size));
-    return mul.left().node();
+  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
+  if (element_size_shift) {
+    Int32BinopMatcher shl(mindex.left().node());
+    CHECK_EQ(IrOpcode::kWord32Shl, shl.node()->opcode());
+    CHECK(shl.right().Is(element_size_shift));
+    return shl.left().node();
   } else {
-    return index.left().node();
+    return mindex.left().node();
   }
 }
 
 
-static const MachineType machine_reps[] = {
-    kRepBit,    kMachInt8,    kMachInt16,    kMachInt32,
-    kMachInt64, kMachFloat64, kMachAnyTagged};
+const MachineType kMachineReps[] = {kRepBit,       kMachInt8,  kMachInt16,
+                                    kMachInt32,    kMachInt64, kMachFloat64,
+                                    kMachAnyTagged};
+
+}  // namespace
 
 
 TEST(LowerLoadField_to_load) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < arraysize(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(kMachineReps); i++) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                          Handle<Name>::null(), Type::Any(), machine_reps[i]};
+                          Handle<Name>::null(), Type::Any(), kMachineReps[i]};
 
     Node* load =
         t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
-    Node* use = t.Use(load, machine_reps[i]);
+    Node* use = t.Use(load, kMachineReps[i]);
     t.Return(use);
     t.Lower();
     CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1370,7 +1381,7 @@ TEST(LowerLoadField_to_load) {
     CheckFieldAccessArithmetic(access, load);
 
     MachineType rep = OpParameter<MachineType>(load);
-    CHECK_EQ(machine_reps[i], rep);
+    CHECK_EQ(kMachineReps[i], rep);
   }
 }
 
@@ -1378,12 +1389,12 @@ TEST(LowerLoadField_to_load) {
 TEST(LowerStoreField_to_store) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < arraysize(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(kMachineReps); i++) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                          Handle<Name>::null(), Type::Any(), machine_reps[i]};
+                          Handle<Name>::null(), Type::Any(), kMachineReps[i]};
 
 
-    Node* val = t.ExampleWithOutput(machine_reps[i]);
+    Node* val = t.ExampleWithOutput(kMachineReps[i]);
     Node* store = t.graph()->NewNode(t.simplified()->StoreField(access), t.p0,
                                      val, t.start, t.start);
     t.Effect(store);
@@ -1393,10 +1404,10 @@ TEST(LowerStoreField_to_store) {
     CheckFieldAccessArithmetic(access, store);
 
     StoreRepresentation rep = OpParameter<StoreRepresentation>(store);
-    if (machine_reps[i] & kRepTagged) {
+    if (kMachineReps[i] & kRepTagged) {
       CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
     }
-    CHECK_EQ(machine_reps[i], rep.machine_type());
+    CHECK_EQ(kMachineReps[i], rep.machine_type());
   }
 }
 
@@ -1404,15 +1415,15 @@ TEST(LowerStoreField_to_store) {
 TEST(LowerLoadElement_to_load) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < arraysize(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(kMachineReps); i++) {
     ElementAccess access = {kNoBoundsCheck, kTaggedBase,
                             FixedArrayBase::kHeaderSize, Type::Any(),
-                            machine_reps[i]};
+                            kMachineReps[i]};
 
     Node* load =
         t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0, t.p1,
                            t.jsgraph.Int32Constant(1024), t.start, t.start);
-    Node* use = t.Use(load, machine_reps[i]);
+    Node* use = t.Use(load, kMachineReps[i]);
     t.Return(use);
     t.Lower();
     CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1420,7 +1431,7 @@ TEST(LowerLoadElement_to_load) {
     CheckElementAccessArithmetic(access, load);
 
     MachineType rep = OpParameter<MachineType>(load);
-    CHECK_EQ(machine_reps[i], rep);
+    CHECK_EQ(kMachineReps[i], rep);
   }
 }
 
@@ -1428,12 +1439,12 @@ TEST(LowerLoadElement_to_load) {
 TEST(LowerStoreElement_to_store) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < arraysize(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(kMachineReps); i++) {
     ElementAccess access = {kNoBoundsCheck, kTaggedBase,
                             FixedArrayBase::kHeaderSize, Type::Any(),
-                            machine_reps[i]};
+                            kMachineReps[i]};
 
-    Node* val = t.ExampleWithOutput(machine_reps[i]);
+    Node* val = t.ExampleWithOutput(kMachineReps[i]);
     Node* store = t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0,
                                      t.p1, t.jsgraph.Int32Constant(1024), val,
                                      t.start, t.start);
@@ -1444,10 +1455,10 @@ TEST(LowerStoreElement_to_store) {
     CheckElementAccessArithmetic(access, store);
 
     StoreRepresentation rep = OpParameter<StoreRepresentation>(store);
-    if (machine_reps[i] & kRepTagged) {
+    if (kMachineReps[i] & kRepTagged) {
       CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
     }
-    CHECK_EQ(machine_reps[i], rep.machine_type());
+    CHECK_EQ(kMachineReps[i], rep.machine_type());
   }
 }
 
@@ -1925,5 +1936,24 @@ TEST(NumberModulus_Int32) {
     t.Lower();
 
     CHECK_EQ(IrOpcode::kFloat64Mod, mod->opcode());  // Pesky -0 behavior.
+  }
+}
+
+
+TEST(NumberModulus_Uint32) {
+  const double kConstants[] = {2, 100, 1000, 1024, 2048};
+  const MachineType kTypes[] = {kMachInt32, kMachUint32};
+
+  for (auto const type : kTypes) {
+    for (auto const c : kConstants) {
+      TestingGraph t(Type::Unsigned32());
+      Node* k = t.jsgraph.Constant(c);
+      Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
+      Node* use = t.Use(mod, type);
+      t.Return(use);
+      t.Lower();
+
+      CHECK_EQ(IrOpcode::kUint32Mod, use->InputAt(0)->opcode());
+    }
   }
 }

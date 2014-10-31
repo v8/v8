@@ -1,3 +1,11 @@
+2014-10-31: Version 3.30.23
+
+        Introduce v8::Exception::GetMessage to find location of an error object
+        (Chromium issue 427954).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-30: Version 3.30.22
 
         MIPS: Classes: Add super support in methods and accessors (issue 3330).

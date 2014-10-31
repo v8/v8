@@ -510,6 +510,10 @@ class RepresentationSelector {
     return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
   }
 
+  bool CanObserveNaN(MachineTypeUnion use) {
+    return (use & (kTypeNumber | kTypeAny)) != 0;
+  }
+
   bool CanObserveNonUint32(MachineTypeUnion use) {
     return (use & (kTypeInt32 | kTypeNumber | kTypeAny)) != 0;
   }
@@ -707,7 +711,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
           break;
         }
-        if (CanLowerToUint32Binop(node, use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
           // => unsigned Uint32Mod
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
@@ -1118,7 +1122,7 @@ static WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
 void SimplifiedLowering::DoLoadField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   node->set_op(machine()->Load(access.machine_type));
-  Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
+  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
 }
 
@@ -1129,7 +1133,7 @@ void SimplifiedLowering::DoStoreField(Node* node) {
       access.base_is_tagged, access.machine_type, access.type);
   node->set_op(
       machine()->Store(StoreRepresentation(access.machine_type, kind)));
-  Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
+  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
 }
 
@@ -1137,20 +1141,22 @@ void SimplifiedLowering::DoStoreField(Node* node) {
 Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
                                        Node* const key) {
   Node* index = key;
-  const int element_size = ElementSizeOf(access.machine_type);
-  if (element_size != 1) {
-    index = graph()->NewNode(machine()->Int32Mul(), index,
-                             jsgraph()->Int32Constant(element_size));
+  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
+  if (element_size_shift) {
+    index = graph()->NewNode(machine()->Word32Shl(), index,
+                             jsgraph()->Int32Constant(element_size_shift));
   }
   const int fixed_offset = access.header_size - access.tag();
-  if (fixed_offset != 0) {
+  if (fixed_offset) {
     index = graph()->NewNode(machine()->Int32Add(), index,
                              jsgraph()->Int32Constant(fixed_offset));
   }
-  // TODO(bmeurer): 64-Bit
-  // if (machine()->Is64()) {
-  //   index = graph()->NewNode(machine()->ChangeInt32ToInt64(), index);
-  // }
+  if (machine()->Is64()) {
+    // TODO(turbofan): This is probably only correct for typed arrays, and only
+    // if the typed arrays are at most 2GiB in size, which happens to match
+    // exactly our current situation.
+    index = graph()->NewNode(machine()->ChangeUint32ToUint64(), index);
+  }
   return index;
 }
 

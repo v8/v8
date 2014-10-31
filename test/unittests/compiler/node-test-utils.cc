@@ -949,6 +949,10 @@ IS_UNOP_MATCHER(TruncateFloat64ToFloat32)
 IS_UNOP_MATCHER(TruncateFloat64ToInt32)
 IS_UNOP_MATCHER(TruncateInt64ToInt32)
 IS_UNOP_MATCHER(Float64Sqrt)
+IS_UNOP_MATCHER(Float64Floor)
+IS_UNOP_MATCHER(Float64Ceil)
+IS_UNOP_MATCHER(Float64RoundTruncate)
+IS_UNOP_MATCHER(Float64RoundTiesAway)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

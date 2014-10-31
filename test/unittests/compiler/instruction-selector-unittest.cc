@@ -37,10 +37,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   EXPECT_NE(0, graph()->NodeCount());
   int initial_node_count = graph()->NodeCount();
   Linkage linkage(test_->zone(), call_descriptor());
-  InstructionSequence sequence(test_->zone(), graph(), schedule);
+  InstructionSequence sequence(test_->zone(), schedule);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(test_->zone(), &linkage, &sequence, schedule,
-                               &source_position_table, features);
+  InstructionSelector selector(test_->zone(), graph(), &linkage, &sequence,
+                               schedule, &source_position_table, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -50,9 +50,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   Stream s;
   // Map virtual registers.
   {
-    const NodeToVregMap& node_map = sequence.GetNodeMapForTesting();
+    const NodeToVregMap& node_map = selector.GetNodeMapForTesting();
     for (int i = 0; i < initial_node_count; ++i) {
-      if (node_map[i] != InstructionSequence::kNodeUnmapped) {
+      if (node_map[i] != InstructionSelector::kNodeUnmapped) {
         s.virtual_registers_.insert(std::make_pair(i, node_map[i]));
       }
     }
@@ -135,6 +135,14 @@ bool InstructionSelectorTest::Stream::IsFixed(const InstructionOperand* operand,
   if (!unallocated->HasFixedRegisterPolicy()) return false;
   const int index = Register::ToAllocationIndex(reg);
   return unallocated->fixed_register_index() == index;
+}
+
+
+bool InstructionSelectorTest::Stream::IsSameAsFirst(
+    const InstructionOperand* operand) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->HasSameAsInputPolicy();
 }
 
 

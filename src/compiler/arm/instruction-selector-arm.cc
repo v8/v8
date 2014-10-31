@@ -100,6 +100,10 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmVmodF64:
       case kArmVnegF64:
       case kArmVsqrtF64:
+      case kArmVfloorF64:
+      case kArmVceilF64:
+      case kArmVroundTruncateF64:
+      case kArmVroundTiesAwayF64:
       case kArmVcvtF32F64:
       case kArmVcvtF64F32:
       case kArmVcvtF64S32:
@@ -113,6 +117,14 @@ class ArmOperandGenerator : public OperandGenerator {
     return false;
   }
 };
+
+
+static void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  ArmOperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)));
+}
 
 
 static void VisitRRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
@@ -826,6 +838,30 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Floor(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  VisitRRFloat64(this, kArmVfloorF64, node);
+}
+
+
+void InstructionSelector::VisitFloat64Ceil(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  VisitRRFloat64(this, kArmVceilF64, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  VisitRRFloat64(this, kArmVroundTruncateF64, node);
+}
+
+
+void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  VisitRRFloat64(this, kArmVroundTiesAwayF64, node);
+}
+
+
 void InstructionSelector::VisitCall(Node* node) {
   ArmOperandGenerator g(this);
   CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
@@ -1139,10 +1175,19 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kInt32ModIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe |
-         MachineOperatorBuilder::kUint32ModIsSafe;
+  MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kInt32DivIsSafe |
+      MachineOperatorBuilder::kInt32ModIsSafe |
+      MachineOperatorBuilder::kUint32DivIsSafe |
+      MachineOperatorBuilder::kUint32ModIsSafe;
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    flags |= MachineOperatorBuilder::kFloat64Floor |
+             MachineOperatorBuilder::kFloat64Ceil |
+             MachineOperatorBuilder::kFloat64RoundTruncate |
+             MachineOperatorBuilder::kFloat64RoundTiesAway;
+  }
+  return flags;
 }
 
 }  // namespace compiler

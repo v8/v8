@@ -1676,4 +1676,100 @@ TEST(code_relative_offset) {
   CHECK_EQ(42, res);
 }
 
+
+TEST(ARMv8_vrintX) {
+  // Test the vrintX floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    double input;
+    double ar;
+    double nr;
+    double mr;
+    double pr;
+    double zr;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles and floats.
+  Assembler assm(isolate, NULL, 0);
+  Label L, C;
+
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+
+    __ mov(r4, Operand(r0));
+
+    // Test vrinta
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrinta(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, ar));
+
+    // Test vrintn
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintn(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, nr));
+
+    // Test vrintp
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintp(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, pr));
+
+    // Test vrintm
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintm(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, mr));
+
+    // Test vrintz
+    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vrintz(d5, d6);
+    __ vstr(d5, r4, OFFSET_OF(T, zr));
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
+  t.input = input_val;                                       \
+  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);            \
+  CHECK_EQ(ares, t.ar);                                      \
+  CHECK_EQ(nres, t.nr);                                      \
+  CHECK_EQ(mres, t.mr);                                      \
+  CHECK_EQ(pres, t.pr);                                      \
+  CHECK_EQ(zres, t.zr);
+
+    CHECK_VRINT(-0.5, -1.0, -0.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-0.6, -1.0, -1.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-1.1, -1.0, -1.0, -2.0, -1.0, -1.0)
+    CHECK_VRINT(0.5, 1.0, 0.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(0.6, 1.0, 1.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(1.1, 1.0, 1.0, 1.0, 2.0, 1.0)
+    double inf = std::numeric_limits<double>::infinity();
+    CHECK_VRINT(inf, inf, inf, inf, inf, inf)
+    CHECK_VRINT(-inf, -inf, -inf, -inf, -inf, -inf)
+    CHECK_VRINT(-0.0, -0.0, -0.0, -0.0, -0.0, -0.0)
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    CHECK_VRINT(nan, nan, nan, nan, nan, nan)
+
+#undef CHECK_VRINT
+  }
+}
 #undef __

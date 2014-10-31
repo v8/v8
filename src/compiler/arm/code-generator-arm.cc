@@ -363,6 +363,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVsqrtF64:
       __ vsqrt(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
+    case kArmVfloorF64:
+      __ vrintm(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVceilF64:
+      __ vrintp(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVroundTruncateF64:
+      __ vrintz(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVroundTiesAwayF64:
+      __ vrinta(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
     case kArmVnegF64:
       __ vneg(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;

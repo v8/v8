@@ -54,7 +54,8 @@ class NeanderArray {
     return obj_.value();
   }
 
-  void add(v8::internal::Handle<v8::internal::Object> value);
+  void add(internal::Isolate* isolate,
+           v8::internal::Handle<v8::internal::Object> value);
 
   int length();
 

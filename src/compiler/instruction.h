@@ -16,30 +16,29 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/source-position.h"
-// TODO(titzer): don't include the macro-assembler?
-#include "src/macro-assembler.h"
 #include "src/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Forward declarations.
-class Linkage;
-
 // A couple of reserved opcodes are used for internal use.
 const InstructionCode kGapInstruction = -1;
 const InstructionCode kBlockStartInstruction = -2;
 const InstructionCode kSourcePositionInstruction = -3;
 
+// Platform independent maxes.
+static const int kMaxGeneralRegisters = 32;
+static const int kMaxDoubleRegisters = 32;
 
-#define INSTRUCTION_OPERAND_LIST(V)              \
-  V(Constant, CONSTANT, 0)                       \
-  V(Immediate, IMMEDIATE, 0)                     \
-  V(StackSlot, STACK_SLOT, 128)                  \
-  V(DoubleStackSlot, DOUBLE_STACK_SLOT, 128)     \
-  V(Register, REGISTER, Register::kNumRegisters) \
-  V(DoubleRegister, DOUBLE_REGISTER, DoubleRegister::kMaxNumRegisters)
+
+#define INSTRUCTION_OPERAND_LIST(V)           \
+  V(Constant, CONSTANT, 0)                    \
+  V(Immediate, IMMEDIATE, 0)                  \
+  V(StackSlot, STACK_SLOT, 128)               \
+  V(DoubleStackSlot, DOUBLE_STACK_SLOT, 128)  \
+  V(Register, REGISTER, kMaxGeneralRegisters) \
+  V(DoubleRegister, DOUBLE_REGISTER, kMaxDoubleRegisters)
 
 class InstructionOperand : public ZoneObject {
  public:
@@ -676,8 +675,10 @@ class Constant FINAL {
   Type type() const { return type_; }
 
   int32_t ToInt32() const {
-    DCHECK_EQ(kInt32, type());
-    return static_cast<int32_t>(value_);
+    DCHECK(type() == kInt32 || type() == kInt64);
+    const int32_t value = static_cast<int32_t>(value_);
+    DCHECK_EQ(value_, static_cast<int64_t>(value));
+    return value;
   }
 
   int64_t ToInt64() const {
@@ -843,21 +844,16 @@ typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<PointerMap*> PointerMapDeque;
 typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
-typedef IntVector NodeToVregMap;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  static const int kNodeUnmapped = -1;
-
-  InstructionSequence(Zone* zone, const Graph* graph, const Schedule* schedule);
+  InstructionSequence(Zone* zone, const Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
-
-  int node_count() const { return static_cast<int>(node_map_.size()); }
 
   const InstructionBlocks& instruction_blocks() const {
     return instruction_blocks_;
@@ -882,9 +878,6 @@ class InstructionSequence FINAL {
   }
 
   const InstructionBlock* GetInstructionBlock(int instruction_index) const;
-
-  int GetVirtualRegister(const Node* node);
-  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
 
   bool IsReference(int virtual_register) const;
   bool IsDouble(int virtual_register) const;
@@ -920,8 +913,8 @@ class InstructionSequence FINAL {
   void StartBlock(BasicBlock* block);
   void EndBlock(BasicBlock* block);
 
-  int AddConstant(Node* node, Constant constant) {
-    int virtual_register = GetVirtualRegister(node);
+  int AddConstant(int virtual_register, Constant constant) {
+    DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
     return virtual_register;
@@ -968,7 +961,6 @@ class InstructionSequence FINAL {
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
   Zone* const zone_;
-  NodeToVregMap node_map_;
   InstructionBlocks instruction_blocks_;
   ConstantMap constants_;
   ConstantDeque immediates_;

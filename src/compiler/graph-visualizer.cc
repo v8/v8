@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/code-stubs.h"
 #include "src/compiler/generic-algorithm.h"
 #include "src/compiler/generic-node.h"
 #include "src/compiler/generic-node-inl.h"
@@ -673,19 +674,16 @@ void GraphC1Visualizer::PrintAllocator(const char* phase,
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
-  const Vector<LiveRange*>* fixed_d = allocator->fixed_double_live_ranges();
-  for (int i = 0; i < fixed_d->length(); ++i) {
-    PrintLiveRange(fixed_d->at(i), "fixed");
+  for (auto range : allocator->fixed_double_live_ranges()) {
+    PrintLiveRange(range, "fixed");
   }
 
-  const Vector<LiveRange*>* fixed = allocator->fixed_live_ranges();
-  for (int i = 0; i < fixed->length(); ++i) {
-    PrintLiveRange(fixed->at(i), "fixed");
+  for (auto range : allocator->fixed_live_ranges()) {
+    PrintLiveRange(range, "fixed");
   }
 
-  const ZoneList<LiveRange*>* live_ranges = allocator->live_ranges();
-  for (int i = 0; i < live_ranges->length(); ++i) {
-    PrintLiveRange(live_ranges->at(i), "object");
+  for (auto range : allocator->live_ranges()) {
+    PrintLiveRange(range, "object");
   }
 }
 

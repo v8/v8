@@ -1279,6 +1279,14 @@ class Assembler : public AssemblerBase {
              const DwVfpRegister src,
              const Condition cond = al);
 
+  // ARMv8 rounding instructions.
+  void vrinta(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintn(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintm(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintp(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintz(const DwVfpRegister dst, const DwVfpRegister src,
+              const Condition cond = al);
+
   // Support for NEON.
   // All these APIs support D0 to D31 and Q0 to Q15.
 

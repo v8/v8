@@ -159,9 +159,6 @@ bool AstValue::BooleanValue() const {
       return DoubleToBoolean(number_);
     case SMI:
       return smi_ != 0;
-    case STRING_ARRAY:
-      UNREACHABLE();
-      break;
     case BOOLEAN:
       return bool_;
     case NULL_TYPE:
@@ -202,22 +199,6 @@ void AstValue::Internalize(Isolate* isolate) {
         value_ = isolate->factory()->false_value();
       }
       break;
-    case STRING_ARRAY: {
-      DCHECK(strings_ != NULL);
-      Factory* factory = isolate->factory();
-      int len = strings_->length();
-      Handle<FixedArray> elements = factory->NewFixedArray(len, TENURED);
-      for (int i = 0; i < len; i++) {
-        const AstRawString* string = (*strings_)[i];
-        Handle<Object> element = string->string();
-        // Strings are already internalized.
-        DCHECK(!element.is_null());
-        elements->set(i, *element);
-      }
-      value_ =
-          factory->NewJSArrayWithElements(elements, FAST_ELEMENTS, TENURED);
-      break;
-    }
     case NULL_TYPE:
       value_ = isolate->factory()->null_value();
       break;
@@ -347,17 +328,6 @@ const AstValue* AstValueFactory::NewBoolean(bool b) {
   } else {
     GENERATE_VALUE_GETTER(false_value_, false);
   }
-}
-
-
-const AstValue* AstValueFactory::NewStringList(
-    ZoneList<const AstRawString*>* strings) {
-  AstValue* value = new (zone_) AstValue(strings);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
 }
 
 

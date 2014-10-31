@@ -42,7 +42,7 @@ void CallInterfaceDescriptorData::Initialize(
 }
 
 
-const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) {
+const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
   CallInterfaceDescriptorData* start = isolate->call_descriptor_data(0);
   size_t index = data_ - start;
   DCHECK(index < CallDescriptors::NUMBER_OF_DESCRIPTORS);

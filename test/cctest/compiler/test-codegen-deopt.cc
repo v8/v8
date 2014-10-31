@@ -66,10 +66,10 @@ class DeoptCodegenTester {
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
     code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
-                                                           graph, schedule);
+                                                           schedule);
     SourcePositionTable source_positions(graph);
-    InstructionSelector selector(scope_->main_zone(), linkage, code, schedule,
-                                 &source_positions);
+    InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
+                                 schedule, &source_positions);
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {
@@ -78,7 +78,8 @@ class DeoptCodegenTester {
     }
 
     Frame frame;
-    RegisterAllocator allocator(scope_->main_zone(), &frame, code);
+    RegisterAllocator allocator(RegisterAllocator::PlatformConfig(),
+                                scope_->main_zone(), &frame, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {

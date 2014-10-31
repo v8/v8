@@ -26,7 +26,8 @@ CONFIG = {
 }
 
 # Expression for retrieving the bleeding edge revision from a commit message.
-PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+PUSH_MSG_SVN_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+PUSH_MSG_GIT_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
 # Expression for retrieving the merged patches from a merge commit message
 # (old and new format).
@@ -128,7 +129,10 @@ class RetrieveV8Releases(Step):
             and len(releases) > self._options.max_releases)
 
   def GetBleedingEdgeFromPush(self, title):
-    return MatchSafe(PUSH_MESSAGE_RE.match(title))
+    return MatchSafe(PUSH_MSG_SVN_RE.match(title))
+
+  def GetBleedingEdgeGitFromPush(self, title):
+    return MatchSafe(PUSH_MSG_GIT_RE.match(title))
 
   def GetMergedPatches(self, body):
     patches = MatchSafe(MERGE_MESSAGE_RE.search(body))
@@ -189,6 +193,8 @@ class RetrieveV8Releases(Step):
     if bleeding_edge_revision:
       bleeding_edge_git = self.vc.SvnGit(bleeding_edge_revision,
                                          self.vc.RemoteMasterBranch())
+    else:
+      bleeding_edge_git = self.GetBleedingEdgeGitFromPush(title)
     return self.GetReleaseDict(
         git_hash, bleeding_edge_revision, bleeding_edge_git, branch, version,
         patches, body), self["patch"]

@@ -519,7 +519,7 @@ Expression* ParserTraits::BuildUnaryExpression(
 Expression* ParserTraits::NewThrowReferenceError(const char* message, int pos) {
   return NewThrowError(
       parser_->ast_value_factory()->make_reference_error_string(), message,
-      NULL, pos);
+      parser_->ast_value_factory()->empty_string(), pos);
 }
 
 
@@ -541,17 +541,11 @@ Expression* ParserTraits::NewThrowError(
     const AstRawString* constructor, const char* message,
     const AstRawString* arg, int pos) {
   Zone* zone = parser_->zone();
-  int argc = arg != NULL ? 1 : 0;
   const AstRawString* type =
       parser_->ast_value_factory()->GetOneByteString(message);
-  ZoneList<const AstRawString*>* array =
-      new (zone) ZoneList<const AstRawString*>(argc, zone);
-  if (arg != NULL) {
-    array->Add(arg, zone);
-  }
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(2, zone);
   args->Add(parser_->factory()->NewStringLiteral(type, pos), zone);
-  args->Add(parser_->factory()->NewStringListLiteral(array, pos), zone);
+  args->Add(parser_->factory()->NewStringLiteral(arg, pos), zone);
   CallRuntime* call_constructor =
       parser_->factory()->NewCallRuntime(constructor, NULL, args, pos);
   return parser_->factory()->NewThrow(call_constructor, pos);
