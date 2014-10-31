@@ -9,7 +9,6 @@
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/unique.h"
 
@@ -406,47 +405,15 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
 }
 
 
-bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
-  // Lower to a direct call to a constant JSFunction if the arity matches.
-  const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-  int arg_count = static_cast<int>(p.arity() - 2);
-  HeapObjectMatcher<JSFunction> func(node->InputAt(0));
-  if (!func.HasValue()) return false;
-
-  Handle<JSFunction> function = func.Value().handle();
-  if (arg_count != function->shared()->formal_parameter_count()) return false;
-
-  int index = NodeProperties::FirstContextIndex(node);
-
-  // TODO(titzer): total hack to share function context constants.
-  // Remove this when the JSGraph canonicalizes heap constants.
-  Node* context = node->InputAt(index);
-  HeapObjectMatcher<Context> context_const(context);
-  if (!context_const.HasValue() ||
-      *(context_const.Value().handle()) != function->context()) {
-    context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
-  }
-  node->ReplaceInput(index, context);
-  CallDescriptor* desc = linkage()->GetJSCallDescriptor(
-      1 + arg_count, jsgraph()->zone(), FlagsForNode(node));
-  PatchOperator(node, common()->Call(desc));
-  return true;
-}
-
-
 void JSGenericLowering::LowerJSCallFunction(Node* node) {
-  if (!TryLowerDirectJSCall(node)) {
-    // Call to computed function; use CallFunctionStub;
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-    int arg_count = static_cast<int>(p.arity() - 2);
-    CallFunctionStub stub(isolate(), arg_count, p.flags());
-    CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-    CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-        d, static_cast<int>(p.arity() - 1), FlagsForNode(node));
-    Node* stub_code = CodeConstant(stub.GetCode());
-    PatchInsertInput(node, 0, stub_code);
-    PatchOperator(node, common()->Call(desc));
-  }
+  const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  CallFunctionStub stub(isolate(), static_cast<int>(p.arity() - 2), p.flags());
+  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
+      d, static_cast<int>(p.arity() - 1), FlagsForNode(node));
+  Node* stub_code = CodeConstant(stub.GetCode());
+  PatchInsertInput(node, 0, stub_code);
+  PatchOperator(node, common()->Call(desc));
 }
 
 

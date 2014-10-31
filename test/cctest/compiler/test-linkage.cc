@@ -90,8 +90,7 @@ TEST(TestLinkageJSCall) {
   Linkage linkage(info.zone(), &info);
 
   for (int i = 0; i < 32; i++) {
-    CallDescriptor* descriptor =
-        linkage.GetJSCallDescriptor(i, CallDescriptor::kNoFlags);
+    CallDescriptor* descriptor = linkage.GetJSCallDescriptor(i);
     CHECK_NE(NULL, descriptor);
     CHECK_EQ(i, descriptor->JSParameterCount());
     CHECK_EQ(1, descriptor->ReturnCount());

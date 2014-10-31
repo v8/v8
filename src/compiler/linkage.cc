@@ -42,15 +42,13 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
-    return GetJSCallDescriptor(1 + info->function()->parameter_count(), zone,
-                               CallDescriptor::kNoFlags);
+    return GetJSCallDescriptor(1 + info->function()->parameter_count(), zone);
   }
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
     SharedFunctionInfo* shared = info->closure()->shared();
-    return GetJSCallDescriptor(1 + shared->formal_parameter_count(), zone,
-                               CallDescriptor::kNoFlags);
+    return GetJSCallDescriptor(1 + shared->formal_parameter_count(), zone);
   }
   if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
@@ -90,9 +88,8 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 }
 
 
-CallDescriptor* Linkage::GetJSCallDescriptor(
-    int parameter_count, CallDescriptor::Flags flags) const {
-  return GetJSCallDescriptor(parameter_count, zone_, flags);
+CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count) const {
+  return GetJSCallDescriptor(parameter_count, zone_);
 }
 
 
