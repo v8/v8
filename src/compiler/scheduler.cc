@@ -7,12 +7,12 @@
 
 #include "src/compiler/scheduler.h"
 
+#include "src/bit-vector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
-#include "src/data-flow.h"
 
 namespace v8 {
 namespace internal {

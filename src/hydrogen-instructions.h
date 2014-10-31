@@ -11,9 +11,9 @@
 
 #include "src/allocation.h"
 #include "src/base/bits.h"
+#include "src/bit-vector.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
-#include "src/data-flow.h"
 #include "src/deoptimizer.h"
 #include "src/hydrogen-types.h"
 #include "src/small-pointer-list.h"

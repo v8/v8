@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/data-flow.h"
+#include "src/bit-vector.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -83,7 +83,7 @@ TEST(BitVector) {
     BitVector v(15, &zone);
     v.Add(0);
     BitVector w(15, &zone);
-    w = v;
+    w.CopyFrom(v);
     CHECK(w.Contains(0));
     w.Add(1);
     BitVector u(w, &zone);
