@@ -441,16 +441,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       }
       break;
-    case kSSEFloat64ToUint32:
+    case kSSEFloat64ToUint32: {
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      __ andl(i.OutputRegister(), i.OutputRegister());  // clear upper bits.
-      // TODO(turbofan): generated code should not look at the upper 32 bits
-      // of the result, but those bits could escape to the outside world.
+      __ AssertZeroExtended(i.OutputRegister());
       break;
+    }
     case kSSEInt32ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
         __ cvtlsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
