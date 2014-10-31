@@ -299,6 +299,16 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
+['arch == mips', {
+  # Too slow with TF.
+  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
+
+  # TODO(mips-team): Currently fails on mips board.
+  'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
+  'test-parsing/TooManyArguments': [SKIP],
+}],  # 'arch == mips'
+
+##############################################################################
 ['arch == mips64el', {
 
   # BUG(2657): Test sometimes times out on MIPS simulator.
