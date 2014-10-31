@@ -1375,6 +1375,98 @@ TEST(TestCodeFlushingIncrementalAbort) {
 }
 
 
+TEST(CompilationCacheCachingBehavior) {
+  // If we do not flush code, or have the compilation cache turned off, this
+  // test is invalid.
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally ||
+      !FLAG_compilation_cache) {
+    return;
+  }
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
+
+  v8::HandleScope scope(CcTest::isolate());
+  const char* raw_source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  Handle<String> source = factory->InternalizeUtf8String(raw_source);
+  Handle<Context> native_context = isolate->native_context();
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
+  MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
+      source, Handle<Object>(), 0, 0, true, native_context);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On second compilation, the hash is replaced by a real cache entry mapping
+  // the source to the shared function info containing the code.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(!info.is_null());
+
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // On second compilation, the hash is replaced by a real cache entry mapping
+  // the source to the shared function info containing the code.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(!info.is_null());
+
+  while (!info.ToHandleChecked()->code()->IsOld()) {
+    info.ToHandleChecked()->code()->MakeOlder(NO_MARKING_PARITY);
+  }
+
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  // Ensure code aging cleared the entry from the cache.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+
+  for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
+    compilation_cache->MarkCompactPrologue();
+  }
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // If we aged the cache before caching the script, ensure that we didn't cache
+  // on next compilation.
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
+                                         native_context);
+  CHECK(info.is_null());
+}
+
+
 // Count the number of native contexts in the weak list of native contexts.
 int CountNativeContexts() {
   int count = 0;

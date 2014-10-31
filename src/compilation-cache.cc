@@ -13,11 +13,6 @@ namespace internal {
 
 
 // The number of generations for each sub cache.
-// The number of ScriptGenerations is carefully chosen based on histograms.
-// See issue 458: http://code.google.com/p/v8/issues/detail?id=458
-static const int kScriptGenerations = 5;
-static const int kEvalGlobalGenerations = 2;
-static const int kEvalContextualGenerations = 2;
 static const int kRegExpGenerations = 2;
 
 // Initial size of each compilation cache table allocated.
@@ -26,9 +21,9 @@ static const int kInitialCacheSize = 64;
 
 CompilationCache::CompilationCache(Isolate* isolate)
     : isolate_(isolate),
-      script_(isolate, kScriptGenerations),
-      eval_global_(isolate, kEvalGlobalGenerations),
-      eval_contextual_(isolate, kEvalContextualGenerations),
+      script_(isolate, 1),
+      eval_global_(isolate, 1),
+      eval_contextual_(isolate, 1),
       reg_exp_(isolate, kRegExpGenerations),
       enabled_(true) {
   CompilationSubCache* subcaches[kSubCacheCount] =
@@ -58,6 +53,14 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 
 
 void CompilationSubCache::Age() {
+  // Don't directly age single-generation caches.
+  if (generations_ == 1) {
+    if (tables_[0] != isolate()->heap()->undefined_value()) {
+      CompilationCacheTable::cast(tables_[0])->Age();
+    }
+    return;
+  }
+
   // Age the generations implicitly killing off the oldest.
   for (int i = generations_ - 1; i > 0; i--) {
     tables_[i] = tables_[i - 1];
@@ -102,9 +105,7 @@ void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
 
 CompilationCacheScript::CompilationCacheScript(Isolate* isolate,
                                                int generations)
-    : CompilationSubCache(isolate, generations),
-      script_histogram_(NULL),
-      script_histogram_initialized_(false) { }
+    : CompilationSubCache(isolate, generations) {}
 
 
 // We only re-use a cached function for some script source code if the
@@ -171,20 +172,6 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
         }
       }
     }
-  }
-
-  if (!script_histogram_initialized_) {
-    script_histogram_ = isolate()->stats_table()->CreateHistogram(
-        "V8.ScriptCache",
-        0,
-        kScriptGenerations,
-        kScriptGenerations + 1);
-    script_histogram_initialized_ = true;
-  }
-
-  if (script_histogram_ != NULL) {
-    // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
-    isolate()->stats_table()->AddHistogramSample(script_histogram_, generation);
   }
 
   // Once outside the manacles of the handle scope, we need to recheck

@@ -13643,7 +13643,11 @@ class StringSharedKey : public HashTableKey {
 
   bool IsMatch(Object* other) OVERRIDE {
     DisallowHeapAllocation no_allocation;
-    if (!other->IsFixedArray()) return false;
+    if (!other->IsFixedArray()) {
+      if (!other->IsNumber()) return false;
+      uint32_t other_hash = static_cast<uint32_t>(other->Number());
+      return Hash() == other_hash;
+    }
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != *shared_) return false;
@@ -13683,6 +13687,9 @@ class StringSharedKey : public HashTableKey {
 
   uint32_t HashForObject(Object* obj) OVERRIDE {
     DisallowHeapAllocation no_allocation;
+    if (obj->IsNumber()) {
+      return static_cast<uint32_t>(obj->Number());
+    }
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
@@ -14841,7 +14848,9 @@ Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
                       RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
-  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
+  int index = EntryToIndex(entry);
+  if (!get(index)->IsFixedArray()) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(index + 1), isolate);
 }
 
 
@@ -14854,6 +14863,8 @@ Handle<Object> CompilationCacheTable::LookupEval(
   StringSharedKey key(src, outer_info, strict_mode, scope_position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
+  int index = EntryToIndex(entry);
+  if (!get(index)->IsFixedArray()) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
@@ -14876,11 +14887,20 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
+  int entry = cache->FindEntry(&key);
+  if (entry != kNotFound) {
+    Handle<Object> k = key.AsHandle(isolate);
+    cache->set(EntryToIndex(entry), *k);
+    cache->set(EntryToIndex(entry) + 1, *value);
+    return cache;
+  }
+
   cache = EnsureCapacity(cache, 1, &key);
-  Handle<Object> k = key.AsHandle(isolate);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  entry = cache->FindInsertionEntry(key.Hash());
+  Handle<Object> k =
+      isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
   cache->set(EntryToIndex(entry), *k);
-  cache->set(EntryToIndex(entry) + 1, *value);
+  cache->set(EntryToIndex(entry) + 1, Smi::FromInt(kHashGenerations));
   cache->ElementAdded();
   return cache;
 }
@@ -14892,11 +14912,20 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     int scope_position) {
   Isolate* isolate = cache->GetIsolate();
   StringSharedKey key(src, outer_info, value->strict_mode(), scope_position);
+  int entry = cache->FindEntry(&key);
+  if (entry != kNotFound) {
+    Handle<Object> k = key.AsHandle(isolate);
+    cache->set(EntryToIndex(entry), *k);
+    cache->set(EntryToIndex(entry) + 1, *value);
+    return cache;
+  }
+
   cache = EnsureCapacity(cache, 1, &key);
-  Handle<Object> k = key.AsHandle(isolate);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  entry = cache->FindInsertionEntry(key.Hash());
+  Handle<Object> k =
+      isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
   cache->set(EntryToIndex(entry), *k);
-  cache->set(EntryToIndex(entry) + 1, *value);
+  cache->set(EntryToIndex(entry) + 1, Smi::FromInt(kHashGenerations));
   cache->ElementAdded();
   return cache;
 }
@@ -14914,6 +14943,35 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
   cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
+}
+
+
+void CompilationCacheTable::Age() {
+  DisallowHeapAllocation no_allocation;
+  Object* the_hole_value = GetHeap()->the_hole_value();
+  for (int entry = 0, size = Capacity(); entry < size; entry++) {
+    int entry_index = EntryToIndex(entry);
+    int value_index = entry_index + 1;
+
+    if (get(entry_index)->IsNumber()) {
+      Smi* count = Smi::cast(get(value_index));
+      count = Smi::FromInt(count->value() - 1);
+      if (count->value() == 0) {
+        NoWriteBarrierSet(this, entry_index, the_hole_value);
+        NoWriteBarrierSet(this, value_index, the_hole_value);
+        ElementRemoved();
+      } else {
+        NoWriteBarrierSet(this, value_index, count);
+      }
+    } else if (get(entry_index)->IsFixedArray()) {
+      SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
+      if (info->code()->kind() != Code::FUNCTION || info->code()->IsOld()) {
+        NoWriteBarrierSet(this, entry_index, the_hole_value);
+        NoWriteBarrierSet(this, value_index, the_hole_value);
+        ElementRemoved();
+      }
+    }
+  }
 }
 
 
