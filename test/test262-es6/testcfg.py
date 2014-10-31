@@ -37,8 +37,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-TEST_262_ARCHIVE_REVISION = "e2b675f"  # This is the 2014-10-15 revision.
-TEST_262_ARCHIVE_MD5 = "98f4427d0c88628561cd1c0104cf0614"
+TEST_262_ARCHIVE_REVISION = "61113db"  # This is the 2014-10-23 revision.
+TEST_262_ARCHIVE_MD5 = "261e69b4a97a4bfc18225cf3938daf50"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js"]
 
@@ -147,9 +147,11 @@ class Test262TestSuite(testsuite.TestSuite):
       with open(archive_name, "rb") as f:
         for chunk in iter(lambda: f.read(8192), ""):
           md5.update(chunk)
+      print "MD5 hash is %s" % md5.hexdigest()
       if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
         os.remove(archive_name)
-        raise Exception("Hash mismatch of test data file")
+        print "MD5 expected %s" % TEST_262_ARCHIVE_MD5
+        raise Exception("MD5 hash mismatch of test data file")
       archive = tarfile.open(archive_name, "r:gz")
       if sys.platform in ("win32", "cygwin"):
         # Magic incantation to allow longer path names on Windows.
