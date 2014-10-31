@@ -36,7 +36,7 @@ import urllib
 from common_includes import *
 import push_to_trunk
 
-PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
+PUSH_MESSAGE_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -94,19 +94,16 @@ class CheckLastPush(Step):
       self.Die("Could not retrieve bleeding edge revision for trunk push %s"
                % last_push)
 
-    # TODO(machenbach): This metric counts all revisions. It could be
-    # improved by counting only the revisions on bleeding_edge.
-    if int(self["lkgr"]) - int(last_push_be) < 10:  # pragma: no cover
-      # This makes sure the script doesn't push twice in a row when the cron
-      # job retries several times.
-      self.Die("Last push too recently: %s" % last_push_be)
+    if self["lkgr"] == last_push_be:
+      print "Already pushed current lkgr %s" % last_push_be
+      return True
 
 
-class PushToTrunk(Step):
-  MESSAGE = "Pushing to trunk if specified."
+class PushToCandidates(Step):
+  MESSAGE = "Pushing to candidates if specified."
 
   def RunStep(self):
-    print "Pushing lkgr %s to trunk." % self["lkgr"]
+    print "Pushing lkgr %s to candidates." % self["lkgr"]
 
     # TODO(machenbach): Update the script before calling it.
     if self._options.push:
@@ -144,7 +141,7 @@ class AutoPush(ScriptsBase):
       CheckTreeStatus,
       FetchLKGR,
       CheckLastPush,
-      PushToTrunk,
+      PushToCandidates,
     ]
 
 

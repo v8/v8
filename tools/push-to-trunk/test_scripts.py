@@ -930,14 +930,12 @@ def get_list():
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
            "origin/candidates"), "hash2\n"),
       Cmd("git log -1 --format=%s hash2",
-          "Version 3.4.5 (based on bleeding_edge revision r99)\n"),
+          "Version 3.4.5 (based on abc123)\n"),
     ])
 
-    self._state["lkgr"] = "101"
-
-    self.assertRaises(Exception, lambda: self.RunStep(auto_push.AutoPush,
-                                                      CheckLastPush,
-                                                      AUTO_PUSH_ARGS))
+    self._state["lkgr"] = "abc123"
+    self.assertEquals(0, self.RunStep(
+        auto_push.AutoPush, CheckLastPush, AUTO_PUSH_ARGS))
 
   def testAutoPush(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
@@ -951,12 +949,12 @@ def get_list():
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is throttled\"}"),
       URL("https://v8-status.appspot.com/lkgr", Exception("Network problem")),
-      URL("https://v8-status.appspot.com/lkgr", "100"),
+      URL("https://v8-status.appspot.com/lkgr", "abc123"),
       Cmd(("git log -1 --format=%H --grep=\""
            "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
            " origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%s push_hash",
-          "Version 3.4.5 (based on bleeding_edge revision r79)\n"),
+          "Version 3.4.5 (based on abc101)\n"),
     ])
 
     auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS + ["--push"])
@@ -964,7 +962,7 @@ def get_list():
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG["PERSISTFILE_BASENAME"]))
 
-    self.assertEquals("100", state["lkgr"])
+    self.assertEquals("abc123", state["lkgr"])
 
   def testAutoPushStoppedBySettings(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
