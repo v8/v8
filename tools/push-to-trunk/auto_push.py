@@ -105,14 +105,23 @@ class PushToCandidates(Step):
   def RunStep(self):
     print "Pushing lkgr %s to candidates." % self["lkgr"]
 
+    args = [
+      "--author", self._options.author,
+      "--reviewer", self._options.reviewer,
+      "--revision", self["lkgr"],
+      "--force",
+    ]
+
+    if self._options.svn:
+      args.extend(["--svn", self._options.svn])
+    if self._options.svn_config:
+      args.extend(["--svn-config", self._options.svn_config])
+    if self._options.vc_interface:
+      args.extend(["--vc-interface", self._options.vc_interface])
+
     # TODO(machenbach): Update the script before calling it.
     if self._options.push:
-      self._side_effect_handler.Call(
-          push_to_trunk.PushToTrunk().Run,
-          ["--author", self._options.author,
-           "--reviewer", self._options.reviewer,
-           "--revision", self["lkgr"],
-           "--force"])
+      self._side_effect_handler.Call(push_to_trunk.PushToTrunk().Run, args)
 
 
 class AutoPush(ScriptsBase):

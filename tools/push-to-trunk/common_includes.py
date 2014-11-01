@@ -405,7 +405,7 @@ class GitTagsOnlyMixin(VCInterface):
     # is the case for all automated merge and push commits - also no title is
     # the prefix of another title).
     commit = None
-    for wait_interval in [3, 7, 15, 35]:
+    for wait_interval in [3, 7, 15, 35, 35]:
       self.step.Git("fetch")
       commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
       if commit:
@@ -425,9 +425,27 @@ class GitReadSvnWriteInterface(GitTagsOnlyMixin, GitSvnInterface):
   pass
 
 
+class GitInterface(GitTagsOnlyMixin):
+  def Fetch(self):
+    self.step.Git("fetch")
+
+  def GitSvn(self, hsh, branch=""):
+    return ""
+
+  def SvnGit(self, rev, branch=""):
+    raise NotImplementedError()
+
+  def Land(self):
+    self.step.Git("push origin")
+
+  def CLLand(self):
+    self.step.GitCLLand()
+
+
 VC_INTERFACES = {
   "git_svn": GitSvnInterface,
   "git_read_svn_write": GitReadSvnWriteInterface,
+  "git": GitInterface,
 }
 
 

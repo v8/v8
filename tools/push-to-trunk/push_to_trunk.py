@@ -362,7 +362,10 @@ class CommitSVN(Step):
   MESSAGE = "Commit to SVN."
 
   def RunStep(self):
-    result = self.vc.Land()
+    if self._options.svn:
+      self.SVNCommit("trunk", self["commit_title"])
+    else:
+      self.vc.Land()
 
 
 class TagRevision(Step):
