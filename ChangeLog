@@ -1,3 +1,8 @@
+2014-11-01: Version 3.30.25
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-01: Version 3.30.24
 
         Ensure we don't try to inline raw access to indexed interceptor

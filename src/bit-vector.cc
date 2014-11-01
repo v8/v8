@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/data-flow.h"
+#include "src/bit-vector.h"
 
 #include "src/base/bits.h"
 #include "src/scopes.h"
@@ -28,12 +28,12 @@ void BitVector::Print() {
 
 void BitVector::Iterator::Advance() {
   current_++;
-  uint32_t val = current_value_;
+  uintptr_t val = current_value_;
   while (val == 0) {
     current_index_++;
     if (Done()) return;
     val = target_->data_[current_index_];
-    current_ = current_index_ << 5;
+    current_ = current_index_ << kDataBitShift;
   }
   val = SkipZeroBytes(val);
   val = SkipZeroBits(val);
@@ -44,8 +44,12 @@ void BitVector::Iterator::Advance() {
 int BitVector::Count() const {
   int count = 0;
   for (int i = 0; i < data_length_; i++) {
-    int data = data_[i];
-    if (data != 0) count += base::bits::CountPopulation32(data);
+    uintptr_t data = data_[i];
+    if (sizeof(data) == 8) {
+      count += base::bits::CountPopulation64(data);
+    } else {
+      count += base::bits::CountPopulation32(static_cast<uint32_t>(data));
+    }
   }
   return count;
 }
