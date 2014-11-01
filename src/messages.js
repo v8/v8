@@ -20,6 +20,7 @@ var kMessages = {
   unexpected_strict_reserved:    ["Unexpected strict mode reserved word"],
   unexpected_eos:                ["Unexpected end of input"],
   malformed_regexp:              ["Invalid regular expression: /", "%0", "/: ", "%1"],
+  malformed_regexp_flags:        ["Invalid regular expression flags"],
   unterminated_regexp:           ["Invalid regular expression: missing /"],
   regexp_flags:                  ["Cannot supply flags when constructing one RegExp from another"],
   incompatible_method_receiver:  ["Method ", "%0", " called on incompatible receiver ", "%1"],

@@ -1,3 +1,11 @@
+2014-11-01: Version 3.30.24
+
+        Ensure we don't try to inline raw access to indexed interceptor
+        receivers (Chromium issue 419220).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-31: Version 3.30.23
 
         Introduce v8::Exception::GetMessage to find location of an error object

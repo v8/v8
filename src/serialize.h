@@ -404,8 +404,6 @@ class Deserializer: public SerializerDeserializer {
   void AddReservation(int space, uint32_t chunk) {
     DCHECK(space >= 0);
     DCHECK(space < kNumberOfSpaces);
-    DCHECK(space == LO_SPACE ||
-           chunk <= static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
     reservations_[space].Add({chunk, NULL, NULL});
   }
 
@@ -498,9 +496,12 @@ class Serializer : public SerializerDeserializer {
   void FinalizeAllocation();
 
   Vector<const uint32_t> FinalAllocationChunks(int space) const {
-    DCHECK_EQ(1, completed_chunks_[LO_SPACE].length());  // Already finalized.
-    DCHECK_EQ(0, pending_chunk_[space]);                 // No pending chunks.
-    return completed_chunks_[space].ToConstVector();
+    if (space == LO_SPACE) {
+      return Vector<const uint32_t>(&large_objects_total_size_, 1);
+    } else {
+      DCHECK_EQ(0, pending_chunk_[space]);  // No pending chunks.
+      return completed_chunks_[space].ToConstVector();
+    }
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -580,39 +581,48 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_->Encode(addr);
   }
 
-  int SpaceAreaSize(int space);
+  // GetInt reads 4 bytes at once, requiring padding at the end.
+  void Pad();
 
   // Some roots should not be serialized, because their actual value depends on
   // absolute addresses and they are reset after deserialization, anyway.
   bool ShouldBeSkipped(Object** current);
 
-  Isolate* isolate_;
+  // We may not need the code address map for logging for every instance
+  // of the serializer.  Initialize it on demand.
+  void InitializeCodeAddressMap();
 
-  // Objects from the same space are put into chunks for bulk-allocation
-  // when deserializing. We have to make sure that each chunk fits into a
-  // page. So we track the chunk size in pending_chunk_ of a space, but
-  // when it exceeds a page, we complete the current chunk and start a new one.
-  uint32_t pending_chunk_[kNumberOfSpaces];
-  List<uint32_t> completed_chunks_[kNumberOfSpaces];
+  inline uint32_t max_chunk_size(int space) const {
+    DCHECK_LE(0, space);
+    DCHECK_LT(space, kNumberOfSpaces);
+    return max_chunk_size_[space];
+  }
+
+  Isolate* isolate_;
 
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
 
   BackReferenceMap back_reference_map_;
   RootIndexMap root_index_map_;
-  void Pad();
 
   friend class ObjectSerializer;
   friend class Deserializer;
 
-  // We may not need the code address map for logging for every instance
-  // of the serializer.  Initialize it on demand.
-  void InitializeCodeAddressMap();
-
  private:
   CodeAddressMap* code_address_map_;
+  // Objects from the same space are put into chunks for bulk-allocation
+  // when deserializing. We have to make sure that each chunk fits into a
+  // page. So we track the chunk size in pending_chunk_ of a space, but
+  // when it exceeds a page, we complete the current chunk and start a new one.
+  uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
+  List<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
+  uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
+
   // We map serialized large objects to indexes for back-referencing.
+  uint32_t large_objects_total_size_;
   uint32_t seen_large_objects_index_;
+
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 

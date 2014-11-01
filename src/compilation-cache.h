@@ -89,9 +89,6 @@ class CompilationCacheScript : public CompilationSubCache {
                  int column_offset,
                  bool is_shared_cross_origin);
 
-  void* script_histogram_;
-  bool script_histogram_initialized_;
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
 

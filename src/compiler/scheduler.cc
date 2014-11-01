@@ -7,12 +7,12 @@
 
 #include "src/compiler/scheduler.h"
 
+#include "src/bit-vector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
-#include "src/data-flow.h"
 
 namespace v8 {
 namespace internal {
@@ -147,8 +147,6 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
     // schedulable. If all the uses of a node have been scheduled, then the node
     // itself can be scheduled.
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      // TODO(mstarzinger): Another cheap hack for use counts.
-      if (GetData(*i)->placement_ == kFixed) continue;
       DecrementUnscheduledUseCount(*i, i.index(), i.edge().from());
     }
   }
@@ -166,6 +164,9 @@ void Scheduler::IncrementUnscheduledUseCount(Node* node, int index,
                                              Node* from) {
   // Make sure that control edges from coupled nodes are not counted.
   if (IsCoupledControlEdge(from, index)) return;
+
+  // Tracking use counts for fixed nodes is useless.
+  if (GetPlacement(node) == kFixed) return;
 
   // Use count for coupled nodes is summed up on their control.
   if (GetPlacement(node) == kCoupled) {
@@ -186,6 +187,9 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
                                              Node* from) {
   // Make sure that control edges from coupled nodes are not counted.
   if (IsCoupledControlEdge(from, index)) return;
+
+  // Tracking use counts for fixed nodes is useless.
+  if (GetPlacement(node) == kFixed) return;
 
   // Use count for coupled nodes is summed up on their control.
   if (GetPlacement(node) == kCoupled) {
@@ -1014,7 +1018,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       scheduler_->schedule_root_nodes_.push_back(node);
       if (!schedule_->IsScheduled(node)) {
         // Make sure root nodes are scheduled in their respective blocks.
-        Trace("  Scheduling fixed position node #%d:%s\n", node->id(),
+        Trace("Scheduling fixed position node #%d:%s\n", node->id(),
               node->op()->mnemonic());
         IrOpcode::Value opcode = node->opcode();
         BasicBlock* block =

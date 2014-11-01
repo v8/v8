@@ -1218,6 +1218,24 @@ bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
 }
 
 
+void Code::VerifyEmbeddedObjectsInFullCode() {
+  // Check that no context-specific object has been embedded.
+  Heap* heap = GetIsolate()->heap();
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    Object* obj = it.rinfo()->target_object();
+    if (obj->IsCell()) obj = Cell::cast(obj)->value();
+    if (obj->IsPropertyCell()) obj = PropertyCell::cast(obj)->value();
+    if (!obj->IsHeapObject()) continue;
+    Map* map = obj->IsMap() ? Map::cast(obj) : HeapObject::cast(obj)->map();
+    int i = 0;
+    while (map != heap->roots_array_start()[i++]) {
+      CHECK_LT(i, Heap::kStrongRootListLength);
+    }
+  }
+}
+
+
 #endif  // DEBUG
 
 } }  // namespace v8::internal

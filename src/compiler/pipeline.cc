@@ -319,7 +319,7 @@ Handle<Code> Pipeline::GenerateCode() {
     ZonePool::Scope zone_scope(data.zone_pool());
     AstGraphBuilderWithPositions graph_builder(
         zone_scope.zone(), info(), data.jsgraph(), data.source_positions());
-    graph_builder.CreateGraph();
+    if (!graph_builder.CreateGraph()) return Handle<Code>::null();
     context_node = graph_builder.GetFunctionContext();
   }
 

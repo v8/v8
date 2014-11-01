@@ -426,6 +426,12 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
+['arch == mips', {
+  # Flaky with TF.
+  'mirror-script': [PASS, NO_VARIANTS],
+}],  # 'arch == mips'
+
+##############################################################################
 ['arch == mips64el', {
 
   # Slow tests which times out in debug mode.

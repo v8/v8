@@ -1258,10 +1258,15 @@ Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
       external_reference_encoder_(new ExternalReferenceEncoder(isolate)),
       root_index_map_(isolate),
       code_address_map_(NULL),
+      large_objects_total_size_(0),
       seen_large_objects_index_(0) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
-  for (int i = 0; i < kNumberOfSpaces; i++) pending_chunk_[i] = 0;
+  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
+    pending_chunk_[i] = 0;
+    max_chunk_size_[i] = static_cast<uint32_t>(
+        MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(i)));
+  }
 }
 
 
@@ -1336,8 +1341,7 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 
 
 void Serializer::FinalizeAllocation() {
-  DCHECK_EQ(0, completed_chunks_[LO_SPACE].length());  // Not yet finalized.
-  for (int i = 0; i < kNumberOfSpaces; i++) {
+  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     // Complete the last pending chunk and if there are no completed chunks,
     // make sure there is at least one empty chunk.
     if (pending_chunk_[i] > 0 || completed_chunks_[i].length() == 0) {
@@ -1906,16 +1910,16 @@ AllocationSpace Serializer::SpaceOfObject(HeapObject* object) {
 BackReference Serializer::AllocateLargeObject(int size) {
   // Large objects are allocated one-by-one when deserializing. We do not
   // have to keep track of multiple chunks.
-  pending_chunk_[LO_SPACE] += size;
+  large_objects_total_size_ += size;
   return BackReference::LargeObjectReference(seen_large_objects_index_++);
 }
 
 
 BackReference Serializer::Allocate(AllocationSpace space, int size) {
   CHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
-  DCHECK(size > 0 && size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(size > 0 && size <= static_cast<int>(max_chunk_size(space)));
   uint32_t new_chunk_size = pending_chunk_[space] + size;
-  if (new_chunk_size > static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize)) {
+  if (new_chunk_size > max_chunk_size(space)) {
     // The new chunk size would not fit onto a single page. Complete the
     // current chunk and start a new one.
     completed_chunks_[space].Add(pending_chunk_[space]);
@@ -1926,15 +1930,6 @@ BackReference Serializer::Allocate(AllocationSpace space, int size) {
   pending_chunk_[space] = new_chunk_size;
   return BackReference::Reference(space, completed_chunks_[space].length(),
                                   offset);
-}
-
-
-int Serializer::SpaceAreaSize(int space) {
-  if (space == CODE_SPACE) {
-    return isolate_->memory_allocator()->CodePageAreaSize();
-  } else {
-    return Page::kPageSize - Page::kObjectStartOffset;
-  }
 }
 
 
@@ -2273,9 +2268,6 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   for (int i = 0; i < SerializerDeserializer::kNumberOfSpaces; i++) {
     Vector<const uint32_t> chunks = cs->FinalAllocationChunks(i);
     for (int j = 0; j < chunks.length(); j++) {
-      DCHECK(i == LO_SPACE ||
-             chunks[j] <=
-                 static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
       uint32_t chunk = ChunkSizeBits::encode(chunks[j]) |
                        IsLastChunkBits::encode(j == chunks.length() - 1);
       reservations.Add(chunk);

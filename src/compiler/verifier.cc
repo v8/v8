@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/bit-vector.h"
 #include "src/compiler/generic-algorithm.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/generic-node.h"
@@ -21,7 +22,6 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/data-flow.h"
 #include "src/ostreams.h"
 
 namespace v8 {

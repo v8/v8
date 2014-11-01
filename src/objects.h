@@ -5362,6 +5362,10 @@ class Code: public HeapObject {
   void VerifyEmbeddedObjectsDependency();
 #endif
 
+#ifdef DEBUG
+  void VerifyEmbeddedObjectsInFullCode();
+#endif  // DEBUG
+
   inline bool CanContainWeakObjects() {
     return is_optimized_code() || is_weak_stub();
   }
@@ -7937,6 +7941,17 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 };
 
 
+// This cache is used in two different variants. For regexp caching, it simply
+// maps identifying info of the regexp to the cached regexp object. Scripts and
+// eval code only gets cached after a second probe for the code object. To do
+// so, on first "put" only a hash identifying the source is entered into the
+// cache, mapping it to a lifetime count of the hash. On each call to Age all
+// such lifetimes get reduced, and removed once they reach zero. If a second put
+// is called while such a hash is live in the cache, the hash gets replaced by
+// an actual cache entry. Age also removes stale live entries from the cache.
+// Such entries are identified by SharedFunctionInfos pointing to either the
+// recompilation stub, or to "old" code. This avoids memory leaks due to
+// premature caching of scripts and eval strings that are never needed later.
 class CompilationCacheTable: public HashTable<CompilationCacheTable,
                                               CompilationCacheShape,
                                               HashTableKey*> {
@@ -7958,6 +7973,8 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
   void Remove(Object* value);
+  void Age();
+  static const int kHashGenerations = 10;
 
   DECLARE_CAST(CompilationCacheTable)
 

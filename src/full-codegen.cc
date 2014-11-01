@@ -346,6 +346,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   info->SetCode(code);
   void* line_info = masm.positions_recorder()->DetachJITHandlerData();
   LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
+
+#ifdef DEBUG
+  // Check that no context-specific object has been embedded.
+  code->VerifyEmbeddedObjectsInFullCode();
+#endif  // DEBUG
   return true;
 }
 

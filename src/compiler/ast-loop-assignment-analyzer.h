@@ -6,7 +6,7 @@
 #define V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 
 #include "src/ast.h"
-#include "src/data-flow.h"
+#include "src/bit-vector.h"
 #include "src/v8.h"
 #include "src/zone-containers.h"
 

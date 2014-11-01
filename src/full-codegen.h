@@ -10,10 +10,10 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/ast.h"
+#include "src/bit-vector.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
-#include "src/data-flow.h"
 #include "src/globals.h"
 #include "src/objects.h"
 

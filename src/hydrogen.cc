@@ -6941,6 +6941,12 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
 }
 
 
+static bool CanInlineElementAccess(Handle<Map> map) {
+  return map->IsJSObjectMap() && !map->has_slow_elements_kind() &&
+         !map->has_indexed_interceptor();
+}
+
+
 HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
     HValue* object,
     HValue* key,
@@ -6958,7 +6964,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   Handle<Map> most_general_consolidated_map;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
-    if (!map->IsJSObjectMap()) return NULL;
+    if (!CanInlineElementAccess(map)) return NULL;
     // Don't allow mixing of JSArrays with JSObjects.
     if (map->instance_type() == JS_ARRAY_TYPE) {
       if (has_non_js_array_access) return NULL;
@@ -7036,7 +7042,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     Handle<Map> map = maps->at(i);
     DCHECK(!map->IsStringMap());
     ElementsKind elements_kind = map->elements_kind();
-    if (IsFastElementsKind(elements_kind) &&
+    if (CanInlineElementAccess(map) && IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
     }
@@ -7077,8 +7083,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   if (untransitionable_maps.length() == 1) {
     Handle<Map> untransitionable_map = untransitionable_maps[0];
     HInstruction* instr = NULL;
-    if (untransitionable_map->has_slow_elements_kind() ||
-        !untransitionable_map->IsJSObjectMap()) {
+    if (!CanInlineElementAccess(untransitionable_map)) {
       instr = AddInstruction(BuildKeyedGeneric(access_type, expr, object, key,
                                                val));
     } else {
@@ -7094,7 +7099,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   for (int i = 0; i < untransitionable_maps.length(); ++i) {
     Handle<Map> map = untransitionable_maps[i];
-    if (!map->IsJSObjectMap()) continue;
     ElementsKind elements_kind = map->elements_kind();
     HBasicBlock* this_map = graph()->CreateBasicBlock();
     HBasicBlock* other_map = graph()->CreateBasicBlock();
@@ -7104,7 +7108,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
     set_current_block(this_map);
     HInstruction* access = NULL;
-    if (IsDictionaryElementsKind(elements_kind)) {
+    if (!CanInlineElementAccess(map)) {
       access = AddInstruction(BuildKeyedGeneric(access_type, expr, object, key,
                                                 val));
     } else {
@@ -7215,7 +7219,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
 
   if (monomorphic) {
     Handle<Map> map = types->first();
-    if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
+    if (!CanInlineElementAccess(map)) {
       instr = AddInstruction(BuildKeyedGeneric(access_type, expr, obj, key,
                                                val));
     } else {
