@@ -235,6 +235,10 @@ class GitRecipesMixin(object):
     self.Git(
         "cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
 
+  def GitCLLand(self, **kwargs):
+    self.Git(
+        "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
+
   def GitDiff(self, loc1, loc2, **kwargs):
     return self.Git(MakeArgs(["diff", loc1, loc2]), **kwargs)
 
