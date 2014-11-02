@@ -948,6 +948,7 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("svn status", "", cwd=svn_root),
       Cmd("patch -d trunk -p1 -i %s" %
           TEST_CONFIG["PATCH_FILE"], "Applied patch...", cwd=svn_root),
+      Cmd("svn add --force trunk", "", cwd=svn_root),
       Cmd("svn commit --non-interactive --username=author@chromium.org "
           "--config-dir=[CONFIG_DIR] "
           "-m \"Version 3.22.5 (based on push_hash)\"",
@@ -957,7 +958,7 @@ Performance and stability improvements on all platforms.""", commit)
           "\"Version 3.22.5 (based on push_hash)\""
           " origin/candidates", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5", ""),
+      Cmd("git push https://chromium.googlesource.com/v8/v8 3.22.5", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git branch -D %s" % TEST_CONFIG["TRUNKBRANCH"], ""),
@@ -1769,6 +1770,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("svn status", "", cwd=svn_root),
       Cmd("patch -d branches/bleeding_edge -p1 -i %s" %
           TEST_CONFIG["PATCH_FILE"], "Applied patch...", cwd=svn_root),
+      Cmd("svn add --force branches/bleeding_edge", "", cwd=svn_root),
       Cmd("svn commit --non-interactive --username=author@chromium.org "
           "--config-dir=[CONFIG_DIR] "
           "-m \"[Auto-roll] Bump up version to 3.11.6.0\"",
