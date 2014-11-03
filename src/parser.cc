@@ -3203,7 +3203,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       Scanner::Location lhs_location = scanner()->peek_location();
       Expression* expression = ParseExpression(false, CHECK_OK);
       ForEachStatement::VisitMode mode;
-      bool accept_OF = expression->AsVariableProxy();
+      bool accept_OF = expression->IsVariableProxy();
 
       if (CheckInOrOf(accept_OF, &mode)) {
         expression = this->CheckAndRewriteReferenceExpression(

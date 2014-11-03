@@ -693,8 +693,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
   DeoptimizerData* data = isolate->deoptimizer_data();
   MemoryChunk* base = data->deopt_entry_code_[type];
   Address start = base->area_start();
-  if (base == NULL ||
-      addr < start ||
+  if (addr < start ||
       addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }

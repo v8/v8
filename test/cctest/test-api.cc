@@ -15148,7 +15148,7 @@ THREADED_TEST(PropertyEnumeration2) {
   v8::Handle<v8::Array> props = val.As<v8::Object>()->GetPropertyNames();
   CHECK_EQ(0, props->Length());
   for (uint32_t i = 0; i < props->Length(); i++) {
-    printf("p[%d]\n", i);
+    printf("p[%u]\n", i);
   }
 }
 

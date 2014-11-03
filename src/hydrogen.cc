@@ -12643,9 +12643,10 @@ void HStatistics::Print() {
   double normalized_time =  source_size_in_kb > 0
       ? total.InMillisecondsF() / source_size_in_kb
       : 0;
-  double normalized_size_in_kb = source_size_in_kb > 0
-      ? total_size_ / 1024 / source_size_in_kb
-      : 0;
+  double normalized_size_in_kb =
+      source_size_in_kb > 0
+          ? static_cast<double>(total_size_) / 1024 / source_size_in_kb
+          : 0;
   PrintF("%33s %8.3f ms           %7.3f kB allocated\n",
          "Average per kB source", normalized_time, normalized_size_in_kb);
 }
