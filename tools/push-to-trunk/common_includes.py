@@ -736,8 +736,18 @@ class Step(GitRecipesMixin):
                         (root, self._config["PATCH_FILE"]),
                         cwd=self._options.svn):
       self.Die("Could not apply patch.")
-    # Recursively add possibly newly added files.
-    self.Command("svn", "add --force %s" % root, cwd=self._options.svn)
+    for line in self.Command(
+        "svn", "status", cwd=self._options.svn).splitlines():
+      # Check for added and removed items. Svn status has seven status columns.
+      # The first contains ? for unknown and ! for missing.
+      match = re.match(r"^(.)...... (.*)$", line)
+      if match and match.group(1) == "?":
+        self.Command("svn", "add --force %s" % match.group(2),
+                     cwd=self._options.svn)
+      if match and match.group(1) == "!":
+        self.Command("svn", "delete --force %s" % match.group(2),
+                     cwd=self._options.svn)
+
     self.Command(
         "svn",
         "commit --non-interactive --username=%s --config-dir=%s -m \"%s\"" %
