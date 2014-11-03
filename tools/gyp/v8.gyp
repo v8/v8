@@ -489,6 +489,8 @@
         '../../src/compiler/schedule.h',
         '../../src/compiler/scheduler.cc',
         '../../src/compiler/scheduler.h',
+        '../../src/compiler/select-lowering.cc',
+        '../../src/compiler/select-lowering.h',
         '../../src/compiler/simplified-lowering.cc',
         '../../src/compiler/simplified-lowering.h',
         '../../src/compiler/simplified-operator-reducer.cc',

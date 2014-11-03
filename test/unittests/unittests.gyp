@@ -52,6 +52,7 @@
         'compiler/node-test-utils.cc',
         'compiler/node-test-utils.h',
         'compiler/register-allocator-unittest.cc',
+        'compiler/select-lowering-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
         'compiler/value-numbering-reducer-unittest.cc',
