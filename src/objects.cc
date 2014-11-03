@@ -14724,13 +14724,13 @@ Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
 }
 
 
-Handle<Object> CompilationCacheTable::LookupEval(Handle<String> src,
-                                                 Handle<Context> context,
-                                                 StrictMode strict_mode,
-                                                 int scope_position) {
+Handle<Object> CompilationCacheTable::LookupEval(
+    Handle<String> src, Handle<SharedFunctionInfo> outer_info,
+    StrictMode strict_mode, int scope_position) {
   Isolate* isolate = GetIsolate();
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  StringSharedKey key(src, shared, strict_mode, scope_position);
+  // Cache key is the tuple (source, outer shared function info, scope position)
+  // to unambiguously identify the context chain the cached eval code assumes.
+  StringSharedKey key(src, outer_info, strict_mode, scope_position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
@@ -14767,11 +14767,10 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<Context> context, Handle<SharedFunctionInfo> value,
+    Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
     int scope_position) {
   Isolate* isolate = cache->GetIsolate();
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  StringSharedKey key(src, shared, value->strict_mode(), scope_position);
+  StringSharedKey key(src, outer_info, value->strict_mode(), scope_position);
   cache = EnsureCapacity(cache, 1, &key);
   Handle<Object> k = key.AsHandle(isolate);
   int entry = cache->FindInsertionEntry(key.Hash());

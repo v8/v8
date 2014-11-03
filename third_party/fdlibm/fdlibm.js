@@ -267,7 +267,7 @@ function KernelTan(x, y, returnTan) {
       }
     }
   }
-  if (ix >= 0x3fe59429) {  // |x| > .6744
+  if (ix >= 0x3fe59428) {  // |x| > .6744
     if (x < 0) {
       x = -x;
       y = -y;
@@ -362,9 +362,9 @@ function MathTan(x) {
 // ES6 draft 09-27-13, section 20.2.2.20.
 // Math.log1p
 //
-// Method :                  
-//   1. Argument Reduction: find k and f such that 
-//                      1+x = 2^k * (1+f), 
+// Method :
+//   1. Argument Reduction: find k and f such that
+//                      1+x = 2^k * (1+f),
 //         where  sqrt(2)/2 < 1+f < sqrt(2) .
 //
 //      Note. If k=0, then f=x is exact. However, if k!=0, then f
@@ -378,8 +378,8 @@ function MathTan(x) {
 //      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
 //            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
 //            = 2s + s*R
-//      We use a special Reme algorithm on [0,0.1716] to generate 
-//      a polynomial of degree 14 to approximate R The maximum error 
+//      We use a special Reme algorithm on [0,0.1716] to generate
+//      a polynomial of degree 14 to approximate R The maximum error
 //      of this polynomial approximation is bounded by 2**-58.45. In
 //      other words,
 //                      2      4      6      8      10      12      14
@@ -387,21 +387,21 @@ function MathTan(x) {
 //      (the values of Lp1 to Lp7 are listed in the program)
 //      and
 //          |      2          14          |     -58.45
-//          | Lp1*s +...+Lp7*s    -  R(z) | <= 2 
+//          | Lp1*s +...+Lp7*s    -  R(z) | <= 2
 //          |                             |
 //      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
 //      In order to guarantee error in log below 1ulp, we compute log
 //      by
 //              log1p(f) = f - (hfsq - s*(hfsq+R)).
 //
-//      3. Finally, log1p(x) = k*ln2 + log1p(f).  
+//      3. Finally, log1p(x) = k*ln2 + log1p(f).
 //                           = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
-//         Here ln2 is split into two floating point number: 
+//         Here ln2 is split into two floating point number:
 //                      ln2_hi + ln2_lo,
 //         where n*ln2_hi is always exact for |n| < 2000.
 //
 // Special cases:
-//      log1p(x) is NaN with signal if x < -1 (including -INF) ; 
+//      log1p(x) is NaN with signal if x < -1 (including -INF) ;
 //      log1p(+INF) is +INF; log1p(-1) is -INF with signal;
 //      log1p(NaN) is that NaN with no signal.
 //
@@ -506,7 +506,7 @@ function MathLog1p(x) {
     }
   }
 
-  var s = f / (2 + f); 
+  var s = f / (2 + f);
   var z = s * s;
   var R = z * (KLOG1P(0) + z * (KLOG1P(1) + z *
               (KLOG1P(2) + z * (KLOG1P(3) + z *
@@ -526,9 +526,9 @@ function MathLog1p(x) {
 //   1. Argument reduction:
 //      Given x, find r and integer k such that
 //
-//               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658  
+//               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658
 //
-//      Here a correction term c will be computed to compensate 
+//      Here a correction term c will be computed to compensate
 //      the error in r when rounded to a floating-point number.
 //
 //   2. Approximating expm1(r) by a special rational function on
@@ -541,9 +541,9 @@ function MathLog1p(x) {
 //          R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
 //                   = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
 //                   = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
-//      We use a special Remes algorithm on [0,0.347] to generate 
-//      a polynomial of degree 5 in r*r to approximate R1. The 
-//      maximum error of this polynomial approximation is bounded 
+//      We use a special Remes algorithm on [0,0.347] to generate
+//      a polynomial of degree 5 in r*r to approximate R1. The
+//      maximum error of this polynomial approximation is bounded
 //      by 2**-61. In other words,
 //          R1(z) ~ 1.0 + Q1*z + Q2*z**2 + Q3*z**3 + Q4*z**4 + Q5*z**5
 //      where   Q1  =  -1.6666666666666567384E-2,
@@ -554,21 +554,21 @@ function MathLog1p(x) {
 //      (where z=r*r, and the values of Q1 to Q5 are listed below)
 //      with error bounded by
 //          |                  5           |     -61
-//          | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2 
+//          | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2
 //          |                              |
 //
-//      expm1(r) = exp(r)-1 is then computed by the following 
-//      specific way which minimize the accumulation rounding error: 
+//      expm1(r) = exp(r)-1 is then computed by the following
+//      specific way which minimize the accumulation rounding error:
 //                             2     3
 //                            r     r    [ 3 - (R1 + R1*r/2)  ]
 //            expm1(r) = r + --- + --- * [--------------------]
 //                            2     2    [ 6 - r*(3 - R1*r/2) ]
 //
 //      To compensate the error in the argument reduction, we use
-//              expm1(r+c) = expm1(r) + c + expm1(r)*c 
-//                         ~ expm1(r) + c + r*c 
+//              expm1(r+c) = expm1(r) + c + expm1(r)*c
+//                         ~ expm1(r) + c + r*c
 //      Thus c+r*c will be added in as the correction terms for
-//      expm1(r+c). Now rearrange the term to avoid optimization 
+//      expm1(r+c). Now rearrange the term to avoid optimization
 //      screw up:
 //                      (      2                                    2 )
 //                      ({  ( r    [ R1 -  (3 - R1*r/2) ]  )  }    r  )
@@ -592,7 +592,7 @@ function MathLog1p(x) {
 //                     else          return  1.0+2.0*(r-E);
 //        (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
 //        (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
-//        (vii) return 2^k(1-((E+2^-k)-r)) 
+//        (vii) return 2^k(1-((E+2^-k)-r))
 //
 // Special cases:
 //      expm1(INF) is INF, expm1(NaN) is NaN;
@@ -604,7 +604,7 @@ function MathLog1p(x) {
 //      1 ulp (unit in the last place).
 //
 // Misc. info.
-//      For IEEE double 
+//      For IEEE double
 //          if x > 7.09782712893383973096e+02 then expm1(x) overflow
 //
 const KEXPM1_OVERFLOW = kMath[45];
@@ -621,7 +621,7 @@ function MathExpm1(x) {
   var k;
   var t;
   var c;
-    
+
   var hx = %_DoubleHi(x);
   var xsb = hx & 0x80000000;     // Sign bit of x
   var y = (xsb === 0) ? x : -x;  // y = |x|
@@ -722,7 +722,7 @@ function MathExpm1(x) {
 //          0        <= x <= 22     :  sinh(x) := --------------, E=expm1(x)
 //                                                      2
 //
-//          22       <= x <= lnovft :  sinh(x) := exp(x)/2 
+//          22       <= x <= lnovft :  sinh(x) := exp(x)/2
 //          lnovft   <= x <= ln2ovft:  sinh(x) := exp(x/2)/2 * exp(x/2)
 //          ln2ovft  <  x           :  sinh(x) := x*shuge (overflow)
 //
@@ -763,18 +763,18 @@ function MathSinh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.12.
 // Math.cosh
-// Method : 
+// Method :
 // mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2
-//      1. Replace x by |x| (cosh(x) = cosh(-x)). 
+//      1. Replace x by |x| (cosh(x) = cosh(-x)).
 //      2.
-//                                                      [ exp(x) - 1 ]^2 
+//                                                      [ exp(x) - 1 ]^2
 //          0        <= x <= ln2/2  :  cosh(x) := 1 + -------------------
 //                                                         2*exp(x)
 //
 //                                                 exp(x) + 1/exp(x)
 //          ln2/2    <= x <= 22     :  cosh(x) := -------------------
 //                                                        2
-//          22       <= x <= lnovft :  cosh(x) := exp(x)/2 
+//          22       <= x <= lnovft :  cosh(x) := exp(x)/2
 //          lnovft   <= x <= ln2ovft:  cosh(x) := exp(x/2)/2 * exp(x/2)
 //          ln2ovft  <  x           :  cosh(x) := huge*huge (overflow)
 //

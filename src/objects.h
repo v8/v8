@@ -7863,15 +7863,16 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
  public:
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<Context> context);
-  Handle<Object> LookupEval(Handle<String> src, Handle<Context> context,
-                     StrictMode strict_mode, int scope_position);
+  Handle<Object> LookupEval(Handle<String> src,
+                            Handle<SharedFunctionInfo> shared,
+                            StrictMode strict_mode, int scope_position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<Context> context, Handle<Object> value);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> context, Handle<SharedFunctionInfo> value,
+      Handle<SharedFunctionInfo> context, Handle<SharedFunctionInfo> value,
       int scope_position);
   static Handle<CompilationCacheTable> PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,

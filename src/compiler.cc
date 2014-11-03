@@ -1084,11 +1084,9 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
-    Handle<String> source,
-    Handle<Context> context,
-    StrictMode strict_mode,
-    ParseRestriction restriction,
-    int scope_position) {
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
+    Handle<Context> context, StrictMode strict_mode,
+    ParseRestriction restriction, int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -1096,7 +1094,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<SharedFunctionInfo> maybe_shared_info =
-      compilation_cache->LookupEval(source, context, strict_mode,
+      compilation_cache->LookupEval(source, outer_info, context, strict_mode,
                                     scope_position);
   Handle<SharedFunctionInfo> shared_info;
 
@@ -1123,8 +1121,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       // If caller is strict mode, the result must be in strict mode as well.
       DCHECK(strict_mode == SLOPPY || shared_info->strict_mode() == STRICT);
       if (!shared_info->dont_cache()) {
-        compilation_cache->PutEval(
-            source, context, shared_info, scope_position);
+        compilation_cache->PutEval(source, outer_info, context, shared_info,
+                                   scope_position);
       }
     }
   } else if (shared_info->ic_age() != isolate->heap()->global_ic_age()) {

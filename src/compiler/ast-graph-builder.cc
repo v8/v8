@@ -1265,12 +1265,14 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 
     // Create node to ask for help resolving potential eval call. This will
     // provide a fully resolved callee and the corresponding receiver.
+    Node* function = GetFunctionClosure();
     Node* receiver = environment()->Lookup(info()->scope()->receiver());
     Node* strict = jsgraph()->Constant(strict_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
     const Operator* op =
-        javascript()->Runtime(Runtime::kResolvePossiblyDirectEval, 5);
-    Node* pair = NewNode(op, callee, source, receiver, strict, position);
+        javascript()->Runtime(Runtime::kResolvePossiblyDirectEval, 6);
+    Node* pair =
+        NewNode(op, callee, source, function, receiver, strict, position);
     Node* new_callee = NewNode(common()->Projection(0), pair);
     Node* new_receiver = NewNode(common()->Projection(1), pair);
 

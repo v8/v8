@@ -507,7 +507,7 @@ namespace internal {
   F(InitializeLegacyConstLookupSlot, 3, 1)                   \
                                                              \
   /* Eval */                                                 \
-  F(ResolvePossiblyDirectEval, 5, 2)                         \
+  F(ResolvePossiblyDirectEval, 6, 2)                         \
                                                              \
   /* Maths */                                                \
   F(MathPowSlow, 2, 1)                                       \

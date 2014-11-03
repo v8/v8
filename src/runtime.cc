@@ -9894,17 +9894,20 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
   // Compile source string in the native context.
   ParseRestriction restriction = function_literal_only
       ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
+  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   Handle<JSFunction> fun;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fun,
       Compiler::GetFunctionFromEval(
-          source, context, SLOPPY, restriction, RelocInfo::kNoPosition));
+          source, outer_info,
+          context, SLOPPY, restriction, RelocInfo::kNoPosition));
   return *fun;
 }
 
 
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
+                                    Handle<SharedFunctionInfo> outer_info,
                                     Handle<Object> receiver,
                                     StrictMode strict_mode,
                                     int scope_position) {
@@ -9931,7 +9934,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
       Compiler::GetFunctionFromEval(
-          source, context, strict_mode, restriction, scope_position),
+          source, outer_info,
+          context, strict_mode, restriction, scope_position),
       MakePair(isolate->heap()->exception(), NULL));
   return MakePair(*compiled, *receiver);
 }
@@ -9939,7 +9943,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 6);
 
   Handle<Object> callee = args.at<Object>(0);
 
@@ -9953,15 +9957,18 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
     return MakePair(*callee, isolate->heap()->undefined_value());
   }
 
-  DCHECK(args[3]->IsSmi());
-  DCHECK(args.smi_at(3) == SLOPPY || args.smi_at(3) == STRICT);
-  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(3));
   DCHECK(args[4]->IsSmi());
+  DCHECK(args.smi_at(4) == SLOPPY || args.smi_at(4) == STRICT);
+  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(4));
+  DCHECK(args[5]->IsSmi());
+  Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
+                                        isolate);
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
-                           args.at<Object>(2),
+                           outer_info,
+                           args.at<Object>(3),
                            strict_mode,
-                           args.smi_at(4));
+                           args.smi_at(5));
 }
 
 
@@ -12968,6 +12975,7 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeArgumentsObject(
 
 // Compile and evaluate source for the given context.
 static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
+                                         Handle<SharedFunctionInfo> outer_info,
                                          Handle<Context> context,
                                          Handle<Object> context_extension,
                                          Handle<Object> receiver,
@@ -12982,6 +12990,7 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
       Compiler::GetFunctionFromEval(source,
+                                    outer_info,
                                     context,
                                     SLOPPY,
                                     NO_PARSE_RESTRICTION,
@@ -13047,6 +13056,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   JavaScriptFrame* frame = it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  Handle<SharedFunctionInfo> outer_info(function->shared());
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -13078,7 +13088,8 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      DebugEvaluate(isolate, context, context_extension, receiver, source));
+      DebugEvaluate(isolate, outer_info,
+                    context, context_extension, receiver, source));
 
   // Write back potential changes to materialized stack locals to the stack.
   UpdateStackLocalsFromMaterializedObject(
@@ -13118,10 +13129,12 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   // debugger was invoked.
   Handle<Context> context = isolate->native_context();
   Handle<JSObject> receiver(context->global_proxy());
+  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      DebugEvaluate(isolate, context, context_extension, receiver, source));
+      DebugEvaluate(isolate, outer_info,
+                    context, context_extension, receiver, source));
   return *result;
 }
 

@@ -2703,6 +2703,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
     __ PushRoot(Heap::kUndefinedValueRootIndex);
   }
 
+  // Push the enclosing function.
+  __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+
   // Push the receiver of the enclosing function and do runtime call.
   StackArgumentsAccessor args(rbp, info_->scope()->num_parameters());
   __ Push(args.GetReceiverOperand());
@@ -2714,7 +2717,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Push(Smi::FromInt(scope()->start_position()));
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 

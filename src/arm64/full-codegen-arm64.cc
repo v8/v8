@@ -2455,11 +2455,12 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // Prepare to push a copy of the first argument or undefined if it doesn't
   // exist.
   if (arg_count > 0) {
-    __ Peek(x10, arg_count * kXRegSize);
+    __ Peek(x9, arg_count * kXRegSize);
   } else {
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(x9, Heap::kUndefinedValueRootIndex);
   }
 
+  __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   // Prepare to push the receiver of the enclosing function.
   int receiver_offset = 2 + info_->scope()->num_parameters();
   __ Ldr(x11, MemOperand(fp, receiver_offset * kPointerSize));
@@ -2470,10 +2471,10 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Mov(x13, Smi::FromInt(scope()->start_position()));
 
   // Push.
-  __ Push(x10, x11, x12, x13);
+  __ Push(x9, x10, x11, x12, x13);
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 
