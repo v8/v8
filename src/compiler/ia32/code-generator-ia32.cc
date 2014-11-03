@@ -314,16 +314,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Add:
-      __ addsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      __ addsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Sub:
-      __ subsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      __ subsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Mul:
-      __ mulsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      __ mulsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Div:
-      __ divsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      __ divsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Mod: {
       // TODO(dcarney): alignment is wrong.

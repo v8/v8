@@ -591,28 +591,28 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 void InstructionSelector::VisitFloat64Add(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
 }
 
 

@@ -197,6 +197,16 @@ static bool HasImmediateInput(Instruction* instr, int index) {
   } while (0)
 
 
+#define ASSEMBLE_DOUBLE_BINOP(asm_instr)                                \
+  do {                                                                  \
+    if (instr->InputAt(1)->IsDoubleRegister()) {                        \
+      __ asm_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
+    } else {                                                            \
+      __ asm_instr(i.InputDoubleRegister(0), i.InputOperand(1));        \
+    }                                                                   \
+  } while (0)
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X64OperandConverter i(this, instr);
@@ -346,23 +356,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_SHIFT(rorq, 6);
       break;
     case kSSEFloat64Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
-      } else {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_DOUBLE_BINOP(ucomisd);
       break;
     case kSSEFloat64Add:
-      __ addsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_DOUBLE_BINOP(addsd);
       break;
     case kSSEFloat64Sub:
-      __ subsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_DOUBLE_BINOP(subsd);
       break;
     case kSSEFloat64Mul:
-      __ mulsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_DOUBLE_BINOP(mulsd);
       break;
     case kSSEFloat64Div:
-      __ divsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_DOUBLE_BINOP(divsd);
       break;
     case kSSEFloat64Mod: {
       __ subq(rsp, Immediate(kDoubleSize));
