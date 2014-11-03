@@ -417,9 +417,13 @@ TEST(DisasmX64) {
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
     __ addsd(xmm1, xmm0);
+    __ addsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ mulsd(xmm1, xmm0);
+    __ mulsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ subsd(xmm1, xmm0);
+    __ subsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divsd(xmm1, xmm0);
+    __ divsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);

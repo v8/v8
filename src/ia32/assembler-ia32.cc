@@ -1969,29 +1969,11 @@ void Assembler::cvtsd2ss(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::addsd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x58);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::addsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x58);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x59);
   emit_sse_operand(dst, src);
 }
 
@@ -2005,15 +1987,6 @@ void Assembler::mulsd(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::subsd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x5C);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::subsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2023,7 +1996,7 @@ void Assembler::subsd(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::divsd(XMMRegister dst, XMMRegister src) {
+void Assembler::divsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
@@ -2093,15 +2066,6 @@ void Assembler::divps(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x5E);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x51);
   emit_sse_operand(dst, src);
 }
 
