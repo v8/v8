@@ -68,6 +68,10 @@ namespace compiler {
   V(Arm64Sxtw)                     \
   V(Arm64Ubfx)                     \
   V(Arm64Ubfx32)                   \
+  V(Arm64Tbz)                      \
+  V(Arm64Tbz32)                    \
+  V(Arm64Tbnz)                     \
+  V(Arm64Tbnz32)                   \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \
