@@ -65,8 +65,11 @@ class DeoptCodegenTester {
 
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
+    InstructionBlocks* instruction_blocks =
+        InstructionSequence::InstructionBlocksFor(scope_->main_zone(),
+                                                  schedule);
     code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
-                                                           schedule);
+                                                           instruction_blocks);
     SourcePositionTable source_positions(graph);
     InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
                                  schedule, &source_positions);

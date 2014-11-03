@@ -538,7 +538,10 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
                                                        data->schedule());
   }
 
-  InstructionSequence sequence(data->instruction_zone(), data->schedule());
+  InstructionBlocks* instruction_blocks =
+      InstructionSequence::InstructionBlocksFor(data->instruction_zone(),
+                                                data->schedule());
+  InstructionSequence sequence(data->instruction_zone(), instruction_blocks);
 
   // Select and schedule instructions covering the scheduled graph.
   {

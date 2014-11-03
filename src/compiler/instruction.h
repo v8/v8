@@ -809,11 +809,13 @@ class InstructionBlock FINAL : public ZoneObject {
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
 
   typedef ZoneVector<BasicBlock::RpoNumber> Predecessors;
+  Predecessors& predecessors() { return predecessors_; }
   const Predecessors& predecessors() const { return predecessors_; }
   size_t PredecessorCount() const { return predecessors_.size(); }
   size_t PredecessorIndexOf(BasicBlock::RpoNumber rpo_number) const;
 
   typedef ZoneVector<BasicBlock::RpoNumber> Successors;
+  Successors& successors() { return successors_; }
   const Successors& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
 
@@ -825,12 +827,12 @@ class InstructionBlock FINAL : public ZoneObject {
   Successors successors_;
   Predecessors predecessors_;
   PhiInstructions phis_;
-  BasicBlock::Id id_;
-  BasicBlock::RpoNumber ao_number_;  // Assembly order number.
+  const BasicBlock::Id id_;
+  const BasicBlock::RpoNumber ao_number_;  // Assembly order number.
   // TODO(dcarney): probably dont't need this.
-  BasicBlock::RpoNumber rpo_number_;
-  BasicBlock::RpoNumber loop_header_;
-  BasicBlock::RpoNumber loop_end_;
+  const BasicBlock::RpoNumber rpo_number_;
+  const BasicBlock::RpoNumber loop_header_;
+  const BasicBlock::RpoNumber loop_end_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_;     // end index of arch-specific code.
   const bool deferred_;  // Block contains deferred code.
@@ -850,31 +852,34 @@ typedef ZoneVector<InstructionBlock*> InstructionBlocks;
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  InstructionSequence(Zone* zone, const Schedule* schedule);
+  static InstructionBlocks* InstructionBlocksFor(Zone* zone,
+                                                 const Schedule* schedule);
+
+  InstructionSequence(Zone* zone, InstructionBlocks* instruction_blocks);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
 
   const InstructionBlocks& instruction_blocks() const {
-    return instruction_blocks_;
+    return *instruction_blocks_;
   }
 
   int InstructionBlockCount() const {
-    return static_cast<int>(instruction_blocks_.size());
+    return static_cast<int>(instruction_blocks_->size());
   }
 
   InstructionBlock* InstructionBlockAt(BasicBlock::RpoNumber rpo_number) {
-    return instruction_blocks_[rpo_number.ToSize()];
+    return instruction_blocks_->at(rpo_number.ToSize());
   }
 
   int LastLoopInstructionIndex(const InstructionBlock* block) {
-    return instruction_blocks_[block->loop_end().ToSize() - 1]
+    return instruction_blocks_->at(block->loop_end().ToSize() - 1)
         ->last_instruction_index();
   }
 
   const InstructionBlock* InstructionBlockAt(
       BasicBlock::RpoNumber rpo_number) const {
-    return instruction_blocks_[rpo_number.ToSize()];
+    return instruction_blocks_->at(rpo_number.ToSize());
   }
 
   const InstructionBlock* GetInstructionBlock(int instruction_index) const;
@@ -961,7 +966,7 @@ class InstructionSequence FINAL {
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
   Zone* const zone_;
-  InstructionBlocks instruction_blocks_;
+  InstructionBlocks* const instruction_blocks_;
   ConstantMap constants_;
   ConstantDeque immediates_;
   InstructionDeque instructions_;

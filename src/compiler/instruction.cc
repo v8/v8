@@ -373,9 +373,11 @@ size_t InstructionBlock::PredecessorIndexOf(
 }
 
 
-static void InitializeInstructionBlocks(Zone* zone, const Schedule* schedule,
-                                        InstructionBlocks* blocks) {
-  DCHECK(blocks->size() == schedule->rpo_order()->size());
+InstructionBlocks* InstructionSequence::InstructionBlocksFor(
+    Zone* zone, const Schedule* schedule) {
+  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  new (blocks) InstructionBlocks(
+      static_cast<int>(schedule->rpo_order()->size()), NULL, zone);
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
@@ -383,14 +385,14 @@ static void InitializeInstructionBlocks(Zone* zone, const Schedule* schedule,
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
     (*blocks)[rpo_number] = new (zone) InstructionBlock(zone, *it);
   }
+  return blocks;
 }
 
 
 InstructionSequence::InstructionSequence(Zone* instruction_zone,
-                                         const Schedule* schedule)
+                                         InstructionBlocks* instruction_blocks)
     : zone_(instruction_zone),
-      instruction_blocks_(static_cast<int>(schedule->rpo_order()->size()), NULL,
-                          zone()),
+      instruction_blocks_(instruction_blocks),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
@@ -399,9 +401,7 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
       pointer_maps_(zone()),
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
-      deoptimization_entries_(zone()) {
-  InitializeInstructionBlocks(zone(), schedule, &instruction_blocks_);
-}
+      deoptimization_entries_(zone()) {}
 
 
 Label* InstructionSequence::GetLabel(BasicBlock::RpoNumber rpo) {
@@ -461,8 +461,8 @@ const InstructionBlock* InstructionSequence::GetInstructionBlock(
     DCHECK_LE(0, instruction_index);
     Instruction* instruction = InstructionAt(instruction_index--);
     if (instruction->IsBlockStart()) {
-      return instruction_blocks_
-          [BlockStartInstruction::cast(instruction)->rpo_number().ToSize()];
+      return instruction_blocks_->at(
+          BlockStartInstruction::cast(instruction)->rpo_number().ToSize());
     }
   }
 }

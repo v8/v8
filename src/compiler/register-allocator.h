@@ -317,7 +317,7 @@ class LiveRange FINAL : public ZoneObject {
 };
 
 
-class RegisterAllocator BASE_EMBEDDED {
+class RegisterAllocator FINAL {
  public:
   class Config {
    public:
