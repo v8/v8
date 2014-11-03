@@ -219,7 +219,8 @@ std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
 
 class GraphVisualizer {
  public:
-  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph);  // NOLINT
+  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph)
+      : all_(zone, graph), os_(os) {}
 
   void Print();
 
@@ -228,10 +229,8 @@ class GraphVisualizer {
  private:
   void PrintEdge(Node::Edge edge);
 
-  Zone* zone_;
   AllNodes all_;
   std::ostream& os_;
-  const Graph* const graph_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphVisualizer);
 };
@@ -388,14 +387,6 @@ void GraphVisualizer::Print() {
   }
   os_ << "}\n";
 }
-
-
-GraphVisualizer::GraphVisualizer(std::ostream& os, Zone* zone,
-                                 const Graph* graph)  // NOLINT
-    : zone_(zone),
-      all_(zone, graph),
-      os_(os),
-      graph_(graph) {}
 
 
 std::ostream& operator<<(std::ostream& os, const AsDOT& ad) {
