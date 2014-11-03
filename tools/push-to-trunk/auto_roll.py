@@ -42,6 +42,7 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of the last push to trunk."
 
   def RunStep(self):
+    self.vc.Fetch()
     push_hash = self.FindLastTrunkPush(
         branch="origin/candidates", include_patches=True)
     self["last_push"] = self.GetCommitPositionNumber(push_hash)

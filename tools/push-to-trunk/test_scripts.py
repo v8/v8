@@ -1178,6 +1178,8 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
+      Cmd("git fetch", ""),
+      Cmd("git svn fetch", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
@@ -1199,6 +1201,8 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
+      Cmd("git fetch", ""),
+      Cmd("git svn fetch", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
