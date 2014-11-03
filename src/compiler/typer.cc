@@ -251,41 +251,16 @@ class Typer::RunVisitor : public Typer::Visitor {
       : Visitor(typer),
         redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
-  GenericGraphVisit::Control Post(Node* node) {
+  void Post(Node* node) {
     if (node->op()->ValueOutputCount() > 0) {
       Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
       // Remember incompletely typed nodes for least fixpoint iteration.
       if (!NodeProperties::AllValueInputsAreTyped(node)) redo.insert(node);
     }
-    return GenericGraphVisit::CONTINUE;
   }
 
   NodeSet redo;
-};
-
-
-class Typer::NarrowVisitor : public Typer::Visitor {
- public:
-  explicit NarrowVisitor(Typer* typer) : Visitor(typer) {}
-
-  GenericGraphVisit::Control Pre(Node* node) {
-    if (node->op()->ValueOutputCount() > 0) {
-      Bounds previous = NodeProperties::GetBounds(node);
-      Bounds current = TypeNode(node);
-      NodeProperties::SetBounds(node, Bounds::Both(current, previous, zone()));
-      DCHECK(current.Narrows(previous));
-      // Stop when nothing changed (but allow re-entry in case it does later).
-      return previous.Narrows(current) ? GenericGraphVisit::DEFER
-                                       : GenericGraphVisit::REENTER;
-    } else {
-      return GenericGraphVisit::SKIP;
-    }
-  }
-
-  GenericGraphVisit::Control Post(Node* node) {
-    return GenericGraphVisit::REENTER;
-  }
 };
 
 
@@ -358,12 +333,6 @@ void Typer::Run() {
   // Find least fixpoint.
   WidenVisitor widen(this);
   widen.Run(&typing.redo);
-}
-
-
-void Typer::Narrow(Node* start) {
-  NarrowVisitor typing(this);
-  graph_->VisitNodeUsesFrom(start, &typing);
 }
 
 

@@ -66,7 +66,7 @@ class JSONGraphNodeWriter : public NullNodeVisitor {
 
   void Print() { const_cast<Graph*>(graph_)->VisitNodeInputsFromEnd(this); }
 
-  GenericGraphVisit::Control Pre(Node* node);
+  void Pre(Node* node);
 
  private:
   std::ostream& os_;
@@ -77,7 +77,7 @@ class JSONGraphNodeWriter : public NullNodeVisitor {
 };
 
 
-GenericGraphVisit::Control JSONGraphNodeWriter::Pre(Node* node) {
+void JSONGraphNodeWriter::Pre(Node* node) {
   if (first_node_) {
     first_node_ = false;
   } else {
@@ -105,7 +105,6 @@ GenericGraphVisit::Control JSONGraphNodeWriter::Pre(Node* node) {
   os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                              : "false");
   os_ << "}";
-  return GenericGraphVisit::CONTINUE;
 }
 
 
@@ -172,7 +171,7 @@ class GraphVisualizer : public NullNodeVisitor {
 
   void Print();
 
-  GenericGraphVisit::Control Pre(Node* node);
+  void Pre(Node* node);
 
  private:
   void AnnotateNode(Node* node);
@@ -202,7 +201,7 @@ static Node* GetControlCluster(Node* node) {
 }
 
 
-GenericGraphVisit::Control GraphVisualizer::Pre(Node* node) {
+void GraphVisualizer::Pre(Node* node) {
   if (all_nodes_.count(node) == 0) {
     Node* control_cluster = GetControlCluster(node);
     if (control_cluster != NULL) {
@@ -215,7 +214,6 @@ GenericGraphVisit::Control GraphVisualizer::Pre(Node* node) {
     all_nodes_.insert(node);
     if (use_to_def_) white_nodes_.insert(node);
   }
-  return GenericGraphVisit::CONTINUE;
 }
 
 
