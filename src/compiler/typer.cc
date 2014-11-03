@@ -252,7 +252,7 @@ class Typer::RunVisitor : public Typer::Visitor {
         redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
   GenericGraphVisit::Control Post(Node* node) {
-    if (node->op()->ValueOutputCount() > 0 && !NodeProperties::IsTyped(node)) {
+    if (node->op()->ValueOutputCount() > 0) {
       Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
       // Remember incompletely typed nodes for least fixpoint iteration.
@@ -291,33 +291,64 @@ class Typer::NarrowVisitor : public Typer::Visitor {
 
 class Typer::WidenVisitor : public Typer::Visitor {
  public:
-  explicit WidenVisitor(Typer* typer) : Visitor(typer) {}
+  explicit WidenVisitor(Typer* typer)
+      : Visitor(typer),
+        local_zone_(zone()->isolate()),
+        enabled_(graph()->NodeCount(), true, &local_zone_),
+        queue_(&local_zone_) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
-    if (node->op()->ValueOutputCount() > 0) {
-      Bounds previous = BoundsOrNone(node);
-      Bounds current = TypeNode(node);
+  void Run(NodeSet* nodes) {
+    // Queue all the roots.
+    for (Node* node : *nodes) {
+      Queue(node);
+    }
 
-      // Speed up termination in the presence of range types:
-      current.upper = Weaken(current.upper, previous.upper);
-      current.lower = Weaken(current.lower, previous.lower);
+    while (!queue_.empty()) {
+      Node* node = queue_.front();
+      queue_.pop();
 
-      DCHECK(previous.lower->Is(current.lower));
-      DCHECK(previous.upper->Is(current.upper));
+      if (node->op()->ValueOutputCount() > 0) {
+        // Enable future queuing (and thus re-typing) of this node.
+        enabled_[node->id()] = true;
 
-      NodeProperties::SetBounds(node, current);
-      // Stop when nothing changed (but allow re-entry in case it does later).
-      return previous.Narrows(current) && current.Narrows(previous)
-                 ? GenericGraphVisit::DEFER
-                 : GenericGraphVisit::REENTER;
-    } else {
-      return GenericGraphVisit::SKIP;
+        // Compute the new type.
+        Bounds previous = BoundsOrNone(node);
+        Bounds current = TypeNode(node);
+
+        // Speed up termination in the presence of range types:
+        current.upper = Weaken(current.upper, previous.upper);
+        current.lower = Weaken(current.lower, previous.lower);
+
+        // Types should not get less precise.
+        DCHECK(previous.lower->Is(current.lower));
+        DCHECK(previous.upper->Is(current.upper));
+
+        NodeProperties::SetBounds(node, current);
+        // If something changed, push all uses into the queue.
+        if (!(previous.Narrows(current) && current.Narrows(previous))) {
+          for (Node* use : node->uses()) {
+            Queue(use);
+          }
+        }
+      }
+      // If there is no value output, we deliberately leave the node disabled
+      // for queuing - there is no need to type it.
     }
   }
 
-  GenericGraphVisit::Control Post(Node* node) {
-    return GenericGraphVisit::REENTER;
+  void Queue(Node* node) {
+    // If the node is enabled for queuing, push it to the queue and disable it
+    // (to avoid queuing it multiple times).
+    if (enabled_[node->id()]) {
+      queue_.push(node);
+      enabled_[node->id()] = false;
+    }
   }
+
+ private:
+  Zone local_zone_;
+  BoolVector enabled_;
+  ZoneQueue<Node*> queue_;
 };
 
 
@@ -326,9 +357,7 @@ void Typer::Run() {
   graph_->VisitNodeInputsFromEnd(&typing);
   // Find least fixpoint.
   WidenVisitor widen(this);
-  for (NodeSetIter it = typing.redo.begin(); it != typing.redo.end(); ++it) {
-    graph_->VisitNodeUsesFrom(*it, &widen);
-  }
+  widen.Run(&typing.redo);
 }
 
 
