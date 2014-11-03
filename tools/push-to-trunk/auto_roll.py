@@ -99,6 +99,8 @@ class RollChromium(Step):
             "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
       if self._options.dry_run:
         args.extend(["--dry-run"])
+      if self._options.work_dir:
+        args.extend(["--work-dir", self._options.work_dir])
       self._side_effect_handler.Call(chromium_roll.ChromiumRoll().Run, args)
 
 

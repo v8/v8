@@ -608,18 +608,6 @@ class Step(GitRecipesMixin):
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
 
-  def BootstrapV8Checkout(self):
-    if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
-      self.Die("Can't use v8 checkout with calling script as work checkout.")
-    # Directory containing the working v8 checkout.
-    work_dir = os.path.dirname(self.default_cwd)
-    assert os.path.join(work_dir, "v8") == self.default_cwd
-
-    if not os.path.exits(work_dir):
-      os.makedirs(work_dir)
-    if not os.path.exits(self.default_cwd):
-      self.Command("fetch", "v8")
-
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
@@ -755,6 +743,19 @@ class Step(GitRecipesMixin):
         "commit --non-interactive --username=%s --config-dir=%s -m \"%s\"" %
             (self._options.author, self._options.svn_config, commit_message),
         cwd=self._options.svn)
+
+
+class BootstrapStep(Step):
+  MESSAGE = "Bootstapping v8 checkout."
+
+  def RunStep(self):
+    if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
+      self.Die("Can't use v8 checkout with calling script as work checkout.")
+    # Directory containing the working v8 checkout.
+    if not os.path.exists(self._options.work_dir):
+      os.makedirs(self._options.work_dir)
+    if not os.path.exists(self.default_cwd):
+      self.Command("fetch", "v8", cwd=self._options.work_dir)
 
 
 class UploadStep(Step):
@@ -928,7 +929,7 @@ class ScriptsBase(object):
       os.remove(state_file)
 
     steps = []
-    for (number, step_class) in enumerate(step_classes):
+    for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
     for step in steps[options.step:]:
