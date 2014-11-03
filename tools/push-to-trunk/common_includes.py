@@ -48,7 +48,7 @@ from git_recipes import GitFailedException
 VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
-DEFAULT_CWD = os.path.dirname(
+V8_BASE = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -408,7 +408,7 @@ class GitTagsOnlyMixin(VCInterface):
     # is the case for all automated merge and push commits - also no title is
     # the prefix of another title).
     commit = None
-    for wait_interval in [3, 7, 15, 35, 35]:
+    for wait_interval in [3, 7, 15, 35, 45, 60]:
       self.step.Git("fetch")
       commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
       if commit:
@@ -470,7 +470,8 @@ class Step(GitRecipesMixin):
     self.vc.InjectStep(self)
 
     # The testing configuration might set a different default cwd.
-    self.default_cwd = self._config.get("DEFAULT_CWD") or DEFAULT_CWD
+    self.default_cwd = (self._config.get("DEFAULT_CWD") or
+                        os.path.join(self._options.work_dir, "v8"))
 
     assert self._number >= 0
     assert self._config is not None
@@ -744,6 +745,19 @@ class Step(GitRecipesMixin):
         cwd=self._options.svn)
 
 
+class BootstrapStep(Step):
+  MESSAGE = "Bootstapping v8 checkout."
+
+  def RunStep(self):
+    if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
+      self.Die("Can't use v8 checkout with calling script as work checkout.")
+    # Directory containing the working v8 checkout.
+    if not os.path.exists(self._options.work_dir):
+      os.makedirs(self._options.work_dir)
+    if not os.path.exists(self.default_cwd):
+      self.Command("fetch", "v8", cwd=self._options.work_dir)
+
+
 class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
@@ -859,6 +873,9 @@ class ScriptsBase(object):
     parser.add_argument("--vc-interface",
                         help=("Choose VC interface out of git_svn|"
                               "git_read_svn_write."))
+    parser.add_argument("--work-dir",
+                        help=("Location where to bootstrap a working v8 "
+                              "checkout."))
     self._PrepareOptions(parser)
 
     if args is None:  # pragma: no cover
@@ -898,6 +915,8 @@ class ScriptsBase(object):
 
     if not options.vc_interface:
       options.vc_interface = "git_read_svn_write"
+    if not options.work_dir:
+      options.work_dir = "/tmp/v8-release-scripts-work-dir"
     return options
 
   def RunSteps(self, step_classes, args=None):
@@ -910,7 +929,7 @@ class ScriptsBase(object):
       os.remove(state_file)
 
     steps = []
-    for (number, step_class) in enumerate(step_classes):
+    for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
     for step in steps[options.step:]:

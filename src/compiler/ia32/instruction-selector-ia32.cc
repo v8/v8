@@ -648,10 +648,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand* temps[] = {g.TempRegister(eax)};
   Emit(kIA32ImulHigh, g.DefineAsFixed(node, edx),
-       g.UseFixed(node->InputAt(0), eax), g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
+       g.UseFixed(node->InputAt(0), eax),
+       g.UseUniqueRegister(node->InputAt(1)));
 }
 
 
@@ -679,11 +678,9 @@ void InstructionSelector::VisitUint32Div(Node* node) {
 static inline void VisitMod(InstructionSelector* selector, Node* node,
                             ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  InstructionOperand* temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
-  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, edx),
                  g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)), temp_count, temps);
+                 g.UseUnique(node->InputAt(1)));
 }
 
 

@@ -118,6 +118,8 @@ class PushToCandidates(Step):
       args.extend(["--svn-config", self._options.svn_config])
     if self._options.vc_interface:
       args.extend(["--vc-interface", self._options.vc_interface])
+    if self._options.work_dir:
+      args.extend(["--work-dir", self._options.work_dir])
 
     # TODO(machenbach): Update the script before calling it.
     if self._options.push:

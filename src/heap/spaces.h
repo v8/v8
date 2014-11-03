@@ -1614,16 +1614,19 @@ class AllocationResult {
  public:
   // Implicit constructor from Object*.
   AllocationResult(Object* object)  // NOLINT
-      : object_(object),
-        retry_space_(INVALID_SPACE) {}
+      : object_(object) {
+    // AllocationResults can't return Smis, which are used to represent
+    // failure and the space to retry in.
+    CHECK(!object->IsSmi());
+  }
 
-  AllocationResult() : object_(NULL), retry_space_(INVALID_SPACE) {}
+  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
 
   static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
     return AllocationResult(space);
   }
 
-  inline bool IsRetry() { return retry_space_ != INVALID_SPACE; }
+  inline bool IsRetry() { return object_->IsSmi(); }
 
   template <typename T>
   bool To(T** obj) {
@@ -1639,16 +1642,18 @@ class AllocationResult {
 
   AllocationSpace RetrySpace() {
     DCHECK(IsRetry());
-    return retry_space_;
+    return static_cast<AllocationSpace>(Smi::cast(object_)->value());
   }
 
  private:
   explicit AllocationResult(AllocationSpace space)
-      : object_(NULL), retry_space_(space) {}
+      : object_(Smi::FromInt(static_cast<int>(space))) {}
 
   Object* object_;
-  AllocationSpace retry_space_;
 };
+
+
+STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
 
 
 class PagedSpace : public Space {

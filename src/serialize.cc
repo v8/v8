@@ -1903,7 +1903,7 @@ AllocationSpace Serializer::SpaceOfObject(HeapObject* object) {
     }
   }
   UNREACHABLE();
-  return INVALID_SPACE;
+  return FIRST_SPACE;
 }
 
 

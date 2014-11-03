@@ -694,6 +694,21 @@ Performance and stability improvements on all platforms."""
     commit_msg = """Line with "quotation marks"."""
     self._TestSquashCommits(change_log, commit_msg)
 
+  def testBootstrapper(self):
+    work_dir = self.MakeEmptyTempDirectory()
+    class FakeScript(ScriptsBase):
+      def _Steps(self):
+        return []
+
+    # Use the test configuration without the fake testing default work dir.
+    fake_config = dict(TEST_CONFIG)
+    del(fake_config["DEFAULT_CWD"])
+
+    self.Expect([
+      Cmd("fetch v8", "", cwd=work_dir),
+    ])
+    FakeScript(fake_config, self).Run(["--work-dir", work_dir])
+
   def _PushToTrunk(self, force=False, manual=False):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
 
@@ -967,7 +982,8 @@ Performance and stability improvements on all platforms.""", commit)
 
     args = ["-a", "author@chromium.org", "--revision", "push_hash",
             "--vc-interface", "git", "-f", "-r", "reviewer@chromium.org",
-            "--svn", svn_root, "--svn-config", "[CONFIG_DIR]"]
+            "--svn", svn_root, "--svn-config", "[CONFIG_DIR]",
+            "--work-dir", TEST_CONFIG["DEFAULT_CWD"]]
     PushToTrunk(TEST_CONFIG, self).Run(args)
 
     cl = FileToText(TEST_CONFIG["CHANGELOG_FILE"])
@@ -1318,7 +1334,7 @@ LOG=N
         lambda: MergeToBranch(TEST_CONFIG, self).Run(args))
 
     # Test that state recovery after restarting the script works.
-    args += ["-s", "3"]
+    args += ["-s", "4"]
     MergeToBranch(TEST_CONFIG, self).Run(args)
 
   def testMergeToBranchNewGit(self):
@@ -1459,7 +1475,7 @@ LOG=N
         lambda: MergeToBranch(TEST_CONFIG, self).Run(args))
 
     # Test that state recovery after restarting the script works.
-    args += ["-s", "3"]
+    args += ["-s", "4"]
     MergeToBranch(TEST_CONFIG, self).Run(args)
 
   def testReleases(self):

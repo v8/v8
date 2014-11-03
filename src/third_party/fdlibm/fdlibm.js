@@ -267,7 +267,7 @@ function KernelTan(x, y, returnTan) {
       }
     }
   }
-  if (ix >= 0x3fe59429) {  // |x| > .6744
+  if (ix >= 0x3fe59428) {  // |x| > .6744
     if (x < 0) {
       x = -x;
       y = -y;
