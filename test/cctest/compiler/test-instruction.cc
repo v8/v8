@@ -56,7 +56,7 @@ class InstructionTester : public HandleAndZoneScope {
       DCHECK(schedule.rpo_order()->size() > 0);
     }
     InstructionBlocks* instruction_blocks =
-        InstructionSequence::InstructionBlocksFor(main_zone(), &schedule);
+        TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
     code = new TestInstrSeq(main_zone(), instruction_blocks);
   }
 
