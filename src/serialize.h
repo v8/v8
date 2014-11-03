@@ -296,7 +296,7 @@ class SerializerDeserializer: public ObjectVisitor {
 
   // No reservation for large object space necessary.
   static const int kNumberOfPreallocatedSpaces = LO_SPACE;
-  static const int kNumberOfSpaces = INVALID_SPACE;
+  static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
   // Where the pointed-to object can be found:
