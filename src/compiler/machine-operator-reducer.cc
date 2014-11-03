@@ -654,8 +654,8 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
 
       Node* check =
           graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
-      Node* branch =
-          graph()->NewNode(common()->Branch(), check, graph()->start());
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                      check, graph()->start());
 
       Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
       Node* neg = Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask));
