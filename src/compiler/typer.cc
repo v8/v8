@@ -408,7 +408,9 @@ Type* Typer::Visitor::FalsifyUndefined(Type* type, Typer* t) {
 
 Type* Typer::Visitor::Rangify(Type* type, Typer* t) {
   if (type->IsRange()) return type;        // Shortcut.
-  if (!type->Is(t->integer)) return type;  // Give up.
+  if (!type->Is(t->integer) && !type->Is(Type::Integral32())) {
+    return type;  // Give up.
+  }
   Factory* f = t->isolate()->factory();
   return Type::Range(f->NewNumber(type->Min()), f->NewNumber(type->Max()),
                      t->zone());
