@@ -559,8 +559,8 @@ class Debug {
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();
-  // Returns whether the compile succeeded.
-  void RemoveDebugInfo(Handle<DebugInfo> debug_info);
+  void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
+  void RemoveDebugInfo(DebugInfo** debug_info);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 

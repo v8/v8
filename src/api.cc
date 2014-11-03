@@ -490,10 +490,12 @@ i::Object** V8::CopyPersistent(i::Object** obj) {
 }
 
 
-void V8::MakeWeak(i::Object** object,
-                  void* parameters,
-                  WeakCallback weak_callback) {
-  i::GlobalHandles::MakeWeak(object, parameters, weak_callback);
+void V8::MakeWeak(i::Object** object, void* parameters,
+                  WeakCallback weak_callback, V8::WeakHandleType weak_type) {
+  i::GlobalHandles::PhantomState phantom;
+  phantom = weak_type == V8::PhantomHandle ? i::GlobalHandles::Phantom
+                                           : i::GlobalHandles::Nonphantom;
+  i::GlobalHandles::MakeWeak(object, parameters, weak_callback, phantom);
 }
 
 

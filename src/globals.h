@@ -288,6 +288,7 @@ const uint32_t kFreeListZapValue = 0xfeed1eaf;
 #endif
 
 const int kCodeZapValue = 0xbadc0de;
+const uint32_t kPhantomReferenceZap = 0xca11bac;
 
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
