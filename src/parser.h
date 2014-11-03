@@ -853,8 +853,7 @@ class Parser : public ParserBase<ParserTraits> {
 
 bool ParserTraits::IsFutureStrictReserved(
     const AstRawString* identifier) const {
-  return identifier->IsOneByteEqualTo("yield") ||
-         parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
+  return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
 

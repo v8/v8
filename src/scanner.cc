@@ -1006,11 +1006,15 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 bool Scanner::IdentifierIsFutureStrictReserved(
     const AstRawString* string) const {
   // Keywords are always 1-byte strings.
-  return string->is_one_byte() &&
-         Token::FUTURE_STRICT_RESERVED_WORD ==
-             KeywordOrIdentifierToken(string->raw_data(), string->length(),
-                                      harmony_scoping_, harmony_modules_,
-                                      harmony_classes_);
+  if (!string->is_one_byte()) return false;
+  if (string->IsOneByteEqualTo("let") || string->IsOneByteEqualTo("static") ||
+      string->IsOneByteEqualTo("yield")) {
+    return true;
+  }
+  return Token::FUTURE_STRICT_RESERVED_WORD ==
+         KeywordOrIdentifierToken(string->raw_data(), string->length(),
+                                  harmony_scoping_, harmony_modules_,
+                                  harmony_classes_);
 }
 
 
