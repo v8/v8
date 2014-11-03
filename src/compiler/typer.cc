@@ -408,10 +408,19 @@ Type* Typer::Visitor::FalsifyUndefined(Type* type, Typer* t) {
 
 Type* Typer::Visitor::Rangify(Type* type, Typer* t) {
   if (type->IsRange()) return type;        // Shortcut.
-  if (!type->Is(t->integer)) return type;  // Give up.
+  if (!type->Is(t->integer) && !type->Is(Type::Integral32())) {
+    return type;  // Give up on non-integer types.
+  }
+  double min = type->Min();
+  double max = type->Max();
+  // Handle the degenerate case of empty bitset types (such as
+  // OtherUnsigned31 and OtherSigned32 on 64-bit architectures).
+  if (std::isnan(min)) {
+    DCHECK(std::isnan(max));
+    return type;
+  }
   Factory* f = t->isolate()->factory();
-  return Type::Range(f->NewNumber(type->Min()), f->NewNumber(type->Max()),
-                     t->zone());
+  return Type::Range(f->NewNumber(min), f->NewNumber(max), t->zone());
 }
 
 
