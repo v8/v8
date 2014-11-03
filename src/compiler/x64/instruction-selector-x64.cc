@@ -420,10 +420,9 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand* temps[] = {g.TempRegister(rax)};
   Emit(kX64ImulHigh32, g.DefineAsFixed(node, rdx),
-       g.UseFixed(node->InputAt(0), rax), g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
+       g.UseFixed(node->InputAt(0), rax),
+       g.UseUniqueRegister(node->InputAt(1)));
 }
 
 
@@ -460,10 +459,9 @@ void InstructionSelector::VisitUint64Div(Node* node) {
 static void VisitMod(InstructionSelector* selector, Node* node,
                      ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  InstructionOperand* temps[] = {g.TempRegister(rax), g.TempRegister(rdx)};
-  selector->Emit(
-      opcode, g.DefineAsFixed(node, rdx), g.UseFixed(node->InputAt(0), rax),
-      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  selector->Emit(opcode, g.DefineAsFixed(node, rdx),
+                 g.UseFixed(node->InputAt(0), rax),
+                 g.UseUniqueRegister(node->InputAt(1)));
 }
 
 
