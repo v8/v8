@@ -967,7 +967,8 @@ Performance and stability improvements on all platforms.""", commit)
 
     args = ["-a", "author@chromium.org", "--revision", "push_hash",
             "--vc-interface", "git", "-f", "-r", "reviewer@chromium.org",
-            "--svn", svn_root, "--svn-config", "[CONFIG_DIR]"]
+            "--svn", svn_root, "--svn-config", "[CONFIG_DIR]",
+            "--work-dir", TEST_CONFIG["DEFAULT_CWD"]]
     PushToTrunk(TEST_CONFIG, self).Run(args)
 
     cl = FileToText(TEST_CONFIG["CHANGELOG_FILE"])

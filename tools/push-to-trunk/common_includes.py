@@ -48,7 +48,7 @@ from git_recipes import GitFailedException
 VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
-DEFAULT_CWD = os.path.dirname(
+V8_BASE = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -470,7 +470,8 @@ class Step(GitRecipesMixin):
     self.vc.InjectStep(self)
 
     # The testing configuration might set a different default cwd.
-    self.default_cwd = self._config.get("DEFAULT_CWD") or DEFAULT_CWD
+    self.default_cwd = (self._config.get("DEFAULT_CWD") or
+                        os.path.join(self._options.work_dir, "v8"))
 
     assert self._number >= 0
     assert self._config is not None
@@ -606,6 +607,18 @@ class Step(GitRecipesMixin):
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
+
+  def BootstrapV8Checkout(self):
+    if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
+      self.Die("Can't use v8 checkout with calling script as work checkout.")
+    # Directory containing the working v8 checkout.
+    work_dir = os.path.dirname(self.default_cwd)
+    assert os.path.join(work_dir, "v8") == self.default_cwd
+
+    if not os.path.exits(work_dir):
+      os.makedirs(work_dir)
+    if not os.path.exits(self.default_cwd):
+      self.Command("fetch", "v8")
 
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
@@ -859,6 +872,9 @@ class ScriptsBase(object):
     parser.add_argument("--vc-interface",
                         help=("Choose VC interface out of git_svn|"
                               "git_read_svn_write."))
+    parser.add_argument("--work-dir",
+                        help=("Location where to bootstrap a working v8 "
+                              "checkout."))
     self._PrepareOptions(parser)
 
     if args is None:  # pragma: no cover
@@ -898,6 +914,8 @@ class ScriptsBase(object):
 
     if not options.vc_interface:
       options.vc_interface = "git_read_svn_write"
+    if not options.work_dir:
+      options.work_dir = "/tmp/v8-release-scripts-work-dir"
     return options
 
   def RunSteps(self, step_classes, args=None):
