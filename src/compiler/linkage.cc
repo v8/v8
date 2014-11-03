@@ -220,7 +220,8 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
 // Provide unimplemented methods on unsupported architectures, to at least link.
 //==============================================================================
 #if !V8_TURBOFAN_BACKEND
-CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
+CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
+                                             CallDescriptor::Flags flags) {
   UNIMPLEMENTED();
   return NULL;
 }
