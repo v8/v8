@@ -13,10 +13,12 @@ namespace internal {
 
 
 Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
-                                                  int number_of_transitions) {
-  Handle<FixedArray> array =
-      isolate->factory()->NewFixedArray(ToKeyIndex(number_of_transitions));
+                                                  int number_of_transitions,
+                                                  int slack) {
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(
+      LengthFor(number_of_transitions + slack));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
+  array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
   return Handle<TransitionArray>::cast(array);
 }
 
@@ -74,6 +76,7 @@ Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
   if (new_nof != nof) {
     DCHECK(new_nof == 0);
     result->Shrink(ToKeyIndex(0));
+    result->SetNumberOfTransitions(0);
   } else if (nof == 1) {
     result->NoIncrementalWriteBarrierCopyFrom(
         containing_map->transitions(), kSimpleTransitionIndex, 0);
@@ -85,21 +88,47 @@ Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
 }
 
 
-Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
-                                                    Handle<Name> name,
-                                                    Handle<Map> target,
-                                                    SimpleTransitionFlag flag) {
+Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
+                                                Handle<Name> name,
+                                                Handle<Map> target,
+                                                SimpleTransitionFlag flag) {
   if (!map->HasTransitionArray()) {
     return TransitionArray::NewWith(map, name, target, flag);
   }
 
   int number_of_transitions = map->transitions()->number_of_transitions();
-  int new_size = number_of_transitions;
+  int new_nof = number_of_transitions;
 
   int insertion_index = map->transitions()->Search(*name);
-  if (insertion_index == kNotFound) ++new_size;
+  if (insertion_index == kNotFound) ++new_nof;
+  CHECK(new_nof <= kMaxNumberOfTransitions);
 
-  Handle<TransitionArray> result = Allocate(map->GetIsolate(), new_size);
+  if (new_nof <= map->transitions()->number_of_transitions_storage()) {
+    DisallowHeapAllocation no_gc;
+    TransitionArray* array = map->transitions();
+
+    if (insertion_index != kNotFound) {
+      array->SetTarget(insertion_index, *target);
+      return handle(array);
+    }
+
+    array->SetNumberOfTransitions(new_nof);
+    uint32_t hash = name->Hash();
+    for (insertion_index = number_of_transitions; insertion_index > 0;
+         --insertion_index) {
+      Name* key = array->GetKey(insertion_index - 1);
+      if (key->Hash() <= hash) break;
+      array->SetKey(insertion_index, key);
+      array->SetTarget(insertion_index, array->GetTarget(insertion_index - 1));
+    }
+    array->SetKey(insertion_index, *name);
+    array->SetTarget(insertion_index, *target);
+    return handle(array);
+  }
+
+  Handle<TransitionArray> result = Allocate(
+      map->GetIsolate(), new_nof,
+      Map::SlackForArraySize(number_of_transitions, kMaxNumberOfTransitions));
 
   // The map's transition array may grown smaller during the allocation above as
   // it was weakly traversed, though it is guaranteed not to disappear. Trim the
@@ -111,27 +140,17 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
     DCHECK(array->number_of_transitions() < number_of_transitions);
 
     number_of_transitions = array->number_of_transitions();
-    new_size = number_of_transitions;
+    new_nof = number_of_transitions;
 
     insertion_index = array->Search(*name);
-    if (insertion_index == kNotFound) ++new_size;
+    if (insertion_index == kNotFound) ++new_nof;
 
-    result->Shrink(ToKeyIndex(new_size));
+    result->Shrink(ToKeyIndex(new_nof));
+    result->SetNumberOfTransitions(new_nof);
   }
 
   if (array->HasPrototypeTransitions()) {
     result->SetPrototypeTransitions(array->GetPrototypeTransitions());
-  }
-
-  if (insertion_index != kNotFound) {
-    for (int i = 0; i < number_of_transitions; ++i) {
-      if (i != insertion_index) {
-        result->NoIncrementalWriteBarrierCopyFrom(array, i, i);
-      }
-    }
-    result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
-    result->set_back_pointer_storage(array->back_pointer_storage());
-    return result;
   }
 
   insertion_index = 0;
