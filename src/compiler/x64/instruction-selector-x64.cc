@@ -405,6 +405,36 @@ void VisitMul(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   }
 }
 
+
+void VisitMulHigh(InstructionSelector* selector, Node* node,
+                  ArchOpcode opcode) {
+  X64OperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (selector->IsLive(left) && !selector->IsLive(right)) {
+    std::swap(left, right);
+  }
+  selector->Emit(opcode, g.DefineAsFixed(node, rdx), g.UseFixed(left, rax),
+                 g.UseUnique(right));
+}
+
+
+void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
+  X64OperandGenerator g(selector);
+  InstructionOperand* temps[] = {g.TempRegister(rdx)};
+  selector->Emit(
+      opcode, g.DefineAsFixed(node, rax), g.UseFixed(node->InputAt(0), rax),
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
+
+void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
+  X64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsFixed(node, rdx),
+                 g.UseFixed(node->InputAt(0), rax),
+                 g.UseUniqueRegister(node->InputAt(1)));
+}
+
 }  // namespace
 
 
@@ -419,20 +449,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64ImulHigh32, g.DefineAsFixed(node, rdx),
-       g.UseFixed(node->InputAt(0), rax),
-       g.UseUniqueRegister(node->InputAt(1)));
-}
-
-
-static void VisitDiv(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode) {
-  X64OperandGenerator g(selector);
-  InstructionOperand* temps[] = {g.TempRegister(rdx)};
-  selector->Emit(
-      opcode, g.DefineAsFixed(node, rax), g.UseFixed(node->InputAt(0), rax),
-      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  VisitMulHigh(this, node, kX64ImulHigh32);
 }
 
 
@@ -456,15 +473,6 @@ void InstructionSelector::VisitUint64Div(Node* node) {
 }
 
 
-static void VisitMod(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode) {
-  X64OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsFixed(node, rdx),
-                 g.UseFixed(node->InputAt(0), rax),
-                 g.UseUniqueRegister(node->InputAt(1)));
-}
-
-
 void InstructionSelector::VisitInt32Mod(Node* node) {
   VisitMod(this, node, kX64Idiv32);
 }
@@ -482,6 +490,11 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 
 void InstructionSelector::VisitUint64Mod(Node* node) {
   VisitMod(this, node, kX64Udiv);
+}
+
+
+void InstructionSelector::VisitUint32MulHigh(Node* node) {
+  VisitMulHigh(this, node, kX64UmulHigh32);
 }
 
 
@@ -544,7 +557,8 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
     case IrOpcode::kUint32Div:
     case IrOpcode::kUint32LessThan:
     case IrOpcode::kUint32LessThanOrEqual:
-    case IrOpcode::kUint32Mod: {
+    case IrOpcode::kUint32Mod:
+    case IrOpcode::kUint32MulHigh: {
       // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
       // zero-extension is a no-op.
       Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));

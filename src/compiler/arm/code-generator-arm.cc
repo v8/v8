@@ -248,6 +248,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                i.InputRegister(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmUmull:
+      __ umull(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+               i.InputRegister(1), i.OutputSBit());
+      break;
     case kArmSdiv: {
       CpuFeatureScope scope(masm(), SUDIV);
       __ sdiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));

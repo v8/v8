@@ -247,6 +247,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kIA32ImulHigh:
       __ imul(i.InputRegister(1));
       break;
+    case kIA32UmulHigh:
+      __ mul(i.InputRegister(1));
+      break;
     case kIA32Idiv:
       __ cdq();
       __ idiv(i.InputOperand(1));

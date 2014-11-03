@@ -1606,7 +1606,7 @@ Bounds Typer::Visitor::TypeInt32Mul(Node* node) {
 
 
 Bounds Typer::Visitor::TypeInt32MulHigh(Node* node) {
-  return Bounds(Type::Integral32());
+  return Bounds(Type::Signed32());
 }
 
 
@@ -1646,6 +1646,11 @@ Bounds Typer::Visitor::TypeUint32LessThanOrEqual(Node* node) {
 
 
 Bounds Typer::Visitor::TypeUint32Mod(Node* node) {
+  return Bounds(Type::Unsigned32());
+}
+
+
+Bounds Typer::Visitor::TypeUint32MulHigh(Node* node) {
   return Bounds(Type::Unsigned32());
 }
 

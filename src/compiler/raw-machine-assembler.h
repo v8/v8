@@ -102,14 +102,15 @@ class RawMachineAssembler : public GraphBuilder {
     return Load(rep, base, Int32Constant(0));
   }
   Node* Load(MachineType rep, Node* base, Node* index) {
-    return NewNode(machine()->Load(rep), base, index);
+    return NewNode(machine()->Load(rep), base, index, graph()->start(),
+                   graph()->start());
   }
   void Store(MachineType rep, Node* base, Node* value) {
     Store(rep, base, Int32Constant(0), value);
   }
   void Store(MachineType rep, Node* base, Node* index, Node* value) {
     NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
-            index, value);
+            index, value, graph()->start(), graph()->start());
   }
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
@@ -231,10 +232,10 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->Int32MulHigh(), a, b);
   }
   Node* Int32Div(Node* a, Node* b) {
-    return NewNode(machine()->Int32Div(), a, b);
+    return NewNode(machine()->Int32Div(), a, b, graph()->start());
   }
   Node* Int32Mod(Node* a, Node* b) {
-    return NewNode(machine()->Int32Mod(), a, b);
+    return NewNode(machine()->Int32Mod(), a, b, graph()->start());
   }
   Node* Int32LessThan(Node* a, Node* b) {
     return NewNode(machine()->Int32LessThan(), a, b);
@@ -243,7 +244,7 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->Int32LessThanOrEqual(), a, b);
   }
   Node* Uint32Div(Node* a, Node* b) {
-    return NewNode(machine()->Uint32Div(), a, b);
+    return NewNode(machine()->Uint32Div(), a, b, graph()->start());
   }
   Node* Uint32LessThan(Node* a, Node* b) {
     return NewNode(machine()->Uint32LessThan(), a, b);
@@ -252,7 +253,10 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->Uint32LessThanOrEqual(), a, b);
   }
   Node* Uint32Mod(Node* a, Node* b) {
-    return NewNode(machine()->Uint32Mod(), a, b);
+    return NewNode(machine()->Uint32Mod(), a, b, graph()->start());
+  }
+  Node* Uint32MulHigh(Node* a, Node* b) {
+    return NewNode(machine()->Uint32MulHigh(), a, b);
   }
   Node* Int32GreaterThan(Node* a, Node* b) { return Int32LessThan(b, a); }
   Node* Int32GreaterThanOrEqual(Node* a, Node* b) {

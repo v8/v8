@@ -198,6 +198,7 @@
   V(Uint32LessThan)           \
   V(Uint32LessThanOrEqual)    \
   V(Uint32Mod)                \
+  V(Uint32MulHigh)            \
   V(Int64Add)                 \
   V(Int64Sub)                 \
   V(Int64Mul)                 \

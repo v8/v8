@@ -688,6 +688,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kInt32LessThanOrEqual:
     case IrOpcode::kUint32Div:
     case IrOpcode::kUint32Mod:
+    case IrOpcode::kUint32MulHigh:
     case IrOpcode::kUint32LessThan:
     case IrOpcode::kUint32LessThanOrEqual:
     case IrOpcode::kInt64Add:

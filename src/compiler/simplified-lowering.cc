@@ -857,11 +857,13 @@ class RepresentationSelector {
       case IrOpcode::kInt32Add:
       case IrOpcode::kInt32Sub:
       case IrOpcode::kInt32Mul:
+      case IrOpcode::kInt32MulHigh:
       case IrOpcode::kInt32Div:
       case IrOpcode::kInt32Mod:
         return VisitInt32Binop(node);
       case IrOpcode::kUint32Div:
       case IrOpcode::kUint32Mod:
+      case IrOpcode::kUint32MulHigh:
         return VisitUint32Binop(node);
       case IrOpcode::kInt32LessThan:
       case IrOpcode::kInt32LessThanOrEqual:

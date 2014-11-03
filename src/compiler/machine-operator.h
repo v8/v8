@@ -108,6 +108,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Uint32LessThan();
   const Operator* Uint32LessThanOrEqual();
   const Operator* Uint32Mod();
+  const Operator* Uint32MulHigh();
   bool Int32DivIsSafe() const { return flags_ & kInt32DivIsSafe; }
   bool Int32ModIsSafe() const { return flags_ & kInt32ModIsSafe; }
   bool Uint32DivIsSafe() const { return flags_ & kUint32DivIsSafe; }

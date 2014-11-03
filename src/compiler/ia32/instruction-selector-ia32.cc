@@ -646,22 +646,43 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32ImulHigh, g.DefineAsFixed(node, edx),
-       g.UseFixed(node->InputAt(0), eax),
-       g.UseUniqueRegister(node->InputAt(1)));
+namespace {
+
+void VisitMulHigh(InstructionSelector* selector, Node* node,
+                  ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsFixed(node, edx),
+                 g.UseFixed(node->InputAt(0), eax),
+                 g.UseUniqueRegister(node->InputAt(1)));
 }
 
 
-static inline void VisitDiv(InstructionSelector* selector, Node* node,
-                            ArchOpcode opcode) {
+void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand* temps[] = {g.TempRegister(edx)};
-  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, eax),
                  g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)), temp_count, temps);
+                 g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
+}
+
+
+void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsFixed(node, edx),
+                 g.UseFixed(node->InputAt(0), eax),
+                 g.UseUnique(node->InputAt(1)));
+}
+
+}  // namespace
+
+
+void InstructionSelector::VisitInt32MulHigh(Node* node) {
+  VisitMulHigh(this, node, kIA32ImulHigh);
+}
+
+
+void InstructionSelector::VisitUint32MulHigh(Node* node) {
+  VisitMulHigh(this, node, kIA32UmulHigh);
 }
 
 
@@ -672,15 +693,6 @@ void InstructionSelector::VisitInt32Div(Node* node) {
 
 void InstructionSelector::VisitUint32Div(Node* node) {
   VisitDiv(this, node, kIA32Udiv);
-}
-
-
-static inline void VisitMod(InstructionSelector* selector, Node* node,
-                            ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsFixed(node, edx),
-                 g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)));
 }
 
 
