@@ -50,6 +50,25 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
+  # Array.fill (currently requires --harmony-arrays)
+  'S22.1.3.6_T1': [FAIL],
+
+  # Array.find (currently requires --harmony-arrays)
+  'S22.1.2.3_T1': [FAIL],
+  'S22.1.2.3_T2': [FAIL],
+  'Array.prototype.find_empty-array-undefined': [FAIL],
+  'Array.prototype.find_length-property': [FAIL],
+  'Array.prototype.find_modify-after-start': [FAIL],
+  'Array.prototype.find_non-returning-predicate': [FAIL],
+  'Array.prototype.find_predicate-arguments': [FAIL],
+  'Array.prototype.find_push-after-start': [FAIL],
+  'Array.prototype.find_remove-after-start': [FAIL],
+  'Array.prototype.find_return-found-value': [FAIL],
+  'Array.prototype.find_skip-empty': [FAIL],
+  'Array.prototype.find_this-defined': [FAIL],
+  'Array.prototype.find_this-is-object': [FAIL],
+  'Array.prototype.find_this-undefined': [FAIL],
+
   # Array.from
   'S22.1.2.1_T1': [FAIL],
   'S22.1.2.1_T2': [FAIL],
