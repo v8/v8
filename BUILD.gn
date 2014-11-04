@@ -1383,6 +1383,7 @@ if (current_toolchain == host_toolchain) {
       ":v8_base",
       ":v8_libplatform",
       ":v8_nosnapshot",
+      "//build/config/sanitizers:deps",
     ]
 
     if (v8_compress_startup_data == "bz2") {
