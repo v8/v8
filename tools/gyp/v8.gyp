@@ -484,6 +484,8 @@
         '../../src/compiler/raw-machine-assembler.h',
         '../../src/compiler/register-allocator.cc',
         '../../src/compiler/register-allocator.h',
+        '../../src/compiler/register-configuration.cc',
+        '../../src/compiler/register-configuration.h',
         '../../src/compiler/representation-change.h',
         '../../src/compiler/schedule.cc',
         '../../src/compiler/schedule.h',

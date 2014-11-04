@@ -5,7 +5,6 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
-#include "src/macro-assembler.h"  // TODO(dcarney): remove this.
 #include "src/string-stream.h"
 
 namespace v8 {
@@ -507,22 +506,9 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
-RegisterAllocator::Config RegisterAllocator::PlatformConfig() {
-  DCHECK_EQ(Register::kMaxNumAllocatableRegisters,
-            Register::NumAllocatableRegisters());
-  Config config;
-  config.num_general_registers_ = Register::kMaxNumAllocatableRegisters;
-  config.num_double_registers_ = DoubleRegister::kMaxNumAllocatableRegisters;
-  config.num_aliased_double_registers_ =
-      DoubleRegister::NumAllocatableAliasedRegisters();
-  config.GeneralRegisterName = Register::AllocationIndexToString;
-  config.DoubleRegisterName = DoubleRegister::AllocationIndexToString;
-  return config;
-}
-
-
-RegisterAllocator::RegisterAllocator(const Config& config, Zone* local_zone,
-                                     Frame* frame, InstructionSequence* code,
+RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
+                                     Zone* local_zone, Frame* frame,
+                                     InstructionSequence* code,
                                      const char* debug_name)
     : zone_(local_zone),
       frame_(frame),
@@ -531,8 +517,8 @@ RegisterAllocator::RegisterAllocator(const Config& config, Zone* local_zone,
       config_(config),
       live_in_sets_(code->InstructionBlockCount(), zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, zone()),
-      fixed_live_ranges_(this->config().num_general_registers_, NULL, zone()),
-      fixed_double_live_ranges_(this->config().num_double_registers_, NULL,
+      fixed_live_ranges_(this->config()->num_general_registers(), NULL, zone()),
+      fixed_double_live_ranges_(this->config()->num_double_registers(), NULL,
                                 zone()),
       unhandled_live_ranges_(code->VirtualRegisterCount() * 2, zone()),
       active_live_ranges_(8, zone()),
@@ -541,12 +527,14 @@ RegisterAllocator::RegisterAllocator(const Config& config, Zone* local_zone,
       mode_(UNALLOCATED_REGISTERS),
       num_registers_(-1),
       allocation_ok_(true) {
-  DCHECK(this->config().num_general_registers_ <= kMaxGeneralRegisters);
-  DCHECK(this->config().num_double_registers_ <= kMaxDoubleRegisters);
+  DCHECK(this->config()->num_general_registers() <=
+         RegisterConfiguration::kMaxGeneralRegisters);
+  DCHECK(this->config()->num_double_registers() <=
+         RegisterConfiguration::kMaxDoubleRegisters);
   // TryAllocateFreeReg and AllocateBlockedReg assume this
   // when allocating local arrays.
-  DCHECK(this->config().num_double_registers_ >=
-         this->config().num_general_registers_);
+  DCHECK(this->config()->num_double_registers() >=
+         this->config()->num_general_registers());
 }
 
 
@@ -603,7 +591,7 @@ void RegisterAllocator::AddInitialIntervals(const InstructionBlock* block,
 
 
 int RegisterAllocator::FixedDoubleLiveRangeID(int index) {
-  return -index - 1 - config().num_general_registers_;
+  return -index - 1 - config()->num_general_registers();
 }
 
 
@@ -635,7 +623,7 @@ InstructionOperand* RegisterAllocator::AllocateFixed(
 
 
 LiveRange* RegisterAllocator::FixedLiveRangeFor(int index) {
-  DCHECK(index < config().num_general_registers_);
+  DCHECK(index < config()->num_general_registers());
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     // TODO(titzer): add a utility method to allocate a new LiveRange:
@@ -653,7 +641,7 @@ LiveRange* RegisterAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* RegisterAllocator::FixedDoubleLiveRangeFor(int index) {
-  DCHECK(index < config().num_aliased_double_registers_);
+  DCHECK(index < config()->num_aliased_double_registers());
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new (zone()) LiveRange(FixedDoubleLiveRangeID(index), code_zone());
@@ -1031,7 +1019,7 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
       }
 
       if (instr->ClobbersRegisters()) {
-        for (int i = 0; i < config().num_general_registers_; ++i) {
+        for (int i = 0; i < config()->num_general_registers(); ++i) {
           if (!IsOutputRegisterOf(instr, i)) {
             LiveRange* range = FixedLiveRangeFor(i);
             range->AddUseInterval(curr_position, curr_position.InstructionEnd(),
@@ -1041,7 +1029,7 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
       }
 
       if (instr->ClobbersDoubleRegisters()) {
-        for (int i = 0; i < config().num_aliased_double_registers_; ++i) {
+        for (int i = 0; i < config()->num_aliased_double_registers(); ++i) {
           if (!IsOutputDoubleRegisterOf(instr, i)) {
             LiveRange* range = FixedDoubleLiveRangeFor(i);
             range->AddUseInterval(curr_position, curr_position.InstructionEnd(),
@@ -1126,10 +1114,10 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
 
 
 bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
-  assigned_registers_ =
-      new (code_zone()) BitVector(config().num_general_registers_, code_zone());
+  assigned_registers_ = new (code_zone())
+      BitVector(config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
-      BitVector(config().num_aliased_double_registers_, code_zone());
+      BitVector(config()->num_aliased_double_registers(), code_zone());
   {
     PhaseScope phase_scope(stats, "meet register constraints");
     MeetRegisterConstraints();
@@ -1535,14 +1523,14 @@ void RegisterAllocator::PopulatePointerMaps() {
 
 
 void RegisterAllocator::AllocateGeneralRegisters() {
-  num_registers_ = config().num_general_registers_;
+  num_registers_ = config()->num_general_registers();
   mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
 
 
 void RegisterAllocator::AllocateDoubleRegisters() {
-  num_registers_ = config().num_aliased_double_registers_;
+  num_registers_ = config()->num_aliased_double_registers();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
 }
@@ -1566,7 +1554,7 @@ void RegisterAllocator::AllocateRegisters() {
   DCHECK(inactive_live_ranges_.is_empty());
 
   if (mode_ == DOUBLE_REGISTERS) {
-    for (int i = 0; i < config().num_aliased_double_registers_; ++i) {
+    for (int i = 0; i < config()->num_aliased_double_registers(); ++i) {
       LiveRange* current = fixed_double_live_ranges_.at(i);
       if (current != NULL) {
         AddToInactive(current);
@@ -1658,9 +1646,9 @@ void RegisterAllocator::AllocateRegisters() {
 
 const char* RegisterAllocator::RegisterName(int allocation_index) {
   if (mode_ == GENERAL_REGISTERS) {
-    return config().GeneralRegisterName(allocation_index);
+    return config()->general_register_name(allocation_index);
   } else {
-    return config().DoubleRegisterName(allocation_index);
+    return config()->double_register_name(allocation_index);
   }
 }
 
@@ -1805,7 +1793,7 @@ void RegisterAllocator::InactiveToActive(LiveRange* range) {
 
 
 bool RegisterAllocator::TryAllocateFreeReg(LiveRange* current) {
-  LifetimePosition free_until_pos[kMaxDoubleRegisters];
+  LifetimePosition free_until_pos[RegisterConfiguration::kMaxDoubleRegisters];
 
   for (int i = 0; i < num_registers_; i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
@@ -1888,8 +1876,8 @@ void RegisterAllocator::AllocateBlockedReg(LiveRange* current) {
     return;
   }
 
-  LifetimePosition use_pos[kMaxGeneralRegisters];
-  LifetimePosition block_pos[kMaxDoubleRegisters];
+  LifetimePosition use_pos[RegisterConfiguration::kMaxGeneralRegisters];
+  LifetimePosition block_pos[RegisterConfiguration::kMaxDoubleRegisters];
 
   for (int i = 0; i < num_registers_; i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();

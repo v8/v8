@@ -558,8 +558,10 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
+    PrintableInstructionSequence printable = {
+        RegisterConfiguration::ArchDefault(), &sequence};
     os << "----- Instruction sequence before register allocation -----\n"
-       << sequence;
+       << printable;
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  &sequence);
@@ -587,7 +589,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
 #endif
 
 
-    RegisterAllocator allocator(RegisterAllocator::PlatformConfig(),
+    RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
                                 zone_scope.zone(), &frame, &sequence,
                                 debug_name.get());
     if (!allocator.Allocate(data->pipeline_statistics())) {
@@ -602,8 +604,10 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
+    PrintableInstructionSequence printable = {
+        RegisterConfiguration::ArchDefault(), &sequence};
     os << "----- Instruction sequence after register allocation -----\n"
-       << sequence;
+       << printable;
   }
 
   if (data->pipeline_statistics() != NULL) {

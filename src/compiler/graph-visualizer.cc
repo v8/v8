@@ -680,7 +680,9 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        os_ << j << " " << *instructions->InstructionAt(j) << " <|@\n";
+        PrintableInstruction printable = {RegisterConfiguration::ArchDefault(),
+                                          instructions->InstructionAt(j)};
+        os_ << j << " " << printable << " <|@\n";
       }
     }
   }

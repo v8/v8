@@ -75,18 +75,22 @@ class DeoptCodegenTester {
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {
+      PrintableInstructionSequence printable = {
+          RegisterConfiguration::ArchDefault(), code};
       os << "----- Instruction sequence before register allocation -----\n"
-         << *code;
+         << printable;
     }
 
     Frame frame;
-    RegisterAllocator allocator(RegisterAllocator::PlatformConfig(),
+    RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
                                 scope_->main_zone(), &frame, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {
+      PrintableInstructionSequence printable = {
+          RegisterConfiguration::ArchDefault(), code};
       os << "----- Instruction sequence after register allocation -----\n"
-         << *code;
+         << printable;
     }
 
     compiler::CodeGenerator generator(&frame, linkage, code, &info);

@@ -46,8 +46,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
+    PrintableInstructionSequence printable = {
+        RegisterConfiguration::ArchDefault(), &sequence};
     out << "=== Code sequence after instruction selection ===" << std::endl
-        << sequence;
+        << printable;
   }
   Stream s;
   // Map virtual registers.

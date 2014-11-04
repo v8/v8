@@ -319,19 +319,9 @@ class LiveRange FINAL : public ZoneObject {
 
 class RegisterAllocator FINAL {
  public:
-  class Config {
-   public:
-    int num_general_registers_;
-    int num_double_registers_;
-    int num_aliased_double_registers_;
-    const char* (*GeneralRegisterName)(int allocation_index);
-    const char* (*DoubleRegisterName)(int allocation_index);
-  };
-
-  static Config PlatformConfig();
-
-  explicit RegisterAllocator(const Config& config, Zone* local_zone,
-                             Frame* frame, InstructionSequence* code,
+  explicit RegisterAllocator(const RegisterConfiguration* config,
+                             Zone* local_zone, Frame* frame,
+                             InstructionSequence* code,
                              const char* debug_name = nullptr);
 
   bool Allocate(PipelineStatistics* stats = NULL);
@@ -502,14 +492,14 @@ class RegisterAllocator FINAL {
 
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
-  const Config& config() const { return config_; }
+  const RegisterConfiguration* config() const { return config_; }
 
   Zone* const zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
   const char* const debug_name_;
 
-  const Config config_;
+  const RegisterConfiguration* config_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.
