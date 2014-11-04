@@ -32,7 +32,7 @@ Reduction SelectLowering::Reduce(Node* node) {
   auto i = merges_.find(cond);
   if (i == merges_.end()) {
     // Create a new diamond for this condition and remember its merge node.
-    Diamond d(graph(), common(), cond);
+    Diamond d(graph(), common(), cond, p.hint());
     i = merges_.insert(std::make_pair(cond, d.merge)).first;
   }
 
