@@ -252,8 +252,8 @@ function ObjectHasOwnProperty(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectIsPrototypeOf(V) {
-  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   if (!IS_SPEC_OBJECT(V)) return false;
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   return %IsInPrototypeChain(this, V);
 }
 
