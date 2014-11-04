@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/codegen.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -640,22 +641,10 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
 
       Node* check =
           graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                      check, graph()->start());
-
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Diamond d(graph(), common(), check, BranchHint::kFalse);
       Node* neg = Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask));
-
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
       Node* pos = Word32And(dividend, mask);
-
-      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-
-      DCHECK_EQ(3, node->InputCount());
-      node->set_op(common()->Phi(kMachInt32, 2));
-      node->ReplaceInput(0, neg);
-      node->ReplaceInput(1, pos);
-      node->ReplaceInput(2, merge);
+      d.OverwriteWithPhi(node, kMachInt32, neg, pos);
     } else {
       Node* quotient = Int32Div(dividend, divisor);
       node->set_op(machine()->Int32Sub());

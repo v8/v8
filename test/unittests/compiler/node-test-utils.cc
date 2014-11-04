@@ -300,6 +300,45 @@ class IsPhiMatcher FINAL : public NodeMatcher {
 };
 
 
+class IsEffectPhiMatcher FINAL : public NodeMatcher {
+ public:
+  IsEffectPhiMatcher(const Matcher<Node*>& effect0_matcher,
+                     const Matcher<Node*>& effect1_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kEffectPhi),
+        effect0_matcher_(effect0_matcher),
+        effect1_matcher_(effect1_matcher),
+        control_matcher_(control_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << "), effect0 (";
+    effect0_matcher_.DescribeTo(os);
+    *os << "), effect1 (";
+    effect1_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node,
+                               MatchResultListener* listener) const OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node, 0),
+                                 "effect0", effect0_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node, 1),
+                                 "effect1", effect1_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> effect0_matcher_;
+  const Matcher<Node*> effect1_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsProjectionMatcher FINAL : public NodeMatcher {
  public:
   IsProjectionMatcher(const Matcher<size_t>& index_matcher,
@@ -877,6 +916,14 @@ Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
                      const Matcher<Node*>& merge_matcher) {
   return MakeMatcher(new IsPhiMatcher(type_matcher, value0_matcher,
                                       value1_matcher, merge_matcher));
+}
+
+
+Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
+                           const Matcher<Node*>& effect1_matcher,
+                           const Matcher<Node*>& merge_matcher) {
+  return MakeMatcher(
+      new IsEffectPhiMatcher(effect0_matcher, effect1_matcher, merge_matcher));
 }
 
 

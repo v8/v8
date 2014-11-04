@@ -411,6 +411,7 @@
         '../../src/compiler/control-builders.h',
         '../../src/compiler/control-reducer.cc',
         '../../src/compiler/control-reducer.h',
+        '../../src/compiler/diamond.h',
         '../../src/compiler/frame.h',
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
