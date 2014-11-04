@@ -140,13 +140,16 @@ Object* TransitionArray::GetTargetValue(int transition_number) {
 }
 
 
-int TransitionArray::Search(Name* name) {
+int TransitionArray::Search(Name* name, int* out_insertion_index) {
   if (IsSimpleTransition()) {
     Name* key = GetKey(kSimpleTransitionIndex);
     if (key->Equals(name)) return kSimpleTransitionIndex;
+    if (out_insertion_index != NULL) {
+      *out_insertion_index = key->Hash() > name->Hash() ? 0 : 1;
+    }
     return kNotFound;
   }
-  return internal::Search<ALL_ENTRIES>(this, name);
+  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
 }
 
 
