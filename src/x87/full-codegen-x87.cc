@@ -2191,22 +2191,25 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  const int instance_size = 5 * kPointerSize;
+  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
+            instance_size);
 
-  __ Allocate(map->instance_size(), eax, ecx, edx, &gc_required, TAG_OBJECT);
+  __ Allocate(instance_size, eax, ecx, edx, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
+  __ Push(Smi::FromInt(instance_size));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   __ mov(context_register(),
          Operand(ebp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
-  __ mov(ebx, map);
+  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
+  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(ecx);
   __ mov(edx, isolate()->factory()->ToBoolean(done));
-  DCHECK_EQ(map->instance_size(), 5 * kPointerSize);
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
          isolate()->factory()->empty_fixed_array());
@@ -2695,6 +2698,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
     __ push(Immediate(isolate()->factory()->undefined_value()));
   }
 
+  // Push the enclosing function.
+  __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   // Push the receiver of the enclosing function.
   __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
   // Push the language mode.
@@ -2704,7 +2709,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ push(Immediate(Smi::FromInt(scope()->start_position())));
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
 }
 
 
