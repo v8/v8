@@ -801,7 +801,7 @@ class Isolate {
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.
   void ComputeLocation(MessageLocation* target);
-  void ComputeLocationFromStackTrace(MessageLocation* target,
+  bool ComputeLocationFromStackTrace(MessageLocation* target,
                                      Handle<Object> exception);
 
   Handle<JSMessageObject> CreateMessage(Handle<Object> exception,
