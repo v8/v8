@@ -935,6 +935,11 @@ FunctionLiteral* Parser::ParseLazy() {
   }
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
 
+  // Lazy parsing is only done during runtime, when we're already using the
+  // heap. So make the AstValueFactory also internalize all values when it
+  // creates them (this is more efficient).
+  ast_value_factory()->Internalize(isolate());
+
   // Initialize parser state.
   source = String::Flatten(source);
   FunctionLiteral* result;
