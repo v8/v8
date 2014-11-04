@@ -632,7 +632,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Int32Div(node));
           break;
         }
-        if (CanLowerToUint32Binop(node, use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
           // => unsigned Uint32Div
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
