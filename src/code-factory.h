@@ -55,9 +55,13 @@ class CodeFactory FINAL {
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
 
+  static Callable AllocateHeapNumber(Isolate* isolate);
+
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
 };
-}
-}
+
+}  // namespace internal
+}  // namespace v8
+
 #endif  // V8_CODE_FACTORY_H_

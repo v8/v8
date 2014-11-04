@@ -4,6 +4,7 @@
 
 #include "src/compiler/change-lowering.h"
 
+#include "src/code-factory.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -66,19 +67,16 @@ Node* ChangeLowering::SmiShiftBitsConstant() {
 
 
 Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
-  // The AllocateHeapNumber() runtime function does not use the context, so we
-  // can safely pass in Smi zero here.
+  // The AllocateHeapNumberStub does not use the context, so we can safely pass
+  // in Smi zero here.
+  Callable callable = CodeFactory::AllocateHeapNumber(isolate());
+  CallDescriptor* descriptor = linkage()->GetStubCallDescriptor(
+      callable.descriptor(), 0, CallDescriptor::kNoFlags);
+  Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->ZeroConstant();
   Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
-  const Runtime::Function* function =
-      Runtime::FunctionForId(Runtime::kAllocateHeapNumber);
-  DCHECK_EQ(0, function->nargs);
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
-      function->function_id, 0, Operator::kNoProperties);
-  Node* heap_number = graph()->NewNode(
-      common()->Call(desc), jsgraph()->CEntryStubConstant(),
-      jsgraph()->ExternalConstant(ExternalReference(function, isolate())),
-      jsgraph()->Int32Constant(function->nargs), context, effect, control);
+  Node* heap_number = graph()->NewNode(common()->Call(descriptor), target,
+                                       context, effect, control);
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);

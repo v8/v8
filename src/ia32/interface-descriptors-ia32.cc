@@ -155,6 +155,15 @@ void TransitionElementsKindDescriptor::Initialize(
 }
 
 
+void AllocateHeapNumberDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // esi -- context
+  Register registers[] = {esi};
+  data->Initialize(arraysize(registers), registers, nullptr);
+}
+
+
 void ArrayConstructorConstantArgCountDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
   // register state

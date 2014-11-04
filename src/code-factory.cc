@@ -104,6 +104,13 @@ Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
 
 
 // static
+Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
+  AllocateHeapNumberStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::CallFunction(Isolate* isolate, int argc,
                                    CallFunctionFlags flags) {
   CallFunctionStub stub(isolate, argc, flags);
