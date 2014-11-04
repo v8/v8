@@ -1358,6 +1358,14 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
+static bool ShouldOptimizeNewClosure(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> info) {
+  return isolate->use_crankshaft() && !info->is_toplevel() &&
+         info->allows_lazy_compilation() && !info->optimization_disabled() &&
+         !isolate->DebuggerHasBreakPoints();
+}
+
+
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
@@ -1395,14 +1403,15 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     return result;
   }
 
-  if (isolate()->use_crankshaft() &&
-      FLAG_always_opt &&
-      result->is_compiled() &&
-      !info->is_toplevel() &&
-      info->allows_lazy_compilation() &&
-      !info->optimization_disabled() &&
-      !isolate()->DebuggerHasBreakPoints()) {
+  if (FLAG_always_opt && ShouldOptimizeNewClosure(isolate(), info)) {
     result->MarkForOptimization();
+  } else if (info->optimize_next_closure() &&
+             ShouldOptimizeNewClosure(isolate(), info)) {
+    if (isolate()->concurrent_recompilation_enabled()) {
+      result->MarkForConcurrentOptimization();
+    } else {
+      result->MarkForOptimization();
+    }
   }
   return result;
 }

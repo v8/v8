@@ -5493,9 +5493,9 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
 
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               allows_lazy_compilation,
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, optimize_next_closure,
+               kOptimizeNextClosure)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
                kAllowLazyCompilation)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,

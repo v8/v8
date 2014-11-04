@@ -106,7 +106,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-
+  function->shared()->set_optimize_next_closure(true);
   if (isolate_->concurrent_recompilation_enabled() &&
       !isolate_->bootstrapper()->IsActive()) {
     if (isolate_->concurrent_osr_enabled() &&
