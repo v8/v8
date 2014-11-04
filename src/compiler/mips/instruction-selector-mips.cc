@@ -541,70 +541,114 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kMipsCmp, cont, false);
 }
 
-
-void VisitWordTest(InstructionSelector* selector, Node* node,
-                   FlagsContinuation* cont) {
-  MipsOperandGenerator g(selector);
-  // kMipsTst is a pseudo-instruction to do logical 'and' and leave the result
-  // in a dedicated tmp register.
-  VisitCompare(selector, kMipsTst, g.UseRegister(node), g.UseRegister(node),
-               cont);
-}
-
 }  // namespace
+
+
+// Shared routine for word comparisons against zero.
+void VisitWordCompareZero(InstructionSelector* selector, Node* user,
+                          Node* value, FlagsContinuation* cont) {
+  while (selector->CanCover(user, value)) {
+    switch (value->opcode()) {
+      case IrOpcode::kWord32Equal: {
+        // Combine with comparisons against 0 by simply inverting the
+        // continuation.
+        Int32BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          user = value;
+          value = m.left().node();
+          cont->Negate();
+          continue;
+        }
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitWordCompare(selector, value, cont);
+      }
+      case IrOpcode::kInt32LessThan:
+        cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+        return VisitWordCompare(selector, value, cont);
+      case IrOpcode::kInt32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+        return VisitWordCompare(selector, value, cont);
+      case IrOpcode::kUint32LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitWordCompare(selector, value, cont);
+      case IrOpcode::kUint32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWordCompare(selector, value, cont);
+      case IrOpcode::kFloat64Equal:
+        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+        return VisitFloat64Compare(selector, value, cont);
+      case IrOpcode::kFloat64LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnorderedLessThan);
+        return VisitFloat64Compare(selector, value, cont);
+      case IrOpcode::kFloat64LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
+        return VisitFloat64Compare(selector, value, cont);
+      case IrOpcode::kProjection:
+        // Check if this is the overflow output projection of an
+        // <Operation>WithOverflow node.
+        if (OpParameter<size_t>(value) == 1u) {
+          // We cannot combine the <Operation>WithOverflow with this branch
+          // unless the 0th projection (the use of the actual value of the
+          // <Operation> is either NULL, which means there's no use of the
+          // actual value, or was already defined, which means it is scheduled
+          // *AFTER* this branch).
+          Node* const node = value->InputAt(0);
+          Node* const result = node->FindProjection(0);
+          if (!result || selector->IsDefined(result)) {
+            switch (node->opcode()) {
+              case IrOpcode::kInt32AddWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMipsAddOvf, cont);
+              case IrOpcode::kInt32SubWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMipsSubOvf, cont);
+              default:
+                break;
+            }
+          }
+        }
+        break;
+      case IrOpcode::kWord32And:
+        return VisitWordCompare(selector, value, kMipsTst, cont, true);
+      default:
+        break;
+    }
+    break;
+  }
+
+  // Continuation could not be combined with a compare, emit compare against 0.
+  MipsOperandGenerator g(selector);
+  InstructionCode const opcode = cont->Encode(kMipsCmp);
+  InstructionOperand* const value_operand = g.UseRegister(value);
+  if (cont->IsBranch()) {
+    selector->Emit(opcode, nullptr, value_operand, g.TempImmediate(0),
+                   g.Label(cont->true_block()),
+                   g.Label(cont->false_block()))->MarkAsControl();
+  } else {
+    selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
+                   g.TempImmediate(0));
+  }
+}
 
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
-  MipsOperandGenerator g(this);
-  Node* user = branch;
-  Node* value = branch->InputAt(0);
-
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
-
   // If we can fall through to the true block, invert the branch.
   if (IsNextInAssemblyOrder(tbranch)) {
     cont.Negate();
     cont.SwapBlocks();
   }
-
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
-    Int32BinopMatcher m(value);
-    if (m.right().Is(0)) {
-      user = value;
-      value = m.left().node();
-      cont.Negate();
-    } else {
-      break;
-    }
-  }
-
-  // Try to combine the branch with a comparison.
-  if (CanCover(user, value)) {
-    switch (value->opcode()) {
-      case IrOpcode::kWord32And:
-        // TODO(plind): understand the significance of 'IR and' special case.
-        return VisitWordCompare(this, value, kMipsTst, &cont, true);
-      default:
-        break;
-    }
-  }
-
-  // Branch could not be combined with a compare, emit compare against 0.
-  return VisitWordTest(this, value, &cont);
+  VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  Node* const user = node;
   FlagsContinuation cont(kEqual, node);
-  Int32BinopMatcher m(user);
+  Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
-    Node* const value = m.left().node();
-    return VisitWordTest(this, value, &cont);
+    return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
   }
-
   VisitWordCompare(this, node, &cont);
 }
 
