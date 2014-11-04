@@ -73,7 +73,7 @@ function ObjectGetOwnPropertySymbols(obj) {
 
   // TODO(arv): Proxies use a shared trap for String and Symbol keys.
 
-  return ObjectGetOwnPropertyKeys(obj, true);
+  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
 }
 
 
