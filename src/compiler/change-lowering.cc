@@ -143,7 +143,7 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
   Node* ovf = graph()->NewNode(common()->Projection(1), add);
 
   Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), ovf, control);
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), ovf, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* heap_number = AllocateHeapNumberWithValue(
@@ -167,7 +167,8 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
 
   Node* tag = graph()->NewNode(machine()->WordAnd(), val,
                                jsgraph()->IntPtrConstant(kSmiTagMask));
-  Node* branch = graph()->NewNode(common()->Branch(), tag, control);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   const Operator* op = (signedness == kSigned)
