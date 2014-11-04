@@ -1722,6 +1722,22 @@ Handle<JSDataView> Factory::NewJSDataView() {
 }
 
 
+Handle<JSMapIterator> Factory::NewJSMapIterator() {
+  Handle<Map> map(isolate()->native_context()->map_iterator_map());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSObjectFromMap(*map),
+                     JSMapIterator);
+}
+
+
+Handle<JSSetIterator> Factory::NewJSSetIterator() {
+  Handle<Map> map(isolate()->native_context()->set_iterator_map());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSObjectFromMap(*map),
+                     JSSetIterator);
+}
+
+
 namespace {
 
 ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {

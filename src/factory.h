@@ -445,6 +445,10 @@ class Factory FINAL {
   Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
                                    size_t byte_offset, size_t byte_length);
 
+  // TODO(aandrey): Maybe these should take table, index and kind arguments.
+  Handle<JSMapIterator> NewJSMapIterator();
+  Handle<JSSetIterator> NewJSSetIterator();
+
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 

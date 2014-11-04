@@ -2571,6 +2571,16 @@ bool Value::IsGeneratorObject() const {
 }
 
 
+bool Value::IsMapIterator() const {
+  return Utils::OpenHandle(this)->IsJSMapIterator();
+}
+
+
+bool Value::IsSetIterator() const {
+  return Utils::OpenHandle(this)->IsJSSetIterator();
+}
+
+
 Local<String> Value::ToString(Isolate* v8_isolate) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
