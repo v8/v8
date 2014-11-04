@@ -7197,7 +7197,7 @@ class IntrusiveMapTransitionIterator {
     int value = Smi::cast(*IteratorField())->value();
     int index = -value - 1;
     int number_of_transitions = transition_array_->number_of_transitions();
-    while (index < number_of_transitions) {
+    if (index < number_of_transitions) {
       *IteratorField() = Smi::FromInt(value - 1);
       return transition_array_->GetTarget(index);
     }

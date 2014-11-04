@@ -33,9 +33,6 @@
   '11.2.3_b': [FAIL],
   '12.2.3_b': [FAIL],
 
-  # BUG(v8:3642)
-  'S7.6.1.2_A1.26ns': [FAIL],
-
   # Unicode canonicalization is not available with i18n turned off.
   '15.5.4.9_CE': [['no_i18n', SKIP]],
 

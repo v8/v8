@@ -336,11 +336,9 @@ class ParserBase : public Traits {
 
   bool peek_any_identifier() {
     Token::Value next = peek();
-    return next == Token::IDENTIFIER ||
-        next == Token::FUTURE_RESERVED_WORD ||
-        next == Token::FUTURE_STRICT_RESERVED_WORD ||
-        next == Token::LET ||
-        next == Token::YIELD;
+    return next == Token::IDENTIFIER || next == Token::FUTURE_RESERVED_WORD ||
+           next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
+           next == Token::STATIC || next == Token::YIELD;
   }
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
@@ -606,6 +604,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Let() {
     return PreParserIdentifier(kLetIdentifier);
   }
+  static PreParserIdentifier Static() {
+    return PreParserIdentifier(kStaticIdentifier);
+  }
   static PreParserIdentifier Yield() {
     return PreParserIdentifier(kYieldIdentifier);
   }
@@ -619,6 +620,8 @@ class PreParserIdentifier {
   bool IsArguments(const AstValueFactory* = NULL) const {
     return type_ == kArgumentsIdentifier;
   }
+  bool IsLet() const { return type_ == kLetIdentifier; }
+  bool IsStatic() const { return type_ == kStaticIdentifier; }
   bool IsYield() const { return type_ == kYieldIdentifier; }
   bool IsPrototype() const { return type_ == kPrototypeIdentifier; }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -627,14 +630,15 @@ class PreParserIdentifier {
   }
   bool IsFutureReserved() const { return type_ == kFutureReservedIdentifier; }
   bool IsFutureStrictReserved() const {
-    return type_ == kFutureStrictReservedIdentifier;
+    return type_ == kFutureStrictReservedIdentifier ||
+           type_ == kLetIdentifier || type_ == kStaticIdentifier ||
+           type_ == kYieldIdentifier;
   }
   bool IsValidStrictVariable() const { return type_ == kUnknownIdentifier; }
   V8_INLINE bool IsValidArrowParam() const {
     // A valid identifier can be an arrow function parameter
     // except for eval, arguments, yield, and reserved keywords.
-    return !(IsEval() || IsArguments() || IsYield() ||
-             IsFutureStrictReserved());
+    return !(IsEval() || IsArguments() || IsFutureStrictReserved());
   }
 
   // Allow identifier->name()[->length()] to work. The preparser
@@ -651,6 +655,7 @@ class PreParserIdentifier {
     kFutureReservedIdentifier,
     kFutureStrictReservedIdentifier,
     kLetIdentifier,
+    kStaticIdentifier,
     kYieldIdentifier,
     kEvalIdentifier,
     kArgumentsIdentifier,
@@ -1172,7 +1177,7 @@ class PreParserTraits {
   }
 
   static bool IsFutureStrictReserved(PreParserIdentifier identifier) {
-    return identifier.IsYield() || identifier.IsFutureStrictReserved();
+    return identifier.IsFutureStrictReserved();
   }
 
   static bool IsBoilerplateProperty(PreParserExpression property) {
@@ -1593,6 +1598,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
     case Token::FUTURE_RESERVED_WORD:
       return ReportMessageAt(source_location, "unexpected_reserved");
     case Token::LET:
+    case Token::STATIC:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessageAt(source_location, strict_mode() == SLOPPY
@@ -1622,8 +1628,8 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     return name;
   } else if (strict_mode() == SLOPPY &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-             (next == Token::LET) ||
-             (next == Token::YIELD && !is_generator()))) {
+              next == Token::LET || next == Token::STATIC ||
+              (next == Token::YIELD && !is_generator()))) {
     return this->GetSymbol(scanner());
   } else {
     this->ReportUnexpectedToken(next);
@@ -1640,8 +1646,8 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
     *is_strict_reserved = false;
-  } else if (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-             next == Token::LET ||
+  } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
+             next == Token::STATIC ||
              (next == Token::YIELD && !this->is_generator())) {
     *is_strict_reserved = true;
   } else {
@@ -1662,7 +1668,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
-      next != Token::LET && next != Token::YIELD &&
+      next != Token::LET && next != Token::STATIC && next != Token::YIELD &&
       next != Token::FUTURE_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
     this->ReportUnexpectedToken(next);
     *ok = false;
@@ -1765,6 +1771,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::IDENTIFIER:
     case Token::LET:
+    case Token::STATIC:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.

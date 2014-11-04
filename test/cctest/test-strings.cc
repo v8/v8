@@ -630,14 +630,11 @@ static void VerifyCharacterStream(
 
 static inline void PrintStats(const ConsStringGenerationData& data) {
 #ifdef DEBUG
-printf(
-    "%s: [%d], %s: [%d], %s: [%d], %s: [%d], %s: [%d], %s: [%d]\n",
-    "leaves", data.stats_.leaves_,
-    "empty", data.stats_.empty_leaves_,
-    "chars", data.stats_.chars_,
-    "lefts", data.stats_.left_traversals_,
-    "rights", data.stats_.right_traversals_,
-    "early_terminations", data.early_terminations_);
+  printf("%s: [%u], %s: [%u], %s: [%u], %s: [%u], %s: [%u], %s: [%u]\n",
+         "leaves", data.stats_.leaves_, "empty", data.stats_.empty_leaves_,
+         "chars", data.stats_.chars_, "lefts", data.stats_.left_traversals_,
+         "rights", data.stats_.right_traversals_, "early_terminations",
+         data.early_terminations_);
 #endif
 }
 

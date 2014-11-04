@@ -50,6 +50,8 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
     return PreParserIdentifier::FutureStrictReserved();
   } else if (scanner->current_token() == Token::LET) {
     return PreParserIdentifier::Let();
+  } else if (scanner->current_token() == Token::STATIC) {
+    return PreParserIdentifier::Static();
   } else if (scanner->current_token() == Token::YIELD) {
     return PreParserIdentifier::Yield();
   }
@@ -491,8 +493,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     // identifier.
     DCHECK(!expr.AsIdentifier().IsFutureReserved());
     DCHECK(strict_mode() == SLOPPY ||
-           (!expr.AsIdentifier().IsFutureStrictReserved() &&
-            !expr.AsIdentifier().IsYield()));
+           !IsFutureStrictReserved(expr.AsIdentifier()));
     Consume(Token::COLON);
     return ParseStatement(ok);
     // Preparsing is disabled for extensions (because the extension details
