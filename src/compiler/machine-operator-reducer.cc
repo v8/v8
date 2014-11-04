@@ -534,22 +534,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
-    case IrOpcode::kStore: {
-      Node* const value = node->InputAt(2);
-      // TODO(turbofan): Extend to 64-bit?
-      if (value->opcode() == IrOpcode::kWord32And) {
-        MachineType const rep = static_cast<MachineType>(
-            StoreRepresentationOf(node->op()).machine_type() & kRepMask);
-        Uint32BinopMatcher m(value);
-        if (m.right().HasValue() &&
-            ((rep == kRepWord8 && (m.right().Value() & 0xff) == 0xff) ||
-             (rep == kRepWord16 && (m.right().Value() & 0xffff) == 0xffff))) {
-          node->ReplaceInput(2, m.left().node());
-          return Changed(node);
-        }
-      }
-      break;
-    }
+    case IrOpcode::kStore:
+      return ReduceStore(node);
     default:
       break;
   }
@@ -707,6 +693,41 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
     }
     node->TrimInputCount(2);
     return Changed(node);
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceStore(Node* node) {
+  MachineType const rep =
+      RepresentationOf(StoreRepresentationOf(node->op()).machine_type());
+  Node* const value = node->InputAt(2);
+  switch (value->opcode()) {
+    case IrOpcode::kWord32And: {
+      Uint32BinopMatcher m(value);
+      if (m.right().HasValue() &&
+          ((rep == kRepWord8 && (m.right().Value() & 0xff) == 0xff) ||
+           (rep == kRepWord16 && (m.right().Value() & 0xffff) == 0xffff))) {
+        node->ReplaceInput(2, m.left().node());
+        return Changed(node);
+      }
+      break;
+    }
+    case IrOpcode::kWord32Sar: {
+      Int32BinopMatcher m(value);
+      if (m.left().IsWord32Shl() &&
+          ((rep == kRepWord8 && m.right().IsInRange(1, 24)) ||
+           (rep == kRepWord16 && m.right().IsInRange(1, 16)))) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().Is(m.right().Value())) {
+          node->ReplaceInput(2, mleft.left().node());
+          return Changed(node);
+        }
+      }
+      break;
+    }
+    default:
+      break;
   }
   return NoChange();
 }
