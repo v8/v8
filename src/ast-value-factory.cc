@@ -241,11 +241,12 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
 
 const AstConsString* AstValueFactory::NewConsString(
     const AstString* left, const AstString* right) {
+  // This Vector will be valid as long as the Collector is alive (meaning that
+  // the AstRawString will not be moved).
   AstConsString* new_string = new (zone_) AstConsString(left, right);
+  strings_.Add(new_string);
   if (isolate_) {
     new_string->Internalize(isolate_);
-  } else {
-    strings_.Add(new_string);
   }
   return new_string;
 }
@@ -272,12 +273,9 @@ const AstValue* AstValueFactory::NewString(const AstRawString* string) {
   AstValue* value = new (zone_) AstValue(string);
   DCHECK(string != NULL);
   if (isolate_) {
-    // If we're creating immediately-internalized AstValues, the underlying
-    // strings must already be internalized at this point.
-    DCHECK(!string->string_.is_null());
+    value->Internalize(isolate_);
   }
-  // These AstValues don't need to be added to values_, since the AstRawStrings
-  // will be insternalized separately.
+  values_.Add(value);
   return value;
 }
 
@@ -286,9 +284,8 @@ const AstValue* AstValueFactory::NewSymbol(const char* name) {
   AstValue* value = new (zone_) AstValue(name);
   if (isolate_) {
     value->Internalize(isolate_);
-  } else {
-    values_.Add(value);
   }
+  values_.Add(value);
   return value;
 }
 
@@ -297,9 +294,8 @@ const AstValue* AstValueFactory::NewNumber(double number) {
   AstValue* value = new (zone_) AstValue(number);
   if (isolate_) {
     value->Internalize(isolate_);
-  } else {
-    values_.Add(value);
   }
+  values_.Add(value);
   return value;
 }
 
@@ -309,9 +305,8 @@ const AstValue* AstValueFactory::NewSmi(int number) {
       new (zone_) AstValue(AstValue::SMI, number);
   if (isolate_) {
     value->Internalize(isolate_);
-  } else {
-    values_.Add(value);
   }
+  values_.Add(value);
   return value;
 }
 
@@ -321,9 +316,8 @@ const AstValue* AstValueFactory::NewSmi(int number) {
     value = new (zone_) AstValue(initializer);    \
     if (isolate_) {                               \
       value->Internalize(isolate_);               \
-    } else {                                      \
-      values_.Add(value);                         \
     }                                             \
+    values_.Add(value);                           \
   }                                               \
   return value;
 
@@ -370,10 +364,9 @@ const AstRawString* AstValueFactory::GetString(
     AstRawString* new_string = new (zone_) AstRawString(
         is_one_byte, Vector<const byte>(new_literal_bytes, length), hash);
     entry->key = new_string;
+    strings_.Add(new_string);
     if (isolate_) {
       new_string->Internalize(isolate_);
-    } else {
-      strings_.Add(new_string);
     }
     entry->value = reinterpret_cast<void*>(1);
   }
