@@ -55,7 +55,9 @@ class InstructionTester : public HandleAndZoneScope {
       Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
       DCHECK(schedule.rpo_order()->size() > 0);
     }
-    code = new TestInstrSeq(main_zone(), &schedule);
+    InstructionBlocks* instruction_blocks =
+        TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
+    code = new TestInstrSeq(main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {

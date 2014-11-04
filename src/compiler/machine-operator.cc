@@ -84,6 +84,7 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   V(Uint32LessThan, Operator::kNoProperties, 2, 0, 1)                         \
   V(Uint32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
   V(Uint32Mod, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Uint32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \

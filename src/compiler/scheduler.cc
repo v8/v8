@@ -1012,7 +1012,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
   explicit PrepareUsesVisitor(Scheduler* scheduler)
       : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
+  void Pre(Node* node) {
     if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
       // Fixed nodes are always roots for schedule late.
       scheduler_->schedule_root_nodes_.push_back(node);
@@ -1029,8 +1029,6 @@ class PrepareUsesVisitor : public NullNodeVisitor {
         schedule_->AddNode(block, node);
       }
     }
-
-    return GenericGraphVisit::CONTINUE;
   }
 
   void PostEdge(Node* from, int index, Node* to) {

@@ -86,6 +86,7 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmMls:
       case kArmSmmul:
       case kArmSmmla:
+      case kArmUmull:
       case kArmSdiv:
       case kArmUdiv:
       case kArmBfc:
@@ -655,6 +656,15 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmSmmul, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)));
+}
+
+
+void InstructionSelector::VisitUint32MulHigh(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand* outputs[] = {g.TempRegister(), g.DefineAsRegister(node)};
+  InstructionOperand* inputs[] = {g.UseRegister(node->InputAt(0)),
+                                  g.UseRegister(node->InputAt(1))};
+  Emit(kArmUmull, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 

@@ -26,6 +26,7 @@
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/typer.h"
@@ -450,9 +451,11 @@ Handle<Code> Pipeline::GenerateCode() {
     PhaseScope phase_scope(pipeline_statistics.get(), "generic lowering");
     SourcePositionTable::Scope pos(data.source_positions(),
                                    SourcePosition::Unknown());
-    JSGenericLowering lowering(info(), data.jsgraph());
+    JSGenericLowering generic(info(), data.jsgraph());
+    SelectLowering select(data.jsgraph()->graph(), data.jsgraph()->common());
     GraphReducer graph_reducer(data.graph());
-    graph_reducer.AddReducer(&lowering);
+    graph_reducer.AddReducer(&generic);
+    graph_reducer.AddReducer(&select);
     graph_reducer.ReduceGraph();
 
     // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
@@ -538,7 +541,10 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
                                                        data->schedule());
   }
 
-  InstructionSequence sequence(data->instruction_zone(), data->schedule());
+  InstructionBlocks* instruction_blocks =
+      InstructionSequence::InstructionBlocksFor(data->instruction_zone(),
+                                                data->schedule());
+  InstructionSequence sequence(data->instruction_zone(), instruction_blocks);
 
   // Select and schedule instructions covering the scheduled graph.
   {

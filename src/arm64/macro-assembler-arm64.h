@@ -490,6 +490,7 @@ class MacroAssembler : public Assembler {
   inline void Smulh(const Register& rd,
                     const Register& rn,
                     const Register& rm);
+  inline void Umull(const Register& rd, const Register& rn, const Register& rm);
   inline void Stnp(const CPURegister& rt,
                    const CPURegister& rt2,
                    const MemOperand& dst);

@@ -174,8 +174,10 @@ class Linkage : public ZoneObject {
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).
   CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
-  CallDescriptor* GetJSCallDescriptor(int parameter_count) const;
-  static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone);
+  CallDescriptor* GetJSCallDescriptor(int parameter_count,
+                                      CallDescriptor::Flags flags) const;
+  static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone,
+                                             CallDescriptor::Flags flags);
   CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties) const;

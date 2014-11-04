@@ -649,6 +649,9 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 
 TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
+    // Skip the cases where the instruction selector would use tbz/tbnz.
+    if (base::bits::CountPopulation32(imm) == 1) continue;
+
     StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
@@ -669,6 +672,9 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
   TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+    // Skip the cases where the instruction selector would use tbz/tbnz.
+    if (base::bits::CountPopulation64(imm) == 1) continue;
+
     StreamBuilder m(this, kMachInt64, kMachInt64);
     MLabel a, b;
     m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(imm)), &a, &b);
@@ -725,6 +731,9 @@ TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
 
 TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
+    // Skip the cases where the instruction selector would use tbz/tbnz.
+    if (base::bits::CountPopulation32(imm) == 1) continue;
+
     StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32And(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
@@ -746,6 +755,9 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+    // Skip the cases where the instruction selector would use tbz/tbnz.
+    if (base::bits::CountPopulation64(imm) == 1) continue;
+
     StreamBuilder m(this, kMachInt64, kMachInt64);
     MLabel a, b;
     m.Branch(m.Word64And(m.Int64Constant(imm), m.Parameter(0)), &a, &b);
@@ -780,6 +792,162 @@ TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnLeft) {
     ASSERT_LE(1U, s[0]->InputCount());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnRight) {
+  TRACED_FORRANGE(int, bit, 0, 31) {
+    uint32_t mask = 1 << bit;
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(mask)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
+  }
+
+  TRACED_FORRANGE(int, bit, 0, 31) {
+    uint32_t mask = 1 << bit;
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(
+        m.Word32BinaryNot(m.Word32And(m.Parameter(0), m.Int32Constant(mask))),
+        &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbz32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnLeft) {
+  TRACED_FORRANGE(int, bit, 0, 31) {
+    uint32_t mask = 1 << bit;
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Word32And(m.Int32Constant(mask), m.Parameter(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
+  }
+
+  TRACED_FORRANGE(int, bit, 0, 31) {
+    uint32_t mask = 1 << bit;
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(
+        m.Word32BinaryNot(m.Word32And(m.Int32Constant(mask), m.Parameter(0))),
+        &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbz32, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = 1L << bit;
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(mask)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbnz, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+  }
+
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = 1L << bit;
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(
+        m.Word64BinaryNot(m.Word64And(m.Parameter(0), m.Int64Constant(mask))),
+        &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbz, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = 1L << bit;
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(m.Word64And(m.Int64Constant(mask), m.Parameter(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbnz, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+  }
+
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = 1L << bit;
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    MLabel a, b;
+    m.Branch(
+        m.Word64BinaryNot(m.Word64And(m.Int64Constant(mask), m.Parameter(0))),
+        &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tbz, s[0]->arch_opcode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
   }
 }
 

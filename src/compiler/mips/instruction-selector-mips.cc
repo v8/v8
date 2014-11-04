@@ -307,6 +307,13 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 }
 
 
+void InstructionSelector::VisitUint32MulHigh(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsMulHighU, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+
 void InstructionSelector::VisitInt32Div(Node* node) {
   MipsOperandGenerator g(this);
   Int32BinopMatcher m(node);

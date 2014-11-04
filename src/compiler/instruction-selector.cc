@@ -738,6 +738,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitUint32LessThanOrEqual(node);
     case IrOpcode::kUint32Mod:
       return VisitUint32Mod(node);
+    case IrOpcode::kUint32MulHigh:
+      return VisitUint32MulHigh(node);
     case IrOpcode::kInt64Add:
       return VisitInt64Add(node);
     case IrOpcode::kInt64Sub:

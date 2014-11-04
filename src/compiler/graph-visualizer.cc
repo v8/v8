@@ -8,7 +8,6 @@
 #include <string>
 
 #include "src/code-stubs.h"
-#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/generic-node.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
@@ -27,7 +26,60 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+static int SafeId(Node* node) { return node == NULL ? -1 : node->id(); }
+
 #define DEAD_COLOR "#999999"
+
+class AllNodes {
+ public:
+  enum State { kDead, kGray, kLive };
+
+  AllNodes(Zone* local_zone, const Graph* graph)
+      : state(graph->NodeCount(), kDead, local_zone),
+        live(local_zone),
+        gray(local_zone) {
+    Node* end = graph->end();
+    state[end->id()] = kLive;
+    live.push_back(end);
+    // Find all live nodes reachable from end.
+    for (size_t i = 0; i < live.size(); i++) {
+      for (Node* const input : live[i]->inputs()) {
+        if (input == NULL) {
+          // TODO(titzer): print a warning.
+          continue;
+        }
+        if (input->id() >= graph->NodeCount()) {
+          // TODO(titzer): print a warning.
+          continue;
+        }
+        if (state[input->id()] != kLive) {
+          live.push_back(input);
+          state[input->id()] = kLive;
+        }
+      }
+    }
+
+    // Find all nodes that are not reachable from end that use live nodes.
+    for (size_t i = 0; i < live.size(); i++) {
+      for (Node* const use : live[i]->uses()) {
+        if (state[use->id()] == kDead) {
+          gray.push_back(use);
+          state[use->id()] = kGray;
+        }
+      }
+    }
+  }
+
+  bool IsLive(Node* node) {
+    return node != NULL && node->id() < static_cast<int>(state.size()) &&
+           state[node->id()] == kLive;
+  }
+
+  ZoneVector<State> state;
+  NodeVector live;
+  NodeVector gray;
+};
+
 
 class Escaped {
  public:
@@ -56,103 +108,102 @@ class Escaped {
   const char* const escaped_chars_;
 };
 
-class JSONGraphNodeWriter : public NullNodeVisitor {
+class JSONGraphNodeWriter {
  public:
-  JSONGraphNodeWriter(std::ostream& os, Zone* zone,
-                      const Graph* graph)  // NOLINT
-      : os_(os),
-        graph_(graph),
-        first_node_(true) {}
+  JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph)
+      : os_(os), all_(zone, graph), first_node_(true) {}
 
-  void Print() { const_cast<Graph*>(graph_)->VisitNodeInputsFromEnd(this); }
+  void Print() {
+    for (Node* const node : all_.live) PrintNode(node);
+  }
 
-  GenericGraphVisit::Control Pre(Node* node);
+  void PrintNode(Node* node) {
+    if (first_node_) {
+      first_node_ = false;
+    } else {
+      os_ << ",";
+    }
+    std::ostringstream label;
+    label << *node->op();
+    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
+        << "\"";
+    IrOpcode::Value opcode = node->opcode();
+    if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
+      os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
+          << "]";
+      os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
+          << "]";
+    } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
+               opcode == IrOpcode::kLoop) {
+      os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
+          << "]";
+    }
+    if (opcode == IrOpcode::kBranch) {
+      os_ << ",\"rankInputs\":[0]";
+    }
+    os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
+    os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
+                                                               : "false");
+    os_ << "}";
+  }
 
  private:
   std::ostream& os_;
-  const Graph* const graph_;
+  AllNodes all_;
   bool first_node_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
 };
 
 
-GenericGraphVisit::Control JSONGraphNodeWriter::Pre(Node* node) {
-  if (first_node_) {
-    first_node_ = false;
-  } else {
-    os_ << ",";
-  }
-  std::ostringstream label;
-  label << *node->op();
-  os_ << "{\"id\":" << node->id() << ",\"label\":\"" << Escaped(label, "\"")
-      << "\"";
-  IrOpcode::Value opcode = node->opcode();
-  if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
-    os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
-        << "]";
-    os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
-        << "]";
-  } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
-             opcode == IrOpcode::kLoop) {
-    os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
-        << "]";
-  }
-  if (opcode == IrOpcode::kBranch) {
-    os_ << ",\"rankInputs\":[0]";
-  }
-  os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
-  os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
-                                                             : "false");
-  os_ << "}";
-  return GenericGraphVisit::CONTINUE;
-}
-
-
-class JSONGraphEdgeWriter : public NullNodeVisitor {
+class JSONGraphEdgeWriter {
  public:
-  JSONGraphEdgeWriter(std::ostream& os, Zone* zone,
-                      const Graph* graph)  // NOLINT
-      : os_(os),
-        graph_(graph),
-        first_edge_(true) {}
+  JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
+      : os_(os), all_(zone, graph), first_edge_(true) {}
 
-  void Print() { const_cast<Graph*>(graph_)->VisitNodeInputsFromEnd(this); }
+  void Print() {
+    for (Node* const node : all_.live) PrintEdges(node);
+  }
 
-  void PreEdge(Node* from, int index, Node* to);
+  void PrintEdges(Node* node) {
+    for (int i = 0; i < node->InputCount(); i++) {
+      Node* input = node->InputAt(i);
+      if (input == NULL) continue;
+      PrintEdge(node, i, input);
+    }
+  }
+
+  void PrintEdge(Node* from, int index, Node* to) {
+    if (first_edge_) {
+      first_edge_ = false;
+    } else {
+      os_ << ",";
+    }
+    const char* edge_type = NULL;
+    if (index < NodeProperties::FirstValueIndex(from)) {
+      edge_type = "unknown";
+    } else if (index < NodeProperties::FirstContextIndex(from)) {
+      edge_type = "value";
+    } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
+      edge_type = "context";
+    } else if (index < NodeProperties::FirstEffectIndex(from)) {
+      edge_type = "frame-state";
+    } else if (index < NodeProperties::FirstControlIndex(from)) {
+      edge_type = "effect";
+    } else {
+      edge_type = "control";
+    }
+    os_ << "{\"source\":" << SafeId(to) << ",\"target\":" << SafeId(from)
+        << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
+  }
 
  private:
   std::ostream& os_;
-  const Graph* const graph_;
+  AllNodes all_;
   bool first_edge_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
-
-
-void JSONGraphEdgeWriter::PreEdge(Node* from, int index, Node* to) {
-  if (first_edge_) {
-    first_edge_ = false;
-  } else {
-    os_ << ",";
-  }
-  const char* edge_type = NULL;
-  if (index < NodeProperties::FirstValueIndex(from)) {
-    edge_type = "unknown";
-  } else if (index < NodeProperties::FirstContextIndex(from)) {
-    edge_type = "value";
-  } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
-    edge_type = "context";
-  } else if (index < NodeProperties::FirstEffectIndex(from)) {
-    edge_type = "frame-state";
-  } else if (index < NodeProperties::FirstControlIndex(from)) {
-    edge_type = "effect";
-  } else {
-    edge_type = "control";
-  }
-  os_ << "{\"source\":" << to->id() << ",\"target\":" << from->id()
-      << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
-}
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
@@ -166,24 +217,20 @@ std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
 }
 
 
-class GraphVisualizer : public NullNodeVisitor {
+class GraphVisualizer {
  public:
-  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph);  // NOLINT
+  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph)
+      : all_(zone, graph), os_(os) {}
 
   void Print();
 
-  GenericGraphVisit::Control Pre(Node* node);
+  void PrintNode(Node* node, bool gray);
 
  private:
-  void AnnotateNode(Node* node);
   void PrintEdge(Node::Edge edge);
 
-  Zone* zone_;
-  NodeSet all_nodes_;
-  NodeSet white_nodes_;
-  bool use_to_def_;
+  AllNodes all_;
   std::ostream& os_;
-  const Graph* const graph_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphVisualizer);
 };
@@ -194,49 +241,22 @@ static Node* GetControlCluster(Node* node) {
     return node;
   } else if (node->op()->ControlInputCount() == 1) {
     Node* control = NodeProperties::GetControlInput(node, 0);
-    return OperatorProperties::IsBasicBlockBegin(control->op()) ? control
-                                                                : NULL;
+    return control != NULL &&
+                   OperatorProperties::IsBasicBlockBegin(control->op())
+               ? control
+               : NULL;
   } else {
     return NULL;
   }
 }
 
 
-GenericGraphVisit::Control GraphVisualizer::Pre(Node* node) {
-  if (all_nodes_.count(node) == 0) {
-    Node* control_cluster = GetControlCluster(node);
-    if (control_cluster != NULL) {
-      os_ << "  subgraph cluster_BasicBlock" << control_cluster->id() << " {\n";
-    }
-    os_ << "  ID" << node->id() << " [\n";
-    AnnotateNode(node);
-    os_ << "  ]\n";
-    if (control_cluster != NULL) os_ << "  }\n";
-    all_nodes_.insert(node);
-    if (use_to_def_) white_nodes_.insert(node);
+void GraphVisualizer::PrintNode(Node* node, bool gray) {
+  Node* control_cluster = GetControlCluster(node);
+  if (control_cluster != NULL) {
+    os_ << "  subgraph cluster_BasicBlock" << control_cluster->id() << " {\n";
   }
-  return GenericGraphVisit::CONTINUE;
-}
-
-
-static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
-  if (from->opcode() == IrOpcode::kPhi ||
-      from->opcode() == IrOpcode::kEffectPhi) {
-    Node* control = NodeProperties::GetControlInput(from, 0);
-    return control->opcode() != IrOpcode::kMerge && control != to && index != 0;
-  } else if (from->opcode() == IrOpcode::kLoop) {
-    return index != 0;
-  } else {
-    return false;
-  }
-}
-
-
-void GraphVisualizer::AnnotateNode(Node* node) {
-  if (!use_to_def_) {
-    os_ << "    style=\"filled\"\n"
-        << "    fillcolor=\"" DEAD_COLOR "\"\n";
-  }
+  os_ << "  ID" << SafeId(node) << " [\n";
 
   os_ << "    shape=\"record\"\n";
   switch (node->opcode()) {
@@ -255,30 +275,35 @@ void GraphVisualizer::AnnotateNode(Node* node) {
       break;
   }
 
+  if (gray) {
+    os_ << "    style=\"filled\"\n"
+        << "    fillcolor=\"" DEAD_COLOR "\"\n";
+  }
+
   std::ostringstream label;
   label << *node->op();
-  os_ << "    label=\"{{#" << node->id() << ":" << Escaped(label);
+  os_ << "    label=\"{{#" << SafeId(node) << ":" << Escaped(label);
 
   InputIter i = node->inputs().begin();
   for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">#" << (*i)->id();
+    os_ << "|<I" << i.index() << ">#" << SafeId(*i);
   }
   for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">X #" << (*i)->id();
+    os_ << "|<I" << i.index() << ">X #" << SafeId(*i);
   }
   for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">F #" << (*i)->id();
+    os_ << "|<I" << i.index() << ">F #" << SafeId(*i);
   }
   for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">E #" << (*i)->id();
+    os_ << "|<I" << i.index() << ">E #" << SafeId(*i);
   }
 
-  if (!use_to_def_ || OperatorProperties::IsBasicBlockBegin(node->op()) ||
+  if (OperatorProperties::IsBasicBlockBegin(node->op()) ||
       GetControlCluster(node) == NULL) {
     for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      os_ << "|<I" << i.index() << ">C #" << (*i)->id();
+      os_ << "|<I" << i.index() << ">C #" << SafeId(*i);
     }
   }
   os_ << "}";
@@ -292,6 +317,23 @@ void GraphVisualizer::AnnotateNode(Node* node) {
     os_ << "|" << Escaped(upper) << "|" << Escaped(lower);
   }
   os_ << "}\"\n";
+
+  os_ << "  ]\n";
+  if (control_cluster != NULL) os_ << "  }\n";
+}
+
+
+static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
+  if (from->opcode() == IrOpcode::kPhi ||
+      from->opcode() == IrOpcode::kEffectPhi) {
+    Node* control = NodeProperties::GetControlInput(from, 0);
+    return control != NULL && control->opcode() != IrOpcode::kMerge &&
+           control != to && index != 0;
+  } else if (from->opcode() == IrOpcode::kLoop) {
+    return index != 0;
+  } else {
+    return false;
+  }
 }
 
 
@@ -299,21 +341,23 @@ void GraphVisualizer::PrintEdge(Node::Edge edge) {
   Node* from = edge.from();
   int index = edge.index();
   Node* to = edge.to();
+
+  if (!all_.IsLive(to)) return;  // skip inputs that point to dead or NULL.
+
   bool unconstrained = IsLikelyBackEdge(from, index, to);
-  os_ << "  ID" << from->id();
-  if (all_nodes_.count(to) == 0) {
-    os_ << ":I" << index << ":n -> DEAD_INPUT";
-  } else if (OperatorProperties::IsBasicBlockBegin(from->op()) ||
-             GetControlCluster(from) == NULL ||
-             (from->op()->ControlInputCount() > 0 &&
-              NodeProperties::GetControlInput(from) != to)) {
-    os_ << ":I" << index << ":n -> ID" << to->id() << ":s"
+  os_ << "  ID" << SafeId(from);
+
+  if (OperatorProperties::IsBasicBlockBegin(from->op()) ||
+      GetControlCluster(from) == NULL ||
+      (from->op()->ControlInputCount() > 0 &&
+       NodeProperties::GetControlInput(from) != to)) {
+    os_ << ":I" << index << ":n -> ID" << SafeId(to) << ":s"
         << "[" << (unconstrained ? "constraint=false, " : "")
         << (NodeProperties::IsControlEdge(edge) ? "style=bold, " : "")
         << (NodeProperties::IsEffectEdge(edge) ? "style=dotted, " : "")
         << (NodeProperties::IsContextEdge(edge) ? "style=dashed, " : "") << "]";
   } else {
-    os_ << " -> ID" << to->id() << ":s [color=transparent, "
+    os_ << " -> ID" << SafeId(to) << ":s [color=transparent, "
         << (unconstrained ? "constraint=false, " : "")
         << (NodeProperties::IsControlEdge(edge) ? "style=dashed, " : "") << "]";
   }
@@ -332,43 +376,17 @@ void GraphVisualizer::Print() {
       << "  \n";
 
   // Make sure all nodes have been output before writing out the edges.
-  use_to_def_ = true;
-  // TODO(svenpanne) Remove the need for the const_casts.
-  const_cast<Graph*>(graph_)->VisitNodeInputsFromEnd(this);
-  white_nodes_.insert(const_cast<Graph*>(graph_)->start());
-
-  // Visit all uses of white nodes.
-  use_to_def_ = false;
-  GenericGraphVisit::Visit<GraphVisualizer, NodeUseIterationTraits<Node> >(
-      const_cast<Graph*>(graph_), zone_, white_nodes_.begin(),
-      white_nodes_.end(), this);
-
-  os_ << "  DEAD_INPUT [\n"
-      << "    style=\"filled\" \n"
-      << "    fillcolor=\"" DEAD_COLOR "\"\n"
-      << "  ]\n"
-      << "\n";
+  for (Node* const node : all_.live) PrintNode(node, false);
+  for (Node* const node : all_.gray) PrintNode(node, true);
 
   // With all the nodes written, add the edges.
-  for (NodeSetIter i = all_nodes_.begin(); i != all_nodes_.end(); ++i) {
-    Node::Inputs inputs = (*i)->inputs();
-    for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-         ++iter) {
-      PrintEdge(iter.edge());
+  for (Node* const node : all_.live) {
+    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
+      PrintEdge(i.edge());
     }
   }
   os_ << "}\n";
 }
-
-
-GraphVisualizer::GraphVisualizer(std::ostream& os, Zone* zone,
-                                 const Graph* graph)  // NOLINT
-    : zone_(zone),
-      all_nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)),
-      white_nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)),
-      use_to_def_(true),
-      os_(os),
-      graph_(graph) {}
 
 
 std::ostream& operator<<(std::ostream& os, const AsDOT& ad) {
@@ -487,7 +505,7 @@ void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
 }
 
 
-void GraphC1Visualizer::PrintNodeId(Node* n) { os_ << "n" << n->id(); }
+void GraphC1Visualizer::PrintNodeId(Node* n) { os_ << "n" << SafeId(n); }
 
 
 void GraphC1Visualizer::PrintNode(Node* n) {

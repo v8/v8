@@ -289,7 +289,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_MULT(imulq);
       break;
     case kX64ImulHigh32:
-      __ imull(i.InputRegister(1));
+      if (instr->InputAt(1)->IsRegister()) {
+        __ imull(i.InputRegister(1));
+      } else {
+        __ imull(i.InputOperand(1));
+      }
+      break;
+    case kX64UmulHigh32:
+      if (instr->InputAt(1)->IsRegister()) {
+        __ mull(i.InputRegister(1));
+      } else {
+        __ mull(i.InputOperand(1));
+      }
       break;
     case kX64Idiv32:
       __ cdq();

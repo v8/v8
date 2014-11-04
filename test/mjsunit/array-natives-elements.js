@@ -274,9 +274,7 @@ function array_natives_test() {
   assertEquals([1,1,2,3], a4);
   a4 = [1,2,3];
   a4.unshift(1.1);
-  // TODO(verwaest): We'll want to support double unshifting as well.
-  // assertTrue(%HasFastDoubleElements(a4));
-  assertTrue(%HasFastObjectElements(a4));
+  assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1.1,1,2,3], a4);
   a4 = [1.1,2,3];
   a4.unshift(1);

@@ -298,7 +298,27 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
   EXPECT_TRUE(s.IsFixed(s[0]->InputAt(0), rax));
   EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
   EXPECT_TRUE(!s.IsUsedAtStart(s[0]->InputAt(1)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
+  ASSERT_LE(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_TRUE(s.IsFixed(s[0]->OutputAt(0), rdx));
+}
+
+
+TEST_F(InstructionSelectorTest, Uint32MulHigh) {
+  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Uint32MulHigh(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulHigh32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s.IsFixed(s[0]->InputAt(0), rax));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(!s.IsUsedAtStart(s[0]->InputAt(1)));
+  ASSERT_LE(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
   EXPECT_TRUE(s.IsFixed(s[0]->OutputAt(0), rdx));
 }

@@ -20,7 +20,7 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
   explicit ContextSpecializationVisitor(JSContextSpecializer* spec)
       : spec_(spec) {}
 
-  GenericGraphVisit::Control Post(Node* node) {
+  void Post(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kJSLoadContext: {
         Reduction r = spec_->ReduceJSLoadContext(node);
@@ -41,7 +41,6 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
       default:
         break;
     }
-    return GenericGraphVisit::CONTINUE;
   }
 
  private:

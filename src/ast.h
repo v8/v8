@@ -2094,6 +2094,8 @@ class BinaryOperation FINAL : public Expression {
                   Expression* right, int pos)
       : Expression(zone, pos),
         op_(static_cast<byte>(op)),
+        has_fixed_right_arg_(false),
+        fixed_right_arg_value_(0),
         left_(left),
         right_(right) {
     DCHECK(Token::IsBinaryOp(op));

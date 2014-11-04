@@ -2709,6 +2709,10 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Add missing transitions.
   Handle<Map> new_map = split_map;
   for (int i = split_nof; i < old_nof; ++i) {
+    if (!new_map->CanHaveMoreTransitions()) {
+      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
+                                              "can't have more transitions");
+    }
     new_map = CopyInstallDescriptors(new_map, i, new_descriptors);
   }
   new_map->set_owns_descriptors(true);
@@ -6584,7 +6588,8 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
-      EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      EnsureDescriptorSlack(
+          map, SlackForArraySize(old_size, kMaxNumberOfDescriptors));
       descriptors = handle(map->instance_descriptors());
     }
   }
@@ -6609,8 +6614,11 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
     DCHECK(child->is_prototype_map());
   } else {
     Handle<TransitionArray> transitions =
-        TransitionArray::CopyInsert(parent, name, child, flag);
-    parent->set_transitions(*transitions);
+        TransitionArray::Insert(parent, name, child, flag);
+    if (!parent->HasTransitionArray() ||
+        *transitions != parent->transitions()) {
+      parent->set_transitions(*transitions);
+    }
     child->SetBackPointer(*parent);
   }
 }
@@ -6690,8 +6698,9 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     DCHECK(kind != map->elements_kind());
   }
 
-  bool insert_transition =
-      flag == INSERT_TRANSITION && !map->HasElementsTransition();
+  bool insert_transition = flag == INSERT_TRANSITION &&
+                           map->CanHaveMoreTransitions() &&
+                           !map->HasElementsTransition();
 
   if (insert_transition && map->owns_descriptors()) {
     // In case the map owned its own descriptors, share the descriptors and
@@ -6740,9 +6749,10 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
     new_map->InitializeDescriptors(map->instance_descriptors());
   }
 
-  Handle<Name> name = isolate->factory()->observed_symbol();
-  ConnectTransition(map, new_map, name, FULL_TRANSITION);
-
+  if (map->CanHaveMoreTransitions()) {
+    Handle<Name> name = isolate->factory()->observed_symbol();
+    ConnectTransition(map, new_map, name, FULL_TRANSITION);
+  }
   return new_map;
 }
 

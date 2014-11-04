@@ -740,6 +740,28 @@ void MacroAssembler::Mult(Register rs, const Operand& rt) {
 }
 
 
+void MacroAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (!IsMipsArchVariant(kMips32r6)) {
+      multu(rs, rt.rm());
+      mfhi(rd);
+    } else {
+      muhu(rd, rs, rt.rm());
+    }
+  } else {
+    // li handles the relocation.
+    DCHECK(!rs.is(at));
+    li(at, rt);
+    if (!IsMipsArchVariant(kMips32r6)) {
+      multu(rs, at);
+      mfhi(rd);
+    } else {
+      muhu(rd, rs, at);
+    }
+  }
+}
+
+
 void MacroAssembler::Multu(Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     multu(rs, rt.rm());

@@ -516,6 +516,18 @@ template <class T> class PersistentBase {
       P* parameter,
       typename WeakCallbackData<S, P>::Callback callback);
 
+  // Phantom persistents work like weak persistents, except that the pointer to
+  // the object being collected is not available in the finalization callback.
+  // This enables the garbage collector to collect the object and any objects
+  // it references transitively in one GC cycle.
+  template <typename P>
+  V8_INLINE void SetPhantom(P* parameter,
+                            typename WeakCallbackData<T, P>::Callback callback);
+
+  template <typename S, typename P>
+  V8_INLINE void SetPhantom(P* parameter,
+                            typename WeakCallbackData<S, P>::Callback callback);
+
   template<typename P>
   V8_INLINE P* ClearWeak();
 
@@ -5477,14 +5489,15 @@ class V8_EXPORT V8 {
  private:
   V8();
 
+  enum WeakHandleType { PhantomHandle, NonphantomHandle };
+
   static internal::Object** GlobalizeReference(internal::Isolate* isolate,
                                                internal::Object** handle);
   static internal::Object** CopyPersistent(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
-  static void MakeWeak(internal::Object** global_handle,
-                       void* data,
-                       WeakCallback weak_callback);
+  static void MakeWeak(internal::Object** global_handle, void* data,
+                       WeakCallback weak_callback, WeakHandleType phantom);
   static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
@@ -6355,9 +6368,8 @@ void PersistentBase<T>::SetWeak(
     typename WeakCallbackData<S, P>::Callback callback) {
   TYPE_CHECK(S, T);
   typedef typename WeakCallbackData<Value, void>::Callback Callback;
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
-               parameter,
-               reinterpret_cast<Callback>(callback));
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               reinterpret_cast<Callback>(callback), V8::NonphantomHandle);
 }
 
 
@@ -6371,7 +6383,26 @@ void PersistentBase<T>::SetWeak(
 
 
 template <class T>
-template<typename P>
+template <typename S, typename P>
+void PersistentBase<T>::SetPhantom(
+    P* parameter, typename WeakCallbackData<S, P>::Callback callback) {
+  TYPE_CHECK(S, T);
+  typedef typename WeakCallbackData<Value, void>::Callback Callback;
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               reinterpret_cast<Callback>(callback), V8::PhantomHandle);
+}
+
+
+template <class T>
+template <typename P>
+void PersistentBase<T>::SetPhantom(
+    P* parameter, typename WeakCallbackData<T, P>::Callback callback) {
+  SetPhantom<T, P>(parameter, callback);
+}
+
+
+template <class T>
+template <typename P>
 P* PersistentBase<T>::ClearWeak() {
   return reinterpret_cast<P*>(
     V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));

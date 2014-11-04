@@ -32,7 +32,7 @@ class InlinerVisitor : public NullNodeVisitor {
  public:
   explicit InlinerVisitor(JSInliner* inliner) : inliner_(inliner) {}
 
-  GenericGraphVisit::Control Post(Node* node) {
+  void Post(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kJSCallFunction:
         inliner_->TryInlineJSCall(node);
@@ -45,7 +45,6 @@ class InlinerVisitor : public NullNodeVisitor {
       default:
         break;
     }
-    return GenericGraphVisit::CONTINUE;
   }
 
  private:
@@ -167,7 +166,7 @@ class CopyVisitor : public NullNodeVisitor {
         sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "sentinel", 0, 0,
                      0, 0, 0, 0) {}
 
-  GenericGraphVisit::Control Post(Node* original) {
+  void Post(Node* original) {
     NodeVector inputs(temp_zone_);
     for (InputIter it = original->inputs().begin();
          it != original->inputs().end(); ++it) {
@@ -180,7 +179,6 @@ class CopyVisitor : public NullNodeVisitor {
         target_graph_->NewNode(original->op(), static_cast<int>(inputs.size()),
                                (inputs.empty() ? NULL : &inputs.front()));
     copies_[original->id()] = copy;
-    return GenericGraphVisit::CONTINUE;
   }
 
   Node* GetCopy(Node* original) {

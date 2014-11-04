@@ -251,41 +251,16 @@ class Typer::RunVisitor : public Typer::Visitor {
       : Visitor(typer),
         redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
-  GenericGraphVisit::Control Post(Node* node) {
+  void Post(Node* node) {
     if (node->op()->ValueOutputCount() > 0) {
       Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
       // Remember incompletely typed nodes for least fixpoint iteration.
       if (!NodeProperties::AllValueInputsAreTyped(node)) redo.insert(node);
     }
-    return GenericGraphVisit::CONTINUE;
   }
 
   NodeSet redo;
-};
-
-
-class Typer::NarrowVisitor : public Typer::Visitor {
- public:
-  explicit NarrowVisitor(Typer* typer) : Visitor(typer) {}
-
-  GenericGraphVisit::Control Pre(Node* node) {
-    if (node->op()->ValueOutputCount() > 0) {
-      Bounds previous = NodeProperties::GetBounds(node);
-      Bounds current = TypeNode(node);
-      NodeProperties::SetBounds(node, Bounds::Both(current, previous, zone()));
-      DCHECK(current.Narrows(previous));
-      // Stop when nothing changed (but allow re-entry in case it does later).
-      return previous.Narrows(current) ? GenericGraphVisit::DEFER
-                                       : GenericGraphVisit::REENTER;
-    } else {
-      return GenericGraphVisit::SKIP;
-    }
-  }
-
-  GenericGraphVisit::Control Post(Node* node) {
-    return GenericGraphVisit::REENTER;
-  }
 };
 
 
@@ -361,12 +336,6 @@ void Typer::Run() {
 }
 
 
-void Typer::Narrow(Node* start) {
-  NarrowVisitor typing(this);
-  graph_->VisitNodeUsesFrom(start, &typing);
-}
-
-
 void Typer::Decorator::Decorate(Node* node) {
   if (node->op()->ValueOutputCount() > 0) {
     // Only eagerly type-decorate nodes with known input types.
@@ -439,10 +408,19 @@ Type* Typer::Visitor::FalsifyUndefined(Type* type, Typer* t) {
 
 Type* Typer::Visitor::Rangify(Type* type, Typer* t) {
   if (type->IsRange()) return type;        // Shortcut.
-  if (!type->Is(t->integer)) return type;  // Give up.
+  if (!type->Is(t->integer) && !type->Is(Type::Integral32())) {
+    return type;  // Give up on non-integer types.
+  }
+  double min = type->Min();
+  double max = type->Max();
+  // Handle the degenerate case of empty bitset types (such as
+  // OtherUnsigned31 and OtherSigned32 on 64-bit architectures).
+  if (std::isnan(min)) {
+    DCHECK(std::isnan(max));
+    return type;
+  }
   Factory* f = t->isolate()->factory();
-  return Type::Range(f->NewNumber(type->Min()), f->NewNumber(type->Max()),
-                     t->zone());
+  return Type::Range(f->NewNumber(min), f->NewNumber(max), t->zone());
 }
 
 
@@ -1606,7 +1584,7 @@ Bounds Typer::Visitor::TypeInt32Mul(Node* node) {
 
 
 Bounds Typer::Visitor::TypeInt32MulHigh(Node* node) {
-  return Bounds(Type::Integral32());
+  return Bounds(Type::Signed32());
 }
 
 
@@ -1646,6 +1624,11 @@ Bounds Typer::Visitor::TypeUint32LessThanOrEqual(Node* node) {
 
 
 Bounds Typer::Visitor::TypeUint32Mod(Node* node) {
+  return Bounds(Type::Unsigned32());
+}
+
+
+Bounds Typer::Visitor::TypeUint32MulHigh(Node* node) {
   return Bounds(Type::Unsigned32());
 }
 

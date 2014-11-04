@@ -60,6 +60,7 @@
         'compiler/test-control-reducer.cc',
         'compiler/test-gap-resolver.cc',
         'compiler/test-graph-reducer.cc',
+        'compiler/test-graph-visualizer.cc',
         'compiler/test-instruction.cc',
         'compiler/test-js-context-specialization.cc',
         'compiler/test-js-constant-cache.cc',

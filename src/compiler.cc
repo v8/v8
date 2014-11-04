@@ -1308,7 +1308,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
 
   if (outer_info->is_toplevel() && outer_info->will_serialize()) {
     // Make sure that if the toplevel code (possibly to be serialized),
-    // the inner unction must be allowed to be compiled lazily.
+    // the inner function must be allowed to be compiled lazily.
     DCHECK(allow_lazy);
   }
 

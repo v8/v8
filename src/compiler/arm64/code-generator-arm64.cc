@@ -170,7 +170,16 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
       int64_t imm = i.InputOperand##width(1).immediate().value();              \
       __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0), imm); \
     }                                                                          \
-  } while (0);
+  } while (0)
+
+
+#define ASSEMBLE_TEST_AND_BRANCH(asm_instr, width)             \
+  do {                                                         \
+    bool fallthrough = IsNextInAssemblyOrder(i.InputRpo(3));   \
+    __ asm_instr(i.InputRegister##width(0), i.InputInt6(1),    \
+                 code_->GetLabel(i.InputRpo(2)));              \
+    if (!fallthrough) __ B(code_->GetLabel(i.InputRpo(3)));    \
+  } while (0)
 
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -266,6 +275,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArm64Smull:
       __ Smull(i.OutputRegister(), i.InputRegister32(0), i.InputRegister32(1));
+      break;
+    case kArm64Umull:
+      __ Umull(i.OutputRegister(), i.InputRegister32(0), i.InputRegister32(1));
       break;
     case kArm64Madd:
       __ Madd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -417,6 +429,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Ubfx32:
       __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt8(1),
               i.InputInt8(2));
+      break;
+    case kArm64Tbz:
+      ASSEMBLE_TEST_AND_BRANCH(Tbz, 64);
+      break;
+    case kArm64Tbz32:
+      ASSEMBLE_TEST_AND_BRANCH(Tbz, 32);
+      break;
+    case kArm64Tbnz:
+      ASSEMBLE_TEST_AND_BRANCH(Tbnz, 64);
+      break;
+    case kArm64Tbnz32:
+      ASSEMBLE_TEST_AND_BRANCH(Tbnz, 32);
       break;
     case kArm64Claim: {
       int words = MiscField::decode(instr->opcode());

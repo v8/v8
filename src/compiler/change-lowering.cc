@@ -53,7 +53,7 @@ Node* ChangeLowering::HeapNumberValueIndexConstant() {
 Node* ChangeLowering::SmiMaxValueConstant() {
   const int smi_value_size = machine()->Is32() ? SmiTagging<4>::SmiValueSize()
                                                : SmiTagging<8>::SmiValueSize();
-  return jsgraph()->IntPtrConstant(
+  return jsgraph()->Int32Constant(
       -(static_cast<int>(0xffffffffu << (smi_value_size - 1)) + 1));
 }
 

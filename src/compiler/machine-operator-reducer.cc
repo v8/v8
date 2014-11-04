@@ -49,11 +49,13 @@ Node* MachineOperatorReducer::Word32And(Node* lhs, uint32_t rhs) {
 
 
 Node* MachineOperatorReducer::Word32Sar(Node* lhs, uint32_t rhs) {
+  if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Sar(), lhs, Uint32Constant(rhs));
 }
 
 
 Node* MachineOperatorReducer::Word32Shr(Node* lhs, uint32_t rhs) {
+  if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Shr(), lhs, Uint32Constant(rhs));
 }
 
@@ -78,7 +80,8 @@ Node* MachineOperatorReducer::Int32Mul(Node* lhs, Node* rhs) {
 }
 
 
-Node* MachineOperatorReducer::TruncatingDiv(Node* dividend, int32_t divisor) {
+Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
+  DCHECK_NE(0, divisor);
   DCHECK_NE(std::numeric_limits<int32_t>::min(), divisor);
   base::MagicNumbersForDivision<uint32_t> const mag =
       base::SignedDivisionByConstant(bit_cast<uint32_t>(divisor));
@@ -89,10 +92,25 @@ Node* MachineOperatorReducer::TruncatingDiv(Node* dividend, int32_t divisor) {
   } else if (divisor < 0 && bit_cast<int32_t>(mag.multiplier) > 0) {
     quotient = Int32Sub(quotient, dividend);
   }
-  if (mag.shift) {
-    quotient = Word32Sar(quotient, mag.shift);
+  return Int32Add(Word32Sar(quotient, mag.shift), Word32Shr(dividend, 31));
+}
+
+
+Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
+  DCHECK_LT(0, divisor);
+  base::MagicNumbersForDivision<uint32_t> const mag =
+      base::UnsignedDivisionByConstant(bit_cast<uint32_t>(divisor));
+  Node* quotient = graph()->NewNode(machine()->Uint32MulHigh(), dividend,
+                                    Uint32Constant(mag.multiplier));
+  if (mag.add) {
+    DCHECK_LE(1, mag.shift);
+    quotient = Word32Shr(
+        Int32Add(Word32Shr(Int32Sub(dividend, quotient), 1), quotient),
+        mag.shift - 1);
+  } else {
+    quotient = Word32Shr(quotient, mag.shift);
   }
-  return Int32Add(quotient, Word32Shr(dividend, 31));
+  return quotient;
 }
 
 
@@ -572,7 +590,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
       quotient = Int32Add(Word32Shr(quotient, 32u - shift), dividend);
       quotient = Word32Sar(quotient, shift);
     } else {
-      quotient = TruncatingDiv(quotient, Abs(divisor));
+      quotient = Int32Div(quotient, Abs(divisor));
     }
     if (divisor < 0) {
       node->set_op(machine()->Int32Sub());
@@ -600,11 +618,17 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
     Node* const zero = Int32Constant(0);
     return Replace(Word32Equal(Word32Equal(m.left().node(), zero), zero));
   }
-  if (m.right().IsPowerOf2()) {  // x / 2^n => x >> n
-    node->TrimInputCount(2);
-    node->set_op(machine()->Word32Shr());
-    node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
-    return Changed(node);
+  if (m.right().HasValue()) {
+    Node* const dividend = m.left().node();
+    uint32_t const divisor = m.right().Value();
+    if (base::bits::IsPowerOfTwo32(divisor)) {  // x / 2^n => x >> n
+      node->set_op(machine()->Word32Shr());
+      node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
+      node->TrimInputCount(2);
+      return Changed(node);
+    } else {
+      return Replace(Uint32Div(dividend, divisor));
+    }
   }
   return NoChange();
 }
@@ -630,8 +654,8 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
 
       Node* check =
           graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
-      Node* branch =
-          graph()->NewNode(common()->Branch(), check, graph()->start());
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                      check, graph()->start());
 
       Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
       Node* neg = Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask));
@@ -640,17 +664,20 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
       Node* pos = Word32And(dividend, mask);
 
       Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-      Node* phi =
-          graph()->NewNode(common()->Phi(kMachInt32, 2), neg, pos, merge);
-      return Replace(phi);
+
+      DCHECK_EQ(3, node->InputCount());
+      node->set_op(common()->Phi(kMachInt32, 2));
+      node->ReplaceInput(0, neg);
+      node->ReplaceInput(1, pos);
+      node->ReplaceInput(2, merge);
     } else {
-      Node* quotient = TruncatingDiv(dividend, divisor);
+      Node* quotient = Int32Div(dividend, divisor);
       node->set_op(machine()->Int32Sub());
       DCHECK_EQ(dividend, node->InputAt(0));
       node->ReplaceInput(1, Int32Mul(quotient, Int32Constant(divisor)));
       node->TrimInputCount(2);
-      return Changed(node);
     }
+    return Changed(node);
   }
   return NoChange();
 }
@@ -666,10 +693,19 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
     return ReplaceUint32(
         base::bits::UnsignedMod32(m.left().Value(), m.right().Value()));
   }
-  if (m.right().IsPowerOf2()) {  // x % 2^n => x & 2^n-1
+  if (m.right().HasValue()) {
+    Node* const dividend = m.left().node();
+    uint32_t const divisor = m.right().Value();
+    if (base::bits::IsPowerOfTwo32(divisor)) {  // x % 2^n => x & 2^n-1
+      node->set_op(machine()->Word32And());
+      node->ReplaceInput(1, Uint32Constant(m.right().Value() - 1));
+    } else {
+      Node* quotient = Uint32Div(dividend, divisor);
+      node->set_op(machine()->Int32Sub());
+      DCHECK_EQ(dividend, node->InputAt(0));
+      node->ReplaceInput(1, Int32Mul(quotient, Uint32Constant(divisor)));
+    }
     node->TrimInputCount(2);
-    node->set_op(machine()->Word32And());
-    node->ReplaceInput(1, Uint32Constant(m.right().Value() - 1));
     return Changed(node);
   }
   return NoChange();

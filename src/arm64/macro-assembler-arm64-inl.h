@@ -1126,6 +1126,14 @@ void MacroAssembler::Smulh(const Register& rd,
 }
 
 
+void MacroAssembler::Umull(const Register& rd, const Register& rn,
+                           const Register& rm) {
+  DCHECK(allow_macro_instructions_);
+  DCHECK(!rd.IsZero());
+  umaddl(rd, rn, rm, xzr);
+}
+
+
 void MacroAssembler::Stnp(const CPURegister& rt,
                           const CPURegister& rt2,
                           const MemOperand& dst) {

@@ -29,6 +29,7 @@ namespace compiler {
   V(X64Imul)                       \
   V(X64Imul32)                     \
   V(X64ImulHigh32)                 \
+  V(X64UmulHigh32)                 \
   V(X64Idiv)                       \
   V(X64Idiv32)                     \
   V(X64Udiv)                       \

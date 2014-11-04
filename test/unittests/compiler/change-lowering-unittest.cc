@@ -456,7 +456,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
           IsMerge(
               IsIfTrue(AllOf(CaptureEq(&branch),
                              IsBranch(IsUint32LessThanOrEqual(
-                                          val, IsInt64Constant(SmiMaxValue())),
+                                          val, IsInt32Constant(SmiMaxValue())),
                                       graph()->start()))),
               AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
 }

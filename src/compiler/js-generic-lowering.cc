@@ -9,6 +9,7 @@
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/unique.h"
 
@@ -64,7 +65,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
     Lower##x(node);     \
     break;
     DECLARE_CASE(Branch)
-    DECLARE_CASE(Select)
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
     default:
@@ -242,23 +242,6 @@ void JSGenericLowering::LowerBranch(Node* node) {
 }
 
 
-void JSGenericLowering::LowerSelect(Node* node) {
-  // TODO(bmeurer): This should probably be moved into a separate file.
-  SelectParameters const& p = SelectParametersOf(node->op());
-  Node* branch = graph()->NewNode(common()->Branch(p.hint()), node->InputAt(0),
-                                  graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = node->InputAt(1);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = node->InputAt(2);
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  node->set_op(common()->Phi(p.type(), 2));
-  node->ReplaceInput(0, vtrue);
-  node->ReplaceInput(1, vfalse);
-  node->ReplaceInput(2, merge);
-}
-
-
 void JSGenericLowering::LowerJSUnaryNot(Node* node) {
   Callable callable = CodeFactory::ToBoolean(
       isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
@@ -405,9 +388,51 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSCallFunction(Node* node) {
+bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
+  // Lower to a direct call to a constant JSFunction if legal.
   const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-  CallFunctionStub stub(isolate(), static_cast<int>(p.arity() - 2), p.flags());
+  int arg_count = static_cast<int>(p.arity() - 2);
+
+  // Check the function is a constant and is really a JSFunction.
+  HeapObjectMatcher<Object> function_const(node->InputAt(0));
+  if (!function_const.HasValue()) return false;  // not a constant.
+  Handle<Object> func = function_const.Value().handle();
+  if (!func->IsJSFunction()) return false;  // not a function.
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func);
+  if (arg_count != function->shared()->formal_parameter_count()) return false;
+
+  // Check the receiver doesn't need to be wrapped.
+  Node* receiver = node->InputAt(1);
+  if (!NodeProperties::IsTyped(receiver)) return false;
+  Type* ok_receiver = Type::Union(Type::Undefined(), Type::Receiver(), zone());
+  if (!NodeProperties::GetBounds(receiver).upper->Is(ok_receiver)) return false;
+
+  int index = NodeProperties::FirstContextIndex(node);
+
+  // TODO(titzer): total hack to share function context constants.
+  // Remove this when the JSGraph canonicalizes heap constants.
+  Node* context = node->InputAt(index);
+  HeapObjectMatcher<Context> context_const(context);
+  if (!context_const.HasValue() ||
+      *(context_const.Value().handle()) != function->context()) {
+    context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
+  }
+  node->ReplaceInput(index, context);
+  CallDescriptor* desc = linkage()->GetJSCallDescriptor(
+      1 + arg_count, jsgraph()->zone(), FlagsForNode(node));
+  PatchOperator(node, common()->Call(desc));
+  return true;
+}
+
+
+void JSGenericLowering::LowerJSCallFunction(Node* node) {
+  // Fast case: call function directly.
+  if (TryLowerDirectJSCall(node)) return;
+
+  // General case: CallFunctionStub.
+  const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  int arg_count = static_cast<int>(p.arity() - 2);
+  CallFunctionStub stub(isolate(), arg_count, p.flags());
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(
       d, static_cast<int>(p.arity() - 1), FlagsForNode(node));

@@ -31,6 +31,7 @@ using namespace v8::internal::compiler;
 #if V8_TURBOFAN_TARGET
 
 typedef RawMachineAssembler::Label MLabel;
+typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 
 static Handle<JSFunction> NewFunction(const char* source) {
   return v8::Utils::OpenHandle(
@@ -65,8 +66,9 @@ class DeoptCodegenTester {
 
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
-    code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
-                                                           schedule);
+    InstructionBlocks* instruction_blocks =
+        TestInstrSeq::InstructionBlocksFor(scope_->main_zone(), schedule);
+    code = new TestInstrSeq(scope_->main_zone(), instruction_blocks);
     SourcePositionTable source_positions(graph);
     InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
                                  schedule, &source_positions);
@@ -104,7 +106,7 @@ class DeoptCodegenTester {
   CompilationInfo info;
   BailoutId bailout_id;
   Handle<Code> result_code;
-  v8::internal::compiler::InstructionSequence* code;
+  TestInstrSeq* code;
   Graph* graph;
 };
 

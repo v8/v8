@@ -963,7 +963,10 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("svn status", "", cwd=svn_root),
       Cmd("patch -d trunk -p1 -i %s" %
           TEST_CONFIG["PATCH_FILE"], "Applied patch...", cwd=svn_root),
-      Cmd("svn add --force trunk", "", cwd=svn_root),
+      Cmd("svn status", "M       OWNERS\n?       new_file\n!       AUTHORS",
+          cwd=svn_root),
+      Cmd("svn add --force new_file", "", cwd=svn_root),
+      Cmd("svn delete --force AUTHORS", "", cwd=svn_root),
       Cmd("svn commit --non-interactive --username=author@chromium.org "
           "--config-dir=[CONFIG_DIR] "
           "-m \"Version 3.22.5 (based on push_hash)\"",
@@ -1175,6 +1178,8 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
+      Cmd("git fetch", ""),
+      Cmd("git svn fetch", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
@@ -1196,6 +1201,8 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
+      Cmd("git fetch", ""),
+      Cmd("git svn fetch", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
@@ -1786,7 +1793,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("svn status", "", cwd=svn_root),
       Cmd("patch -d branches/bleeding_edge -p1 -i %s" %
           TEST_CONFIG["PATCH_FILE"], "Applied patch...", cwd=svn_root),
-      Cmd("svn add --force branches/bleeding_edge", "", cwd=svn_root),
+     Cmd("svn status", "M       src/version.cc", cwd=svn_root),
       Cmd("svn commit --non-interactive --username=author@chromium.org "
           "--config-dir=[CONFIG_DIR] "
           "-m \"[Auto-roll] Bump up version to 3.11.6.0\"",

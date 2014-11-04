@@ -24,14 +24,13 @@ void GraphReplayPrinter::PrintReplay(Graph* graph) {
 }
 
 
-GenericGraphVisit::Control GraphReplayPrinter::Pre(Node* node) {
+void GraphReplayPrinter::Pre(Node* node) {
   PrintReplayOpCreator(node->op());
   PrintF("  Node* n%d = graph.NewNode(op", node->id());
   for (int i = 0; i < node->InputCount(); ++i) {
     PrintF(", nil");
   }
   PrintF("); USE(n%d);\n", node->id());
-  return GenericGraphVisit::CONTINUE;
 }
 
 

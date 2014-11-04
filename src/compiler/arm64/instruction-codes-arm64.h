@@ -37,6 +37,7 @@ namespace compiler {
   V(Arm64Mul)                      \
   V(Arm64Mul32)                    \
   V(Arm64Smull)                    \
+  V(Arm64Umull)                    \
   V(Arm64Madd)                     \
   V(Arm64Madd32)                   \
   V(Arm64Msub)                     \
@@ -67,6 +68,10 @@ namespace compiler {
   V(Arm64Sxtw)                     \
   V(Arm64Ubfx)                     \
   V(Arm64Ubfx32)                   \
+  V(Arm64Tbz)                      \
+  V(Arm64Tbz32)                    \
+  V(Arm64Tbnz)                     \
+  V(Arm64Tbnz32)                   \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \
