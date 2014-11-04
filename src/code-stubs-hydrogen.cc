@@ -1533,67 +1533,47 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
 
   AddIncrementCounter(counters->fast_new_closure_total());
 
-  IfBuilder optimize_now(this);
-  HInstruction* compile_hint = Add<HLoadNamedField>(
-      shared_info, static_cast<HValue*>(NULL), HObjectAccess::ForCompileHint());
-  HValue* hint_mask = Add<HConstant>(
-      static_cast<int32_t>(1 << SharedFunctionInfo::kOptimizeNextClosure));
-  HInstruction* optimize =
-      AddUncasted<HBitwise>(Token::BIT_AND, compile_hint, hint_mask);
-  optimize_now.If<HCompareNumericAndBranch>(optimize, hint_mask, Token::EQ);
-  optimize_now.Then();
-  {
-    Add<HPushArguments>(context(), shared_info, graph()->GetConstantFalse());
-    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
-                           Runtime::FunctionForId(Runtime::kNewClosure), 3));
+  // Create a new closure from the given function info in new space
+  HValue* size = Add<HConstant>(JSFunction::kSize);
+  HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
+                                             NOT_TENURED, JS_FUNCTION_TYPE);
+
+  int map_index = Context::FunctionMapIndex(casted_stub()->strict_mode(),
+                                            casted_stub()->kind());
+
+  // Compute the function map in the current native context and set that
+  // as the map of the allocated object.
+  HInstruction* native_context = BuildGetNativeContext();
+  HInstruction* map_slot_value = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(map_index));
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
+
+  // Initialize the rest of the function.
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
+                        graph()->GetConstantHole());
+  Add<HStoreNamedField>(js_function,
+                        HObjectAccess::ForSharedFunctionInfoPointer(),
+                        shared_info);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
+                        context());
+
+  // Initialize the code pointer in the function to be the one
+  // found in the shared function info object.
+  // But first check if there is an optimized version for our context.
+  if (FLAG_cache_optimized_code) {
+    BuildInstallFromOptimizedCodeMap(js_function, shared_info, native_context);
+  } else {
+    BuildInstallCode(js_function, shared_info);
   }
-  optimize_now.Else();
-  {
-    // Create a new closure from the given function info in new space
-    HValue* size = Add<HConstant>(JSFunction::kSize);
-    HInstruction* js_function =
-        Add<HAllocate>(size, HType::JSObject(), NOT_TENURED, JS_FUNCTION_TYPE);
 
-    int map_index = Context::FunctionMapIndex(casted_stub()->strict_mode(),
-                                              casted_stub()->kind());
-
-    // Compute the function map in the current native context and set that
-    // as the map of the allocated object.
-    HInstruction* native_context = BuildGetNativeContext();
-    HInstruction* map_slot_value =
-        Add<HLoadNamedField>(native_context, static_cast<HValue*>(NULL),
-                             HObjectAccess::ForContextSlot(map_index));
-    Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
-
-    // Initialize the rest of the function.
-    Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
-                          empty_fixed_array);
-    Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
-                          empty_fixed_array);
-    Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                          empty_fixed_array);
-    Add<HStoreNamedField>(js_function,
-                          HObjectAccess::ForPrototypeOrInitialMap(),
-                          graph()->GetConstantHole());
-    Add<HStoreNamedField>(js_function,
-                          HObjectAccess::ForSharedFunctionInfoPointer(),
-                          shared_info);
-    Add<HStoreNamedField>(
-        js_function, HObjectAccess::ForFunctionContextPointer(), context());
-
-    // Initialize the code pointer in the function to be the one
-    // found in the shared function info object.
-    // But first check if there is an optimized version for our context.
-    if (FLAG_cache_optimized_code) {
-      BuildInstallFromOptimizedCodeMap(js_function, shared_info,
-                                       native_context);
-    } else {
-      BuildInstallCode(js_function, shared_info);
-    }
-    Push(js_function);
-  }
-  optimize_now.End();
-  return Pop();
+  return js_function;
 }
 
 
