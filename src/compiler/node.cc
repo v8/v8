@@ -44,9 +44,9 @@ Node* Node::FindProjection(size_t projection_index) {
 
 std::ostream& operator<<(std::ostream& os, const Node& n) {
   os << n.id() << ": " << *n.op();
-  if (n.op()->InputCount() > 0) {
+  if (n.InputCount() > 0) {
     os << "(";
-    for (int i = 0; i < n.op()->InputCount(); ++i) {
+    for (int i = 0; i < n.InputCount(); ++i) {
       if (i != 0) os << ", ";
       os << n.InputAt(i)->id();
     }
