@@ -922,9 +922,9 @@ class SpecialRPONumberer : public ZoneObject {
       // TODO(jarin,svenpanne): Add formatting here once we have support for
       // that in streams (we want an equivalent of PrintF("%5d:", x) here).
       os << "  " << block->rpo_number() << ":";
-      for (size_t j = 0; j < loops_.size(); j++) {
-        bool membership = loops_[j].members->Contains(bid.ToInt());
-        bool range = loops_[j].header->LoopContains(block);
+      for (size_t i = 0; i < loops_.size(); i++) {
+        bool range = loops_[i].header->LoopContains(block);
+        bool membership = loops_[i].header != block && range;
         os << (membership ? " |" : "  ");
         os << (range ? "x" : " ");
       }
@@ -982,23 +982,18 @@ class SpecialRPONumberer : public ZoneObject {
       DCHECK(end_found);
 
       // Check the contiguousness of loops.
-      // TODO(mstarzinger): Loop membership bit-vector becomes stale.
-      /*int count = 0;
+      int count = 0;
       for (int j = 0; j < static_cast<int>(order->size()); j++) {
         BasicBlock* block = order->at(j);
         DCHECK(block->rpo_number() == j);
         if (j < header->rpo_number() || j >= end->rpo_number()) {
-          DCHECK(!loop->members->Contains(block->id().ToInt()));
+          DCHECK(!header->LoopContains(block));
         } else {
-          if (block == header) {
-            DCHECK(!loop->members->Contains(block->id().ToInt()));
-          } else {
-            DCHECK(loop->members->Contains(block->id().ToInt()));
-          }
+          DCHECK(header->LoopContains(block));
           count++;
         }
       }
-      DCHECK(links == count);*/
+      DCHECK(links == count);
     }
   }
 #endif  // DEBUG
