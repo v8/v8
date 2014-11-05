@@ -346,7 +346,7 @@ static BasicBlock::RpoNumber GetRpo(BasicBlock* block) {
 
 static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
   if (!block->IsLoopHeader()) return BasicBlock::RpoNumber::Invalid();
-  return BasicBlock::RpoNumber::FromInt(block->loop_end());
+  return block->loop_end()->GetRpoNumber();
 }
 
 

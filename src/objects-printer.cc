@@ -1090,18 +1090,19 @@ void TransitionArray::PrintTransitions(std::ostream& os,
   }
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetKey(i);
+    Map* target = GetTarget(i);
     os << "   ";
     key->NamePrint(os);
     os << ": ";
     if (key == GetHeap()->frozen_symbol()) {
       os << " (transition to frozen)";
     } else if (key == GetHeap()->elements_transition_symbol()) {
-      os << " (transition to "
-         << ElementsKindToString(GetTarget(i)->elements_kind()) << ")";
+      os << " (transition to " << ElementsKindToString(target->elements_kind())
+         << ")";
     } else if (key == GetHeap()->observed_symbol()) {
       os << " (transition to Object.observe)";
     } else {
-      PropertyDetails details = GetTargetDetails(i);
+      PropertyDetails details = GetTargetDetails(key, target);
       switch (details.type()) {
         case FIELD: {
           os << " (transition to field)";
@@ -1120,7 +1121,7 @@ void TransitionArray::PrintTransitions(std::ostream& os,
       }
       os << ", attrs: " << details.attributes();
     }
-    os << " -> " << Brief(GetTarget(i)) << "\n";
+    os << " -> " << Brief(target) << "\n";
   }
 }
 

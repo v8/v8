@@ -139,7 +139,7 @@ TEST(InstructionBasic) {
     BasicBlock* block = *i;
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
     CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
-    CHECK_EQ(-1, block->loop_end());
+    CHECK_EQ(NULL, block->loop_end());
   }
 }
 

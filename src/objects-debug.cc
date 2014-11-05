@@ -1164,15 +1164,13 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      OFStream os(stdout);
-      PrintDescriptors(os);
+      Print();
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      OFStream os(stdout);
-      PrintDescriptors(os);
+      Print();
       return false;
     }
     current = hash;
@@ -1183,23 +1181,36 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK(valid_entries == -1);
-  Name* current_key = NULL;
-  uint32_t current = 0;
+  Name* prev_key = NULL;
+  bool prev_is_data_property = false;
+  PropertyAttributes prev_attributes = NONE;
+  uint32_t prev_hash = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
-    if (key == current_key) {
-      OFStream os(stdout);
-      PrintTransitions(os);
+    uint32_t hash = key->Hash();
+    bool is_data_property = false;
+    PropertyAttributes attributes = NONE;
+    if (!IsSpecialTransition(key)) {
+      Map* target = GetTarget(i);
+      PropertyDetails details = GetTargetDetails(key, target);
+      is_data_property = details.type() == FIELD || details.type() == CONSTANT;
+      attributes = details.attributes();
+    } else {
+      // Duplicate entries are not allowed for non-property transitions.
+      CHECK_NE(prev_key, key);
+    }
+
+    int cmp =
+        CompareKeys(prev_key, prev_hash, prev_is_data_property, prev_attributes,
+                    key, hash, is_data_property, attributes);
+    if (cmp >= 0) {
+      Print();
       return false;
     }
-    current_key = key;
-    uint32_t hash = GetSortedKey(i)->Hash();
-    if (hash < current) {
-      OFStream os(stdout);
-      PrintTransitions(os);
-      return false;
-    }
-    current = hash;
+    prev_key = key;
+    prev_hash = hash;
+    prev_attributes = attributes;
+    prev_is_data_property = is_data_property;
   }
   return true;
 }

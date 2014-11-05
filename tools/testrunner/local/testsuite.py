@@ -81,6 +81,8 @@ class TestSuite(object):
   def VariantFlags(self, testcase, default_flags):
     if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
       return [[]]
+    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+      return filter(lambda v: v in ["default", "turbofan"], default_flags)
     return default_flags
 
   def DownloadData(self):

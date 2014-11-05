@@ -97,7 +97,7 @@ class RegisterAllocatorTest : public TestWithZone {
     if (loop_header.IsValid()) {
       basic_block->set_loop_depth(1);
       basic_block->set_loop_header(basic_blocks_[loop_header.ToSize()]);
-      basic_block->set_loop_end(loop_end.ToInt());
+      basic_block->set_loop_end(basic_blocks_[loop_end.ToSize()]);
     }
     InstructionBlock* instruction_block =
         new (zone()) InstructionBlock(zone(), basic_block);

@@ -1984,7 +1984,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn && step_action != StepNext &&
       step_action != StepOut && step_action != StepInMin &&
-      step_action != StepMin) {
+      step_action != StepMin && step_action != StepFrame) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 

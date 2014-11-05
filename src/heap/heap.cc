@@ -2038,7 +2038,17 @@ class ScavengingVisitor : public StaticVisitorBase {
       // Order is important: slot might be inside of the target if target
       // was allocated over a dead object and slot comes from the store
       // buffer.
-      *slot = target;
+
+      // Unfortunately, the allocation can also write over the slot if the slot
+      // was in free space and the allocation wrote free list data (such as the
+      // free list map or entry size) over the slot.  We guard against this by
+      // checking that the slot still points to the object being moved.  This
+      // should be sufficient because neither the free list map nor the free
+      // list entry size should look like a new space pointer (the former is an
+      // old space pointer, the latter is word-aligned).
+      if (*slot == object) {
+        *slot = target;
+      }
       MigrateObject(heap, object, target, object_size);
 
       if (object_contents == POINTER_OBJECT) {

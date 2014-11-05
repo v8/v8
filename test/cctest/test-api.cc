@@ -8810,6 +8810,33 @@ TEST(ApiUncaughtException) {
   v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
 }
 
+
+TEST(ApiUncaughtExceptionInObjectObserve) {
+  v8::internal::FLAG_stack_size = 150;
+  report_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::V8::AddMessageListener(ApiUncaughtExceptionTestListener);
+  CompileRun(
+      "var obj = {};"
+      "var observe_count = 0;"
+      "function observer1() { ++observe_count; };"
+      "function observer2() { ++observe_count; };"
+      "function observer_throws() { throw new Error(); };"
+      "function stack_overflow() { return (function f(x) { f(x+1); })(0); };"
+      "Object.observe(obj, observer_throws.bind());"
+      "Object.observe(obj, observer1);"
+      "Object.observe(obj, stack_overflow);"
+      "Object.observe(obj, observer2);"
+      "Object.observe(obj, observer_throws.bind());"
+      "obj.foo = 'bar';");
+  CHECK_EQ(3, report_count);
+  ExpectInt32("observe_count", 2);
+  v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
+}
+
+
 static const char* script_resource_name = "ExceptionInNativeScript.js";
 static void ExceptionInNativeScriptTestListener(v8::Handle<v8::Message> message,
                                                 v8::Handle<Value>) {
