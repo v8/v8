@@ -34,6 +34,17 @@ static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
       CHECK_EQ(NULL, order->at(i)->loop_header());
     }
   }
+  int number = 0;
+  for (auto const block : *order) {
+    if (block->deferred()) continue;
+    CHECK_EQ(number, block->ao_number());
+    ++number;
+  }
+  for (auto const block : *order) {
+    if (!block->deferred()) continue;
+    CHECK_EQ(number, block->ao_number());
+    ++number;
+  }
 }
 
 
@@ -155,6 +166,7 @@ TEST(RPOLine) {
     BasicBlock* last = schedule.start();
     for (int j = 0; j < i; j++) {
       BasicBlock* block = schedule.NewBasicBlock();
+      block->set_deferred(i & 1);
       schedule.AddGoto(last, block);
       last = block;
     }

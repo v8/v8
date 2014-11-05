@@ -415,8 +415,6 @@ class CFGBuilder {
                            IrOpcode::kIfFalse);
 
     // Consider branch hints.
-    // TODO(turbofan): Propagate the deferred flag to all blocks dominated by
-    // this IfTrue/IfFalse later.
     switch (BranchHintOf(branch->op())) {
       case BranchHint::kNone:
         break;
@@ -1061,6 +1059,8 @@ void Scheduler::GenerateImmediateDominatorTree() {
     }
     current->set_dominator(dominator);
     current->set_dominator_depth(dominator->dominator_depth() + 1);
+    // Propagate "deferredness" of the dominator.
+    if (dominator->deferred()) current->set_deferred(true);
     Trace("Block B%d's idom is B%d, depth = %d\n", current->id().ToInt(),
           dominator->id().ToInt(), current->dominator_depth());
   }
