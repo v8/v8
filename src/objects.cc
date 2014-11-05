@@ -542,9 +542,8 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && getter->IsJSFunction()) {
-    debug->HandleStepIn(
-        Handle<JSFunction>::cast(getter), Handle<Object>::null(), 0, false);
+  if (debug->is_active()) {
+    debug->HandleStepIn(getter, Handle<Object>::null(), 0, false);
   }
 
   return Execution::Call(isolate, getter, receiver, 0, NULL, true);
@@ -560,9 +559,8 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && setter->IsJSFunction()) {
-    debug->HandleStepIn(
-        Handle<JSFunction>::cast(setter), Handle<Object>::null(), 0, false);
+  if (debug->is_active()) {
+    debug->HandleStepIn(setter, Handle<Object>::null(), 0, false);
   }
 
   Handle<Object> argv[] = { value };

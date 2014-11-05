@@ -120,21 +120,37 @@ void BreakLocationIterator::Next() {
       DCHECK(statement_position_ >= 0);
     }
 
-    if (IsDebugBreakSlot()) {
-      // There is always a possible break point at a debug break slot.
+    // Check for break at return.
+    if (RelocInfo::IsJSReturn(rmode())) {
+      // Set the positions to the end of the function.
+      if (debug_info_->shared()->HasSourceCode()) {
+        position_ = debug_info_->shared()->end_position() -
+                    debug_info_->shared()->start_position() - 1;
+      } else {
+        position_ = 0;
+      }
+      statement_position_ = position_;
       break_point_++;
       return;
-    } else if (RelocInfo::IsCodeTarget(rmode())) {
+    }
+
+    if (RelocInfo::IsCodeTarget(rmode())) {
       // Check for breakable code target. Look in the original code as setting
       // break points can cause the code targets in the running (debugged) code
       // to be of a different kind than in the original code.
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
-      if ((code->is_inline_cache_stub() &&
-           !code->is_binary_op_stub() &&
-           !code->is_compare_ic_stub() &&
-           !code->is_to_boolean_ic_stub()) ||
-          RelocInfo::IsConstructCall(rmode())) {
+
+      if (RelocInfo::IsConstructCall(rmode()) || code->is_call_stub()) {
+        break_point_++;
+        return;
+      }
+
+      // Skip below if we only want locations for calls and returns.
+      if (type_ == CALLS_AND_RETURNS) continue;
+
+      if ((code->is_inline_cache_stub() && !code->is_binary_op_stub() &&
+           !code->is_compare_ic_stub() && !code->is_to_boolean_ic_stub())) {
         break_point_++;
         return;
       }
@@ -157,16 +173,8 @@ void BreakLocationIterator::Next() {
       }
     }
 
-    // Check for break at return.
-    if (RelocInfo::IsJSReturn(rmode())) {
-      // Set the positions to the end of the function.
-      if (debug_info_->shared()->HasSourceCode()) {
-        position_ = debug_info_->shared()->end_position() -
-                    debug_info_->shared()->start_position() - 1;
-      } else {
-        position_ = 0;
-      }
-      statement_position_ = position_;
+    if (IsDebugBreakSlot() && type_ != CALLS_AND_RETURNS) {
+      // There is always a possible break point at a debug break slot.
       break_point_++;
       return;
     }
@@ -1189,7 +1197,8 @@ void Debug::ClearAllBreakPoints() {
 }
 
 
-void Debug::FloodWithOneShot(Handle<JSFunction> function) {
+void Debug::FloodWithOneShot(Handle<JSFunction> function,
+                             BreakLocatorType type) {
   PrepareForBreakPoints();
 
   // Make sure the function is compiled and has set up the debug info.
@@ -1200,7 +1209,7 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function) {
   }
 
   // Flood the function with break points.
-  BreakLocationIterator it(GetDebugInfo(shared), ALL_BREAK_LOCATIONS);
+  BreakLocationIterator it(GetDebugInfo(shared), type);
   while (!it.Done()) {
     it.SetOneShot();
     it.Next();
@@ -1216,7 +1225,7 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
   if (!bindee.is_null() && bindee->IsJSFunction() &&
       !JSFunction::cast(*bindee)->IsFromNativeScript()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
-    Debug::FloodWithOneShot(bindee_function);
+    FloodWithOneShot(bindee_function);
   }
 }
 
@@ -1296,7 +1305,7 @@ void Debug::PrepareStep(StepAction step_action,
   FloodHandlerWithOneShot();
 
   // If the function on the top frame is unresolved perform step out. This will
-  // be the case when calling unknown functions and having the debugger stopped
+  // be the case when calling unknown function and having the debugger stopped
   // in an unhandled exception.
   if (!frame->function()->IsJSFunction()) {
     // Step out: Find the calling JavaScript frame and flood it with
@@ -1354,7 +1363,7 @@ void Debug::PrepareStep(StepAction step_action,
       if ((maybe_call_function_stub->kind() == Code::STUB &&
            CodeStub::GetMajorKey(maybe_call_function_stub) ==
                CodeStub::CallFunction) ||
-          maybe_call_function_stub->kind() == Code::CALL_IC) {
+          maybe_call_function_stub->is_call_stub()) {
         // Save reference to the code as we may need it to find out arguments
         // count for 'step in' later.
         call_function_stub = Handle<Code>(maybe_call_function_stub);
@@ -1395,7 +1404,9 @@ void Debug::PrepareStep(StepAction step_action,
     // Step next or step min.
 
     // Fill the current function with one-shot break points.
-    FloodWithOneShot(function);
+    // If we are stepping into another frame, only fill calls and returns.
+    FloodWithOneShot(function, step_action == StepFrame ? CALLS_AND_RETURNS
+                                                        : ALL_BREAK_LOCATIONS);
 
     // Remember source position and frame to handle step next.
     thread_local_.last_statement_position_ =
@@ -1454,7 +1465,7 @@ void Debug::PrepareStep(StepAction step_action,
       if (fun->IsJSFunction()) {
         Handle<JSFunction> js_function(JSFunction::cast(fun));
         if (js_function->shared()->bound()) {
-          Debug::FloodBoundFunctionWithOneShot(js_function);
+          FloodBoundFunctionWithOneShot(js_function);
         } else if (!js_function->IsFromNativeScript()) {
           // Don't step into builtins.
           // It will also compile target function if it's not compiled yet.
@@ -1467,7 +1478,9 @@ void Debug::PrepareStep(StepAction step_action,
     // a call target as the function called might be a native function for
     // which step in will not stop. It also prepares for stepping in
     // getters/setters.
-    FloodWithOneShot(function);
+    // If we are stepping into another frame, only fill calls and returns.
+    FloodWithOneShot(function, step_action == StepFrame ? CALLS_AND_RETURNS
+                                                        : ALL_BREAK_LOCATIONS);
 
     if (is_load_or_store) {
       // Remember source position and frame to handle step in getter/setter. If
@@ -1496,15 +1509,20 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
                              JavaScriptFrame* frame) {
   // StepNext and StepOut shouldn't bring us deeper in code, so last frame
   // shouldn't be a parent of current frame.
-  if (thread_local_.last_step_action_ == StepNext ||
-      thread_local_.last_step_action_ == StepOut) {
+  StepAction step_action = thread_local_.last_step_action_;
+
+  if (step_action == StepNext || step_action == StepOut) {
     if (frame->fp() < thread_local_.last_fp_) return true;
+  }
+
+  // We stepped into a new frame if the frame pointer changed.
+  if (step_action == StepFrame) {
+    return frame->UnpaddedFP() == thread_local_.last_fp_;
   }
 
   // If the step last action was step next or step in make sure that a new
   // statement is hit.
-  if (thread_local_.last_step_action_ == StepNext ||
-      thread_local_.last_step_action_ == StepIn) {
+  if (step_action == StepNext || step_action == StepIn) {
     // Never continue if returning from function.
     if (break_location_iterator->IsExit()) return false;
 
@@ -1571,10 +1589,13 @@ Handle<Object> Debug::GetSourceBreakLocations(
 
 
 // Handle stepping into a function.
-void Debug::HandleStepIn(Handle<JSFunction> function,
-                         Handle<Object> holder,
-                         Address fp,
-                         bool is_constructor) {
+void Debug::HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
+                         Address fp, bool is_constructor) {
+  // Flood getter/setter if we either step in or step to another frame.
+  bool step_frame = thread_local_.last_step_action_ == StepFrame;
+  if (!StepInActive() && !step_frame) return;
+  if (!function_obj->IsJSFunction()) return;
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_obj);
   Isolate* isolate = function->GetIsolate();
   // If the frame pointer is not supplied by the caller find it.
   if (fp == 0) {
@@ -1589,11 +1610,11 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
   }
 
   // Flood the function with one-shot break points if it is called from where
-  // step into was requested.
-  if (fp == thread_local_.step_into_fp_) {
+  // step into was requested, or when stepping into a new frame.
+  if (fp == thread_local_.step_into_fp_ || step_frame) {
     if (function->shared()->bound()) {
       // Handle Function.prototype.bind
-      Debug::FloodBoundFunctionWithOneShot(function);
+      FloodBoundFunctionWithOneShot(function);
     } else if (!function->IsFromNativeScript()) {
       // Don't allow step into functions in the native context.
       if (function->shared()->code() ==
@@ -1607,14 +1628,14 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         if (!holder.is_null() && holder->IsJSFunction()) {
           Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
           if (!js_function->IsFromNativeScript()) {
-            Debug::FloodWithOneShot(js_function);
+            FloodWithOneShot(js_function);
           } else if (js_function->shared()->bound()) {
             // Handle Function.prototype.bind
-            Debug::FloodBoundFunctionWithOneShot(js_function);
+            FloodBoundFunctionWithOneShot(js_function);
           }
         }
       } else {
-        Debug::FloodWithOneShot(function);
+        FloodWithOneShot(function);
       }
     }
   }
