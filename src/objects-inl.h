@@ -4331,8 +4331,10 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
+    // Strings may get concurrently truncated, hence we have to access its
+    // length synchronized.
     return SeqOneByteString::SizeFor(
-        reinterpret_cast<SeqOneByteString*>(this)->length());
+        reinterpret_cast<SeqOneByteString*>(this)->synchronized_length());
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
@@ -4342,8 +4344,10 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {
+    // Strings may get concurrently truncated, hence we have to access its
+    // length synchronized.
     return SeqTwoByteString::SizeFor(
-        reinterpret_cast<SeqTwoByteString*>(this)->length());
+        reinterpret_cast<SeqTwoByteString*>(this)->synchronized_length());
   }
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::SizeFor(
