@@ -5356,6 +5356,12 @@ class HParameter FINAL : public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  virtual Representation KnownOptimalRepresentation() OVERRIDE {
+    // If a parameter is an input to a phi, that phi should not
+    // choose any more optimistic representation than Tagged.
+    return Representation::Tagged();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Parameter)
 
  private:
