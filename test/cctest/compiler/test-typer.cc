@@ -4,7 +4,6 @@
 
 #include <functional>
 
-#include "src/codegen.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
@@ -214,12 +213,6 @@ TEST(TypeJSMultiply) {
 TEST(TypeJSDivide) {
   TyperTester t;
   t.TestBinaryArithOp(t.javascript_.Divide(), std::divides<double>());
-}
-
-
-TEST(TypeJSModulus) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Modulus(), modulo);
 }
 
 
