@@ -75,7 +75,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
           *function, Code::kMaxLoopNestingMarker);
     } else if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
-      function->AttemptConcurrentOptimization();
+      function->MarkForConcurrentOptimization();
     }
   }
 

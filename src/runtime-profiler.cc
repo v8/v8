@@ -106,8 +106,23 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  function->shared()->set_optimize_next_closure(true);
-  function->AttemptConcurrentOptimization();
+
+  if (isolate_->concurrent_recompilation_enabled() &&
+      !isolate_->bootstrapper()->IsActive()) {
+    if (isolate_->concurrent_osr_enabled() &&
+        isolate_->optimizing_compiler_thread()->IsQueuedForOSR(function)) {
+      // Do not attempt regular recompilation if we already queued this for OSR.
+      // TODO(yangguo): This is necessary so that we don't install optimized
+      // code on a function that is already optimized, since OSR and regular
+      // recompilation race.  This goes away as soon as OSR becomes one-shot.
+      return;
+    }
+    DCHECK(!function->IsInOptimizationQueue());
+    function->MarkForConcurrentOptimization();
+  } else {
+    // The next call to the function will trigger optimization.
+    function->MarkForOptimization();
+  }
 }
 
 
