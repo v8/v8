@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/diamond.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/node-matchers.h"
@@ -106,17 +107,10 @@ Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
     // Math.abs(a:number) -> (a > 0 ? a : 0 - a)
     Node* value = r.left();
     Node* zero = jsgraph()->ZeroConstant();
-    Node* control = graph()->start();
-    Node* tag = graph()->NewNode(simplified()->NumberLessThan(), zero, value);
-
-    Node* branch = graph()->NewNode(common()->Branch(), tag, control);
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-
+    Node* cmp = graph()->NewNode(simplified()->NumberLessThan(), zero, value);
+    Diamond d(graph(), common(), cmp);
     Node* neg = graph()->NewNode(simplified()->NumberSubtract(), zero, value);
-    value = graph()->NewNode(common()->Phi(kMachNone, 2), value, neg, merge);
-    return Replace(value);
+    return Replace(d.Phi(kMachNone, value, neg));
   }
   return NoChange();
 }
@@ -150,15 +144,9 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
     Node* value = r.GetJSCallInput(0);
     for (int i = 1; i < r.GetJSCallArity(); i++) {
       Node* p = r.GetJSCallInput(i);
-      Node* control = graph()->start();
-      Node* tag = graph()->NewNode(simplified()->NumberLessThan(), value, p);
-
-      Node* branch = graph()->NewNode(common()->Branch(), tag, control);
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-
-      value = graph()->NewNode(common()->Phi(kMachNone, 2), p, value, merge);
+      Node* cmp = graph()->NewNode(simplified()->NumberLessThan(), value, p);
+      Diamond d(graph(), common(), cmp);
+      value = d.Phi(kMachNone, p, value);
     }
     return Replace(value);
   }

@@ -4,6 +4,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/js-intrinsic-builder.h"
 #include "src/compiler/js-operator.h"
@@ -68,29 +69,23 @@ ResultAndEffect JSIntrinsicBuilder::BuildMapCheck(Node* object, Node* effect,
   SimplifiedOperatorBuilder simplified(jsgraph_->zone());
 
   Node* is_smi = graph()->NewNode(simplified.ObjectIsSmi(), object);
-  Node* branch = graph()->NewNode(common()->Branch(), is_smi, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Diamond d(graph(), common(), is_smi);
 
   Node* map = graph()->NewNode(simplified.LoadField(AccessBuilder::ForMap()),
-                               object, effect, if_false);
+                               object, effect, d.if_false);
 
   Node* instance_type = graph()->NewNode(
       simplified.LoadField(AccessBuilder::ForMapInstanceType()), map, map,
-      if_false);
+      d.if_false);
 
   Node* has_map_type =
       graph()->NewNode(jsgraph_->machine()->Word32Equal(), instance_type,
                        jsgraph_->Int32Constant(map_type));
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* phi = d.Phi(static_cast<MachineType>(kTypeBool | kRepTagged),
+                    jsgraph_->FalseConstant(), has_map_type);
 
-  Node* phi =
-      graph()->NewNode(common()->Phi((MachineType)(kTypeBool | kRepTagged), 2),
-                       jsgraph_->FalseConstant(), has_map_type, merge);
-
-  Node* ephi =
-      graph()->NewNode(common()->EffectPhi(2), effect, instance_type, merge);
+  Node* ephi = d.EffectPhi(effect, instance_type);
 
   return ResultAndEffect(phi, ephi);
 }
@@ -112,44 +107,32 @@ ResultAndEffect JSIntrinsicBuilder::BuildGraphFor_ValueOf(
   SimplifiedOperatorBuilder simplified(jsgraph_->zone());
 
   Node* is_smi = graph()->NewNode(simplified.ObjectIsSmi(), object);
-  Node* branch = graph()->NewNode(common()->Branch(), is_smi, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+
+  Diamond if_is_smi(graph(), common(), is_smi);
 
   Node* map = graph()->NewNode(simplified.LoadField(AccessBuilder::ForMap()),
-                               object, effect, if_false);
+                               object, effect, if_is_smi.if_false);
 
   Node* instance_type = graph()->NewNode(
       simplified.LoadField(AccessBuilder::ForMapInstanceType()), map, map,
-      if_false);
+      if_is_smi.if_false);
 
   Node* is_value =
       graph()->NewNode(jsgraph_->machine()->Word32Equal(), instance_type,
                        jsgraph_->Constant(JS_VALUE_TYPE));
 
-  Node* branch_is_value =
-      graph()->NewNode(common()->Branch(), is_value, if_false);
-  Node* is_value_true = graph()->NewNode(common()->IfTrue(), branch_is_value);
-  Node* is_value_false = graph()->NewNode(common()->IfFalse(), branch_is_value);
+  Diamond if_is_value(graph(), common(), is_value);
+  if_is_value.Nest(if_is_smi, false);
 
   Node* value =
       graph()->NewNode(simplified.LoadField(AccessBuilder::ForValue()), object,
-                       instance_type, is_value_true);
+                       instance_type, if_is_value.if_true);
 
-  Node* merge_is_value =
-      graph()->NewNode(common()->Merge(2), is_value_true, is_value_false);
+  Node* phi_is_value = if_is_value.Phi(kTypeAny, value, object);
 
-  Node* phi_is_value = graph()->NewNode(common()->Phi((MachineType)kTypeAny, 2),
-                                        value, object, merge_is_value);
+  Node* phi = if_is_smi.Phi(kTypeAny, object, phi_is_value);
 
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, merge_is_value);
-
-  Node* phi = graph()->NewNode(common()->Phi((MachineType)kTypeAny, 2), object,
-                               phi_is_value, merge);
-
-  Node* ephi =
-      graph()->NewNode(common()->EffectPhi(2), effect, instance_type, merge);
+  Node* ephi = if_is_smi.EffectPhi(effect, instance_type);
 
   return ResultAndEffect(phi, ephi);
 }

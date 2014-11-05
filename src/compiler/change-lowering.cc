@@ -4,6 +4,8 @@
 
 #include "src/compiler/change-lowering.h"
 
+#include "src/code-factory.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -66,19 +68,16 @@ Node* ChangeLowering::SmiShiftBitsConstant() {
 
 
 Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
-  // The AllocateHeapNumber() runtime function does not use the context, so we
-  // can safely pass in Smi zero here.
+  // The AllocateHeapNumberStub does not use the context, so we can safely pass
+  // in Smi zero here.
+  Callable callable = CodeFactory::AllocateHeapNumber(isolate());
+  CallDescriptor* descriptor = linkage()->GetStubCallDescriptor(
+      callable.descriptor(), 0, CallDescriptor::kNoFlags);
+  Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->ZeroConstant();
   Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
-  const Runtime::Function* function =
-      Runtime::FunctionForId(Runtime::kAllocateHeapNumber);
-  DCHECK_EQ(0, function->nargs);
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
-      function->function_id, 0, Operator::kNoProperties);
-  Node* heap_number = graph()->NewNode(
-      common()->Call(desc), jsgraph()->CEntryStubConstant(),
-      jsgraph()->ExternalConstant(ExternalReference(function, isolate())),
-      jsgraph()->Int32Constant(function->nargs), context, effect, control);
+  Node* heap_number = graph()->NewNode(common()->Call(descriptor), target,
+                                       context, effect, control);
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
@@ -103,20 +102,11 @@ Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
 
 
 Reduction ChangeLowering::ChangeBitToBool(Node* val, Node* control) {
-  Node* branch = graph()->NewNode(common()->Branch(), val, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* true_value = jsgraph()->TrueConstant();
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* false_value = jsgraph()->FalseConstant();
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(static_cast<MachineType>(kTypeBool | kRepTagged), 2),
-      true_value, false_value, merge);
-
-  return Replace(phi);
+  Diamond d(graph(), common(), val);
+  d.Chain(control);
+  MachineType machine_type = static_cast<MachineType>(kTypeBool | kRepTagged);
+  return Replace(d.Phi(machine_type, jsgraph()->TrueConstant(),
+                       jsgraph()->FalseConstant()));
 }
 
 
@@ -142,21 +132,12 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
   Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), val, val);
   Node* ovf = graph()->NewNode(common()->Projection(1), add);
 
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), ovf, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Diamond d(graph(), common(), ovf, BranchHint::kFalse);
+  d.Chain(control);
   Node* heap_number = AllocateHeapNumberWithValue(
-      graph()->NewNode(machine()->ChangeInt32ToFloat64(), val), if_true);
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), val), d.if_true);
   Node* smi = graph()->NewNode(common()->Projection(0), add);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), heap_number,
-                               smi, merge);
-
-  return Replace(phi);
+  return Replace(d.Phi(kMachAnyTagged, heap_number, smi));
 }
 
 
@@ -167,23 +148,17 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
 
   Node* tag = graph()->NewNode(machine()->WordAnd(), val,
                                jsgraph()->IntPtrConstant(kSmiTagMask));
-  Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Diamond d(graph(), common(), tag, BranchHint::kFalse);
+  d.Chain(control);
   const Operator* op = (signedness == kSigned)
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();
-  Node* change = graph()->NewNode(op, LoadHeapNumberValue(val, if_true));
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* load = graph()->NewNode(op, LoadHeapNumberValue(val, d.if_true));
   Node* number = ChangeSmiToInt32(val);
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi((signedness == kSigned) ? kMachInt32 : kMachUint32, 2),
-      change, number, merge);
-
-  return Replace(phi);
+  return Replace(
+      d.Phi((signedness == kSigned) ? kMachInt32 : kMachUint32, load, number));
 }
 
 
@@ -193,20 +168,13 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
 
   Node* tag = graph()->NewNode(machine()->WordAnd(), val,
                                jsgraph()->IntPtrConstant(kSmiTagMask));
-  Node* branch = graph()->NewNode(common()->Branch(), tag, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* load = LoadHeapNumberValue(val, if_true);
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Diamond d(graph(), common(), tag, BranchHint::kFalse);
+  d.Chain(control);
+  Node* load = LoadHeapNumberValue(val, d.if_true);
   Node* number = graph()->NewNode(machine()->ChangeInt32ToFloat64(),
                                   ChangeSmiToInt32(val));
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachFloat64, 2), load, number, merge);
-
-  return Replace(phi);
+  return Replace(d.Phi(kMachFloat64, load, number));
 }
 
 
@@ -216,10 +184,8 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
 
   Node* cmp = graph()->NewNode(machine()->Uint32LessThanOrEqual(), val,
                                SmiMaxValueConstant());
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), cmp, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Diamond d(graph(), common(), cmp, BranchHint::kTrue);
+  d.Chain(control);
   Node* smi = graph()->NewNode(
       machine()->WordShl(),
       machine()->Is64()
@@ -227,15 +193,10 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
           : val,
       SmiShiftBitsConstant());
 
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* heap_number = AllocateHeapNumberWithValue(
-      graph()->NewNode(machine()->ChangeUint32ToFloat64(), val), if_false);
+      graph()->NewNode(machine()->ChangeUint32ToFloat64(), val), d.if_false);
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), smi,
-                               heap_number, merge);
-
-  return Replace(phi);
+  return Replace(d.Phi(kMachAnyTagged, smi, heap_number));
 }
 
 

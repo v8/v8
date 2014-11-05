@@ -973,6 +973,7 @@ struct Branch {
 };
 
 
+// TODO(titzer): use the diamonds from src/compiler/diamond.h here.
 struct Diamond {
   Node* branch;
   Node* if_true;

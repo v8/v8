@@ -15,29 +15,22 @@ typedef BasicBlock::RpoNumber Rpo;
 
 namespace {
 
-static const char* general_register_names_[kMaxGeneralRegisters];
-static const char* double_register_names_[kMaxDoubleRegisters];
-static char register_names_[10 * (kMaxGeneralRegisters + kMaxDoubleRegisters)];
-
-
-static const char* GeneralRegisterName(int allocation_index) {
-  return general_register_names_[allocation_index];
-}
-
-
-static const char* DoubleRegisterName(int allocation_index) {
-  return double_register_names_[allocation_index];
-}
+static const char*
+    general_register_names_[RegisterConfiguration::kMaxGeneralRegisters];
+static const char*
+    double_register_names_[RegisterConfiguration::kMaxDoubleRegisters];
+static char register_names_[10 * (RegisterConfiguration::kMaxGeneralRegisters +
+                                  RegisterConfiguration::kMaxDoubleRegisters)];
 
 
 static void InitializeRegisterNames() {
   char* loc = register_names_;
-  for (int i = 0; i < kMaxGeneralRegisters; ++i) {
+  for (int i = 0; i < RegisterConfiguration::kMaxGeneralRegisters; ++i) {
     general_register_names_[i] = loc;
     loc += base::OS::SNPrintF(loc, 100, "gp_%d", i);
     *loc++ = 0;
   }
-  for (int i = 0; i < kMaxDoubleRegisters; ++i) {
+  for (int i = 0; i < RegisterConfiguration::kMaxDoubleRegisters; ++i) {
     double_register_names_[i] = loc;
     loc += base::OS::SNPrintF(loc, 100, "fp_%d", i) + 1;
     *loc++ = 0;
@@ -54,15 +47,21 @@ class RegisterAllocatorTest : public TestWithZone {
   static const int kDefaultNRegs = 4;
 
   RegisterAllocatorTest()
-      : basic_blocks_(zone()),
+      : num_general_registers_(kDefaultNRegs),
+        num_double_registers_(kDefaultNRegs),
+        basic_blocks_(zone()),
         instruction_blocks_(zone()),
         current_block_(NULL) {
     InitializeRegisterNames();
-    config_.num_general_registers_ = kDefaultNRegs;
-    config_.num_double_registers_ = kDefaultNRegs;
-    config_.num_aliased_double_registers_ = kDefaultNRegs;
-    config_.GeneralRegisterName = GeneralRegisterName;
-    config_.DoubleRegisterName = DoubleRegisterName;
+  }
+
+  RegisterConfiguration* config() {
+    if (config_.is_empty()) {
+      config_.Reset(new RegisterConfiguration(
+          num_general_registers_, num_double_registers_, num_double_registers_,
+          general_register_names_, double_register_names_));
+    }
+    return config_.get();
   }
 
   Frame* frame() {
@@ -82,7 +81,7 @@ class RegisterAllocatorTest : public TestWithZone {
   RegisterAllocator* allocator() {
     if (allocator_.is_empty()) {
       allocator_.Reset(
-          new RegisterAllocator(config_, zone(), frame(), sequence()));
+          new RegisterAllocator(config(), zone(), frame(), sequence()));
     }
     return allocator_.get();
   }
@@ -118,12 +117,14 @@ class RegisterAllocatorTest : public TestWithZone {
   void Allocate() {
     if (FLAG_trace_alloc) {
       OFStream os(stdout);
-      os << "Before: " << std::endl << *sequence() << std::endl;
+      PrintableInstructionSequence printable = {config(), sequence()};
+      os << "Before: " << std::endl << printable << std::endl;
     }
     allocator()->Allocate();
     if (FLAG_trace_alloc) {
       OFStream os(stdout);
-      os << "After: " << std::endl << *sequence() << std::endl;
+      PrintableInstructionSequence printable = {config(), sequence()};
+      os << "After: " << std::endl << printable << std::endl;
     }
   }
 
@@ -167,7 +168,9 @@ class RegisterAllocatorTest : public TestWithZone {
     return op;
   }
 
-  RegisterAllocator::Config config_;
+  int num_general_registers_;
+  int num_double_registers_;
+  SmartPointer<RegisterConfiguration> config_;
   ZoneVector<BasicBlock*> basic_blocks_;
   InstructionBlocks instruction_blocks_;
   InstructionBlock* current_block_;

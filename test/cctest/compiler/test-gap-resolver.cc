@@ -65,7 +65,9 @@ class InterpreterState {
       if (it != is.values_.begin()) os << " ";
       InstructionOperand source(it->first.first, it->first.second);
       InstructionOperand destination(it->second.first, it->second.second);
-      os << MoveOperands(&source, &destination);
+      MoveOperands mo(&source, &destination);
+      PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
+      os << pmo;
     }
     return os;
   }

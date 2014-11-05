@@ -215,11 +215,9 @@ class Genesis BASE_EMBEDDED {
   void InstallNativeFunctions_##id();             \
   void InitializeGlobal_##id();
 
-  SHIPPING_FEATURES(DECLARE_FEATURE_INITIALIZATION)
-  HARMONY_FEATURES(DECLARE_FEATURE_INITIALIZATION)
-  STAGED_FEATURES(DECLARE_FEATURE_INITIALIZATION)
-
-  DECLARE_FEATURE_INITIALIZATION(harmony_proxies, "")
+  HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
+  HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
+  HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
 
   Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
@@ -1344,7 +1342,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
 #define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
 
-  SHIPPING_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+  HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
 
   // Initialize the embedder data slot.
@@ -1379,8 +1377,8 @@ void Genesis::InstallTypedArray(
 void Genesis::InitializeExperimentalGlobal() {
 #define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
 
-  HARMONY_FEATURES(FEATURE_INITIALIZE_GLOBAL)
-  STAGED_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+  HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
+  HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
@@ -1565,8 +1563,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
 
 #define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
-
-  SHIPPING_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
+  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
 #undef INSTALL_NATIVE_FUNCTIONS_FOR
 }
 
@@ -1580,10 +1577,8 @@ void Genesis::InstallExperimentalNativeFunctions() {
   }
 
 #define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
-
-  HARMONY_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
-  STAGED_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
-  INSTALL_NATIVE_FUNCTIONS_FOR(harmony_proxies, "")
+  HARMONY_INPROGRESS(INSTALL_NATIVE_FUNCTIONS_FOR)
+  HARMONY_STAGED(INSTALL_NATIVE_FUNCTIONS_FOR)
 #undef INSTALL_NATIVE_FUNCTIONS_FOR
 }
 
@@ -1626,6 +1621,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_literals)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_literals)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2180,16 +2176,14 @@ bool Genesis::InstallExperimentalNatives() {
       }                                                              \
     }                                                                \
   }
-    INSTALL_EXPERIMENTAL_NATIVES(harmony_proxies, "");
     // Iterate over flags that are not enabled by default.
-    HARMONY_FEATURES(INSTALL_EXPERIMENTAL_NATIVES);
-    STAGED_FEATURES(INSTALL_EXPERIMENTAL_NATIVES);
+    HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
+    HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
 
 #define USE_NATIVES_FOR_FEATURE(id, descr) USE(id##_natives);
-
-  SHIPPING_FEATURES(USE_NATIVES_FOR_FEATURE)
+  HARMONY_SHIPPING(USE_NATIVES_FOR_FEATURE)
 #undef USE_NATIVES_FOR_FEATURE
 
   InstallExperimentalNativeFunctions();

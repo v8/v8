@@ -697,6 +697,13 @@ void TransitionElementsKindStub::InitializeDescriptor(
 }
 
 
+void AllocateHeapNumberStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kAllocateHeapNumber)->entry);
+}
+
+
 void CompareNilICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(

@@ -883,6 +883,22 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+
+template <>
+HValue* CodeStubGraphBuilder<AllocateHeapNumberStub>::BuildCodeStub() {
+  HValue* result =
+      Add<HAllocate>(Add<HConstant>(HeapNumber::kSize), HType::HeapNumber(),
+                     NOT_TENURED, HEAP_NUMBER_TYPE);
+  AddStoreMapConstant(result, isolate()->factory()->heap_number_map());
+  return result;
+}
+
+
+Handle<Code> AllocateHeapNumberStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     ElementsKind kind,
     AllocationSiteOverrideMode override_mode,

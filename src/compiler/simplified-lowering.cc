@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
@@ -632,7 +633,7 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Int32Div(node));
           break;
         }
-        if (CanLowerToUint32Binop(node, use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
           // => unsigned Uint32Div
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
@@ -1172,11 +1173,9 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
       node->ReplaceInput(2, effect);
       node->ReplaceInput(3, graph()->start());
     } else {
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, graph()->start());
+      Diamond d(graph(), common(), check, BranchHint::kTrue);
 
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-      Node* load = graph()->NewNode(op, base, index, effect, if_true);
+      Node* load = graph()->NewNode(op, base, index, effect, d.if_true);
       Node* result = load;
       if (output_type & kRepTagged) {
         // TODO(turbofan): This is ugly as hell!
@@ -1187,7 +1186,6 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
             changer.GetTaggedRepresentationFor(result, access.machine_type);
       }
 
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
       Node* undefined;
       if (output_type & kRepTagged) {
         DCHECK_EQ(0, access.machine_type & kRepTagged);
@@ -1202,23 +1200,10 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
         undefined = jsgraph()->Int32Constant(0);
       }
 
-      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-      Node* phi = graph()->NewNode(common()->EffectPhi(2), load, effect, merge);
-
       // Replace effect uses of node with the effect phi.
-      for (UseIter i = node->uses().begin(); i != node->uses().end();) {
-        if (NodeProperties::IsEffectEdge(i.edge())) {
-          i = i.UpdateToAndIncrement(phi);
-        } else {
-          ++i;
-        }
-      }
+      NodeProperties::ReplaceWithValue(node, node, d.EffectPhi(load, effect));
 
-      node->set_op(common()->Phi(output_type, 2));
-      node->ReplaceInput(0, result);
-      node->ReplaceInput(1, undefined);
-      node->ReplaceInput(2, merge);
-      node->TrimInputCount(3);
+      d.OverwriteWithPhi(node, output_type, result, undefined);
     }
   }
 }
@@ -1257,21 +1242,10 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
       node->ReplaceInput(1, select);
       node->RemoveInput(2);
     } else {
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-      Node* store = graph()->NewNode(op, base, index, value, effect, if_true);
-
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-
-      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-
-      node->set_op(common()->EffectPhi(2));
-      node->ReplaceInput(0, store);
-      node->ReplaceInput(1, effect);
-      node->ReplaceInput(2, merge);
-      node->TrimInputCount(3);
+      Diamond d(graph(), common(), check, BranchHint::kTrue);
+      d.Chain(control);
+      Node* store = graph()->NewNode(op, base, index, value, effect, d.if_true);
+      d.OverwriteWithEffectPhi(node, store, effect);
     }
   }
 }
@@ -1325,34 +1299,20 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
     return graph()->NewNode(machine()->Int32Div(), lhs, rhs, graph()->start());
   }
 
-  Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
-                                   graph()->start());
+  Diamond if_zero(graph(), common(),
+                  graph()->NewNode(machine()->Word32Equal(), rhs, zero),
+                  BranchHint::kFalse);
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* true0 = zero;
+  Diamond if_minus_one(graph(), common(),
+                       graph()->NewNode(machine()->Word32Equal(), rhs,
+                                        jsgraph()->Int32Constant(-1)),
+                       BranchHint::kFalse);
+  if_minus_one.Nest(if_zero, false);
+  Node* sub = graph()->NewNode(machine()->Int32Sub(), zero, lhs);
+  Node* div =
+      graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_minus_one.if_false);
 
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* false0 = nullptr;
-  {
-    Node* check1 = graph()->NewNode(machine()->Word32Equal(), rhs,
-                                    jsgraph()->Int32Constant(-1));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* true1 = graph()->NewNode(machine()->Int32Sub(), zero, lhs);
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* false1 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_false1);
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    false0 = graph()->NewNode(common()->Phi(kMachInt32, 2), true1, false1,
-                              if_false0);
-  }
-
-  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  return graph()->NewNode(common()->Phi(kMachInt32, 2), true0, false0, merge0);
+  return if_zero.Phi(kMachInt32, zero, if_minus_one.Phi(kMachInt32, sub, div));
 }
 
 
@@ -1368,34 +1328,19 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
     return graph()->NewNode(machine()->Int32Mod(), lhs, rhs, graph()->start());
   }
 
-  Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
-                                   graph()->start());
+  Diamond if_zero(graph(), common(),
+                  graph()->NewNode(machine()->Word32Equal(), rhs, zero),
+                  BranchHint::kFalse);
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* true0 = zero;
+  Diamond if_minus_one(graph(), common(),
+                       graph()->NewNode(machine()->Word32Equal(), rhs,
+                                        jsgraph()->Int32Constant(-1)),
+                       BranchHint::kFalse);
+  if_minus_one.Nest(if_zero, false);
+  Node* mod =
+      graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_minus_one.if_false);
 
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* false0 = nullptr;
-  {
-    Node* check1 = graph()->NewNode(machine()->Word32Equal(), rhs,
-                                    jsgraph()->Int32Constant(-1));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* true1 = zero;
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* false1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_false1);
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    false0 = graph()->NewNode(common()->Phi(kMachInt32, 2), true1, false1,
-                              if_false0);
-  }
-
-  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  return graph()->NewNode(common()->Phi(kMachInt32, 2), true0, false0, merge0);
+  return if_zero.Phi(kMachInt32, zero, if_minus_one.Phi(kMachInt32, zero, mod));
 }
 
 
@@ -1412,17 +1357,9 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
   }
 
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse), check,
-                                  graph()->start());
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = zero;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, if_false);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  return graph()->NewNode(common()->Phi(kMachUint32, 2), vtrue, vfalse, merge);
+  Diamond d(graph(), common(), check, BranchHint::kFalse);
+  Node* div = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, d.if_false);
+  return d.Phi(kMachUint32, zero, div);
 }
 
 
@@ -1439,17 +1376,9 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   }
 
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse), check,
-                                  graph()->start());
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = zero;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, if_false);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  return graph()->NewNode(common()->Phi(kMachUint32, 2), vtrue, vfalse, merge);
+  Diamond d(graph(), common(), check, BranchHint::kFalse);
+  Node* mod = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, d.if_false);
+  return d.Phi(kMachUint32, zero, mod);
 }
 
 

@@ -5,6 +5,7 @@
 #include "src/compiler/select-lowering.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 
@@ -26,17 +27,13 @@ Reduction SelectLowering::Reduce(Node* node) {
   SelectParameters const p = SelectParametersOf(node->op());
 
   Node* const cond = node->InputAt(0);
-  Node* const control = graph()->start();
 
   // Check if we already have a diamond for this condition.
   auto i = merges_.find(cond);
   if (i == merges_.end()) {
     // Create a new diamond for this condition and remember its merge node.
-    Node* branch = graph()->NewNode(common()->Branch(p.hint()), cond, control);
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    i = merges_.insert(std::make_pair(cond, merge)).first;
+    Diamond d(graph(), common(), cond, p.hint());
+    i = merges_.insert(std::make_pair(cond, d.merge)).first;
   }
 
   DCHECK_EQ(cond, i->first);

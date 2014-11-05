@@ -6,17 +6,15 @@
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-STATIC_ASSERT(kMaxGeneralRegisters >= Register::kNumRegisters);
-STATIC_ASSERT(kMaxDoubleRegisters >= DoubleRegister::kMaxNumRegisters);
-
-
-std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableInstructionOperand& printable) {
+  const InstructionOperand& op = *printable.op_;
+  const RegisterConfiguration* conf = printable.register_configuration_;
   switch (op.kind()) {
     case InstructionOperand::INVALID:
       return os << "(0)";
@@ -30,10 +28,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case UnallocatedOperand::NONE:
           return os;
         case UnallocatedOperand::FIXED_REGISTER:
-          return os << "(=" << Register::AllocationIndexToString(
+          return os << "(=" << conf->general_register_name(
                                    unalloc->fixed_register_index()) << ")";
         case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
-          return os << "(=" << DoubleRegister::AllocationIndexToString(
+          return os << "(=" << conf->double_register_name(
                                    unalloc->fixed_register_index()) << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
@@ -52,11 +50,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
     case InstructionOperand::DOUBLE_STACK_SLOT:
       return os << "[double_stack:" << op.index() << "]";
     case InstructionOperand::REGISTER:
-      return os << "[" << Register::AllocationIndexToString(op.index())
-                << "|R]";
+      return os << "[" << conf->general_register_name(op.index()) << "|R]";
     case InstructionOperand::DOUBLE_REGISTER:
-      return os << "[" << DoubleRegister::AllocationIndexToString(op.index())
-                << "|R]";
+      return os << "[" << conf->double_register_name(op.index()) << "|R]";
   }
   UNREACHABLE();
   return os;
@@ -101,9 +97,17 @@ void InstructionOperand::TearDownCaches() {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
-  os << *mo.destination();
-  if (!mo.source()->Equals(mo.destination())) os << " = " << *mo.source();
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableMoveOperands& printable) {
+  const MoveOperands& mo = *printable.move_operands_;
+  PrintableInstructionOperand printable_op = {printable.register_configuration_,
+                                              mo.destination()};
+
+  os << printable_op;
+  if (!mo.source()->Equals(mo.destination())) {
+    printable_op.op_ = mo.source();
+    os << " = " << printable_op;
+  }
   return os << ";";
 }
 
@@ -116,14 +120,17 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableParallelMove& printable) {
+  const ParallelMove& pm = *printable.parallel_move_;
   bool first = true;
   for (ZoneList<MoveOperands>::iterator move = pm.move_operands()->begin();
        move != pm.move_operands()->end(); ++move) {
     if (move->IsEliminated()) continue;
     if (!first) os << " ";
     first = false;
-    os << *move;
+    PrintableMoveOperands pmo = {printable.register_configuration_, move};
+    os << pmo;
   }
   return os;
 }
@@ -256,11 +263,16 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableInstruction& printable) {
+  const Instruction& instr = *printable.instr_;
+  PrintableInstructionOperand printable_op = {printable.register_configuration_,
+                                              NULL};
   if (instr.OutputCount() > 1) os << "(";
   for (size_t i = 0; i < instr.OutputCount(); i++) {
     if (i > 0) os << ", ";
-    os << *instr.OutputAt(i);
+    printable_op.op_ = instr.OutputAt(i);
+    os << printable_op;
   }
 
   if (instr.OutputCount() > 1) os << ") = ";
@@ -272,7 +284,11 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
     for (int i = GapInstruction::FIRST_INNER_POSITION;
          i <= GapInstruction::LAST_INNER_POSITION; i++) {
       os << "(";
-      if (gap->parallel_moves_[i] != NULL) os << *gap->parallel_moves_[i];
+      if (gap->parallel_moves_[i] != NULL) {
+        PrintableParallelMove ppm = {printable.register_configuration_,
+                                     gap->parallel_moves_[i]};
+        os << ppm;
+      }
       os << ") ";
     }
   } else if (instr.IsSourcePosition()) {
@@ -293,7 +309,8 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
   }
   if (instr.InputCount() > 0) {
     for (size_t i = 0; i < instr.InputCount(); i++) {
-      os << " " << *instr.InputAt(i);
+      printable_op.op_ = instr.InputAt(i);
+      os << " " << printable_op;
     }
   }
   return os;
@@ -585,7 +602,9 @@ void FrameStateDescriptor::SetType(size_t index, MachineType type) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableInstructionSequence& printable) {
+  const InstructionSequence& code = *printable.sequence_;
   for (size_t i = 0; i < code.immediates_.size(); ++i) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";
@@ -626,19 +645,15 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     }
 
     ScopedVector<char> buf(32);
+    PrintableInstruction printable_instr;
+    printable_instr.register_configuration_ = printable.register_configuration_;
     for (int j = block->first_instruction_index();
          j <= block->last_instruction_index(); j++) {
       // TODO(svenpanne) Add some basic formatting to our streams.
       SNPrintF(buf, "%5d", j);
-      os << "   " << buf.start() << ": " << *code.InstructionAt(j) << "\n";
+      printable_instr.instr_ = code.InstructionAt(j);
+      os << "   " << buf.start() << ": " << printable_instr << "\n";
     }
-
-    // TODO(dcarney): add this back somehow?
-    // os << "  " << block->control();
-
-    // if (block->control_input() != NULL) {
-    //   os << " v" << block->control_input()->id();
-    // }
 
     for (auto succ : block->successors()) {
       const InstructionBlock* succ_block = code.InstructionBlockAt(succ);

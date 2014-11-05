@@ -252,8 +252,8 @@ function ObjectHasOwnProperty(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectIsPrototypeOf(V) {
-  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   if (!IS_SPEC_OBJECT(V)) return false;
+  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.isPrototypeOf");
   return %IsInPrototypeChain(this, V);
 }
 
@@ -1038,16 +1038,14 @@ function ToNameArray(obj, trap, includeSymbols) {
 }
 
 
-function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
+function ObjectGetOwnPropertyKeys(obj, filter) {
   var nameArrays = new InternalArray();
-  var filter = symbolsOnly ?
-      PROPERTY_ATTRIBUTES_STRING | PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL :
-      PROPERTY_ATTRIBUTES_SYMBOLIC;
+  filter |= PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
 
   // Find all the indexed properties.
 
   // Only get own element names if we want to include string keys.
-  if (!symbolsOnly) {
+  if ((filter & PROPERTY_ATTRIBUTES_STRING) === 0) {
     var ownElementNames = %GetOwnElementNames(obj);
     for (var i = 0; i < ownElementNames.length; ++i) {
       ownElementNames[i] = %_NumberToString(ownElementNames[i]);
@@ -1089,10 +1087,12 @@ function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
     var j = 0;
     for (var i = 0; i < propertyNames.length; ++i) {
       var name = propertyNames[i];
-      if (symbolsOnly) {
-        if (!IS_SYMBOL(name) || IS_PRIVATE(name)) continue;
+      if (IS_SYMBOL(name)) {
+        if ((filter & PROPERTY_ATTRIBUTES_SYMBOLIC) || IS_PRIVATE(name)) {
+          continue;
+        }
       } else {
-        if (IS_SYMBOL(name)) continue;
+        if (filter & PROPERTY_ATTRIBUTES_STRING) continue;
         name = ToString(name);
       }
       if (seenKeys[name]) continue;
@@ -1116,7 +1116,7 @@ function ObjectGetOwnPropertyNames(obj) {
     return ToNameArray(names, "getOwnPropertyNames", false);
   }
 
-  return ObjectGetOwnPropertyKeys(obj, false);
+  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_SYMBOLIC);
 }
 
 

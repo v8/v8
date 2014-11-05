@@ -1626,6 +1626,18 @@ class V8_EXPORT Value : public Data {
   bool IsSet() const;
 
   /**
+   * Returns true if this value is a Map Iterator.
+   * This is an experimental feature.
+   */
+  bool IsMapIterator() const;
+
+  /**
+   * Returns true if this value is a Set Iterator.
+   * This is an experimental feature.
+   */
+  bool IsSetIterator() const;
+
+  /**
    * Returns true if this value is a WeakMap.
    * This is an experimental feature.
    */

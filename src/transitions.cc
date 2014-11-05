@@ -41,11 +41,6 @@ void TransitionArray::NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
 }
 
 
-static bool InsertionPointFound(Name* key1, Name* key2) {
-  return key1->Hash() > key2->Hash();
-}
-
-
 Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
                                                  Handle<Name> name,
                                                  Handle<Map> target,
@@ -99,30 +94,36 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
   int number_of_transitions = map->transitions()->number_of_transitions();
   int new_nof = number_of_transitions;
 
-  int insertion_index = map->transitions()->Search(*name);
-  if (insertion_index == kNotFound) ++new_nof;
+  int insertion_index = kNotFound;
+  int index = map->transitions()->Search(*name, &insertion_index);
+
+  if (index == kNotFound) {
+    ++new_nof;
+  } else {
+    insertion_index = index;
+  }
+  DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
+
   CHECK(new_nof <= kMaxNumberOfTransitions);
 
   if (new_nof <= map->transitions()->number_of_transitions_storage()) {
     DisallowHeapAllocation no_gc;
     TransitionArray* array = map->transitions();
 
-    if (insertion_index != kNotFound) {
-      array->SetTarget(insertion_index, *target);
+    if (index != kNotFound) {
+      array->SetTarget(index, *target);
       return handle(array);
     }
 
     array->SetNumberOfTransitions(new_nof);
-    uint32_t hash = name->Hash();
-    for (insertion_index = number_of_transitions; insertion_index > 0;
-         --insertion_index) {
-      Name* key = array->GetKey(insertion_index - 1);
-      if (key->Hash() <= hash) break;
-      array->SetKey(insertion_index, key);
-      array->SetTarget(insertion_index, array->GetTarget(insertion_index - 1));
+    for (index = number_of_transitions; index > insertion_index; --index) {
+      Name* key = array->GetKey(index - 1);
+      DCHECK(key->Hash() > name->Hash());
+      array->SetKey(index, key);
+      array->SetTarget(index, array->GetTarget(index - 1));
     }
-    array->SetKey(insertion_index, *name);
-    array->SetTarget(insertion_index, *target);
+    array->SetKey(index, *name);
+    array->SetTarget(index, *target);
     return handle(array);
   }
 
@@ -142,8 +143,14 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
     number_of_transitions = array->number_of_transitions();
     new_nof = number_of_transitions;
 
-    insertion_index = array->Search(*name);
-    if (insertion_index == kNotFound) ++new_nof;
+    insertion_index = kNotFound;
+    index = array->Search(*name, &insertion_index);
+    if (index == kNotFound) {
+      ++new_nof;
+    } else {
+      insertion_index = index;
+    }
+    DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
 
     result->Shrink(ToKeyIndex(new_nof));
     result->SetNumberOfTransitions(new_nof);
@@ -153,18 +160,13 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
     result->SetPrototypeTransitions(array->GetPrototypeTransitions());
   }
 
-  insertion_index = 0;
-  for (; insertion_index < number_of_transitions; ++insertion_index) {
-    if (InsertionPointFound(array->GetKey(insertion_index), *name)) break;
-    result->NoIncrementalWriteBarrierCopyFrom(
-        array, insertion_index, insertion_index);
+  DCHECK_NE(kNotFound, insertion_index);
+  for (int i = 0; i < insertion_index; ++i) {
+    result->NoIncrementalWriteBarrierCopyFrom(array, i, i);
   }
-
   result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
-
-  for (; insertion_index < number_of_transitions; ++insertion_index) {
-    result->NoIncrementalWriteBarrierCopyFrom(
-        array, insertion_index, insertion_index + 1);
+  for (int i = insertion_index; i < number_of_transitions; ++i) {
+    result->NoIncrementalWriteBarrierCopyFrom(array, i, i + 1);
   }
 
   result->set_back_pointer_storage(array->back_pointer_storage());

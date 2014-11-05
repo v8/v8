@@ -51,6 +51,7 @@ namespace internal {
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
   /* HydrogenCodeStubs */                   \
+  V(AllocateHeapNumber)                     \
   V(ArrayNArgumentsConstructor)             \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
@@ -2110,6 +2111,17 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TransitionElementsKind);
   DEFINE_HYDROGEN_CODE_STUB(TransitionElementsKind, HydrogenCodeStub);
+};
+
+
+class AllocateHeapNumberStub FINAL : public HydrogenCodeStub {
+ public:
+  explicit AllocateHeapNumberStub(Isolate* isolate)
+      : HydrogenCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
+  DEFINE_HYDROGEN_CODE_STUB(AllocateHeapNumber, HydrogenCodeStub);
 };
 
 

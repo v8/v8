@@ -100,7 +100,7 @@ class TransitionArray: public FixedArray {
                                         SimpleTransitionFlag flag);
 
   // Search a transition for a given property name.
-  inline int Search(Name* name);
+  inline int Search(Name* name, int* out_insertion_index = NULL);
 
   // Allocates a TransitionArray.
   static Handle<TransitionArray> Allocate(Isolate* isolate,

@@ -310,6 +310,7 @@ namespace internal {
   F(SetGetSize, 1, 1)                                  \
                                                        \
   F(SetIteratorInitialize, 3, 1)                       \
+  F(SetIteratorClone, 1, 1)                            \
   F(SetIteratorNext, 2, 1)                             \
                                                        \
   /* Harmony maps */                                   \
@@ -322,6 +323,7 @@ namespace internal {
   F(MapGetSize, 1, 1)                                  \
                                                        \
   F(MapIteratorInitialize, 3, 1)                       \
+  F(MapIteratorClone, 1, 1)                            \
   F(MapIteratorNext, 2, 1)                             \
                                                        \
   /* Harmony weak maps and sets */                     \
