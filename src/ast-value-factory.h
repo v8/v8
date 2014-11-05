@@ -287,12 +287,16 @@ class AstValueFactory {
 
   Zone* zone() const { return zone_; }
 
-  const AstRawString* GetOneByteString(Vector<const uint8_t> literal);
+  const AstRawString* GetOneByteString(Vector<const uint8_t> literal) {
+    return GetOneByteStringInternal(literal);
+  }
   const AstRawString* GetOneByteString(const char* string) {
     return GetOneByteString(Vector<const uint8_t>(
         reinterpret_cast<const uint8_t*>(string), StrLength(string)));
   }
-  const AstRawString* GetTwoByteString(Vector<const uint16_t> literal);
+  const AstRawString* GetTwoByteString(Vector<const uint16_t> literal) {
+    return GetTwoByteStringInternal(literal);
+  }
   const AstRawString* GetString(Handle<String> literal);
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
@@ -327,8 +331,10 @@ class AstValueFactory {
   const AstValue* NewTheHole();
 
  private:
-  const AstRawString* GetString(uint32_t hash, bool is_one_byte,
-                                Vector<const byte> literal_bytes);
+  AstRawString* GetOneByteStringInternal(Vector<const uint8_t> literal);
+  AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
+  AstRawString* GetString(uint32_t hash, bool is_one_byte,
+                          Vector<const byte> literal_bytes);
 
   // All strings are copied here, one after another (no NULLs inbetween).
   HashMap string_table_;
