@@ -6114,7 +6114,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
 
   if (IsAccessor()) return true;
   Handle<Map> map = this->map();
-  map->LookupTransition(NULL, *name_, &lookup_);
+  map->LookupTransition(NULL, *name_, NONE, &lookup_);
   if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();
