@@ -1361,6 +1361,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
+  shared->set_optimize_next_closure(false);
   if (shared->code()->kind() != Code::FUNCTION ||
       ScopeInfo::Empty(isolate) == shared->scope_info()) {
     // The function was never compiled. Compile it unoptimized first.

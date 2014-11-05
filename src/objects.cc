@@ -9204,12 +9204,27 @@ void JSFunction::MarkForOptimization() {
 }
 
 
-void JSFunction::MarkForConcurrentOptimization() {
-  DCHECK(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
+void JSFunction::AttemptConcurrentOptimization() {
+  Isolate* isolate = GetIsolate();
+  if (!isolate->concurrent_recompilation_enabled() ||
+      isolate->bootstrapper()->IsActive()) {
+    MarkForOptimization();
+    return;
+  }
+  if (isolate->concurrent_osr_enabled() &&
+      isolate->optimizing_compiler_thread()->IsQueuedForOSR(this)) {
+    // Do not attempt regular recompilation if we already queued this for OSR.
+    // TODO(yangguo): This is necessary so that we don't install optimized
+    // code on a function that is already optimized, since OSR and regular
+    // recompilation race.  This goes away as soon as OSR becomes one-shot.
+    return;
+  }
+  DCHECK(!IsInOptimizationQueue());
+  DCHECK(is_compiled() || isolate->DebuggerHasBreakPoints());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
   DCHECK(!shared()->is_generator());
-  DCHECK(GetIsolate()->concurrent_recompilation_enabled());
+  DCHECK(isolate->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
     ShortPrint();
