@@ -55,7 +55,7 @@ class CodeEntry {
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo);
   ~CodeEntry();
 
-  bool is_js_function() const { return is_js_function_tag(tag_); }
+  bool is_js_function() const { return is_js_function_tag(tag()); }
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
@@ -78,7 +78,9 @@ class CodeEntry {
   }
 
   void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const { return builtin_id_; }
+  Builtins::Name builtin_id() const {
+    return BuiltinIdField::decode(bit_field_);
+  }
 
   uint32_t GetCallUid() const;
   bool IsSameAs(CodeEntry* entry) const;
@@ -88,8 +90,11 @@ class CodeEntry {
   static const char* const kEmptyBailoutReason;
 
  private:
-  Logger::LogEventsAndTags tag_ : 8;
-  Builtins::Name builtin_id_ : 8;
+  class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
+  class BuiltinIdField : public BitField<Builtins::Name, 8, 8> {};
+  Logger::LogEventsAndTags tag() const { return TagField::decode(bit_field_); }
+
+  uint32_t bit_field_;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
