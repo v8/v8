@@ -54,7 +54,7 @@ enum ExceptionBreakType {
 enum BreakLocatorType {
   ALL_BREAK_LOCATIONS = 0,
   SOURCE_BREAK_LOCATIONS = 1,
-  CALLS_AND_RETURNS = 2,
+  CALLS_AND_RETURNS = 2
 };
 
 
