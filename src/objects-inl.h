@@ -1886,8 +1886,9 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   TransitionArray* transitions = map->transitions();
   int transition = transitions->Search(FIELD, *key, NONE);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
-  DCHECK_EQ(FIELD, transitions->GetTargetDetails(transition).type());
-  DCHECK_EQ(NONE, transitions->GetTargetDetails(transition).attributes());
+  PropertyDetails details = transitions->GetTargetDetails(transition);
+  if (details.type() != FIELD) return Handle<Map>::null();
+  DCHECK_EQ(NONE, details.attributes());
   return Handle<Map>(transitions->GetTarget(transition));
 }
 
