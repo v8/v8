@@ -5314,7 +5314,7 @@ void Heap::TearDown() {
     PrintF("total_gc_time=%.1f ", total_gc_time_ms_);
     PrintF("min_in_mutator=%.1f ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ", get_max_alive_after_gc());
-    PrintF("total_marking_time=%.1f ", tracer_.cumulative_sweeping_duration());
+    PrintF("total_marking_time=%.1f ", tracer_.cumulative_marking_duration());
     PrintF("total_sweeping_time=%.1f ", tracer_.cumulative_sweeping_duration());
     PrintF("\n\n");
   }
