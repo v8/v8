@@ -74,15 +74,12 @@
 
   # Some tests are just too slow to run for now.
   'bit-not': [PASS, NO_VARIANTS],
+  'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
-
-  # BUG(3681). Skipping in 64 bits debug is part of the bug report.
-  # Running no variants was the default.
-  'json2': [PASS, NO_VARIANTS, ['mode == debug and (arch == x64 or arch == arm64 or arch == android_arm64 or arch == mips64el)', SKIP]],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
