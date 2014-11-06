@@ -125,7 +125,11 @@ StructuredGraphBuilder::Environment::Environment(const Environment& copy)
     : builder_(copy.builder()),
       control_dependency_(copy.control_dependency_),
       effect_dependency_(copy.effect_dependency_),
-      values_(copy.values_) {}
+      values_(copy.zone()) {
+  const size_t kStackEstimate = 7;  // optimum from experimentation!
+  values_.reserve(copy.values_.size() + kStackEstimate);
+  values_.insert(values_.begin(), copy.values_.begin(), copy.values_.end());
+}
 
 
 void StructuredGraphBuilder::Environment::Merge(Environment* other) {
