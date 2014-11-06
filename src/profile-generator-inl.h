@@ -12,7 +12,8 @@ namespace internal {
 
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
                      const char* name_prefix, const char* resource_name,
-                     int line_number, int column_number)
+                     int line_number, int column_number,
+                     JITLineInfoTable* line_info, Address instruction_start)
     : bit_field_(TagField::encode(tag) |
                  BuiltinIdField::encode(Builtins::builtin_count)),
       name_prefix_(name_prefix),
@@ -23,7 +24,9 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       shared_id_(0),
       script_id_(v8::UnboundScript::kNoScriptId),
       no_frame_ranges_(NULL),
-      bailout_reason_(kEmptyBailoutReason) {}
+      bailout_reason_(kEmptyBailoutReason),
+      line_info_(line_info),
+      instruction_start_(instruction_start) {}
 
 
 bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
@@ -41,8 +44,8 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
       entry_(entry),
       self_ticks_(0),
       children_(CodeEntriesMatch),
-      id_(tree->next_node_id()) { }
-
+      id_(tree->next_node_id()),
+      line_ticks_(LineTickMatch) {}
 } }  // namespace v8::internal
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

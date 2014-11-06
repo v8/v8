@@ -7172,6 +7172,19 @@ int CpuProfileNode::GetColumnNumber() const {
 }
 
 
+unsigned int CpuProfileNode::GetHitLineCount() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->GetHitLineCount();
+}
+
+
+bool CpuProfileNode::GetLineTicks(LineTick* entries,
+                                  unsigned int length) const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->GetLineTicks(entries, length);
+}
+
+
 const char* CpuProfileNode::GetBailoutReason() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->bailout_reason();
