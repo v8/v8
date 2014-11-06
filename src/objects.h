@@ -280,9 +280,8 @@ enum DebugExtraICState {
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.
 enum SimpleTransitionFlag {
-  SIMPLE_PROPERTY_TRANSITION,
-  PROPERTY_TRANSITION,
-  SPECIAL_TRANSITION
+  SIMPLE_TRANSITION,
+  FULL_TRANSITION
 };
 
 
@@ -5821,9 +5820,7 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
 
   inline Map* GetTransition(int transition_index);
-  inline int SearchSpecialTransition(Symbol* name);
-  inline int SearchTransition(PropertyType type, Name* name,
-                              PropertyAttributes attributes);
+  inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
@@ -5961,8 +5958,8 @@ class Map: public HeapObject {
                                Name* name,
                                LookupResult* result);
 
-  inline void LookupTransition(JSObject* holder, Name* name,
-                               PropertyAttributes attributes,
+  inline void LookupTransition(JSObject* holder,
+                               Name* name,
                                LookupResult* result);
 
   inline PropertyDetails GetLastDescriptorDetails();
@@ -6332,11 +6329,12 @@ class Map: public HeapObject {
   static Handle<Map> CopyAddDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
-  static Handle<Map> CopyReplaceDescriptors(Handle<Map> map,
-                                            Handle<DescriptorArray> descriptors,
-                                            TransitionFlag flag,
-                                            MaybeHandle<Name> maybe_name,
-                                            SimpleTransitionFlag simple_flag);
+  static Handle<Map> CopyReplaceDescriptors(
+      Handle<Map> map,
+      Handle<DescriptorArray> descriptors,
+      TransitionFlag flag,
+      MaybeHandle<Name> maybe_name,
+      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
   static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor,
@@ -6364,9 +6362,7 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  void DeprecateTarget(PropertyType type, Name* key,
-                       PropertyAttributes attributes,
-                       DescriptorArray* new_descriptors);
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 

@@ -1173,8 +1173,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      BuildVariableAssignment(variable, value, expr->op(), expr->AssignmentId(),
-                              ast_context()->GetStateCombine());
+      BuildVariableAssignment(variable, value, expr->op(),
+                              expr->AssignmentId());
       break;
     }
     case NAMED_PROPERTY: {
@@ -1183,8 +1183,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
     case KEYED_PROPERTY: {
@@ -1192,8 +1191,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
                             key, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
   }
@@ -1959,9 +1957,9 @@ Node* AstGraphBuilder::BuildVariableDelete(
 }
 
 
-Node* AstGraphBuilder::BuildVariableAssignment(
-    Variable* variable, Node* value, Token::Value op, BailoutId bailout_id,
-    OutputFrameStateCombine combine) {
+Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
+                                               Token::Value op,
+                                               BailoutId bailout_id) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
   switch (variable->location()) {
@@ -1971,7 +1969,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       Unique<Name> name = MakeUnique(variable->name());
       const Operator* op = javascript()->StoreNamed(strict_mode(), name);
       Node* store = NewNode(op, global, value);
-      PrepareFrameState(store, bailout_id, combine);
+      PrepareFrameState(store, bailout_id);
       return store;
     }
     case Variable::PARAMETER:
@@ -2037,7 +2035,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       const Operator* op =
           javascript()->CallRuntime(Runtime::kStoreLookupSlot, 4);
       Node* store = NewNode(op, value, current_context(), name, strict);
-      PrepareFrameState(store, bailout_id, combine);
+      PrepareFrameState(store, bailout_id);
       return store;
     }
   }

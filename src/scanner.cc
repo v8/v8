@@ -245,8 +245,6 @@ bool Scanner::SkipWhiteSpace() {
 
   while (true) {
     while (true) {
-      // The unicode cache accepts unsigned inputs.
-      if (c0_ < 0) break;
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -367,7 +365,7 @@ Token::Value Scanner::SkipMultiLineComment() {
   while (c0_ >= 0) {
     uc32 ch = c0_;
     Advance();
-    if (c0_ >= 0 && unicode_cache_->IsLineTerminator(ch)) {
+    if (unicode_cache_->IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -627,14 +625,14 @@ void Scanner::Scan() {
         break;
 
       default:
-        if (c0_ < 0) {
-          token = Token::EOS;
-        } else if (unicode_cache_->IsIdentifierStart(c0_)) {
+        if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
         } else if (SkipWhiteSpace()) {
           token = Token::WHITESPACE;
+        } else if (c0_ < 0) {
+          token = Token::EOS;
         } else {
           token = Select(Token::ILLEGAL);
         }
@@ -676,7 +674,7 @@ bool Scanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (c0_ >= 0 && unicode_cache_->IsLineTerminator(c)) {
+  if (unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -873,8 +871,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) ||
-      (c0_ >= 0 && unicode_cache_->IsIdentifierStart(c0_)))
+  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -1042,7 +1039,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
   AddLiteralChar(first_char);
 
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -1070,7 +1067,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
 
 Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
@@ -1109,10 +1106,10 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+    if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+      if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -1159,7 +1156,7 @@ bool Scanner::ScanLiteralUnicodeEscape() {
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       AddLiteralCharAdvance();
     } else {

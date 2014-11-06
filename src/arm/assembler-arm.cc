@@ -2545,20 +2545,27 @@ void Assembler::vmov(const DwVfpRegister dst,
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);
 
-    if (lo == hi) {
-      // Move the low and high parts of the double to a D register in one
-      // instruction.
-      mov(ip, Operand(lo));
-      vmov(dst, ip, ip);
-    } else if (scratch.is(no_reg)) {
-      mov(ip, Operand(lo));
-      vmov(dst, VmovIndexLo, ip);
-      if ((lo & 0xffff) == (hi & 0xffff)) {
-        movt(ip, hi >> 16);
-      } else {
+    if (scratch.is(no_reg)) {
+      if (dst.code() < 16) {
+        const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
+        // Move the low part of the double into the lower of the corresponsing S
+        // registers of D register dst.
+        mov(ip, Operand(lo));
+        vmov(loc.low(), ip);
+
+        // Move the high part of the double into the higher of the
+        // corresponsing S registers of D register dst.
         mov(ip, Operand(hi));
+        vmov(loc.high(), ip);
+      } else {
+        // D16-D31 does not have S registers, so move the low and high parts
+        // directly to the D register using vmov.32.
+        // Note: This may be slower, so we only do this when we have to.
+        mov(ip, Operand(lo));
+        vmov(dst, VmovIndexLo, ip);
+        mov(ip, Operand(hi));
+        vmov(dst, VmovIndexHi, ip);
       }
-      vmov(dst, VmovIndexHi, ip);
     } else {
       // Move the low and high parts of the double to a D register in one
       // instruction.

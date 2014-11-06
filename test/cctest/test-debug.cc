@@ -7594,29 +7594,3 @@ TEST(DebugPromiseRejectedByCallback) {
   CHECK(CompileRun("r")->Equals(v8_str("rejectedrejection")));
   CHECK_EQ(1, exception_event_counter);
 }
-
-
-TEST(DebugBreakOnExceptionInObserveCallback) {
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Debug::SetDebugEventListener(&DebugEventCountException);
-  // Break on uncaught exception
-  ChangeBreakOnException(false, true);
-  exception_event_counter = 0;
-
-  v8::Handle<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(isolate, ThrowCallback);
-  env->Global()->Set(v8_str("fun"), fun->GetFunction());
-
-  CompileRun(
-      "var obj = {};"
-      "var callbackRan = false;"
-      "Object.observe(obj, function() {"
-      "   callbackRan = true;"
-      "   throw Error('foo');"
-      "});"
-      "obj.prop = 1");
-  CHECK(CompileRun("callbackRan")->BooleanValue());
-  CHECK_EQ(1, exception_event_counter);
-}

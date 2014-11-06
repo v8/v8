@@ -2272,8 +2272,6 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   if (instr->op() != Token::MOD) {
     X87PrepareBinaryOp(left, right, result);
   }
-  // Set the precision control to double-precision.
-  __ X87SetFPUCW(0x027F);
   switch (instr->op()) {
     case Token::ADD:
       __ fadd_i(1);
@@ -2308,8 +2306,12 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
   }
 
-  // Restore the default value of control word.
-  __ X87SetFPUCW(0x037F);
+  // Only always explicitly storing to memory to force the round-down for double
+  // arithmetic.
+  __ lea(esp, Operand(esp, -kDoubleSize));
+  __ fstp_d(Operand(esp, 0));
+  __ fld_d(Operand(esp, 0));
+  __ lea(esp, Operand(esp, kDoubleSize));
 }
 
 

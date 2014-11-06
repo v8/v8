@@ -230,14 +230,6 @@ class BitFieldBase {
 };
 
 
-template <class T, int shift, int size>
-class BitField8 : public BitFieldBase<T, shift, size, uint8_t> {};
-
-
-template <class T, int shift, int size>
-class BitField16 : public BitFieldBase<T, shift, size, uint16_t> {};
-
-
 template<class T, int shift, int size>
 class BitField : public BitFieldBase<T, shift, size, uint32_t> { };
 

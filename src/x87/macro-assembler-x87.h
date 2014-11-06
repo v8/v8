@@ -425,7 +425,6 @@ class MacroAssembler: public Assembler {
   void FXamSign();
   void X87CheckIA();
   void X87SetRC(int rc);
-  void X87SetFPUCW(int cw);
 
   void ClampUint8(Register reg);
   void ClampTOSToUint8(Register result_reg);

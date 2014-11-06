@@ -33,17 +33,9 @@ PUSH_MSG_GIT_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 # (old and new format).
 MERGE_MESSAGE_RE = re.compile(r"^.*[M|m]erged (.+)(\)| into).*$", re.M)
 
-CHERRY_PICK_TITLE_GIT_RE = re.compile(r"^.* \(cherry\-pick\)\.?$")
-
-# New git message for cherry-picked CLs. One message per line.
-MERGE_MESSAGE_GIT_RE = re.compile(r"^Merged ([a-fA-F0-9]+)\.?$")
-
 # Expression for retrieving reverted patches from a commit message (old and
 # new format).
 ROLLBACK_MESSAGE_RE = re.compile(r"^.*[R|r]ollback of (.+)(\)| in).*$", re.M)
-
-# New git message for reverted CLs. One message per line.
-ROLLBACK_MESSAGE_GIT_RE = re.compile(r"^Rollback of ([a-fA-F0-9]+)\.?$")
 
 # Expression for retrieving the code review link.
 REVIEW_LINK_RE = re.compile(r"^Review URL: (.+)$", re.M)
@@ -151,18 +143,6 @@ class RetrieveV8Releases(Step):
         patches = "-%s" % patches
     return patches
 
-  def GetMergedPatchesGit(self, body):
-    patches = []
-    for line in body.splitlines():
-      patch = MatchSafe(MERGE_MESSAGE_GIT_RE.match(line))
-      if patch:
-        patches.append(patch)
-      patch = MatchSafe(ROLLBACK_MESSAGE_GIT_RE.match(line))
-      if patch:
-        patches.append("-%s" % patch)
-    return ", ".join(patches)
-
-
   def GetReleaseDict(
       self, git_hash, bleeding_edge_rev, bleeding_edge_git, branch, version,
       patches, cl_body):
@@ -205,10 +185,7 @@ class RetrieveV8Releases(Step):
     patches = ""
     if self["patch"] != "0":
       version += ".%s" % self["patch"]
-      if CHERRY_PICK_TITLE_GIT_RE.match(body.splitlines()[0]):
-        patches = self.GetMergedPatchesGit(body)
-      else:
-        patches = self.GetMergedPatches(body)
+      patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
     bleeding_edge_revision = self.GetBleedingEdgeFromPush(title)

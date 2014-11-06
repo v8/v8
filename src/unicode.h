@@ -7,7 +7,6 @@
 
 #include <sys/types.h>
 #include "src/globals.h"
-#include "src/utils.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
@@ -29,26 +28,16 @@ class Predicate {
  public:
   inline Predicate() { }
   inline bool get(uchar c);
-
  private:
   friend class Test;
   bool CalculateValue(uchar c);
-  class CacheEntry {
-   public:
-    inline CacheEntry()
-        : bit_field_(CodePointField::encode(0) | ValueField::encode(0)) {}
+  struct CacheEntry {
+    inline CacheEntry() : code_point_(0), value_(0) { }
     inline CacheEntry(uchar code_point, bool value)
-        : bit_field_(CodePointField::encode(code_point) |
-                     ValueField::encode(value)) {}
-
-    uchar code_point() const { return CodePointField::decode(bit_field_); }
-    bool value() const { return ValueField::decode(bit_field_); }
-
-   private:
-    class CodePointField : public v8::internal::BitField<uchar, 0, 21> {};
-    class ValueField : public v8::internal::BitField<bool, 21, 1> {};
-
-    uint32_t bit_field_;
+      : code_point_(code_point),
+        value_(value) { }
+    uchar code_point_ : 21;
+    bool value_ : 1;
   };
   static const int kSize = size;
   static const int kMask = kSize - 1;

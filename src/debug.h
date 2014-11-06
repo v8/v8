@@ -32,14 +32,13 @@ class DebugScope;
 // Step actions. NOTE: These values are in macros.py as well.
 enum StepAction {
   StepNone = -1,  // Stepping not prepared.
-  StepOut = 0,    // Step out of the current function.
-  StepNext = 1,   // Step to the next statement in the current function.
-  StepIn = 2,     // Step into new functions invoked or the next statement
-                  // in the current function.
-  StepMin = 3,    // Perform a minimum step in the current function.
-  StepInMin = 4,  // Step into new functions invoked or perform a minimum step
-                  // in the current function.
-  StepFrame = 5   // Step into a new frame or return to previous frame.
+  StepOut = 0,   // Step out of the current function.
+  StepNext = 1,  // Step to the next statement in the current function.
+  StepIn = 2,    // Step into new functions invoked or the next statement
+                 // in the current function.
+  StepMin = 3,   // Perform a minimum step in the current function.
+  StepInMin = 4  // Step into new functions invoked or perform a minimum step
+                 // in the current function.
 };
 
 
@@ -50,11 +49,10 @@ enum ExceptionBreakType {
 };
 
 
-// Type of exception break.
+// Type of exception break. NOTE: These values are in macros.py as well.
 enum BreakLocatorType {
   ALL_BREAK_LOCATIONS = 0,
-  SOURCE_BREAK_LOCATIONS = 1,
-  CALLS_AND_RETURNS = 2
+  SOURCE_BREAK_LOCATIONS = 1
 };
 
 
@@ -387,8 +385,7 @@ class Debug {
                               BreakPositionAlignment alignment);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ClearAllBreakPoints();
-  void FloodWithOneShot(Handle<JSFunction> function,
-                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
+  void FloodWithOneShot(Handle<JSFunction> function);
   void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -404,8 +401,10 @@ class Debug {
   bool StepNextContinue(BreakLocationIterator* break_location_iterator,
                         JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
-                    Address fp, bool is_constructor);
+  void HandleStepIn(Handle<JSFunction> function,
+                    Handle<Object> holder,
+                    Address fp,
+                    bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   // Purge all code objects that have no debug break slots.
@@ -624,7 +623,7 @@ class Debug {
     // Number of steps left to perform before debug event.
     int step_count_;
 
-    // Frame pointer from last step next or step frame action.
+    // Frame pointer from last step next action.
     Address last_fp_;
 
     // Number of queued steps left to perform before debug event.

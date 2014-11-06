@@ -2960,7 +2960,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate
         double dm_value = get_double_from_d_register(vm);
-        double dd_value = trunc(dm_value);
+        double dd_value = std::trunc(dm_value);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
@@ -3624,7 +3624,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int rounding_mode = instr->Bits(17, 16);
         switch (rounding_mode) {
           case 0x0:  // vrinta - round with ties to away from zero
-            dd_value = round(dm_value);
+            dd_value = std::round(dm_value);
             break;
           case 0x1: {  // vrintn - round with ties to even
             dd_value = std::floor(dm_value);

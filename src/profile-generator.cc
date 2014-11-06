@@ -143,7 +143,7 @@ CodeEntry::~CodeEntry() {
 
 
 uint32_t CodeEntry::GetCallUid() const {
-  uint32_t hash = ComputeIntegerHash(tag(), v8::internal::kZeroHashSeed);
+  uint32_t hash = ComputeIntegerHash(tag_, v8::internal::kZeroHashSeed);
   if (shared_id_ != 0) {
     hash ^= ComputeIntegerHash(static_cast<uint32_t>(shared_id_),
                                v8::internal::kZeroHashSeed);
@@ -164,18 +164,20 @@ uint32_t CodeEntry::GetCallUid() const {
 
 
 bool CodeEntry::IsSameAs(CodeEntry* entry) const {
-  return this == entry ||
-         (tag() == entry->tag() && shared_id_ == entry->shared_id_ &&
-          (shared_id_ != 0 ||
-           (name_prefix_ == entry->name_prefix_ && name_ == entry->name_ &&
-            resource_name_ == entry->resource_name_ &&
-            line_number_ == entry->line_number_)));
+  return this == entry
+      || (tag_ == entry->tag_
+          && shared_id_ == entry->shared_id_
+          && (shared_id_ != 0
+              || (name_prefix_ == entry->name_prefix_
+                  && name_ == entry->name_
+                  && resource_name_ == entry->resource_name_
+                  && line_number_ == entry->line_number_)));
 }
 
 
 void CodeEntry::SetBuiltinId(Builtins::Name id) {
-  bit_field_ = TagField::update(bit_field_, Logger::BUILTIN_TAG);
-  bit_field_ = BuiltinIdField::update(bit_field_, id);
+  tag_ = Logger::BUILTIN_TAG;
+  builtin_id_ = id;
 }
 
 

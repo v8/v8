@@ -28,18 +28,22 @@ class HeapGraphEdge BASE_EMBEDDED {
     kWeak = v8::HeapGraphEdge::kWeak
   };
 
+  HeapGraphEdge() { }
   HeapGraphEdge(Type type, const char* name, int from, int to);
   HeapGraphEdge(Type type, int index, int from, int to);
   void ReplaceToIndexWithEntry(HeapSnapshot* snapshot);
 
-  Type type() const { return TypeField::decode(bit_field_); }
+  Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    DCHECK(type() == kElement || type() == kHidden);
+    DCHECK(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
-    DCHECK(type() == kContextVariable || type() == kProperty ||
-           type() == kInternal || type() == kShortcut || type() == kWeak);
+    DCHECK(type_ == kContextVariable
+        || type_ == kProperty
+        || type_ == kInternal
+        || type_ == kShortcut
+        || type_ == kWeak);
     return name_;
   }
   INLINE(HeapEntry* from() const);
@@ -47,11 +51,9 @@ class HeapGraphEdge BASE_EMBEDDED {
 
  private:
   INLINE(HeapSnapshot* snapshot() const);
-  int from_index() const { return FromIndexField::decode(bit_field_); }
 
-  class TypeField : public BitField<Type, 0, 3> {};
-  class FromIndexField : public BitField<int, 3, 29> {};
-  uint32_t bit_field_;
+  unsigned type_ : 3;
+  int from_index_ : 29;
   union {
     // During entries population |to_index_| is used for storing the index,
     // afterwards it is replaced with a pointer to the entry.

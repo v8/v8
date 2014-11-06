@@ -100,7 +100,8 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
       case kMode_MRR:
         *first_index += 2;
-        return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
+        return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
+                          SXTW);
     }
     UNREACHABLE();
     return MemOperand(no_reg);

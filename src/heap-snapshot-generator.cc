@@ -18,7 +18,8 @@ namespace internal {
 
 
 HeapGraphEdge::HeapGraphEdge(Type type, const char* name, int from, int to)
-    : bit_field_(TypeField::encode(type) | FromIndexField::encode(from)),
+    : type_(type),
+      from_index_(from),
       to_index_(to),
       name_(name) {
   DCHECK(type == kContextVariable
@@ -30,7 +31,8 @@ HeapGraphEdge::HeapGraphEdge(Type type, const char* name, int from, int to)
 
 
 HeapGraphEdge::HeapGraphEdge(Type type, int index, int from, int to)
-    : bit_field_(TypeField::encode(type) | FromIndexField::encode(from)),
+    : type_(type),
+      from_index_(from),
       to_index_(to),
       index_(index) {
   DCHECK(type == kElement || type == kHidden);

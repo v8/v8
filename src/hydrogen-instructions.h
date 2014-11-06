@@ -1497,18 +1497,13 @@ class HCompareMap FINAL : public HUnaryControlInstruction {
   virtual std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   static const int kNoKnownSuccessorIndex = -1;
-  int known_successor_index() const {
-    return KnownSuccessorIndexField::decode(bit_field_) -
-           kInternalKnownSuccessorOffset;
-  }
-  void set_known_successor_index(int index) {
-    DCHECK(index >= 0 - kInternalKnownSuccessorOffset);
-    bit_field_ = KnownSuccessorIndexField::update(
-        bit_field_, index + kInternalKnownSuccessorOffset);
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
   }
 
   Unique<Map> map() const { return map_; }
-  bool map_is_stable() const { return MapIsStableField::decode(bit_field_); }
+  bool map_is_stable() const { return map_is_stable_; }
 
   virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::Tagged();
@@ -1520,25 +1515,19 @@ class HCompareMap FINAL : public HUnaryControlInstruction {
   virtual int RedefinedOperandIndex() OVERRIDE { return 0; }
 
  private:
-  HCompareMap(HValue* value, Handle<Map> map, HBasicBlock* true_target = NULL,
+  HCompareMap(HValue* value,
+              Handle<Map> map,
+              HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        bit_field_(KnownSuccessorIndexField::encode(
-                       kNoKnownSuccessorIndex + kInternalKnownSuccessorOffset) |
-                   MapIsStableField::encode(map->is_stable())),
+        known_successor_index_(kNoKnownSuccessorIndex),
+        map_is_stable_(map->is_stable()),
         map_(Unique<Map>::CreateImmovable(map)) {
     set_representation(Representation::Tagged());
   }
 
-  // BitFields can only store unsigned values, so use an offset.
-  // Adding kInternalKnownSuccessorOffset must yield an unsigned value.
-  static const int kInternalKnownSuccessorOffset = 1;
-  STATIC_ASSERT(kNoKnownSuccessorIndex + kInternalKnownSuccessorOffset >= 0);
-
-  class KnownSuccessorIndexField : public BitField<int, 0, 31> {};
-  class MapIsStableField : public BitField<bool, 31, 1> {};
-
-  uint32_t bit_field_;
+  int known_successor_index_ : 31;
+  bool map_is_stable_ : 1;
   Unique<Map> map_;
 };
 
@@ -1814,15 +1803,17 @@ enum RemovableSimulate {
 
 class HSimulate FINAL : public HInstruction {
  public:
-  HSimulate(BailoutId ast_id, int pop_count, Zone* zone,
+  HSimulate(BailoutId ast_id,
+            int pop_count,
+            Zone* zone,
             RemovableSimulate removable)
       : ast_id_(ast_id),
         pop_count_(pop_count),
         values_(2, zone),
         assigned_indexes_(2, zone),
         zone_(zone),
-        bit_field_(RemovableField::encode(removable) |
-                   DoneWithReplayField::encode(false)) {}
+        removable_(removable),
+        done_with_replay_(false) {}
   ~HSimulate() {}
 
   virtual std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
@@ -1866,9 +1857,7 @@ class HSimulate FINAL : public HInstruction {
   }
 
   void MergeWith(ZoneList<HSimulate*>* list);
-  bool is_candidate_for_removal() {
-    return RemovableField::decode(bit_field_) == REMOVABLE_SIMULATE;
-  }
+  bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
 
   // Replay effects of this instruction on the given environment.
   void ReplayEnvironment(HEnvironment* env);
@@ -1902,22 +1891,13 @@ class HSimulate FINAL : public HInstruction {
     }
     return false;
   }
-  bool is_done_with_replay() const {
-    return DoneWithReplayField::decode(bit_field_);
-  }
-  void set_done_with_replay() {
-    bit_field_ = DoneWithReplayField::update(bit_field_, true);
-  }
-
-  class RemovableField : public BitField<RemovableSimulate, 0, 1> {};
-  class DoneWithReplayField : public BitField<bool, 1, 1> {};
-
   BailoutId ast_id_;
   int pop_count_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
   Zone* zone_;
-  uint32_t bit_field_;
+  RemovableSimulate removable_ : 2;
+  bool done_with_replay_ : 1;
 
 #ifdef DEBUG
   Handle<JSFunction> closure_;
@@ -2762,13 +2742,11 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
     return new(zone) HCheckMaps(value, maps, typecheck);
   }
 
-  bool IsStabilityCheck() const {
-    return IsStabilityCheckField::decode(bit_field_);
-  }
+  bool IsStabilityCheck() const { return is_stability_check_; }
   void MarkAsStabilityCheck() {
-    bit_field_ = MapsAreStableField::encode(true) |
-                 HasMigrationTargetField::encode(false) |
-                 IsStabilityCheckField::encode(true);
+    maps_are_stable_ = true;
+    has_migration_target_ = false;
+    is_stability_check_ = true;
     ClearChangesFlag(kNewSpacePromotion);
     ClearDependsOnFlag(kElementsKind);
     ClearDependsOnFlag(kMaps);
@@ -2792,13 +2770,9 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
   const UniqueSet<Map>* maps() const { return maps_; }
   void set_maps(const UniqueSet<Map>* maps) { maps_ = maps; }
 
-  bool maps_are_stable() const {
-    return MapsAreStableField::decode(bit_field_);
-  }
+  bool maps_are_stable() const { return maps_are_stable_; }
 
-  bool HasMigrationTarget() const {
-    return HasMigrationTargetField::decode(bit_field_);
-  }
+  bool HasMigrationTarget() const { return has_migration_target_; }
 
   virtual HValue* Canonicalize() OVERRIDE;
 
@@ -2830,11 +2804,9 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
 
  private:
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, bool maps_are_stable)
-      : HTemplateInstruction<2>(HType::HeapObject()),
-        maps_(maps),
-        bit_field_(HasMigrationTargetField::encode(false) |
-                   IsStabilityCheckField::encode(false) |
-                   MapsAreStableField::encode(maps_are_stable)) {
+      : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
+        has_migration_target_(false), is_stability_check_(false),
+        maps_are_stable_(maps_are_stable) {
     DCHECK_NE(0, maps->size());
     SetOperandAt(0, value);
     // Use the object value for the dependency.
@@ -2846,11 +2818,9 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
   }
 
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, HValue* typecheck)
-      : HTemplateInstruction<2>(HType::HeapObject()),
-        maps_(maps),
-        bit_field_(HasMigrationTargetField::encode(false) |
-                   IsStabilityCheckField::encode(false) |
-                   MapsAreStableField::encode(true)) {
+      : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
+        has_migration_target_(false), is_stability_check_(false),
+        maps_are_stable_(true) {
     DCHECK_NE(0, maps->size());
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
@@ -2861,22 +2831,16 @@ class HCheckMaps FINAL : public HTemplateInstruction<2> {
     SetDependsOnFlag(kElementsKind);
     for (int i = 0; i < maps->size(); ++i) {
       Handle<Map> map = maps->at(i).handle();
-      if (map->is_migration_target()) {
-        bit_field_ = HasMigrationTargetField::update(bit_field_, true);
-      }
-      if (!map->is_stable()) {
-        bit_field_ = MapsAreStableField::update(bit_field_, false);
-      }
+      if (map->is_migration_target()) has_migration_target_ = true;
+      if (!map->is_stable()) maps_are_stable_ = false;
     }
-    if (HasMigrationTarget()) SetChangesFlag(kNewSpacePromotion);
+    if (has_migration_target_) SetChangesFlag(kNewSpacePromotion);
   }
 
-  class HasMigrationTargetField : public BitField<bool, 0, 1> {};
-  class IsStabilityCheckField : public BitField<bool, 1, 1> {};
-  class MapsAreStableField : public BitField<bool, 2, 1> {};
-
   const UniqueSet<Map>* maps_;
-  uint32_t bit_field_;
+  bool has_migration_target_ : 1;
+  bool is_stability_check_ : 1;
+  bool maps_are_stable_ : 1;
 };
 
 
@@ -3573,26 +3537,29 @@ class HConstant FINAL : public HTemplateInstruction<0> {
           isolate->factory()->NewNumber(double_value_, TENURED));
     }
     AllowDeferredHandleDereference smi_check;
-    DCHECK(HasInteger32Value() || !object_.handle()->IsSmi());
+    DCHECK(has_int32_value_ || !object_.handle()->IsSmi());
     return object_.handle();
   }
 
   bool IsSpecialDouble() const {
-    return HasDoubleValue() &&
+    return has_double_value_ &&
            (bit_cast<int64_t>(double_value_) == bit_cast<int64_t>(-0.0) ||
             FixedDoubleArray::is_the_hole_nan(double_value_) ||
             std::isnan(double_value_));
   }
 
   bool NotInNewSpace() const {
-    return IsNotInNewSpaceField::decode(bit_field_);
+    return is_not_in_new_space_;
   }
 
   bool ImmortalImmovable() const;
 
   bool IsCell() const {
-    InstanceType instance_type = GetInstanceType();
-    return instance_type == CELL_TYPE || instance_type == PROPERTY_CELL_TYPE;
+    return instance_type_ == CELL_TYPE || instance_type_ == PROPERTY_CELL_TYPE;
+  }
+
+  bool IsMap() const {
+    return instance_type_ == MAP_TYPE;
   }
 
   virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
@@ -3612,17 +3579,13 @@ class HConstant FINAL : public HTemplateInstruction<0> {
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
   Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
   Maybe<HConstant*> CopyToTruncatedNumber(Zone* zone);
-  bool HasInteger32Value() const {
-    return HasInt32ValueField::decode(bit_field_);
-  }
+  bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
     DCHECK(HasInteger32Value());
     return int32_value_;
   }
-  bool HasSmiValue() const { return HasSmiValueField::decode(bit_field_); }
-  bool HasDoubleValue() const {
-    return HasDoubleValueField::decode(bit_field_);
-  }
+  bool HasSmiValue() const { return has_smi_value_; }
+  bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
     DCHECK(HasDoubleValue());
     return double_value_;
@@ -3634,7 +3597,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     return object_.IsInitialized() &&
            object_.IsKnownGlobal(isolate()->heap()->the_hole_value());
   }
-  bool HasNumberValue() const { return HasDoubleValue(); }
+  bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
     DCHECK(HasNumberValue());
     // Irrespective of whether a numeric HConstant can be safely
@@ -3643,42 +3606,38 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     return int32_value_;
   }
   bool HasStringValue() const {
-    if (HasNumberValue()) return false;
+    if (has_double_value_ || has_int32_value_) return false;
     DCHECK(!object_.handle().is_null());
-    return GetInstanceType() < FIRST_NONSTRING_TYPE;
+    return instance_type_ < FIRST_NONSTRING_TYPE;
   }
   Handle<String> StringValue() const {
     DCHECK(HasStringValue());
     return Handle<String>::cast(object_.handle());
   }
   bool HasInternalizedStringValue() const {
-    return HasStringValue() && StringShape(GetInstanceType()).IsInternalized();
+    return HasStringValue() && StringShape(instance_type_).IsInternalized();
   }
 
   bool HasExternalReferenceValue() const {
-    return HasExternalReferenceValueField::decode(bit_field_);
+    return has_external_reference_value_;
   }
   ExternalReference ExternalReferenceValue() const {
     return external_reference_value_;
   }
 
   bool HasBooleanValue() const { return type_.IsBoolean(); }
-  bool BooleanValue() const { return BooleanValueField::decode(bit_field_); }
-  bool IsUndetectable() const {
-    return IsUndetectableField::decode(bit_field_);
-  }
-  InstanceType GetInstanceType() const {
-    return InstanceTypeField::decode(bit_field_);
-  }
+  bool BooleanValue() const { return boolean_value_; }
+  bool IsUndetectable() const { return is_undetectable_; }
+  InstanceType GetInstanceType() const { return instance_type_; }
 
-  bool HasMapValue() const { return GetInstanceType() == MAP_TYPE; }
+  bool HasMapValue() const { return instance_type_ == MAP_TYPE; }
   Unique<Map> MapValue() const {
     DCHECK(HasMapValue());
     return Unique<Map>::cast(GetUnique());
   }
   bool HasStableMapValue() const {
-    DCHECK(HasMapValue() || !HasStableMapValueField::decode(bit_field_));
-    return HasStableMapValueField::decode(bit_field_);
+    DCHECK(HasMapValue() || !has_stable_map_value_);
+    return has_stable_map_value_;
   }
 
   bool HasObjectMap() const { return !object_map_.IsNull(); }
@@ -3688,11 +3647,11 @@ class HConstant FINAL : public HTemplateInstruction<0> {
   }
 
   virtual intptr_t Hashcode() OVERRIDE {
-    if (HasInteger32Value()) {
+    if (has_int32_value_) {
       return static_cast<intptr_t>(int32_value_);
-    } else if (HasDoubleValue()) {
+    } else if (has_double_value_) {
       return static_cast<intptr_t>(bit_cast<int64_t>(double_value_));
-    } else if (HasExternalReferenceValue()) {
+    } else if (has_external_reference_value_) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
       DCHECK(!object_.handle().is_null());
@@ -3701,7 +3660,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
   }
 
   virtual void FinalizeUniqueness() OVERRIDE {
-    if (!HasDoubleValue() && !HasExternalReferenceValue()) {
+    if (!has_double_value_ && !has_external_reference_value_) {
       DCHECK(!object_.handle().is_null());
       object_ = Unique<Object>(object_.handle());
     }
@@ -3717,21 +3676,21 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   virtual bool DataEquals(HValue* other) OVERRIDE {
     HConstant* other_constant = HConstant::cast(other);
-    if (HasInteger32Value()) {
-      return other_constant->HasInteger32Value() &&
-             int32_value_ == other_constant->int32_value_;
-    } else if (HasDoubleValue()) {
-      return other_constant->HasDoubleValue() &&
+    if (has_int32_value_) {
+      return other_constant->has_int32_value_ &&
+          int32_value_ == other_constant->int32_value_;
+    } else if (has_double_value_) {
+      return other_constant->has_double_value_ &&
              bit_cast<int64_t>(double_value_) ==
                  bit_cast<int64_t>(other_constant->double_value_);
-    } else if (HasExternalReferenceValue()) {
-      return other_constant->HasExternalReferenceValue() &&
-             external_reference_value_ ==
-                 other_constant->external_reference_value_;
+    } else if (has_external_reference_value_) {
+      return other_constant->has_external_reference_value_ &&
+          external_reference_value_ ==
+          other_constant->external_reference_value_;
     } else {
-      if (other_constant->HasInteger32Value() ||
-          other_constant->HasDoubleValue() ||
-          other_constant->HasExternalReferenceValue()) {
+      if (other_constant->has_int32_value_ ||
+          other_constant->has_double_value_ ||
+          other_constant->has_external_reference_value_) {
         return false;
       }
       DCHECK(!object_.handle().is_null());
@@ -3776,25 +3735,6 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   virtual bool IsDeletable() const OVERRIDE { return true; }
 
-  // If object_ is a map, this indicates whether the map is stable.
-  class HasStableMapValueField : public BitField<bool, 0, 1> {};
-
-  // We store the HConstant in the most specific form safely possible.
-  // These flags tell us if the respective member fields hold valid, safe
-  // representations of the constant. More specific flags imply more general
-  // flags, but not the converse (i.e. smi => int32 => double).
-  class HasSmiValueField : public BitField<bool, 1, 1> {};
-  class HasInt32ValueField : public BitField<bool, 2, 1> {};
-  class HasDoubleValueField : public BitField<bool, 3, 1> {};
-
-  class HasExternalReferenceValueField : public BitField<bool, 4, 1> {};
-  class IsNotInNewSpaceField : public BitField<bool, 5, 1> {};
-  class BooleanValueField : public BitField<bool, 6, 1> {};
-  class IsUndetectableField : public BitField<bool, 7, 1> {};
-
-  static const InstanceType kUnknownInstanceType = FILLER_TYPE;
-  class InstanceTypeField : public BitField<InstanceType, 8, 8> {};
-
   // If this is a numerical constant, object_ either points to the
   // HeapObject the constant originated from or is null.  If the
   // constant is non-numeric, object_ always points to a valid
@@ -3804,11 +3744,27 @@ class HConstant FINAL : public HTemplateInstruction<0> {
   // If object_ is a heap object, this points to the stable map of the object.
   Unique<Map> object_map_;
 
-  uint32_t bit_field_;
+  // If object_ is a map, this indicates whether the map is stable.
+  bool has_stable_map_value_ : 1;
 
+  // We store the HConstant in the most specific form safely possible.
+  // The two flags, has_int32_value_ and has_double_value_ tell us if
+  // int32_value_ and double_value_ hold valid, safe representations
+  // of the constant.  has_int32_value_ implies has_double_value_ but
+  // not the converse.
+  bool has_smi_value_ : 1;
+  bool has_int32_value_ : 1;
+  bool has_double_value_ : 1;
+  bool has_external_reference_value_ : 1;
+  bool is_not_in_new_space_ : 1;
+  bool boolean_value_ : 1;
+  bool is_undetectable_: 1;
   int32_t int32_value_;
   double double_value_;
   ExternalReference external_reference_value_;
+
+  static const InstanceType kUnknownInstanceType = FILLER_TYPE;
+  InstanceType instance_type_;
 };
 
 
@@ -5356,12 +5312,6 @@ class HParameter FINAL : public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  virtual Representation KnownOptimalRepresentation() OVERRIDE {
-    // If a parameter is an input to a phi, that phi should not
-    // choose any more optimistic representation than Tagged.
-    return Representation::Tagged();
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(Parameter)
 
  private:
@@ -6789,8 +6739,8 @@ class HLoadKeyed FINAL
     kStartIsDehoisted = kStartBaseOffset + kBitsForBaseOffset
   };
 
-  STATIC_ASSERT((kBitsForElementsKind + kBitsForHoleMode + kBitsForBaseOffset +
-                 kBitsForIsDehoisted) <= sizeof(uint32_t) * 8);
+  STATIC_ASSERT((kBitsForElementsKind + kBitsForBaseOffset +
+                 kBitsForIsDehoisted) <= sizeof(uint32_t)*8);
   STATIC_ASSERT(kElementsKindCount <= (1 << kBitsForElementsKind));
   class ElementsKindField:
     public BitField<ElementsKind, kStartElementsKind, kBitsForElementsKind>
@@ -6895,8 +6845,7 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
       } else if (field_representation().IsDouble()) {
         return field_representation();
       } else if (field_representation().IsSmi()) {
-        if (SmiValuesAre32Bits() &&
-            store_mode() == STORE_TO_INITIALIZED_ENTRY) {
+        if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
           return Representation::Integer32();
         }
         return field_representation();
@@ -6921,10 +6870,8 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
 
   HObjectAccess access() const { return access_; }
   HValue* dominator() const { return dominator_; }
-  bool has_transition() const { return HasTransitionField::decode(bit_field_); }
-  StoreFieldOrKeyedMode store_mode() const {
-    return StoreModeField::decode(bit_field_);
-  }
+  bool has_transition() const { return has_transition_; }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
   Handle<Map> transition_map() const {
     if (has_transition()) {
@@ -6938,7 +6885,7 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
   void SetTransition(HConstant* transition) {
     DCHECK(!has_transition());  // Only set once.
     SetOperandAt(2, transition);
-    bit_field_ = HasTransitionField::update(bit_field_, true);
+    has_transition_ = true;
     SetChangesFlag(kMaps);
   }
 
@@ -6989,12 +6936,14 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
   }
 
  private:
-  HStoreNamedField(HValue* obj, HObjectAccess access, HValue* val,
+  HStoreNamedField(HValue* obj,
+                   HObjectAccess access,
+                   HValue* val,
                    StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         dominator_(NULL),
-        bit_field_(HasTransitionField::encode(false) |
-                   StoreModeField::encode(store_mode)) {
+        has_transition_(false),
+        store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
     DCHECK(!access.IsInobject() || access.existing_inobject_property() ||
@@ -7005,12 +6954,10 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
     access.SetGVNFlags(this, STORE);
   }
 
-  class HasTransitionField : public BitField<bool, 0, 1> {};
-  class StoreModeField : public BitField<StoreFieldOrKeyedMode, 1, 1> {};
-
   HObjectAccess access_;
   HValue* dominator_;
-  uint32_t bit_field_;
+  bool has_transition_ : 1;
+  StoreFieldOrKeyedMode store_mode_ : 1;
 };
 
 
@@ -7077,7 +7024,7 @@ class HStoreKeyed FINAL
     }
 
     DCHECK_EQ(index, 2);
-    return RequiredValueRepresentation(elements_kind(), store_mode());
+    return RequiredValueRepresentation(elements_kind_, store_mode_);
   }
 
   static Representation RequiredValueRepresentation(
@@ -7118,8 +7065,7 @@ class HStoreKeyed FINAL
     if (IsUninitialized()) {
       return Representation::None();
     }
-    Representation r =
-        RequiredValueRepresentation(elements_kind(), store_mode());
+    Representation r = RequiredValueRepresentation(elements_kind_, store_mode_);
     // For fast object elements kinds, don't assume anything.
     if (r.IsTagged()) return Representation::None();
     return r;
@@ -7128,26 +7074,22 @@ class HStoreKeyed FINAL
   HValue* elements() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* value() const { return OperandAt(2); }
-  bool value_is_smi() const { return IsFastSmiElementsKind(elements_kind()); }
-  StoreFieldOrKeyedMode store_mode() const {
-    return StoreModeField::decode(bit_field_);
+  bool value_is_smi() const {
+    return IsFastSmiElementsKind(elements_kind_);
   }
-  ElementsKind elements_kind() const OVERRIDE {
-    return ElementsKindField::decode(bit_field_);
-  }
+  StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
+  ElementsKind elements_kind() const OVERRIDE { return elements_kind_; }
   uint32_t base_offset() const { return base_offset_; }
   bool TryIncreaseBaseOffset(uint32_t increase_by_value) OVERRIDE;
   HValue* GetKey() OVERRIDE { return key(); }
   void SetKey(HValue* key) OVERRIDE { SetOperandAt(1, key); }
-  bool IsDehoisted() const OVERRIDE {
-    return IsDehoistedField::decode(bit_field_);
-  }
+  bool IsDehoisted() const OVERRIDE { return is_dehoisted_; }
   void SetDehoisted(bool is_dehoisted) OVERRIDE {
-    bit_field_ = IsDehoistedField::update(bit_field_, is_dehoisted);
+    is_dehoisted_ = is_dehoisted;
   }
-  bool IsUninitialized() { return IsUninitializedField::decode(bit_field_); }
+  bool IsUninitialized() { return is_uninitialized_; }
   void SetUninitialized(bool is_uninitialized) {
-    bit_field_ = IsUninitializedField::update(bit_field_, is_uninitialized);
+    is_uninitialized_ = is_uninitialized;
   }
 
   bool IsConstantHoleStore() {
@@ -7183,17 +7125,18 @@ class HStoreKeyed FINAL
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyed)
 
  private:
-  HStoreKeyed(HValue* obj, HValue* key, HValue* val, ElementsKind elements_kind,
+  HStoreKeyed(HValue* obj, HValue* key, HValue* val,
+              ElementsKind elements_kind,
               StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE,
               int offset = kDefaultKeyedHeaderOffsetSentinel)
-      : base_offset_(offset == kDefaultKeyedHeaderOffsetSentinel
-                         ? GetDefaultHeaderSizeForElementsKind(elements_kind)
-                         : offset),
-        bit_field_(IsDehoistedField::encode(false) |
-                   IsUninitializedField::encode(false) |
-                   StoreModeField::encode(store_mode) |
-                   ElementsKindField::encode(elements_kind)),
-        dominator_(NULL) {
+      : elements_kind_(elements_kind),
+      base_offset_(offset == kDefaultKeyedHeaderOffsetSentinel
+          ? GetDefaultHeaderSizeForElementsKind(elements_kind)
+          : offset),
+      is_dehoisted_(false),
+      is_uninitialized_(false),
+      store_mode_(store_mode),
+      dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -7225,13 +7168,11 @@ class HStoreKeyed FINAL
     }
   }
 
-  class IsDehoistedField : public BitField<bool, 0, 1> {};
-  class IsUninitializedField : public BitField<bool, 1, 1> {};
-  class StoreModeField : public BitField<StoreFieldOrKeyedMode, 2, 1> {};
-  class ElementsKindField : public BitField<ElementsKind, 3, 5> {};
-
+  ElementsKind elements_kind_;
   uint32_t base_offset_;
-  uint32_t bit_field_;
+  bool is_dehoisted_ : 1;
+  bool is_uninitialized_ : 1;
+  StoreFieldOrKeyedMode store_mode_: 1;
   HValue* dominator_;
 };
 
@@ -7555,25 +7496,23 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  bool pretenure() const { return PretenureField::decode(bit_field_); }
-  bool has_no_literals() const {
-    return HasNoLiteralsField::decode(bit_field_);
-  }
-  bool is_arrow() const { return IsArrowFunction(kind()); }
-  bool is_generator() const { return IsGeneratorFunction(kind()); }
-  bool is_concise_method() const { return IsConciseMethod(kind()); }
-  FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
-  StrictMode strict_mode() const { return StrictModeField::decode(bit_field_); }
+  bool pretenure() const { return pretenure_; }
+  bool has_no_literals() const { return has_no_literals_; }
+  bool is_arrow() const { return IsArrowFunction(kind_); }
+  bool is_generator() const { return IsGeneratorFunction(kind_); }
+  bool is_concise_method() const { return IsConciseMethod(kind_); }
+  FunctionKind kind() const { return kind_; }
+  StrictMode strict_mode() const { return strict_mode_; }
 
  private:
   HFunctionLiteral(HValue* context, Handle<SharedFunctionInfo> shared,
                    bool pretenure)
       : HTemplateInstruction<1>(HType::JSObject()),
         shared_info_(shared),
-        bit_field_(FunctionKindField::encode(shared->kind()) |
-                   PretenureField::encode(pretenure) |
-                   HasNoLiteralsField::encode(shared->num_literals() == 0) |
-                   StrictModeField::encode(shared->strict_mode())) {
+        kind_(shared->kind()),
+        pretenure_(pretenure),
+        has_no_literals_(shared->num_literals() == 0),
+        strict_mode_(shared->strict_mode()) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetChangesFlag(kNewSpacePromotion);
@@ -7581,13 +7520,11 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
 
   virtual bool IsDeletable() const OVERRIDE { return true; }
 
-  class FunctionKindField : public BitField<FunctionKind, 0, 3> {};
-  class PretenureField : public BitField<bool, 3, 1> {};
-  class HasNoLiteralsField : public BitField<bool, 4, 1> {};
-  class StrictModeField : public BitField<StrictMode, 5, 1> {};
-
   Handle<SharedFunctionInfo> shared_info_;
-  uint32_t bit_field_;
+  FunctionKind kind_;
+  bool pretenure_ : 1;
+  bool has_no_literals_ : 1;
+  StrictMode strict_mode_;
 };
 
 

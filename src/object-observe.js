@@ -567,11 +567,12 @@ function CallbackDeliverPending(callback) {
   if (!IS_NULL(pendingObservers))
     delete pendingObservers[priority];
 
-  // TODO: combine the following runtime calls for perf optimization.
   var delivered = [];
   %MoveArrayContents(callbackInfo, delivered);
-  %DeliverObservationChangeRecords(callback, delivered);
 
+  try {
+    %_CallFunction(UNDEFINED, delivered, callback);
+  } catch (ex) {}  // TODO(rossberg): perhaps log uncaught exceptions.
   return true;
 }
 

@@ -10,11 +10,14 @@
 namespace v8 {
 namespace internal {
 
-CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
-                     const char* name_prefix, const char* resource_name,
-                     int line_number, int column_number)
-    : bit_field_(TagField::encode(tag) |
-                 BuiltinIdField::encode(Builtins::builtin_count)),
+CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
+                     const char* name,
+                     const char* name_prefix,
+                     const char* resource_name,
+                     int line_number,
+                     int column_number)
+    : tag_(tag),
+      builtin_id_(Builtins::builtin_count),
       name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
@@ -23,7 +26,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       shared_id_(0),
       script_id_(v8::UnboundScript::kNoScriptId),
       no_frame_ranges_(NULL),
-      bailout_reason_(kEmptyBailoutReason) {}
+      bailout_reason_(kEmptyBailoutReason) { }
 
 
 bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {

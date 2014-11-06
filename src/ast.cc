@@ -61,9 +61,9 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
     : Expression(zone, position),
-      bit_field_(IsThisField::encode(var->is_this()) |
-                 IsAssignedField::encode(false) |
-                 IsResolvedField::encode(false)),
+      is_this_(var->is_this()),
+      is_assigned_(false),
+      is_resolved_(false),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(var->raw_name()),
       interface_(var->interface()) {
@@ -74,8 +74,9 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              Interface* interface, int position)
     : Expression(zone, position),
-      bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
-                 IsResolvedField::encode(false)),
+      is_this_(is_this),
+      is_assigned_(false),
+      is_resolved_(false),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(name),
       interface_(interface) {}
@@ -98,17 +99,17 @@ void VariableProxy::BindTo(Variable* var) {
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(zone, pos),
-      bit_field_(IsUninitializedField::encode(false) |
-                 KeyTypeField::encode(ELEMENT) |
-                 StoreModeField::encode(STANDARD_STORE) |
-                 TokenField::encode(op)),
+      is_uninitialized_(false),
+      key_type_(ELEMENT),
+      store_mode_(STANDARD_STORE),
+      op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL) {}
 
 
 Token::Value Assignment::binary_op() const {
-  switch (op()) {
+  switch (op_) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
     case Token::ASSIGN_BIT_XOR: return Token::BIT_XOR;
     case Token::ASSIGN_BIT_AND: return Token::BIT_AND;

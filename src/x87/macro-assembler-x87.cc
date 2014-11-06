@@ -767,13 +767,6 @@ void MacroAssembler::X87SetRC(int rc) {
 }
 
 
-void MacroAssembler::X87SetFPUCW(int cw) {
-  push(Immediate(cw));
-  fldcw(MemOperand(esp, 0));
-  add(esp, Immediate(kPointerSize));
-}
-
-
 void MacroAssembler::AssertNumber(Register object) {
   if (emit_debug_code()) {
     Label ok;
