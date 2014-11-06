@@ -81,10 +81,7 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(sigurds): The schedule is borked with multiple inlinees,
-  # and cannot handle free-floating loops yet
-  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
+  # TODO(mstarzinger): The scheduler cannot handle free-floating loops yet.
   'test-run-inlining/InlineLoop': [SKIP],
 
   # Some tests are just too slow to run for now.
