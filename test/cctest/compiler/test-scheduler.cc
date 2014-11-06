@@ -200,13 +200,12 @@ TEST(RPOSelfLoop) {
 TEST(RPOEntryLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  BasicBlock* body = schedule.NewBasicBlock();
-  schedule.AddSuccessorForTesting(schedule.start(), body);
-  schedule.AddSuccessorForTesting(body, schedule.start());
+  schedule.AddSuccessorForTesting(schedule.start(), schedule.end());
+  schedule.AddSuccessorForTesting(schedule.end(), schedule.start());
   ZonePool zone_pool(scope.main_isolate());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
   CheckRPONumbers(order, 2, true);
-  BasicBlock* loop[] = {schedule.start(), body};
+  BasicBlock* loop[] = {schedule.start(), schedule.end()};
   CheckLoop(order, loop, 2);
 }
 
@@ -654,7 +653,7 @@ TEST(RPOLoopMultibackedge) {
   BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.NewBasicBlock();
+  BasicBlock* D = schedule.end();
   BasicBlock* E = schedule.NewBasicBlock();
 
   schedule.AddSuccessorForTesting(A, B);

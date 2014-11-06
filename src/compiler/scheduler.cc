@@ -527,6 +527,7 @@ class SpecialRPONumberer : public ZoneObject {
         schedule_(schedule),
         order_(NULL),
         loops_(zone),
+        beyond_end_(NULL),
         backedges_(1, zone),
         stack_(zone),
         previous_block_count_(0) {}
@@ -534,9 +535,9 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
-    DCHECK(schedule_->end()->SuccessorCount() == 0);
     DCHECK_EQ(NULL, order_);  // Main order does not exist yet.
-    ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
+    // TODO(mstarzinger): Should use Schedule::end() after tests are fixed.
+    ComputeAndInsertSpecialRPO(schedule_->start(), NULL);
   }
 
   // Computes the special reverse-post-order for a partial control flow graph,
@@ -569,9 +570,7 @@ class SpecialRPONumberer : public ZoneObject {
       l->block->set_rpo_number(number++);
       schedule_->rpo_order()->push_back(l->block);
     }
-    if (schedule_->end()->rpo_number() < 0) {
-      schedule_->end()->set_rpo_number(number);
-    }
+    BeyondEndSentinel()->set_rpo_number(number);
   }
 
   // Print and verify the special reverse-post-order.
@@ -654,6 +653,17 @@ class SpecialRPONumberer : public ZoneObject {
   }
   static bool HasLoopNumber(BasicBlock* block) {
     return block->ao_number() >= 0;
+  }
+
+  // TODO(mstarzinger): We only need this special sentinel because some tests
+  // use the schedule's end block in actual control flow (e.g. with end having
+  // successors). Once this has been cleaned up we can use the end block here.
+  BasicBlock* BeyondEndSentinel() {
+    if (beyond_end_ == NULL) {
+      BasicBlock::Id id = BasicBlock::Id::FromInt(-1);
+      beyond_end_ = new (schedule_->zone()) BasicBlock(schedule_->zone(), id);
+    }
+    return beyond_end_;
   }
 
   // Compute special RPO for the control flow graph between {entry} and {end},
@@ -838,7 +848,7 @@ class SpecialRPONumberer : public ZoneObject {
         ++loop_depth;
         current_loop = &loops_[GetLoopNumber(current)];
         BlockList* end = current_loop->end;
-        current->set_loop_end(end == NULL ? schedule_->end() : end->block);
+        current->set_loop_end(end == NULL ? BeyondEndSentinel() : end->block);
         current_header = current_loop->header;
         Trace("B%d is a loop header, increment loop depth to %d\n",
               current->id().ToInt(), loop_depth);
@@ -1008,6 +1018,7 @@ class SpecialRPONumberer : public ZoneObject {
   Schedule* schedule_;
   BlockList* order_;
   ZoneVector<LoopInfo> loops_;
+  BasicBlock* beyond_end_;
   ZoneList<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
