@@ -88,14 +88,9 @@ TEST_F(JSBuiltinReducerTest, MathAbs) {
     } else {
       Capture<Node*> branch;
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(
-          r.replacement(),
-          IsPhi(kMachNone, p0, IsNumberSubtract(IsNumberConstant(0), p0),
-                IsMerge(IsIfTrue(CaptureEq(&branch)),
-                        IsIfFalse(AllOf(
-                            CaptureEq(&branch),
-                            IsBranch(IsNumberLessThan(IsNumberConstant(0), p0),
-                                     graph()->start()))))));
+      EXPECT_THAT(r.replacement(),
+                  IsSelect(kMachNone, IsNumberLessThan(IsNumberConstant(0), p0),
+                           p0, IsNumberSubtract(IsNumberConstant(0), p0)));
     }
   }
 }
@@ -171,15 +166,9 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
       Reduction r = Reduce(call);
 
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
-        Capture<Node*> branch;
         ASSERT_TRUE(r.Changed());
-        EXPECT_THAT(
-            r.replacement(),
-            IsPhi(kMachNone, p1, p0,
-                  IsMerge(IsIfTrue(CaptureEq(&branch)),
-                          IsIfFalse(AllOf(CaptureEq(&branch),
-                                          IsBranch(IsNumberLessThan(p0, p1),
-                                                   graph()->start()))))));
+        EXPECT_THAT(r.replacement(),
+                    IsSelect(kMachNone, IsNumberLessThan(p1, p0), p1, p0));
       } else {
         ASSERT_FALSE(r.Changed());
         EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());

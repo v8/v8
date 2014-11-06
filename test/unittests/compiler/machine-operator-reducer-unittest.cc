@@ -876,44 +876,30 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
     Reduction const r =
         Reduce(graph()->NewNode(machine()->Int32Mod(), p0,
                                 Int32Constant(1 << shift), graph()->start()));
-    ASSERT_TRUE(r.Changed());
-
-    Capture<Node*> branch;
-    Node* const phi = r.replacement();
     int32_t const mask = (1 << shift) - 1;
+    ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
-        phi, IsPhi(kMachInt32,
-                   IsInt32Sub(IsInt32Constant(0),
-                              IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
-                                          IsInt32Constant(mask))),
-                   IsWord32And(p0, IsInt32Constant(mask)),
-                   IsMerge(IsIfTrue(CaptureEq(&branch)),
-                           IsIfFalse(AllOf(
-                               CaptureEq(&branch),
-                               IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
-                                        graph()->start()))))));
+        r.replacement(),
+        IsSelect(kMachInt32, IsInt32LessThan(p0, IsInt32Constant(0)),
+                 IsInt32Sub(IsInt32Constant(0),
+                            IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
+                                        IsInt32Constant(mask))),
+                 IsWord32And(p0, IsInt32Constant(mask))));
   }
   TRACED_FORRANGE(int32_t, shift, 1, 31) {
     Reduction const r = Reduce(graph()->NewNode(
         machine()->Int32Mod(), p0,
         Uint32Constant(bit_cast<uint32_t, int32_t>(-1) << shift),
         graph()->start()));
-    ASSERT_TRUE(r.Changed());
-
-    Capture<Node*> branch;
-    Node* const phi = r.replacement();
     int32_t const mask = bit_cast<int32_t, uint32_t>((1U << shift) - 1);
+    ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
-        phi, IsPhi(kMachInt32,
-                   IsInt32Sub(IsInt32Constant(0),
-                              IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
-                                          IsInt32Constant(mask))),
-                   IsWord32And(p0, IsInt32Constant(mask)),
-                   IsMerge(IsIfTrue(CaptureEq(&branch)),
-                           IsIfFalse(AllOf(
-                               CaptureEq(&branch),
-                               IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
-                                        graph()->start()))))));
+        r.replacement(),
+        IsSelect(kMachInt32, IsInt32LessThan(p0, IsInt32Constant(0)),
+                 IsInt32Sub(IsInt32Constant(0),
+                            IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
+                                        IsInt32Constant(mask))),
+                 IsWord32And(p0, IsInt32Constant(mask))));
   }
   TRACED_FOREACH(int32_t, divisor, kInt32Values) {
     if (divisor == 0 || base::bits::IsPowerOfTwo32(Abs(divisor))) continue;

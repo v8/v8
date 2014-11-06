@@ -644,13 +644,12 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
     if (base::bits::IsPowerOfTwo32(divisor)) {
       uint32_t const mask = divisor - 1;
       Node* const zero = Int32Constant(0);
-
-      Node* check =
-          graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
-      Diamond d(graph(), common(), check, BranchHint::kFalse);
-      Node* neg = Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask));
-      Node* pos = Word32And(dividend, mask);
-      d.OverwriteWithPhi(node, kMachInt32, neg, pos);
+      node->set_op(common()->Select(kMachInt32, BranchHint::kFalse));
+      node->ReplaceInput(
+          0, graph()->NewNode(machine()->Int32LessThan(), dividend, zero));
+      node->ReplaceInput(
+          1, Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask)));
+      node->ReplaceInput(2, Word32And(dividend, mask));
     } else {
       Node* quotient = Int32Div(dividend, divisor);
       node->set_op(machine()->Int32Sub());

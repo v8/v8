@@ -105,12 +105,12 @@ Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
   }
   if (r.InputsMatchOne(Type::Number())) {
     // Math.abs(a:number) -> (a > 0 ? a : 0 - a)
-    Node* value = r.left();
-    Node* zero = jsgraph()->ZeroConstant();
-    Node* cmp = graph()->NewNode(simplified()->NumberLessThan(), zero, value);
-    Diamond d(graph(), common(), cmp);
-    Node* neg = graph()->NewNode(simplified()->NumberSubtract(), zero, value);
-    return Replace(d.Phi(kMachNone, value, neg));
+    Node* const value = r.left();
+    Node* const zero = jsgraph()->ZeroConstant();
+    return Replace(graph()->NewNode(
+        common()->Select(kMachNone),
+        graph()->NewNode(simplified()->NumberLessThan(), zero, value), value,
+        graph()->NewNode(simplified()->NumberSubtract(), zero, value)));
   }
   return NoChange();
 }
@@ -143,10 +143,11 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
     // Math.max(a:int32, b:int32, ...)
     Node* value = r.GetJSCallInput(0);
     for (int i = 1; i < r.GetJSCallArity(); i++) {
-      Node* p = r.GetJSCallInput(i);
-      Node* cmp = graph()->NewNode(simplified()->NumberLessThan(), value, p);
-      Diamond d(graph(), common(), cmp);
-      value = d.Phi(kMachNone, p, value);
+      Node* const input = r.GetJSCallInput(i);
+      value = graph()->NewNode(
+          common()->Select(kMachNone),
+          graph()->NewNode(simplified()->NumberLessThan(), input, value), input,
+          value);
     }
     return Replace(value);
   }

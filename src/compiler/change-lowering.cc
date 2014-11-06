@@ -102,11 +102,10 @@ Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
 
 
 Reduction ChangeLowering::ChangeBitToBool(Node* val, Node* control) {
-  Diamond d(graph(), common(), val);
-  d.Chain(control);
-  MachineType machine_type = static_cast<MachineType>(kTypeBool | kRepTagged);
-  return Replace(d.Phi(machine_type, jsgraph()->TrueConstant(),
-                       jsgraph()->FalseConstant()));
+  MachineType const type = static_cast<MachineType>(kTypeBool | kRepTagged);
+  return Replace(graph()->NewNode(common()->Select(type), val,
+                                  jsgraph()->TrueConstant(),
+                                  jsgraph()->FalseConstant()));
 }
 
 

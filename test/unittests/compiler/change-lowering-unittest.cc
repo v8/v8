@@ -124,15 +124,9 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Node* node = graph()->NewNode(simplified()->ChangeBitToBool(), val);
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
-
-  Node* phi = reduction.replacement();
-  Capture<Node*> branch;
-  EXPECT_THAT(phi,
-              IsPhi(static_cast<MachineType>(kTypeBool | kRepTagged),
-                    IsTrueConstant(), IsFalseConstant(),
-                    IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                           IsBranch(val, graph()->start()))),
-                            IsIfFalse(CaptureEq(&branch)))));
+  EXPECT_THAT(reduction.replacement(),
+              IsSelect(static_cast<MachineType>(kTypeBool | kRepTagged), val,
+                       IsTrueConstant(), IsFalseConstant()));
 }
 
 
