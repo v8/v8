@@ -50,6 +50,7 @@ namespace internal {
   V(StringCompare)                          \
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
+  V(ToNumber)                               \
   /* HydrogenCodeStubs */                   \
   V(AllocateHeapNumber)                     \
   V(ArrayNArgumentsConstructor)             \
@@ -77,7 +78,6 @@ namespace internal {
   V(StoreFastElement)                       \
   V(StringAdd)                              \
   V(ToBoolean)                              \
-  V(ToNumber)                               \
   V(TransitionElementsKind)                 \
   V(VectorKeyedLoad)                        \
   V(VectorLoad)                             \
@@ -542,15 +542,6 @@ class NopRuntimeCallHelper : public RuntimeCallHelper {
   virtual void BeforeCall(MacroAssembler* masm) const {}
 
   virtual void AfterCall(MacroAssembler* masm) const {}
-};
-
-
-class ToNumberStub: public HydrogenCodeStub {
- public:
-  explicit ToNumberStub(Isolate* isolate) : HydrogenCodeStub(isolate) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToNumber);
-  DEFINE_HYDROGEN_CODE_STUB(ToNumber, HydrogenCodeStub);
 };
 
 
@@ -2534,6 +2525,15 @@ class SubStringStub : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ContextOnly);
   DEFINE_PLATFORM_CODE_STUB(SubString, PlatformCodeStub);
+};
+
+
+class ToNumberStub FINAL : public PlatformCodeStub {
+ public:
+  explicit ToNumberStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToNumber);
+  DEFINE_PLATFORM_CODE_STUB(ToNumber, PlatformCodeStub);
 };
 
 
