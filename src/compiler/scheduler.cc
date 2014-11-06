@@ -582,7 +582,7 @@ class SpecialRPONumberer : public ZoneObject {
   // TODO(mstarzinger): Only for Scheduler::GenerateImmediateDominatorTree.
   friend class Scheduler;
 
-  // Numbering for BasicBlockData.rpo_number_ for this block traversal:
+  // Numbering for BasicBlock::rpo_number for this block traversal:
   static const int kBlockOnStack = -2;
   static const int kBlockVisited1 = -3;
   static const int kBlockVisited2 = -4;
@@ -672,6 +672,7 @@ class SpecialRPONumberer : public ZoneObject {
     // Find correct insertion point within existing order.
     BlockList* insert_before = order_->FindForBlock(entry);
     BlockList* insert_after = insert_before ? insert_before->next : NULL;
+    BlockList* order = insert_after;
 
     // Perform an iterative RPO traversal using an explicit stack,
     // recording backedges that form cycles. O(|B|).
@@ -706,20 +707,10 @@ class SpecialRPONumberer : public ZoneObject {
         }
       } else {
         // Finished with all successors; pop the stack and add the block.
-        insert_after = insert_after->Add(zone_, frame->block);
+        order = order->Add(zone_, frame->block);
         frame->block->set_rpo_number(kBlockVisited1);
         stack_depth--;
       }
-    }
-
-    // Insert the result into any existing order.
-    if (insert_before == NULL) {
-      order_ = insert_after;
-    } else {
-      // There already is a list element for the entry block in the list, hence
-      // we skip the first element of the sub-list to compensate duplication.
-      DCHECK_EQ(insert_before->block, insert_after->block);
-      insert_before->next = insert_after->next;
     }
 
     // If no loops were encountered, then the order we computed was correct.
@@ -731,7 +722,7 @@ class SpecialRPONumberer : public ZoneObject {
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
           HasLoopNumber(entry) ? &loops_[GetLoopNumber(entry)] : NULL;
-      order_ = NULL;
+      order = NULL;
 
       // Perform an iterative post-order traversal, visiting loop bodies before
       // edges that lead out of loops. Visits each block once, but linking loop
@@ -752,8 +743,8 @@ class SpecialRPONumberer : public ZoneObject {
             // Finish the loop body the first time the header is left on the
             // stack.
             DCHECK(loop != NULL && loop->header == block);
-            loop->start = order_->Add(zone_, block);
-            order_ = loop->end;
+            loop->start = order->Add(zone_, block);
+            order = loop->end;
             block->set_rpo_number(kBlockVisited2);
             // Pop the loop stack and continue visiting outgoing edges within
             // the context of the outer loop, if any.
@@ -790,7 +781,7 @@ class SpecialRPONumberer : public ZoneObject {
               // Push the inner loop onto the loop stack.
               DCHECK(GetLoopNumber(succ) < num_loops);
               LoopInfo* next = &loops_[GetLoopNumber(succ)];
-              next->end = order_;
+              next->end = order;
               next->prev = loop;
               loop = next;
             }
@@ -802,15 +793,15 @@ class SpecialRPONumberer : public ZoneObject {
             LoopInfo* info = &loops_[GetLoopNumber(block)];
             for (BlockList* l = info->start; true; l = l->next) {
               if (l->next == info->end) {
-                l->next = order_;
-                info->end = order_;
+                l->next = order;
+                info->end = order;
                 break;
               }
             }
-            order_ = info->start;
+            order = info->start;
           } else {
             // Pop a single node off the stack and add it to the order.
-            order_ = order_->Add(zone_, block);
+            order = order->Add(zone_, block);
             block->set_rpo_number(kBlockVisited2);
           }
           stack_depth--;
@@ -818,12 +809,26 @@ class SpecialRPONumberer : public ZoneObject {
       }
     }
 
+    // Insert result into existing order.
+    if (insert_before == NULL) {
+      order_ = order;
+    } else {
+      // There already is a list element for the entry block in the list, hence
+      // we skip the first element of the sub-list to compensate duplication.
+      DCHECK_EQ(insert_before->block, order->block);
+      insert_before->next = order->next;
+    }
+
     // Compute the correct loop headers and set the correct loop ends.
     LoopInfo* current_loop = NULL;
-    BasicBlock* current_header = NULL;
-    int loop_depth = 0;
-    for (BlockList* l = order_; l != NULL; l = l->next) {
+    BasicBlock* current_header = entry->loop_header();
+    int32_t loop_depth = entry->loop_depth();
+    if (entry->IsLoopHeader()) --loop_depth;  // Entry might be a loop header.
+    for (BlockList* l = order; l != insert_after; l = l->next) {
       BasicBlock* current = l->block;
+
+      // Reset BasicBlock::rpo_number again.
+      current->set_rpo_number(kBlockUnvisited1);
 
       // Finish the previous loop(s) if we just exited them.
       while (current_header != NULL && current == current_header->loop_end()) {
@@ -837,7 +842,7 @@ class SpecialRPONumberer : public ZoneObject {
 
       // Push a new loop onto the stack if this loop is a loop header.
       if (HasLoopNumber(current)) {
-        loop_depth++;
+        ++loop_depth;
         current_loop = &loops_[GetLoopNumber(current)];
         BlockList* end = current_loop->end;
         current->set_loop_end(end == NULL ? BeyondEndSentinel() : end->block);
@@ -972,7 +977,7 @@ class SpecialRPONumberer : public ZoneObject {
           break;
         }
         // The list should be in same order as the final result.
-        DCHECK(l->block->rpo_number() == links + loop->header->rpo_number());
+        DCHECK(l->block->rpo_number() == links + header->rpo_number());
         links++;
         l = l->next;
         DCHECK(links < static_cast<int>(2 * order->size()));  // cycle?
@@ -980,6 +985,13 @@ class SpecialRPONumberer : public ZoneObject {
       DCHECK(links > 0);
       DCHECK(links == end->rpo_number() - header->rpo_number());
       DCHECK(end_found);
+
+      // Check loop depth of the header.
+      int loop_depth = 0;
+      for (LoopInfo* outer = loop; outer != NULL; outer = outer->prev) {
+        loop_depth++;
+      }
+      DCHECK_EQ(loop_depth, header->loop_depth());
 
       // Check the contiguousness of loops.
       int count = 0;
@@ -990,6 +1002,7 @@ class SpecialRPONumberer : public ZoneObject {
           DCHECK(!header->LoopContains(block));
         } else {
           DCHECK(header->LoopContains(block));
+          DCHECK_GE(block->loop_depth(), loop_depth);
           count++;
         }
       }
@@ -1428,13 +1441,12 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   cfg_builder.Run(block, node);
 
   // Iterate on phase 2: Compute special RPO and dominator tree.
+  special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
   // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
   for (BasicBlock* block : schedule_->all_blocks_) {
-    block->set_rpo_number(-1);
     block->set_dominator_depth(-1);
     block->set_dominator(NULL);
   }
-  special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
   GenerateImmediateDominatorTree();
 
   // Move previously planned nodes.
