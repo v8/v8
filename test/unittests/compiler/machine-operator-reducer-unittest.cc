@@ -455,6 +455,20 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithConstant) {
 }
 
 
+TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithPhi) {
+  Node* const p0 = Parameter(0);
+  Node* const p1 = Parameter(1);
+  Node* const merge = graph()->start();
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->TruncateFloat64ToInt32(),
+      graph()->NewNode(common()->Phi(kMachFloat64, 2), p0, p1, merge)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_THAT(reduction.replacement(),
+              IsPhi(kMachInt32, IsTruncateFloat64ToInt32(p0),
+                    IsTruncateFloat64ToInt32(p1), merge));
+}
+
+
 // -----------------------------------------------------------------------------
 // TruncateInt64ToInt32
 
