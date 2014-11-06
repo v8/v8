@@ -439,6 +439,9 @@
 ['arch == mips', {
   # Flaky with TF.
   'mirror-script': [PASS, NO_VARIANTS],
+
+  # Emscripten requires little-endian, skip all tests on MIPS EB.
+  'asm/embenchen/*': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
