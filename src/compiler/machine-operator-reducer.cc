@@ -441,6 +441,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mul: {
       Float64BinopMatcher m(node);
+      if (m.right().Is(-1)) {  // x * -1.0 => -0.0 - x
+        node->set_op(machine()->Float64Sub());
+        node->ReplaceInput(0, Float64Constant(-0.0));
+        node->ReplaceInput(1, m.left().node());
+        return Changed(node);
+      }
       if (m.right().Is(1)) return Replace(m.left().node());  // x * 1.0 => x
       if (m.right().IsNaN()) {                               // x * NaN => NaN
         return Replace(m.right().node());

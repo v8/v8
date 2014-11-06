@@ -1107,6 +1107,27 @@ TEST_F(MachineOperatorReducerTest, Uint32LessThanWithWord32Sar) {
 
 
 // -----------------------------------------------------------------------------
+// Float64Mul
+
+
+TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Mul(), p0, Float64Constant(-1.0)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Sub(IsFloat64Constant(-0.0), p0));
+  }
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Mul(), Float64Constant(-1.0), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Sub(IsFloat64Constant(-0.0), p0));
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Store
 
 
