@@ -453,6 +453,61 @@ TEST_F(RegisterAllocatorTest, SimpleBranch) {
   Allocate();
 }
 
+
+TEST_F(RegisterAllocatorTest, RegressionPhisNeedTooManyRegisters) {
+  const size_t kNumRegs = 3;
+  const size_t kParams = kNumRegs + 1;
+  int parameters[kParams];
+
+  // Override number of registers.
+  SetNumRegs(kNumRegs, kNumRegs);
+
+  // Initial block.
+  StartBlock();
+  int constant = DefineConstant();
+  for (size_t i = 0; i < arraysize(parameters); ++i) {
+    parameters[i] = DefineConstant();
+  }
+  EndBlock();
+
+  PhiInstruction* phis[kParams];
+  {
+    StartLoop(2);
+
+    // Loop header.
+    StartBlock();
+
+    for (size_t i = 0; i < arraysize(parameters); ++i) {
+      phis[i] = Phi(parameters[i]);
+    }
+
+    // Perform some computations.
+    // something like phi[i] += const
+    for (size_t i = 0; i < arraysize(parameters); ++i) {
+      int result = NewReg();
+      EmitFRU(result, phis[i]->virtual_register(), constant);
+      phis[i]->operands().push_back(result);
+    }
+
+    EndBlock(Branch(DefineConstant(), 1, 2));
+
+    // Jump back to loop header.
+    StartBlock();
+    EndBlock(Jump(-1));
+
+    EndLoop();
+  }
+
+  // End block.
+  StartLastBlock();
+
+  // Return sum.
+  Return(DefineConstant());
+  EndBlock();
+
+  Allocate();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

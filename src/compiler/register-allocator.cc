@@ -1525,7 +1525,13 @@ void RegisterAllocator::BuildLiveRanges() {
         for (UsePosition* pos = range->first_pos(); pos != NULL;
              pos = pos->next_) {
           pos->register_beneficial_ = true;
-          pos->requires_reg_ = true;
+          // TODO(dcarney): should the else case assert requires_reg_ == false?
+          // Can't mark phis as needing a register.
+          if (!code()
+                   ->InstructionAt(pos->pos().InstructionIndex())
+                   ->IsGapMoves()) {
+            pos->requires_reg_ = true;
+          }
         }
       }
     }
