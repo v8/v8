@@ -527,7 +527,10 @@ class SpecialRPONumberer : public ZoneObject {
         schedule_(schedule),
         order_(NULL),
         loops_(zone),
-        beyond_end_(NULL) {}
+        beyond_end_(NULL),
+        backedges_(1, zone),
+        stack_(zone),
+        previous_block_count_(0) {}
 
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
@@ -579,6 +582,8 @@ class SpecialRPONumberer : public ZoneObject {
   }
 
  private:
+  typedef std::pair<BasicBlock*, size_t> Backedge;
+
   // TODO(mstarzinger): Only for Scheduler::GenerateImmediateDominatorTree.
   friend class Scheduler;
 
@@ -629,8 +634,8 @@ class SpecialRPONumberer : public ZoneObject {
     }
   };
 
-  int Push(SpecialRPOStackFrame* stack, int depth, BasicBlock* child,
-           int unvisited) {
+  int Push(ZoneVector<SpecialRPOStackFrame>& stack, int depth,
+           BasicBlock* child, int unvisited) {
     if (child->rpo_number() == unvisited) {
       stack[depth].block = child;
       stack[depth].index = 0;
@@ -676,15 +681,15 @@ class SpecialRPONumberer : public ZoneObject {
 
     // Perform an iterative RPO traversal using an explicit stack,
     // recording backedges that form cycles. O(|B|).
-    ZoneList<std::pair<BasicBlock*, size_t> > backedges(1, zone_);
-    SpecialRPOStackFrame* stack = zone_->NewArray<SpecialRPOStackFrame>(
-        static_cast<int>(schedule_->BasicBlockCount()));
-    int stack_depth = Push(stack, 0, entry, kBlockUnvisited1);
+    DCHECK_LT(previous_block_count_, schedule_->BasicBlockCount());
+    stack_.resize(schedule_->BasicBlockCount() - previous_block_count_);
+    previous_block_count_ = schedule_->BasicBlockCount();
+    int stack_depth = Push(stack_, 0, entry, kBlockUnvisited1);
     int num_loops = 0;
 
     while (stack_depth > 0) {
       int current = stack_depth - 1;
-      SpecialRPOStackFrame* frame = stack + current;
+      SpecialRPOStackFrame* frame = &stack_[current];
 
       if (frame->block != end &&
           frame->index < frame->block->SuccessorCount()) {
@@ -693,9 +698,7 @@ class SpecialRPONumberer : public ZoneObject {
         if (succ->rpo_number() == kBlockVisited1) continue;
         if (succ->rpo_number() == kBlockOnStack) {
           // The successor is on the stack, so this is a backedge (cycle).
-          backedges.Add(
-              std::pair<BasicBlock*, size_t>(frame->block, frame->index - 1),
-              zone_);
+          backedges_.Add(Backedge(frame->block, frame->index - 1), zone_);
           if (!HasLoopNumber(succ)) {
             // Assign a new loop number to the header if it doesn't have one.
             SetLoopNumber(succ, num_loops++);
@@ -703,7 +706,7 @@ class SpecialRPONumberer : public ZoneObject {
         } else {
           // Push the successor onto the stack.
           DCHECK(succ->rpo_number() == kBlockUnvisited1);
-          stack_depth = Push(stack, stack_depth, succ, kBlockUnvisited1);
+          stack_depth = Push(stack_, stack_depth, succ, kBlockUnvisited1);
         }
       } else {
         // Finished with all successors; pop the stack and add the block.
@@ -717,7 +720,7 @@ class SpecialRPONumberer : public ZoneObject {
     if (num_loops != 0) {
       // Otherwise, compute the loop information from the backedges in order
       // to perform a traversal that groups loop bodies together.
-      ComputeLoopInfo(stack, num_loops, &backedges);
+      ComputeLoopInfo(stack_, num_loops, &backedges_);
 
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
@@ -728,9 +731,9 @@ class SpecialRPONumberer : public ZoneObject {
       // edges that lead out of loops. Visits each block once, but linking loop
       // sections together is linear in the loop size, so overall is
       // O(|B| + max(loop_depth) * max(|loop|))
-      stack_depth = Push(stack, 0, entry, kBlockUnvisited2);
+      stack_depth = Push(stack_, 0, entry, kBlockUnvisited2);
       while (stack_depth > 0) {
-        SpecialRPOStackFrame* frame = stack + (stack_depth - 1);
+        SpecialRPOStackFrame* frame = &stack_[stack_depth - 1];
         BasicBlock* block = frame->block;
         BasicBlock* succ = NULL;
 
@@ -776,7 +779,7 @@ class SpecialRPONumberer : public ZoneObject {
             loop->AddOutgoing(zone_, succ);
           } else {
             // Push the successor onto the stack.
-            stack_depth = Push(stack, stack_depth, succ, kBlockUnvisited2);
+            stack_depth = Push(stack_, stack_depth, succ, kBlockUnvisited2);
             if (HasLoopNumber(succ)) {
               // Push the inner loop onto the loop stack.
               DCHECK(GetLoopNumber(succ) < num_loops);
@@ -864,8 +867,8 @@ class SpecialRPONumberer : public ZoneObject {
   }
 
   // Computes loop membership from the backedges of the control flow graph.
-  void ComputeLoopInfo(SpecialRPOStackFrame* queue, size_t num_loops,
-                       ZoneList<std::pair<BasicBlock*, size_t> >* backedges) {
+  void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>& queue,
+                       size_t num_loops, ZoneList<Backedge>* backedges) {
     loops_.resize(num_loops, LoopInfo());
 
     // Compute loop membership starting from backedges.
@@ -1016,6 +1019,9 @@ class SpecialRPONumberer : public ZoneObject {
   BlockList* order_;
   ZoneVector<LoopInfo> loops_;
   BasicBlock* beyond_end_;
+  ZoneList<Backedge> backedges_;
+  ZoneVector<SpecialRPOStackFrame> stack_;
+  size_t previous_block_count_;
 };
 
 
