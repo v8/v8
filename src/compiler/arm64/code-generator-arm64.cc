@@ -172,12 +172,12 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
   } while (0)
 
 
-#define ASSEMBLE_TEST_AND_BRANCH(asm_instr, width)             \
-  do {                                                         \
-    bool fallthrough = IsNextInAssemblyOrder(i.InputRpo(3));   \
-    __ asm_instr(i.InputRegister##width(0), i.InputInt6(1),    \
-                 code_->GetLabel(i.InputRpo(2)));              \
-    if (!fallthrough) __ B(code_->GetLabel(i.InputRpo(3)));    \
+#define ASSEMBLE_TEST_AND_BRANCH(asm_instr, width)           \
+  do {                                                       \
+    bool fallthrough = IsNextInAssemblyOrder(i.InputRpo(3)); \
+    __ asm_instr(i.InputRegister##width(0), i.InputInt6(1),  \
+                 GetLabel(i.InputRpo(2)));                   \
+    if (!fallthrough) __ B(GetLabel(i.InputRpo(3)));         \
   } while (0)
 
 
@@ -216,7 +216,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ B(code_->GetLabel(i.InputRpo(0)));
+      __ B(GetLabel(i.InputRpo(0)));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -614,8 +614,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
   BasicBlock::RpoNumber fblock =
       i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = code()->GetLabel(tblock);
-  Label* flabel = fallthru ? &done : code()->GetLabel(fblock);
+  Label* tlabel = GetLabel(tblock);
+  Label* flabel = fallthru ? &done : GetLabel(fblock);
   switch (condition) {
     case kUnorderedEqual:
       __ B(vs, flabel);

@@ -57,9 +57,7 @@ class InstructionOperandConverter {
     return ToHeapObject(instr_->InputAt(index));
   }
 
-  Label* InputLabel(int index) {
-    return gen_->code()->GetLabel(InputRpo(index));
-  }
+  Label* InputLabel(int index) { return gen_->GetLabel(InputRpo(index)); }
 
   BasicBlock::RpoNumber InputRpo(int index) {
     int rpo_number = InputInt32(index);

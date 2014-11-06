@@ -617,17 +617,11 @@ class GapInstruction : public Instruction {
 
 // This special kind of gap move instruction represents the beginning of a
 // block of code.
-// TODO(titzer): move code_start and code_end from BasicBlock to here.
 class BlockStartInstruction FINAL : public GapInstruction {
  public:
-  Label* label() { return &label_; }
-  BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
-  BasicBlock::Id id() const { return id_; }
-
-  static BlockStartInstruction* New(Zone* zone, BasicBlock::Id id,
-                                    BasicBlock::RpoNumber rpo_number) {
+  static BlockStartInstruction* New(Zone* zone) {
     void* buffer = zone->New(sizeof(BlockStartInstruction));
-    return new (buffer) BlockStartInstruction(id, rpo_number);
+    return new (buffer) BlockStartInstruction();
   }
 
   static BlockStartInstruction* cast(Instruction* instr) {
@@ -636,14 +630,7 @@ class BlockStartInstruction FINAL : public GapInstruction {
   }
 
  private:
-  BlockStartInstruction(BasicBlock::Id id, BasicBlock::RpoNumber rpo_number)
-      : GapInstruction(kBlockStartInstruction),
-        id_(id),
-        rpo_number_(rpo_number) {}
-
-  BasicBlock::Id id_;
-  BasicBlock::RpoNumber rpo_number_;
-  Label label_;
+  BlockStartInstruction() : GapInstruction(kBlockStartInstruction) {}
 };
 
 
@@ -925,7 +912,6 @@ class InstructionSequence FINAL {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  Label* GetLabel(BasicBlock::RpoNumber rpo);
   BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo);
 
   typedef InstructionDeque::const_iterator const_iterator;
@@ -1000,6 +986,7 @@ class InstructionSequence FINAL {
 
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
+  IntVector block_starts_;
   ConstantMap constants_;
   ConstantDeque immediates_;
   InstructionDeque instructions_;

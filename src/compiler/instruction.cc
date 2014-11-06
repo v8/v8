@@ -420,6 +420,7 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
                                          InstructionBlocks* instruction_blocks)
     : zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
+      block_starts_(zone()),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
@@ -428,29 +429,25 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
       pointer_maps_(zone()),
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
-      deoptimization_entries_(zone()) {}
-
-
-Label* InstructionSequence::GetLabel(BasicBlock::RpoNumber rpo) {
-  return GetBlockStart(rpo)->label();
+      deoptimization_entries_(zone()) {
+  block_starts_.reserve(instruction_blocks_->size());
 }
 
 
 BlockStartInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) {
   InstructionBlock* block = InstructionBlockAt(rpo);
-  BlockStartInstruction* block_start =
-      BlockStartInstruction::cast(InstructionAt(block->code_start()));
-  DCHECK_EQ(rpo.ToInt(), block_start->rpo_number().ToInt());
-  return block_start;
+  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
 void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
+  DCHECK(block_starts_.size() == rpo.ToSize());
   InstructionBlock* block = InstructionBlockAt(rpo);
-  block->set_code_start(static_cast<int>(instructions_.size()));
-  BlockStartInstruction* block_start =
-      BlockStartInstruction::New(zone(), block->id(), rpo);
+  int code_start = static_cast<int>(instructions_.size());
+  block->set_code_start(code_start);
+  block_starts_.push_back(code_start);
+  BlockStartInstruction* block_start = BlockStartInstruction::New(zone());
   AddInstruction(block_start);
 }
 
@@ -483,15 +480,15 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
 
 const InstructionBlock* InstructionSequence::GetInstructionBlock(
     int instruction_index) const {
-  // TODO(turbofan): Optimize this.
-  for (;;) {
-    DCHECK_LE(0, instruction_index);
-    Instruction* instruction = InstructionAt(instruction_index--);
-    if (instruction->IsBlockStart()) {
-      return instruction_blocks_->at(
-          BlockStartInstruction::cast(instruction)->rpo_number().ToSize());
-    }
-  }
+  DCHECK(instruction_blocks_->size() == block_starts_.size());
+  auto begin = block_starts_.begin();
+  auto end = std::lower_bound(begin, block_starts_.end(), instruction_index,
+                              std::less_equal<int>());
+  size_t index = std::distance(begin, end) - 1;
+  auto block = instruction_blocks_->at(index);
+  DCHECK(block->code_start() <= instruction_index &&
+         instruction_index < block->code_end());
+  return block;
 }
 
 

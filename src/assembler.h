@@ -243,7 +243,7 @@ class CpuFeatures : public AllStatic {
 // unknown pc location. Assembler::bind() is used to bind a label to the
 // current pc. A label can be bound only once.
 
-class Label BASE_EMBEDDED {
+class Label {
  public:
   enum Distance {
     kNear, kFar
