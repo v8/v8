@@ -80,33 +80,41 @@ class ControlReducerImpl {
     Node* start = graph()->start();
     ZoneVector<byte> fw_reachability(graph()->NodeCount(), 0, zone_);
     fw_reachability[start->id()] = kFromStart | kOnStack;
-    stack_.push_back(start);
 
-    while (!stack_.empty()) {
-      Node* node = stack_.back();
+    // We use a stack of (Node, UseIter) pairs to avoid O(n^2) traversal.
+    typedef std::pair<Node*, UseIter> FwIter;
+    ZoneDeque<FwIter> fw_stack(zone_);
+    fw_stack.push_back(FwIter(start, start->uses().begin()));
+
+    while (!fw_stack.empty()) {
+      Node* node = fw_stack.back().first;
       TRACE(("ControlFw: #%d:%s\n", node->id(), node->op()->mnemonic()));
       bool pop = true;
-      for (Node* const succ : node->uses()) {
+      while (fw_stack.back().second != node->uses().end()) {
+        Node* succ = *(fw_stack.back().second);
         byte reach = fw_reachability[succ->id()];
         if ((reach & kOnStack) != 0 && state_[succ->id()] != kVisited) {
           // {succ} is on stack and not reachable from end.
           ConnectNTL(nodes, succ);
           fw_reachability.resize(graph()->NodeCount(), 0);
-          pop = false;  // continue traversing inputs to this node.
+          // The use list of {succ} might have changed.
+          fw_stack[fw_stack.size() - 1] = FwIter(succ, succ->uses().begin());
+          pop = false;  // restart traversing successors of this node.
           break;
         }
         if ((reach & kFromStart) == 0 &&
             IrOpcode::IsControlOpcode(succ->opcode())) {
           // {succ} is a control node and not yet reached from start.
           fw_reachability[succ->id()] |= kFromStart | kOnStack;
-          stack_.push_back(succ);
+          fw_stack.push_back(FwIter(succ, succ->uses().begin()));
           pop = false;  // "recurse" into successor control node.
           break;
         }
+        ++fw_stack.back().second;
       }
       if (pop) {
         fw_reachability[node->id()] &= ~kOnStack;
-        stack_.pop_back();
+        fw_stack.pop_back();
       }
     }
 
