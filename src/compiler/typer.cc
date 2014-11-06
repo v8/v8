@@ -1033,7 +1033,8 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
   lhs = Rangify(lhs, t);
   rhs = Rangify(rhs, t);
   if (lhs->IsRange() && rhs->IsRange()) {
-    return JSModulusRanger(lhs->AsRange(), rhs->AsRange(), t);
+    // TODO(titzer): fix me.
+    //    return JSModulusRanger(lhs->AsRange(), rhs->AsRange(), t);
   }
   return Type::OrderedNumber();
 }
