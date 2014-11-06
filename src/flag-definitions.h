@@ -175,12 +175,11 @@ DEFINE_IMPLICATION(harmony, es_staging)
   V(harmony_proxies, "harmony proxies")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                      \
-  V(harmony_strings, "harmony string methods") \
-  V(harmony_numeric_literals, "harmony numeric literals")
+#define HARMONY_STAGED(V) V(harmony_strings, "harmony string methods")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)
+#define HARMONY_SHIPPING(V) \
+  V(harmony_numeric_literals, "harmony numeric literals")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
