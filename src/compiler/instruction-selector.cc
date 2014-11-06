@@ -66,11 +66,11 @@ void InstructionSelector::SelectInstructions() {
         sequence()->InstructionBlockAt(block->GetRpoNumber());
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
-    sequence()->StartBlock(block);
+    sequence()->StartBlock(block->GetRpoNumber());
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start]);
     }
-    sequence()->EndBlock(block);
+    sequence()->EndBlock(block->GetRpoNumber());
   }
 }
 

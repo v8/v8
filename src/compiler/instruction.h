@@ -624,9 +624,10 @@ class BlockStartInstruction FINAL : public GapInstruction {
   BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
   BasicBlock::Id id() const { return id_; }
 
-  static BlockStartInstruction* New(Zone* zone, BasicBlock* block) {
+  static BlockStartInstruction* New(Zone* zone, BasicBlock::Id id,
+                                    BasicBlock::RpoNumber rpo_number) {
     void* buffer = zone->New(sizeof(BlockStartInstruction));
-    return new (buffer) BlockStartInstruction(block);
+    return new (buffer) BlockStartInstruction(id, rpo_number);
   }
 
   static BlockStartInstruction* cast(Instruction* instr) {
@@ -635,10 +636,10 @@ class BlockStartInstruction FINAL : public GapInstruction {
   }
 
  private:
-  explicit BlockStartInstruction(BasicBlock* block)
+  BlockStartInstruction(BasicBlock::Id id, BasicBlock::RpoNumber rpo_number)
       : GapInstruction(kBlockStartInstruction),
-        id_(block->id()),
-        rpo_number_(block->GetRpoNumber()) {}
+        id_(id),
+        rpo_number_(rpo_number) {}
 
   BasicBlock::Id id_;
   BasicBlock::RpoNumber rpo_number_;
@@ -799,7 +800,11 @@ class PhiInstruction FINAL : public ZoneObject {
 // Analogue of BasicBlock for Instructions instead of Nodes.
 class InstructionBlock FINAL : public ZoneObject {
  public:
-  explicit InstructionBlock(Zone* zone, const BasicBlock* block);
+  InstructionBlock(Zone* zone, BasicBlock::Id id,
+                   BasicBlock::RpoNumber ao_number,
+                   BasicBlock::RpoNumber rpo_number,
+                   BasicBlock::RpoNumber loop_header,
+                   BasicBlock::RpoNumber loop_end, bool deferred);
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
@@ -943,8 +948,8 @@ class InstructionSequence FINAL {
 
   // Used by the instruction selector while adding instructions.
   int AddInstruction(Instruction* instr);
-  void StartBlock(BasicBlock* block);
-  void EndBlock(BasicBlock* block);
+  void StartBlock(BasicBlock::RpoNumber rpo);
+  void EndBlock(BasicBlock::RpoNumber rpo);
 
   int AddConstant(int virtual_register, Constant constant) {
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
