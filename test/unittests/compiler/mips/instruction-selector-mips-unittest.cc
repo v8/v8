@@ -161,12 +161,12 @@ const MachInst1 kAddSubOneInstructions[] = {
 const IntCmp kCmpInstructions[] = {
     {{&RawMachineAssembler::WordEqual, "WordEqual", kMipsCmp, kMachInt16}, 1U},
     {{&RawMachineAssembler::WordNotEqual, "WordNotEqual", kMipsCmp, kMachInt16},
-     2U},
+     1U},
     {{&RawMachineAssembler::Word32Equal, "Word32Equal", kMipsCmp, kMachInt32},
      1U},
     {{&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kMipsCmp,
       kMachInt32},
-     2U},
+     1U},
     {{&RawMachineAssembler::Int32LessThan, "Int32LessThan", kMipsCmp,
       kMachInt32},
      1U},
@@ -779,10 +779,9 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsTst, s[0]->arch_opcode());
+    EXPECT_EQ(kMipsCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
@@ -792,10 +791,9 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsTst, s[0]->arch_opcode());
+    EXPECT_EQ(kMipsCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());

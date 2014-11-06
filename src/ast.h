@@ -359,11 +359,16 @@ class Expression : public AstNode {
   void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
   // Whether the expression is parenthesized
-  bool is_parenthesized() const { return is_parenthesized_; }
-  bool is_multi_parenthesized() const { return is_multi_parenthesized_; }
+  bool is_parenthesized() const {
+    return IsParenthesizedField::decode(bit_field_);
+  }
+  bool is_multi_parenthesized() const {
+    return IsMultiParenthesizedField::decode(bit_field_);
+  }
   void increase_parenthesization_level() {
-    is_multi_parenthesized_ = is_parenthesized_;
-    is_parenthesized_ = true;
+    bit_field_ =
+        IsMultiParenthesizedField::update(bit_field_, is_parenthesized());
+    bit_field_ = IsParenthesizedField::update(bit_field_, true);
   }
 
   // Type feedback information for assignments and properties.
@@ -375,18 +380,20 @@ class Expression : public AstNode {
     UNREACHABLE();
     return NULL;
   }
-  virtual KeyedAccessStoreMode GetStoreMode() {
+  virtual KeyedAccessStoreMode GetStoreMode() const {
     UNREACHABLE();
     return STANDARD_STORE;
   }
-  virtual IcCheckType GetKeyType() {
+  virtual IcCheckType GetKeyType() const {
     UNREACHABLE();
     return ELEMENT;
   }
 
   // TODO(rossberg): this should move to its own AST node eventually.
   virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
-  byte to_boolean_types() const { return to_boolean_types_; }
+  byte to_boolean_types() const {
+    return ToBooleanTypesField::decode(bit_field_);
+  }
 
   void set_base_id(int id) { base_id_ = id; }
   static int num_ids() { return parent_num_ids() + 2; }
@@ -398,10 +405,11 @@ class Expression : public AstNode {
       : AstNode(pos),
         base_id_(BailoutId::None().ToInt()),
         bounds_(Bounds::Unbounded(zone)),
-        is_parenthesized_(false),
-        is_multi_parenthesized_(false) {}
+        bit_field_(0) {}
   static int parent_num_ids() { return 0; }
-  void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
+  void set_to_boolean_types(byte types) {
+    bit_field_ = ToBooleanTypesField::update(bit_field_, types);
+  }
 
   int base_id() const {
     DCHECK(!BailoutId(base_id_).IsNone());
@@ -413,9 +421,12 @@ class Expression : public AstNode {
 
   int base_id_;
   Bounds bounds_;
-  byte to_boolean_types_;
-  bool is_parenthesized_ : 1;
-  bool is_multi_parenthesized_ : 1;
+  class ToBooleanTypesField : public BitField16<byte, 0, 8> {};
+  class IsParenthesizedField : public BitField16<bool, 8, 1> {};
+  class IsMultiParenthesizedField : public BitField16<bool, 9, 1> {};
+  uint16_t bit_field_;
+  // Ends with 16-bit field; deriving classes in turn begin with
+  // 16-bit fields for optimum packing efficiency.
 };
 
 
@@ -1697,13 +1708,17 @@ class VariableProxy FINAL : public Expression {
     var_ = v;
   }
 
-  bool is_this() const { return is_this_; }
+  bool is_this() const { return IsThisField::decode(bit_field_); }
 
-  bool is_assigned() const { return is_assigned_; }
-  void set_is_assigned() { is_assigned_ = true; }
+  bool is_assigned() const { return IsAssignedField::decode(bit_field_); }
+  void set_is_assigned() {
+    bit_field_ = IsAssignedField::update(bit_field_, true);
+  }
 
-  bool is_resolved() const { return is_resolved_; }
-  void set_is_resolved() { is_resolved_ = true; }
+  bool is_resolved() const { return IsResolvedField::decode(bit_field_); }
+  void set_is_resolved() {
+    bit_field_ = IsResolvedField::update(bit_field_, true);
+  }
 
   Interface* interface() const { return interface_; }
 
@@ -1727,9 +1742,13 @@ class VariableProxy FINAL : public Expression {
   VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                 Interface* interface, int position);
 
-  bool is_this_ : 1;
-  bool is_assigned_ : 1;
-  bool is_resolved_ : 1;
+  class IsThisField : public BitField8<bool, 0, 1> {};
+  class IsAssignedField : public BitField8<bool, 1, 1> {};
+  class IsResolvedField : public BitField8<bool, 2, 1> {};
+
+  // Start with 16-bit (or smaller) field, which should get packed together
+  // with Expression's trailing 16-bit field.
+  uint8_t bit_field_;
   FeedbackVectorICSlot variable_feedback_slot_;
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1752,7 +1771,9 @@ class Property FINAL : public Expression {
   BailoutId LoadId() const { return BailoutId(local_id(0)); }
   TypeFeedbackId PropertyFeedbackId() { return TypeFeedbackId(local_id(1)); }
 
-  bool IsStringAccess() const { return is_string_access_; }
+  bool IsStringAccess() const {
+    return IsStringAccessField::decode(bit_field_);
+  }
 
   // Type feedback information.
   virtual bool IsMonomorphic() OVERRIDE {
@@ -1761,21 +1782,29 @@ class Property FINAL : public Expression {
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     return &receiver_types_;
   }
-  virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
+  virtual KeyedAccessStoreMode GetStoreMode() const OVERRIDE {
     return STANDARD_STORE;
   }
-  virtual IcCheckType GetKeyType() OVERRIDE {
+  virtual IcCheckType GetKeyType() const OVERRIDE {
     // PROPERTY key types currently aren't implemented for KeyedLoadICs.
     return ELEMENT;
   }
-  bool IsUninitialized() { return !is_for_call_ && is_uninitialized_; }
-  bool HasNoTypeInformation() {
-    return is_uninitialized_;
+  bool IsUninitialized() const {
+    return !is_for_call() && HasNoTypeInformation();
   }
-  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_is_string_access(bool b) { is_string_access_ = b; }
-  void mark_for_call() { is_for_call_ = true; }
-  bool IsForCall() { return is_for_call_; }
+  bool HasNoTypeInformation() const {
+    return IsUninitializedField::decode(bit_field_);
+  }
+  void set_is_uninitialized(bool b) {
+    bit_field_ = IsUninitializedField::update(bit_field_, b);
+  }
+  void set_is_string_access(bool b) {
+    bit_field_ = IsStringAccessField::update(bit_field_, b);
+  }
+  void mark_for_call() {
+    bit_field_ = IsForCallField::update(bit_field_, true);
+  }
+  bool is_for_call() const { return IsForCallField::decode(bit_field_); }
 
   bool IsSuperAccess() {
     return obj()->IsSuperReference();
@@ -1795,9 +1824,9 @@ class Property FINAL : public Expression {
  protected:
   Property(Zone* zone, Expression* obj, Expression* key, int pos)
       : Expression(zone, pos),
-        is_for_call_(false),
-        is_uninitialized_(false),
-        is_string_access_(false),
+        bit_field_(IsForCallField::encode(false) |
+                   IsUninitializedField::encode(false) |
+                   IsStringAccessField::encode(false)),
         property_feedback_slot_(FeedbackVectorICSlot::Invalid()),
         obj_(obj),
         key_(key) {}
@@ -1806,9 +1835,10 @@ class Property FINAL : public Expression {
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
-  bool is_for_call_ : 1;
-  bool is_uninitialized_ : 1;
-  bool is_string_access_ : 1;
+  class IsForCallField : public BitField8<bool, 0, 1> {};
+  class IsUninitializedField : public BitField8<bool, 1, 1> {};
+  class IsStringAccessField : public BitField8<bool, 2, 1> {};
+  uint8_t bit_field_;
   FeedbackVectorICSlot property_feedback_slot_;
   Expression* obj_;
   Expression* key_;
@@ -2120,10 +2150,10 @@ class CountOperation FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CountOperation)
 
-  bool is_prefix() const { return is_prefix_; }
-  bool is_postfix() const { return !is_prefix_; }
+  bool is_prefix() const { return IsPrefixField::decode(bit_field_); }
+  bool is_postfix() const { return !is_prefix(); }
 
-  Token::Value op() const { return op_; }
+  Token::Value op() const { return TokenField::decode(bit_field_); }
   Token::Value binary_op() {
     return (op() == Token::INC) ? Token::ADD : Token::SUB;
   }
@@ -2136,13 +2166,19 @@ class CountOperation FINAL : public Expression {
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     return &receiver_types_;
   }
-  virtual IcCheckType GetKeyType() OVERRIDE { return key_type_; }
-  virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
-    return store_mode_;
+  virtual IcCheckType GetKeyType() const OVERRIDE {
+    return KeyTypeField::decode(bit_field_);
+  }
+  virtual KeyedAccessStoreMode GetStoreMode() const OVERRIDE {
+    return StoreModeField::decode(bit_field_);
   }
   Type* type() const { return type_; }
-  void set_key_type(IcCheckType type) { key_type_ = type; }
-  void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
+  void set_key_type(IcCheckType type) {
+    bit_field_ = KeyTypeField::update(bit_field_, type);
+  }
+  void set_store_mode(KeyedAccessStoreMode mode) {
+    bit_field_ = StoreModeField::update(bit_field_, mode);
+  }
   void set_type(Type* type) { type_ = type; }
 
   static int num_ids() { return parent_num_ids() + 3; }
@@ -2158,21 +2194,25 @@ class CountOperation FINAL : public Expression {
   CountOperation(Zone* zone, Token::Value op, bool is_prefix, Expression* expr,
                  int pos)
       : Expression(zone, pos),
-        op_(op),
-        is_prefix_(is_prefix),
-        key_type_(ELEMENT),
-        store_mode_(STANDARD_STORE),
+        bit_field_(IsPrefixField::encode(is_prefix) |
+                   KeyTypeField::encode(ELEMENT) |
+                   StoreModeField::encode(STANDARD_STORE) |
+                   TokenField::encode(op)),
+        type_(NULL),
         expression_(expr) {}
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
-  Token::Value op_;
-  bool is_prefix_ : 1;
-  IcCheckType key_type_ : 1;
-  KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
-                                         // must have extra bit.
+  class IsPrefixField : public BitField16<bool, 0, 1> {};
+  class KeyTypeField : public BitField16<IcCheckType, 1, 1> {};
+  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 4> {};
+  class TokenField : public BitField16<Token::Value, 6, 8> {};
+
+  // Starts with 16-bit field, which should get packed together with
+  // Expression's trailing 16-bit field.
+  uint16_t bit_field_;
   Type* type_;
   Expression* expression_;
   SmallMapList receiver_types_;
@@ -2261,7 +2301,7 @@ class Assignment FINAL : public Expression {
 
   Token::Value binary_op() const;
 
-  Token::Value op() const { return op_; }
+  Token::Value op() const { return TokenField::decode(bit_field_); }
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
   BinaryOperation* binary_operation() const { return binary_operation_; }
@@ -2277,20 +2317,30 @@ class Assignment FINAL : public Expression {
   virtual bool IsMonomorphic() OVERRIDE {
     return receiver_types_.length() == 1;
   }
-  bool IsUninitialized() { return is_uninitialized_; }
+  bool IsUninitialized() const {
+    return IsUninitializedField::decode(bit_field_);
+  }
   bool HasNoTypeInformation() {
-    return is_uninitialized_;
+    return IsUninitializedField::decode(bit_field_);
   }
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     return &receiver_types_;
   }
-  virtual IcCheckType GetKeyType() OVERRIDE { return key_type_; }
-  virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
-    return store_mode_;
+  virtual IcCheckType GetKeyType() const OVERRIDE {
+    return KeyTypeField::decode(bit_field_);
   }
-  void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
-  void set_key_type(IcCheckType key_type) { key_type_ = key_type; }
-  void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
+  virtual KeyedAccessStoreMode GetStoreMode() const OVERRIDE {
+    return StoreModeField::decode(bit_field_);
+  }
+  void set_is_uninitialized(bool b) {
+    bit_field_ = IsUninitializedField::update(bit_field_, b);
+  }
+  void set_key_type(IcCheckType key_type) {
+    bit_field_ = KeyTypeField::update(bit_field_, key_type);
+  }
+  void set_store_mode(KeyedAccessStoreMode mode) {
+    bit_field_ = StoreModeField::update(bit_field_, mode);
+  }
 
  protected:
   Assignment(Zone* zone, Token::Value op, Expression* target, Expression* value,
@@ -2299,7 +2349,7 @@ class Assignment FINAL : public Expression {
 
   template <class Visitor>
   void Init(AstNodeFactory<Visitor>* factory) {
-    DCHECK(Token::IsAssignmentOp(op_));
+    DCHECK(Token::IsAssignmentOp(op()));
     if (is_compound()) {
       binary_operation_ = factory->NewBinaryOperation(
           binary_op(), target_, value_, position() + 1);
@@ -2309,11 +2359,14 @@ class Assignment FINAL : public Expression {
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
-  bool is_uninitialized_ : 1;
-  IcCheckType key_type_ : 1;
-  KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
-                                         // must have extra bit.
-  Token::Value op_;
+  class IsUninitializedField : public BitField16<bool, 0, 1> {};
+  class KeyTypeField : public BitField16<IcCheckType, 1, 1> {};
+  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 4> {};
+  class TokenField : public BitField16<Token::Value, 6, 8> {};
+
+  // Starts with 16-bit field, which should get packed together with
+  // Expression's trailing 16-bit field.
+  uint16_t bit_field_;
   Expression* target_;
   Expression* value_;
   BinaryOperation* binary_operation_;

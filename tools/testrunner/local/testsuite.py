@@ -34,6 +34,17 @@ from . import statusfile
 from . import utils
 from ..objects import testcase
 
+# Use this to run several variants of the tests.
+VARIANT_FLAGS = {
+    "default": [],
+    "stress": ["--stress-opt", "--always-opt"],
+    "turbofan": ["--turbo-asm", "--turbo-filter=*", "--always-opt"],
+    "nocrankshaft": ["--nocrankshaft"]}
+
+FAST_VARIANT_FLAGS = [
+    f for v, f in VARIANT_FLAGS.iteritems() if v in ["default", "turbofan"]
+]
+
 class TestSuite(object):
 
   @staticmethod
@@ -82,7 +93,7 @@ class TestSuite(object):
     if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
       return [[]]
     if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      return filter(lambda v: v in ["default", "turbofan"], default_flags)
+      return filter(lambda flags: flags in FAST_VARIANT_FLAGS, default_flags)
     return default_flags
 
   def DownloadData(self):

@@ -80,7 +80,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* var, Node* value, Token::Value op,
-                                BailoutId bailout_id);
+                                BailoutId bailout_id,
+                                OutputFrameStateCombine state_combine =
+                                    OutputFrameStateCombine::Ignore());
   Node* BuildVariableDelete(Variable* var, BailoutId bailout_id,
                             OutputFrameStateCombine state_combine);
   Node* BuildVariableLoad(Variable* var, BailoutId bailout_id,

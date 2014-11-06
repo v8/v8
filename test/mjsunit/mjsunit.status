@@ -202,7 +202,7 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
   # Too slow for slow variants.
-  'asm/embenchen/*': [PASS, FAST_VARIANTS]
+  'asm/embenchen/*': [PASS, FAST_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -245,6 +245,9 @@
   'math-floor-of-div': [PASS, NO_VARIANTS],
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
+  # Too slow for gc stress.
+  'asm/embenchen/box2d': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -296,6 +299,8 @@
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
+  'asm/embenchen/box2d': [PASS, TIMEOUT],
+  'asm/embenchen/lua_binarytrees': [PASS, TIMEOUT],
   'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],

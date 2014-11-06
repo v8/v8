@@ -44,6 +44,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
+from testrunner.local.testsuite import VARIANT_FLAGS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -82,13 +83,6 @@ TEST_MAP = {
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
-
-# Use this to run several variants of the tests.
-VARIANT_FLAGS = {
-    "default": [],
-    "stress": ["--stress-opt", "--always-opt"],
-    "turbofan": ["--turbo-asm", "--turbo-filter=*", "--always-opt"],
-    "nocrankshaft": ["--nocrankshaft"]}
 
 VARIANTS = ["default", "stress", "turbofan", "nocrankshaft"]
 

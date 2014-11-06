@@ -104,19 +104,19 @@ class ArrayConcatVisitor {
         storage_(Handle<FixedArray>::cast(
             isolate->global_handles()->Create(*storage))),
         index_offset_(0u),
-        fast_elements_(fast_elements),
-        exceeds_array_limit_(false) {}
+        bit_field_(FastElementsField::encode(fast_elements) |
+                   ExceedsLimitField::encode(false)) {}
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
   void visit(uint32_t i, Handle<Object> elm) {
     if (i > JSObject::kMaxElementCount - index_offset_) {
-      exceeds_array_limit_ = true;
+      set_exceeds_array_limit(true);
       return;
     }
     uint32_t index = index_offset_ + i;
 
-    if (fast_elements_) {
+    if (fast_elements()) {
       if (index < static_cast<uint32_t>(storage_->length())) {
         storage_->set(index, *elm);
         return;
@@ -128,7 +128,7 @@ class ArrayConcatVisitor {
       SetDictionaryMode();
       // Fall-through to dictionary mode.
     }
-    DCHECK(!fast_elements_);
+    DCHECK(!fast_elements());
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(*storage_));
     Handle<SeededNumberDictionary> result =
@@ -149,21 +149,23 @@ class ArrayConcatVisitor {
     // If the initial length estimate was off (see special case in visit()),
     // but the array blowing the limit didn't contain elements beyond the
     // provided-for index range, go to dictionary mode now.
-    if (fast_elements_ &&
+    if (fast_elements() &&
         index_offset_ >
             static_cast<uint32_t>(FixedArrayBase::cast(*storage_)->length())) {
       SetDictionaryMode();
     }
   }
 
-  bool exceeds_array_limit() { return exceeds_array_limit_; }
+  bool exceeds_array_limit() const {
+    return ExceedsLimitField::decode(bit_field_);
+  }
 
   Handle<JSArray> ToArray() {
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map = JSObject::GetElementsTransitionMap(
-        array, fast_elements_ ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
+        array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_map(*map);
     array->set_length(*length);
     array->set_elements(*storage_);
@@ -173,7 +175,7 @@ class ArrayConcatVisitor {
  private:
   // Convert storage to dictionary mode.
   void SetDictionaryMode() {
-    DCHECK(fast_elements_);
+    DCHECK(fast_elements());
     Handle<FixedArray> current_storage(*storage_);
     Handle<SeededNumberDictionary> slow_storage(
         SeededNumberDictionary::New(isolate_, current_storage->length()));
@@ -191,7 +193,7 @@ class ArrayConcatVisitor {
     }
     clear_storage();
     set_storage(*slow_storage);
-    fast_elements_ = false;
+    set_fast_elements(false);
   }
 
   inline void clear_storage() {
@@ -203,13 +205,23 @@ class ArrayConcatVisitor {
         Handle<FixedArray>::cast(isolate_->global_handles()->Create(storage));
   }
 
+  class FastElementsField : public BitField<bool, 0, 1> {};
+  class ExceedsLimitField : public BitField<bool, 1, 1> {};
+
+  bool fast_elements() const { return FastElementsField::decode(bit_field_); }
+  void set_fast_elements(bool fast) {
+    bit_field_ = FastElementsField::update(bit_field_, fast);
+  }
+  void set_exceeds_array_limit(bool exceeds) {
+    bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
+  }
+
   Isolate* isolate_;
   Handle<FixedArray> storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
   // JSObject::kMaxElementCount.
   uint32_t index_offset_;
-  bool fast_elements_ : 1;
-  bool exceeds_array_limit_ : 1;
+  uint32_t bit_field_;
 };
 
 
