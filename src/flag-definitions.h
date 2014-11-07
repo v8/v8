@@ -620,6 +620,9 @@ DEFINE_INT(random_seed, 0,
 
 // objects.cc
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
+#if TRACE_MAPS
+DEFINE_BOOL(trace_maps, false, "trace map creation")
+#endif
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")

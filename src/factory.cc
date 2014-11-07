@@ -2077,6 +2077,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0, 0);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
+#if TRACE_MAPS
+  share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
+#endif
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
   share->set_counters(0);

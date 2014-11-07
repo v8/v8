@@ -5492,6 +5492,9 @@ ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_vector, TypeFeedbackVector,
           kFeedbackVectorOffset)
+#if TRACE_MAPS
+SMI_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
+#endif
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)

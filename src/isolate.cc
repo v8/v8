@@ -1650,6 +1650,9 @@ Isolate::Isolate(bool enable_serializer)
       optimizing_compiler_thread_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
+#if TRACE_MAPS
+      next_unique_sfi_id_(0),
+#endif
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL) {
   {
@@ -2356,7 +2359,8 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     for (unsigned i = 0; i < arraysize(nested); ++i) {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
-      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
+      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8,
+                                    "SetupSymbolRegistry");
       JSObject::SetProperty(registry, name, obj, STRICT).Assert();
     }
   }

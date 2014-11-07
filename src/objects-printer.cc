@@ -1129,4 +1129,38 @@ void TransitionArray::PrintTransitions(std::ostream& os,
 #endif  // OBJECT_PRINT
 
 
+#if TRACE_MAPS
+
+
+void Name::NameShortPrint() {
+  if (this->IsString()) {
+    PrintF("%s", String::cast(this)->ToCString().get());
+  } else {
+    DCHECK(this->IsSymbol());
+    Symbol* s = Symbol::cast(this);
+    if (s->name()->IsUndefined()) {
+      PrintF("#<%s>", s->PrivateSymbolToName());
+    } else {
+      PrintF("<%s>", String::cast(s->name())->ToCString().get());
+    }
+  }
+}
+
+
+int Name::NameShortPrint(Vector<char> str) {
+  if (this->IsString()) {
+    return SNPrintF(str, "%s", String::cast(this)->ToCString().get());
+  } else {
+    DCHECK(this->IsSymbol());
+    Symbol* s = Symbol::cast(this);
+    if (s->name()->IsUndefined()) {
+      return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
+    } else {
+      return SNPrintF(str, "<%s>", String::cast(s->name())->ToCString().get());
+    }
+  }
+}
+
+
+#endif  // TRACE_MAPS
 } }  // namespace v8::internal

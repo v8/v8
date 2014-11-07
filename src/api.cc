@@ -3636,7 +3636,9 @@ static inline bool ObjectSetAccessor(Object* obj,
       i::JSObject::SetAccessor(Utils::OpenHandle(obj), info),
       false);
   if (result->IsUndefined()) return false;
-  if (fast) i::JSObject::MigrateSlowToFast(Utils::OpenHandle(obj), 0);
+  if (fast) {
+    i::JSObject::MigrateSlowToFast(Utils::OpenHandle(obj), 0, "APISetAccessor");
+  }
   return true;
 }
 
@@ -3822,7 +3824,8 @@ void v8::Object::TurnOnAccessCheck() {
   // as optimized code does not always handle access checks.
   i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
-  i::Handle<i::Map> new_map = i::Map::Copy(i::Handle<i::Map>(obj->map()));
+  i::Handle<i::Map> new_map =
+      i::Map::Copy(i::Handle<i::Map>(obj->map()), "APITurnOnAccessCheck");
   new_map->set_is_access_check_needed(true);
   i::JSObject::MigrateToMap(obj, new_map);
 }

@@ -347,7 +347,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
           isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
       parameter_map->set_map(isolate->heap()->sloppy_arguments_elements_map());
 
-      Handle<Map> map = Map::Copy(handle(result->map()));
+      Handle<Map> map = Map::Copy(handle(result->map()), "NewSloppyArguments");
       map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
 
       result->set_map(*map);

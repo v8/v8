@@ -64,6 +64,10 @@ endif
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
 endif
+# tracemaps=on
+ifeq ($(tracemaps), on)
+  GYPFLAGS += -Dv8_trace_maps=1
+endif
 # backtrace=off
 ifeq ($(backtrace), off)
   GYPFLAGS += -Dv8_enable_backtrace=0

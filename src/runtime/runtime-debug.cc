@@ -2083,7 +2083,8 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
 static Handle<JSObject> NewJSObjectWithNullProto(Isolate* isolate) {
   Handle<JSObject> result =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Map> new_map = Map::Copy(Handle<Map>(result->map()));
+  Handle<Map> new_map =
+      Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
   new_map->set_prototype(*isolate->factory()->null_value());
   JSObject::MigrateToMap(result, new_map);
   return result;
