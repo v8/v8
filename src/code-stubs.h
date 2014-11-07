@@ -577,10 +577,14 @@ class FastNewClosureStub : public HydrogenCodeStub {
   bool is_arrow() const { return IsArrowFunction(kind()); }
   bool is_generator() const { return IsGeneratorFunction(kind()); }
   bool is_concise_method() const { return IsConciseMethod(kind()); }
+  bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
+  bool is_default_constructor_call_super() const {
+    return IsDefaultConstructorCallSuper(kind());
+  }
 
  private:
   class StrictModeBits : public BitField<StrictMode, 0, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 1, 3> {};
+  class FunctionKindBits : public BitField<FunctionKind, 1, 5> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);

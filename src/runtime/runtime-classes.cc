@@ -62,7 +62,7 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   DCHECK(args.length() == 6);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
   CONVERT_ARG_HANDLE_CHECKED(Script, script, 3);
   CONVERT_SMI_ARG_CHECKED(start_position, 4);
   CONVERT_SMI_ARG_CHECKED(end_position, 5);
@@ -104,52 +104,45 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   Handle<String> name_string = name->IsString()
                                    ? Handle<String>::cast(name)
                                    : isolate->factory()->empty_string();
+  constructor->shared()->set_name(*name_string);
 
-  Handle<JSFunction> ctor;
-  if (constructor->IsSpecFunction()) {
-    ctor = Handle<JSFunction>::cast(constructor);
-    JSFunction::SetPrototype(ctor, prototype);
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            ctor, isolate->factory()->prototype_string(), prototype, attribs));
-  } else {
-    // TODO(arv): This should not use an empty function but a function that
-    // calls super.
-    Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
-    ctor = isolate->factory()->NewFunction(name_string, code, prototype, true);
-  }
-
+  JSFunction::SetPrototype(constructor, prototype);
+  PropertyAttributes attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                   constructor, isolate->factory()->prototype_string(),
+                   prototype, attribs));
   Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   ctor, home_object_symbol, prototype, DONT_ENUM));
+                   constructor, home_object_symbol, prototype, DONT_ENUM));
 
   if (!constructor_parent.is_null()) {
     RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSObject::SetPrototype(ctor, constructor_parent, false));
+        isolate,
+        JSObject::SetPrototype(constructor, constructor_parent, false));
   }
 
   JSObject::AddProperty(prototype, isolate->factory()->constructor_string(),
-                        ctor, DONT_ENUM);
+                        constructor, DONT_ENUM);
 
   // Install private properties that are used to construct the FunctionToString.
   RETURN_FAILURE_ON_EXCEPTION(
+      isolate, Object::SetProperty(constructor,
+                                   isolate->factory()->class_script_symbol(),
+                                   script, STRICT));
+  RETURN_FAILURE_ON_EXCEPTION(
       isolate,
-      Object::SetProperty(ctor, isolate->factory()->class_script_symbol(),
-                          script, STRICT));
+      Object::SetProperty(
+          constructor, isolate->factory()->class_start_position_symbol(),
+          handle(Smi::FromInt(start_position), isolate), STRICT));
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, Object::SetProperty(
-                   ctor, isolate->factory()->class_start_position_symbol(),
-                   handle(Smi::FromInt(start_position), isolate), STRICT));
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      Object::SetProperty(ctor, isolate->factory()->class_end_position_symbol(),
-                          handle(Smi::FromInt(end_position), isolate), STRICT));
+                   constructor, isolate->factory()->class_end_position_symbol(),
+                   handle(Smi::FromInt(end_position), isolate), STRICT));
 
-  return *ctor;
+  return *constructor;
 }
 
 

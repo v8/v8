@@ -776,7 +776,9 @@ enum FunctionKind {
   kArrowFunction = 1,
   kGeneratorFunction = 2,
   kConciseMethod = 4,
-  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
+  kDefaultConstructor = 8,
+  kDefaultConstructorCallSuper = 16
 };
 
 
@@ -785,7 +787,9 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
-         kind == FunctionKind::kConciseGeneratorMethod;
+         kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kDefaultConstructor ||
+         kind == FunctionKind::kDefaultConstructorCallSuper;
 }
 
 
@@ -804,6 +808,18 @@ inline bool IsGeneratorFunction(FunctionKind kind) {
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kConciseMethod;
+}
+
+
+inline bool IsDefaultConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kDefaultConstructor;
+}
+
+
+inline bool IsDefaultConstructorCallSuper(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kDefaultConstructorCallSuper;
 }
 } }  // namespace v8::internal
 

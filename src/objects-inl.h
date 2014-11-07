@@ -5695,6 +5695,11 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
                kIsConciseMethod)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
+               kIsDefaultConstructor)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
+               is_default_constructor_call_super,
+               kIsDefaultConstructorCallSuper)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
