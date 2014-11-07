@@ -32,7 +32,7 @@ class JSGraph : public ZoneObject {
         cache_(zone()) {}
 
   // Canonicalized global constants.
-  Node* CEntryStubConstant();
+  Node* CEntryStubConstant(int result_size);
   Node* UndefinedConstant();
   Node* TheHoleConstant();
   Node* TrueConstant();

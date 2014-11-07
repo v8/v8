@@ -17,12 +17,16 @@ Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
 }
 
 
-Node* JSGraph::CEntryStubConstant() {
-  if (!c_entry_stub_constant_.is_set()) {
-    c_entry_stub_constant_.set(
-        ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+Node* JSGraph::CEntryStubConstant(int result_size) {
+  if (result_size == 1) {
+    if (!c_entry_stub_constant_.is_set()) {
+      c_entry_stub_constant_.set(
+          ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+    }
+    return c_entry_stub_constant_.get();
   }
-  return c_entry_stub_constant_.get();
+
+  return ImmovableHeapConstant(CEntryStub(isolate(), result_size).GetCode());
 }
 
 
