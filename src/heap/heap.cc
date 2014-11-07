@@ -865,6 +865,7 @@ int Heap::NotifyContextDisposed() {
   }
   flush_monomorphic_ics_ = true;
   AgeInlineCaches();
+  tracer()->AddContextDisposalTime(base::OS::TimeCurrentMillis());
   return ++contexts_disposed_;
 }
 
@@ -4363,6 +4364,8 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
 
   GCIdleTimeHandler::HeapState heap_state;
   heap_state.contexts_disposed = contexts_disposed_;
+  heap_state.contexts_disposal_rate =
+      tracer()->ContextDisposalRateInMilliseconds();
   heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.

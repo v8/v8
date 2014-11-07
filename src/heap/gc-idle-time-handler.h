@@ -117,8 +117,12 @@ class GCIdleTimeHandler {
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
 
+  // If contexts are disposed at a higher rate a full gc is triggered.
+  static const double kHighContextDisposalRate;
+
   struct HeapState {
     int contexts_disposed;
+    double contexts_disposal_rate;
     size_t size_of_objects;
     bool incremental_marking_stopped;
     bool can_start_incremental_marking;
