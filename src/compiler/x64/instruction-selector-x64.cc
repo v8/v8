@@ -364,8 +364,79 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   VisitWord64Shift(this, node, kX64Ror);
 }
 
+namespace {
+
+AddressingMode GenerateMemoryOperandInputs(X64OperandGenerator* g, Node* scaled,
+                                           int scale_exponent, Node* offset,
+                                           Node* constant,
+                                           InstructionOperand* inputs[],
+                                           size_t* input_count) {
+  AddressingMode mode = kMode_MRI;
+  if (offset != NULL) {
+    inputs[(*input_count)++] = g->UseRegister(offset);
+    if (scaled != NULL) {
+      DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
+      inputs[(*input_count)++] = g->UseRegister(scaled);
+      if (constant != NULL) {
+        inputs[(*input_count)++] = g->UseImmediate(constant);
+        static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
+                                                     kMode_MR4I, kMode_MR8I};
+        mode = kMRnI_modes[scale_exponent];
+      } else {
+        static const AddressingMode kMRn_modes[] = {kMode_MR1, kMode_MR2,
+                                                    kMode_MR4, kMode_MR8};
+        mode = kMRn_modes[scale_exponent];
+      }
+    } else {
+      DCHECK(constant != NULL);
+      inputs[(*input_count)++] = g->UseImmediate(constant);
+      mode = kMode_MRI;
+    }
+  } else {
+    DCHECK(scaled != NULL);
+    DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
+    inputs[(*input_count)++] = g->UseRegister(scaled);
+    if (constant != NULL) {
+      inputs[(*input_count)++] = g->UseImmediate(constant);
+      static const AddressingMode kMnI_modes[] = {kMode_M1I, kMode_M2I,
+                                                  kMode_M4I, kMode_M8I};
+      mode = kMnI_modes[scale_exponent];
+    } else {
+      static const AddressingMode kMn_modes[] = {kMode_M1, kMode_M2, kMode_M4,
+                                                 kMode_M8};
+      mode = kMn_modes[scale_exponent];
+    }
+  }
+  return mode;
+}
+
+}  // namespace
+
 
 void InstructionSelector::VisitInt32Add(Node* node) {
+  // Try to match the Add to a leal pattern
+  ScaledWithOffsetMatcher m(node);
+  X64OperandGenerator g(this);
+  if (m.matches() && (m.constant() == NULL || g.CanBeImmediate(m.constant()))) {
+    InstructionOperand* inputs[4];
+    size_t input_count = 0;
+
+    AddressingMode mode = GenerateMemoryOperandInputs(
+        &g, m.scaled(), m.scale_exponent(), m.offset(), m.constant(), inputs,
+        &input_count);
+
+    DCHECK_NE(0, static_cast<int>(input_count));
+    DCHECK_GE(arraysize(inputs), input_count);
+
+    InstructionOperand* outputs[1];
+    outputs[0] = g.DefineAsRegister(node);
+
+    InstructionCode opcode = AddressingModeField::encode(mode) | kX64Lea32;
+
+    Emit(opcode, 1, outputs, input_count, inputs);
+    return;
+  }
+
   VisitBinop(this, node, kX64Add32);
 }
 
