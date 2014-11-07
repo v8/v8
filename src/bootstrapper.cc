@@ -909,6 +909,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
+  Handle<GlobalContextTable> global_context_table =
+      factory->NewGlobalContextTable();
+  native_context()->set_global_context_table(*global_context_table);
+
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
       global_object, object_name, isolate->object_function(), DONT_ENUM);

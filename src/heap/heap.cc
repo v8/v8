@@ -2609,6 +2609,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, global_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, global_context_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, native_context)
     native_context_map()->set_dictionary_map(true);

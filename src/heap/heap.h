@@ -149,6 +149,7 @@ namespace internal {
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, module_context_map, ModuleContextMap)                                 \
   V(Map, global_context_map, GlobalContextMap)                                 \
+  V(Map, global_context_table_map, GlobalContextTableMap)                      \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
   V(Map, null_map, NullMap)                                                    \

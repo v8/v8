@@ -14773,6 +14773,25 @@ Handle<Object> ExternalFloat64Array::SetValue(
 }
 
 
+void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
+                                          Handle<Name> name) {
+  DCHECK(!global->HasFastProperties());
+  Isolate* isolate = global->GetIsolate();
+  int entry = global->property_dictionary()->FindEntry(name);
+  if (entry != NameDictionary::kNotFound) {
+    Handle<PropertyCell> cell(
+        PropertyCell::cast(global->property_dictionary()->ValueAt(entry)));
+
+    Handle<Object> value(cell->value(), isolate);
+    Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(value);
+    global->property_dictionary()->ValueAtPut(entry, *new_cell);
+
+    Handle<Object> hole = global->GetIsolate()->factory()->the_hole_value();
+    PropertyCell::SetValueInferType(cell, hole);
+  }
+}
+
+
 Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
     Handle<JSGlobalObject> global,
     Handle<Name> name) {

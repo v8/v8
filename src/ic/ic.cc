@@ -661,6 +661,21 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
+  if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
+    // Look up in global context table.
+    Handle<String> str_name = Handle<String>::cast(name);
+    Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+    Handle<GlobalContextTable> global_contexts(
+        global->native_context()->global_context_table());
+
+    GlobalContextTable::LookupResult lookup_result;
+    if (GlobalContextTable::Lookup(global_contexts, str_name, &lookup_result)) {
+      return FixedArray::get(GlobalContextTable::GetContext(
+                                 global_contexts, lookup_result.context_index),
+                             lookup_result.slot_index);
+    }
+  }
+
   // Named lookup in the object.
   LookupIterator it(object, name);
   LookupForRead(&it);
@@ -1363,6 +1378,25 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
+  if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
+    // Look up in global context table.
+    Handle<String> str_name = Handle<String>::cast(name);
+    Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+    Handle<GlobalContextTable> global_contexts(
+        global->native_context()->global_context_table());
+
+    GlobalContextTable::LookupResult lookup_result;
+    if (GlobalContextTable::Lookup(global_contexts, str_name, &lookup_result)) {
+      Handle<Context> global_context = GlobalContextTable::GetContext(
+          global_contexts, lookup_result.context_index);
+      if (lookup_result.mode == CONST) {
+        return TypeError("harmony_const_assign", object, name);
+      }
+      global_context->set(lookup_result.slot_index, *value);
+      return value;
+    }
+  }
+
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object) || object->IsJSProxy()) {

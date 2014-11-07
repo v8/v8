@@ -708,6 +708,16 @@ Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
 }
 
 
+Handle<GlobalContextTable> Factory::NewGlobalContextTable() {
+  Handle<FixedArray> array = NewFixedArray(1);
+  array->set_map_no_write_barrier(*global_context_table_map());
+  Handle<GlobalContextTable> context_table =
+      Handle<GlobalContextTable>::cast(array);
+  context_table->set_used(0);
+  return context_table;
+}
+
+
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);

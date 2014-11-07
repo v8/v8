@@ -87,6 +87,7 @@
 //         - JSFunctionResultCache
 //         - ScopeInfo
 //         - TransitionArray
+//         - GlobalContextTable
 //       - FixedDoubleArray
 //       - ExternalArray
 //         - ExternalUint8ClampedArray
@@ -944,6 +945,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedDoubleArray)              \
   V(ConstantPoolArray)             \
   V(Context)                       \
+  V(GlobalContextTable)            \
   V(NativeContext)                 \
   V(ScopeInfo)                     \
   V(JSFunction)                    \
@@ -7557,6 +7559,9 @@ class GlobalObject: public JSObject {
   DECL_ACCESSORS(global_proxy, JSObject)
 
   DECLARE_CAST(GlobalObject)
+
+  static void InvalidatePropertyCell(Handle<GlobalObject> object,
+                                     Handle<Name> name);
 
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;

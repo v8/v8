@@ -767,6 +767,14 @@ bool Object::IsNativeContext() const {
 }
 
 
+bool Object::IsGlobalContextTable() const {
+  if (!Object::IsHeapObject()) return false;
+  Map* map = HeapObject::cast(this)->map();
+  Heap* heap = map->GetHeap();
+  return map == heap->global_context_table_map();
+}
+
+
 bool Object::IsScopeInfo() const {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
