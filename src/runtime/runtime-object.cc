@@ -1455,10 +1455,8 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  bool fast = obj->HasFastProperties();
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::DefineAccessor(obj, name, getter, setter, attr));
-  if (fast) JSObject::MigrateSlowToFast(obj, 0, "RuntimeDefineAccessor");
   return isolate->heap()->undefined_value();
 }
 

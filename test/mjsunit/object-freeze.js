@@ -303,7 +303,7 @@ assertTrue(Object.isFrozen(Object.freeze(function(){"use strict";})));
 
 // Also test a simpler case
 obj = {};
-Object.defineProperty(obj, 'accessor', {
+Object.defineProperty(obj, 'accessor2', {
   get: function() { return 42 },
   set: function() { accessorDidRun = true },
   configurable: true,
