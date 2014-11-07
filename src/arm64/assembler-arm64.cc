@@ -44,17 +44,8 @@ namespace internal {
 // CpuFeatures implementation.
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  if (cross_compile) {
-    // Always align csp in cross compiled code - this is safe and ensures that
-    // csp will always be aligned if it is enabled by probing at runtime.
-    if (FLAG_enable_always_align_csp) supported_ |= 1u << ALWAYS_ALIGN_CSP;
-  } else {
-    base::CPU cpu;
-    if (FLAG_enable_always_align_csp &&
-        (cpu.implementer() == base::CPU::NVIDIA || FLAG_debug_code)) {
-      supported_ |= 1u << ALWAYS_ALIGN_CSP;
-    }
-  }
+  // AArch64 has no configuration options, no further probing is required.
+  supported_ = 0;
 }
 
 

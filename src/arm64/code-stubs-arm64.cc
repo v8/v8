@@ -4334,18 +4334,10 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-static unsigned int GetProfileEntryHookCallSize(MacroAssembler* masm) {
-  // The entry hook is a "BumpSystemStackPointer" instruction (sub),
-  // followed by a "Push lr" instruction, followed by a call.
-  unsigned int size =
-      Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
-  if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-    // If ALWAYS_ALIGN_CSP then there will be an extra bic instruction in
-    // "BumpSystemStackPointer".
-    size += kInstructionSize;
-  }
-  return size;
-}
+// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
+// a "Push lr" instruction, followed by a call.
+static const unsigned int kProfileEntryHookCallSize =
+    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
@@ -4358,7 +4350,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     __ Push(lr);
     __ CallStub(&stub);
     DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           GetProfileEntryHookCallSize(masm));
+           kProfileEntryHookCallSize);
 
     __ Pop(lr);
   }
@@ -4376,7 +4368,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int kNumSavedRegs = kCallerSaved.Count();
 
   // Compute the function's address as the first argument.
-  __ Sub(x0, lr, GetProfileEntryHookCallSize(masm));
+  __ Sub(x0, lr, kProfileEntryHookCallSize);
 
 #if V8_HOST_ARCH_ARM64
   uintptr_t entry_hook =
