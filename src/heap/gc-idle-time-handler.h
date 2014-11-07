@@ -106,10 +106,6 @@ class GCIdleTimeHandler {
   // Number of scavenges that will trigger start of new idle round.
   static const int kIdleScavengeThreshold;
 
-  // Heap size threshold below which we prefer mark-compact over incremental
-  // step.
-  static const size_t kSmallHeapSize = 4 * kPointerSize * MB;
-
   // That is the maximum idle time we will have during frame rendering.
   static const size_t kMaxFrameRenderingIdleTime = 16;
 

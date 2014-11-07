@@ -144,8 +144,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
   if (idle_time_in_ms == 0) {
     if (heap_state.incremental_marking_stopped) {
-      if (heap_state.size_of_objects < kSmallHeapSize &&
-          heap_state.contexts_disposed > 0 &&
+      if (heap_state.contexts_disposed > 0 &&
           heap_state.contexts_disposal_rate < kHighContextDisposalRate) {
         return GCIdleTimeAction::FullGC();
       }

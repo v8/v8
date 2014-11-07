@@ -198,7 +198,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
   heap_state.incremental_marking_stopped = true;
   int idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(DO_FULL_GC, action.type);
 }
 
 
@@ -221,7 +221,6 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate = 1.0;
   heap_state.incremental_marking_stopped = true;
-  heap_state.size_of_objects = GCIdleTimeHandler::kSmallHeapSize / 2;
   int idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_FULL_GC, action.type);
