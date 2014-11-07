@@ -492,7 +492,7 @@ intptr_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
 double GCTracer::ContextDisposalRateInMilliseconds() const {
   if (context_disposal_events_.size() == 0) return 0.0;
 
-  double begin = context_disposal_events_.begin()->time_;
+  double begin = base::OS::TimeCurrentMillis();
   double end = 0.0;
   ContextDisposalEventBuffer::const_iterator iter =
       context_disposal_events_.begin();

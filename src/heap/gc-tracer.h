@@ -341,8 +341,8 @@ class GCTracer {
   intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
-  // frame of the first and last context disposal event and devides it by the
-  // number of recorded events.
+  // frame of the first recorded context disposal to the current time and
+  // divides it by the number of recorded events.
   // Returns 0 if no events have been recorded.
   double ContextDisposalRateInMilliseconds() const;
 
