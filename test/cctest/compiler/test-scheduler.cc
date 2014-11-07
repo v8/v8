@@ -1816,6 +1816,48 @@ TEST(NestedFloatingDiamonds) {
 }
 
 
+TEST(NestedFloatingDiamondWithLoop) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  SimplifiedOperatorBuilder simplified(scope.main_zone());
+  MachineOperatorBuilder machine;
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* fv = graph.NewNode(common.Int32Constant(7));
+  Node* br = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  Node* loop = graph.NewNode(common.Loop(2), f, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  // TODO(mstarzinger): Make scheduler deal with non-empty loops here.
+  // Node* add = graph.NewNode(machine.IntAdd(), ind, fv);
+
+  Node* br1 = graph.NewNode(common.Branch(), ind, loop);
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+
+  loop->ReplaceInput(1, t1);  // close loop.
+  ind->ReplaceInput(1, ind);  // close induction variable.
+
+  Node* m = graph.NewNode(common.Merge(2), t, f1);
+  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 2), fv, ind, m);
+
+  Node* ret = graph.NewNode(common.Return(), phi, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(19, &graph);
+}
+
+
 TEST(LoopedFloatingDiamond1) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
