@@ -2087,6 +2087,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id
   Isolate* isolate = masm->isolate();
+  const int with_types_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+  const int generic_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
@@ -2128,34 +2132,64 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label miss;
+  Label uninitialized, miss;
 
   __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
   __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ j(equal, &slow_start);
-  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
-  __ j(equal, &miss);
 
-  if (!FLAG_trace_ic) {
-    // We are going megamorphic. If the feedback is a JSFunction, it is fine
-    // to handle it here. More complex cases are dealt with in the runtime.
-    __ AssertNotSmi(rcx);
-    __ CmpObjectType(rcx, JS_FUNCTION_TYPE, rcx);
-    __ j(not_equal, &miss);
-    __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
-            TypeFeedbackVector::MegamorphicSentinel(isolate));
-    // We have to update statistics for runtime profiling.
-    const int with_types_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-    __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(-1));
-    const int generic_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-    __ SmiAddConstant(FieldOperand(rbx, generic_offset), Smi::FromInt(1));
-    __ jmp(&slow_start);
+  // The following cases attempt to handle MISS cases without going to the
+  // runtime.
+  if (FLAG_trace_ic) {
+    __ jmp(&miss);
   }
 
-  // We are here because tracing is on or we are going monomorphic.
+  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
+  __ j(equal, &uninitialized);
+
+  // We are going megamorphic. If the feedback is a JSFunction, it is fine
+  // to handle it here. More complex cases are dealt with in the runtime.
+  __ AssertNotSmi(rcx);
+  __ CmpObjectType(rcx, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &miss);
+  __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+          TypeFeedbackVector::MegamorphicSentinel(isolate));
+  // We have to update statistics for runtime profiling.
+  __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(-1));
+  __ SmiAddConstant(FieldOperand(rbx, generic_offset), Smi::FromInt(1));
+  __ jmp(&slow_start);
+
+  __ bind(&uninitialized);
+
+  // We are going monomorphic, provided we actually have a JSFunction.
+  __ JumpIfSmi(rdi, &miss);
+
+  // Goto miss case if we do not have a function.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &miss);
+
+  // Make sure the function is not the Array() function, which requires special
+  // behavior on MISS.
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
+  __ cmpp(rdi, rcx);
+  __ j(equal, &miss);
+
+  // Update stats.
+  __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
+
+  // Store the function.
+  __ movp(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+          rdi);
+
+  // Update the write barrier.
+  __ movp(rax, rdi);
+  __ RecordWriteArray(rbx, rax, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ jmp(&have_js_function);
+
+  // We are here because tracing is on or we encountered a MISS case we can't
+  // handle here.
   __ bind(&miss);
   GenerateMiss(masm);
 
