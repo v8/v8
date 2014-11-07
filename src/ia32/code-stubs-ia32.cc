@@ -3173,6 +3173,25 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in eax.
+  Label check_heap_number, call_builtin;
+  __ JumpIfNotSmi(eax, &check_heap_number, Label::kNear);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ CompareMap(eax, masm->isolate()->factory()->heap_number_map());
+  __ j(not_equal, &call_builtin, Label::kNear);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ pop(ecx);  // Pop return address.
+  __ push(eax);
+  __ push(ecx);  // Push return address.
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,

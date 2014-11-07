@@ -154,7 +154,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ Branch(code_->GetLabel(i.InputRpo(0)));
+      __ Branch(GetLabel(i.InputRpo(0)));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -403,8 +403,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
   BasicBlock::RpoNumber fblock =
       i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = code()->GetLabel(tblock);
-  Label* flabel = fallthru ? &done : code()->GetLabel(fblock);
+  Label* tlabel = GetLabel(tblock);
+  Label* flabel = fallthru ? &done : GetLabel(fblock);
   Condition cc = kNoCondition;
 
   // MIPS does not have condition code flags, so compare and branch are

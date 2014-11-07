@@ -212,7 +212,7 @@ void AstValue::Internalize(Isolate* isolate) {
 }
 
 
-const AstRawString* AstValueFactory::GetOneByteString(
+AstRawString* AstValueFactory::GetOneByteStringInternal(
     Vector<const uint8_t> literal) {
   uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
       literal.start(), literal.length(), hash_seed_);
@@ -220,7 +220,7 @@ const AstRawString* AstValueFactory::GetOneByteString(
 }
 
 
-const AstRawString* AstValueFactory::GetTwoByteString(
+AstRawString* AstValueFactory::GetTwoByteStringInternal(
     Vector<const uint16_t> literal) {
   uint32_t hash = StringHasher::HashSequentialString<uint16_t>(
       literal.start(), literal.length(), hash_seed_);
@@ -229,13 +229,24 @@ const AstRawString* AstValueFactory::GetTwoByteString(
 
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
-  DisallowHeapAllocation no_gc;
-  String::FlatContent content = literal->GetFlatContent();
-  if (content.IsOneByte()) {
-    return GetOneByteString(content.ToOneByteVector());
+  // For the FlatContent to stay valid, we shouldn't do any heap
+  // allocation. Make sure we won't try to internalize the string in GetString.
+  AstRawString* result = NULL;
+  Isolate* saved_isolate = isolate_;
+  isolate_ = NULL;
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent content = literal->GetFlatContent();
+    if (content.IsOneByte()) {
+      result = GetOneByteStringInternal(content.ToOneByteVector());
+    } else {
+      DCHECK(content.IsTwoByte());
+      result = GetTwoByteStringInternal(content.ToUC16Vector());
+    }
   }
-  DCHECK(content.IsTwoByte());
-  return GetTwoByteString(content.ToUC16Vector());
+  isolate_ = saved_isolate;
+  if (isolate_) result->Internalize(isolate_);
+  return result;
 }
 
 
@@ -348,8 +359,8 @@ const AstValue* AstValueFactory::NewTheHole() {
 
 #undef GENERATE_VALUE_GETTER
 
-const AstRawString* AstValueFactory::GetString(
-    uint32_t hash, bool is_one_byte, Vector<const byte> literal_bytes) {
+AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
+                                         Vector<const byte> literal_bytes) {
   // literal_bytes here points to whatever the user passed, and this is OK
   // because we use vector_compare (which checks the contents) to compare
   // against the AstRawStrings which are in the string_table_. We should not

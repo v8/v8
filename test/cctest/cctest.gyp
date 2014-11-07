@@ -156,6 +156,7 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
+        'test-transitions.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-unique.cc',

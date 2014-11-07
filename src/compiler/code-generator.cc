@@ -18,6 +18,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       linkage_(linkage),
       code_(code),
       info_(info),
+      labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(BasicBlock::RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
       masm_(code->zone()->isolate(), NULL, 0),
@@ -26,7 +27,11 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
-      last_lazy_deopt_pc_(0) {}
+      last_lazy_deopt_pc_(0) {
+  for (int i = 0; i < code->InstructionBlockCount(); ++i) {
+    new (&labels_[i]) Label;
+  }
+}
 
 
 Handle<Code> CodeGenerator::GenerateCode() {
@@ -45,19 +50,24 @@ Handle<Code> CodeGenerator::GenerateCode() {
   info->set_prologue_offset(masm()->pc_offset());
   AssemblePrologue();
 
-  // Assemble all non-deferred instructions.
-  for (auto const block : code()->instruction_blocks()) {
-    if (block->IsDeferred()) continue;
-    for (int i = block->code_start(); i < block->code_end(); ++i) {
-      AssembleInstruction(code()->InstructionAt(i));
-    }
-  }
-
-  // Assemble all deferred instructions.
-  for (auto const block : code()->instruction_blocks()) {
-    if (!block->IsDeferred()) continue;
-    for (int i = block->code_start(); i < block->code_end(); ++i) {
-      AssembleInstruction(code()->InstructionAt(i));
+  // Assemble all non-deferred blocks, followed by deferred ones.
+  for (int deferred = 0; deferred < 2; ++deferred) {
+    for (auto const block : code()->instruction_blocks()) {
+      if (block->IsDeferred() == (deferred == 0)) {
+        continue;
+      }
+      // Bind a label for a block.
+      current_block_ = block->rpo_number();
+      if (FLAG_code_comments) {
+        // TODO(titzer): these code comments are a giant memory leak.
+        Vector<char> buffer = Vector<char>::New(32);
+        SNPrintF(buffer, "-- B%d start --", block->id().ToInt());
+        masm()->RecordComment(buffer.start());
+      }
+      masm()->bind(GetLabel(current_block_));
+      for (int i = block->code_start(); i < block->code_end(); ++i) {
+        AssembleInstruction(code()->InstructionAt(i));
+      }
     }
   }
 
@@ -120,18 +130,6 @@ void CodeGenerator::RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
 
 
 void CodeGenerator::AssembleInstruction(Instruction* instr) {
-  if (instr->IsBlockStart()) {
-    // Bind a label for a block start and handle parallel moves.
-    BlockStartInstruction* block_start = BlockStartInstruction::cast(instr);
-    current_block_ = block_start->rpo_number();
-    if (FLAG_code_comments) {
-      // TODO(titzer): these code comments are a giant memory leak.
-      Vector<char> buffer = Vector<char>::New(32);
-      SNPrintF(buffer, "-- B%d start --", block_start->id().ToInt());
-      masm()->RecordComment(buffer.start());
-    }
-    masm()->bind(block_start->label());
-  }
   if (instr->IsGapMoves()) {
     // Handle parallel moves associated with the gap instruction.
     AssembleGap(GapInstruction::cast(instr));

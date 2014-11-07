@@ -350,6 +350,7 @@ namespace internal {
   F(GetObjectContextObjectObserve, 1, 1)               \
   F(GetObjectContextObjectGetNotifier, 1, 1)           \
   F(GetObjectContextNotifierPerformChange, 1, 1)       \
+  F(DeliverObservationChangeRecords, 2, 1)             \
                                                        \
   /* Harmony typed arrays */                           \
   F(ArrayBufferInitialize, 2, 1)                       \

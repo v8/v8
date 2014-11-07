@@ -33,6 +33,8 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
+  Label* GetLabel(BasicBlock::RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
+
  private:
   MacroAssembler* masm() { return &masm_; }
   GapResolver* resolver() { return &resolver_; }
@@ -122,6 +124,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Linkage* const linkage_;
   InstructionSequence* const code_;
   CompilationInfo* const info_;
+  Label* const labels_;
   BasicBlock::RpoNumber current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;

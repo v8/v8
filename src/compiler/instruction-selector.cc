@@ -66,11 +66,11 @@ void InstructionSelector::SelectInstructions() {
         sequence()->InstructionBlockAt(block->GetRpoNumber());
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
-    sequence()->StartBlock(block);
+    sequence()->StartBlock(block->GetRpoNumber());
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start]);
     }
-    sequence()->EndBlock(block);
+    sequence()->EndBlock(block->GetRpoNumber());
   }
 }
 
@@ -833,7 +833,7 @@ void InstructionSelector::VisitLoadStackPointer(Node* node) {
 #endif  // V8_TURBOFAN_BACKEND
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_BACKEND
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -905,7 +905,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 
-#endif  // V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_BACKEND
+#endif  // V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
 
 
 void InstructionSelector::VisitFinish(Node* node) {

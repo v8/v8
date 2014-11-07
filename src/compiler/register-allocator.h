@@ -186,12 +186,15 @@ class LiveRange FINAL : public ZoneObject {
   UsePosition* first_pos() const { return first_pos_; }
   LiveRange* parent() const { return parent_; }
   LiveRange* TopLevel() { return (parent_ == NULL) ? this : parent_; }
+  const LiveRange* TopLevel() const {
+    return (parent_ == NULL) ? this : parent_;
+  }
   LiveRange* next() const { return next_; }
   bool IsChild() const { return parent() != NULL; }
   int id() const { return id_; }
   bool IsFixed() const { return id_ < 0; }
   bool IsEmpty() const { return first_interval() == NULL; }
-  InstructionOperand* CreateAssignedOperand(Zone* zone);
+  InstructionOperand* CreateAssignedOperand(Zone* zone) const;
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
   void set_assigned_register(int reg, Zone* zone);
@@ -337,6 +340,8 @@ class RegisterAllocator FINAL {
     return fixed_double_live_ranges_;
   }
   InstructionSequence* code() const { return code_; }
+  // This zone is for datastructures only needed during register allocation.
+  Zone* local_zone() const { return local_zone_; }
 
  private:
   int GetVirtualRegister() {
@@ -355,9 +360,6 @@ class RegisterAllocator FINAL {
 
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
-
-  // This zone is for datastructures only needed during register allocation.
-  Zone* zone() const { return zone_; }
 
   // This zone is for InstructionOperands and moves that live beyond register
   // allocation.
@@ -465,8 +467,10 @@ class RegisterAllocator FINAL {
   bool IsBlockBoundary(LifetimePosition pos);
 
   // Helper methods for resolving control flow.
-  void ResolveControlFlow(LiveRange* range, const InstructionBlock* block,
-                          const InstructionBlock* pred);
+  void ResolveControlFlow(const InstructionBlock* block,
+                          const LiveRange* cur_cover,
+                          const InstructionBlock* pred,
+                          const LiveRange* pred_cover);
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
 
@@ -494,7 +498,7 @@ class RegisterAllocator FINAL {
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
 
-  Zone* const zone_;
+  Zone* const local_zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
   const char* const debug_name_;

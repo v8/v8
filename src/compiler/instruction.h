@@ -617,16 +617,11 @@ class GapInstruction : public Instruction {
 
 // This special kind of gap move instruction represents the beginning of a
 // block of code.
-// TODO(titzer): move code_start and code_end from BasicBlock to here.
 class BlockStartInstruction FINAL : public GapInstruction {
  public:
-  Label* label() { return &label_; }
-  BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
-  BasicBlock::Id id() const { return id_; }
-
-  static BlockStartInstruction* New(Zone* zone, BasicBlock* block) {
+  static BlockStartInstruction* New(Zone* zone) {
     void* buffer = zone->New(sizeof(BlockStartInstruction));
-    return new (buffer) BlockStartInstruction(block);
+    return new (buffer) BlockStartInstruction();
   }
 
   static BlockStartInstruction* cast(Instruction* instr) {
@@ -635,14 +630,7 @@ class BlockStartInstruction FINAL : public GapInstruction {
   }
 
  private:
-  explicit BlockStartInstruction(BasicBlock* block)
-      : GapInstruction(kBlockStartInstruction),
-        id_(block->id()),
-        rpo_number_(block->GetRpoNumber()) {}
-
-  BasicBlock::Id id_;
-  BasicBlock::RpoNumber rpo_number_;
-  Label label_;
+  BlockStartInstruction() : GapInstruction(kBlockStartInstruction) {}
 };
 
 
@@ -799,7 +787,11 @@ class PhiInstruction FINAL : public ZoneObject {
 // Analogue of BasicBlock for Instructions instead of Nodes.
 class InstructionBlock FINAL : public ZoneObject {
  public:
-  explicit InstructionBlock(Zone* zone, const BasicBlock* block);
+  InstructionBlock(Zone* zone, BasicBlock::Id id,
+                   BasicBlock::RpoNumber ao_number,
+                   BasicBlock::RpoNumber rpo_number,
+                   BasicBlock::RpoNumber loop_header,
+                   BasicBlock::RpoNumber loop_end, bool deferred);
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
@@ -920,7 +912,6 @@ class InstructionSequence FINAL {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  Label* GetLabel(BasicBlock::RpoNumber rpo);
   BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo);
 
   typedef InstructionDeque::const_iterator const_iterator;
@@ -943,8 +934,8 @@ class InstructionSequence FINAL {
 
   // Used by the instruction selector while adding instructions.
   int AddInstruction(Instruction* instr);
-  void StartBlock(BasicBlock* block);
-  void EndBlock(BasicBlock* block);
+  void StartBlock(BasicBlock::RpoNumber rpo);
+  void EndBlock(BasicBlock::RpoNumber rpo);
 
   int AddConstant(int virtual_register, Constant constant) {
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
@@ -995,6 +986,7 @@ class InstructionSequence FINAL {
 
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
+  IntVector block_starts_;
   ConstantMap constants_;
   ConstantDeque immediates_;
   InstructionDeque instructions_;

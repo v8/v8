@@ -200,6 +200,9 @@
 
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
+
+  # Too slow for slow variants.
+  'asm/embenchen/*': [PASS, FAST_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -242,6 +245,9 @@
   'math-floor-of-div': [PASS, NO_VARIANTS],
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
+  # Too slow for gc stress.
+  'asm/embenchen/box2d': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -258,6 +264,8 @@
   # Pass but take too long to run. Skip.
   # Some similar tests (with fewer iterations) may be included in arm64-js
   # tests.
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
   'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
@@ -431,6 +439,9 @@
 ['arch == mips', {
   # Flaky with TF.
   'mirror-script': [PASS, NO_VARIANTS],
+
+  # Emscripten requires little-endian, skip all tests on MIPS EB.
+  'asm/embenchen/*': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################

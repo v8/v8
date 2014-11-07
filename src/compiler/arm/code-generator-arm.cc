@@ -193,7 +193,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ b(code_->GetLabel(i.InputRpo(0)));
+      __ b(GetLabel(i.InputRpo(0)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchNop:
@@ -515,8 +515,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
   BasicBlock::RpoNumber fblock =
       i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = code()->GetLabel(tblock);
-  Label* flabel = fallthru ? &done : code()->GetLabel(fblock);
+  Label* tlabel = GetLabel(tblock);
+  Label* flabel = fallthru ? &done : GetLabel(fblock);
   switch (condition) {
     case kUnorderedEqual:
       __ b(vs, flabel);

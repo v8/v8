@@ -232,6 +232,7 @@ class Typer::Visitor : public NullNodeVisitor {
   static Type* JSSubtractRanger(Type::RangeType*, Type::RangeType*, Typer*);
   static Type* JSMultiplyRanger(Type::RangeType*, Type::RangeType*, Typer*);
   static Type* JSDivideRanger(Type::RangeType*, Type::RangeType*, Typer*);
+  static Type* JSModulusRanger(Type::RangeType*, Type::RangeType*, Typer*);
 
   static Type* JSCompareTyper(Type*, Type*, Typer*);
 
@@ -984,17 +985,58 @@ Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
 }
 
 
+Type* Typer::Visitor::JSModulusRanger(Type::RangeType* lhs,
+                                      Type::RangeType* rhs, Typer* t) {
+  double lmin = lhs->Min()->Number();
+  double lmax = lhs->Max()->Number();
+  double rmin = rhs->Min()->Number();
+  double rmax = rhs->Max()->Number();
+
+  double labs = std::max(std::abs(lmin), std::abs(lmax));
+  double rabs = std::max(std::abs(rmin), std::abs(rmax)) - 1;
+  double abs = std::min(labs, rabs);
+  bool maybe_minus_zero = false;
+  double omin = 0;
+  double omax = 0;
+  if (lmin >= 0) {  // {lhs} positive.
+    omin = 0;
+    omax = abs;
+  } else if (lmax <= 0) {  // {lhs} negative.
+    omin = 0 - abs;
+    omax = 0;
+    maybe_minus_zero = true;
+  } else {
+    omin = 0 - abs;
+    omax = abs;
+    maybe_minus_zero = true;
+  }
+
+  Factory* f = t->isolate()->factory();
+  Type* result = Type::Range(f->NewNumber(omin), f->NewNumber(omax), t->zone());
+  if (maybe_minus_zero)
+    result = Type::Union(result, Type::MinusZero(), t->zone());
+  return result;
+}
+
+
 Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
   lhs = ToNumber(lhs, t);
   rhs = ToNumber(rhs, t);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  // Division is tricky, so all we do is try ruling out nan.
-  // TODO(neis): try ruling out -0 as well?
-  bool maybe_nan =
-      lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
-      ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
-       (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
-  return maybe_nan ? Type::Number() : Type::OrderedNumber();
+
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
+      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
+    // Result maybe NaN.
+    return Type::Number();
+  }
+
+  lhs = Rangify(lhs, t);
+  rhs = Rangify(rhs, t);
+  if (lhs->IsRange() && rhs->IsRange()) {
+    // TODO(titzer): fix me.
+    //    return JSModulusRanger(lhs->AsRange(), rhs->AsRange(), t);
+  }
+  return Type::OrderedNumber();
 }
 
 

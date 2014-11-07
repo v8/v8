@@ -9,6 +9,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-properties-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -85,12 +86,35 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
 }
 
 
+Node* ChangeLowering::ChangeInt32ToFloat64(Node* value) {
+  return graph()->NewNode(machine()->ChangeInt32ToFloat64(), value);
+}
+
+
+Node* ChangeLowering::ChangeSmiToFloat64(Node* value) {
+  return ChangeInt32ToFloat64(ChangeSmiToInt32(value));
+}
+
+
 Node* ChangeLowering::ChangeSmiToInt32(Node* value) {
   value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
   if (machine()->Is64()) {
     value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
   }
   return value;
+}
+
+
+Node* ChangeLowering::ChangeUint32ToFloat64(Node* value) {
+  return graph()->NewNode(machine()->ChangeUint32ToFloat64(), value);
+}
+
+
+Node* ChangeLowering::ChangeUint32ToSmi(Node* value) {
+  if (machine()->Is64()) {
+    value = graph()->NewNode(machine()->ChangeUint32ToUint64(), value);
+  }
+  return graph()->NewNode(machine()->WordShl(), value, SmiShiftBitsConstant());
 }
 
 
@@ -101,12 +125,24 @@ Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
 }
 
 
+Node* ChangeLowering::TestNotSmi(Node* value) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagMask == 1);
+  return graph()->NewNode(machine()->WordAnd(), value,
+                          jsgraph()->IntPtrConstant(kSmiTagMask));
+}
+
+
+Node* ChangeLowering::Uint32LessThanOrEqual(Node* lhs, Node* rhs) {
+  return graph()->NewNode(machine()->Uint32LessThanOrEqual(), lhs, rhs);
+}
+
+
 Reduction ChangeLowering::ChangeBitToBool(Node* val, Node* control) {
-  Diamond d(graph(), common(), val);
-  d.Chain(control);
-  MachineType machine_type = static_cast<MachineType>(kTypeBool | kRepTagged);
-  return Replace(d.Phi(machine_type, jsgraph()->TrueConstant(),
-                       jsgraph()->FalseConstant()));
+  MachineType const type = static_cast<MachineType>(kTypeBool | kRepTagged);
+  return Replace(graph()->NewNode(common()->Select(type), val,
+                                  jsgraph()->TrueConstant(),
+                                  jsgraph()->FalseConstant()));
 }
 
 
@@ -121,82 +157,108 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* val, Node* control) {
 }
 
 
-Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
+Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
   if (machine()->Is64()) {
-    return Replace(
-        graph()->NewNode(machine()->Word64Shl(),
-                         graph()->NewNode(machine()->ChangeInt32ToInt64(), val),
-                         SmiShiftBitsConstant()));
+    return Replace(graph()->NewNode(
+        machine()->Word64Shl(),
+        graph()->NewNode(machine()->ChangeInt32ToInt64(), value),
+        SmiShiftBitsConstant()));
   }
 
-  Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), val, val);
+  Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);
   Node* ovf = graph()->NewNode(common()->Projection(1), add);
 
   Diamond d(graph(), common(), ovf, BranchHint::kFalse);
   d.Chain(control);
-  Node* heap_number = AllocateHeapNumberWithValue(
-      graph()->NewNode(machine()->ChangeInt32ToFloat64(), val), d.if_true);
-  Node* smi = graph()->NewNode(common()->Projection(0), add);
-  return Replace(d.Phi(kMachAnyTagged, heap_number, smi));
+  return Replace(
+      d.Phi(kMachAnyTagged,
+            AllocateHeapNumberWithValue(ChangeInt32ToFloat64(value), d.if_true),
+            graph()->NewNode(common()->Projection(0), add)));
 }
 
 
-Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
+Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                                              Signedness signedness) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagMask == 1);
-
-  Node* tag = graph()->NewNode(machine()->WordAnd(), val,
-                               jsgraph()->IntPtrConstant(kSmiTagMask));
-
-  Diamond d(graph(), common(), tag, BranchHint::kFalse);
-  d.Chain(control);
+  const MachineType type = (signedness == kSigned) ? kMachInt32 : kMachUint32;
   const Operator* op = (signedness == kSigned)
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();
-  Node* load = graph()->NewNode(op, LoadHeapNumberValue(val, d.if_true));
-  Node* number = ChangeSmiToInt32(val);
-
+  Diamond d(graph(), common(), TestNotSmi(value), BranchHint::kFalse);
+  d.Chain(control);
   return Replace(
-      d.Phi((signedness == kSigned) ? kMachInt32 : kMachUint32, load, number));
+      d.Phi(type, graph()->NewNode(op, LoadHeapNumberValue(value, d.if_true)),
+            ChangeSmiToInt32(value)));
 }
 
 
-Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagMask == 1);
+namespace {
 
-  Node* tag = graph()->NewNode(machine()->WordAnd(), val,
-                               jsgraph()->IntPtrConstant(kSmiTagMask));
-  Diamond d(graph(), common(), tag, BranchHint::kFalse);
+bool CanCover(Node* value, IrOpcode::Value opcode) {
+  if (value->opcode() != opcode) return false;
+  bool first = true;
+  for (auto i = value->uses().begin(); i != value->uses().end(); ++i) {
+    if (NodeProperties::IsEffectEdge(i.edge())) continue;
+    DCHECK(NodeProperties::IsValueEdge(i.edge()));
+    if (!first) return false;
+    first = false;
+  }
+  return true;
+}
+
+}  // namespace
+
+
+Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
+  if (CanCover(value, IrOpcode::kJSToNumber)) {
+    // ChangeTaggedToFloat64(JSToNumber(x)) =>
+    //   if IsSmi(x) then ChangeSmiToFloat64(x)
+    //   else let y = JSToNumber(x) in
+    //     if IsSmi(y) then ChangeSmiToFloat64(y)
+    //     else LoadHeapNumberValue(y)
+    Node* const object = NodeProperties::GetValueInput(value, 0);
+    Node* const context = NodeProperties::GetContextInput(value);
+    Node* const effect = NodeProperties::GetEffectInput(value);
+    Node* const control = NodeProperties::GetControlInput(value);
+
+    Diamond d1(graph(), common(), TestNotSmi(object), BranchHint::kFalse);
+    d1.Chain(control);
+
+    Node* number =
+        graph()->NewNode(value->op(), object, context, effect, d1.if_true);
+    Diamond d2(graph(), common(), TestNotSmi(number));
+    d2.Nest(d1, true);
+    Node* phi2 = d2.Phi(kMachFloat64, LoadHeapNumberValue(number, d2.if_true),
+                        ChangeSmiToFloat64(number));
+
+    Node* phi1 = d1.Phi(kMachFloat64, phi2, ChangeSmiToFloat64(object));
+    Node* ephi1 = d1.EffectPhi(number, effect);
+
+    for (auto i = value->uses().begin(); i != value->uses().end();) {
+      if (NodeProperties::IsEffectEdge(i.edge())) {
+        i.UpdateToAndIncrement(ephi1);
+      } else {
+        ++i;
+      }
+    }
+    return Replace(phi1);
+  }
+
+  Diamond d(graph(), common(), TestNotSmi(value), BranchHint::kFalse);
   d.Chain(control);
-  Node* load = LoadHeapNumberValue(val, d.if_true);
-  Node* number = graph()->NewNode(machine()->ChangeInt32ToFloat64(),
-                                  ChangeSmiToInt32(val));
-
+  Node* load = LoadHeapNumberValue(value, d.if_true);
+  Node* number = ChangeSmiToFloat64(value);
   return Replace(d.Phi(kMachFloat64, load, number));
 }
 
 
-Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagMask == 1);
-
-  Node* cmp = graph()->NewNode(machine()->Uint32LessThanOrEqual(), val,
-                               SmiMaxValueConstant());
-  Diamond d(graph(), common(), cmp, BranchHint::kTrue);
+Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
+  Diamond d(graph(), common(),
+            Uint32LessThanOrEqual(value, SmiMaxValueConstant()),
+            BranchHint::kTrue);
   d.Chain(control);
-  Node* smi = graph()->NewNode(
-      machine()->WordShl(),
-      machine()->Is64()
-          ? graph()->NewNode(machine()->ChangeUint32ToUint64(), val)
-          : val,
-      SmiShiftBitsConstant());
-
-  Node* heap_number = AllocateHeapNumberWithValue(
-      graph()->NewNode(machine()->ChangeUint32ToFloat64(), val), d.if_false);
-
-  return Replace(d.Phi(kMachAnyTagged, smi, heap_number));
+  return Replace(d.Phi(
+      kMachAnyTagged, ChangeUint32ToSmi(value),
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(value), d.if_false)));
 }
 
 

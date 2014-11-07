@@ -30,9 +30,20 @@ static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
   for (int i = 0; i < static_cast<int>(order->size()); i++) {
     CHECK(order->at(i)->rpo_number() == i);
     if (!loops_allowed) {
-      CHECK_LT(order->at(i)->loop_end(), 0);
+      CHECK_EQ(NULL, order->at(i)->loop_end());
       CHECK_EQ(NULL, order->at(i)->loop_header());
     }
+  }
+  int number = 0;
+  for (auto const block : *order) {
+    if (block->deferred()) continue;
+    CHECK_EQ(number, block->ao_number());
+    ++number;
+  }
+  for (auto const block : *order) {
+    if (!block->deferred()) continue;
+    CHECK_EQ(number, block->ao_number());
+    ++number;
   }
 }
 
@@ -40,19 +51,21 @@ static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
 static void CheckLoop(BasicBlockVector* order, BasicBlock** blocks,
                       int body_size) {
   BasicBlock* header = blocks[0];
-  CHECK_GT(header->loop_end(), 0);
-  CHECK_EQ(body_size, (header->loop_end() - header->rpo_number()));
+  BasicBlock* end = header->loop_end();
+  CHECK_NE(NULL, end);
+  CHECK_GT(end->rpo_number(), 0);
+  CHECK_EQ(body_size, end->rpo_number() - header->rpo_number());
   for (int i = 0; i < body_size; i++) {
-    int num = blocks[i]->rpo_number();
-    CHECK(num >= header->rpo_number() && num < header->loop_end());
+    CHECK_GE(blocks[i]->rpo_number(), header->rpo_number());
+    CHECK_LT(blocks[i]->rpo_number(), end->rpo_number());
     CHECK(header->LoopContains(blocks[i]));
     CHECK(header->IsLoopHeader() || blocks[i]->loop_header() == header);
   }
   if (header->rpo_number() > 0) {
     CHECK_NE(order->at(header->rpo_number() - 1)->loop_header(), header);
   }
-  if (header->loop_end() < static_cast<int>(order->size())) {
-    CHECK_NE(order->at(header->loop_end())->loop_header(), header);
+  if (end->rpo_number() < static_cast<int>(order->size())) {
+    CHECK_NE(order->at(end->rpo_number())->loop_header(), header);
   }
 }
 
@@ -153,6 +166,7 @@ TEST(RPOLine) {
     BasicBlock* last = schedule.start();
     for (int j = 0; j < i; j++) {
       BasicBlock* block = schedule.NewBasicBlock();
+      block->set_deferred(i & 1);
       schedule.AddGoto(last, block);
       last = block;
     }
@@ -1802,7 +1816,7 @@ TEST(NestedFloatingDiamonds) {
 }
 
 
-TEST(LoopedFloatingDiamond) {
+TEST(LoopedFloatingDiamond1) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
@@ -1831,6 +1845,46 @@ TEST(LoopedFloatingDiamond) {
 
   loop->ReplaceInput(1, t);    // close loop.
   ind->ReplaceInput(1, phi1);  // close induction variable.
+
+  Node* ret = graph.NewNode(common.Return(), ind, start, f);
+  Node* end = graph.NewNode(common.End(), ret, f);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(20, &graph);
+}
+
+
+TEST(LoopedFloatingDiamond2) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  SimplifiedOperatorBuilder simplified(scope.main_zone());
+  MachineOperatorBuilder machine;
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* c = graph.NewNode(common.Int32Constant(7));
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* br1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+  Node* m1 = graph.NewNode(common.Merge(2), t1, f1);
+  Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), c, ind, m1);
+
+  Node* add = graph.NewNode(machine.IntAdd(), ind, phi1);
+
+  Node* br = graph.NewNode(common.Branch(), add, loop);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  loop->ReplaceInput(1, t);   // close loop.
+  ind->ReplaceInput(1, add);  // close induction variable.
 
   Node* ret = graph.NewNode(common.Return(), ind, start, f);
   Node* end = graph.NewNode(common.End(), ret, f);

@@ -441,6 +441,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mul: {
       Float64BinopMatcher m(node);
+      if (m.right().Is(-1)) {  // x * -1.0 => -0.0 - x
+        node->set_op(machine()->Float64Sub());
+        node->ReplaceInput(0, Float64Constant(-0.0));
+        node->ReplaceInput(1, m.left().node());
+        return Changed(node);
+      }
       if (m.right().Is(1)) return Replace(m.left().node());  // x * 1.0 => x
       if (m.right().IsNaN()) {                               // x * NaN => NaN
         return Replace(m.right().node());
@@ -517,12 +523,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
       break;
     }
-    case IrOpcode::kTruncateFloat64ToInt32: {
-      Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
-      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-      break;
-    }
+    case IrOpcode::kTruncateFloat64ToInt32:
+      return ReduceTruncateFloat64ToInt32(node);
     case IrOpcode::kTruncateInt64ToInt32: {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
@@ -638,13 +640,12 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
     if (base::bits::IsPowerOfTwo32(divisor)) {
       uint32_t const mask = divisor - 1;
       Node* const zero = Int32Constant(0);
-
-      Node* check =
-          graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
-      Diamond d(graph(), common(), check, BranchHint::kFalse);
-      Node* neg = Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask));
-      Node* pos = Word32And(dividend, mask);
-      d.OverwriteWithPhi(node, kMachInt32, neg, pos);
+      node->set_op(common()->Select(kMachInt32, BranchHint::kFalse));
+      node->ReplaceInput(
+          0, graph()->NewNode(machine()->Int32LessThan(), dividend, zero));
+      node->ReplaceInput(
+          1, Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask)));
+      node->ReplaceInput(2, Word32And(dividend, mask));
     } else {
       Node* quotient = Int32Div(dividend, divisor);
       node->set_op(machine()->Int32Sub());
@@ -682,6 +683,36 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
     }
     node->TrimInputCount(2);
     return Changed(node);
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
+  Float64Matcher m(node->InputAt(0));
+  if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+  if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+  if (m.IsPhi()) {
+    Node* const phi = m.node();
+    DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));
+    if (phi->OwnedBy(node)) {
+      // TruncateFloat64ToInt32(Phi[Float64](x1,...,xn))
+      //   => Phi[Int32](TruncateFloat64ToInt32(x1),
+      //                 ...,
+      //                 TruncateFloat64ToInt32(xn))
+      const int value_input_count = phi->InputCount() - 1;
+      for (int i = 0; i < value_input_count; ++i) {
+        Node* input = graph()->NewNode(machine()->TruncateFloat64ToInt32(),
+                                       phi->InputAt(i));
+        // TODO(bmeurer): Reschedule input for reduction once we have Revisit()
+        // instead of recursing into ReduceTruncateFloat64ToInt32() here.
+        Reduction reduction = ReduceTruncateFloat64ToInt32(input);
+        if (reduction.Changed()) input = reduction.replacement();
+        phi->ReplaceInput(i, input);
+      }
+      phi->set_op(common()->Phi(kMachInt32, value_input_count));
+      return Replace(phi);
+    }
   }
   return NoChange();
 }

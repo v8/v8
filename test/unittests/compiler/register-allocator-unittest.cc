@@ -37,11 +37,37 @@ static void InitializeRegisterNames() {
   }
 }
 
+enum BlockCompletionType { kFallThrough, kBranch, kJump };
+
+struct BlockCompletion {
+  BlockCompletionType type_;
+  int vreg_;
+  int offset_0_;
+  int offset_1_;
+};
+
+static const int kInvalidJumpOffset = kMinInt;
+
+BlockCompletion FallThrough() {
+  BlockCompletion completion = {kFallThrough, -1, 1, kInvalidJumpOffset};
+  return completion;
+}
+
+
+BlockCompletion Jump(int offset) {
+  BlockCompletion completion = {kJump, -1, offset, kInvalidJumpOffset};
+  return completion;
+}
+
+
+BlockCompletion Branch(int vreg, int left_offset, int right_offset) {
+  BlockCompletion completion = {kBranch, vreg, left_offset, right_offset};
+  return completion;
+}
+
 }  // namespace
 
 
-// TODO(dcarney): fake opcodes.
-// TODO(dcarney): fix printing of sequence w.r.t fake opcodes and registers.
 class RegisterAllocatorTest : public TestWithZone {
  public:
   static const int kDefaultNRegs = 4;
@@ -49,10 +75,16 @@ class RegisterAllocatorTest : public TestWithZone {
   RegisterAllocatorTest()
       : num_general_registers_(kDefaultNRegs),
         num_double_registers_(kDefaultNRegs),
-        basic_blocks_(zone()),
         instruction_blocks_(zone()),
-        current_block_(NULL) {
+        current_block_(nullptr),
+        is_last_block_(false) {
     InitializeRegisterNames();
+  }
+
+  void SetNumRegs(int num_general_registers, int num_double_registers) {
+    CHECK(instruction_blocks_.empty());
+    num_general_registers_ = num_general_registers;
+    num_double_registers_ = num_double_registers;
   }
 
   RegisterConfiguration* config() {
@@ -86,42 +118,64 @@ class RegisterAllocatorTest : public TestWithZone {
     return allocator_.get();
   }
 
-  InstructionBlock* StartBlock(Rpo loop_header = Rpo::Invalid(),
-                               Rpo loop_end = Rpo::Invalid()) {
-    CHECK(current_block_ == NULL);
-    BasicBlock::Id block_id =
-        BasicBlock::Id::FromSize(instruction_blocks_.size());
-    BasicBlock* basic_block = new (zone()) BasicBlock(zone(), block_id);
-    basic_block->set_rpo_number(block_id.ToInt());
-    basic_block->set_ao_number(block_id.ToInt());
-    if (loop_header.IsValid()) {
-      basic_block->set_loop_depth(1);
-      basic_block->set_loop_header(basic_blocks_[loop_header.ToSize()]);
-      basic_block->set_loop_end(loop_end.ToInt());
+  void StartLoop(int loop_blocks) {
+    CHECK(current_block_ == nullptr);
+    if (!loop_blocks_.empty()) {
+      CHECK(!loop_blocks_.back().loop_header_.IsValid());
     }
-    InstructionBlock* instruction_block =
-        new (zone()) InstructionBlock(zone(), basic_block);
-    basic_blocks_.push_back(basic_block);
-    instruction_blocks_.push_back(instruction_block);
-    current_block_ = instruction_block;
-    sequence()->StartBlock(basic_block);
-    return instruction_block;
+    LoopData loop_data = {Rpo::Invalid(), loop_blocks};
+    loop_blocks_.push_back(loop_data);
   }
 
-  void EndBlock() {
-    CHECK(current_block_ != NULL);
-    sequence()->EndBlock(basic_blocks_[current_block_->rpo_number().ToSize()]);
-    current_block_ = NULL;
+  void EndLoop() {
+    CHECK(current_block_ == nullptr);
+    CHECK(!loop_blocks_.empty());
+    CHECK_EQ(0, loop_blocks_.back().expected_blocks_);
+    loop_blocks_.pop_back();
+  }
+
+  void StartLastBlock() {
+    CHECK(!is_last_block_);
+    is_last_block_ = true;
+    NewBlock();
+  }
+
+  void StartBlock() {
+    CHECK(!is_last_block_);
+    NewBlock();
+  }
+
+  void EndBlock(BlockCompletion completion = FallThrough()) {
+    completions_.push_back(completion);
+    switch (completion.type_) {
+      case kFallThrough:
+        if (is_last_block_) break;
+        // TODO(dcarney): we don't emit this after returns.
+        EmitFallThrough();
+        break;
+      case kJump:
+        EmitJump();
+        break;
+      case kBranch:
+        EmitBranch(completion.vreg_);
+        break;
+    }
+    CHECK(current_block_ != nullptr);
+    sequence()->EndBlock(current_block_->rpo_number());
+    current_block_ = nullptr;
   }
 
   void Allocate() {
-    if (FLAG_trace_alloc) {
+    CHECK_EQ(nullptr, current_block_);
+    CHECK(is_last_block_);
+    WireBlocks();
+    if (FLAG_trace_alloc || FLAG_trace_turbo) {
       OFStream os(stdout);
       PrintableInstructionSequence printable = {config(), sequence()};
       os << "Before: " << std::endl << printable << std::endl;
     }
     allocator()->Allocate();
-    if (FLAG_trace_alloc) {
+    if (FLAG_trace_alloc || FLAG_trace_turbo) {
       OFStream os(stdout);
       PrintableInstructionSequence printable = {config(), sequence()};
       os << "After: " << std::endl << printable << std::endl;
@@ -131,67 +185,327 @@ class RegisterAllocatorTest : public TestWithZone {
   int NewReg() { return sequence()->NextVirtualRegister(); }
 
   int Parameter() {
-    // TODO(dcarney): assert parameters before other instructions.
     int vreg = NewReg();
-    InstructionOperand* outputs[1]{
-        Unallocated(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
-    sequence()->AddInstruction(
-        Instruction::New(zone(), kArchNop, 1, outputs, 0, NULL, 0, NULL));
+    InstructionOperand* outputs[1]{UseRegister(vreg)};
+    Emit(kArchNop, 1, outputs);
     return vreg;
   }
 
-  void Return(int vreg) {
-    InstructionOperand* inputs[1]{
-        Unallocated(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
-    sequence()->AddInstruction(
-        Instruction::New(zone(), kArchNop, 0, NULL, 1, inputs, 0, NULL));
+  Instruction* Return(int vreg) {
+    InstructionOperand* inputs[1]{UseRegister(vreg)};
+    return Emit(kArchRet, 0, nullptr, 1, inputs);
   }
 
-  Instruction* Emit(int output_vreg, int input_vreg_0, int input_vreg_1) {
+  PhiInstruction* Phi(int vreg) {
+    PhiInstruction* phi = new (zone()) PhiInstruction(zone(), NewReg());
+    phi->operands().push_back(vreg);
+    current_block_->AddPhi(phi);
+    return phi;
+  }
+
+  int DefineConstant(int32_t imm = 0) {
+    int virtual_register = NewReg();
+    sequence()->AddConstant(virtual_register, Constant(imm));
     InstructionOperand* outputs[1]{
-        Unallocated(UnallocatedOperand::MUST_HAVE_REGISTER, output_vreg)};
-    InstructionOperand* inputs[2]{
-        Unallocated(UnallocatedOperand::MUST_HAVE_REGISTER, input_vreg_0),
-        Unallocated(UnallocatedOperand::MUST_HAVE_REGISTER, input_vreg_1)};
-    Instruction* instruction =
-        Instruction::New(zone(), kArchNop, 1, outputs, 2, inputs, 0, NULL);
-    sequence()->AddInstruction(instruction);
-    return instruction;
+        ConstantOperand::Create(virtual_register, zone())};
+    Emit(kArchNop, 1, outputs);
+    return virtual_register;
+  }
+
+  ImmediateOperand* Immediate(int32_t imm = 0) {
+    int index = sequence()->AddImmediate(Constant(imm));
+    return ImmediateOperand::Create(index, zone());
+  }
+
+  Instruction* EmitFRI(int output_vreg, int input_vreg_0) {
+    InstructionOperand* outputs[1]{DefineSameAsFirst(output_vreg)};
+    InstructionOperand* inputs[2]{UseRegister(input_vreg_0), Immediate()};
+    return Emit(kArchNop, 1, outputs, 2, inputs);
+  }
+
+  Instruction* EmitFRU(int output_vreg, int input_vreg_0, int input_vreg_1) {
+    InstructionOperand* outputs[1]{DefineSameAsFirst(output_vreg)};
+    InstructionOperand* inputs[2]{UseRegister(input_vreg_0), Use(input_vreg_1)};
+    return Emit(kArchNop, 1, outputs, 2, inputs);
+  }
+
+  Instruction* EmitRRR(int output_vreg, int input_vreg_0, int input_vreg_1) {
+    InstructionOperand* outputs[1]{UseRegister(output_vreg)};
+    InstructionOperand* inputs[2]{UseRegister(input_vreg_0),
+                                  UseRegister(input_vreg_1)};
+    return Emit(kArchNop, 1, outputs, 2, inputs);
   }
 
  private:
-  InstructionOperand* Unallocated(UnallocatedOperand::ExtendedPolicy policy,
-                                  int vreg) {
-    UnallocatedOperand* op =
-        new (zone()) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER);
+  InstructionOperand* Unallocated(int vreg,
+                                  UnallocatedOperand::ExtendedPolicy policy) {
+    UnallocatedOperand* op = new (zone()) UnallocatedOperand(policy);
     op->set_virtual_register(vreg);
     return op;
   }
 
-  int num_general_registers_;
-  int num_double_registers_;
+  InstructionOperand* Unallocated(int vreg,
+                                  UnallocatedOperand::ExtendedPolicy policy,
+                                  UnallocatedOperand::Lifetime lifetime) {
+    UnallocatedOperand* op = new (zone()) UnallocatedOperand(policy, lifetime);
+    op->set_virtual_register(vreg);
+    return op;
+  }
+
+  InstructionOperand* UseRegister(int vreg) {
+    return Unallocated(vreg, UnallocatedOperand::MUST_HAVE_REGISTER);
+  }
+
+  InstructionOperand* DefineSameAsFirst(int vreg) {
+    return Unallocated(vreg, UnallocatedOperand::SAME_AS_FIRST_INPUT);
+  }
+
+  InstructionOperand* Use(int vreg) {
+    return Unallocated(vreg, UnallocatedOperand::NONE,
+                       UnallocatedOperand::USED_AT_START);
+  }
+
+  void EmitBranch(int vreg) {
+    InstructionOperand* inputs[4]{UseRegister(vreg), Immediate(), Immediate(),
+                                  Immediate()};
+    InstructionCode opcode = kArchJmp | FlagsModeField::encode(kFlags_branch) |
+                             FlagsConditionField::encode(kEqual);
+    Instruction* instruction =
+        NewInstruction(opcode, 0, nullptr, 4, inputs)->MarkAsControl();
+    sequence()->AddInstruction(instruction);
+  }
+
+  void EmitFallThrough() {
+    Instruction* instruction =
+        NewInstruction(kArchNop, 0, nullptr)->MarkAsControl();
+    sequence()->AddInstruction(instruction);
+  }
+
+  void EmitJump() {
+    InstructionOperand* inputs[1]{Immediate()};
+    Instruction* instruction =
+        NewInstruction(kArchJmp, 0, nullptr, 1, inputs)->MarkAsControl();
+    sequence()->AddInstruction(instruction);
+  }
+
+  Instruction* NewInstruction(InstructionCode code, size_t outputs_size,
+                              InstructionOperand** outputs,
+                              size_t inputs_size = 0,
+                              InstructionOperand* *inputs = nullptr,
+                              size_t temps_size = 0,
+                              InstructionOperand* *temps = nullptr) {
+    CHECK_NE(nullptr, current_block_);
+    return Instruction::New(zone(), code, outputs_size, outputs, inputs_size,
+                            inputs, temps_size, temps);
+  }
+
+  Instruction* Emit(InstructionCode code, size_t outputs_size,
+                    InstructionOperand** outputs, size_t inputs_size = 0,
+                    InstructionOperand* *inputs = nullptr,
+                    size_t temps_size = 0,
+                    InstructionOperand* *temps = nullptr) {
+    Instruction* instruction = NewInstruction(
+        code, outputs_size, outputs, inputs_size, inputs, temps_size, temps);
+    sequence()->AddInstruction(instruction);
+    return instruction;
+  }
+
+  InstructionBlock* NewBlock() {
+    CHECK(current_block_ == nullptr);
+    BasicBlock::Id block_id =
+        BasicBlock::Id::FromSize(instruction_blocks_.size());
+    Rpo rpo = Rpo::FromInt(block_id.ToInt());
+    Rpo loop_header = Rpo::Invalid();
+    Rpo loop_end = Rpo::Invalid();
+    if (!loop_blocks_.empty()) {
+      auto& loop_data = loop_blocks_.back();
+      // This is a loop header.
+      if (!loop_data.loop_header_.IsValid()) {
+        loop_end = Rpo::FromInt(block_id.ToInt() + loop_data.expected_blocks_);
+        loop_data.expected_blocks_--;
+        loop_data.loop_header_ = rpo;
+      } else {
+        // This is a loop body.
+        CHECK_NE(0, loop_data.expected_blocks_);
+        // TODO(dcarney): handle nested loops.
+        loop_data.expected_blocks_--;
+        loop_header = loop_data.loop_header_;
+      }
+    }
+    // Construct instruction block.
+    InstructionBlock* instruction_block = new (zone()) InstructionBlock(
+        zone(), block_id, rpo, rpo, loop_header, loop_end, false);
+    instruction_blocks_.push_back(instruction_block);
+    current_block_ = instruction_block;
+    sequence()->StartBlock(rpo);
+    return instruction_block;
+  }
+
+  void WireBlocks() {
+    CHECK(instruction_blocks_.size() == completions_.size());
+    size_t offset = 0;
+    size_t size = instruction_blocks_.size();
+    for (const auto& completion : completions_) {
+      switch (completion.type_) {
+        case kFallThrough:
+          if (offset == size - 1) break;
+        // Fallthrough.
+        case kJump:
+          WireBlock(offset, completion.offset_0_);
+          break;
+        case kBranch:
+          WireBlock(offset, completion.offset_0_);
+          WireBlock(offset, completion.offset_1_);
+          break;
+      }
+      ++offset;
+    }
+  }
+
+  void WireBlock(size_t block_offset, int jump_offset) {
+    size_t target_block_offset =
+        block_offset + static_cast<size_t>(jump_offset);
+    CHECK(block_offset < instruction_blocks_.size());
+    CHECK(target_block_offset < instruction_blocks_.size());
+    InstructionBlock* block = instruction_blocks_[block_offset];
+    InstructionBlock* target = instruction_blocks_[target_block_offset];
+    block->successors().push_back(target->rpo_number());
+    target->predecessors().push_back(block->rpo_number());
+  }
+
+  struct LoopData {
+    Rpo loop_header_;
+    int expected_blocks_;
+  };
+  typedef std::vector<LoopData> LoopBlocks;
+  typedef std::vector<BlockCompletion> Completions;
+
   SmartPointer<RegisterConfiguration> config_;
-  ZoneVector<BasicBlock*> basic_blocks_;
-  InstructionBlocks instruction_blocks_;
-  InstructionBlock* current_block_;
   SmartPointer<Frame> frame_;
   SmartPointer<RegisterAllocator> allocator_;
   SmartPointer<InstructionSequence> sequence_;
+  int num_general_registers_;
+  int num_double_registers_;
+
+  // Block building state.
+  InstructionBlocks instruction_blocks_;
+  Completions completions_;
+  LoopBlocks loop_blocks_;
+  InstructionBlock* current_block_;
+  bool is_last_block_;
 };
 
 
 TEST_F(RegisterAllocatorTest, CanAllocateThreeRegisters) {
-  StartBlock();
+  StartLastBlock();
   int a_reg = Parameter();
   int b_reg = Parameter();
   int c_reg = NewReg();
-  Instruction* res = Emit(c_reg, a_reg, b_reg);
+  Instruction* res = EmitRRR(c_reg, a_reg, b_reg);
   Return(c_reg);
   EndBlock();
 
   Allocate();
 
   ASSERT_TRUE(res->OutputAt(0)->IsRegister());
+}
+
+
+TEST_F(RegisterAllocatorTest, SimpleLoop) {
+  // i = K;
+  // while(true) { i++ }
+
+  StartBlock();
+  int i_reg = DefineConstant();
+  EndBlock();
+
+  {
+    StartLoop(1);
+
+    StartLastBlock();
+    PhiInstruction* phi = Phi(i_reg);
+    int ipp = NewReg();
+    EmitFRU(ipp, phi->virtual_register(), DefineConstant());
+    phi->operands().push_back(ipp);
+    EndBlock(Jump(0));
+
+    EndLoop();
+  }
+
+  Allocate();
+}
+
+
+TEST_F(RegisterAllocatorTest, SimpleBranch) {
+  // return i ? K1 : K2
+  StartBlock();
+  int i_reg = DefineConstant();
+  EndBlock(Branch(i_reg, 1, 2));
+
+  StartBlock();
+  Return(DefineConstant());
+  EndBlock();
+
+  StartLastBlock();
+  Return(DefineConstant());
+  EndBlock();
+
+  Allocate();
+}
+
+
+TEST_F(RegisterAllocatorTest, RegressionPhisNeedTooManyRegisters) {
+  const size_t kNumRegs = 3;
+  const size_t kParams = kNumRegs + 1;
+  int parameters[kParams];
+
+  // Override number of registers.
+  SetNumRegs(kNumRegs, kNumRegs);
+
+  // Initial block.
+  StartBlock();
+  int constant = DefineConstant();
+  for (size_t i = 0; i < arraysize(parameters); ++i) {
+    parameters[i] = DefineConstant();
+  }
+  EndBlock();
+
+  PhiInstruction* phis[kParams];
+  {
+    StartLoop(2);
+
+    // Loop header.
+    StartBlock();
+
+    for (size_t i = 0; i < arraysize(parameters); ++i) {
+      phis[i] = Phi(parameters[i]);
+    }
+
+    // Perform some computations.
+    // something like phi[i] += const
+    for (size_t i = 0; i < arraysize(parameters); ++i) {
+      int result = NewReg();
+      EmitFRU(result, phis[i]->virtual_register(), constant);
+      phis[i]->operands().push_back(result);
+    }
+
+    EndBlock(Branch(DefineConstant(), 1, 2));
+
+    // Jump back to loop header.
+    StartBlock();
+    EndBlock(Jump(-1));
+
+    EndLoop();
+  }
+
+  // End block.
+  StartLastBlock();
+
+  // Return sum.
+  Return(DefineConstant());
+  EndBlock();
+
+  Allocate();
 }
 
 }  // namespace compiler

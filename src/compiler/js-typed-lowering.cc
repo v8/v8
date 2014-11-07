@@ -29,6 +29,16 @@ static void RelaxEffects(Node* node) {
 }
 
 
+JSTypedLowering::JSTypedLowering(JSGraph* jsgraph)
+    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {
+  Factory* factory = zone()->isolate()->factory();
+  Handle<Object> zero = factory->NewNumber(0.0);
+  Handle<Object> one = factory->NewNumber(1.0);
+  zero_range_ = Type::Range(zero, zero, zone());
+  one_range_ = Type::Range(one, one, zone());
+}
+
+
 JSTypedLowering::~JSTypedLowering() {}
 
 
@@ -255,6 +265,36 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToPureOperator(simplified()->StringAdd());
   }
 #endif
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(zero_range_)) {
+    // TODO(jarin): Propagate frame state input from non-primitive input node to
+    // JSToNumber node.
+    // TODO(titzer): some Smi bitwise operations don't really require going
+    // all the way to int32, which can save tagging/untagging for some
+    // operations
+    // on some platforms.
+    // TODO(turbofan): make this heuristic configurable for code size.
+    r.ConvertInputsToInt32(true, true);
+    return r.ChangeToPureOperator(machine()->Word32Or());
+  }
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(one_range_)) {
+    // TODO(jarin): Propagate frame state input from non-primitive input node to
+    // JSToNumber node.
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberMultiply());
+  }
+  // TODO(turbofan): relax/remove the effects of this operator in other cases.
   return NoChange();
 }
 
@@ -697,7 +737,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSGreaterThanOrEqual:
       return ReduceJSComparison(node);
     case IrOpcode::kJSBitwiseOr:
-      return ReduceI32Binop(node, true, true, machine()->Word32Or());
+      return ReduceJSBitwiseOr(node);
     case IrOpcode::kJSBitwiseXor:
       return ReduceI32Binop(node, true, true, machine()->Word32Xor());
     case IrOpcode::kJSBitwiseAnd:
@@ -713,7 +753,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSSubtract:
       return ReduceNumberBinop(node, simplified()->NumberSubtract());
     case IrOpcode::kJSMultiply:
-      return ReduceNumberBinop(node, simplified()->NumberMultiply());
+      return ReduceJSMultiply(node);
     case IrOpcode::kJSDivide:
       return ReduceNumberBinop(node, simplified()->NumberDivide());
     case IrOpcode::kJSModulus:

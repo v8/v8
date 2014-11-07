@@ -139,7 +139,7 @@ TEST(InstructionBasic) {
     BasicBlock* block = *i;
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
     CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
-    CHECK_EQ(-1, block->loop_end());
+    CHECK_EQ(NULL, block->loop_end());
   }
 }
 
@@ -158,23 +158,23 @@ TEST(InstructionGetBasicBlock) {
 
   R.allocCode();
 
-  R.code->StartBlock(b0);
+  R.code->StartBlock(b0->GetRpoNumber());
   int i0 = R.NewInstr();
   int i1 = R.NewInstr();
-  R.code->EndBlock(b0);
-  R.code->StartBlock(b1);
+  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->StartBlock(b1->GetRpoNumber());
   int i2 = R.NewInstr();
   int i3 = R.NewInstr();
   int i4 = R.NewInstr();
   int i5 = R.NewInstr();
-  R.code->EndBlock(b1);
-  R.code->StartBlock(b2);
+  R.code->EndBlock(b1->GetRpoNumber());
+  R.code->StartBlock(b2->GetRpoNumber());
   int i6 = R.NewInstr();
   int i7 = R.NewInstr();
   int i8 = R.NewInstr();
-  R.code->EndBlock(b2);
-  R.code->StartBlock(b3);
-  R.code->EndBlock(b3);
+  R.code->EndBlock(b2->GetRpoNumber());
+  R.code->StartBlock(b3->GetRpoNumber());
+  R.code->EndBlock(b3->GetRpoNumber());
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));
   CHECK_EQ(b0, R.GetBasicBlock(i1));
@@ -211,10 +211,10 @@ TEST(InstructionIsGapAt) {
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0);
+  R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0);
+  R.code->EndBlock(b0->GetRpoNumber());
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
 
@@ -238,17 +238,17 @@ TEST(InstructionIsGapAt2) {
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0);
+  R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0);
+  R.code->EndBlock(b0->GetRpoNumber());
 
   TestInstr* i1 = TestInstr::New(R.zone(), 102);
   TestInstr* g1 = TestInstr::New(R.zone(), 104)->MarkAsControl();
-  R.code->StartBlock(b1);
+  R.code->StartBlock(b1->GetRpoNumber());
   R.code->AddInstruction(i1);
   R.code->AddInstruction(g1);
-  R.code->EndBlock(b1);
+  R.code->EndBlock(b1->GetRpoNumber());
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
 
@@ -279,10 +279,10 @@ TEST(InstructionAddGapMove) {
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0);
+  R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0);
+  R.code->EndBlock(b0->GetRpoNumber());
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
 

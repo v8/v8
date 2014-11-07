@@ -106,10 +106,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
               Type::Unsigned32(), kMachUint32};
     case kExternalFloat32Array:
       return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Number(),
-              kRepFloat32};
+              kMachFloat32};
     case kExternalFloat64Array:
       return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Number(),
-              kRepFloat64};
+              kMachFloat64};
   }
   UNREACHABLE();
   return {kTypedArrayBoundsCheck, kUntaggedBase, 0, Type::None(), kMachNone};

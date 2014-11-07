@@ -182,23 +182,16 @@ static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
 }
 
 
-static bool ArrayPrototypeHasNoElements(Heap* heap,
-                                        Context* native_context,
-                                        JSObject* array_proto) {
+static bool ArrayPrototypeHasNoElements(Heap* heap, PrototypeIterator* iter) {
   DisallowHeapAllocation no_gc;
-  // This method depends on non writability of Object and Array prototype
-  // fields.
-  if (array_proto->elements() != heap->empty_fixed_array()) return false;
-  // Object.prototype
-  PrototypeIterator iter(heap->isolate(), array_proto);
-  if (iter.IsAtEnd()) {
-    return false;
+  for (; !iter->IsAtEnd(); iter->Advance()) {
+    if (iter->GetCurrent()->IsJSProxy()) return false;
+    if (JSObject::cast(iter->GetCurrent())->elements() !=
+        heap->empty_fixed_array()) {
+      return false;
+    }
   }
-  array_proto = JSObject::cast(iter.GetCurrent());
-  if (array_proto != native_context->initial_object_prototype()) return false;
-  if (array_proto->elements() != heap->empty_fixed_array()) return false;
-  iter.Advance();
-  return iter.IsAtEnd();
+  return true;
 }
 
 
@@ -206,12 +199,8 @@ static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   if (!FLAG_clever_optimizations) return false;
   DisallowHeapAllocation no_gc;
-  Context* native_context = heap->isolate()->context()->native_context();
-  JSObject* array_proto =
-      JSObject::cast(native_context->array_function()->prototype());
   PrototypeIterator iter(heap->isolate(), receiver);
-  return iter.GetCurrent() == array_proto &&
-         ArrayPrototypeHasNoElements(heap, native_context, array_proto);
+  return ArrayPrototypeHasNoElements(heap, &iter);
 }
 
 
@@ -920,9 +909,10 @@ BUILTIN(ArrayConcat) {
     DisallowHeapAllocation no_gc;
     Heap* heap = isolate->heap();
     Context* native_context = isolate->context()->native_context();
-    JSObject* array_proto =
-        JSObject::cast(native_context->array_function()->prototype());
-    if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
+    Object* array_proto = native_context->array_function()->prototype();
+    PrototypeIterator iter(isolate, array_proto,
+                           PrototypeIterator::START_AT_RECEIVER);
+    if (!ArrayPrototypeHasNoElements(heap, &iter)) {
       AllowHeapAllocation allow_allocation;
       return CallJsBuiltin(isolate, "ArrayConcatJS", args);
     }

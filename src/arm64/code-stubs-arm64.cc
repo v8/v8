@@ -3833,6 +3833,22 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in x0.
+  Label check_heap_number, call_builtin;
+  __ JumpIfNotSmi(x0, &check_heap_number);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ JumpIfNotHeapNumber(x0, &call_builtin);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ push(x0);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void StringHelper::GenerateFlatOneByteStringEquals(
     MacroAssembler* masm, Register left, Register right, Register scratch1,
     Register scratch2, Register scratch3) {

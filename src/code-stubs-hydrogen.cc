@@ -284,37 +284,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 
 
 template <>
-HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
-  HValue* value = GetParameter(0);
-
-  // Check if the parameter is already a SMI or heap number.
-  IfBuilder if_number(this);
-  if_number.If<HIsSmiAndBranch>(value);
-  if_number.OrIf<HCompareMap>(value, isolate()->factory()->heap_number_map());
-  if_number.Then();
-
-  // Return the number.
-  Push(value);
-
-  if_number.Else();
-
-  // Convert the parameter to number using the builtin.
-  HValue* function = AddLoadJSBuiltin(Builtins::TO_NUMBER);
-  Add<HPushArguments>(value);
-  Push(Add<HInvokeFunction>(function, 1));
-
-  if_number.End();
-
-  return Pop();
-}
-
-
-Handle<Code> ToNumberStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(NumberToStringStub::kNumber);

@@ -654,9 +654,6 @@ void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
-void ToNumberStub::InitializeDescriptor(CodeStubDescriptor* d) {}
-
-
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(

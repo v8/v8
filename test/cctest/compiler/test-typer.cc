@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "src/codegen.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
@@ -14,7 +15,7 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 
-
+// TODO(titzer): generate a large set of deterministic inputs for these tests.
 class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
  public:
   TyperTester()
@@ -79,11 +80,15 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
 
   Type* RandomRange(bool int32 = false) {
     std::vector<double>& numbers = int32 ? int32s : integers;
+    double i = numbers[rng_->NextInt(static_cast<int>(numbers.size()))];
+    double j = numbers[rng_->NextInt(static_cast<int>(numbers.size()))];
+    return NewRange(i, j);
+  }
+
+  Type* NewRange(double i, double j) {
     Factory* f = isolate()->factory();
-    int i = rng_->NextInt(static_cast<int>(numbers.size()));
-    int j = rng_->NextInt(static_cast<int>(numbers.size()));
-    i::Handle<i::Object> min = f->NewNumber(numbers[i]);
-    i::Handle<i::Object> max = f->NewNumber(numbers[j]);
+    i::Handle<i::Object> min = f->NewNumber(i);
+    i::Handle<i::Object> max = f->NewNumber(j);
     if (min->Number() > max->Number()) std::swap(min, max);
     return Type::Range(min, max, main_zone());
   }
@@ -110,18 +115,47 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
     return RandomInt(range->Min()->Number(), range->Max()->Number());
   }
 
+  // Careful, this function runs O(max_width^5) trials.
+  template <class BinaryFunction>
+  void TestBinaryArithOpCloseToZero(const Operator* op, BinaryFunction opfun,
+                                    int max_width) {
+    const int min_min = -2 - max_width / 2;
+    const int max_min = 2 + max_width / 2;
+    for (int width = 0; width < max_width; width++) {
+      for (int lmin = min_min; lmin <= max_min; lmin++) {
+        for (int rmin = min_min; rmin <= max_min; rmin++) {
+          Type* r1 = NewRange(lmin, lmin + width);
+          Type* r2 = NewRange(rmin, rmin + width);
+          Type* expected_type = TypeBinaryOp(op, r1, r2);
+
+          for (int x1 = lmin; x1 < lmin + width; x1++) {
+            for (int x2 = rmin; x2 < rmin + width; x2++) {
+              double result_value = opfun(x1, x2);
+              Type* result_type = Type::Constant(
+                  isolate()->factory()->NewNumber(result_value), main_zone());
+              CHECK(result_type->Is(expected_type));
+            }
+          }
+        }
+      }
+    }
+  }
+
   template <class BinaryFunction>
   void TestBinaryArithOp(const Operator* op, BinaryFunction opfun) {
+    TestBinaryArithOpCloseToZero(op, opfun, 8);
     for (int i = 0; i < 100; ++i) {
       Type::RangeType* r1 = RandomRange()->AsRange();
       Type::RangeType* r2 = RandomRange()->AsRange();
       Type* expected_type = TypeBinaryOp(op, r1, r2);
-      double x1 = RandomInt(r1);
-      double x2 = RandomInt(r2);
-      double result_value = opfun(x1, x2);
-      Type* result_type = Type::Constant(
-          isolate()->factory()->NewNumber(result_value), main_zone());
-      CHECK(result_type->Is(expected_type));
+      for (int i = 0; i < 10; i++) {
+        double x1 = RandomInt(r1);
+        double x2 = RandomInt(r2);
+        double result_value = opfun(x1, x2);
+        Type* result_type = Type::Constant(
+            isolate()->factory()->NewNumber(result_value), main_zone());
+        CHECK(result_type->Is(expected_type));
+      }
     }
   }
 
@@ -131,13 +165,16 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
       Type::RangeType* r1 = RandomRange()->AsRange();
       Type::RangeType* r2 = RandomRange()->AsRange();
       Type* expected_type = TypeBinaryOp(op, r1, r2);
-      double x1 = RandomInt(r1);
-      double x2 = RandomInt(r2);
-      bool result_value = opfun(x1, x2);
-      Type* result_type = Type::Constant(result_value ?
-          isolate()->factory()->true_value() :
-          isolate()->factory()->false_value(), main_zone());
-      CHECK(result_type->Is(expected_type));
+      for (int i = 0; i < 10; i++) {
+        double x1 = RandomInt(r1);
+        double x2 = RandomInt(r2);
+        bool result_value = opfun(x1, x2);
+        Type* result_type =
+            Type::Constant(result_value ? isolate()->factory()->true_value()
+                                        : isolate()->factory()->false_value(),
+                           main_zone());
+        CHECK(result_type->Is(expected_type));
+      }
     }
   }
 
@@ -147,12 +184,14 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
       Type::RangeType* r1 = RandomRange(true)->AsRange();
       Type::RangeType* r2 = RandomRange(true)->AsRange();
       Type* expected_type = TypeBinaryOp(op, r1, r2);
-      int32_t x1 = static_cast<int32_t>(RandomInt(r1));
-      int32_t x2 = static_cast<int32_t>(RandomInt(r2));
-      double result_value = opfun(x1, x2);
-      Type* result_type = Type::Constant(
-          isolate()->factory()->NewNumber(result_value), main_zone());
-      CHECK(result_type->Is(expected_type));
+      for (int i = 0; i < 10; i++) {
+        int32_t x1 = static_cast<int32_t>(RandomInt(r1));
+        int32_t x2 = static_cast<int32_t>(RandomInt(r2));
+        double result_value = opfun(x1, x2);
+        Type* result_type = Type::Constant(
+            isolate()->factory()->NewNumber(result_value), main_zone());
+        CHECK(result_type->Is(expected_type));
+      }
     }
   }
 
@@ -213,6 +252,12 @@ TEST(TypeJSMultiply) {
 TEST(TypeJSDivide) {
   TyperTester t;
   t.TestBinaryArithOp(t.javascript_.Divide(), std::divides<double>());
+}
+
+
+TEST(TypeJSModulus) {
+  TyperTester t;
+  t.TestBinaryArithOp(t.javascript_.Modulus(), modulo);
 }
 
 
@@ -325,10 +370,10 @@ TEST(TypeJSStrictNotEqual) {
   V(Modulus)
 
 
-TEST(Monotonicity) {
-  TyperTester t;
-  #define TEST_OP(name) \
-      t.TestBinaryMonotonicity(t.javascript_.name());
-  JSBINOP_LIST(TEST_OP)
-  #undef TEST_OP
-}
+#define TEST_FUNC(name)                             \
+  TEST(Monotonicity_##name) {                       \
+    TyperTester t;                                  \
+    t.TestBinaryMonotonicity(t.javascript_.name()); \
+  }
+JSBINOP_LIST(TEST_FUNC)
+#undef TEST_FUNC

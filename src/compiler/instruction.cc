@@ -338,45 +338,23 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 }
 
 
-static BasicBlock::RpoNumber GetRpo(BasicBlock* block) {
-  if (block == NULL) return BasicBlock::RpoNumber::Invalid();
-  return block->GetRpoNumber();
-}
-
-
-static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
-  if (!block->IsLoopHeader()) return BasicBlock::RpoNumber::Invalid();
-  return BasicBlock::RpoNumber::FromInt(block->loop_end());
-}
-
-
-InstructionBlock::InstructionBlock(Zone* zone, const BasicBlock* block)
-    : successors_(static_cast<int>(block->SuccessorCount()),
-                  BasicBlock::RpoNumber::Invalid(), zone),
-      predecessors_(static_cast<int>(block->PredecessorCount()),
-                    BasicBlock::RpoNumber::Invalid(), zone),
+InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
+                                   BasicBlock::RpoNumber ao_number,
+                                   BasicBlock::RpoNumber rpo_number,
+                                   BasicBlock::RpoNumber loop_header,
+                                   BasicBlock::RpoNumber loop_end,
+                                   bool deferred)
+    : successors_(zone),
+      predecessors_(zone),
       phis_(zone),
-      id_(block->id()),
-      ao_number_(block->GetAoNumber()),
-      rpo_number_(block->GetRpoNumber()),
-      loop_header_(GetRpo(block->loop_header())),
-      loop_end_(GetLoopEndRpo(block)),
+      id_(id),
+      ao_number_(ao_number),
+      rpo_number_(rpo_number),
+      loop_header_(loop_header),
+      loop_end_(loop_end),
       code_start_(-1),
       code_end_(-1),
-      deferred_(block->deferred()) {
-  // Map successors and precessors
-  size_t index = 0;
-  for (BasicBlock::Successors::const_iterator it = block->successors_begin();
-       it != block->successors_end(); ++it, ++index) {
-    successors_[index] = (*it)->GetRpoNumber();
-  }
-  index = 0;
-  for (BasicBlock::Predecessors::const_iterator
-           it = block->predecessors_begin();
-       it != block->predecessors_end(); ++it, ++index) {
-    predecessors_[index] = (*it)->GetRpoNumber();
-  }
-}
+      deferred_(deferred) {}
 
 
 size_t InstructionBlock::PredecessorIndexOf(
@@ -390,6 +368,38 @@ size_t InstructionBlock::PredecessorIndexOf(
 }
 
 
+static BasicBlock::RpoNumber GetRpo(BasicBlock* block) {
+  if (block == NULL) return BasicBlock::RpoNumber::Invalid();
+  return block->GetRpoNumber();
+}
+
+
+static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
+  if (!block->IsLoopHeader()) return BasicBlock::RpoNumber::Invalid();
+  return block->loop_end()->GetRpoNumber();
+}
+
+
+static InstructionBlock* InstructionBlockFor(Zone* zone,
+                                             const BasicBlock* block) {
+  InstructionBlock* instr_block = new (zone) InstructionBlock(
+      zone, block->id(), block->GetAoNumber(), block->GetRpoNumber(),
+      GetRpo(block->loop_header()), GetLoopEndRpo(block), block->deferred());
+  // Map successors and precessors
+  instr_block->successors().reserve(block->SuccessorCount());
+  for (auto it = block->successors_begin(); it != block->successors_end();
+       ++it) {
+    instr_block->successors().push_back((*it)->GetRpoNumber());
+  }
+  instr_block->predecessors().reserve(block->PredecessorCount());
+  for (auto it = block->predecessors_begin(); it != block->predecessors_end();
+       ++it) {
+    instr_block->predecessors().push_back((*it)->GetRpoNumber());
+  }
+  return instr_block;
+}
+
+
 InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
@@ -400,7 +410,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
     DCHECK_EQ(NULL, (*blocks)[rpo_number]);
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
-    (*blocks)[rpo_number] = new (zone) InstructionBlock(zone, *it);
+    (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
   return blocks;
 }
@@ -410,6 +420,7 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
                                          InstructionBlocks* instruction_blocks)
     : zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
+      block_starts_(zone()),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
@@ -418,36 +429,32 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
       pointer_maps_(zone()),
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
-      deoptimization_entries_(zone()) {}
-
-
-Label* InstructionSequence::GetLabel(BasicBlock::RpoNumber rpo) {
-  return GetBlockStart(rpo)->label();
+      deoptimization_entries_(zone()) {
+  block_starts_.reserve(instruction_blocks_->size());
 }
 
 
 BlockStartInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) {
   InstructionBlock* block = InstructionBlockAt(rpo);
-  BlockStartInstruction* block_start =
-      BlockStartInstruction::cast(InstructionAt(block->code_start()));
-  DCHECK_EQ(rpo.ToInt(), block_start->rpo_number().ToInt());
-  return block_start;
+  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
-void InstructionSequence::StartBlock(BasicBlock* basic_block) {
-  InstructionBlock* block = InstructionBlockAt(basic_block->GetRpoNumber());
-  block->set_code_start(static_cast<int>(instructions_.size()));
-  BlockStartInstruction* block_start =
-      BlockStartInstruction::New(zone(), basic_block);
+void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
+  DCHECK(block_starts_.size() == rpo.ToSize());
+  InstructionBlock* block = InstructionBlockAt(rpo);
+  int code_start = static_cast<int>(instructions_.size());
+  block->set_code_start(code_start);
+  block_starts_.push_back(code_start);
+  BlockStartInstruction* block_start = BlockStartInstruction::New(zone());
   AddInstruction(block_start);
 }
 
 
-void InstructionSequence::EndBlock(BasicBlock* basic_block) {
+void InstructionSequence::EndBlock(BasicBlock::RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
-  InstructionBlock* block = InstructionBlockAt(basic_block->GetRpoNumber());
+  InstructionBlock* block = InstructionBlockAt(rpo);
   DCHECK(block->code_start() >= 0 && block->code_start() < end);
   block->set_code_end(end);
 }
@@ -473,15 +480,15 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
 
 const InstructionBlock* InstructionSequence::GetInstructionBlock(
     int instruction_index) const {
-  // TODO(turbofan): Optimize this.
-  for (;;) {
-    DCHECK_LE(0, instruction_index);
-    Instruction* instruction = InstructionAt(instruction_index--);
-    if (instruction->IsBlockStart()) {
-      return instruction_blocks_->at(
-          BlockStartInstruction::cast(instruction)->rpo_number().ToSize());
-    }
-  }
+  DCHECK(instruction_blocks_->size() == block_starts_.size());
+  auto begin = block_starts_.begin();
+  auto end = std::lower_bound(begin, block_starts_.end(), instruction_index,
+                              std::less_equal<int>());
+  size_t index = std::distance(begin, end) - 1;
+  auto block = instruction_blocks_->at(index);
+  DCHECK(block->code_start() <= instruction_index &&
+         instruction_index < block->code_end());
+  return block;
 }
 
 

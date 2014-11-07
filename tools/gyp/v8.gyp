@@ -1146,15 +1146,19 @@
             '../../src/x64/macro-assembler-x64.h',
             '../../src/x64/regexp-macro-assembler-x64.cc',
             '../../src/x64/regexp-macro-assembler-x64.h',
-            '../../src/compiler/x64/code-generator-x64.cc',
-            '../../src/compiler/x64/instruction-codes-x64.h',
-            '../../src/compiler/x64/instruction-selector-x64.cc',
-            '../../src/compiler/x64/linkage-x64.cc',
             '../../src/ic/x64/access-compiler-x64.cc',
             '../../src/ic/x64/handler-compiler-x64.cc',
             '../../src/ic/x64/ic-x64.cc',
             '../../src/ic/x64/ic-compiler-x64.cc',
             '../../src/ic/x64/stub-cache-x64.cc',
+          ],
+        }],
+        ['v8_target_arch=="x64"', {
+          'sources': [
+            '../../src/compiler/x64/code-generator-x64.cc',
+            '../../src/compiler/x64/instruction-codes-x64.h',
+            '../../src/compiler/x64/instruction-selector-x64.cc',
+            '../../src/compiler/x64/linkage-x64.cc',
           ],
         }],
         ['OS=="linux"', {

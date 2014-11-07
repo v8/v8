@@ -48,7 +48,7 @@ Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
   Handle<TransitionArray> result;
   Isolate* isolate = name->GetIsolate();
 
-  if (flag == SIMPLE_TRANSITION) {
+  if (flag == SIMPLE_PROPERTY_TRANSITION) {
     result = AllocateSimple(isolate, target);
   } else {
     result = Allocate(isolate, 1);
@@ -94,9 +94,19 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
   int number_of_transitions = map->transitions()->number_of_transitions();
   int new_nof = number_of_transitions;
 
-  int insertion_index = kNotFound;
-  int index = map->transitions()->Search(*name, &insertion_index);
+  bool is_special_transition = flag == SPECIAL_TRANSITION;
+  DCHECK_EQ(is_special_transition, IsSpecialTransition(*name));
+  PropertyDetails details = is_special_transition
+                                ? PropertyDetails(NONE, NORMAL, 0)
+                                : GetTargetDetails(*name, *target);
 
+  int insertion_index = kNotFound;
+  int index =
+      is_special_transition
+          ? map->transitions()->SearchSpecial(Symbol::cast(*name),
+                                              &insertion_index)
+          : map->transitions()->Search(details.type(), *name,
+                                       details.attributes(), &insertion_index);
   if (index == kNotFound) {
     ++new_nof;
   } else {
@@ -118,12 +128,12 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
     array->SetNumberOfTransitions(new_nof);
     for (index = number_of_transitions; index > insertion_index; --index) {
       Name* key = array->GetKey(index - 1);
-      DCHECK(key->Hash() > name->Hash());
       array->SetKey(index, key);
       array->SetTarget(index, array->GetTarget(index - 1));
     }
     array->SetKey(index, *name);
     array->SetTarget(index, *target);
+    SLOW_DCHECK(array->IsSortedNoDuplicates());
     return handle(array);
   }
 
@@ -144,7 +154,11 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
     new_nof = number_of_transitions;
 
     insertion_index = kNotFound;
-    index = array->Search(*name, &insertion_index);
+    index = is_special_transition ? map->transitions()->SearchSpecial(
+                                        Symbol::cast(*name), &insertion_index)
+                                  : map->transitions()->Search(
+                                        details.type(), *name,
+                                        details.attributes(), &insertion_index);
     if (index == kNotFound) {
       ++new_nof;
     } else {
@@ -170,8 +184,46 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
   }
 
   result->set_back_pointer_storage(array->back_pointer_storage());
+  SLOW_DCHECK(result->IsSortedNoDuplicates());
   return result;
 }
 
 
+int TransitionArray::SearchDetails(int transition, PropertyType type,
+                                   PropertyAttributes attributes,
+                                   int* out_insertion_index) {
+  int nof_transitions = number_of_transitions();
+  DCHECK(transition < nof_transitions);
+  Name* key = GetKey(transition);
+  bool is_data = type == FIELD || type == CONSTANT;
+  for (; transition < nof_transitions && GetKey(transition) == key;
+       transition++) {
+    Map* target = GetTarget(transition);
+    PropertyDetails target_details = GetTargetDetails(key, target);
+
+    bool target_is_data =
+        target_details.type() == FIELD || target_details.type() == CONSTANT;
+
+    int cmp = CompareDetails(is_data, attributes, target_is_data,
+                             target_details.attributes());
+    if (cmp == 0) {
+      return transition;
+    } else if (cmp < 0) {
+      break;
+    }
+  }
+  if (out_insertion_index != NULL) *out_insertion_index = transition;
+  return kNotFound;
+}
+
+
+int TransitionArray::Search(PropertyType type, Name* name,
+                            PropertyAttributes attributes,
+                            int* out_insertion_index) {
+  int transition = SearchName(name, out_insertion_index);
+  if (transition == kNotFound) {
+    return kNotFound;
+  }
+  return SearchDetails(transition, type, attributes, out_insertion_index);
+}
 } }  // namespace v8::internal

@@ -3351,6 +3351,26 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in a0.
+  Label check_heap_number, call_builtin;
+  __ JumpIfNotSmi(a0, &check_heap_number);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);
+
+  __ bind(&check_heap_number);
+  __ lw(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
+  __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+  __ Branch(&call_builtin, ne, a1, Operand(at));
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);
+
+  __ bind(&call_builtin);
+  __ push(a0);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void StringHelper::GenerateFlatOneByteStringEquals(
     MacroAssembler* masm, Register left, Register right, Register scratch1,
     Register scratch2, Register scratch3) {
