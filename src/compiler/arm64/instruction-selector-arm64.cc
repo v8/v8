@@ -542,6 +542,17 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 
 
 void InstructionSelector::VisitWord64Shl(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if ((m.left().IsChangeInt32ToInt64() || m.left().IsChangeUint32ToUint64()) &&
+      m.right().IsInRange(32, 63)) {
+    // There's no need to sign/zero-extend to 64-bit if we shift out the upper
+    // 32 bits anyway.
+    Emit(kArm64Lsl, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseImmediate(m.right().node()));
+    return;
+  }
   VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
 
@@ -884,6 +895,18 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  if (CanCover(node, value)) {
+    Int64BinopMatcher m(value);
+    if ((m.IsWord64Sar() && m.right().HasValue() &&
+         (m.right().Value() == 32)) ||
+        (m.IsWord64Shr() && m.right().IsInRange(32, 63))) {
+      Emit(kArm64Lsr, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseImmediate(m.right().node()));
+      return;
+    }
+  }
+
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
