@@ -153,7 +153,6 @@ LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
 InobjectPropertiesHelper::InobjectPropertiesHelper(Map* map)
     : all_fields_tagged_(true),
       header_size_(0),
-      inobject_properties_count_(0),
       layout_descriptor_(LayoutDescriptor::FastPointerLayout()) {
   if (!FLAG_unbox_double_fields) return;
 

@@ -118,7 +118,6 @@ class InobjectPropertiesHelper {
  private:
   bool all_fields_tagged_;
   int header_size_;
-  int inobject_properties_count_;
   LayoutDescriptor* layout_descriptor_;
 };
 }

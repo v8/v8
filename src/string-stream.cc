@@ -353,7 +353,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
         FieldIndex index = FieldIndex::ForDescriptor(map, i);
         if (js_object->IsUnboxedDoubleField(index)) {
           double value = js_object->RawFastDoublePropertyAt(index);
-          Add("<unboxed double> %.16g\n", value);
+          Add("<unboxed double> %.16g\n", FmtElm(value));
         } else {
           Object* value = js_object->RawFastPropertyAt(index);
           Add("%o\n", value);

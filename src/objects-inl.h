@@ -7378,9 +7378,10 @@ void ExternalTwoByteString::ExternalTwoByteStringIterateBody() {
 }
 
 
-static void IterateBodyUsingLayoutDescriptor(HeapObject* object,
-                                             int start_offset, int end_offset,
-                                             ObjectVisitor* v) {
+static inline void IterateBodyUsingLayoutDescriptor(HeapObject* object,
+                                                    int start_offset,
+                                                    int end_offset,
+                                                    ObjectVisitor* v) {
   DCHECK(FLAG_unbox_double_fields);
   DCHECK(IsAligned(start_offset, kPointerSize) &&
          IsAligned(end_offset, kPointerSize));
