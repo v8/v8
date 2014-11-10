@@ -46,44 +46,6 @@ class StringHelper : public AllStatic {
 };
 
 
-// This stub can convert a signed int32 to a heap number (double).  It does
-// not work for int32s that are in Smi range!  No GC occurs during this stub
-// so you don't have to set up the frame.
-class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
- public:
-  WriteInt32ToHeapNumberStub(Isolate* isolate, Register the_int,
-                             Register the_heap_number, Register scratch)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = IntRegisterBits::encode(the_int.code()) |
-                 HeapNumberRegisterBits::encode(the_heap_number.code()) |
-                 ScratchRegisterBits::encode(scratch.code());
-  }
-
-  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
-
- private:
-  Register the_int() const {
-    return Register::from_code(IntRegisterBits::decode(minor_key_));
-  }
-
-  Register the_heap_number() const {
-    return Register::from_code(HeapNumberRegisterBits::decode(minor_key_));
-  }
-
-  Register scratch() const {
-    return Register::from_code(ScratchRegisterBits::decode(minor_key_));
-  }
-
-  // Minor key encoding in 16 bits.
-  class IntRegisterBits: public BitField<int, 0, 4> {};
-  class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
-  class ScratchRegisterBits: public BitField<int, 8, 4> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(WriteInt32ToHeapNumber, PlatformCodeStub);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   RecordWriteStub(Isolate* isolate,
