@@ -275,10 +275,6 @@ void JSObject::JSObjectVerify() {
       if (descriptors->GetDetails(i).type() == FIELD) {
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-        if (IsUnboxedDoubleField(index)) {
-          DCHECK(r.IsDouble());
-          continue;
-        }
         Object* value = RawFastPropertyAt(index);
         if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized()) continue;
@@ -320,8 +316,6 @@ void Map::MapVerify() {
     SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
     SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
-  SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor()->IsConsistentWithMap(this));
 }
 
 
@@ -331,7 +325,8 @@ void Map::DictionaryMapVerify() {
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, pre_allocated_property_fields());
   CHECK_EQ(0, unused_property_fields());
-  CHECK_EQ(StaticVisitorBase::GetVisitorId(this), visitor_id());
+  CHECK_EQ(StaticVisitorBase::GetVisitorId(instance_type(), instance_size()),
+      visitor_id());
 }
 
 
@@ -1179,27 +1174,6 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
       return false;
     }
     current = hash;
-  }
-  return true;
-}
-
-
-bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
-  if (FLAG_unbox_double_fields) {
-    DescriptorArray* descriptors = map->instance_descriptors();
-    int nof_descriptors = map->NumberOfOwnDescriptors();
-    for (int i = 0; i < nof_descriptors; i++) {
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (details.type() != FIELD) continue;
-      FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
-      bool tagged_expected =
-          !field_index.is_inobject() || !details.representation().IsDouble();
-      for (int bit = 0; bit < details.field_width_in_words(); bit++) {
-        bool tagged_actual = IsTagged(details.field_index() + bit);
-        DCHECK_EQ(tagged_expected, tagged_actual);
-        if (tagged_actual != tagged_expected) return false;
-      }
-    }
   }
   return true;
 }

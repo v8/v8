@@ -159,7 +159,6 @@
         'test-transitions.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
-        'test-unboxed-doubles.cc',
         'test-unique.cc',
         'test-unscopables-hidden-prototype.cc',
         'test-utils.cc',

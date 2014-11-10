@@ -2400,7 +2400,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp1 = NULL;
 
   if (instr->access().IsExternalMemory() ||
-      (!FLAG_unbox_double_fields && instr->field_representation().IsDouble())) {
+      instr->field_representation().IsDouble()) {
     value = UseRegister(instr->value());
   } else if (instr->NeedsWriteBarrier()) {
     value = UseRegisterAndClobber(instr->value());

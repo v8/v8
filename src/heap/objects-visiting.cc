@@ -11,7 +11,7 @@ namespace internal {
 
 
 StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
-    int instance_type, int instance_size, bool has_unboxed_fields) {
+    int instance_type, int instance_size) {
   if (instance_type < FIRST_NONSTRING_TYPE) {
     switch (instance_type & kStringRepresentationMask) {
       case kSeqStringTag:
@@ -33,7 +33,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
       case kExternalStringTag:
         return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                   instance_size, has_unboxed_fields);
+                                   instance_size);
     }
     UNREACHABLE();
   }
@@ -74,11 +74,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case JS_SET_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSSet::kSize, has_unboxed_fields);
+                                 JSSet::kSize);
 
     case JS_MAP_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSMap::kSize, has_unboxed_fields);
+                                 JSMap::kSize);
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -92,15 +92,15 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case JS_PROXY_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSProxy::kSize, has_unboxed_fields);
+                                 JSProxy::kSize);
 
     case JS_FUNCTION_PROXY_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSFunctionProxy::kSize, has_unboxed_fields);
+                                 JSFunctionProxy::kSize);
 
     case FOREIGN_TYPE:
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                 Foreign::kSize, has_unboxed_fields);
+                                 Foreign::kSize);
 
     case SYMBOL_TYPE:
       return kVisitSymbol;
@@ -131,7 +131,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
       return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
-                                 instance_size, has_unboxed_fields);
+                                 instance_size);
 
     case JS_FUNCTION_TYPE:
       return kVisitJSFunction;
@@ -143,7 +143,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
       TYPED_ARRAYS(EXTERNAL_ARRAY_CASE)
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                 instance_size, has_unboxed_fields);
+                                 instance_size);
 #undef EXTERNAL_ARRAY_CASE
 
     case FIXED_UINT8_ARRAY_TYPE:
@@ -167,7 +167,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       }
 
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 instance_size, has_unboxed_fields);
+                                 instance_size);
 
     default:
       UNREACHABLE();

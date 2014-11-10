@@ -6943,9 +6943,7 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
   }
 
   bool NeedsWriteBarrier() const {
-    DCHECK(!field_representation().IsDouble() ||
-           (FLAG_unbox_double_fields && access_.IsInobject()) ||
-           !has_transition());
+    DCHECK(!field_representation().IsDouble() || !has_transition());
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;

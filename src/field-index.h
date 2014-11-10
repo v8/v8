@@ -34,8 +34,6 @@ class FieldIndex FINAL {
     return IsInObjectBits::decode(bit_field_);
   }
 
-  bool is_hidden_field() const { return IsHiddenField::decode(bit_field_); }
-
   bool is_double() const {
     return IsDoubleBits::decode(bit_field_);
   }
@@ -57,7 +55,7 @@ class FieldIndex FINAL {
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
-    DCHECK(!is_hidden_field());
+    DCHECK(!IsHiddenField::decode(bit_field_));
     int result = index() - first_inobject_property_offset() / kPointerSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
@@ -88,7 +86,7 @@ class FieldIndex FINAL {
   explicit FieldIndex(int bit_field) : bit_field_(bit_field) {}
 
   int first_inobject_property_offset() const {
-    DCHECK(!is_hidden_field());
+    DCHECK(!IsHiddenField::decode(bit_field_));
     return FirstInobjectPropertyOffsetBits::decode(bit_field_);
   }
 

@@ -652,15 +652,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.type() == FIELD && *map == object->map()) {
-        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        Isolate* isolate = object->GetIsolate();
-        if (object->IsUnboxedDoubleField(field_index)) {
-          double value = object->RawFastDoublePropertyAt(field_index);
-          property = isolate->factory()->NewHeapNumber(value);
-
-        } else {
-          property = handle(object->RawFastPropertyAt(field_index), isolate);
-        }
+        property = Handle<Object>(object->RawFastPropertyAt(
+            FieldIndex::ForDescriptor(*map, i)), isolate_);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,

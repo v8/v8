@@ -3660,7 +3660,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   if (instr->hydrogen()->representation().IsDouble()) {
-    DCHECK(access.IsInobject());
     FPRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, FieldMemOperand(object, offset));
     return;
@@ -5351,7 +5350,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   __ AssertNotSmi(object);
 
-  if (!FLAG_unbox_double_fields && representation.IsDouble()) {
+  if (representation.IsDouble()) {
     DCHECK(access.IsInobject());
     DCHECK(!instr->hydrogen()->has_transition());
     DCHECK(!instr->hydrogen()->NeedsWriteBarrier());
@@ -5359,6 +5358,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ Str(value, FieldMemOperand(object, offset));
     return;
   }
+
+  Register value = ToRegister(instr->value());
 
   DCHECK(!representation.IsSmi() ||
          !instr->value()->IsConstantOperand() ||
@@ -5391,12 +5392,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     destination = temp0;
   }
 
-  if (FLAG_unbox_double_fields && representation.IsDouble()) {
-    DCHECK(access.IsInobject());
-    FPRegister value = ToDoubleRegister(instr->value());
-    __ Str(value, FieldMemOperand(object, offset));
-  } else if (representation.IsSmi() &&
-             instr->hydrogen()->value()->representation().IsInteger32()) {
+  if (representation.IsSmi() &&
+     instr->hydrogen()->value()->representation().IsInteger32()) {
     DCHECK(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
 #ifdef DEBUG
     Register temp0 = ToRegister(instr->temp0());
@@ -5411,15 +5408,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 #endif
     STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
     STATIC_ASSERT(kSmiTag == 0);
-    Register value = ToRegister(instr->value());
     __ Store(value, UntagSmiFieldMemOperand(destination, offset),
              Representation::Integer32());
   } else {
-    Register value = ToRegister(instr->value());
     __ Store(value, FieldMemOperand(destination, offset), representation);
   }
   if (instr->hydrogen()->NeedsWriteBarrier()) {
-    Register value = ToRegister(instr->value());
     __ RecordWriteField(destination,
                         offset,
                         value,                        // Clobbered.

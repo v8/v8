@@ -947,11 +947,6 @@ DEFINE_INT(dump_allocations_digest_at_alloc, 0,
 DEFINE_BOOL(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
             "enable use of out-of-line constant pools (ARM only)")
 
-DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
-            "enable in-object double fields unboxing (64-bit only)")
-DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
-
-
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY

@@ -2976,7 +2976,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   if (instr->hydrogen()->representation().IsDouble()) {
-    DCHECK(access.IsInobject());
     XMMRegister result = ToDoubleRegister(instr->result());
     __ movsd(result, FieldOperand(object, offset));
     return;
@@ -4123,7 +4122,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   DCHECK(!representation.IsSmi() ||
          !instr->value()->IsConstantOperand() ||
          IsInteger32Constant(LConstantOperand::cast(instr->value())));
-  if (!FLAG_unbox_double_fields && representation.IsDouble()) {
+  if (representation.IsDouble()) {
     DCHECK(access.IsInobject());
     DCHECK(!hinstr->has_transition());
     DCHECK(!hinstr->NeedsWriteBarrier());
@@ -4173,12 +4172,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Operand operand = FieldOperand(write_register, offset);
 
-  if (FLAG_unbox_double_fields && representation.IsDouble()) {
-    DCHECK(access.IsInobject());
-    XMMRegister value = ToDoubleRegister(instr->value());
-    __ movsd(operand, value);
-
-  } else if (instr->value()->IsRegister()) {
+  if (instr->value()->IsRegister()) {
     Register value = ToRegister(instr->value());
     __ Store(operand, value, representation);
   } else {
