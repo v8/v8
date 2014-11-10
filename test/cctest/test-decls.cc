@@ -683,33 +683,177 @@ TEST(CrossScriptReferences_Simple2) {
 
 
 TEST(CrossScriptReferencesHarmony) {
-  i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
   i::FLAG_harmony_modules = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 
+  // Check that simple cross-script global scope access works.
   const char* decs[] = {
-    "var x = 1; x", "x", "this.x",
-    "function x() { return 1 }; x()", "x()", "this.x()",
-    "let x = 1; x", "x", "this.x",
-    "const x = 1; x", "x", "this.x",
-    "module x { export let a = 1 }; x.a", "x.a", "this.x.a",
+    "'use strict'; var x = 1; x", "x",
+    "'use strict'; function x() { return 1 }; x()", "x()",
+    "'use strict'; let x = 1; x", "x",
+    "'use strict'; const x = 1; x", "x",
+    "'use strict'; module x { export let a = 1 }; x.a", "x.a",
     NULL
   };
 
-  for (int i = 0; decs[i] != NULL; i += 3) {
+  for (int i = 0; decs[i] != NULL; i += 2) {
     SimpleContext context;
     context.Check(decs[i], EXPECT_RESULT, Number::New(isolate, 1));
     context.Check(decs[i+1], EXPECT_RESULT, Number::New(isolate, 1));
-    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
-    // bindings on the global object. However, this will probably change, in
-    // which case we reactivate the following test.
-    if (i/3 < 2) {
-      context.Check(decs[i+2], EXPECT_RESULT, Number::New(isolate, 1));
-    }
   }
+
+  // Check that cross-script global scope access works with late declarations.
+  {
+    SimpleContext context;
+    context.Check("function d0() { return x0 }",  // dynamic lookup
+                  EXPECT_RESULT, Undefined(isolate));
+    context.Check("this.x0 = -1;"
+                  "d0()",
+                  EXPECT_RESULT, Number::New(isolate, -1));
+    context.Check("'use strict';"
+                  "function f0() { let y = 10; return x0 + y }"
+                  "function g0() { let y = 10; return eval('x0 + y') }"
+                  "function h0() { let y = 10; return (1,eval)('x0') + y }"
+                  "x0 + f0() + g0() + h0()",
+                  EXPECT_RESULT, Number::New(isolate, 26));
+
+    context.Check("'use strict';"
+                  "let x1 = 1;"
+                  "function f1() { let y = 10; return x1 + y }"
+                  "function g1() { let y = 10; return eval('x1 + y') }"
+                  "function h1() { let y = 10; return (1,eval)('x1') + y }"
+                  "function i1() { "
+                  "  let y = 10; return (typeof x2 === 'undefined' ? 0 : 2) + y"
+                  "}"
+                  "function j1() { let y = 10; return eval('x2 + y') }"
+                  "function k1() { let y = 10; return (1,eval)('x2') + y }"
+                  "function cl() { "
+                  "  let y = 10; "
+                  "  return { "
+                  "    f: function(){ return x1 + y },"
+                  "    g: function(){ return eval('x1 + y') },"
+                  "    h: function(){ return (1,eval)('x1') + y },"
+                  "    i: function(){"
+                  "      return (typeof x2 == 'undefined' ? 0 : 2) + y"
+                  "    },"
+                  "    j: function(){ return eval('x2 + y') },"
+                  "    k: function(){ return (1,eval)('x2') + y },"
+                  "  }"
+                  "}"
+                  "let o = cl();"
+                  "x1 + eval('x1') + (1,eval)('x1') + f1() + g1() + h1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("x1 + eval('x1') + (1,eval)('x1') + f1() + g1() + h1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("o.f() + o.g() + o.h();",
+                  EXPECT_RESULT, Number::New(isolate, 33));
+    context.Check("i1() + o.i();",
+                  EXPECT_RESULT, Number::New(isolate, 20));
+
+    context.Check("'use strict';"
+                  "let x2 = 2;"
+                  "function f2() { let y = 20; return x2 + y }"
+                  "function g2() { let y = 20; return eval('x2 + y') }"
+                  "function h2() { let y = 20; return (1,eval)('x2') + y }"
+                  "function i2() { let y = 20; return x1 + y }"
+                  "function j2() { let y = 20; return eval('x1 + y') }"
+                  "function k2() { let y = 20; return (1,eval)('x1') + y }"
+                  "x2 + eval('x2') + (1,eval)('x2') + f2() + g2() + h2();",
+                  EXPECT_RESULT, Number::New(isolate, 72));
+    context.Check("x1 + eval('x1') + (1,eval)('x1') + f1() + g1() + h1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("i1() + j1() + k1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("i2() + j2() + k2();",
+                  EXPECT_RESULT, Number::New(isolate, 63));
+    context.Check("o.f() + o.g() + o.h();",
+                  EXPECT_RESULT, Number::New(isolate, 33));
+    context.Check("o.i() + o.j() + o.k();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("i1() + o.i();",
+                  EXPECT_RESULT, Number::New(isolate, 24));
+
+    context.Check("'use strict';"
+                  "let x0 = 100;"
+                  "x0 + eval('x0') + (1,eval)('x0') + "
+                  "    d0() + f0() + g0() + h0();",
+                  EXPECT_RESULT, Number::New(isolate, 730));
+    context.Check("x0 + eval('x0') + (1,eval)('x0') + "
+                  "    d0() + f0() + g0() + h0();",
+                  EXPECT_RESULT, Number::New(isolate, 730));
+    context.Check("delete this.x0;"
+                  "x0 + eval('x0') + (1,eval)('x0') + "
+                  "    d0() + f0() + g0() + h0();",
+                  EXPECT_RESULT, Number::New(isolate, 730));
+    context.Check("this.x1 = 666;"
+                  "x1 + eval('x1') + (1,eval)('x1') + f1() + g1() + h1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+    context.Check("delete this.x1;"
+                  "x1 + eval('x1') + (1,eval)('x1') + f1() + g1() + h1();",
+                  EXPECT_RESULT, Number::New(isolate, 36));
+  }
+
+  // Check that caching does respect scopes.
+  {
+    SimpleContext context;
+    const char* script1 = "(function(){ return y1 })()";
+    const char* script2 = "(function(){ return y2 })()";
+
+    context.Check(script1, EXPECT_EXCEPTION);
+    context.Check("this.y1 = 1; this.y2 = 2; 0;",
+                  EXPECT_RESULT, Number::New(isolate, 0));
+    context.Check(script1,
+                  EXPECT_RESULT, Number::New(isolate, 1));
+    context.Check("'use strict'; let y1 = 3; 0;",
+                  EXPECT_RESULT, Number::New(isolate, 0));
+    // TODO(dslomov): still returns 1 not 3
+    // context.Check(script1,
+    //               EXPECT_RESULT, Number::New(isolate, 3));
+    context.Check("y1 = 4;",
+                  EXPECT_RESULT, Number::New(isolate, 4));
+    // TODO(dslomov): still returns 1 not 4
+    // context.Check(script1,
+    //               EXPECT_RESULT, Number::New(isolate, 4));
+
+    context.Check(script2,
+                  EXPECT_RESULT, Number::New(isolate, 2));
+    context.Check("'use strict'; let y2 = 5; 0;",
+                  EXPECT_RESULT, Number::New(isolate, 0));
+    // TODO(dslomov): still returns 1 not 4
+    // context.Check(script1,
+    //               EXPECT_RESULT, Number::New(isolate, 4));
+    // TODO(dslomov): still returns 2 not 5
+    // context.Check(script2,
+    //              EXPECT_RESULT, Number::New(isolate, 5));
+  }
+}
+
+
+TEST(GlobalLexicalOSR) {
+  i::FLAG_use_strict = true;
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_harmony_modules = true;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  SimpleContext context;
+
+  context.Check("'use strict';"
+                "let x = 1; x;",
+                EXPECT_RESULT, Number::New(isolate, 1));
+  context.Check("'use strict';"
+                "let y = 2*x;"
+                "++x;"
+                "let z = 0;"
+                "const limit = 100000;"
+                "for (var i = 0; i < limit; ++i) {"
+                "  z += x + y;"
+                "}"
+                "z;",
+                EXPECT_RESULT, Number::New(isolate, 400000));
 }
 
 
