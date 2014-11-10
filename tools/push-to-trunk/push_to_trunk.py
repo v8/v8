@@ -319,12 +319,11 @@ class AddChangeLog(Step):
     # The change log has been modified by the patch. Reset it to the version
     # on trunk and apply the exact changes determined by this PrepareChangeLog
     # step above.
-    self.GitCheckoutFile(self.Config("CHANGELOG_FILE"),
-                         self.vc.RemoteCandidateBranch())
+    self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
     changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
-    old_change_log = FileToText(self.Config("CHANGELOG_FILE"))
+    old_change_log = FileToText(os.path.join(self.default_cwd, CHANGELOG_FILE))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
-    TextToFile(new_change_log, self.Config("CHANGELOG_FILE"))
+    TextToFile(new_change_log, os.path.join(self.default_cwd, CHANGELOG_FILE))
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
@@ -423,7 +422,6 @@ class PushToTrunk(ScriptsBase):
       "BRANCHNAME": "prepare-push",
       "TRUNKBRANCH": "trunk-push",
       "PERSISTFILE_BASENAME": "/tmp/v8-push-to-trunk-tempfile",
-      "CHANGELOG_FILE": "ChangeLog",
       "CHANGELOG_ENTRY_FILE": "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
       "PATCH_FILE": "/tmp/v8-push-to-trunk-tempfile-patch-file",
       "COMMITMSG_FILE": "/tmp/v8-push-to-trunk-tempfile-commitmsg",

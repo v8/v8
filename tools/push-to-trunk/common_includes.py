@@ -45,6 +45,7 @@ import urllib2
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
+CHANGELOG_FILE = "ChangeLog"
 VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
