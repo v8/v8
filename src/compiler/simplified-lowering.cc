@@ -672,8 +672,11 @@ class RepresentationSelector {
           VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
-                   (in & kTypeMask) == kTypeInt32 ||
-                   in_upper->Is(Type::Unsigned32()) ||
+                   in_upper->Is(Type::Unsigned32())) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeUint32 | kRepWord32, kTypeInt32 | kRepWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeInt32 ||
                    (in & kRepMask) == kRepWord32) {
           // Just change representation if necessary.
           VisitUnop(node, kTypeInt32 | kRepWord32, kTypeInt32 | kRepWord32);
@@ -697,11 +700,14 @@ class RepresentationSelector {
           VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
-                   (in & kTypeMask) == kTypeInt32 ||
-                   in_upper->Is(Type::Signed32()) ||
-                   (in & kRepMask) == kRepWord32) {
+                   in_upper->Is(Type::Unsigned32())) {
           // Just change representation if necessary.
           VisitUnop(node, kTypeUint32 | kRepWord32, kTypeUint32 | kRepWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeInt32 ||
+                   (in & kRepMask) == kRepWord32) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeInt32 | kRepWord32, kTypeUint32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.

@@ -69,7 +69,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   CommonOperatorBuilder common(graph->zone());
   Node* zero = graph->NewNode(common.Int32Constant(0));
   Node* one = graph->NewNode(common.Int32Constant(1));
-  MachineOperatorBuilder machine;
+  MachineOperatorBuilder machine(graph->zone());
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;

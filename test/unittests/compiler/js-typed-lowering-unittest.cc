@@ -38,7 +38,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine;
+    MachineOperatorBuilder machine(zone());
     JSGraph jsgraph(graph(), common(), javascript(), &machine);
     JSTypedLowering reducer(&jsgraph);
     return reducer.Reduce(node);
