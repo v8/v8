@@ -91,6 +91,14 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmUdiv:
       case kArmBfc:
       case kArmUbfx:
+      case kArmSxtb:
+      case kArmSxth:
+      case kArmSxtab:
+      case kArmSxtah:
+      case kArmUxtb:
+      case kArmUxth:
+      case kArmUxtab:
+      case kArmUxtah:
       case kArmVcmpF64:
       case kArmVaddF64:
       case kArmVsubF64:
@@ -255,8 +263,20 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   InstructionOperand* outputs[2];
   size_t output_count = 0;
 
-  if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
-                               &input_count, &inputs[1])) {
+  if (m.left().node() == m.right().node()) {
+    // If both inputs refer to the same operand, enforce allocating a register
+    // for both of them to ensure that we don't end up generating code like
+    // this:
+    //
+    //   mov r0, r1, asr #16
+    //   adds r0, r0, r1, asr #16
+    //   bvs label
+    InstructionOperand* const input = g.UseRegister(m.left().node());
+    opcode |= AddressingModeField::encode(kMode_Operand2_R);
+    inputs[input_count++] = input;
+    inputs[input_count++] = input;
+  } else if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
+                                      &input_count, &inputs[1])) {
     inputs[0] = g.UseRegister(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &reverse_opcode,
@@ -430,12 +450,12 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  if (IsSupported(ARMv7) && m.right().HasValue()) {
-    // Try to interpret this AND as UBFX.
+  if (m.right().HasValue()) {
     uint32_t const value = m.right().Value();
     uint32_t width = base::bits::CountPopulation32(value);
     uint32_t msb = base::bits::CountLeadingZeros32(value);
-    if (width != 0 && msb + width == 32) {
+    // Try to interpret this AND as UBFX.
+    if (IsSupported(ARMv7) && width != 0 && msb + width == 32) {
       DCHECK_EQ(0, base::bits::CountTrailingZeros32(value));
       if (m.left().IsWord32Shr()) {
         Int32BinopMatcher mleft(m.left().node());
@@ -450,7 +470,6 @@ void InstructionSelector::VisitWord32And(Node* node) {
            g.TempImmediate(0), g.TempImmediate(width));
       return;
     }
-
     // Try to interpret this AND as BIC.
     if (g.CanBeImmediate(~value)) {
       Emit(kArmBic | AddressingModeField::encode(kMode_Operand2_I),
@@ -458,15 +477,22 @@ void InstructionSelector::VisitWord32And(Node* node) {
            g.TempImmediate(~value));
       return;
     }
-
-    // Try to interpret this AND as BFC.
-    width = 32 - width;
-    msb = base::bits::CountLeadingZeros32(~value);
-    uint32_t lsb = base::bits::CountTrailingZeros32(~value);
-    if (msb + width + lsb == 32) {
-      Emit(kArmBfc, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(lsb), g.TempImmediate(width));
+    // Try to interpret this AND as UXTH.
+    if (value == 0xffff) {
+      Emit(kArmUxth, g.DefineAsRegister(m.node()),
+           g.UseRegister(m.left().node()), g.TempImmediate(0));
       return;
+    }
+    // Try to interpret this AND as BFC.
+    if (IsSupported(ARMv7)) {
+      width = 32 - width;
+      msb = base::bits::CountLeadingZeros32(~value);
+      uint32_t lsb = base::bits::CountTrailingZeros32(~value);
+      if (msb + width + lsb == 32) {
+        Emit(kArmBfc, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
+             g.TempImmediate(lsb), g.TempImmediate(width));
+        return;
+      }
     }
   }
   VisitBinop(this, node, kArmAnd, kArmAnd);
@@ -571,6 +597,20 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  ArmOperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kArmSxth, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+      return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kArmSxtb, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+      return;
+    }
+  }
   VisitShift(this, node, TryMatchASR);
 }
 
@@ -583,31 +623,113 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 void InstructionSelector::VisitInt32Add(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (m.left().IsInt32Mul() && CanCover(node, m.left().node())) {
-    Int32BinopMatcher mleft(m.left().node());
-    Emit(kArmMla, g.DefineAsRegister(node), g.UseRegister(mleft.left().node()),
-         g.UseRegister(mleft.right().node()), g.UseRegister(m.right().node()));
-    return;
+  if (CanCover(node, m.left().node())) {
+    switch (m.left().opcode()) {
+      case IrOpcode::kInt32Mul: {
+        Int32BinopMatcher mleft(m.left().node());
+        Emit(kArmMla, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseRegister(mleft.right().node()),
+             g.UseRegister(m.right().node()));
+        return;
+      }
+      case IrOpcode::kInt32MulHigh: {
+        Int32BinopMatcher mleft(m.left().node());
+        Emit(kArmSmmla, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseRegister(mleft.right().node()),
+             g.UseRegister(m.right().node()));
+        return;
+      }
+      case IrOpcode::kWord32And: {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().Is(0xff)) {
+          Emit(kArmUxtab, g.DefineAsRegister(node),
+               g.UseRegister(m.right().node()),
+               g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+          return;
+        } else if (mleft.right().Is(0xffff)) {
+          Emit(kArmUxtah, g.DefineAsRegister(node),
+               g.UseRegister(m.right().node()),
+               g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+          return;
+        }
+      }
+      case IrOpcode::kWord32Sar: {
+        Int32BinopMatcher mleft(m.left().node());
+        if (CanCover(mleft.node(), mleft.left().node()) &&
+            mleft.left().IsWord32Shl()) {
+          Int32BinopMatcher mleftleft(mleft.left().node());
+          if (mleft.right().Is(24) && mleftleft.right().Is(24)) {
+            Emit(kArmSxtab, g.DefineAsRegister(node),
+                 g.UseRegister(m.right().node()),
+                 g.UseRegister(mleftleft.left().node()), g.TempImmediate(0));
+            return;
+          } else if (mleft.right().Is(16) && mleftleft.right().Is(16)) {
+            Emit(kArmSxtah, g.DefineAsRegister(node),
+                 g.UseRegister(m.right().node()),
+                 g.UseRegister(mleftleft.left().node()), g.TempImmediate(0));
+            return;
+          }
+        }
+      }
+      default:
+        break;
+    }
   }
-  if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
-    Emit(kArmMla, g.DefineAsRegister(node), g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
-    return;
-  }
-  if (m.left().IsInt32MulHigh() && CanCover(node, m.left().node())) {
-    Int32BinopMatcher mleft(m.left().node());
-    Emit(kArmSmmla, g.DefineAsRegister(node),
-         g.UseRegister(mleft.left().node()),
-         g.UseRegister(mleft.right().node()), g.UseRegister(m.right().node()));
-    return;
-  }
-  if (m.right().IsInt32MulHigh() && CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
-    Emit(kArmSmmla, g.DefineAsRegister(node),
-         g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
-    return;
+  if (CanCover(node, m.right().node())) {
+    switch (m.right().opcode()) {
+      case IrOpcode::kInt32Mul: {
+        Int32BinopMatcher mright(m.right().node());
+        Emit(kArmMla, g.DefineAsRegister(node),
+             g.UseRegister(mright.left().node()),
+             g.UseRegister(mright.right().node()),
+             g.UseRegister(m.left().node()));
+        return;
+      }
+      case IrOpcode::kInt32MulHigh: {
+        Int32BinopMatcher mright(m.right().node());
+        Emit(kArmSmmla, g.DefineAsRegister(node),
+             g.UseRegister(mright.left().node()),
+             g.UseRegister(mright.right().node()),
+             g.UseRegister(m.left().node()));
+        return;
+      }
+      case IrOpcode::kWord32And: {
+        Int32BinopMatcher mright(m.right().node());
+        if (mright.right().Is(0xff)) {
+          Emit(kArmUxtab, g.DefineAsRegister(node),
+               g.UseRegister(m.left().node()),
+               g.UseRegister(mright.left().node()), g.TempImmediate(0));
+          return;
+        } else if (mright.right().Is(0xffff)) {
+          Emit(kArmUxtah, g.DefineAsRegister(node),
+               g.UseRegister(m.left().node()),
+               g.UseRegister(mright.left().node()), g.TempImmediate(0));
+          return;
+        }
+      }
+      case IrOpcode::kWord32Sar: {
+        Int32BinopMatcher mright(m.right().node());
+        if (CanCover(mright.node(), mright.left().node()) &&
+            mright.left().IsWord32Shl()) {
+          Int32BinopMatcher mrightleft(mright.left().node());
+          if (mright.right().Is(24) && mrightleft.right().Is(24)) {
+            Emit(kArmSxtab, g.DefineAsRegister(node),
+                 g.UseRegister(m.left().node()),
+                 g.UseRegister(mrightleft.left().node()), g.TempImmediate(0));
+            return;
+          } else if (mright.right().Is(16) && mrightleft.right().Is(16)) {
+            Emit(kArmSxtah, g.DefineAsRegister(node),
+                 g.UseRegister(m.left().node()),
+                 g.UseRegister(mrightleft.left().node()), g.TempImmediate(0));
+            return;
+          }
+        }
+      }
+      default:
+        break;
+    }
   }
   VisitBinop(this, node, kArmAdd, kArmAdd);
 }

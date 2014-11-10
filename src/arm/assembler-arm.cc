@@ -1798,71 +1798,119 @@ void Assembler::pkhtb(Register dst,
 }
 
 
-void Assembler::uxtb(Register dst,
-                     const Operand& src,
-                     Condition cond) {
+void Assembler::sxtb(Register dst, Register src, int rotate, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.233.
+  // cond(31-28) | 01101010(27-20) | 1111(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6A * B20 | 0xF * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src.code());
+}
+
+
+void Assembler::sxtab(Register dst, Register src1, Register src2, int rotate,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.233.
+  // cond(31-28) | 01101010(27-20) | Rn(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src1.is(pc));
+  DCHECK(!src2.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6A * B20 | src1.code() * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src2.code());
+}
+
+
+void Assembler::sxth(Register dst, Register src, int rotate, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.235.
+  // cond(31-28) | 01101011(27-20) | 1111(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6B * B20 | 0xF * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src.code());
+}
+
+
+void Assembler::sxtah(Register dst, Register src1, Register src2, int rotate,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.235.
+  // cond(31-28) | 01101011(27-20) | Rn(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src1.is(pc));
+  DCHECK(!src2.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6B * B20 | src1.code() * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src2.code());
+}
+
+
+void Assembler::uxtb(Register dst, Register src, int rotate, Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.274.
   // cond(31-28) | 01101110(27-20) | 1111(19-16) |
   // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
   DCHECK(!dst.is(pc));
-  DCHECK(!src.rm().is(pc));
-  DCHECK(!src.rm().is(no_reg));
-  DCHECK(src.rs().is(no_reg));
-  DCHECK((src.shift_imm_ == 0) ||
-         (src.shift_imm_ == 8) ||
-         (src.shift_imm_ == 16) ||
-         (src.shift_imm_ == 24));
-  // Operand maps ROR #0 to LSL #0.
-  DCHECK((src.shift_op() == ROR) ||
-         ((src.shift_op() == LSL) && (src.shift_imm_ == 0)));
-  emit(cond | 0x6E*B20 | 0xF*B16 | dst.code()*B12 |
-       ((src.shift_imm_ >> 1)&0xC)*B8 | 7*B4 | src.rm().code());
+  DCHECK(!src.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6E * B20 | 0xF * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src.code());
 }
 
 
-void Assembler::uxtab(Register dst,
-                      Register src1,
-                      const Operand& src2,
+void Assembler::uxtab(Register dst, Register src1, Register src2, int rotate,
                       Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.271.
   // cond(31-28) | 01101110(27-20) | Rn(19-16) |
   // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
   DCHECK(!dst.is(pc));
   DCHECK(!src1.is(pc));
-  DCHECK(!src2.rm().is(pc));
-  DCHECK(!src2.rm().is(no_reg));
-  DCHECK(src2.rs().is(no_reg));
-  DCHECK((src2.shift_imm_ == 0) ||
-         (src2.shift_imm_ == 8) ||
-         (src2.shift_imm_ == 16) ||
-         (src2.shift_imm_ == 24));
-  // Operand maps ROR #0 to LSL #0.
-  DCHECK((src2.shift_op() == ROR) ||
-         ((src2.shift_op() == LSL) && (src2.shift_imm_ == 0)));
-  emit(cond | 0x6E*B20 | src1.code()*B16 | dst.code()*B12 |
-       ((src2.shift_imm_ >> 1) &0xC)*B8 | 7*B4 | src2.rm().code());
+  DCHECK(!src2.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6E * B20 | src1.code() * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src2.code());
 }
 
 
-void Assembler::uxtb16(Register dst,
-                       const Operand& src,
-                       Condition cond) {
+void Assembler::uxtb16(Register dst, Register src, int rotate, Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.275.
   // cond(31-28) | 01101100(27-20) | 1111(19-16) |
   // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
   DCHECK(!dst.is(pc));
-  DCHECK(!src.rm().is(pc));
-  DCHECK(!src.rm().is(no_reg));
-  DCHECK(src.rs().is(no_reg));
-  DCHECK((src.shift_imm_ == 0) ||
-         (src.shift_imm_ == 8) ||
-         (src.shift_imm_ == 16) ||
-         (src.shift_imm_ == 24));
-  // Operand maps ROR #0 to LSL #0.
-  DCHECK((src.shift_op() == ROR) ||
-         ((src.shift_op() == LSL) && (src.shift_imm_ == 0)));
-  emit(cond | 0x6C*B20 | 0xF*B16 | dst.code()*B12 |
-       ((src.shift_imm_ >> 1)&0xC)*B8 | 7*B4 | src.rm().code());
+  DCHECK(!src.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6C * B20 | 0xF * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src.code());
+}
+
+
+void Assembler::uxth(Register dst, Register src, int rotate, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.276.
+  // cond(31-28) | 01101111(27-20) | 1111(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6F * B20 | 0xF * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src.code());
+}
+
+
+void Assembler::uxtah(Register dst, Register src1, Register src2, int rotate,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.273.
+  // cond(31-28) | 01101111(27-20) | Rn(19-16) |
+  // Rd(15-12) | rotate(11-10) | 00(9-8)| 0111(7-4) | Rm(3-0)
+  DCHECK(!dst.is(pc));
+  DCHECK(!src1.is(pc));
+  DCHECK(!src2.is(pc));
+  DCHECK(rotate == 0 || rotate == 8 || rotate == 16 || rotate == 24);
+  emit(cond | 0x6F * B20 | src1.code() * B16 | dst.code() * B12 |
+       ((rotate >> 1) & 0xC) * B8 | 7 * B4 | src2.code());
 }
 
 

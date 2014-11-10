@@ -299,6 +299,42 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmSxtb:
+      __ sxtb(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmSxth:
+      __ sxth(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmSxtab:
+      __ sxtab(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt32(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmSxtah:
+      __ sxtah(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt32(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmUxtb:
+      __ uxtb(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmUxth:
+      __ uxth(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmUxtab:
+      __ uxtab(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt32(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmUxtah:
+      __ uxtah(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt32(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmCmp:
       __ cmp(i.InputRegister(0), i.InputOperand2(1));
       DCHECK_EQ(SetCC, i.OutputSBit());
