@@ -4060,8 +4060,8 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ push(temp_result);
     __ CallRuntimeSaveDoubles(Runtime::kMathSqrtRT);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+    RecordSafepointWithRegisters(instr->pointer_map(), 1,
+                                 Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(temp_result, eax);
   }
   X87PrepareToWrite(result_reg);
@@ -4275,7 +4275,7 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ push(temp_result);
     __ CallRuntimeSaveDoubles(Runtime::kMathExpRT);
-    RecordSafepointWithRegisters(instr->pointer_map(), 0,
+    RecordSafepointWithRegisters(instr->pointer_map(), 1,
                                  Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(temp_result, eax);
   }
