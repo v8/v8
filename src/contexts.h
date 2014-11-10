@@ -413,13 +413,13 @@ class Context: public FixedArray {
     UNSCOPABLES_SYMBOL_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,
     GLOBAL_CONTEXT_TABLE_INDEX,
+    MAP_CACHE_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
     OPTIMIZED_FUNCTIONS_LIST,  // Weak.
     OPTIMIZED_CODE_LIST,       // Weak.
     DEOPTIMIZED_CODE_LIST,     // Weak.
-    MAP_CACHE_INDEX,           // Weak.
     NEXT_CONTEXT_LINK,         // Weak.
 
     // Total number of slots.

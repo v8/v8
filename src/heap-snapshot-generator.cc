@@ -1282,7 +1282,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
                   Context::FIRST_WEAK_SLOT);
     STATIC_ASSERT(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
-    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 5 ==
+    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 4 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }

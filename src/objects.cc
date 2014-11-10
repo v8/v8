@@ -14207,8 +14207,6 @@ template class HashTable<CompilationCacheTable,
                          CompilationCacheShape,
                          HashTableKey*>;
 
-template class HashTable<MapCache, MapCacheShape, HashTableKey*>;
-
 template class HashTable<ObjectHashTable,
                          ObjectHashTableShape,
                          Handle<Object> >;
@@ -15156,28 +15154,6 @@ class StringsKey : public HashTableKey {
  private:
   Handle<FixedArray> strings_;
 };
-
-
-Object* MapCache::Lookup(FixedArray* array) {
-  DisallowHeapAllocation no_alloc;
-  StringsKey key(handle(array));
-  int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
-}
-
-
-Handle<MapCache> MapCache::Put(
-    Handle<MapCache> map_cache, Handle<FixedArray> array, Handle<Map> value) {
-  StringsKey key(array);
-
-  Handle<MapCache> new_cache = EnsureCapacity(map_cache, 1, &key);
-  int entry = new_cache->FindInsertionEntry(key.Hash());
-  new_cache->set(EntryToIndex(entry), *array);
-  new_cache->set(EntryToIndex(entry) + 1, *value);
-  new_cache->ElementAdded();
-  return new_cache;
-}
 
 
 template<typename Derived, typename Shape, typename Key>

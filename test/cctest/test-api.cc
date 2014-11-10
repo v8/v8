@@ -21211,29 +21211,40 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 }
 
 
+static int CountLiveMapsInMapCache(i::Context* context) {
+  i::FixedArray* map_cache = i::FixedArray::cast(context->map_cache());
+  int length = map_cache->length();
+  int count = 0;
+  for (int i = 0; i < length; i++) {
+    i::Object* value = map_cache->get(i);
+    if (value->IsWeakCell() && !i::WeakCell::cast(value)->cleared()) count++;
+  }
+  return count;
+}
+
+
 THREADED_TEST(Regress1516) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
+  // Object with 20 properties is not a common case, so it should be removed
+  // from the cache after GC.
   { v8::HandleScope temp_scope(context->GetIsolate());
-    CompileRun("({'a': 0})");
+    CompileRun(
+        "({"
+        "'a00': 0, 'a01': 0, 'a02': 0, 'a03': 0, 'a04': 0, "
+        "'a05': 0, 'a06': 0, 'a07': 0, 'a08': 0, 'a09': 0, "
+        "'a10': 0, 'a11': 0, 'a12': 0, 'a13': 0, 'a14': 0, "
+        "'a15': 0, 'a16': 0, 'a17': 0, 'a18': 0, 'a19': 0, "
+        "})");
   }
 
-  int elements;
-  { i::MapCache* map_cache =
-        i::MapCache::cast(CcTest::i_isolate()->context()->map_cache());
-    elements = map_cache->NumberOfElements();
-    CHECK_LE(1, elements);
-  }
+  int elements = CountLiveMapsInMapCache(CcTest::i_isolate()->context());
+  CHECK_LE(1, elements);
 
-  CcTest::heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
-  { i::Object* raw_map_cache = CcTest::i_isolate()->context()->map_cache();
-    if (raw_map_cache != CcTest::heap()->undefined_value()) {
-      i::MapCache* map_cache = i::MapCache::cast(raw_map_cache);
-      CHECK_GT(elements, map_cache->NumberOfElements());
-    }
-  }
+  CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+
+  CHECK_GT(elements, CountLiveMapsInMapCache(CcTest::i_isolate()->context()));
 }
 
 

@@ -3462,44 +3462,6 @@ class StringTable: public HashTable<StringTable,
 };
 
 
-class MapCacheShape : public BaseShape<HashTableKey*> {
- public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
-    return key->IsMatch(value);
-  }
-
-  static inline uint32_t Hash(HashTableKey* key) {
-    return key->Hash();
-  }
-
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
-    return key->HashForObject(object);
-  }
-
-  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
-
-  static const int kPrefixSize = 0;
-  static const int kEntrySize = 2;
-};
-
-
-// MapCache.
-//
-// Maps keys that are a fixed array of unique names to a map.
-// Used for canonicalize maps for object literals.
-class MapCache: public HashTable<MapCache, MapCacheShape, HashTableKey*> {
- public:
-  // Find cached value for a name key, otherwise return null.
-  Object* Lookup(FixedArray* key);
-  static Handle<MapCache> Put(
-      Handle<MapCache> map_cache, Handle<FixedArray> key, Handle<Map> value);
-  DECLARE_CAST(MapCache)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MapCache);
-};
-
-
 template <typename Derived, typename Shape, typename Key>
 class Dictionary: public HashTable<Derived, Shape, Key> {
  protected:
