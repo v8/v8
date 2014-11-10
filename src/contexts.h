@@ -183,7 +183,57 @@ enum BindingFlags {
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ITERATOR_SYMBOL_INDEX, Symbol, iterator_symbol)                            \
   V(UNSCOPABLES_SYMBOL_INDEX, Symbol, unscopables_symbol)                      \
-  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)
+  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
+  V(GLOBAL_CONTEXT_TABLE_INDEX, GlobalContextTable, global_context_table)
+
+
+// A table of all global contexts. Every loaded top-level script with top-level
+// lexical declarations contributes its GlobalContext into this table.
+//
+// The table is a fixed array, its first slot is the current used count and
+// the subsequent slots 1..used contain GlobalContexts.
+class GlobalContextTable : public FixedArray {
+ public:
+  // Conversions.
+  static GlobalContextTable* cast(Object* context) {
+    DCHECK(context->IsGlobalContextTable());
+    return reinterpret_cast<GlobalContextTable*>(context);
+  }
+
+  struct LookupResult {
+    int context_index;
+    int slot_index;
+    VariableMode mode;
+    InitializationFlag init_flag;
+    MaybeAssignedFlag maybe_assigned_flag;
+  };
+
+  int used() const { return Smi::cast(get(kUsedSlot))->value(); }
+
+  void set_used(int used) { set(kUsedSlot, Smi::FromInt(used)); }
+
+  static Handle<Context> GetContext(Handle<GlobalContextTable> table, int i) {
+    DCHECK(i < table->used());
+    return Handle<Context>::cast(FixedArray::get(table, i + 1));
+  }
+
+  // Lookup a variable `name` in a GlobalContextTable.
+  // If it returns true, the variable is found and `result` contains
+  // valid information about its location.
+  // If it returns false, `result` is untouched.
+  MUST_USE_RESULT
+  static bool Lookup(Handle<GlobalContextTable> table, Handle<String> name,
+                     LookupResult* result);
+
+  MUST_USE_RESULT
+  static Handle<GlobalContextTable> Extend(Handle<GlobalContextTable> table,
+                                           Handle<Context> global_context);
+
+ private:
+  static const int kUsedSlot = 0;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalContextTable);
+};
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -229,6 +279,8 @@ enum BindingFlags {
 //
 // Finally, with Harmony scoping, the JSFunction representing a top level
 // script will have the GlobalContext rather than a FunctionContext.
+// Global contexts from all top-level scripts are gathered in
+// GlobalContextTable.
 
 class Context: public FixedArray {
  public:
@@ -360,6 +412,7 @@ class Context: public FixedArray {
     ITERATOR_SYMBOL_INDEX,
     UNSCOPABLES_SYMBOL_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,
+    GLOBAL_CONTEXT_TABLE_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

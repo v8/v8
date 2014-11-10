@@ -2892,6 +2892,10 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // a1 - function
   // a3 - slot id (Smi)
+  const int with_types_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+  const int generic_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
@@ -2930,38 +2934,71 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label miss;
+  Label uninitialized, miss;
 
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&slow_start, eq, a4, Operand(at));
-  __ LoadRoot(at, Heap::kuninitialized_symbolRootIndex);
-  __ Branch(&miss, eq, a4, Operand(at));
 
-  if (!FLAG_trace_ic) {
-    // We are going megamorphic. If the feedback is a JSFunction, it is fine
-    // to handle it here. More complex cases are dealt with in the runtime.
-    __ AssertNotSmi(a4);
-    __ GetObjectType(a4, a5, a5);
-    __ Branch(&miss, ne, a5, Operand(JS_FUNCTION_TYPE));
-    __ dsrl(a4, a3, 32 - kPointerSizeLog2);
-    __ Daddu(a4, a2, Operand(a4));
-    __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-    __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
-    // We have to update statistics for runtime profiling.
-    const int with_types_offset =
-    FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-    __ ld(a4, FieldMemOperand(a2, with_types_offset));
-    __ Dsubu(a4, a4, Operand(Smi::FromInt(1)));
-    __ sd(a4, FieldMemOperand(a2, with_types_offset));
-    const int generic_offset =
-    FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-    __ ld(a4, FieldMemOperand(a2, generic_offset));
-    __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-    __ Branch(USE_DELAY_SLOT, &slow_start);
-    __ sd(a4, FieldMemOperand(a2, generic_offset));  // In delay slot.
+  // The following cases attempt to handle MISS cases without going to the
+  // runtime.
+  if (FLAG_trace_ic) {
+    __ Branch(&miss);
   }
 
-  // We are here because tracing is on or we are going monomorphic.
+  __ LoadRoot(at, Heap::kuninitialized_symbolRootIndex);
+  __ Branch(&uninitialized, eq, a4, Operand(at));
+
+  // We are going megamorphic. If the feedback is a JSFunction, it is fine
+  // to handle it here. More complex cases are dealt with in the runtime.
+  __ AssertNotSmi(a4);
+  __ GetObjectType(a4, a5, a5);
+  __ Branch(&miss, ne, a5, Operand(JS_FUNCTION_TYPE));
+  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a4, a2, Operand(a4));
+  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
+  __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
+  // We have to update statistics for runtime profiling.
+  __ ld(a4, FieldMemOperand(a2, with_types_offset));
+  __ Dsubu(a4, a4, Operand(Smi::FromInt(1)));
+  __ sd(a4, FieldMemOperand(a2, with_types_offset));
+  __ ld(a4, FieldMemOperand(a2, generic_offset));
+  __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
+  __ Branch(USE_DELAY_SLOT, &slow_start);
+  __ sd(a4, FieldMemOperand(a2, generic_offset));  // In delay slot.
+
+  __ bind(&uninitialized);
+
+  // We are going monomorphic, provided we actually have a JSFunction.
+  __ JumpIfSmi(a1, &miss);
+
+  // Goto miss case if we do not have a function.
+  __ GetObjectType(a1, a4, a4);
+  __ Branch(&miss, ne, a4, Operand(JS_FUNCTION_TYPE));
+
+  // Make sure the function is not the Array() function, which requires special
+  // behavior on MISS.
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, a4);
+  __ Branch(&miss, eq, a1, Operand(a4));
+
+  // Update stats.
+  __ ld(a4, FieldMemOperand(a2, with_types_offset));
+  __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
+  __ sd(a4, FieldMemOperand(a2, with_types_offset));
+
+  // Store the function.
+  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a4, a2, Operand(a4));
+  __ Daddu(a4, a4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sd(a1, MemOperand(a4, 0));
+
+  // Update the write barrier.
+  __ mov(a5, a1);
+  __ RecordWrite(a2, a4, a5, kRAHasNotBeenSaved, kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Branch(&have_js_function);
+
+  // We are here because tracing is on or we encountered a MISS case we can't
+  // handle here.
   __ bind(&miss);
   GenerateMiss(masm);
 

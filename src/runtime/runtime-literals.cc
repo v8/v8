@@ -109,7 +109,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   if (should_normalize) {
     // TODO(verwaest): We might not want to ever normalize here.
     JSObject::NormalizeProperties(boilerplate, KEEP_INOBJECT_PROPERTIES,
-                                  length / 2);
+                                  length / 2, "Boilerplate");
   }
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index += 2) {
@@ -166,7 +166,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // constant function properties.
   if (should_transform && !has_function_literal) {
     JSObject::MigrateSlowToFast(boilerplate,
-                                boilerplate->map()->unused_property_fields());
+                                boilerplate->map()->unused_property_fields(),
+                                "FastLiteral");
   }
 
   return boilerplate;

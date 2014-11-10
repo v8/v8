@@ -252,10 +252,366 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32AddWithParameters) {
   m.Return(m.Int32Add(a0, p0));
   Stream s = m.Build();
   ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddConstantAsLea) {
+  StreamBuilder m(this, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(p0, c0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLea) {
+  StreamBuilder m(this, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, p0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2Mul) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Mul) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  m.Return(m.Int32Add(s0, p0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2Shl) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Shl) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
+  m.Return(m.Int32Add(s0, p0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled4Mul) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(4));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR4, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled4Shl) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(2));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR4, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled8Mul) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(8));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR8, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled8Shl) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(3));
+  m.Return(m.Int32Add(p0, s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR8, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle1) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(p0, m.Int32Add(s0, c0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle2) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(s0, m.Int32Add(c0, p0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle3) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(m.Int32Add(s0, c0), p0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle4) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(m.Int32Add(c0, p0), s0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle5) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(m.Int32Add(p0, s0), c0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled2ShlWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled4MulWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(4));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR4I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled4ShlWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(2));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR4I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled8MulWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(8));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR8I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddScaled8ShlWithConstant) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const s0 = m.Word32Shl(p1, m.Int32Constant(3));
+  Node* const c0 = m.Int32Constant(15);
+  m.Return(m.Int32Add(c0, m.Int32Add(p0, s0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR8I, s[0]->addressing_mode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_TRUE(s[0]->InputAt(2)->IsImmediate());
 }
 
 

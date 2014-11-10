@@ -4302,7 +4302,9 @@ TEST(InvalidUnicodeEscapes) {
     "var foob\\u123r = 0;",
     "var \\u123roo = 0;",
     "\"foob\\u123rr\"",
-    "/regex/g\\u123r",
+    // No escapes allowed in regexp flags
+    "/regex/\\u0069g",
+    "/regex/\\u006g",
     NULL};
   RunParserSyncTest(context_data, data, kError);
 }

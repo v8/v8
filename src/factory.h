@@ -229,6 +229,9 @@ class Factory FINAL {
   Handle<Context> NewGlobalContext(Handle<JSFunction> function,
                                    Handle<ScopeInfo> scope_info);
 
+  // Create an empty global context table.
+  Handle<GlobalContextTable> NewGlobalContextTable();
+
   // Create a module context.
   Handle<Context> NewModuleContext(Handle<ScopeInfo> scope_info);
 

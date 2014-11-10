@@ -422,7 +422,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     if (type == kMachBool || type == kMachInt32 || type == kMachInt8 ||
         type == kMachInt16) {
       translation->StoreInt32StackSlot(op->index());
-    } else if (type == kMachUint32) {
+    } else if (type == kMachUint32 || type == kMachUint16 ||
+               type == kMachUint8) {
       translation->StoreUint32StackSlot(op->index());
     } else if ((type & kRepMask) == kRepTagged) {
       translation->StoreStackSlot(op->index());
@@ -437,7 +438,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     if (type == kMachBool || type == kMachInt32 || type == kMachInt8 ||
         type == kMachInt16) {
       translation->StoreInt32Register(converter.ToRegister(op));
-    } else if (type == kMachUint32) {
+    } else if (type == kMachUint32 || type == kMachUint16 ||
+               type == kMachUint8) {
       translation->StoreUint32Register(converter.ToRegister(op));
     } else if ((type & kRepMask) == kRepTagged) {
       translation->StoreRegister(converter.ToRegister(op));

@@ -2686,6 +2686,10 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // r1 - function
   // r3 - slot id (Smi)
+  const int with_types_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+  const int generic_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
@@ -2724,37 +2728,70 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label miss;
+  Label uninitialized, miss;
 
   __ CompareRoot(r4, Heap::kmegamorphic_symbolRootIndex);
   __ b(eq, &slow_start);
-  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
-  __ b(eq, &miss);
 
-  if (!FLAG_trace_ic) {
-    // We are going megamorphic. If the feedback is a JSFunction, it is fine
-    // to handle it here. More complex cases are dealt with in the runtime.
-    __ AssertNotSmi(r4);
-    __ CompareObjectType(r4, r5, r5, JS_FUNCTION_TYPE);
-    __ b(ne, &miss);
-    __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-    __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
-    __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
-    // We have to update statistics for runtime profiling.
-    const int with_types_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-    __ ldr(r4, FieldMemOperand(r2, with_types_offset));
-    __ sub(r4, r4, Operand(Smi::FromInt(1)));
-    __ str(r4, FieldMemOperand(r2, with_types_offset));
-    const int generic_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-    __ ldr(r4, FieldMemOperand(r2, generic_offset));
-    __ add(r4, r4, Operand(Smi::FromInt(1)));
-    __ str(r4, FieldMemOperand(r2, generic_offset));
-    __ jmp(&slow_start);
+  // The following cases attempt to handle MISS cases without going to the
+  // runtime.
+  if (FLAG_trace_ic) {
+    __ jmp(&miss);
   }
 
-  // We are here because tracing is on or we are going monomorphic.
+  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
+  __ b(eq, &uninitialized);
+
+  // We are going megamorphic. If the feedback is a JSFunction, it is fine
+  // to handle it here. More complex cases are dealt with in the runtime.
+  __ AssertNotSmi(r4);
+  __ CompareObjectType(r4, r5, r5, JS_FUNCTION_TYPE);
+  __ b(ne, &miss);
+  __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
+  __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
+  __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
+  // We have to update statistics for runtime profiling.
+  __ ldr(r4, FieldMemOperand(r2, with_types_offset));
+  __ sub(r4, r4, Operand(Smi::FromInt(1)));
+  __ str(r4, FieldMemOperand(r2, with_types_offset));
+  __ ldr(r4, FieldMemOperand(r2, generic_offset));
+  __ add(r4, r4, Operand(Smi::FromInt(1)));
+  __ str(r4, FieldMemOperand(r2, generic_offset));
+  __ jmp(&slow_start);
+
+  __ bind(&uninitialized);
+
+  // We are going monomorphic, provided we actually have a JSFunction.
+  __ JumpIfSmi(r1, &miss);
+
+  // Goto miss case if we do not have a function.
+  __ CompareObjectType(r1, r4, r4, JS_FUNCTION_TYPE);
+  __ b(ne, &miss);
+
+  // Make sure the function is not the Array() function, which requires special
+  // behavior on MISS.
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r4);
+  __ cmp(r1, r4);
+  __ b(eq, &miss);
+
+  // Update stats.
+  __ ldr(r4, FieldMemOperand(r2, with_types_offset));
+  __ add(r4, r4, Operand(Smi::FromInt(1)));
+  __ str(r4, FieldMemOperand(r2, with_types_offset));
+
+  // Store the function.
+  __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
+  __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ str(r1, MemOperand(r4, 0));
+
+  // Update the write barrier.
+  __ mov(r5, r1);
+  __ RecordWrite(r2, r4, r5, kLRHasNotBeenSaved, kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ jmp(&have_js_function);
+
+  // We are here because tracing is on or we encountered a MISS case we can't
+  // handle here.
   __ bind(&miss);
   GenerateMiss(masm);
 

@@ -637,10 +637,6 @@ class Scanner {
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
-  // Scans a Unicode escape-sequence and adds its characters,
-  // uninterpreted, to the current literal. Used for parsing RegExp
-  // flags.
-  bool ScanLiteralUnicodeEscape();
 
   // Return the current source position.
   int source_pos() {

@@ -1575,11 +1575,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(isolate()->factory()->the_hole_value());
   }
 
-  if (lit->constructor() != NULL) {
-    VisitForStackValue(lit->constructor());
-  } else {
-    __ Push(isolate()->factory()->undefined_value());
-  }
+  VisitForStackValue(lit->constructor());
 
   __ Push(script());
   __ Push(Smi::FromInt(lit->start_position()));

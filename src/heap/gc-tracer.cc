@@ -26,6 +26,11 @@ GCTracer::AllocationEvent::AllocationEvent(double duration,
 }
 
 
+GCTracer::ContextDisposalEvent::ContextDisposalEvent(double time) {
+  time_ = time;
+}
+
+
 GCTracer::Event::Event(Type type, const char* gc_reason,
                        const char* collector_reason)
     : type(type),
@@ -207,6 +212,11 @@ void GCTracer::AddNewSpaceAllocationTime(double duration,
 }
 
 
+void GCTracer::AddContextDisposalTime(double time) {
+  context_disposal_events_.push_front(ContextDisposalEvent(time));
+}
+
+
 void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
   cumulative_incremental_marking_steps_++;
   cumulative_incremental_marking_bytes_ += bytes;
@@ -319,6 +329,7 @@ void GCTracer::PrintNVP() const {
   PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          NewSpaceAllocationThroughputInBytesPerMillisecond());
+  PrintF("context_disposal_rate=%.1f ", ContextDisposalRateInMilliseconds());
 
   if (current_.type == Event::SCAVENGER) {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
@@ -475,6 +486,22 @@ intptr_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
   if (durations == 0.0) return 0;
 
   return static_cast<intptr_t>(bytes / durations);
+}
+
+
+double GCTracer::ContextDisposalRateInMilliseconds() const {
+  if (context_disposal_events_.size() == 0) return 0.0;
+
+  double begin = base::OS::TimeCurrentMillis();
+  double end = 0.0;
+  ContextDisposalEventBuffer::const_iterator iter =
+      context_disposal_events_.begin();
+  while (iter != context_disposal_events_.end()) {
+    end = iter->time_;
+    ++iter;
+  }
+
+  return (begin - end) / context_disposal_events_.size();
 }
 }
 }  // namespace v8::internal

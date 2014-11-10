@@ -438,11 +438,6 @@ DEFINE_BOOL(enable_vldr_imm, false,
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS only)")
 
-// cpu-arm64.cc
-DEFINE_BOOL(enable_always_align_csp, true,
-            "enable alignment of csp to 16 bytes on platforms which prefer "
-            "the register to always be aligned (ARM64 only)")
-
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_STRING(expose_debug_as, NULL, "expose debug in global object")
@@ -620,6 +615,9 @@ DEFINE_INT(random_seed, 0,
 
 // objects.cc
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
+#if TRACE_MAPS
+DEFINE_BOOL(trace_maps, false, "trace map creation")
+#endif
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")

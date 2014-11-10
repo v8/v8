@@ -3016,6 +3016,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // x1 - function
   // x3 - slot id (Smi)
+  const int with_types_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+  const int generic_offset =
+      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
@@ -3064,35 +3068,72 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label miss;
+  Label uninitialized, miss;
 
   __ JumpIfRoot(x4, Heap::kmegamorphic_symbolRootIndex, &slow_start);
-  __ JumpIfRoot(x4, Heap::kuninitialized_symbolRootIndex, &miss);
 
-  if (!FLAG_trace_ic) {
-    // We are going megamorphic. If the feedback is a JSFunction, it is fine
-    // to handle it here. More complex cases are dealt with in the runtime.
-    __ AssertNotSmi(x4);
-    __ JumpIfNotObjectType(x4, x5, x5, JS_FUNCTION_TYPE, &miss);
-    __ Add(x4, feedback_vector,
-           Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-    __ LoadRoot(x5, Heap::kmegamorphic_symbolRootIndex);
-    __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
-    // We have to update statistics for runtime profiling.
-    const int with_types_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-    __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
-    __ Subs(x4, x4, Operand(Smi::FromInt(1)));
-    __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
-    const int generic_offset =
-        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-    __ Ldr(x4, FieldMemOperand(feedback_vector, generic_offset));
-    __ Adds(x4, x4, Operand(Smi::FromInt(1)));
-    __ Str(x4, FieldMemOperand(feedback_vector, generic_offset));
-    __ B(&slow_start);
+  // The following cases attempt to handle MISS cases without going to the
+  // runtime.
+  if (FLAG_trace_ic) {
+    __ jmp(&miss);
   }
 
-  // We are here because tracing is on or we are going monomorphic.
+  __ JumpIfRoot(x4, Heap::kuninitialized_symbolRootIndex, &miss);
+
+  // We are going megamorphic. If the feedback is a JSFunction, it is fine
+  // to handle it here. More complex cases are dealt with in the runtime.
+  __ AssertNotSmi(x4);
+  __ JumpIfNotObjectType(x4, x5, x5, JS_FUNCTION_TYPE, &miss);
+  __ Add(x4, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ LoadRoot(x5, Heap::kmegamorphic_symbolRootIndex);
+  __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
+  // We have to update statistics for runtime profiling.
+  __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
+  __ Subs(x4, x4, Operand(Smi::FromInt(1)));
+  __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
+  __ Ldr(x4, FieldMemOperand(feedback_vector, generic_offset));
+  __ Adds(x4, x4, Operand(Smi::FromInt(1)));
+  __ Str(x4, FieldMemOperand(feedback_vector, generic_offset));
+  __ B(&slow_start);
+
+  __ bind(&uninitialized);
+
+  // We are going monomorphic, provided we actually have a JSFunction.
+  __ JumpIfSmi(function, &miss);
+
+  // Goto miss case if we do not have a function.
+  __ JumpIfNotObjectType(function, x5, x5, JS_FUNCTION_TYPE, &miss);
+
+  // Make sure the function is not the Array() function, which requires special
+  // behavior on MISS.
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, x5);
+  __ Cmp(function, x5);
+  __ B(eq, &miss);
+
+  // Update stats.
+  __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
+  __ Adds(x4, x4, Operand(Smi::FromInt(1)));
+  __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
+
+  // Store the function.
+  __ Add(x4, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Str(function, FieldMemOperand(x4, FixedArray::kHeaderSize));
+
+  __ Add(x4, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Add(x4, x4, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Str(function, MemOperand(x4, 0));
+
+  // Update the write barrier.
+  __ Mov(x5, function);
+  __ RecordWrite(feedback_vector, x4, x5, kLRHasNotBeenSaved, kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ B(&have_js_function);
+
+  // We are here because tracing is on or we encountered a MISS case we can't
+  // handle here.
   __ bind(&miss);
   GenerateMiss(masm);
 
@@ -4293,18 +4334,10 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-static unsigned int GetProfileEntryHookCallSize(MacroAssembler* masm) {
-  // The entry hook is a "BumpSystemStackPointer" instruction (sub),
-  // followed by a "Push lr" instruction, followed by a call.
-  unsigned int size =
-      Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
-  if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-    // If ALWAYS_ALIGN_CSP then there will be an extra bic instruction in
-    // "BumpSystemStackPointer".
-    size += kInstructionSize;
-  }
-  return size;
-}
+// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
+// a "Push lr" instruction, followed by a call.
+static const unsigned int kProfileEntryHookCallSize =
+    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
@@ -4317,7 +4350,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     __ Push(lr);
     __ CallStub(&stub);
     DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           GetProfileEntryHookCallSize(masm));
+           kProfileEntryHookCallSize);
 
     __ Pop(lr);
   }
@@ -4335,7 +4368,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int kNumSavedRegs = kCallerSaved.Count();
 
   // Compute the function's address as the first argument.
-  __ Sub(x0, lr, GetProfileEntryHookCallSize(masm));
+  __ Sub(x0, lr, kProfileEntryHookCallSize);
 
 #if V8_HOST_ARCH_ARM64
   uintptr_t entry_hook =

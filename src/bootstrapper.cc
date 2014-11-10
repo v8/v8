@@ -361,7 +361,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
 static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map());
-  Handle<Map> new_map = Map::Copy(old_map);
+  Handle<Map> new_map = Map::Copy(old_map, "SetObjectPrototype");
   new_map->set_prototype(*proto);
   JSObject::MigrateToMap(object, new_map);
 }
@@ -510,7 +510,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<JSObject> prototype = factory->NewJSObject(
         isolate->object_function(),
         TENURED);
-    Handle<Map> map = Map::Copy(handle(prototype->map()));
+    Handle<Map> map =
+        Map::Copy(handle(prototype->map()), "EmptyObjectPrototype");
     map->set_is_prototype_map(true);
     prototype->set_map(*map);
 
@@ -908,6 +909,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
+  Handle<GlobalContextTable> global_context_table =
+      factory->NewGlobalContextTable();
+  native_context()->set_global_context_table(*global_context_table);
+
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
       global_object, object_name, isolate->object_function(), DONT_ENUM);
@@ -1089,7 +1094,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
 
     // RegExp prototype object is itself a RegExp.
-    Handle<Map> proto_map = Map::Copy(initial_map);
+    Handle<Map> proto_map = Map::Copy(initial_map, "RegExpPrototype");
     proto_map->set_prototype(native_context()->initial_object_prototype());
     Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
     proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
@@ -1244,7 +1249,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   }
 
   {  // --- aliased arguments map
-    Handle<Map> map = Map::Copy(isolate->sloppy_arguments_map());
+    Handle<Map> map =
+        Map::Copy(isolate->sloppy_arguments_map(), "AliasedArguments");
     map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
     DCHECK_EQ(2, map->pre_allocated_property_fields());
     native_context()->set_aliased_arguments_map(*map);
@@ -1657,7 +1663,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());
-  Handle<Map> initial_map = Map::Copy(original_map);
+  Handle<Map> initial_map = Map::Copy(original_map, "InternalArray");
   initial_map->set_elements_kind(elements_kind);
   JSFunction::SetInitialMap(array_function, initial_map, prototype);
 
@@ -1935,7 +1941,7 @@ bool Genesis::InstallNatives() {
     // Create maps for generator functions and their prototypes.  Store those
     // maps in the native context.
     Handle<Map> generator_function_map =
-        Map::Copy(sloppy_function_map_writable_prototype_);
+        Map::Copy(sloppy_function_map_writable_prototype_, "GeneratorFunction");
     generator_function_map->set_prototype(*generator_function_prototype);
     native_context()->set_sloppy_generator_function_map(
         *generator_function_map);
@@ -1966,7 +1972,8 @@ bool Genesis::InstallNatives() {
                      rw_attribs, poison_pair);
 
     Handle<Map> strict_function_map(native_context()->strict_function_map());
-    Handle<Map> strict_generator_function_map = Map::Copy(strict_function_map);
+    Handle<Map> strict_generator_function_map =
+        Map::Copy(strict_function_map, "StrictGeneratorFunction");
     // "arguments" and "caller" already poisoned.
     strict_generator_function_map->set_prototype(*generator_function_prototype);
     native_context()->set_strict_generator_function_map(
@@ -2712,6 +2719,15 @@ Genesis::Genesis(Isolate* isolate,
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
+#if TRACE_MAPS
+    if (FLAG_trace_maps) {
+      Handle<JSFunction> object_fun = isolate->object_function();
+      PrintF("[TraceMap: InitialMap map= %p SFI= %d_Object ]\n",
+             reinterpret_cast<void*>(object_fun->initial_map()),
+             object_fun->shared()->unique_id());
+      Map::TraceAllTransitions(object_fun->initial_map());
+    }
+#endif
     Handle<GlobalObject> global_object;
     Handle<JSGlobalProxy> global_proxy = CreateNewGlobals(
         global_proxy_template, maybe_global_proxy, &global_object);

@@ -145,6 +145,19 @@ class GCTracer {
     intptr_t allocation_in_bytes_;
   };
 
+
+  class ContextDisposalEvent {
+   public:
+    // Default constructor leaves the event uninitialized.
+    ContextDisposalEvent() {}
+
+    explicit ContextDisposalEvent(double time);
+
+    // Time when context disposal event happened.
+    double time_;
+  };
+
+
   class Event {
    public:
     enum Type { SCAVENGER = 0, MARK_COMPACTOR = 1, START = 2 };
@@ -241,6 +254,9 @@ class GCTracer {
 
   typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
 
+  typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
+      ContextDisposalEventBuffer;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
@@ -252,6 +268,8 @@ class GCTracer {
 
   // Log an allocation throughput event.
   void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
+
+  void AddContextDisposalTime(double time);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -322,6 +340,12 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
+  // Computes the context disposal rate in milliseconds. It takes the time
+  // frame of the first recorded context disposal to the current time and
+  // divides it by the number of recorded events.
+  // Returns 0 if no events have been recorded.
+  double ContextDisposalRateInMilliseconds() const;
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -358,6 +382,8 @@ class GCTracer {
 
   // RingBuffer for allocation events.
   AllocationEventBuffer allocation_events_;
+
+  ContextDisposalEventBuffer context_disposal_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;

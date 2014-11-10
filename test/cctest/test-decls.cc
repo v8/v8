@@ -644,6 +644,44 @@ TEST(CrossScriptReferences) {
 }
 
 
+TEST(CrossScriptReferences_Simple) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_use_strict = true;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+
+  {
+    SimpleContext context;
+    context.Check("let x = 1; x", EXPECT_RESULT, Number::New(isolate, 1));
+    context.Check("let x = 5; x", EXPECT_EXCEPTION);
+  }
+}
+
+
+TEST(CrossScriptReferences_Simple2) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_use_strict = true;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+
+  for (int k = 0; k < 100; k++) {
+    SimpleContext context;
+    bool cond = (k % 2) == 0;
+    if (cond) {
+      context.Check("let x = 1; x", EXPECT_RESULT, Number::New(isolate, 1));
+      context.Check("let z = 4; z", EXPECT_RESULT, Number::New(isolate, 4));
+    } else {
+      context.Check("let z = 1; z", EXPECT_RESULT, Number::New(isolate, 1));
+      context.Check("let x = 4; x", EXPECT_RESULT, Number::New(isolate, 4));
+    }
+    context.Check("let y = 2; x", EXPECT_RESULT,
+                  Number::New(isolate, cond ? 1 : 4));
+  }
+}
+
+
 TEST(CrossScriptReferencesHarmony) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
@@ -704,12 +742,12 @@ TEST(CrossScriptConflicts) {
       SimpleContext context;
       context.Check(firsts[i], EXPECT_RESULT,
                     Number::New(CcTest::isolate(), 1));
-      // TODO(rossberg): All tests should actually be errors in Harmony,
-      // but we currently do not detect the cases where the first declaration
-      // is not lexical.
-      context.Check(seconds[j],
-                    i < 2 ? EXPECT_RESULT : EXPECT_ERROR,
-                    Number::New(CcTest::isolate(), 2));
+      bool success_case = i < 2 && j < 2;
+      Local<Value> success_result;
+      if (success_case) success_result = Number::New(CcTest::isolate(), 2);
+
+      context.Check(seconds[j], success_case ? EXPECT_RESULT : EXPECT_EXCEPTION,
+                    success_result);
     }
   }
 }
@@ -740,9 +778,86 @@ TEST(CrossScriptDynamicLookup) {
         EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
     context.Check(
         "'use strict';"
-        "g({});"
+        "g({});0",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+    context.Check("f({})", EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check("h({})", EXPECT_RESULT, number_string);
+  }
+}
+
+
+TEST(CrossScriptGlobal) {
+  i::FLAG_harmony_scoping = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+  {
+    SimpleContext context;
+
+    context.Check(
+        "var global = this;"
+        "global.x = 255;"
         "x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 255));
+    context.Check(
+        "'use strict';"
+        "let x = 1;"
+        "global.x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 255));
+    context.Check("global.x = 15; x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 1));
+    context.Check("x = 221; global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 15));
+    context.Check(
+        "z = 15;"
+        "function f() { return z; };"
+        "for (var k = 0; k < 3; k++) { f(); }"
+        "f()",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check(
+        "'use strict';"
+        "let z = 5; f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    context.Check(
+        "function f() { konst = 10; return konst; };"
+        "f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 10));
+    context.Check(
+        "'use strict';"
+        "const konst = 255;"
+        "f()",
+        EXPECT_EXCEPTION);
+  }
+}
+
+
+TEST(CrossScriptStaticLookupUndeclared) {
+  i::FLAG_harmony_scoping = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    Local<String> undefined_string = String::NewFromUtf8(
+        CcTest::isolate(), "undefined", String::kInternalizedString);
+    Local<String> number_string = String::NewFromUtf8(
+        CcTest::isolate(), "number", String::kInternalizedString);
+
+    context.Check(
+        "function f(o) { return x; }"
+        "function g(o) { x = 15; }"
+        "function h(o) { return typeof x; }",
+        EXPECT_RESULT, Undefined(CcTest::isolate()));
+    context.Check("h({})", EXPECT_RESULT, undefined_string);
+    context.Check(
+        "'use strict';"
+        "let x = 1;"
+        "f({})",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    context.Check(
+        "'use strict';"
+        "g({});x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check("h({})", EXPECT_RESULT, number_string);
     context.Check("f({})", EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
     context.Check("h({})", EXPECT_RESULT, number_string);
   }

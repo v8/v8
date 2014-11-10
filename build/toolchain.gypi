@@ -852,7 +852,8 @@
           'V8_ENABLE_CHECKS',
           'OBJECT_PRINT',
           'VERIFY_HEAP',
-          'DEBUG'
+          'DEBUG',
+          'TRACE_MAPS'
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \

@@ -761,9 +761,9 @@ class MacroAssembler : public Assembler {
   // it can be evidence of a potential bug because the ABI forbids accesses
   // below csp.
   //
-  // If StackPointer() is the system stack pointer (csp) or ALWAYS_ALIGN_CSP is
-  // enabled, then csp will be dereferenced to  cause the processor
-  // (or simulator) to abort if it is not properly aligned.
+  // If StackPointer() is the system stack pointer (csp), then csp will be
+  // dereferenced to cause the processor (or simulator) to abort if it is not
+  // properly aligned.
   //
   // If emit_debug_code() is false, this emits no code.
   void AssertStackConsistency();
@@ -831,9 +831,7 @@ class MacroAssembler : public Assembler {
   inline void BumpSystemStackPointer(const Operand& space);
 
   // Re-synchronizes the system stack pointer (csp) with the current stack
-  // pointer (according to StackPointer()).  This function will ensure the
-  // new value of the system stack pointer is remains aligned to 16 bytes, and
-  // is lower than or equal to the value of the current stack pointer.
+  // pointer (according to StackPointer()).
   //
   // This method asserts that StackPointer() is not csp, since the call does
   // not make sense in that context.

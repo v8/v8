@@ -49,7 +49,7 @@
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
-        'compiler/machine-operator-unittest.cc',
+        'compiler/node-matchers-unittest.cc',
         'compiler/node-test-utils.cc',
         'compiler/node-test-utils.h',
         'compiler/register-allocator-unittest.cc',

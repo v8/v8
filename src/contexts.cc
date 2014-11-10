@@ -11,6 +11,48 @@
 namespace v8 {
 namespace internal {
 
+
+Handle<GlobalContextTable> GlobalContextTable::Extend(
+    Handle<GlobalContextTable> table, Handle<Context> global_context) {
+  Handle<GlobalContextTable> result;
+  int used = table->used();
+  int length = table->length();
+  CHECK(used >= 0 && length > 0 && used < length);
+  if (used + 1 == length) {
+    CHECK(length < Smi::kMaxValue / 2);
+    result = Handle<GlobalContextTable>::cast(
+        FixedArray::CopySize(table, length * 2));
+  } else {
+    result = table;
+  }
+  result->set_used(used + 1);
+
+  DCHECK(global_context->IsGlobalContext());
+  result->set(used + 1, *global_context);
+  return result;
+}
+
+
+bool GlobalContextTable::Lookup(Handle<GlobalContextTable> table,
+                                Handle<String> name, LookupResult* result) {
+  for (int i = 0; i < table->used(); i++) {
+    Handle<Context> context = GetContext(table, i);
+    DCHECK(context->IsGlobalContext());
+    Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
+    int slot_index = ScopeInfo::ContextSlotIndex(
+        scope_info, name, &result->mode, &result->init_flag,
+        &result->maybe_assigned_flag);
+
+    if (slot_index >= 0) {
+      result->context_index = i;
+      result->slot_index = slot_index;
+      return true;
+    }
+  }
+  return false;
+}
+
+
 Context* Context::declaration_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsNativeContext()) {
@@ -102,6 +144,53 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   return attrs;
 }
 
+static void GetAttributesAndBindingFlags(VariableMode mode,
+                                         InitializationFlag init_flag,
+                                         PropertyAttributes* attributes,
+                                         BindingFlags* binding_flags) {
+  switch (mode) {
+    case INTERNAL:  // Fall through.
+    case VAR:
+      *attributes = NONE;
+      *binding_flags = MUTABLE_IS_INITIALIZED;
+      break;
+    case LET:
+      *attributes = NONE;
+      *binding_flags = (init_flag == kNeedsInitialization)
+                           ? MUTABLE_CHECK_INITIALIZED
+                           : MUTABLE_IS_INITIALIZED;
+      break;
+    case CONST_LEGACY:
+      *attributes = READ_ONLY;
+      *binding_flags = (init_flag == kNeedsInitialization)
+                           ? IMMUTABLE_CHECK_INITIALIZED
+                           : IMMUTABLE_IS_INITIALIZED;
+      break;
+    case CONST:
+      *attributes = READ_ONLY;
+      *binding_flags = (init_flag == kNeedsInitialization)
+                           ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
+                           : IMMUTABLE_IS_INITIALIZED_HARMONY;
+      break;
+    case MODULE:
+      *attributes = READ_ONLY;
+      *binding_flags = IMMUTABLE_IS_INITIALIZED_HARMONY;
+      break;
+    case DYNAMIC:
+    case DYNAMIC_GLOBAL:
+    case DYNAMIC_LOCAL:
+    case TEMPORARY:
+      // Note: Fixed context slots are statically allocated by the compiler.
+      // Statically allocated variables always have a statically known mode,
+      // which is the mode with which they were declared when added to the
+      // scope. Thus, the DYNAMIC mode (which corresponds to dynamically
+      // declared variables that were introduced through declaration nodes)
+      // must not appear here.
+      UNREACHABLE();
+      break;
+  }
+}
+
 
 Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
@@ -122,8 +211,6 @@ Handle<Object> Context::Lookup(Handle<String> name,
     PrintF(")\n");
   }
 
-  bool visited_global_context = false;
-
   do {
     if (FLAG_trace_contexts) {
       PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
@@ -132,19 +219,6 @@ Handle<Object> Context::Lookup(Handle<String> name,
       PrintF("\n");
     }
 
-    if (follow_context_chain && FLAG_harmony_scoping &&
-        !visited_global_context &&
-        (context->IsGlobalContext() || context->IsNativeContext())) {
-      // For lexical scoping, on a top level, we might resolve to the
-      // lexical bindings introduced by later scrips. Therefore we need to
-      // switch to the the last added global context during lookup here.
-      context = Handle<Context>(context->global_object()->global_context());
-      visited_global_context = true;
-      if (FLAG_trace_contexts) {
-        PrintF("   - switching to current global context %p\n",
-               reinterpret_cast<void*>(*context));
-      }
-    }
 
     // 1. Check global objects, subjects of with, and extension objects.
     if (context->IsNativeContext() ||
@@ -152,6 +226,30 @@ Handle<Object> Context::Lookup(Handle<String> name,
         (context->IsFunctionContext() && context->has_extension())) {
       Handle<JSReceiver> object(
           JSReceiver::cast(context->extension()), isolate);
+
+      if (context->IsNativeContext()) {
+        if (FLAG_trace_contexts) {
+          PrintF(" - trying other global contexts\n");
+        }
+        // Try other global contexts.
+        Handle<GlobalContextTable> global_contexts(
+            context->global_object()->native_context()->global_context_table());
+        GlobalContextTable::LookupResult r;
+        if (GlobalContextTable::Lookup(global_contexts, name, &r)) {
+          if (FLAG_trace_contexts) {
+            Handle<Context> c = GlobalContextTable::GetContext(global_contexts,
+                                                               r.context_index);
+            PrintF("=> found property in global context %d: %p\n",
+                   r.context_index, reinterpret_cast<void*>(*c));
+          }
+          *index = r.slot_index;
+          GetAttributesAndBindingFlags(r.mode, r.init_flag, attributes,
+                                       binding_flags);
+          return GlobalContextTable::GetContext(global_contexts,
+                                                r.context_index);
+        }
+      }
+
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
@@ -206,45 +304,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
                  slot_index, mode);
         }
         *index = slot_index;
-        // Note: Fixed context slots are statically allocated by the compiler.
-        // Statically allocated variables always have a statically known mode,
-        // which is the mode with which they were declared when added to the
-        // scope. Thus, the DYNAMIC mode (which corresponds to dynamically
-        // declared variables that were introduced through declaration nodes)
-        // must not appear here.
-        switch (mode) {
-          case INTERNAL:  // Fall through.
-          case VAR:
-            *attributes = NONE;
-            *binding_flags = MUTABLE_IS_INITIALIZED;
-            break;
-          case LET:
-            *attributes = NONE;
-            *binding_flags = (init_flag == kNeedsInitialization)
-                ? MUTABLE_CHECK_INITIALIZED : MUTABLE_IS_INITIALIZED;
-            break;
-          case CONST_LEGACY:
-            *attributes = READ_ONLY;
-            *binding_flags = (init_flag == kNeedsInitialization)
-                ? IMMUTABLE_CHECK_INITIALIZED : IMMUTABLE_IS_INITIALIZED;
-            break;
-          case CONST:
-            *attributes = READ_ONLY;
-            *binding_flags = (init_flag == kNeedsInitialization)
-                ? IMMUTABLE_CHECK_INITIALIZED_HARMONY :
-                IMMUTABLE_IS_INITIALIZED_HARMONY;
-            break;
-          case MODULE:
-            *attributes = READ_ONLY;
-            *binding_flags = IMMUTABLE_IS_INITIALIZED_HARMONY;
-            break;
-          case DYNAMIC:
-          case DYNAMIC_GLOBAL:
-          case DYNAMIC_LOCAL:
-          case TEMPORARY:
-            UNREACHABLE();
-            break;
-        }
+        GetAttributesAndBindingFlags(mode, init_flag, attributes,
+                                     binding_flags);
         return context;
       }
 

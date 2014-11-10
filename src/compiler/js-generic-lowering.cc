@@ -223,7 +223,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
       linkage()->GetRuntimeCallDescriptor(f, nargs, properties);
   Node* ref = ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = Int32Constant(nargs);
-  PatchInsertInput(node, 0, jsgraph()->CEntryStubConstant());
+  PatchInsertInput(node, 0, jsgraph()->CEntryStubConstant(fun->result_size));
   PatchInsertInput(node, nargs + 1, ref);
   PatchInsertInput(node, nargs + 2, arity);
   PatchOperator(node, common()->Call(desc));

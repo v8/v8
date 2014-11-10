@@ -19,8 +19,16 @@
   assertEquals(Function.prototype, Object.getPrototypeOf(D));
   assertEquals('D', D.name);
 
+  class D2 { constructor() {} }
+  assertEquals('D2', D2.name);
+
+  // TODO(arv): The logic for the name of anonymous functions in ES6 requires
+  // the below to be 'E';
   var E = class {}
-  assertEquals('', E.name);
+  assertEquals('', E.name);  // Should be 'E'.
+
+  var F = class { constructor() {} };
+  assertEquals('', F.name);  // Should be 'F'.
 })();
 
 
@@ -586,6 +594,33 @@ function assertAccessorDescriptor(object, name) {
   assertEquals(2, new C()[2]);
   assertEquals(4, C[4]());
   assertEquals(5, C[5]);
+})();
+
+
+(function TestDefaultConstructorNoCrash() {
+  // Regression test for https://code.google.com/p/v8/issues/detail?id=3661
+  class C {}
+  assertEquals(undefined, C());
+  assertEquals(undefined, C(1));
+  assertTrue(new C() instanceof C);
+  assertTrue(new C(1) instanceof C);
+})();
+
+
+(function TestDefaultConstructor() {
+  var calls = 0;
+  class Base {
+    constructor() {
+      calls++;
+    }
+  }
+  class Derived extends Base {}
+  var object = new Derived;
+  assertEquals(1, calls);
+
+  calls = 0;
+  Derived();
+  assertEquals(1, calls);
 })();
 
 

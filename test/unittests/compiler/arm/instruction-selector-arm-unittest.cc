@@ -1558,6 +1558,150 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32MulHigh) {
 }
 
 
+TEST_F(InstructionSelectorTest, Int32AddWithWord32And) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(m.Word32And(p0, m.Int32Constant(0xff)), p1);
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtab, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(p1, m.Word32And(p0, m.Int32Constant(0xff)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtab, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(m.Word32And(p0, m.Int32Constant(0xffff)), p1);
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtah, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(p1, m.Word32And(p0, m.Int32Constant(0xffff)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtah, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddWithWord32SarWithWord32Shl) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24)),
+        p1);
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxtab, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(
+        p1,
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxtab, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16)),
+        p1);
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxtah, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const r = m.Int32Add(
+        p1,
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxtah, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+}
+
+
 TEST_F(InstructionSelectorTest, Int32SubWithInt32Mul) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
@@ -1939,6 +2083,72 @@ TEST_F(InstructionSelectorTest, Word32AndWithBfcImmediateForARMv7) {
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
     }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(p0, m.Int32Constant(0xffff));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxth, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(m.Int32Constant(0xffff), p0);
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxth, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r =
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxtb, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r =
+        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmSxth, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
   }
 }
 

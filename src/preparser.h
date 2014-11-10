@@ -1325,6 +1325,12 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
+  static PreParserExpression DefaultConstructor(bool call_super,
+                                                PreParserScope* scope, int pos,
+                                                int end_pos) {
+    return PreParserExpression::Default();
+  }
+
   static PreParserExpression ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       PreParserFactory* factory) {
@@ -2747,12 +2753,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
     return this->EmptyExpression();
   }
 
+  bool has_extends = false;
   ExpressionT extends = this->EmptyExpression();
   if (Check(Token::EXTENDS)) {
     typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
     BlockState block_state(&scope_, Traits::Type::ptr_to_scope(scope));
     scope_->SetStrictMode(STRICT);
     extends = this->ParseLeftHandSideExpression(CHECK_OK);
+    has_extends = true;
   }
 
   // TODO(arv): Implement scopes and name binding in class body only.
@@ -2790,6 +2798,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
 
   int end_pos = peek_position();
   Expect(Token::RBRACE, CHECK_OK);
+
+  if (!has_seen_constructor) {
+    constructor =
+        this->DefaultConstructor(has_extends, scope_, pos, end_pos + 1);
+  }
 
   return this->ClassExpression(name, extends, constructor, properties, pos,
                                end_pos + 1, factory());

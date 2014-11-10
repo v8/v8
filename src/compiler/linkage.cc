@@ -186,6 +186,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kRegExpCompile:
     case Runtime::kRegExpExecMultiple:
     case Runtime::kResolvePossiblyDirectEval:
+    case Runtime::kRunMicrotasks:
     case Runtime::kSetPrototype:
     case Runtime::kSetScriptBreakPoint:
     case Runtime::kSparseJoinWithSeparator:

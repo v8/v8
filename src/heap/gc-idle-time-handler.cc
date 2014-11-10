@@ -14,6 +14,7 @@ const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
 const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
+const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
 
 
 void GCIdleTimeAction::Print() {
@@ -129,14 +130,12 @@ bool GCIdleTimeHandler::ShouldDoMarkCompact(
 // (2) If the new space is almost full and we can affort a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
 // (3) If there is currently no MarkCompact idle round going on, we start a
-// new idle round if enough garbage was created or we received a context
-// disposal event. Otherwise we do not perform garbage collection to keep
-// system utilization low.
+// new idle round if enough garbage was created. Otherwise we do not perform
+// garbage collection to keep system utilization low.
 // (4) If incremental marking is done, we perform a full garbage collection
-// if context was disposed or if we are allowed to still do full garbage
-// collections during this idle round or if we are not allowed to start
-// incremental marking. Otherwise we do not perform garbage collection to
-// keep system utilization low.
+// if  we are allowed to still do full garbage collections during this idle
+// round or if we are not allowed to start incremental marking. Otherwise we
+// do not perform garbage collection to keep system utilization low.
 // (5) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
 // (6) If incremental marking is in progress, we perform a marking step. Note,
@@ -145,8 +144,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
   if (idle_time_in_ms == 0) {
     if (heap_state.incremental_marking_stopped) {
-      if (heap_state.size_of_objects < kSmallHeapSize &&
-          heap_state.contexts_disposed > 0) {
+      if (heap_state.contexts_disposed > 0 &&
+          heap_state.contexts_disposal_rate < kHighContextDisposalRate) {
         return GCIdleTimeAction::FullGC();
       }
     }
@@ -162,7 +161,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
   }
 
   if (IsMarkCompactIdleRoundFinished()) {
-    if (EnoughGarbageSinceLastIdleRound() || heap_state.contexts_disposed > 0) {
+    if (EnoughGarbageSinceLastIdleRound()) {
       StartIdleRound();
     } else {
       return GCIdleTimeAction::Done();
@@ -170,11 +169,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
   }
 
   if (heap_state.incremental_marking_stopped) {
-    // TODO(jochen): Remove context disposal dependant logic.
     if (ShouldDoMarkCompact(idle_time_in_ms, heap_state.size_of_objects,
-                            heap_state.mark_compact_speed_in_bytes_per_ms) ||
-        (heap_state.size_of_objects < kSmallHeapSize &&
-         heap_state.contexts_disposed > 0)) {
+                            heap_state.mark_compact_speed_in_bytes_per_ms)) {
       // If there are no more than two GCs left in this idle round and we are
       // allowed to do a full GC, then make those GCs full in order to compact
       // the code space.
@@ -182,10 +178,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
       // can get rid of this special case and always start incremental marking.
       int remaining_mark_sweeps =
           kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (heap_state.contexts_disposed > 0 ||
-          (idle_time_in_ms > kMaxFrameRenderingIdleTime &&
-           (remaining_mark_sweeps <= 2 ||
-            !heap_state.can_start_incremental_marking))) {
+      if (idle_time_in_ms > kMaxFrameRenderingIdleTime &&
+          (remaining_mark_sweeps <= 2 ||
+           !heap_state.can_start_incremental_marking)) {
         return GCIdleTimeAction::FullGC();
       }
     }

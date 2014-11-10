@@ -27,6 +27,14 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               Handle<String> name, Handle<Object> value,
                               PropertyAttributes attr, bool is_var,
                               bool is_const, bool is_function) {
+  Handle<GlobalContextTable> global_contexts(
+      global->native_context()->global_context_table());
+  GlobalContextTable::LookupResult lookup;
+  if (GlobalContextTable::Lookup(global_contexts, name, &lookup) &&
+      IsLexicalVariableMode(lookup.mode)) {
+    return ThrowRedeclarationError(isolate, name);
+  }
+
   // Do the lookup own properties only, see ES5 erratum.
   LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
@@ -347,7 +355,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
           isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
       parameter_map->set_map(isolate->heap()->sloppy_arguments_elements_map());
 
-      Handle<Map> map = Map::Copy(handle(result->map()));
+      Handle<Map> map = Map::Copy(handle(result->map()), "NewSloppyArguments");
       map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
 
       result->set_map(*map);
@@ -507,6 +515,35 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
                                                                 pretenure_flag);
 }
 
+static Object* FindNameClash(Handle<ScopeInfo> scope_info,
+                             Handle<GlobalObject> global_object,
+                             Handle<GlobalContextTable> global_context) {
+  Isolate* isolate = scope_info->GetIsolate();
+  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
+    Handle<String> name(scope_info->ContextLocalName(var));
+    VariableMode mode = scope_info->ContextLocalMode(var);
+    GlobalContextTable::LookupResult lookup;
+    if (GlobalContextTable::Lookup(global_context, name, &lookup)) {
+      if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
+        return ThrowRedeclarationError(isolate, name);
+      }
+    }
+
+    if (IsLexicalVariableMode(mode)) {
+      LookupIterator it(global_object, name,
+                        LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+      Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+      if (!maybe.has_value) return isolate->heap()->exception();
+      if ((maybe.value & DONT_DELETE) != 0) {
+        return ThrowRedeclarationError(isolate, name);
+      }
+
+      GlobalObject::InvalidatePropertyCell(global_object, name);
+    }
+  }
+  return isolate->heap()->undefined_value();
+}
+
 
 RUNTIME_FUNCTION(Runtime_NewGlobalContext) {
   HandleScope scope(isolate);
@@ -514,12 +551,25 @@ RUNTIME_FUNCTION(Runtime_NewGlobalContext) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  Handle<GlobalObject> global_object(function->context()->global_object());
+  Handle<Context> native_context(global_object->native_context());
+  Handle<GlobalContextTable> global_context_table(
+      native_context->global_context_table());
+
+  Handle<String> clashed_name;
+  Object* name_clash_result =
+      FindNameClash(scope_info, global_object, global_context_table);
+  if (isolate->has_pending_exception()) return name_clash_result;
+
   Handle<Context> result =
       isolate->factory()->NewGlobalContext(function, scope_info);
 
   DCHECK(function->context() == isolate->context());
   DCHECK(function->context()->global_object() == result->global_object());
-  result->global_object()->set_global_context(*result);
+
+  Handle<GlobalContextTable> new_global_context_table =
+      GlobalContextTable::Extend(global_context_table, result);
+  native_context->set_global_context_table(*new_global_context_table);
   return *result;
 }
 

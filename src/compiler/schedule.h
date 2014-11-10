@@ -265,8 +265,6 @@ class Schedule FINAL : public ZoneObject {
 
  private:
   friend class Scheduler;
-  friend class CodeGenerator;
-  friend class ScheduleVisualizer;
   friend class BasicBlockInstrumentor;
 
   void AddSuccessor(BasicBlock* block, BasicBlock* succ);

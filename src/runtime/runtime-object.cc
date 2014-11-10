@@ -469,7 +469,7 @@ RUNTIME_FUNCTION(Runtime_DisableAccessChecks) {
   bool needs_access_checks = old_map->is_access_check_needed();
   if (needs_access_checks) {
     // Copy map so it won't interfere constructor's initial map.
-    Handle<Map> new_map = Map::Copy(old_map);
+    Handle<Map> new_map = Map::Copy(old_map, "DisableAccessChecks");
     new_map->set_is_access_check_needed(false);
     JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
   }
@@ -484,7 +484,7 @@ RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
   Handle<Map> old_map(object->map());
   RUNTIME_ASSERT(!old_map->is_access_check_needed());
   // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(old_map);
+  Handle<Map> new_map = Map::Copy(old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
   JSObject::MigrateToMap(object, new_map);
   return isolate->heap()->undefined_value();
@@ -499,7 +499,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   // Conservative upper limit to prevent fuzz tests from going OOM.
   RUNTIME_ASSERT(properties <= 100000);
   if (object->HasFastProperties() && !object->IsJSGlobalProxy()) {
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties,
+                                  "OptimizeForAdding");
   }
   return *object;
 }
@@ -1152,7 +1153,8 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   if (object->IsJSObject() && !object->IsGlobalObject()) {
-    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(object), 0);
+    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(object), 0,
+                                "RuntimeToFastProperties");
   }
   return *object;
 }
@@ -1456,7 +1458,7 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   bool fast = obj->HasFastProperties();
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::DefineAccessor(obj, name, getter, setter, attr));
-  if (fast) JSObject::MigrateSlowToFast(obj, 0);
+  if (fast) JSObject::MigrateSlowToFast(obj, 0, "RuntimeDefineAccessor");
   return isolate->heap()->undefined_value();
 }
 

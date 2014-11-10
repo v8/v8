@@ -1138,24 +1138,6 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 }
 
 
-bool Scanner::ScanLiteralUnicodeEscape() {
-  DCHECK(c0_ == '\\');
-  AddLiteralChar(c0_);
-  Advance();
-  int hex_digits_read = 0;
-  if (c0_ == 'u') {
-    AddLiteralChar(c0_);
-    while (hex_digits_read < 4) {
-      Advance();
-      if (!IsHexDigit(c0_)) break;
-      AddLiteralChar(c0_);
-      ++hex_digits_read;
-    }
-  }
-  return hex_digits_read == 4;
-}
-
-
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
@@ -1163,10 +1145,7 @@ bool Scanner::ScanRegExpFlags() {
     if (c0_ != '\\') {
       AddLiteralCharAdvance();
     } else {
-      if (!ScanLiteralUnicodeEscape()) {
-        return false;
-      }
-      Advance();
+      return false;
     }
   }
   literal.Complete();

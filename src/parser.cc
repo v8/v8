@@ -275,6 +275,62 @@ Scope* Parser::NewScope(Scope* parent, ScopeType scope_type) {
 }
 
 
+FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
+                                            int pos, int end_pos) {
+  int materialized_literal_count = -1;
+  int expected_property_count = -1;
+  int handler_count = 0;
+  int parameter_count = 0;
+  AstProperties ast_properties;
+  BailoutReason dont_optimize_reason = kNoReason;
+  const AstRawString* name = ast_value_factory()->empty_string();
+  FunctionKind kind = call_super ? FunctionKind::kDefaultConstructorCallSuper
+                                 : FunctionKind::kDefaultConstructor;
+
+  Scope* function_scope = NewScope(scope, FUNCTION_SCOPE);
+  function_scope->SetStrictMode(STRICT);
+  // Set start and end position to the same value
+  function_scope->set_start_position(pos);
+  function_scope->set_end_position(pos);
+  ZoneList<Statement*>* body = NULL;
+
+  {
+    AstNodeFactory<AstConstructionVisitor> function_factory(
+        ast_value_factory());
+    FunctionState function_state(&function_state_, &scope_, function_scope,
+                                 &function_factory);
+
+    body = new (zone()) ZoneList<Statement*>(1, zone());
+    if (call_super) {
+      Expression* prop = SuperReference(function_scope, factory(), pos);
+      ZoneList<Expression*>* args =
+          new (zone()) ZoneList<Expression*>(0, zone());
+      Call* call = factory()->NewCall(prop, args, pos);
+      body->Add(factory()->NewExpressionStatement(call, pos), zone());
+    }
+
+    materialized_literal_count = function_state.materialized_literal_count();
+    expected_property_count = function_state.expected_property_count();
+    handler_count = function_state.handler_count();
+
+    ast_properties = *factory()->visitor()->ast_properties();
+    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
+  }
+
+  FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
+      name, ast_value_factory(), function_scope, body,
+      materialized_literal_count, expected_property_count, handler_count,
+      parameter_count, FunctionLiteral::kNoDuplicateParameters,
+      FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
+      FunctionLiteral::kNotParenthesized, kind, pos);
+
+  function_literal->set_ast_properties(&ast_properties);
+  function_literal->set_dont_optimize_reason(dont_optimize_reason);
+
+  return function_literal;
+}
+
+
 // ----------------------------------------------------------------------------
 // Target is a support class to facilitate manipulation of the
 // Parser's target_stack_ (the stack of potential 'break' and
@@ -648,6 +704,13 @@ Expression* ParserTraits::ClassExpression(
                                   start_position, end_position);
 }
 
+
+Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
+                                             int pos, int end_pos) {
+  return parser_->DefaultConstructor(call_super, scope, pos, end_pos);
+}
+
+
 Literal* ParserTraits::ExpressionFromLiteral(
     Token::Value token, int pos,
     Scanner* scanner,
@@ -1004,6 +1067,11 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
       Expression* expression = ParseExpression(false, &ok);
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
+    } else if (shared_info->is_default_constructor() ||
+               shared_info->is_default_constructor_call_super()) {
+      result = DefaultConstructor(
+          shared_info->is_default_constructor_call_super(), scope,
+          shared_info->start_position(), shared_info->end_position());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     false,  // Strict mode name already checked.

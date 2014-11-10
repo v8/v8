@@ -39,6 +39,8 @@
 
     'v8_enable_verify_heap%': 0,
 
+    'v8_trace_maps%': 0,
+
     'v8_use_snapshot%': 'true',
 
     'v8_enable_verify_predictable%': 0,
@@ -76,6 +78,9 @@
       }],
       ['v8_enable_verify_heap==1', {
         'defines': ['VERIFY_HEAP',],
+      }],
+      ['v8_trace_maps==1', {
+        'defines': ['TRACE_MAPS',],
       }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],

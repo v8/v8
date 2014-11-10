@@ -685,7 +685,7 @@ class SpecialRPONumberer : public ZoneObject {
     stack_.resize(schedule_->BasicBlockCount() - previous_block_count_);
     previous_block_count_ = schedule_->BasicBlockCount();
     int stack_depth = Push(stack_, 0, entry, kBlockUnvisited1);
-    int num_loops = 0;
+    int num_loops = static_cast<int>(loops_.size());
 
     while (stack_depth > 0) {
       int current = stack_depth - 1;
@@ -717,7 +717,7 @@ class SpecialRPONumberer : public ZoneObject {
     }
 
     // If no loops were encountered, then the order we computed was correct.
-    if (num_loops != 0) {
+    if (num_loops > static_cast<int>(loops_.size())) {
       // Otherwise, compute the loop information from the backedges in order
       // to perform a traversal that groups loop bodies together.
       ComputeLoopInfo(stack_, num_loops, &backedges_);
@@ -725,7 +725,7 @@ class SpecialRPONumberer : public ZoneObject {
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
           HasLoopNumber(entry) ? &loops_[GetLoopNumber(entry)] : NULL;
-      order = NULL;
+      order = insert_after;
 
       // Perform an iterative post-order traversal, visiting loop bodies before
       // edges that lead out of loops. Visits each block once, but linking loop
@@ -737,7 +737,7 @@ class SpecialRPONumberer : public ZoneObject {
         BasicBlock* block = frame->block;
         BasicBlock* succ = NULL;
 
-        if (frame->index < block->SuccessorCount()) {
+        if (block != end && frame->index < block->SuccessorCount()) {
           // Process the next normal successor.
           succ = block->SuccessorAt(frame->index++);
         } else if (HasLoopNumber(block)) {

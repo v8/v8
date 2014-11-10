@@ -557,11 +557,6 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
       safepoint.DefinePointerRegister(ToRegister(pointer), zone());
     }
   }
-
-  if (kind & Safepoint::kWithRegisters) {
-    // Register cp always contains a pointer to the context.
-    safepoint.DefinePointerRegister(cp, zone());
-  }
 }
 
 void LCodeGen::RecordSafepoint(LPointerMap* pointers,
