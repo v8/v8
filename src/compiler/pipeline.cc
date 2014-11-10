@@ -584,15 +584,17 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     ZonePool::Scope zone_scope(data->zone_pool());
 
     SmartArrayPointer<char> debug_name;
+    RegisterAllocator::VerificationType verification_type =
+        RegisterAllocator::kNoVerify;
 #ifdef DEBUG
     debug_name = GetDebugName(info());
+    verification_type = RegisterAllocator::kVerifyAssignment;
 #endif
-
 
     RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
                                 zone_scope.zone(), &frame, &sequence,
                                 debug_name.get());
-    if (!allocator.Allocate(data->pipeline_statistics())) {
+    if (!allocator.Allocate(data->pipeline_statistics(), verification_type)) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }

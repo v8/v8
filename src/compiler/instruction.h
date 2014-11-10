@@ -332,6 +332,11 @@ class SubKindOperand FINAL : public InstructionOperand {
     return reinterpret_cast<SubKindOperand*>(op);
   }
 
+  static const SubKindOperand* cast(const InstructionOperand* op) {
+    DCHECK(op->kind() == kOperandKind);
+    return reinterpret_cast<const SubKindOperand*>(op);
+  }
+
   static void SetUpCache();
   static void TearDownCache();
 
@@ -581,7 +586,7 @@ class GapInstruction : public Instruction {
     return parallel_moves_[pos];
   }
 
-  ParallelMove* GetParallelMove(InnerPosition pos) {
+  ParallelMove* GetParallelMove(InnerPosition pos) const {
     return parallel_moves_[pos];
   }
 
@@ -917,6 +922,7 @@ class InstructionSequence FINAL {
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
   const_iterator end() const { return instructions_.end(); }
+  const InstructionDeque& instructions() const { return instructions_; }
 
   GapInstruction* GapAt(int index) const {
     return GapInstruction::cast(InstructionAt(index));
