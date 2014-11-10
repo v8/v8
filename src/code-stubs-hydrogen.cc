@@ -538,7 +538,8 @@ HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
   HObjectAccess access = index.is_inobject()
       ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
       : HObjectAccess::ForBackingStoreOffset(offset, representation);
-  if (index.is_double()) {
+  if (index.is_double() &&
+      (!FLAG_unbox_double_fields || !index.is_inobject())) {
     // Load the heap number.
     object = Add<HLoadNamedField>(
         object, static_cast<HValue*>(NULL),
@@ -705,30 +706,32 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
           : HObjectAccess::ForBackingStoreOffset(offset, representation);
 
   if (representation.IsDouble()) {
-    HObjectAccess heap_number_access =
-        access.WithRepresentation(Representation::Tagged());
-    if (transition_to_field) {
-      // The store requires a mutable HeapNumber to be allocated.
-      NoObservableSideEffectsScope no_side_effects(this);
-      HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
+    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
+      HObjectAccess heap_number_access =
+          access.WithRepresentation(Representation::Tagged());
+      if (transition_to_field) {
+        // The store requires a mutable HeapNumber to be allocated.
+        NoObservableSideEffectsScope no_side_effects(this);
+        HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
 
-      // TODO(hpayer): Allocation site pretenuring support.
-      HInstruction* heap_number =
-          Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
-                         MUTABLE_HEAP_NUMBER_TYPE);
-      AddStoreMapConstant(heap_number,
-                          isolate()->factory()->mutable_heap_number_map());
-      Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
-                            value);
-      // Store the new mutable heap number into the object.
-      access = heap_number_access;
-      value = heap_number;
-    } else {
-      // Load the heap number.
-      object = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
-                                    heap_number_access);
-      // Store the double value into it.
-      access = HObjectAccess::ForHeapNumberValue();
+        // TODO(hpayer): Allocation site pretenuring support.
+        HInstruction* heap_number =
+            Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
+                           MUTABLE_HEAP_NUMBER_TYPE);
+        AddStoreMapConstant(heap_number,
+                            isolate()->factory()->mutable_heap_number_map());
+        Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
+                              value);
+        // Store the new mutable heap number into the object.
+        access = heap_number_access;
+        value = heap_number;
+      } else {
+        // Load the heap number.
+        object = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                      heap_number_access);
+        // Store the double value into it.
+        access = HObjectAccess::ForHeapNumberValue();
+      }
     }
   } else if (representation.IsHeapObject()) {
     BuildCheckHeapObject(value);

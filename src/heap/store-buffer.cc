@@ -507,11 +507,33 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
-              if (!heap_object->MayContainRawValues()) {
-                FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(), slot_callback,
-                    clear_maps);
+              bool may_contain_raw_values = heap_object->MayContainRawValues();
+              if (!may_contain_raw_values) {
+                Address obj_address = heap_object->address();
+                Address start_address = obj_address + HeapObject::kHeaderSize;
+                Address end_address = obj_address + heap_object->Size();
+#if V8_DOUBLE_FIELDS_UNBOXING
+                InobjectPropertiesHelper helper(heap_object->map());
+                bool has_only_tagged_fields = helper.all_fields_tagged();
+
+                if (!has_only_tagged_fields) {
+                  for (Address slot = start_address; slot < end_address;
+                       slot += kPointerSize) {
+                    if (helper.IsTagged(slot - obj_address)) {
+                      // TODO(ishell): call this once for contiguous region
+                      // of tagged fields.
+                      FindPointersToNewSpaceInRegion(slot, slot + kPointerSize,
+                                                     slot_callback, clear_maps);
+                    }
+                  }
+                } else {
+#endif
+                  // Object has only tagged fields.
+                  FindPointersToNewSpaceInRegion(start_address, end_address,
+                                                 slot_callback, clear_maps);
+#if V8_DOUBLE_FIELDS_UNBOXING
+                }
+#endif
               }
             }
           }

@@ -1400,9 +1400,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
     RUNTIME_ASSERT(field_index.outobject_array_index() <
                    object->properties()->length());
   }
-  Handle<Object> raw_value(object->RawFastPropertyAt(field_index), isolate);
-  RUNTIME_ASSERT(raw_value->IsMutableHeapNumber());
-  return *Object::WrapForRead(isolate, raw_value, Representation::Double());
+  return *JSObject::FastPropertyAt(object, Representation::Double(),
+                                   field_index);
 }
 
 

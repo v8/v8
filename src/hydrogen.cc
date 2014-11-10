@@ -5533,9 +5533,11 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.type() != FIELD) continue;
-      int index = descriptors->GetFieldIndex(i);
       if ((*max_properties)-- == 0) return false;
-      Handle<Object> value(boilerplate->InObjectPropertyAt(index), isolate);
+      FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
+      if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
+      Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
+                           isolate);
       if (value->IsJSObject()) {
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
         if (!IsFastLiteral(value_object,
@@ -5838,7 +5840,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
   }
 
   HObjectAccess access = info->access();
-  if (access.representation().IsDouble()) {
+  if (access.representation().IsDouble() &&
+      (!FLAG_unbox_double_fields || !access.IsInobject())) {
     // Load the heap number.
     checked_object = Add<HLoadNamedField>(
         checked_object, static_cast<HValue*>(NULL),
@@ -5870,7 +5873,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   HObjectAccess field_access = info->access();
 
   HStoreNamedField *instr;
-  if (field_access.representation().IsDouble()) {
+  if (field_access.representation().IsDouble() &&
+      (!FLAG_unbox_double_fields || !field_access.IsInobject())) {
     HObjectAccess heap_number_access =
         field_access.WithRepresentation(Representation::Tagged());
     if (transition_to_field) {
@@ -11186,17 +11190,26 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
     copied_fields++;
-    int index = descriptors->GetFieldIndex(i);
-    int property_offset = boilerplate_object->GetInObjectPropertyOffset(index);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*boilerplate_map, i);
+
+
+    int property_offset = field_index.offset();
     Handle<Name> name(descriptors->GetKey(i));
-    Handle<Object> value =
-        Handle<Object>(boilerplate_object->InObjectPropertyAt(index),
-        isolate());
 
     // The access for the store depends on the type of the boilerplate.
     HObjectAccess access = boilerplate_object->IsJSArray() ?
         HObjectAccess::ForJSArrayOffset(property_offset) :
         HObjectAccess::ForMapAndOffset(boilerplate_map, property_offset);
+
+    if (boilerplate_object->IsUnboxedDoubleField(field_index)) {
+      CHECK(!boilerplate_object->IsJSArray());
+      double value = boilerplate_object->RawFastDoublePropertyAt(field_index);
+      access = access.WithRepresentation(Representation::Double());
+      Add<HStoreNamedField>(object, access, Add<HConstant>(value));
+      continue;
+    }
+    Handle<Object> value(boilerplate_object->RawFastPropertyAt(field_index),
+                         isolate());
 
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
