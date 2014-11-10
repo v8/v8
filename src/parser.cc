@@ -2939,7 +2939,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     // var iterator = subject[Symbol.iterator]();
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        GetIterator(subject, factory()), RelocInfo::kNoPosition);
+        GetIterator(subject, factory()), subject->position());
 
     // var result = iterator.next();
     {
@@ -2950,11 +2950,11 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
           iterator_proxy, next_literal, RelocInfo::kNoPosition);
       ZoneList<Expression*>* next_arguments =
           new(zone()) ZoneList<Expression*>(0, zone());
-      Expression* next_call = factory()->NewCall(
-          next_property, next_arguments, RelocInfo::kNoPosition);
+      Expression* next_call = factory()->NewCall(next_property, next_arguments,
+                                                 subject->position());
       Expression* result_proxy = factory()->NewVariableProxy(result);
-      next_result = factory()->NewAssignment(
-          Token::ASSIGN, result_proxy, next_call, RelocInfo::kNoPosition);
+      next_result = factory()->NewAssignment(Token::ASSIGN, result_proxy,
+                                             next_call, subject->position());
     }
 
     // result.done
@@ -2973,8 +2973,8 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
       Expression* result_proxy = factory()->NewVariableProxy(result);
       Expression* result_value = factory()->NewProperty(
           result_proxy, value_literal, RelocInfo::kNoPosition);
-      assign_each = factory()->NewAssignment(
-          Token::ASSIGN, each, result_value, RelocInfo::kNoPosition);
+      assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
+                                             each->position());
     }
 
     for_of->Initialize(each, subject, body,
@@ -3152,7 +3152,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
-  int pos = peek_position();
+  int stmt_pos = peek_position();
   Statement* init = NULL;
   ZoneList<const AstRawString*> let_bindings(1, zone());
 
@@ -3175,19 +3175,20 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                                     CHECK_OK);
       bool accept_OF = decl_props == kHasNoInitializers;
       ForEachStatement::VisitMode mode;
+      int each_pos = position();
 
       if (name != NULL && CheckInOrOf(accept_OF, &mode)) {
         Interface* interface =
             is_const ? Interface::NewConst() : Interface::NewValue();
         ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, pos);
+            factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
         VariableProxy* each =
-            scope_->NewUnresolved(factory(), name, interface);
+            scope_->NewUnresolved(factory(), name, interface, each_pos);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         InitializeForEachStatement(loop, each, enumerable, body);
         Block* result =
@@ -3214,6 +3215,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       bool accept_IN = name != NULL && decl_props != kHasInitializers;
       bool accept_OF = decl_props == kHasNoInitializers;
       ForEachStatement::VisitMode mode;
+      int each_pos = position();
 
       if (accept_IN && CheckInOrOf(accept_OF, &mode)) {
         // Rewrite a for-in statement of the form
@@ -3235,7 +3237,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             ast_value_factory()->dot_for_string());
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
         ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, pos);
+            factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
         // The expression does not see the loop variable.
@@ -3244,7 +3246,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each = scope_->NewUnresolved(factory(), name);
+        VariableProxy* each = scope_->NewUnresolved(
+            factory(), name, Interface::NewValue(), each_pos);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
@@ -3278,7 +3281,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             expression, lhs_location, "invalid_lhs_in_for", CHECK_OK);
 
         ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, pos);
+            factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
         Expression* enumerable = ParseExpression(true, CHECK_OK);
@@ -3294,14 +3297,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         return loop;
 
       } else {
-        init = factory()->NewExpressionStatement(
-            expression, RelocInfo::kNoPosition);
+        init = factory()->NewExpressionStatement(expression, position());
       }
     }
   }
 
   // Standard 'for' loop
-  ForStatement* loop = factory()->NewForStatement(labels, pos);
+  ForStatement* loop = factory()->NewForStatement(labels, stmt_pos);
   Target target(&this->target_stack_, loop);
 
   // Parsed initializer at this point.
@@ -3324,8 +3326,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   Statement* next = NULL;
   if (peek() != Token::RPAREN) {
+    int next_pos = position();
     Expression* exp = ParseExpression(true, CHECK_OK);
-    next = factory()->NewExpressionStatement(exp, RelocInfo::kNoPosition);
+    next = factory()->NewExpressionStatement(exp, next_pos);
   }
   Expect(Token::RPAREN, CHECK_OK);
 

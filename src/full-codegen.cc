@@ -136,21 +136,19 @@ void BreakableStatementChecker::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void BreakableStatementChecker::VisitForStatement(ForStatement* stmt) {
-  // Mark for statements breakable if the condition expression is.
-  if (stmt->cond() != NULL) {
-    Visit(stmt->cond());
-  }
+  // We set positions for both init and condition, if they exist.
+  if (stmt->cond() != NULL || stmt->init() != NULL) is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForInStatement(ForInStatement* stmt) {
-  // Mark for in statements breakable if the enumerable expression is.
-  Visit(stmt->enumerable());
+  // For-in is breakable because we set the position for the enumerable.
+  is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForOfStatement(ForOfStatement* stmt) {
-  // For-of is breakable because of the next() call.
+  // For-of is breakable because we set the position for the next() call.
   is_breakable_ = true;
 }
 
@@ -1345,6 +1343,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   SetStatementPosition(stmt);
 
   if (stmt->init() != NULL) {
+    SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
 
@@ -1359,6 +1358,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   __ bind(loop_statement.continue_label());
   if (stmt->next() != NULL) {
+    SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
 
@@ -1371,6 +1371,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   __ bind(&test);
   if (stmt->cond() != NULL) {
+    SetExpressionPosition(stmt->cond());
     VisitForControl(stmt->cond(),
                     &body,
                     loop_statement.break_label(),
@@ -1379,6 +1380,47 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
     __ jmp(&body);
   }
 
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_label());
+  decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+  Comment cmnt(masm_, "[ ForOfStatement");
+  SetStatementPosition(stmt);
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // var iterator = iterable[Symbol.iterator]();
+  VisitForEffect(stmt->assign_iterator());
+
+  // Loop entry.
+  __ bind(loop_statement.continue_label());
+
+  // result = iterator.next()
+  SetExpressionPosition(stmt->next_result());
+  VisitForEffect(stmt->next_result());
+
+  // if (result.done) break;
+  Label result_not_done;
+  VisitForControl(stmt->result_done(), loop_statement.break_label(),
+                  &result_not_done, &result_not_done);
+  __ bind(&result_not_done);
+
+  // each = result.value
+  VisitForEffect(stmt->assign_each());
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
+  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
+  __ jmp(loop_statement.continue_label());
+
+  // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
