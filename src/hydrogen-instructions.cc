@@ -2834,6 +2834,10 @@ void HConstant::Initialize(Representation r) {
     // could cause heap object checks not to get emitted.
     object_ = Unique<Object>(Handle<Object>::null());
   }
+  if (r.IsSmiOrInteger32()) {
+    // If it's not a heap object, it can't be in new space.
+    bit_field_ = IsNotInNewSpaceField::update(bit_field_, true);
+  }
   set_representation(r);
   SetFlag(kUseGVN);
 }

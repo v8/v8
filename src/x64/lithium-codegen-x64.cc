@@ -2822,6 +2822,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ Ret((ToInteger32(instr->constant_parameter_count()) + 1) * kPointerSize,
            rcx);
   } else {
+    DCHECK(info()->IsStub());  // Functions would need to drop one more value.
     Register reg = ToRegister(instr->parameter_count());
     // The argument count parameter is a smi
     __ SmiToInteger32(reg, reg);

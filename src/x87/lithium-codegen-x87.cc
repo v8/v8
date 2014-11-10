@@ -3050,6 +3050,7 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
     }
     __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
   } else {
+    DCHECK(info()->IsStub());  // Functions would need to drop one more value.
     Register reg = ToRegister(instr->parameter_count());
     // The argument count parameter is a smi
     __ SmiUntag(reg);
