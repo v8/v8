@@ -1224,7 +1224,6 @@ function SetUpError() {
         // Define all the expected properties directly on the error
         // object. This avoids going through getters and setters defined
         // on prototype objects.
-        %AddNamedProperty(this, 'stack', UNDEFINED, DONT_ENUM);
         if (!IS_UNDEFINED(m)) {
           %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
         }

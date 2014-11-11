@@ -9609,13 +9609,17 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
   }
+  bool has_just_copied_map = false;
   if (!object->HasFastProperties()) {
     JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
+    has_just_copied_map = true;
   }
   if (mode == FAST_PROTOTYPE && object->HasFastProperties() &&
       !object->map()->is_prototype_map()) {
-    Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
-    JSObject::MigrateToMap(object, new_map);
+    if (!has_just_copied_map) {
+      Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
+      JSObject::MigrateToMap(object, new_map);
+    }
     object->map()->set_is_prototype_map(true);
   }
 }
