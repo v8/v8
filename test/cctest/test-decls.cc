@@ -1008,7 +1008,7 @@ TEST(CrossScriptStaticLookupUndeclared) {
 }
 
 
-TEST(CrossScriptICs) {
+TEST(CrossScriptLoadICs) {
   i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
@@ -1060,5 +1060,83 @@ TEST(CrossScriptICs) {
     }
     context.Check("%OptimizeFunctionOnNextCall(f); f()", EXPECT_RESULT,
                   Number::New(CcTest::isolate(), 5));
+  }
+}
+
+
+TEST(CrossScriptStoreICs) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check(
+        "var global = this;"
+        "x = 15;"
+        "function f(v) { x = v; }"
+        "function g(v) { x = v; }"
+        "f(10); x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 10));
+    context.Check(
+        "'use strict';"
+        "let x = 5;"
+        "f(7); x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 7));
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 10));
+    for (int k = 0; k < 3; k++) {
+      context.Check("g(31); x", EXPECT_RESULT,
+                    Number::New(CcTest::isolate(), 31));
+    }
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 10));
+    for (int k = 0; k < 3; k++) {
+      context.Check("f(32); x", EXPECT_RESULT,
+                    Number::New(CcTest::isolate(), 32));
+    }
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 10));
+    context.Check("%OptimizeFunctionOnNextCall(g); g(18); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 18));
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 10));
+    context.Check("%OptimizeFunctionOnNextCall(f); f(33); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 33));
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 10));
+  }
+  {
+    SimpleContext context;
+    context.Check(
+        "var global = this;"
+        "x = 15;"
+        "function f(v) { x = v; }"
+        "f(10); x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 10));
+    for (int k = 0; k < 3; k++) {
+      context.Check("f(18); x", EXPECT_RESULT,
+                    Number::New(CcTest::isolate(), 18));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f); f(20); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 20));
+    context.Check(
+        "'use strict';"
+        "let x = 5;"
+        "f(8); x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 8));
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 20));
+    for (int k = 0; k < 3; k++) {
+      context.Check("f(13); x", EXPECT_RESULT,
+                    Number::New(CcTest::isolate(), 13));
+    }
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 20));
+    context.Check("%OptimizeFunctionOnNextCall(f); f(41); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 41));
+    context.Check("global.x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 20));
   }
 }

@@ -518,19 +518,31 @@ HValue* CodeStubGraphBuilder<LoadGlobalContextFieldStub>::BuildCodeStub() {
   int context_index = casted_stub()->context_index();
   int slot_index = casted_stub()->slot_index();
 
-  HValue* native_context = BuildGetNativeContext();
-  HValue* global_context_table = Add<HLoadNamedField>(
-      native_context, static_cast<HValue*>(NULL),
-      HObjectAccess::ForContextSlot(Context::GLOBAL_CONTEXT_TABLE_INDEX));
-  HValue* global_context =
-      Add<HLoadNamedField>(global_context_table, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForGlobalContext(context_index));
+  HValue* global_context = BuildGetGlobalContext(context_index);
   return Add<HLoadNamedField>(global_context, static_cast<HValue*>(NULL),
                               HObjectAccess::ForContextSlot(slot_index));
 }
 
 
 Handle<Code> LoadGlobalContextFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreGlobalContextFieldStub>::BuildCodeStub() {
+  int context_index = casted_stub()->context_index();
+  int slot_index = casted_stub()->slot_index();
+
+  HValue* global_context = BuildGetGlobalContext(context_index);
+  Add<HStoreNamedField>(global_context,
+                        HObjectAccess::ForContextSlot(slot_index),
+                        GetParameter(2), STORE_TO_INITIALIZED_ENTRY);
+  return GetParameter(2);
+}
+
+
+Handle<Code> StoreGlobalContextFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

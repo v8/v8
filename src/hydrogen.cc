@@ -3133,6 +3133,16 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
 }
 
 
+HInstruction* HGraphBuilder::BuildGetGlobalContext(int context_index) {
+  HValue* native_context = BuildGetNativeContext();
+  HValue* global_context_table = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(Context::GLOBAL_CONTEXT_TABLE_INDEX));
+  return Add<HLoadNamedField>(global_context_table, static_cast<HValue*>(NULL),
+                              HObjectAccess::ForGlobalContext(context_index));
+}
+
+
 HInstruction* HGraphBuilder::BuildGetNativeContext() {
   // Get the global context, then the native context
   HValue* global_object = Add<HLoadNamedField>(
@@ -6522,6 +6532,24 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* value,
     BailoutId ast_id) {
   Handle<GlobalObject> global(current_info()->global_object());
+
+  if (FLAG_harmony_scoping) {
+    Handle<GlobalContextTable> global_contexts(
+        global->native_context()->global_context_table());
+    GlobalContextTable::LookupResult lookup;
+    if (GlobalContextTable::Lookup(global_contexts, var->name(), &lookup)) {
+      Handle<Context> global_context =
+          GlobalContextTable::GetContext(global_contexts, lookup.context_index);
+      HStoreNamedField* instr = Add<HStoreNamedField>(
+          Add<HConstant>(global_context),
+          HObjectAccess::ForContextSlot(lookup.slot_index), value);
+      USE(instr);
+      DCHECK(instr->HasObservableSideEffects());
+      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      return;
+    }
+  }
+
   LookupIterator it(global, var->name(), LookupIterator::OWN_SKIP_INTERCEPTOR);
   GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
   if (type == kUseCell) {

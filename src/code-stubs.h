@@ -77,6 +77,7 @@ namespace internal {
   V(NumberToString)                         \
   V(RegExpConstructResult)                  \
   V(StoreFastElement)                       \
+  V(StoreGlobalContextField)                \
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
@@ -2017,10 +2018,10 @@ class DoubleToIStub : public PlatformCodeStub {
 };
 
 
-class LoadGlobalContextFieldStub : public HandlerStub {
+class GlobalContextFieldStub : public HandlerStub {
  public:
-  LoadGlobalContextFieldStub(
-      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
+  GlobalContextFieldStub(Isolate* isolate,
+                         const GlobalContextTable::LookupResult* lookup_result)
       : HandlerStub(isolate) {
     DCHECK(Accepted(lookup_result));
     set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
@@ -2045,15 +2046,35 @@ class LoadGlobalContextFieldStub : public HandlerStub {
   class SlotIndexBits
       : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
 
-  virtual Code::Kind kind() const { return Code::LOAD_IC; }
   virtual Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
 
+  DEFINE_CODE_STUB_BASE(GlobalContextFieldStub, HandlerStub);
+};
 
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
-    return ContextOnlyDescriptor(isolate());
-  }
 
-  DEFINE_HANDLER_CODE_STUB(LoadGlobalContextField, HandlerStub);
+class LoadGlobalContextFieldStub : public GlobalContextFieldStub {
+ public:
+  LoadGlobalContextFieldStub(
+      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
+      : GlobalContextFieldStub(isolate, lookup_result) {}
+
+ private:
+  virtual Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
+
+  DEFINE_HANDLER_CODE_STUB(LoadGlobalContextField, GlobalContextFieldStub);
+};
+
+
+class StoreGlobalContextFieldStub : public GlobalContextFieldStub {
+ public:
+  StoreGlobalContextFieldStub(
+      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
+      : GlobalContextFieldStub(isolate, lookup_result) {}
+
+ private:
+  virtual Code::Kind kind() const OVERRIDE { return Code::STORE_IC; }
+
+  DEFINE_HANDLER_CODE_STUB(StoreGlobalContextField, GlobalContextFieldStub);
 };
 
 
