@@ -1322,13 +1322,14 @@ inherits(MapMirror, ObjectMirror);
  * Returns an array of key/value pairs of a map.
  * This will keep keys alive for WeakMaps.
  *
+ * @param {number=} opt_limit Max elements to return.
  * @returns {Array.<Object>} Array of key/value pairs of a map.
  */
-MapMirror.prototype.entries = function() {
+MapMirror.prototype.entries = function(opt_limit) {
   var result = [];
 
   if (IS_WEAKMAP(this.value_)) {
-    var entries = %GetWeakMapEntries(this.value_);
+    var entries = %GetWeakMapEntries(this.value_, opt_limit || 0);
     for (var i = 0; i < entries.length; i += 2) {
       result.push({
         key: entries[i],
@@ -1340,7 +1341,8 @@ MapMirror.prototype.entries = function() {
 
   var iter = %_CallFunction(this.value_, builtins.MapEntries);
   var next;
-  while (!(next = iter.next()).done) {
+  while ((!opt_limit || result.length < opt_limit) &&
+         !(next = iter.next()).done) {
     result.push({
       key: next.value[0],
       value: next.value[1]
@@ -1356,10 +1358,11 @@ function SetMirror(value) {
 inherits(SetMirror, ObjectMirror);
 
 
-function IteratorGetValues_(iter, next_function) {
+function IteratorGetValues_(iter, next_function, opt_limit) {
   var result = [];
   var next;
-  while (!(next = %_CallFunction(iter, next_function)).done) {
+  while ((!opt_limit || result.length < opt_limit) &&
+         !(next = %_CallFunction(iter, next_function)).done) {
     result.push(next.value);
   }
   return result;
@@ -1370,15 +1373,16 @@ function IteratorGetValues_(iter, next_function) {
  * Returns an array of elements of a set.
  * This will keep elements alive for WeakSets.
  *
+ * @param {number=} opt_limit Max elements to return.
  * @returns {Array.<Object>} Array of elements of a set.
  */
-SetMirror.prototype.values = function() {
+SetMirror.prototype.values = function(opt_limit) {
   if (IS_WEAKSET(this.value_)) {
-    return %GetWeakSetValues(this.value_);
+    return %GetWeakSetValues(this.value_, opt_limit || 0);
   }
 
   var iter = %_CallFunction(this.value_, builtins.SetValues);
-  return IteratorGetValues_(iter, builtins.SetIteratorNextJS);
+  return IteratorGetValues_(iter, builtins.SetIteratorNextJS, opt_limit);
 };
 
 
@@ -1392,15 +1396,18 @@ inherits(IteratorMirror, ObjectMirror);
  * Returns a preview of elements of an iterator.
  * Does not change the backing iterator state.
  *
+ * @param {number=} opt_limit Max elements to return.
  * @returns {Array.<Object>} Array of elements of an iterator.
  */
-IteratorMirror.prototype.preview = function() {
+IteratorMirror.prototype.preview = function(opt_limit) {
   if (IS_MAP_ITERATOR(this.value_)) {
     return IteratorGetValues_(%MapIteratorClone(this.value_),
-                              builtins.MapIteratorNextJS);
+                              builtins.MapIteratorNextJS,
+                              opt_limit);
   } else if (IS_SET_ITERATOR(this.value_)) {
     return IteratorGetValues_(%SetIteratorClone(this.value_),
-                              builtins.SetIteratorNextJS);
+                              builtins.SetIteratorNextJS,
+                              opt_limit);
   }
 };
 
