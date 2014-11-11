@@ -8635,7 +8635,7 @@ static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 
-THREADED_TEST(ExceptionGetMessage) {
+THREADED_TEST(ExceptionCreateMessage) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   v8::Handle<String> foo_str = v8_str("foo");
@@ -8660,12 +8660,16 @@ THREADED_TEST(ExceptionGetMessage) {
   CHECK(error->IsObject());
   CHECK(error.As<v8::Object>()->Get(message_str)->Equals(foo_str));
 
-  v8::Handle<v8::Message> message = v8::Exception::GetMessage(error);
+  v8::Handle<v8::Message> message = v8::Exception::CreateMessage(error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber());
   CHECK_EQ(2, message->GetStartColumn());
 
   v8::Handle<v8::StackTrace> stackTrace = message->GetStackTrace();
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+
+  stackTrace = v8::Exception::GetStackTrace(error);
   CHECK(!stackTrace.IsEmpty());
   CHECK_EQ(2, stackTrace->GetFrameCount());
 
@@ -8686,7 +8690,7 @@ THREADED_TEST(ExceptionGetMessage) {
   CHECK(error->IsObject());
   CHECK(error.As<v8::Object>()->Get(message_str)->Equals(foo_str));
 
-  message = v8::Exception::GetMessage(error);
+  message = v8::Exception::CreateMessage(error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber());
   CHECK_EQ(9, message->GetStartColumn());
@@ -8694,6 +8698,7 @@ THREADED_TEST(ExceptionGetMessage) {
   // Should be empty stack trace.
   stackTrace = message->GetStackTrace();
   CHECK(stackTrace.IsEmpty());
+  CHECK(v8::Exception::GetStackTrace(error).IsEmpty());
 }
 
 
@@ -18022,7 +18027,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage message) {
     CcTest::global()->Set(v8_str("rejected"), message.GetPromise());
     CcTest::global()->Set(v8_str("value"), message.GetValue());
     v8::Handle<v8::StackTrace> stack_trace =
-        v8::Exception::GetMessage(message.GetValue())->GetStackTrace();
+        v8::Exception::CreateMessage(message.GetValue())->GetStackTrace();
     if (!stack_trace.IsEmpty()) {
       promise_reject_frame_count = stack_trace->GetFrameCount();
       if (promise_reject_frame_count > 0) {

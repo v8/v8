@@ -4188,9 +4188,17 @@ class V8_EXPORT Exception {
   static Local<Value> TypeError(Handle<String> message);
   static Local<Value> Error(Handle<String> message);
 
-  static Local<Message> GetMessage(Handle<Value> exception);
+  /**
+   * Creates an error message for the given exception.
+   * Will try to reconstruct the original stack trace from the exception value,
+   * or capture the current stack trace if not available.
+   */
+  static Local<Message> CreateMessage(Handle<Value> exception);
 
-  // DEPRECATED. Use GetMessage()->GetStackTrace()
+  /**
+   * Returns the original stack trace that was captured at the creation time
+   * of a given exception, or an empty handle if not available.
+   */
   static Local<StackTrace> GetStackTrace(Handle<Value> exception);
 };
 
@@ -4252,7 +4260,7 @@ class PromiseRejectMessage {
   V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
   V8_INLINE Handle<Value> GetValue() const { return value_; }
 
-  // DEPRECATED. Use v8::Exception::GetMessage(GetValue())->GetStackTrace()
+  // DEPRECATED. Use v8::Exception::CreateMessage(GetValue())->GetStackTrace()
   V8_INLINE Handle<StackTrace> GetStackTrace() const { return stack_trace_; }
 
  private:
