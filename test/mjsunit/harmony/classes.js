@@ -624,6 +624,55 @@ function assertAccessorDescriptor(object, name) {
 })();
 
 
+(function TestDefaultConstructorArguments() {
+  var args, self;
+  class Base {
+    constructor() {
+      self = this;
+      args = arguments;
+    }
+  }
+  class Derived extends Base {}
+
+  new Derived;
+  assertEquals(0, args.length);
+
+  new Derived(0, 1, 2);
+  assertEquals(3, args.length);
+  assertTrue(self instanceof Derived);
+
+  var arr = new Array(100);
+  var obj = {};
+  Derived.apply(obj, arr);
+  assertEquals(100, args.length);
+  assertEquals(obj, self);
+})();
+
+
+(function TestDefaultConstructorArguments2() {
+  var args;
+  class Base {
+    constructor(x, y) {
+      args = arguments;
+    }
+  }
+  class Derived extends Base {}
+
+  new Derived;
+  assertEquals(0, args.length);
+
+  new Derived(1);
+  assertEquals(1, args.length);
+  assertEquals(1, args[0]);
+
+  new Derived(1, 2, 3);
+  assertEquals(3, args.length);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(3, args[2]);
+})();
+
+
 /* TODO(arv): Implement
 (function TestNameBindingInConstructor() {
   class C {
