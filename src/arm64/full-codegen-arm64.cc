@@ -1372,6 +1372,18 @@ void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
 }
 
 
+void FullCodeGenerator::EmitSetHomeObjectIfNeeded(Expression* initializer,
+                                                  int offset) {
+  if (NeedsHomeObject(initializer)) {
+    __ Peek(StoreDescriptor::ReceiverRegister(), 0);
+    __ Mov(StoreDescriptor::NameRegister(),
+           Operand(isolate()->factory()->home_object_symbol()));
+    __ Peek(StoreDescriptor::ValueRegister(), offset * kPointerSize);
+    CallStoreIC();
+  }
+}
+
+
 void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                                       TypeofState typeof_state,
                                                       Label* slow) {
@@ -1721,6 +1733,14 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             __ Peek(StoreDescriptor::ReceiverRegister(), 0);
             CallStoreIC(key->LiteralFeedbackId());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
+
+            if (NeedsHomeObject(value)) {
+              __ Mov(StoreDescriptor::ReceiverRegister(), x0);
+              __ Mov(StoreDescriptor::NameRegister(),
+                     Operand(isolate()->factory()->home_object_symbol()));
+              __ Peek(StoreDescriptor::ValueRegister(), 0);
+              CallStoreIC();
+            }
           } else {
             VisitForEffect(value);
           }
@@ -1732,6 +1752,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Push(x0);
           VisitForStackValue(key);
           VisitForStackValue(value);
+          EmitSetHomeObjectIfNeeded(value, 2);
           __ Mov(x0, Smi::FromInt(SLOPPY));  // Strict mode
           __ Push(x0);
           __ CallRuntime(Runtime::kSetProperty, 4);
@@ -1769,7 +1790,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       __ Push(x10);
       VisitForStackValue(it->first);
       EmitAccessor(it->second->getter);
+      EmitSetHomeObjectIfNeeded(it->second->getter, 2);
       EmitAccessor(it->second->setter);
+      EmitSetHomeObjectIfNeeded(it->second->setter, 3);
       __ Mov(x10, Smi::FromInt(NONE));
       __ Push(x10);
       __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
@@ -2203,6 +2226,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     __ Push(scratch);
     VisitForStackValue(key);
     VisitForStackValue(value);
+    EmitSetHomeObjectIfNeeded(value, 2);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:

@@ -160,16 +160,18 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_inside_with_ = false;
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
-  scope_uses_this_ = false;
   scope_uses_arguments_ = false;
+  scope_uses_super_ = false;
+  scope_uses_this_ = false;
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the strict mode from the parent scope.
   strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
-  inner_scope_uses_this_ = false;
   inner_scope_uses_arguments_ = false;
+  inner_scope_uses_this_ = false;
+  inner_scope_uses_super_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
@@ -889,12 +891,14 @@ void Scope::Print(int n) {
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
-  if (scope_uses_this_) Indent(n1, "// scope uses 'this'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
-  if (inner_scope_uses_this_) Indent(n1, "// inner scope uses 'this'\n");
+  if (scope_uses_super_) Indent(n1, "// scope uses 'super'\n");
+  if (scope_uses_this_) Indent(n1, "// scope uses 'this'\n");
   if (inner_scope_uses_arguments_) {
     Indent(n1, "// inner scope uses 'arguments'\n");
   }
+  if (inner_scope_uses_super_) Indent(n1, "// inner scope uses 'super'\n");
+  if (inner_scope_uses_this_) Indent(n1, "// inner scope uses 'this'\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
@@ -1177,14 +1181,17 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
       inner_scope_calls_eval_ = true;
     }
     // If the inner scope is an arrow function, propagate the flags tracking
-    // usage of this/arguments, but do not propagate them out from normal
+    // usage of arguments/super/this, but do not propagate them out from normal
     // functions.
     if (!inner->is_function_scope() || inner->is_arrow_scope()) {
-      if (inner->scope_uses_this_ || inner->inner_scope_uses_this_) {
-        inner_scope_uses_this_ = true;
-      }
       if (inner->scope_uses_arguments_ || inner->inner_scope_uses_arguments_) {
         inner_scope_uses_arguments_ = true;
+      }
+      if (inner->scope_uses_super_ || inner->inner_scope_uses_super_) {
+        inner_scope_uses_super_ = true;
+      }
+      if (inner->scope_uses_this_ || inner->inner_scope_uses_this_) {
+        inner_scope_uses_this_ = true;
       }
     }
     if (inner->force_eager_compilation_) {

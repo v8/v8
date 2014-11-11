@@ -5653,6 +5653,17 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           if (property->emit_store()) {
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
+
+            // Add [[HomeObject]] to function literals.
+            if (FunctionLiteral::NeedsHomeObject(property->value())) {
+              Handle<Symbol> sym = isolate()->factory()->home_object_symbol();
+              HInstruction* store_home = BuildKeyedGeneric(
+                  STORE, NULL, value, Add<HConstant>(sym), literal);
+              AddInstruction(store_home);
+              DCHECK(store_home->HasObservableSideEffects());
+              Add<HSimulate>(property->value()->id(), REMOVABLE_SIMULATE);
+            }
+
             Handle<Map> map = property->GetReceiverType();
             Handle<String> name = property->key()->AsPropertyName();
             HInstruction* store;
@@ -5674,9 +5685,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               }
             }
             AddInstruction(store);
-            if (store->HasObservableSideEffects()) {
-              Add<HSimulate>(key->id(), REMOVABLE_SIMULATE);
-            }
+            DCHECK(store->HasObservableSideEffects());
+            Add<HSimulate>(key->id(), REMOVABLE_SIMULATE);
           } else {
             CHECK_ALIVE(VisitForEffect(value));
           }

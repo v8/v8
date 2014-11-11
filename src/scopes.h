@@ -211,11 +211,14 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
 
-  // Inform the scope that the corresponding code uses "this".
-  void RecordThisUsage() { scope_uses_this_ = true; }
-
   // Inform the scope that the corresponding code uses "arguments".
   void RecordArgumentsUsage() { scope_uses_arguments_ = true; }
+
+  // Inform the scope that the corresponding code uses "super".
+  void RecordSuperUsage() { scope_uses_super_ = true; }
+
+  // Inform the scope that the corresponding code uses "this".
+  void RecordThisUsage() { scope_uses_this_ = true; }
 
   // Set the strict mode flag (unless disabled by a global flag).
   void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
@@ -301,14 +304,18 @@ class Scope: public ZoneObject {
   // Does this scope contain a with statement.
   bool contains_with() const { return scope_contains_with_; }
 
-  // Does this scope access "this".
-  bool uses_this() const { return scope_uses_this_; }
-  // Does any inner scope access "this".
-  bool inner_uses_this() const { return inner_scope_uses_this_; }
   // Does this scope access "arguments".
   bool uses_arguments() const { return scope_uses_arguments_; }
   // Does any inner scope access "arguments".
   bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
+  // Does this scope access "super".
+  bool uses_super() const { return scope_uses_super_; }
+  // Does any inner scope access "super".
+  bool inner_uses_super() const { return inner_scope_uses_super_; }
+  // Does this scope access "this".
+  bool uses_this() const { return scope_uses_this_; }
+  // Does any inner scope access "this".
+  bool inner_uses_this() const { return inner_scope_uses_this_; }
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -486,10 +493,12 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
-  // This scope uses "this".
-  bool scope_uses_this_;
   // This scope uses "arguments".
   bool scope_uses_arguments_;
+  // This scope uses "super".
+  bool scope_uses_super_;
+  // This scope uses "this".
+  bool scope_uses_this_;
   // This scope contains an "use asm" annotation.
   bool asm_module_;
   // This scope's outer context is an asm module.
@@ -503,8 +512,9 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
-  bool inner_scope_uses_this_;
   bool inner_scope_uses_arguments_;
+  bool inner_scope_uses_super_;
+  bool inner_scope_uses_this_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 

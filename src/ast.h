@@ -2497,6 +2497,12 @@ class FunctionLiteral FINAL : public Expression {
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   StrictMode strict_mode() const;
+  bool needs_super_binding() const;
+
+  static bool NeedsHomeObject(Expression* literal) {
+    return literal != NULL && literal->IsFunctionLiteral() &&
+           literal->AsFunctionLiteral()->needs_super_binding();
+  }
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

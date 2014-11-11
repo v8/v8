@@ -614,6 +614,15 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitLoadHomeObject(SuperReference* expr);
 
+  static bool NeedsHomeObject(Expression* expr) {
+    return FunctionLiteral::NeedsHomeObject(expr);
+  }
+
+  // Adds the [[HomeObject]] to |initializer| if it is a FunctionLiteral.
+  // The value of the initializer is expected to be at the top of the stack.
+  // |offset| is the offset in the stack where the home object can be found.
+  void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
+
   void EmitLoadSuperConstructor(SuperReference* expr);
 
   void CallIC(Handle<Code> code,

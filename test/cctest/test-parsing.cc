@@ -919,7 +919,7 @@ static int Utf8LengthHelper(const char* s) {
 }
 
 
-TEST(ScopeUsesThisAndArguments) {
+TEST(ScopeUsesArgumentsSuperThis) {
   static const struct {
     const char* prefix;
     const char* suffix;
@@ -928,62 +928,66 @@ TEST(ScopeUsesThisAndArguments) {
     { "var f = () => {", "}" },
   };
 
+  enum Expected {
+    NONE = 0,
+    ARGUMENTS = 1,
+    SUPER = 2,
+    THIS = 4,
+    INNER_ARGUMENTS = 8,
+    INNER_SUPER = 16,
+    INNER_THIS = 32
+  };
+
   static const struct {
     const char* body;
-    bool uses_this;
-    bool uses_arguments;
-    bool inner_uses_this;
-    bool inner_uses_arguments;
+    int expected;
   } source_data[] = {
-    { "",
-      false, false, false, false },
-    { "return this",
-      true, false, false, false },
-    { "return arguments",
-      false, true, false, false },
-    { "return arguments[0]",
-      false, true, false, false },
-    { "return this + arguments[0]",
-      true, true, false, false },
-    { "return x => this + x",
-      false, false, true, false },
-    { "this.foo = 42;",
-      true, false, false, false },
-    { "this.foo();",
-      true, false, false, false },
-    { "if (foo()) { this.f() }",
-      true, false, false, false },
-    { "if (arguments.length) { this.f() }",
-      true, true, false, false },
-    { "while (true) { this.f() }",
-      true, false, false, false },
-    { "if (true) { while (true) this.foo(arguments) }",
-      true, true, false, false },
-    // Multiple nesting levels must work as well.
-    { "while (true) { while (true) { while (true) return this } }",
-      true, false, false, false },
-    { "if (1) { return () => { while (true) new this() } }",
-      false, false, true, false },
-    // Note that propagation of the inner_uses_this() value does not
-    // cross boundaries of normal functions onto parent scopes.
-    { "return function (x) { return this + x }",
-      false, false, false, false },
-    { "var x = function () { this.foo = 42 };",
-      false, false, false, false },
-    { "if (1) { return function () { while (true) new this() } }",
-      false, false, false, false },
-    { "return function (x) { return () => this }",
-      false, false, false, false },
-    // Flags must be correctly set when using block scoping.
-    { "\"use strict\"; while (true) { let x; this, arguments; }",
-      false, false, true, true },
-    { "\"use strict\"; if (foo()) { let x; this.f() }",
-      false, false, true, false },
-    { "\"use strict\"; if (1) {"
-      "  let x; return function () { return this + arguments }"
-      "}",
-      false, false, false, false },
-  };
+        {"", NONE},
+        {"return this", THIS},
+        {"return arguments", ARGUMENTS},
+        {"return super()", SUPER},
+        {"return super.x", SUPER},
+        {"return arguments[0]", ARGUMENTS},
+        {"return this + arguments[0]", ARGUMENTS | THIS},
+        {"return this + arguments[0] + super.x", ARGUMENTS | SUPER | THIS},
+        {"return x => this + x", INNER_THIS},
+        {"return x => super() + x", INNER_SUPER},
+        {"this.foo = 42;", THIS},
+        {"this.foo();", THIS},
+        {"if (foo()) { this.f() }", THIS},
+        {"if (foo()) { super.f() }", SUPER},
+        {"if (arguments.length) { this.f() }", ARGUMENTS | THIS},
+        {"while (true) { this.f() }", THIS},
+        {"while (true) { super.f() }", SUPER},
+        {"if (true) { while (true) this.foo(arguments) }", ARGUMENTS | THIS},
+        // Multiple nesting levels must work as well.
+        {"while (true) { while (true) { while (true) return this } }", THIS},
+        {"while (true) { while (true) { while (true) return super() } }",
+         SUPER},
+        {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
+        {"if (1) { return () => { while (true) new super() } }", INNER_SUPER},
+        // Note that propagation of the inner_uses_this() value does not
+        // cross boundaries of normal functions onto parent scopes.
+        {"return function (x) { return this + x }", NONE},
+        {"return function (x) { return super() + x }", NONE},
+        {"var x = function () { this.foo = 42 };", NONE},
+        {"var x = function () { super.foo = 42 };", NONE},
+        {"if (1) { return function () { while (true) new this() } }", NONE},
+        {"if (1) { return function () { while (true) new super() } }", NONE},
+        {"return function (x) { return () => this }", NONE},
+        {"return function (x) { return () => super() }", NONE},
+        // Flags must be correctly set when using block scoping.
+        {"\"use strict\"; while (true) { let x; this, arguments; }",
+         INNER_ARGUMENTS | INNER_THIS},
+        {"\"use strict\"; while (true) { let x; this, super(), arguments; }",
+         INNER_ARGUMENTS | INNER_SUPER | INNER_THIS},
+        {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
+        {"\"use strict\"; if (foo()) { let x; super.f() }", INNER_SUPER},
+        {"\"use strict\"; if (1) {"
+         "  let x; return function () { return this + super() + arguments }"
+         "}",
+         NONE},
+    };
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1013,6 +1017,7 @@ TEST(ScopeUsesThisAndArguments) {
                                          isolate->unicode_cache()};
       i::Parser parser(&info, &parse_info);
       parser.set_allow_arrow_functions(true);
+      parser.set_allow_classes(true);
       parser.set_allow_harmony_scoping(true);
       info.MarkAsGlobal();
       parser.Parse();
@@ -1025,11 +1030,16 @@ TEST(ScopeUsesThisAndArguments) {
       CHECK_EQ(1, global_scope->inner_scopes()->length());
 
       i::Scope* scope = global_scope->inner_scopes()->at(0);
-      CHECK_EQ(source_data[i].uses_this, scope->uses_this());
-      CHECK_EQ(source_data[i].uses_arguments, scope->uses_arguments());
-      CHECK_EQ(source_data[i].inner_uses_this, scope->inner_uses_this());
-      CHECK_EQ(source_data[i].inner_uses_arguments,
+      CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
+               scope->uses_arguments());
+      CHECK_EQ((source_data[i].expected & SUPER) != 0, scope->uses_super());
+      CHECK_EQ((source_data[i].expected & THIS) != 0, scope->uses_this());
+      CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
+      CHECK_EQ((source_data[i].expected & INNER_SUPER) != 0,
+               scope->inner_uses_super());
+      CHECK_EQ((source_data[i].expected & INNER_THIS) != 0,
+               scope->inner_uses_this());
     }
   }
 }

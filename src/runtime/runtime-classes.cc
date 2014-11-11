@@ -113,6 +113,8 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                    constructor, isolate->factory()->prototype_string(),
                    prototype, attribs));
+
+  // TODO(arv): Only do this conditionally.
   Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -153,11 +155,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   function, isolate->factory()->home_object_symbol(), object,
-                   DONT_ENUM));
-
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
     RETURN_FAILURE_ON_EXCEPTION(
@@ -191,11 +188,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassGetter) {
                                      Runtime::ToName(isolate, key));
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          getter, isolate->factory()->home_object_symbol(), object, DONT_ENUM));
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
       JSObject::DefineAccessor(object, name, getter,
                                isolate->factory()->null_value(), NONE));
   return isolate->heap()->undefined_value();
@@ -212,10 +204,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassSetter) {
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          setter, isolate->factory()->home_object_symbol(), object, DONT_ENUM));
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       JSObject::DefineAccessor(object, name, isolate->factory()->null_value(),
