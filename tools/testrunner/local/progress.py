@@ -333,7 +333,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stderr": test.output.stderr,
       "exit_code": test.output.exit_code,
       "result": test.suite.GetOutcome(test),
-      "expected": list(test.outcomes) or ["PASS"],
+      "expected": list(test.outcomes or ["PASS"]),
     })
 
 
