@@ -476,7 +476,6 @@
         '../../src/compiler/operator-properties.h',
         '../../src/compiler/operator.cc',
         '../../src/compiler/operator.h',
-        '../../src/compiler/phi-reducer.h',
         '../../src/compiler/pipeline.cc',
         '../../src/compiler/pipeline.h',
         '../../src/compiler/pipeline-statistics.cc',
