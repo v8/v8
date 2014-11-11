@@ -302,10 +302,12 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
     body = new (zone()) ZoneList<Statement*>(1, zone());
     if (call_super) {
-      Expression* prop = SuperReference(function_scope, factory(), pos);
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(0, zone());
-      Call* call = factory()->NewCall(prop, args, pos);
+      CallRuntime* call = factory()->NewCallRuntime(
+          ast_value_factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
+          pos);
       body->Add(factory()->NewExpressionStatement(call, pos), zone());
     }
 

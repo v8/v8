@@ -448,5 +448,52 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
 
   return StoreKeyedToSuper(isolate, home_object, receiver, key, value, SLOPPY);
 }
+
+
+RUNTIME_FUNCTION(Runtime_DefaultConstructorSuperCall) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+
+  // Compute the frame holding the arguments.
+  JavaScriptFrameIterator it(isolate);
+  it.AdvanceToArgumentsFrame();
+  JavaScriptFrame* frame = it.frame();
+
+  Handle<JSFunction> function(frame->function(), isolate);
+  Handle<Object> receiver(frame->receiver(), isolate);
+
+  Handle<Object> proto_function;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, proto_function,
+                                     Runtime::GetPrototype(isolate, function));
+
+  // Get the actual number of provided arguments.
+  const int argc = frame->ComputeParametersCount();
+
+  // Loose upper bound to allow fuzzing. We'll most likely run out of
+  // stack space before hitting this limit.
+  static int kMaxArgc = 1000000;
+  RUNTIME_ASSERT(argc >= 0 && argc <= kMaxArgc);
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = handle(frame->GetParameter(i), isolate);
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, proto_function, receiver, argc, argv, false));
+  return *result;
+}
 }
 }  // namespace v8::internal

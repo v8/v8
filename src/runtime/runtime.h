@@ -199,7 +199,8 @@ namespace internal {
   F(StoreToSuper_Strict, 4, 1)                             \
   F(StoreToSuper_Sloppy, 4, 1)                             \
   F(StoreKeyedToSuper_Strict, 4, 1)                        \
-  F(StoreKeyedToSuper_Sloppy, 4, 1)
+  F(StoreKeyedToSuper_Sloppy, 4, 1)                        \
+  F(DefaultConstructorSuperCall, 0, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)              \
@@ -827,6 +828,9 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
+
+  MUST_USE_RESULT static MaybeHandle<Object> GetPrototype(
+      Isolate* isolate, Handle<Object> object);
 
   MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
                                                   Handle<Object> key);
