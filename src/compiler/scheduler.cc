@@ -38,11 +38,10 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone) {}
 
 
-Schedule* Scheduler::ComputeSchedule(ZonePool* zone_pool, Graph* graph) {
-  ZonePool::Scope zone_scope(zone_pool);
+Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph) {
   Schedule* schedule = new (graph->zone())
       Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-  Scheduler scheduler(zone_scope.zone(), graph, schedule);
+  Scheduler scheduler(zone, graph, schedule);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
@@ -1025,11 +1024,7 @@ class SpecialRPONumberer : public ZoneObject {
 };
 
 
-BasicBlockVector* Scheduler::ComputeSpecialRPO(ZonePool* zone_pool,
-                                               Schedule* schedule) {
-  ZonePool::Scope zone_scope(zone_pool);
-  Zone* zone = zone_scope.zone();
-
+BasicBlockVector* Scheduler::ComputeSpecialRPO(Zone* zone, Schedule* schedule) {
   SpecialRPONumberer numberer(zone, schedule);
   numberer.ComputeSpecialRPO();
   numberer.SerializeAOIntoSchedule();

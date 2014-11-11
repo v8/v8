@@ -496,8 +496,9 @@ Handle<Code> Pipeline::GenerateCode() {
 
 void Pipeline::ComputeSchedule(PipelineData* data) {
   PhaseScope phase_scope(data->pipeline_statistics(), "scheduling");
+  ZonePool::Scope zone_scope(data->zone_pool());
   Schedule* schedule =
-      Scheduler::ComputeSchedule(data->zone_pool(), data->graph());
+      Scheduler::ComputeSchedule(zone_scope.zone(), data->graph());
   TraceSchedule(schedule);
   if (VerifyGraphs()) ScheduleVerifier::Run(schedule);
   data->set_schedule(schedule);
