@@ -2662,8 +2662,7 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 
 std::ostream& HEnterInlined::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << function()->debug_name()->ToCString().get()
-            << ", id=" << function()->id().ToInt();
+  return os << function()->debug_name()->ToCString().get();
 }
 
 
