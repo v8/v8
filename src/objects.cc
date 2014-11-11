@@ -1953,7 +1953,8 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
         // Clear out the old descriptor array to avoid problems to sharing
         // the descriptor array without using an explicit.
         old_map->InitializeDescriptors(
-            old_map->GetHeap()->empty_descriptor_array());
+            old_map->GetHeap()->empty_descriptor_array(),
+            LayoutDescriptor::FastPointerLayout());
         // Ensure that no transition was inserted for prototype migrations.
         DCHECK(!old_map->HasTransitionArray());
         DCHECK(new_map->GetBackPointer()->IsUndefined());
@@ -2012,10 +2013,14 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
     if (old_map->unused_property_fields() > 0) {
       if (details.representation().IsDouble()) {
-        Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
         FieldIndex index =
             FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
-        object->FastPropertyAtPut(index, *value);
+        if (new_map->IsUnboxedDoubleField(index)) {
+          object->RawFastDoublePropertyAtPut(index, 0);
+        } else {
+          Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+          object->RawFastPropertyAtPut(index, *value);
+        }
       }
       object->synchronized_set_map(*new_map);
       return;
@@ -2067,23 +2072,35 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       DCHECK(details.representation().IsTagged());
       continue;
     }
+    Representation old_representation = old_details.representation();
+    Representation representation = details.representation();
     DCHECK(old_details.type() == CONSTANT ||
            old_details.type() == FIELD);
-    Object* raw_value = old_details.type() == CONSTANT
-        ? old_descriptors->GetValue(i)
-        : object->RawFastPropertyAt(FieldIndex::ForDescriptor(*old_map, i));
-    Handle<Object> value(raw_value, isolate);
-    if (!old_details.representation().IsDouble() &&
-        details.representation().IsDouble()) {
-      if (old_details.representation().IsNone()) {
-        value = handle(Smi::FromInt(0), isolate);
+    Handle<Object> value;
+    if (old_details.type() == CONSTANT) {
+      value = handle(old_descriptors->GetValue(i), isolate);
+      DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
+    } else {
+      FieldIndex index = FieldIndex::ForDescriptor(*old_map, i);
+      if (object->IsUnboxedDoubleField(index)) {
+        double old = object->RawFastDoublePropertyAt(index);
+        value = isolate->factory()->NewHeapNumber(
+            old, representation.IsDouble() ? MUTABLE : IMMUTABLE);
+
+      } else {
+        value = handle(object->RawFastPropertyAt(index), isolate);
+        if (!old_representation.IsDouble() && representation.IsDouble()) {
+          if (old_representation.IsNone()) {
+            value = handle(Smi::FromInt(0), isolate);
+          }
+          value = Object::NewStorageFor(isolate, value, representation);
+        } else if (old_representation.IsDouble() &&
+                   !representation.IsDouble()) {
+          value = Object::WrapForRead(isolate, value, old_representation);
+        }
       }
-      value = Object::NewStorageFor(isolate, value, details.representation());
-    } else if (old_details.representation().IsDouble() &&
-               !details.representation().IsDouble()) {
-      value = Object::WrapForRead(isolate, value, old_details.representation());
     }
-    DCHECK(!(details.representation().IsDouble() && value->IsSmi()));
+    DCHECK(!(representation.IsDouble() && value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
     if (target_index < 0) target_index += total_size;
     array->set(target_index, *value);
@@ -2111,7 +2128,16 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-    object->FastPropertyAtPut(index, array->get(external + i));
+    Object* value = array->get(external + i);
+    // Can't use JSObject::FastPropertyAtPut() because proper map was not set
+    // yet.
+    if (new_map->IsUnboxedDoubleField(index)) {
+      DCHECK(value->IsMutableHeapNumber());
+      object->RawFastDoublePropertyAtPut(index,
+                                         HeapNumber::cast(value)->value());
+    } else {
+      object->RawFastPropertyAtPut(index, value);
+    }
   }
 
   Heap* heap = isolate->heap();
@@ -2235,7 +2261,8 @@ void Map::DeprecateTransitionTree() {
 // arrays.
 void Map::DeprecateTarget(PropertyType type, Name* key,
                           PropertyAttributes attributes,
-                          DescriptorArray* new_descriptors) {
+                          DescriptorArray* new_descriptors,
+                          LayoutDescriptor* new_layout_descriptor) {
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     int transition = transitions->Search(type, key, attributes);
@@ -2252,7 +2279,7 @@ void Map::DeprecateTarget(PropertyType type, Name* key,
   GetHeap()->incremental_marking()->RecordWrites(to_replace);
   while (current->instance_descriptors() == to_replace) {
     current->SetEnumLength(kInvalidEnumCacheSentinel);
-    current->set_instance_descriptors(new_descriptors);
+    current->UpdateDescriptors(new_descriptors, new_layout_descriptor);
     Object* next = current->GetBackPointer();
     if (next->IsUndefined()) break;
     current = Map::cast(next);
@@ -2591,7 +2618,9 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   int current_offset = 0;
   for (int i = 0; i < root_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.type() == FIELD) current_offset++;
+    if (old_details.type() == FIELD) {
+      current_offset += old_details.field_width_in_words();
+    }
     Descriptor d(handle(old_descriptors->GetKey(i), isolate),
                  handle(old_descriptors->GetValue(i), isolate),
                  old_details);
@@ -2629,11 +2658,10 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         target_field_type = GeneralizeFieldType(
             target_field_type, new_field_type, isolate);
       }
-      FieldDescriptor d(target_key,
-                        current_offset++,
-                        target_field_type,
+      FieldDescriptor d(target_key, current_offset, target_field_type,
                         target_details.attributes(),
                         target_details.representation());
+      current_offset += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_NE(FIELD, target_details.type());
@@ -2659,23 +2687,20 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         old_field_type = GeneralizeFieldType(
             old_field_type, new_field_type, isolate);
       }
-      FieldDescriptor d(old_key,
-                        current_offset++,
-                        old_field_type,
-                        old_details.attributes(),
-                        old_details.representation());
+      FieldDescriptor d(old_key, current_offset, old_field_type,
+                        old_details.attributes(), old_details.representation());
+      current_offset += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
       DCHECK(old_details.type() == CONSTANT || old_details.type() == CALLBACKS);
       if (modify_index == i && store_mode == FORCE_FIELD) {
-        FieldDescriptor d(old_key,
-                          current_offset++,
-                          GeneralizeFieldType(
-                              old_descriptors->GetValue(i)->OptimalType(
-                                  isolate, old_details.representation()),
-                              new_field_type, isolate),
-                          old_details.attributes(),
-                          old_details.representation());
+        FieldDescriptor d(
+            old_key, current_offset,
+            GeneralizeFieldType(old_descriptors->GetValue(i)->OptimalType(
+                                    isolate, old_details.representation()),
+                                new_field_type, isolate),
+            old_details.attributes(), old_details.representation());
+        current_offset += d.GetDetails().field_width_in_words();
         new_descriptors->Set(i, &d);
       } else {
         DCHECK_NE(FIELD, old_details.type());
@@ -2697,10 +2722,13 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   int split_nof = split_map->NumberOfOwnDescriptors();
   DCHECK_NE(old_nof, split_nof);
 
+  Handle<LayoutDescriptor> new_layout_descriptor =
+      LayoutDescriptor::New(split_map, new_descriptors, old_nof);
   PropertyDetails split_prop_details = old_descriptors->GetDetails(split_nof);
   split_map->DeprecateTarget(split_prop_details.type(),
                              old_descriptors->GetKey(split_nof),
-                             split_prop_details.attributes(), *new_descriptors);
+                             split_prop_details.attributes(), *new_descriptors,
+                             *new_layout_descriptor);
 
   if (FLAG_trace_generalization) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
@@ -2727,7 +2755,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
                                               "can't have more transitions");
     }
-    new_map = CopyInstallDescriptors(new_map, i, new_descriptors);
+    new_map = CopyInstallDescriptors(new_map, i, new_descriptors,
+                                     new_layout_descriptor);
   }
   new_map->set_owns_descriptors(true);
   return new_map;
@@ -3150,8 +3179,12 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       descriptors, old_size, slack);
 
+  DisallowHeapAllocation no_allocation;
+  // The descriptors are still the same, so keep the layout descriptor.
+  LayoutDescriptor* layout_descriptor = map->GetLayoutDescriptor();
+
   if (old_size == 0) {
-    map->set_instance_descriptors(*new_descriptors);
+    map->UpdateDescriptors(*new_descriptors, layout_descriptor);
     return;
   }
 
@@ -3173,10 +3206,10 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
        current = walk_map->GetBackPointer()) {
     walk_map = Map::cast(current);
     if (walk_map->instance_descriptors() != *descriptors) break;
-    walk_map->set_instance_descriptors(*new_descriptors);
+    walk_map->UpdateDescriptors(*new_descriptors, layout_descriptor);
   }
 
-  map->set_instance_descriptors(*new_descriptors);
+  map->UpdateDescriptors(*new_descriptors, layout_descriptor);
 }
 
 
@@ -3850,11 +3883,15 @@ void JSObject::WriteToField(int descriptor, Object* value) {
   if (details.representation().IsDouble()) {
     // Nothing more to be done.
     if (value->IsUninitialized()) return;
-    HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
-    DCHECK(box->IsMutableHeapNumber());
-    box->set_value(value->Number());
+    if (IsUnboxedDoubleField(index)) {
+      RawFastDoublePropertyAtPut(index, value->Number());
+    } else {
+      HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
+      DCHECK(box->IsMutableHeapNumber());
+      box->set_value(value->Number());
+    }
   } else {
-    FastPropertyAtPut(index, value);
+    RawFastPropertyAtPut(index, value);
   }
 }
 
@@ -4316,12 +4353,17 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
       case FIELD: {
         Handle<Name> key(descs->GetKey(i));
         FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-        Handle<Object> value(
-            object->RawFastPropertyAt(index), isolate);
-        if (details.representation().IsDouble()) {
-          DCHECK(value->IsMutableHeapNumber());
-          Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
-          value = isolate->factory()->NewHeapNumber(old->value());
+        Handle<Object> value;
+        if (object->IsUnboxedDoubleField(index)) {
+          double old_value = object->RawFastDoublePropertyAt(index);
+          value = isolate->factory()->NewHeapNumber(old_value);
+        } else {
+          value = handle(object->RawFastPropertyAt(index), isolate);
+          if (details.representation().IsDouble()) {
+            DCHECK(value->IsMutableHeapNumber());
+            Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
+            value = isolate->factory()->NewHeapNumber(old->value());
+          }
         }
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
@@ -4491,9 +4533,10 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         int offset = current_offset - inobject_props;
         fields->set(offset, value);
       }
-      FieldDescriptor d(key, current_offset++, details.attributes(),
+      FieldDescriptor d(key, current_offset, details.attributes(),
                         // TODO(verwaest): value->OptimalRepresentation();
                         Representation::Tagged());
+      current_offset += d.GetDetails().field_width_in_words();
       descriptors->Set(enumeration_index - 1, &d);
     } else if (type == CALLBACKS) {
       CallbacksDescriptor d(key, handle(value, isolate), details.attributes());
@@ -4506,8 +4549,11 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   descriptors->Sort();
 
+  Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
+      new_map, descriptors, descriptors->number_of_descriptors());
+
   DisallowHeapAllocation no_gc;
-  new_map->InitializeDescriptors(*descriptors);
+  new_map->InitializeDescriptors(*descriptors, *layout_descriptor);
   new_map->set_unused_property_fields(unused_property_fields);
 
   // Transform the object.
@@ -5478,6 +5524,10 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         Representation representation,
                                         FieldIndex index) {
   Isolate* isolate = object->GetIsolate();
+  if (object->IsUnboxedDoubleField(index)) {
+    double value = object->RawFastDoublePropertyAt(index);
+    return isolate->factory()->NewHeapNumber(value);
+  }
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
@@ -5568,18 +5618,28 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         PropertyDetails details = descriptors->GetDetails(i);
         if (details.type() != FIELD) continue;
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
-        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-        if (value->IsJSObject()) {
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value,
-              VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
-              JSObject);
+        if (object->IsUnboxedDoubleField(index)) {
+          if (copying) {
+            double value = object->RawFastDoublePropertyAt(index);
+            copy->RawFastDoublePropertyAtPut(index, value);
+          }
         } else {
-          Representation representation = details.representation();
-          value = Object::NewStorageFor(isolate, value, representation);
-        }
-        if (copying) {
-          copy->FastPropertyAtPut(index, *value);
+          Handle<Object> value(object->RawFastPropertyAt(index), isolate);
+          if (value->IsJSObject()) {
+            ASSIGN_RETURN_ON_EXCEPTION(
+                isolate, value,
+                VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
+                JSObject);
+            if (copying) {
+              copy->FastPropertyAtPut(index, *value);
+            }
+          } else {
+            if (copying) {
+              Representation representation = details.representation();
+              value = Object::NewStorageFor(isolate, value, representation);
+              copy->FastPropertyAtPut(index, *value);
+            }
+          }
         }
       }
     } else {
@@ -5776,16 +5836,17 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
 
 
 int Map::NextFreePropertyIndex() {
-  int max_index = -1;
+  int free_index = 0;
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < number_of_own_descriptors; i++) {
-    if (descs->GetType(i) == FIELD) {
-      int current_index = descs->GetFieldIndex(i);
-      if (current_index > max_index) max_index = current_index;
+    PropertyDetails details = descs->GetDetails(i);
+    if (details.type() == FIELD) {
+      int candidate = details.field_index() + details.field_width_in_words();
+      if (candidate > free_index) free_index = candidate;
     }
   }
-  return max_index + 1;
+  return free_index;
 }
 
 
@@ -6470,17 +6531,27 @@ Object* JSObject::SlowReverseLookup(Object* value) {
   if (HasFastProperties()) {
     int number_of_own_descriptors = map()->NumberOfOwnDescriptors();
     DescriptorArray* descs = map()->instance_descriptors();
+    bool value_is_number = value->IsNumber();
     for (int i = 0; i < number_of_own_descriptors; i++) {
       if (descs->GetType(i) == FIELD) {
-        Object* property =
-            RawFastPropertyAt(FieldIndex::ForDescriptor(map(), i));
-        if (descs->GetDetails(i).representation().IsDouble()) {
-          DCHECK(property->IsMutableHeapNumber());
-          if (value->IsNumber() && property->Number() == value->Number()) {
+        FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+        if (IsUnboxedDoubleField(field_index)) {
+          if (value_is_number) {
+            double property = RawFastDoublePropertyAt(field_index);
+            if (property == value->Number()) {
+              return descs->GetKey(i);
+            }
+          }
+        } else {
+          Object* property = RawFastPropertyAt(field_index);
+          if (field_index.is_double()) {
+            DCHECK(property->IsMutableHeapNumber());
+            if (value_is_number && property->Number() == value->Number()) {
+              return descs->GetKey(i);
+            }
+          } else if (property == value) {
             return descs->GetKey(i);
           }
-        } else if (property == value) {
-          return descs->GetKey(i);
         }
       } else if (descs->GetType(i) == CONSTANT) {
         if (descs->GetConstant(i) == value) {
@@ -6634,10 +6705,15 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     }
   }
 
+  Handle<LayoutDescriptor> layout_descriptor =
+      FLAG_unbox_double_fields
+          ? LayoutDescriptor::Append(map, descriptor->GetDetails())
+          : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
+
   {
     DisallowHeapAllocation no_gc;
     descriptors->Append(descriptor);
-    result->InitializeDescriptors(*descriptors);
+    result->InitializeDescriptors(*descriptors, *layout_descriptor);
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
@@ -6697,19 +6773,19 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
 }
 
 
-Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
-                                        Handle<DescriptorArray> descriptors,
-                                        TransitionFlag flag,
-                                        MaybeHandle<Name> maybe_name,
-                                        const char* reason,
-                                        SimpleTransitionFlag simple_flag) {
+Handle<Map> Map::CopyReplaceDescriptors(
+    Handle<Map> map, Handle<DescriptorArray> descriptors,
+    Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
+    MaybeHandle<Name> maybe_name, const char* reason,
+    SimpleTransitionFlag simple_flag) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(map);
-  result->InitializeDescriptors(*descriptors);
 
   if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
+      result->InitializeDescriptors(*descriptors, *layout_descriptor);
+
       Handle<Name> name;
       CHECK(maybe_name.ToHandle(&name));
       ConnectTransition(map, result, name, simple_flag);
@@ -6721,7 +6797,11 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
           descriptors->SetValue(i, HeapType::Any());
         }
       }
+      result->InitializeDescriptors(*descriptors,
+                                    LayoutDescriptor::FastPointerLayout());
     }
+  } else {
+    result->InitializeDescriptors(*descriptors, *layout_descriptor);
   }
 #if TRACE_MAPS
   if (FLAG_trace_maps &&
@@ -6740,25 +6820,34 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
 
 // Since this method is used to rewrite an existing transition tree, it can
 // always insert transitions without checking.
-Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
-                                        int new_descriptor,
-                                        Handle<DescriptorArray> descriptors) {
+Handle<Map> Map::CopyInstallDescriptors(
+    Handle<Map> map, int new_descriptor, Handle<DescriptorArray> descriptors,
+    Handle<LayoutDescriptor> full_layout_descriptor) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(map);
 
-  result->InitializeDescriptors(*descriptors);
+  result->set_instance_descriptors(*descriptors);
   result->SetNumberOfOwnDescriptors(new_descriptor + 1);
 
   int unused_property_fields = map->unused_property_fields();
-  if (descriptors->GetDetails(new_descriptor).type() == FIELD) {
+  PropertyDetails details = descriptors->GetDetails(new_descriptor);
+  if (details.type() == FIELD) {
     unused_property_fields = map->unused_property_fields() - 1;
     if (unused_property_fields < 0) {
       unused_property_fields += JSObject::kFieldsAdded;
     }
   }
-
   result->set_unused_property_fields(unused_property_fields);
+
+  if (FLAG_unbox_double_fields) {
+    Handle<LayoutDescriptor> layout_descriptor =
+        LayoutDescriptor::AppendIfFastOrUseFull(map, details,
+                                                full_layout_descriptor);
+    result->set_layout_descriptor(*layout_descriptor);
+    SLOW_DCHECK(result->layout_descriptor()->IsConsistentWithMap(*result));
+    result->set_visitor_id(StaticVisitorBase::GetVisitorId(*result));
+  }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
   ConnectTransition(map, result, name, SIMPLE_PROPERTY_TRANSITION);
@@ -6794,7 +6883,9 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     ConnectElementsTransition(map, new_map);
 
     new_map->set_elements_kind(kind);
-    new_map->InitializeDescriptors(map->instance_descriptors());
+    // The properties did not change, so reuse descriptors.
+    new_map->InitializeDescriptors(map->instance_descriptors(),
+                                   map->GetLayoutDescriptor());
     return new_map;
   }
 
@@ -6830,7 +6921,9 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
   new_map->set_is_observed();
   if (map->owns_descriptors()) {
-    new_map->InitializeDescriptors(map->instance_descriptors());
+    // The properties did not change, so reuse descriptors.
+    new_map->InitializeDescriptors(map->instance_descriptors(),
+                                   map->GetLayoutDescriptor());
   }
 
   if (map->CanHaveMoreTransitions()) {
@@ -6846,8 +6939,10 @@ Handle<Map> Map::Copy(Handle<Map> map, const char* reason) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
-  return CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION,
-                                MaybeHandle<Name>(), reason,
+  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
+                                                 map->GetIsolate());
+  return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
+                                OMIT_TRANSITION, MaybeHandle<Name>(), reason,
                                 SPECIAL_TRANSITION);
 }
 
@@ -6883,9 +6978,11 @@ Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
+  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
+                                                 isolate);
   Handle<Map> new_map = CopyReplaceDescriptors(
-      map, new_desc, INSERT_TRANSITION, isolate->factory()->frozen_symbol(),
-      "CopyForFreeze", SPECIAL_TRANSITION);
+      map, new_desc, new_layout_descriptor, INSERT_TRANSITION,
+      isolate->factory()->frozen_symbol(), "CopyForFreeze", SPECIAL_TRANSITION);
   new_map->freeze();
   new_map->set_is_extensible(false);
   new_map->set_elements_kind(DICTIONARY_ELEMENTS);
@@ -7110,8 +7207,13 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
       descriptors, map->NumberOfOwnDescriptors(), 1);
   new_descriptors->Append(descriptor);
 
-  return CopyReplaceDescriptors(map, new_descriptors, flag,
-                                descriptor->GetKey(), "CopyAddDescriptor",
+  Handle<LayoutDescriptor> new_layout_descriptor =
+      FLAG_unbox_double_fields
+          ? LayoutDescriptor::Append(map, descriptor->GetDetails())
+          : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
+
+  return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
+                                flag, descriptor->GetKey(), "CopyAddDescriptor",
                                 SIMPLE_PROPERTY_TRANSITION);
 }
 
@@ -7203,13 +7305,16 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
       descriptors, map->NumberOfOwnDescriptors());
 
   new_descriptors->Replace(insertion_index, descriptor);
+  Handle<LayoutDescriptor> new_layout_descriptor = LayoutDescriptor::New(
+      map, new_descriptors, new_descriptors->number_of_descriptors());
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)
           ? SIMPLE_PROPERTY_TRANSITION
           : PROPERTY_TRANSITION;
-  return CopyReplaceDescriptors(map, new_descriptors, flag, key,
-                                "CopyReplaceDescriptor", simple_flag);
+  return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
+                                flag, key, "CopyReplaceDescriptor",
+                                simple_flag);
 }
 
 
@@ -8016,8 +8121,7 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
-void DescriptorArray::CopyFrom(int index,
-                               DescriptorArray* src,
+void DescriptorArray::CopyFrom(int index, DescriptorArray* src,
                                const WhitenessWitness& witness) {
   Object* value = src->GetValue(index);
   PropertyDetails details = src->GetDetails(index);

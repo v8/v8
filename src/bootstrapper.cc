@@ -951,7 +951,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
       CallbacksDescriptor d(
           Handle<Name>(Name::cast(array_length->name())),
           array_length, attribs);
-      array_function->initial_map()->AppendDescriptor(&d);
+      initial_map->AppendDescriptor(&d);
     }
 
     // array_function is used internally. JS code creating array object should
@@ -1091,7 +1091,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(
         initial_map->instance_size() + 5 * kPointerSize);
-    initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
 
     // RegExp prototype object is itself a RegExp.
     Handle<Map> proto_map = Map::Copy(initial_map, "RegExpPrototype");
@@ -1678,7 +1677,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   {  // Add length.
     CallbacksDescriptor d(
         Handle<Name>(Name::cast(array_length->name())), array_length, attribs);
-    array_function->initial_map()->AppendDescriptor(&d);
+    initial_map->AppendDescriptor(&d);
   }
 
   return array_function;

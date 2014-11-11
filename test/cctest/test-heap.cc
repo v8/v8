@@ -2476,12 +2476,21 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
   FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
   CHECK(CcTest::heap()->InOldPointerSpace(o->RawFastPropertyAt(idx1)));
-  CHECK(CcTest::heap()->InOldDataSpace(o->RawFastPropertyAt(idx2)));
+  if (!o->IsUnboxedDoubleField(idx2)) {
+    CHECK(CcTest::heap()->InOldDataSpace(o->RawFastPropertyAt(idx2)));
+  } else {
+    CHECK_EQ(1.1, o->RawFastDoublePropertyAt(idx2));
+  }
 
   JSObject* inner_object =
       reinterpret_cast<JSObject*>(o->RawFastPropertyAt(idx1));
   CHECK(CcTest::heap()->InOldPointerSpace(inner_object));
-  CHECK(CcTest::heap()->InOldDataSpace(inner_object->RawFastPropertyAt(idx1)));
+  if (!inner_object->IsUnboxedDoubleField(idx1)) {
+    CHECK(
+        CcTest::heap()->InOldDataSpace(inner_object->RawFastPropertyAt(idx1)));
+  } else {
+    CHECK_EQ(2.2, inner_object->RawFastDoublePropertyAt(idx1));
+  }
   CHECK(CcTest::heap()->InOldPointerSpace(
       inner_object->RawFastPropertyAt(idx2)));
 }
