@@ -988,7 +988,7 @@ TEST(CrossScriptStaticLookupUndeclared) {
 
     context.Check(
         "function f(o) { return x; }"
-        "function g(o) { x = 15; }"
+        "function g(v) { x = v; }"
         "function h(o) { return typeof x; }",
         EXPECT_RESULT, Undefined(CcTest::isolate()));
     context.Check("h({})", EXPECT_RESULT, undefined_string);
@@ -999,10 +999,66 @@ TEST(CrossScriptStaticLookupUndeclared) {
         EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
     context.Check(
         "'use strict';"
-        "g({});x",
+        "g(15);x",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
     context.Check("h({})", EXPECT_RESULT, number_string);
     context.Check("f({})", EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
     context.Check("h({})", EXPECT_RESULT, number_string);
+  }
+}
+
+
+TEST(CrossScriptICs) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check(
+        "x = 15;"
+        "function f() { return x; }"
+        "function g() { return x; }"
+        "f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    context.Check(
+        "'use strict';"
+        "let x = 5;"
+        "f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    for (int k = 0; k < 3; k++) {
+      context.Check("g()", EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    }
+    for (int k = 0; k < 3; k++) {
+      context.Check("f()", EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(g); g()", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 5));
+    context.Check("%OptimizeFunctionOnNextCall(f); f()", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 5));
+  }
+  {
+    SimpleContext context;
+    context.Check(
+        "x = 15;"
+        "function f() { return x; }"
+        "f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    for (int k = 0; k < 3; k++) {
+      context.Check("f()", EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f); f()", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 15));
+    context.Check(
+        "'use strict';"
+        "let x = 5;"
+        "f()",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    for (int k = 0; k < 3; k++) {
+      context.Check("f()", EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f); f()", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 5));
   }
 }

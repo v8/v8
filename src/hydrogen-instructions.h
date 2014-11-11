@@ -6276,6 +6276,8 @@ class HObjectAccess FINAL {
 
   static HObjectAccess ForContextSlot(int index);
 
+  static HObjectAccess ForGlobalContext(int index);
+
   // Create an access to the backing store of an object.
   static HObjectAccess ForBackingStoreOffset(int offset,
       Representation representation = Representation::Tagged());

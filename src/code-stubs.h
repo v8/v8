@@ -69,6 +69,7 @@ namespace internal {
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
   V(KeyedLoadGeneric)                       \
+  V(LoadGlobalContextField)                 \
   V(LoadDictionaryElement)                  \
   V(LoadFastElement)                        \
   V(MegamorphicLoad)                        \
@@ -2013,6 +2014,46 @@ class DoubleToIStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
+};
+
+
+class LoadGlobalContextFieldStub : public HandlerStub {
+ public:
+  LoadGlobalContextFieldStub(
+      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
+      : HandlerStub(isolate) {
+    DCHECK(Accepted(lookup_result));
+    set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
+                      SlotIndexBits::encode(lookup_result->slot_index));
+  }
+
+  int context_index() const {
+    return ContextIndexBits::decode(sub_minor_key());
+  }
+
+  int slot_index() const { return SlotIndexBits::decode(sub_minor_key()); }
+
+  static bool Accepted(const GlobalContextTable::LookupResult* lookup_result) {
+    return ContextIndexBits::is_valid(lookup_result->context_index) &&
+           SlotIndexBits::is_valid(lookup_result->slot_index);
+  }
+
+ private:
+  static const int kContextIndexBits = 13;
+  static const int kSlotIndexBits = 13;
+  class ContextIndexBits : public BitField<int, 0, kContextIndexBits> {};
+  class SlotIndexBits
+      : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
+
+  virtual Code::Kind kind() const { return Code::LOAD_IC; }
+  virtual Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+
+
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    return ContextOnlyDescriptor(isolate());
+  }
+
+  DEFINE_HANDLER_CODE_STUB(LoadGlobalContextField, HandlerStub);
 };
 
 

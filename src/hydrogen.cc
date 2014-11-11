@@ -5376,6 +5376,22 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       Handle<GlobalObject> global(current_info()->global_object());
+
+      if (FLAG_harmony_scoping) {
+        Handle<GlobalContextTable> global_contexts(
+            global->native_context()->global_context_table());
+        GlobalContextTable::LookupResult lookup;
+        if (GlobalContextTable::Lookup(global_contexts, variable->name(),
+                                       &lookup)) {
+          Handle<Context> global_context = GlobalContextTable::GetContext(
+              global_contexts, lookup.context_index);
+          HInstruction* result = New<HLoadNamedField>(
+              Add<HConstant>(global_context), static_cast<HValue*>(NULL),
+              HObjectAccess::ForContextSlot(lookup.slot_index));
+          return ast_context()->ReturnInstruction(result, expr->id());
+        }
+      }
+
       LookupIterator it(global, variable->name(),
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       GlobalPropertyAccess type = LookupGlobalProperty(variable, &it, LOAD);

@@ -670,6 +670,10 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
     GlobalContextTable::LookupResult lookup_result;
     if (GlobalContextTable::Lookup(global_contexts, str_name, &lookup_result)) {
+      if (use_ic && LoadGlobalContextFieldStub::Accepted(&lookup_result)) {
+        LoadGlobalContextFieldStub stub(isolate(), &lookup_result);
+        PatchCache(name, stub.GetCode());
+      }
       return FixedArray::get(GlobalContextTable::GetContext(
                                  global_contexts, lookup_result.context_index),
                              lookup_result.slot_index);

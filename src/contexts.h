@@ -229,8 +229,14 @@ class GlobalContextTable : public FixedArray {
   static Handle<GlobalContextTable> Extend(Handle<GlobalContextTable> table,
                                            Handle<Context> global_context);
 
+  static int GetContextOffset(int context_index) {
+    return kFirstContextOffset + context_index * kPointerSize;
+  }
+
  private:
   static const int kUsedSlot = 0;
+  static const int kFirstContextOffset =
+      FixedArray::kHeaderSize + (kUsedSlot + 1) * kPointerSize;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalContextTable);
 };

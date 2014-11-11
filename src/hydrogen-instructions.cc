@@ -4645,6 +4645,14 @@ HObjectAccess HObjectAccess::ForContextSlot(int index) {
 }
 
 
+HObjectAccess HObjectAccess::ForGlobalContext(int index) {
+  DCHECK(index >= 0);
+  Portion portion = kInobject;
+  int offset = GlobalContextTable::GetContextOffset(index);
+  return HObjectAccess(portion, offset, Representation::Tagged());
+}
+
+
 HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
   DCHECK(offset >= 0);
   Portion portion = kInobject;

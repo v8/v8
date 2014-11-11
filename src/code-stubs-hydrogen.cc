@@ -514,6 +514,28 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<LoadGlobalContextFieldStub>::BuildCodeStub() {
+  int context_index = casted_stub()->context_index();
+  int slot_index = casted_stub()->slot_index();
+
+  HValue* native_context = BuildGetNativeContext();
+  HValue* global_context_table = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(Context::GLOBAL_CONTEXT_TABLE_INDEX));
+  HValue* global_context =
+      Add<HLoadNamedField>(global_context_table, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForGlobalContext(context_index));
+  return Add<HLoadNamedField>(global_context, static_cast<HValue*>(NULL),
+                              HObjectAccess::ForContextSlot(slot_index));
+}
+
+
+Handle<Code> LoadGlobalContextFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(LoadDescriptor::kReceiverIndex),
