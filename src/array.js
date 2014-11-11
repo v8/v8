@@ -238,7 +238,10 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Bail out if no moving is necessary.
   if (num_additional_args === del_count) return;
   // Move data to new array.
-  var new_array = new InternalArray(len - del_count + num_additional_args);
+  var new_array = new InternalArray(
+      // Clamp array length to 2^32-1 to avoid early RangeError.
+      MathMin(len - del_count + num_additional_args, 0xffffffff));
+  var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {
     var limit = indices;
@@ -267,7 +270,12 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
         } else if (key >= start_i + del_count) {
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
-            new_array[key - del_count + num_additional_args] = current;
+            var new_key = key - del_count + num_additional_args;
+            new_array[new_key] = current;
+            if (new_key > 0xffffffff) {
+              big_indices = big_indices || new InternalArray();
+              big_indices.push(new_key);
+            }
           }
         }
       }
@@ -275,6 +283,14 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   }
   // Move contents of new_array into this array
   %MoveArrayContents(new_array, array);
+  // Add any moved values that aren't elements anymore.
+  if (!IS_UNDEFINED(big_indices)) {
+    var length = big_indices.length;
+    for (var i = 0; i < length; ++i) {
+      var key = big_indices[i];
+      array[key] = new_array[key];
+    }
+  }
 }
 
 
