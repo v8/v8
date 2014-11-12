@@ -509,7 +509,8 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
     DCHECK(map->layout_descriptor()->IsConsistentWithMap(*map));
   }
 
-  Handle<LayoutDescriptor> layout_descriptor = map->GetLayoutDescriptor();
+  Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
+                                             isolate);
   DCHECK(layout_descriptor->IsConsistentWithMap(*map));
   return layout_descriptor;
 }
