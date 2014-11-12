@@ -111,7 +111,7 @@ void RegExpBuilder::FlushTerms() {
   int num_terms = terms_.length();
   RegExpTree* alternative;
   if (num_terms == 0) {
-    alternative = RegExpEmpty::GetInstance();
+    alternative = new (zone()) RegExpEmpty();
   } else if (num_terms == 1) {
     alternative = terms_.last();
   } else {
@@ -126,12 +126,8 @@ void RegExpBuilder::FlushTerms() {
 RegExpTree* RegExpBuilder::ToRegExp() {
   FlushTerms();
   int num_alternatives = alternatives_.length();
-  if (num_alternatives == 0) {
-    return RegExpEmpty::GetInstance();
-  }
-  if (num_alternatives == 1) {
-    return alternatives_.last();
-  }
+  if (num_alternatives == 0) return new (zone()) RegExpEmpty();
+  if (num_alternatives == 1) return alternatives_.last();
   return new(zone()) RegExpDisjunction(alternatives_.GetList(zone()));
 }
 

@@ -3117,10 +3117,6 @@ class RegExpEmpty FINAL : public RegExpTree {
   virtual bool IsEmpty() OVERRIDE;
   virtual int min_match() OVERRIDE { return 0; }
   virtual int max_match() OVERRIDE { return 0; }
-  static RegExpEmpty* GetInstance() {
-    static RegExpEmpty* instance = ::new RegExpEmpty();
-    return instance;
-  }
 };
 
 
