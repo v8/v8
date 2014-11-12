@@ -187,10 +187,10 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
-    if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
+    if (FLAG_harmony_scoping && info->scope()->is_script_scope()) {
       __ Push(rdi);
       __ Push(info->scope()->GetScopeInfo());
-      __ CallRuntime(Runtime::kNewGlobalContext, 2);
+      __ CallRuntime(Runtime::kNewScriptContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
@@ -895,7 +895,7 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   EmitDebugCheckDeclarationContext(variable);
 
   // Load instance object.
-  __ LoadContext(rax, scope_->ContextChainLength(scope_->GlobalScope()));
+  __ LoadContext(rax, scope_->ContextChainLength(scope_->ScriptScope()));
   __ movp(rax, ContextOperand(rax, variable->interface()->Index()));
   __ movp(rax, ContextOperand(rax, Context::EXTENSION_INDEX));
 
@@ -5029,7 +5029,7 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_global_scope() ||
+  if (declaration_scope->is_script_scope() ||
       declaration_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global

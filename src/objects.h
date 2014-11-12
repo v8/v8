@@ -87,7 +87,7 @@
 //         - JSFunctionResultCache
 //         - ScopeInfo
 //         - TransitionArray
-//         - GlobalContextTable
+//         - ScriptContextTable
 //       - FixedDoubleArray
 //       - ExternalArray
 //         - ExternalUint8ClampedArray
@@ -947,7 +947,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedDoubleArray)              \
   V(ConstantPoolArray)             \
   V(Context)                       \
-  V(GlobalContextTable)            \
+  V(ScriptContextTable)            \
   V(NativeContext)                 \
   V(ScopeInfo)                     \
   V(JSFunction)                    \
@@ -7557,9 +7557,6 @@ class GlobalObject: public JSObject {
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, Context)
 
-  // [global context]: the most recent (i.e. innermost) global context.
-  DECL_ACCESSORS(global_context, Context)
-
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)
 
@@ -7571,8 +7568,7 @@ class GlobalObject: public JSObject {
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
   static const int kNativeContextOffset = kBuiltinsOffset + kPointerSize;
-  static const int kGlobalContextOffset = kNativeContextOffset + kPointerSize;
-  static const int kGlobalProxyOffset = kGlobalContextOffset + kPointerSize;
+  static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
   static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
 
  private:

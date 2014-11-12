@@ -12,32 +12,32 @@ namespace v8 {
 namespace internal {
 
 
-Handle<GlobalContextTable> GlobalContextTable::Extend(
-    Handle<GlobalContextTable> table, Handle<Context> global_context) {
-  Handle<GlobalContextTable> result;
+Handle<ScriptContextTable> ScriptContextTable::Extend(
+    Handle<ScriptContextTable> table, Handle<Context> script_context) {
+  Handle<ScriptContextTable> result;
   int used = table->used();
   int length = table->length();
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + 1 == length) {
     CHECK(length < Smi::kMaxValue / 2);
-    result = Handle<GlobalContextTable>::cast(
+    result = Handle<ScriptContextTable>::cast(
         FixedArray::CopySize(table, length * 2));
   } else {
     result = table;
   }
   result->set_used(used + 1);
 
-  DCHECK(global_context->IsGlobalContext());
-  result->set(used + 1, *global_context);
+  DCHECK(script_context->IsScriptContext());
+  result->set(used + 1, *script_context);
   return result;
 }
 
 
-bool GlobalContextTable::Lookup(Handle<GlobalContextTable> table,
+bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
                                 Handle<String> name, LookupResult* result) {
   for (int i = 0; i < table->used(); i++) {
     Handle<Context> context = GetContext(table, i);
-    DCHECK(context->IsGlobalContext());
+    DCHECK(context->IsScriptContext());
     Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
     int slot_index = ScopeInfo::ContextSlotIndex(
         scope_info, name, &result->mode, &result->init_flag,
@@ -74,9 +74,9 @@ JSBuiltinsObject* Context::builtins() {
 }
 
 
-Context* Context::global_context() {
+Context* Context::script_context() {
   Context* current = this;
-  while (!current->IsGlobalContext()) {
+  while (!current->IsScriptContext()) {
     current = current->previous();
   }
   return current;
@@ -214,7 +214,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
   do {
     if (FLAG_trace_contexts) {
       PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
-      if (context->IsGlobalContext()) PrintF(" (global context)");
+      if (context->IsScriptContext()) PrintF(" (script context)");
       if (context->IsNativeContext()) PrintF(" (native context)");
       PrintF("\n");
     }
@@ -229,23 +229,23 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
       if (context->IsNativeContext()) {
         if (FLAG_trace_contexts) {
-          PrintF(" - trying other global contexts\n");
+          PrintF(" - trying other script contexts\n");
         }
-        // Try other global contexts.
-        Handle<GlobalContextTable> global_contexts(
-            context->global_object()->native_context()->global_context_table());
-        GlobalContextTable::LookupResult r;
-        if (GlobalContextTable::Lookup(global_contexts, name, &r)) {
+        // Try other script contexts.
+        Handle<ScriptContextTable> script_contexts(
+            context->global_object()->native_context()->script_context_table());
+        ScriptContextTable::LookupResult r;
+        if (ScriptContextTable::Lookup(script_contexts, name, &r)) {
           if (FLAG_trace_contexts) {
-            Handle<Context> c = GlobalContextTable::GetContext(global_contexts,
+            Handle<Context> c = ScriptContextTable::GetContext(script_contexts,
                                                                r.context_index);
-            PrintF("=> found property in global context %d: %p\n",
+            PrintF("=> found property in script context %d: %p\n",
                    r.context_index, reinterpret_cast<void*>(*c));
           }
           *index = r.slot_index;
           GetAttributesAndBindingFlags(r.mode, r.init_flag, attributes,
                                        binding_flags);
-          return GlobalContextTable::GetContext(global_contexts,
+          return ScriptContextTable::GetContext(script_contexts,
                                                 r.context_index);
         }
       }
@@ -279,7 +279,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
-        (FLAG_harmony_scoping && context->IsGlobalContext())) {
+        (FLAG_harmony_scoping && context->IsScriptContext())) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       Handle<ScopeInfo> scope_info;
@@ -480,7 +480,7 @@ bool Context::IsBootstrappingOrValidParentContext(
   if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
   if (!object->IsContext()) return false;
   Context* context = Context::cast(object);
-  return context->IsNativeContext() || context->IsGlobalContext() ||
+  return context->IsNativeContext() || context->IsScriptContext() ||
          context->IsModuleContext() || !child->IsModuleContext();
 }
 

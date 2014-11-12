@@ -144,7 +144,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   isolate_ = isolate;
   function_ = NULL;
   scope_ = NULL;
-  global_scope_ = NULL;
+  script_scope_ = NULL;
   extension_ = NULL;
   cached_data_ = NULL;
   compile_options_ = ScriptCompiler::kNoCompileOptions;
@@ -1243,10 +1243,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
-      // TODO(yangguo): Issue 3628
-      // With block scoping, top-level variables may resolve to a global,
-      // context, which makes the code context-dependent.
-      if (FLAG_serialize_toplevel && !FLAG_harmony_scoping &&
+      if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());

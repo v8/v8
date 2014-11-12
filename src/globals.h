@@ -651,7 +651,7 @@ enum ScopeType {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
-  GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+  SCRIPT_SCOPE,    // The top-level scope for a script or a top-level eval.
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
   WITH_SCOPE,      // The scope introduced by with.

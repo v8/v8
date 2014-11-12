@@ -105,7 +105,7 @@ class CompilationInfo {
   }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
-  Scope* global_scope() const { return global_scope_; }
+  Scope* script_scope() const { return script_scope_; }
   Handle<Code> code() const { return code_; }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -231,9 +231,9 @@ class CompilationInfo {
     function_ = literal;
   }
   void PrepareForCompilation(Scope* scope);
-  void SetGlobalScope(Scope* global_scope) {
-    DCHECK(global_scope_ == NULL);
-    global_scope_ = global_scope;
+  void SetScriptScope(Scope* script_scope) {
+    DCHECK(script_scope_ == NULL);
+    script_scope_ = script_scope;
   }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -441,8 +441,8 @@ class CompilationInfo {
   // The scope of the function literal as a convenience.  Set to indicate
   // that scopes have been analyzed.
   Scope* scope_;
-  // The global scope provided as a convenience.
-  Scope* global_scope_;
+  // The script scope provided as a convenience.
+  Scope* script_scope_;
   // For compiled stubs, the stub object
   HydrogenCodeStub* code_stub_;
   // The compiled code.
@@ -460,7 +460,7 @@ class CompilationInfo {
   ScriptData** cached_data_;
   ScriptCompiler::CompileOptions compile_options_;
 
-  // The context of the caller for eval code, and the global context for a
+  // The context of the caller for eval code, and the script context for a
   // global script. Will be a null handle otherwise.
   Handle<Context> context_;
 

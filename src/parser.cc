@@ -902,8 +902,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 
   FunctionLiteral* result = NULL;
   {
-    *scope = NewScope(scope_, GLOBAL_SCOPE);
-    info->SetGlobalScope(*scope);
+    *scope = NewScope(scope_, SCRIPT_SCOPE);
+    info->SetScriptScope(*scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       *scope = Scope::DeserializeScopeChain(*info->context(), *scope, zone());
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
@@ -914,11 +914,11 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     }
     original_scope_ = *scope;
     if (info->is_eval()) {
-      if (!(*scope)->is_global_scope() || info->strict_mode() == STRICT) {
+      if (!(*scope)->is_script_scope() || info->strict_mode() == STRICT) {
         *scope = NewScope(*scope, EVAL_SCOPE);
       }
     } else if (info->is_global()) {
-      *scope = NewScope(*scope, GLOBAL_SCOPE);
+      *scope = NewScope(*scope, SCRIPT_SCOPE);
     }
     (*scope)->set_start_position(0);
     // End position will be set by the caller.
@@ -1040,8 +1040,8 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
 
   {
     // Parse the function literal.
-    Scope* scope = NewScope(scope_, GLOBAL_SCOPE);
-    info()->SetGlobalScope(scope);
+    Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
+    info()->SetScriptScope(scope);
     if (!info()->closure().is_null()) {
       scope = Scope::DeserializeScopeChain(info()->closure()->context(), scope,
                                            zone());
@@ -1145,7 +1145,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // all over the code base, so we go with a quick-fix for now.
           // In the same manner, we have to patch the parsing mode.
           if (is_eval && !scope_->is_eval_scope()) {
-            DCHECK(scope_->is_global_scope());
+            DCHECK(scope_->is_script_scope());
             Scope* scope = NewScope(scope_, EVAL_SCOPE);
             scope->set_start_position(scope_->start_position());
             scope->set_end_position(scope_->end_position());
@@ -1779,14 +1779,9 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       declaration_scope->is_strict_eval_scope() ||
       declaration_scope->is_block_scope() ||
       declaration_scope->is_module_scope() ||
-      declaration_scope->is_global_scope()) {
+      declaration_scope->is_script_scope()) {
     // Declare the variable in the declaration scope.
-    // For the global scope, we have to check for collisions with earlier
-    // (i.e., enclosing) global scopes, to maintain the illusion of a single
-    // global scope.
-    var = declaration_scope->is_global_scope()
-        ? declaration_scope->Lookup(name)
-        : declaration_scope->LookupLocal(name);
+    var = declaration_scope->LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(name, mode,
@@ -1794,10 +1789,10 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
                                             kNotAssigned, proxy->interface());
     } else if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(var->mode())
                || ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
-                   !declaration_scope->is_global_scope())) {
+                   !declaration_scope->is_script_scope())) {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
-      // not a var (in the global scope, we also have to ignore legacy const for
+      // not a var (in script scope, we also have to ignore legacy const for
       // compatibility). There is similar code in runtime.cc in the Declare
       // functions. The function CheckConflictingVarDeclarations checks for
       // var and let bindings from different scopes whereas this is a check for
@@ -1842,7 +1837,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // RuntimeHidden_DeclareLookupSlot calls.
   declaration_scope->AddDeclaration(declaration);
 
-  if (mode == CONST_LEGACY && declaration_scope->is_global_scope()) {
+  if (mode == CONST_LEGACY && declaration_scope->is_script_scope()) {
     // For global const variables we bind the proxy to a variable.
     DCHECK(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
@@ -1981,11 +1976,11 @@ Statement* Parser::ParseFunctionDeclaration(
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
-  // In ES6, a function behaves as a lexical binding, except in the
-  // global scope, or the initial scope of eval or another function.
+  // In ES6, a function behaves as a lexical binding, except in
+  // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
       allow_harmony_scoping() && strict_mode() == STRICT &&
-      !(scope_->is_global_scope() || scope_->is_eval_scope() ||
+      !(scope_->is_script_scope() || scope_->is_eval_scope() ||
           scope_->is_function_scope()) ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
@@ -2336,7 +2331,7 @@ Block* Parser::ParseVariableDeclarations(
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
-    if (initialization_scope->is_global_scope() &&
+    if (initialization_scope->is_script_scope() &&
         !IsLexicalVariableMode(mode)) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments =
@@ -2633,7 +2628,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   }
 
   Scope* decl_scope = scope_->DeclarationScope();
-  if (decl_scope->is_global_scope() || decl_scope->is_eval_scope()) {
+  if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
     ReportMessageAt(loc, "illegal_return");
     *ok = false;
     return NULL;

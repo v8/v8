@@ -864,7 +864,6 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
                                 Handle<JSGlobalProxy> global_proxy) {
   // Set the native context for the global object.
   global_object->set_native_context(*native_context());
-  global_object->set_global_context(*native_context());
   global_object->set_global_proxy(*global_proxy);
   global_proxy->set_native_context(*native_context());
   native_context()->set_global_proxy(*global_proxy);
@@ -909,9 +908,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<GlobalContextTable> global_context_table =
-      factory->NewGlobalContextTable();
-  native_context()->set_global_context_table(*global_context_table);
+  Handle<ScriptContextTable> script_context_table =
+      factory->NewScriptContextTable();
+  native_context()->set_script_context_table(*script_context_table);
 
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
@@ -1707,7 +1706,6 @@ bool Genesis::InstallNatives() {
       Handle<JSBuiltinsObject>::cast(factory()->NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_native_context(*native_context());
-  builtins->set_global_context(*native_context());
   builtins->set_global_proxy(native_context()->global_proxy());
 
 

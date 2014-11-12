@@ -244,7 +244,7 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(CreateWithContext, Operator::kNoProperties, 2, 1)     \
   V(CreateBlockContext, Operator::kNoProperties, 2, 1)    \
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)   \
-  V(CreateGlobalContext, Operator::kNoProperties, 2, 1)
+  V(CreateScriptContext, Operator::kNoProperties, 2, 1)
 
 
 struct JSOperatorGlobalCache FINAL {

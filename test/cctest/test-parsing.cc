@@ -1025,11 +1025,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(i::Scope::Analyze(&info));
       CHECK(info.function() != NULL);
 
-      i::Scope* global_scope = info.function()->scope();
-      CHECK(global_scope->is_global_scope());
-      CHECK_EQ(1, global_scope->inner_scopes()->length());
+      i::Scope* script_scope = info.function()->scope();
+      CHECK(script_scope->is_script_scope());
+      CHECK_EQ(1, script_scope->inner_scopes()->length());
 
-      i::Scope* scope = global_scope->inner_scopes()->at(0);
+      i::Scope* scope = script_scope->inner_scopes()->at(0);
       CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
                scope->uses_arguments());
       CHECK_EQ((source_data[i].expected & SUPER) != 0, scope->uses_super());
@@ -1272,7 +1272,7 @@ TEST(ScopePositions) {
 
     // Check scope types and positions.
     i::Scope* scope = info.function()->scope();
-    CHECK(scope->is_global_scope());
+    CHECK(scope->is_script_scope());
     CHECK_EQ(scope->start_position(), 0);
     CHECK_EQ(scope->end_position(), kProgramSize);
     CHECK_EQ(scope->inner_scopes()->length(), 1);
@@ -3070,11 +3070,11 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   const i::AstRawString* name = avf.GetOneByteString("result");
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
-  i::Scope* global_scope =
-      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
-  global_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  DCHECK(s != global_scope);
+  i::Scope* script_scope =
+      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+  script_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  DCHECK(s != script_scope);
   DCHECK(name != NULL);
 
   // Get result from h's function context (that is f's context)
@@ -3117,11 +3117,11 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   avf.Internalize(isolate);
 
-  i::Scope* global_scope =
-      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
-  global_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  DCHECK(s != global_scope);
+  i::Scope* script_scope =
+      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+  script_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  DCHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
 
   // Get result from f's function context (that is g's outer context)
@@ -3164,11 +3164,11 @@ TEST(ExportsMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   avf.Internalize(isolate);
 
-  i::Scope* global_scope =
-      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
-  global_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  DCHECK(s != global_scope);
+  i::Scope* script_scope =
+      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+  script_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  DCHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   const i::AstRawString* name_f = avf.GetOneByteString("f");
   const i::AstRawString* name_y = avf.GetOneByteString("y");

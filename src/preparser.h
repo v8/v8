@@ -1435,7 +1435,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram() {
-    PreParserScope scope(scope_, GLOBAL_SCOPE);
+    PreParserScope scope(scope_, SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
     FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
     bool ok = true;

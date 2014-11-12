@@ -809,25 +809,21 @@ TEST(CrossScriptReferencesHarmony) {
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("'use strict'; let y1 = 3; 0;",
                   EXPECT_RESULT, Number::New(isolate, 0));
-    // TODO(dslomov): still returns 1 not 3
-    // context.Check(script1,
-    //               EXPECT_RESULT, Number::New(isolate, 3));
+    context.Check(script1,
+                  EXPECT_RESULT, Number::New(isolate, 3));
     context.Check("y1 = 4;",
                   EXPECT_RESULT, Number::New(isolate, 4));
-    // TODO(dslomov): still returns 1 not 4
-    // context.Check(script1,
-    //               EXPECT_RESULT, Number::New(isolate, 4));
+    context.Check(script1,
+                  EXPECT_RESULT, Number::New(isolate, 4));
 
     context.Check(script2,
                   EXPECT_RESULT, Number::New(isolate, 2));
     context.Check("'use strict'; let y2 = 5; 0;",
                   EXPECT_RESULT, Number::New(isolate, 0));
-    // TODO(dslomov): still returns 1 not 4
-    // context.Check(script1,
-    //               EXPECT_RESULT, Number::New(isolate, 4));
-    // TODO(dslomov): still returns 2 not 5
-    // context.Check(script2,
-    //              EXPECT_RESULT, Number::New(isolate, 5));
+    context.Check(script1,
+                  EXPECT_RESULT, Number::New(isolate, 4));
+    context.Check(script2,
+                  EXPECT_RESULT, Number::New(isolate, 5));
   }
 }
 

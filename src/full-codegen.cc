@@ -601,7 +601,7 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 
 void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
-  DCHECK(scope_->is_global_scope());
+  DCHECK(scope_->is_script_scope());
 
   for (int i = 0; i < declarations->length(); i++) {
     ModuleDeclaration* declaration = declarations->at(i)->AsModuleDeclaration();
@@ -642,8 +642,8 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 // modules themselves, however, are simple data properties.)
 //
 // All modules have a _hosting_ scope/context, which (currently) is the
-// (innermost) enclosing global scope. To deal with recursion, nested modules
-// are hosted by the same scope as global ones.
+// enclosing script scope. To deal with recursion, nested modules are hosted
+// by the same scope as global ones.
 //
 // For every (global or nested) module literal, the hosting context has an
 // internal slot that points directly to the respective module context. This
@@ -673,7 +673,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 //
 // To deal with arbitrary recursion and aliases between modules,
 // they are created and initialized in several stages. Each stage applies to
-// all modules in the hosting global scope, including nested ones.
+// all modules in the hosting script scope, including nested ones.
 //
 // 1. Allocate: for each module _literal_, allocate the module contexts and
 //    respective instance object and wire them up. This happens in the
@@ -708,7 +708,7 @@ void FullCodeGenerator::VisitDeclarations(
     // This is a scope hosting modules. Allocate a descriptor array to pass
     // to the runtime for initialization.
     Comment cmnt(masm_, "[ Allocate modules");
-    DCHECK(scope_->is_global_scope());
+    DCHECK(scope_->is_script_scope());
     modules_ =
         isolate()->factory()->NewFixedArray(scope_->num_modules(), TENURED);
     module_index_ = 0;

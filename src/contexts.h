@@ -184,20 +184,20 @@ enum BindingFlags {
   V(ITERATOR_SYMBOL_INDEX, Symbol, iterator_symbol)                            \
   V(UNSCOPABLES_SYMBOL_INDEX, Symbol, unscopables_symbol)                      \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
-  V(GLOBAL_CONTEXT_TABLE_INDEX, GlobalContextTable, global_context_table)
+  V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)
 
 
-// A table of all global contexts. Every loaded top-level script with top-level
-// lexical declarations contributes its GlobalContext into this table.
+// A table of all script contexts. Every loaded top-level script with top-level
+// lexical declarations contributes its ScriptContext into this table.
 //
 // The table is a fixed array, its first slot is the current used count and
-// the subsequent slots 1..used contain GlobalContexts.
-class GlobalContextTable : public FixedArray {
+// the subsequent slots 1..used contain ScriptContexts.
+class ScriptContextTable : public FixedArray {
  public:
   // Conversions.
-  static GlobalContextTable* cast(Object* context) {
-    DCHECK(context->IsGlobalContextTable());
-    return reinterpret_cast<GlobalContextTable*>(context);
+  static ScriptContextTable* cast(Object* context) {
+    DCHECK(context->IsScriptContextTable());
+    return reinterpret_cast<ScriptContextTable*>(context);
   }
 
   struct LookupResult {
@@ -212,22 +212,22 @@ class GlobalContextTable : public FixedArray {
 
   void set_used(int used) { set(kUsedSlot, Smi::FromInt(used)); }
 
-  static Handle<Context> GetContext(Handle<GlobalContextTable> table, int i) {
+  static Handle<Context> GetContext(Handle<ScriptContextTable> table, int i) {
     DCHECK(i < table->used());
     return Handle<Context>::cast(FixedArray::get(table, i + 1));
   }
 
-  // Lookup a variable `name` in a GlobalContextTable.
+  // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
   // valid information about its location.
   // If it returns false, `result` is untouched.
   MUST_USE_RESULT
-  static bool Lookup(Handle<GlobalContextTable> table, Handle<String> name,
+  static bool Lookup(Handle<ScriptContextTable> table, Handle<String> name,
                      LookupResult* result);
 
   MUST_USE_RESULT
-  static Handle<GlobalContextTable> Extend(Handle<GlobalContextTable> table,
-                                           Handle<Context> global_context);
+  static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
+                                           Handle<Context> script_context);
 
   static int GetContextOffset(int context_index) {
     return kFirstContextOffset + context_index * kPointerSize;
@@ -238,7 +238,7 @@ class GlobalContextTable : public FixedArray {
   static const int kFirstContextOffset =
       FixedArray::kHeaderSize + (kUsedSlot + 1) * kPointerSize;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalContextTable);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ScriptContextTable);
 };
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -284,9 +284,9 @@ class GlobalContextTable : public FixedArray {
 // properties.
 //
 // Finally, with Harmony scoping, the JSFunction representing a top level
-// script will have the GlobalContext rather than a FunctionContext.
-// Global contexts from all top-level scripts are gathered in
-// GlobalContextTable.
+// script will have the ScriptContext rather than a FunctionContext.
+// Script contexts from all top-level scripts are gathered in
+// ScriptContextTable.
 
 class Context: public FixedArray {
  public:
@@ -418,7 +418,7 @@ class Context: public FixedArray {
     ITERATOR_SYMBOL_INDEX,
     UNSCOPABLES_SYMBOL_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,
-    GLOBAL_CONTEXT_TABLE_INDEX,
+    SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
@@ -471,8 +471,8 @@ class Context: public FixedArray {
   // The builtins object.
   JSBuiltinsObject* builtins();
 
-  // Get the innermost global context by traversing the context chain.
-  Context* global_context();
+  // Get the script context by traversing the context chain.
+  Context* script_context();
 
   // Compute the native context by traversing the context chain.
   Context* native_context();
@@ -504,9 +504,9 @@ class Context: public FixedArray {
     Map* map = this->map();
     return map == map->GetHeap()->module_context_map();
   }
-  bool IsGlobalContext() {
+  bool IsScriptContext() {
     Map* map = this->map();
-    return map == map->GetHeap()->global_context_map();
+    return map == map->GetHeap()->script_context_map();
   }
 
   bool HasSameSecurityTokenAs(Context* that) {

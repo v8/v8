@@ -69,7 +69,7 @@ namespace internal {
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
   V(KeyedLoadGeneric)                       \
-  V(LoadGlobalContextField)                 \
+  V(LoadScriptContextField)                 \
   V(LoadDictionaryElement)                  \
   V(LoadFastElement)                        \
   V(MegamorphicLoad)                        \
@@ -77,7 +77,7 @@ namespace internal {
   V(NumberToString)                         \
   V(RegExpConstructResult)                  \
   V(StoreFastElement)                       \
-  V(StoreGlobalContextField)                \
+  V(StoreScriptContextField)                \
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
@@ -2018,10 +2018,10 @@ class DoubleToIStub : public PlatformCodeStub {
 };
 
 
-class GlobalContextFieldStub : public HandlerStub {
+class ScriptContextFieldStub : public HandlerStub {
  public:
-  GlobalContextFieldStub(Isolate* isolate,
-                         const GlobalContextTable::LookupResult* lookup_result)
+  ScriptContextFieldStub(Isolate* isolate,
+                         const ScriptContextTable::LookupResult* lookup_result)
       : HandlerStub(isolate) {
     DCHECK(Accepted(lookup_result));
     set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
@@ -2034,7 +2034,7 @@ class GlobalContextFieldStub : public HandlerStub {
 
   int slot_index() const { return SlotIndexBits::decode(sub_minor_key()); }
 
-  static bool Accepted(const GlobalContextTable::LookupResult* lookup_result) {
+  static bool Accepted(const ScriptContextTable::LookupResult* lookup_result) {
     return ContextIndexBits::is_valid(lookup_result->context_index) &&
            SlotIndexBits::is_valid(lookup_result->slot_index);
   }
@@ -2048,33 +2048,33 @@ class GlobalContextFieldStub : public HandlerStub {
 
   virtual Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
 
-  DEFINE_CODE_STUB_BASE(GlobalContextFieldStub, HandlerStub);
+  DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, HandlerStub);
 };
 
 
-class LoadGlobalContextFieldStub : public GlobalContextFieldStub {
+class LoadScriptContextFieldStub : public ScriptContextFieldStub {
  public:
-  LoadGlobalContextFieldStub(
-      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
-      : GlobalContextFieldStub(isolate, lookup_result) {}
+  LoadScriptContextFieldStub(
+      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
+      : ScriptContextFieldStub(isolate, lookup_result) {}
 
  private:
   virtual Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
 
-  DEFINE_HANDLER_CODE_STUB(LoadGlobalContextField, GlobalContextFieldStub);
+  DEFINE_HANDLER_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
 };
 
 
-class StoreGlobalContextFieldStub : public GlobalContextFieldStub {
+class StoreScriptContextFieldStub : public ScriptContextFieldStub {
  public:
-  StoreGlobalContextFieldStub(
-      Isolate* isolate, const GlobalContextTable::LookupResult* lookup_result)
-      : GlobalContextFieldStub(isolate, lookup_result) {}
+  StoreScriptContextFieldStub(
+      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
+      : ScriptContextFieldStub(isolate, lookup_result) {}
 
  private:
   virtual Code::Kind kind() const OVERRIDE { return Code::STORE_IC; }
 
-  DEFINE_HANDLER_CODE_STUB(StoreGlobalContextField, GlobalContextFieldStub);
+  DEFINE_HANDLER_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
 };
 
 

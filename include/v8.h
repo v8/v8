@@ -1011,7 +1011,7 @@ class V8_EXPORT Script {
   /**
    * Runs the script returning the resulting value. It will be run in the
    * context in which it was created (ScriptCompiler::CompileBound or
-   * UnboundScript::BindToGlobalContext()).
+   * UnboundScript::BindToCurrentContext()).
    */
   Local<Value> Run();
 

@@ -105,7 +105,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     StrictMode strict_mode, bool is_generator, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
-  PreParserScope top_scope(scope_, GLOBAL_SCOPE);
+  PreParserScope top_scope(scope_, SCRIPT_SCOPE);
   PreParserFactory top_factory(NULL);
   FunctionState top_state(&function_state_, &scope_, &top_scope, &top_factory);
   scope_->SetStrictMode(strict_mode);
@@ -863,7 +863,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing
   // and lazy compilation.
-  bool is_lazily_parsed = (outer_scope_type == GLOBAL_SCOPE && allow_lazy() &&
+  bool is_lazily_parsed = (outer_scope_type == SCRIPT_SCOPE && allow_lazy() &&
                            !parenthesized_function_);
   parenthesized_function_ = false;
 

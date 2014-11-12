@@ -4087,7 +4087,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    // Read the first word and compare to the global_context_map.
+    // Read the first word and compare to the native_context_map.
     Ldr(scratch2, FieldMemOperand(scratch1, HeapObject::kMapOffset));
     CompareRoot(scratch2, Heap::kNativeContextMapRootIndex);
     Check(eq, kExpectedNativeContext);

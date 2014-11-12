@@ -514,35 +514,35 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<LoadGlobalContextFieldStub>::BuildCodeStub() {
+HValue* CodeStubGraphBuilder<LoadScriptContextFieldStub>::BuildCodeStub() {
   int context_index = casted_stub()->context_index();
   int slot_index = casted_stub()->slot_index();
 
-  HValue* global_context = BuildGetGlobalContext(context_index);
-  return Add<HLoadNamedField>(global_context, static_cast<HValue*>(NULL),
+  HValue* script_context = BuildGetScriptContext(context_index);
+  return Add<HLoadNamedField>(script_context, static_cast<HValue*>(NULL),
                               HObjectAccess::ForContextSlot(slot_index));
 }
 
 
-Handle<Code> LoadGlobalContextFieldStub::GenerateCode() {
+Handle<Code> LoadScriptContextFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
 
 template <>
-HValue* CodeStubGraphBuilder<StoreGlobalContextFieldStub>::BuildCodeStub() {
+HValue* CodeStubGraphBuilder<StoreScriptContextFieldStub>::BuildCodeStub() {
   int context_index = casted_stub()->context_index();
   int slot_index = casted_stub()->slot_index();
 
-  HValue* global_context = BuildGetGlobalContext(context_index);
-  Add<HStoreNamedField>(global_context,
+  HValue* script_context = BuildGetScriptContext(context_index);
+  Add<HStoreNamedField>(script_context,
                         HObjectAccess::ForContextSlot(slot_index),
                         GetParameter(2), STORE_TO_INITIALIZED_ENTRY);
   return GetParameter(2);
 }
 
 
-Handle<Code> StoreGlobalContextFieldStub::GenerateCode() {
+Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

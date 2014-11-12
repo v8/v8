@@ -148,8 +148,8 @@ namespace internal {
   V(Map, with_context_map, WithContextMap)                                     \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, module_context_map, ModuleContextMap)                                 \
-  V(Map, global_context_map, GlobalContextMap)                                 \
-  V(Map, global_context_table_map, GlobalContextTableMap)                      \
+  V(Map, script_context_map, ScriptContextMap)                                 \
+  V(Map, script_context_table_map, ScriptContextTableMap)                      \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
   V(Map, null_map, NullMap)                                                    \
@@ -342,7 +342,7 @@ namespace internal {
   V(WithContextMap)                     \
   V(BlockContextMap)                    \
   V(ModuleContextMap)                   \
-  V(GlobalContextMap)                   \
+  V(ScriptContextMap)                   \
   V(UndefinedMap)                       \
   V(TheHoleMap)                         \
   V(NullMap)                            \

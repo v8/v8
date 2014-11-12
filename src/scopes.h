@@ -80,7 +80,7 @@ class Scope: public ZoneObject {
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
-  static Scope* DeserializeScopeChain(Context* context, Scope* global_scope,
+  static Scope* DeserializeScopeChain(Context* context, Scope* script_scope,
                                       Zone* zone);
 
   // The scope name is only used for printing/debugging.
@@ -135,7 +135,7 @@ class Scope: public ZoneObject {
                          Interface* interface = Interface::NewValue());
 
   // Declare an implicit global variable in this scope which must be a
-  // global scope.  The variable was introduced (possibly from an inner
+  // script scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
   Variable* DeclareDynamicGlobal(const AstRawString* name);
@@ -209,7 +209,7 @@ class Scope: public ZoneObject {
   void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
+  void RecordEvalCall() { if (!is_script_scope()) scope_calls_eval_ = true; }
 
   // Inform the scope that the corresponding code uses "arguments".
   void RecordArgumentsUsage() { scope_uses_arguments_ = true; }
@@ -275,14 +275,14 @@ class Scope: public ZoneObject {
     return scope_type_ == FUNCTION_SCOPE || scope_type_ == ARROW_SCOPE;
   }
   bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
-  bool is_global_scope() const { return scope_type_ == GLOBAL_SCOPE; }
+  bool is_script_scope() const { return scope_type_ == SCRIPT_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
   bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_arrow_scope() const { return scope_type_ == ARROW_SCOPE; }
   bool is_declaration_scope() const {
     return is_eval_scope() || is_function_scope() ||
-        is_module_scope() || is_global_scope();
+        is_module_scope() || is_script_scope();
   }
   bool is_strict_eval_scope() const {
     return is_eval_scope() && strict_mode_ == STRICT;
@@ -379,7 +379,7 @@ class Scope: public ZoneObject {
   int StackLocalCount() const;
   int ContextLocalCount() const;
 
-  // For global scopes, the number of module literals (including nested ones).
+  // For script scopes, the number of module literals (including nested ones).
   int num_modules() const { return num_modules_; }
 
   // For module scopes, the host scope's internal variable binding this module.
@@ -403,8 +403,10 @@ class Scope: public ZoneObject {
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
-  // Find the innermost global scope.
-  Scope* GlobalScope();
+  // Find the script scope.
+  // Used in modules implemenetation to find hosting scope.
+  // TODO(rossberg): is this needed?
+  Scope* ScriptScope();
 
   // Find the first function, global, or eval scope.  This is the scope
   // where var declarations will be hoisted to in the implementation.
@@ -456,7 +458,7 @@ class Scope: public ZoneObject {
 
   // The variables declared in this scope:
   //
-  // All user-declared variables (incl. parameters).  For global scopes
+  // All user-declared variables (incl. parameters).  For script scopes
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
@@ -565,14 +567,14 @@ class Scope: public ZoneObject {
     // The variable reference could not be statically resolved to any binding
     // and thus should be considered referencing a global variable. NULL is
     // returned. The variable reference is not inside any 'with' statement and
-    // no scope between the reference scope (inclusive) and global scope
+    // no scope between the reference scope (inclusive) and script scope
     // (exclusive) makes a sloppy 'eval' call.
     UNBOUND,
 
     // The variable reference could not be statically resolved to any binding
     // NULL is returned. The variable reference is not inside any 'with'
     // statement, but some scope between the reference scope (inclusive) and
-    // global scope (exclusive) makes a sloppy 'eval' call, that might
+    // script scope (exclusive) makes a sloppy 'eval' call, that might
     // possibly introduce a variable binding. Thus the reference should be
     // considered referencing a global variable unless it is shadowed by an
     // 'eval' introduced binding.

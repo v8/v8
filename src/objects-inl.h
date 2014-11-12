@@ -765,7 +765,7 @@ bool Object::IsContext() const {
       map == heap->native_context_map() ||
       map == heap->block_context_map() ||
       map == heap->module_context_map() ||
-      map == heap->global_context_map());
+      map == heap->script_context_map());
 }
 
 
@@ -776,11 +776,11 @@ bool Object::IsNativeContext() const {
 }
 
 
-bool Object::IsGlobalContextTable() const {
+bool Object::IsScriptContextTable() const {
   if (!Object::IsHeapObject()) return false;
   Map* map = HeapObject::cast(this)->map();
   Heap* heap = map->GetHeap();
-  return map == heap->global_context_table_map();
+  return map == heap->script_context_table_map();
 }
 
 
@@ -5456,7 +5456,6 @@ ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, native_context, Context, kNativeContextOffset)
-ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
 ACCESSORS(GlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)

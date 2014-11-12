@@ -78,14 +78,14 @@ Scope::Scope(Scope* outer_scope, ScopeType scope_type,
       unresolved_(16, zone),
       decls_(4, zone),
       interface_(FLAG_harmony_modules &&
-                 (scope_type == MODULE_SCOPE || scope_type == GLOBAL_SCOPE)
+                 (scope_type == MODULE_SCOPE || scope_type == SCRIPT_SCOPE)
                      ? Interface::NewModule(zone) : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone) {
   SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null());
-  // The outermost scope must be a global scope.
-  DCHECK(scope_type == GLOBAL_SCOPE || outer_scope != NULL);
+  // The outermost scope must be a script scope.
+  DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != NULL);
   DCHECK(!HasIllegalRedeclaration());
 }
 
@@ -190,7 +190,7 @@ void Scope::SetDefaults(ScopeType scope_type,
 }
 
 
-Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
+Scope* Scope::DeserializeScopeChain(Context* context, Scope* script_scope,
                                     Zone* zone) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
@@ -201,7 +201,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       Scope* with_scope = new(zone) Scope(current_scope,
                                           WITH_SCOPE,
                                           Handle<ScopeInfo>::null(),
-                                          global_scope->ast_value_factory_,
+                                          script_scope->ast_value_factory_,
                                           zone);
       current_scope = with_scope;
       // All the inner scopes are inside a with.
@@ -209,26 +209,26 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
-    } else if (context->IsGlobalContext()) {
+    } else if (context->IsScriptContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
       current_scope = new(zone) Scope(current_scope,
-                                      GLOBAL_SCOPE,
+                                      SCRIPT_SCOPE,
                                       Handle<ScopeInfo>(scope_info),
-                                      global_scope->ast_value_factory_,
+                                      script_scope->ast_value_factory_,
                                       zone);
     } else if (context->IsModuleContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->module()->scope_info());
       current_scope = new(zone) Scope(current_scope,
                                       MODULE_SCOPE,
                                       Handle<ScopeInfo>(scope_info),
-                                      global_scope->ast_value_factory_,
+                                      script_scope->ast_value_factory_,
                                       zone);
     } else if (context->IsFunctionContext()) {
       ScopeInfo* scope_info = context->closure()->shared()->scope_info();
       current_scope = new(zone) Scope(current_scope,
                                       FUNCTION_SCOPE,
                                       Handle<ScopeInfo>(scope_info),
-                                      global_scope->ast_value_factory_,
+                                      script_scope->ast_value_factory_,
                                       zone);
       if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
       if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
@@ -237,15 +237,15 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       current_scope = new(zone) Scope(current_scope,
                                       BLOCK_SCOPE,
                                       Handle<ScopeInfo>(scope_info),
-                                      global_scope->ast_value_factory_,
+                                      script_scope->ast_value_factory_,
                                       zone);
     } else {
       DCHECK(context->IsCatchContext());
       String* name = String::cast(context->extension());
       current_scope = new (zone) Scope(
           current_scope,
-          global_scope->ast_value_factory_->GetString(Handle<String>(name)),
-          global_scope->ast_value_factory_, zone);
+          script_scope->ast_value_factory_->GetString(Handle<String>(name)),
+          script_scope->ast_value_factory_, zone);
     }
     if (contains_with) current_scope->RecordWithStatement();
     if (innermost_scope == NULL) innermost_scope = current_scope;
@@ -257,9 +257,9 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
     context = context->previous();
   }
 
-  global_scope->AddInnerScope(current_scope);
-  global_scope->PropagateScopeInfo(false);
-  return (innermost_scope == NULL) ? global_scope : innermost_scope;
+  script_scope->AddInnerScope(current_scope);
+  script_scope->PropagateScopeInfo(false);
+  return (innermost_scope == NULL) ? script_scope : innermost_scope;
 }
 
 
@@ -270,7 +270,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Traverse the scope tree up to the first unresolved scope or the global
   // scope and start scope resolution and variable allocation from that scope.
-  while (!top->is_global_scope() &&
+  while (!top->is_script_scope() &&
          !top->outer_scope()->already_resolved()) {
     top = top->outer_scope();
   }
@@ -288,7 +288,7 @@ bool Scope::Analyze(CompilationInfo* info) {
     scope->Print();
   }
 
-  if (FLAG_harmony_modules && FLAG_print_interfaces && top->is_global_scope()) {
+  if (FLAG_harmony_modules && FLAG_print_interfaces && top->is_script_scope()) {
     PrintF("global : ");
     top->interface()->Print();
   }
@@ -311,9 +311,9 @@ void Scope::Initialize() {
   }
 
   // Declare convenience variables.
-  // Declare and allocate receiver (even for the global scope, and even
+  // Declare and allocate receiver (even for the script scope, and even
   // if naccesses_ == 0).
-  // NOTE: When loading parameters in the global scope, we must take
+  // NOTE: When loading parameters in the script scope, we must take
   // care not to access them as properties of the global object, but
   // instead load them directly from the stack. Currently, the only
   // such parameter is 'this' which is passed on the stack when
@@ -479,7 +479,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
 
 
 Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
-  DCHECK(is_global_scope());
+  DCHECK(is_script_scope());
   return variables_.Declare(this,
                             name,
                             DYNAMIC_GLOBAL,
@@ -650,7 +650,7 @@ bool Scope::AllocateVariables(CompilationInfo* info,
   PropagateScopeInfo(outer_scope_calls_sloppy_eval);
 
   // 2) Allocate module instances.
-  if (FLAG_harmony_modules && (is_global_scope() || is_module_scope())) {
+  if (FLAG_harmony_modules && (is_script_scope() || is_module_scope())) {
     DCHECK(num_modules_ == 0);
     AllocateModulesRecursively(this);
   }
@@ -730,9 +730,9 @@ int Scope::ContextChainLength(Scope* scope) {
 }
 
 
-Scope* Scope::GlobalScope() {
+Scope* Scope::ScriptScope() {
   Scope* scope = this;
-  while (!scope->is_global_scope()) {
+  while (!scope->is_script_scope()) {
     scope = scope->outer_scope();
   }
   return scope;
@@ -780,7 +780,7 @@ static const char* Header(ScopeType scope_type) {
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE: return "function";
     case MODULE_SCOPE: return "module";
-    case GLOBAL_SCOPE: return "global";
+    case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return "block";
     case WITH_SCOPE: return "with";
@@ -1009,7 +1009,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
       var->ForceContextAllocation();
     }
   } else {
-    DCHECK(is_global_scope());
+    DCHECK(is_script_scope());
   }
 
   if (is_with_scope()) {
@@ -1041,7 +1041,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
 bool Scope::ResolveVariable(CompilationInfo* info,
                             VariableProxy* proxy,
                             AstNodeFactory<AstNullVisitor>* factory) {
-  DCHECK(info->global_scope()->is_global_scope());
+  DCHECK(info->script_scope()->is_script_scope());
 
   // If the proxy is already resolved there's nothing to do
   // (functions and consts may be resolved by the parser).
@@ -1073,7 +1073,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
     case UNBOUND:
       // No binding has been found. Declare a variable on the global object.
-      var = info->global_scope()->DeclareDynamicGlobal(proxy->raw_name());
+      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name());
       break;
 
     case UNBOUND_EVAL_SHADOWED:
@@ -1150,7 +1150,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 bool Scope::ResolveVariablesRecursively(
     CompilationInfo* info,
     AstNodeFactory<AstNullVisitor>* factory) {
-  DCHECK(info->global_scope()->is_global_scope());
+  DCHECK(info->script_scope()->is_script_scope());
 
   // Resolve unresolved variables for this scope.
   for (int i = 0; i < unresolved_.length(); i++) {
@@ -1216,7 +1216,7 @@ bool Scope::MustAllocate(Variable* var) {
        is_catch_scope() ||
        is_block_scope() ||
        is_module_scope() ||
-       is_global_scope())) {
+       is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
@@ -1239,7 +1239,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (var->mode() == TEMPORARY) return false;
   if (var->mode() == INTERNAL) return true;
   if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
-  if (is_global_scope() && IsLexicalVariableMode(var->mode())) return true;
+  if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||

@@ -225,12 +225,12 @@ class Factory FINAL {
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
 
-  // Create a global context.
-  Handle<Context> NewGlobalContext(Handle<JSFunction> function,
+  // Create a script context.
+  Handle<Context> NewScriptContext(Handle<JSFunction> function,
                                    Handle<ScopeInfo> scope_info);
 
-  // Create an empty global context table.
-  Handle<GlobalContextTable> NewGlobalContextTable();
+  // Create an empty script context table.
+  Handle<ScriptContextTable> NewScriptContextTable();
 
   // Create a module context.
   Handle<Context> NewModuleContext(Handle<ScopeInfo> scope_info);

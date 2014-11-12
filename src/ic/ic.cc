@@ -662,20 +662,20 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
   if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
-    // Look up in global context table.
+    // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-    Handle<GlobalContextTable> global_contexts(
-        global->native_context()->global_context_table());
+    Handle<ScriptContextTable> script_contexts(
+        global->native_context()->script_context_table());
 
-    GlobalContextTable::LookupResult lookup_result;
-    if (GlobalContextTable::Lookup(global_contexts, str_name, &lookup_result)) {
-      if (use_ic && LoadGlobalContextFieldStub::Accepted(&lookup_result)) {
-        LoadGlobalContextFieldStub stub(isolate(), &lookup_result);
+    ScriptContextTable::LookupResult lookup_result;
+    if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
+      if (use_ic && LoadScriptContextFieldStub::Accepted(&lookup_result)) {
+        LoadScriptContextFieldStub stub(isolate(), &lookup_result);
         PatchCache(name, stub.GetCode());
       }
-      return FixedArray::get(GlobalContextTable::GetContext(
-                                 global_contexts, lookup_result.context_index),
+      return FixedArray::get(ScriptContextTable::GetContext(
+                                 script_contexts, lookup_result.context_index),
                              lookup_result.slot_index);
     }
   }
@@ -1383,27 +1383,27 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
   if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
-    // Look up in global context table.
+    // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-    Handle<GlobalContextTable> global_contexts(
-        global->native_context()->global_context_table());
+    Handle<ScriptContextTable> script_contexts(
+        global->native_context()->script_context_table());
 
-    GlobalContextTable::LookupResult lookup_result;
-    if (GlobalContextTable::Lookup(global_contexts, str_name, &lookup_result)) {
-      Handle<Context> global_context = GlobalContextTable::GetContext(
-          global_contexts, lookup_result.context_index);
+    ScriptContextTable::LookupResult lookup_result;
+    if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
+      Handle<Context> script_context = ScriptContextTable::GetContext(
+          script_contexts, lookup_result.context_index);
       if (lookup_result.mode == CONST) {
         return TypeError("harmony_const_assign", object, name);
       }
 
       if (FLAG_use_ic &&
-          StoreGlobalContextFieldStub::Accepted(&lookup_result)) {
-        StoreGlobalContextFieldStub stub(isolate(), &lookup_result);
+          StoreScriptContextFieldStub::Accepted(&lookup_result)) {
+        StoreScriptContextFieldStub stub(isolate(), &lookup_result);
         PatchCache(name, stub.GetCode());
       }
 
-      global_context->set(lookup_result.slot_index, *value);
+      script_context->set(lookup_result.slot_index, *value);
       return value;
     }
   }

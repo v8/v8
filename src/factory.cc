@@ -693,26 +693,26 @@ Handle<Context> Factory::NewNativeContext() {
 }
 
 
-Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
+Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
-  array->set_map_no_write_barrier(*global_context_map());
+  array->set_map_no_write_barrier(*script_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(*scope_info);
   context->set_global_object(function->context()->global_object());
-  DCHECK(context->IsGlobalContext());
+  DCHECK(context->IsScriptContext());
   return context;
 }
 
 
-Handle<GlobalContextTable> Factory::NewGlobalContextTable() {
+Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   Handle<FixedArray> array = NewFixedArray(1);
-  array->set_map_no_write_barrier(*global_context_table_map());
-  Handle<GlobalContextTable> context_table =
-      Handle<GlobalContextTable>::cast(array);
+  array->set_map_no_write_barrier(*script_context_table_map());
+  Handle<ScriptContextTable> context_table =
+      Handle<ScriptContextTable>::cast(array);
   context_table->set_used(0);
   return context_table;
 }
