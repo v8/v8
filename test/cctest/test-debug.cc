@@ -7618,3 +7618,38 @@ TEST(DebugBreakOnExceptionInObserveCallback) {
   CHECK(CompileRun("callbackRan")->BooleanValue());
   CHECK_EQ(1, exception_event_counter);
 }
+
+
+static void DebugHarmonyScopingListener(
+    const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+  if (event != v8::Break) return;
+
+  int break_id = CcTest::i_isolate()->debug()->break_id();
+
+  char script[128];
+  i::Vector<char> script_vector(script, sizeof(script));
+  SNPrintF(script_vector, "%%GetFrameCount(%d)", break_id);
+  v8::Local<v8::Value> result = CompileRun(script);
+
+  CHECK_EQ(1, result->Int32Value());
+}
+
+
+TEST(DebugBreakInLexicalScopes) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Debug::SetDebugEventListener(DebugHarmonyScopingListener);
+
+  CompileRun(
+      "'use strict';            \n"
+      "let x = 1;               \n");
+  CompileRun(
+      "'use strict';            \n"
+      "let y = 1;               \n"
+      "debugger                 \n");
+}

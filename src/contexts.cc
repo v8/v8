@@ -55,7 +55,8 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
 
 Context* Context::declaration_context() {
   Context* current = this;
-  while (!current->IsFunctionContext() && !current->IsNativeContext()) {
+  while (!current->IsFunctionContext() && !current->IsNativeContext() &&
+         !current->IsScriptContext()) {
     current = current->previous();
     DCHECK(current->closure() == closure());
   }
