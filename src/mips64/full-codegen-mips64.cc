@@ -2180,14 +2180,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForAccumulatorValue(value);
   __ pop(a1);
 
-  // Check generator state.
-  Label wrong_state, closed_state, done;
-  __ ld(a3, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
-  __ Branch(&closed_state, eq, a3, Operand(zero_reg));
-  __ Branch(&wrong_state, lt, a3, Operand(zero_reg));
-
   // Load suspended function and context.
   __ ld(cp, FieldMemOperand(a1, JSGeneratorObject::kContextOffset));
   __ ld(a4, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
@@ -2212,7 +2204,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
-  Label resume_frame;
+  Label resume_frame, done;
   __ bind(&push_frame);
   __ Call(&resume_frame);
   __ jmp(&done);
@@ -2260,26 +2252,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ stop("not-reached");
-
-  // Reach here when generator is closed.
-  __ bind(&closed_state);
-  if (resume_mode == JSGeneratorObject::NEXT) {
-    // Return completed iterator result when generator is closed.
-    __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-    __ push(a2);
-    // Pop value from top-of-stack slot; box result into result register.
-    EmitCreateIteratorResult(true);
-  } else {
-    // Throw the provided value.
-    __ push(a0);
-    __ CallRuntime(Runtime::kThrow, 1);
-  }
-  __ jmp(&done);
-
-  // Throw error if we attempt to operate on a running generator.
-  __ bind(&wrong_state);
-  __ push(a1);
-  __ CallRuntime(Runtime::kThrowGeneratorStateError, 1);
 
   __ bind(&done);
   context()->Plug(result_register());
