@@ -4766,6 +4766,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
     __ Drop(parameter_count + 1);
   } else {
+    DCHECK(info()->IsStub());  // Functions would need to drop one more value.
     Register parameter_count = ToRegister(instr->parameter_count());
     __ DropBySMI(parameter_count);
   }

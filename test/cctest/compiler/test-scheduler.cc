@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
-#include "test/cctest/cctest.h"
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
@@ -12,16 +11,20 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
+
+Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0, 0, 1,
+                 0, 0);
 
 // TODO(titzer): pull RPO tests out to their own file.
 static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
@@ -1571,7 +1574,6 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder;
   const Operator* op;
 
   Handle<HeapObject> object =
@@ -1607,7 +1609,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n20 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n20);
   n20->ReplaceInput(0, n9);
-  op = machine_builder.Int32Add();
+  op = &kIntAdd;
   Node* n19 = graph.NewNode(op, nil, nil);
   USE(n19);
   op = common_builder.Phi(kMachAnyTagged, 2);
@@ -1731,7 +1733,6 @@ TEST(FloatingDiamond2) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1740,7 +1741,7 @@ TEST(FloatingDiamond2) {
   Node* p1 = graph.NewNode(common.Parameter(1), start);
   Node* d1 = CreateDiamond(&graph, &common, p0);
   Node* d2 = CreateDiamond(&graph, &common, p1);
-  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* add = graph.NewNode(&kIntAdd, d1, d2);
   Node* ret = graph.NewNode(common.Return(), add, start, start);
   Node* end = graph.NewNode(common.End(), ret, start);
 
@@ -1754,7 +1755,6 @@ TEST(FloatingDiamond3) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1763,7 +1763,7 @@ TEST(FloatingDiamond3) {
   Node* p1 = graph.NewNode(common.Parameter(1), start);
   Node* d1 = CreateDiamond(&graph, &common, p0);
   Node* d2 = CreateDiamond(&graph, &common, p1);
-  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* add = graph.NewNode(&kIntAdd, d1, d2);
   Node* d3 = CreateDiamond(&graph, &common, add);
   Node* ret = graph.NewNode(common.Return(), d3, start, start);
   Node* end = graph.NewNode(common.End(), ret, start);
@@ -1779,7 +1779,6 @@ TEST(NestedFloatingDiamonds) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1821,7 +1820,6 @@ TEST(NestedFloatingDiamondWithLoop) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1837,7 +1835,7 @@ TEST(NestedFloatingDiamondWithLoop) {
   Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
 
   // TODO(mstarzinger): Make scheduler deal with non-empty loops here.
-  // Node* add = graph.NewNode(machine.IntAdd(), ind, fv);
+  // Node* add = graph.NewNode(&kIntAdd, ind, fv);
 
   Node* br1 = graph.NewNode(common.Branch(), ind, loop);
   Node* t1 = graph.NewNode(common.IfTrue(), br1);
@@ -1863,7 +1861,6 @@ TEST(LoopedFloatingDiamond1) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1873,7 +1870,7 @@ TEST(LoopedFloatingDiamond1) {
   Node* c = graph.NewNode(common.Int32Constant(7));
   Node* loop = graph.NewNode(common.Loop(2), start, start);
   Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
-  Node* add = graph.NewNode(machine.IntAdd(), ind, c);
+  Node* add = graph.NewNode(&kIntAdd, ind, c);
 
   Node* br = graph.NewNode(common.Branch(), add, loop);
   Node* t = graph.NewNode(common.IfTrue(), br);
@@ -1902,7 +1899,6 @@ TEST(LoopedFloatingDiamond2) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1919,7 +1915,7 @@ TEST(LoopedFloatingDiamond2) {
   Node* m1 = graph.NewNode(common.Merge(2), t1, f1);
   Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), c, ind, m1);
 
-  Node* add = graph.NewNode(machine.IntAdd(), ind, phi1);
+  Node* add = graph.NewNode(&kIntAdd, ind, phi1);
 
   Node* br = graph.NewNode(common.Branch(), add, loop);
   Node* t = graph.NewNode(common.IfTrue(), br);
@@ -1942,7 +1938,6 @@ TEST(PhisPushedDownToDifferentBranches) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
   SimplifiedOperatorBuilder simplified(scope.main_zone());
-  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);

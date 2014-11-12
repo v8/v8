@@ -7,6 +7,8 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/v8.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -196,8 +198,9 @@ static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
 
-MachineOperatorBuilder::MachineOperatorBuilder(MachineType word, Flags flags)
-    : cache_(kCache.Get()), word_(word), flags_(flags) {
+MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone, MachineType word,
+                                               Flags flags)
+    : zone_(zone), cache_(kCache.Get()), word_(word), flags_(flags) {
   DCHECK(word == kRepWord32 || word == kRepWord64);
 }
 
@@ -220,8 +223,10 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
     default:
       break;
   }
-  UNREACHABLE();
-  return NULL;
+  // Uncached.
+  return new (zone_) Operator1<LoadRepresentation>(  // --
+      IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite, "Load", 2, 1, 1,
+      1, 1, 0, rep);
 }
 
 
@@ -242,8 +247,10 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
     default:
       break;
   }
-  UNREACHABLE();
-  return NULL;
+  // Uncached.
+  return new (zone_) Operator1<StoreRepresentation>(  // --
+      IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow, "Store", 3, 1,
+      1, 0, 1, 0, rep);
 }
 }  // namespace compiler
 }  // namespace internal

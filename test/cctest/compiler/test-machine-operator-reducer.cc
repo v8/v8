@@ -56,6 +56,7 @@ class ReducerTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
+        machine(main_zone()),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),

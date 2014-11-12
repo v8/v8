@@ -92,9 +92,7 @@ namespace internal {
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
-#define CODE_STUB_LIST_ARM(V) \
-  V(DirectCEntry)             \
-  V(WriteInt32ToHeapNumber)
+#define CODE_STUB_LIST_ARM(V) V(DirectCEntry)
 
 #else
 #define CODE_STUB_LIST_ARM(V)
@@ -113,17 +111,15 @@ namespace internal {
 
 // List of code stubs only used on MIPS platforms.
 #if V8_TARGET_ARCH_MIPS
-#define CODE_STUB_LIST_MIPS(V)  \
-  V(DirectCEntry)               \
-  V(RestoreRegistersState)      \
-  V(StoreRegistersState)        \
-  V(WriteInt32ToHeapNumber)
+#define CODE_STUB_LIST_MIPS(V) \
+  V(DirectCEntry)              \
+  V(RestoreRegistersState)     \
+  V(StoreRegistersState)
 #elif V8_TARGET_ARCH_MIPS64
-#define CODE_STUB_LIST_MIPS(V)  \
-  V(DirectCEntry)               \
-  V(RestoreRegistersState)      \
-  V(StoreRegistersState)        \
-  V(WriteInt32ToHeapNumber)
+#define CODE_STUB_LIST_MIPS(V) \
+  V(DirectCEntry)              \
+  V(RestoreRegistersState)     \
+  V(StoreRegistersState)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif

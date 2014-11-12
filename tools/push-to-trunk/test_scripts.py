@@ -57,7 +57,6 @@ TEST_CONFIG = {
   "BRANCHNAME": "test-prepare-push",
   "TRUNKBRANCH": "test-trunk-push",
   "PERSISTFILE_BASENAME": "/tmp/test-v8-push-to-trunk-tempfile",
-  "CHANGELOG_FILE": None,
   "CHANGELOG_ENTRY_FILE": "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
   "PATCH_FILE": "/tmp/test-v8-push-to-trunk-tempfile-patch",
   "COMMITMSG_FILE": "/tmp/test-v8-push-to-trunk-tempfile-commitmsg",
@@ -717,9 +716,9 @@ Performance and stability improvements on all platforms."""
     self.WriteFakeVersionFile(build=5)
 
     TEST_CONFIG["CHANGELOG_ENTRY_FILE"] = self.MakeEmptyTempFile()
-    TEST_CONFIG["CHANGELOG_FILE"] = self.MakeEmptyTempFile()
     bleeding_edge_change_log = "2014-03-17: Sentinel\n"
-    TextToFile(bleeding_edge_change_log, TEST_CONFIG["CHANGELOG_FILE"])
+    TextToFile(bleeding_edge_change_log,
+               os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     os.environ["EDITOR"] = "vi"
 
     def ResetChangeLog():
@@ -728,7 +727,8 @@ Performance and stability improvements on all platforms."""
       trunk_change_log = """1999-04-05: Version 3.22.4
 
         Performance and stability improvements on all platforms.\n"""
-      TextToFile(trunk_change_log, TEST_CONFIG["CHANGELOG_FILE"])
+      TextToFile(trunk_change_log,
+                 os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
 
     def ResetToTrunk():
       ResetChangeLog()
@@ -751,7 +751,8 @@ Performance and stability improvements on all platforms.""", commit)
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
       # Check that the change log on the trunk branch got correctly modified.
-      change_log = FileToText(TEST_CONFIG["CHANGELOG_FILE"])
+      change_log = FileToText(
+          os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
       self.assertEquals(
 """1999-07-31: Version 3.22.5
 
@@ -815,8 +816,7 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd(("git new-branch %s --upstream origin/candidates" %
            TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
-      Cmd(("git checkout -f origin/candidates -- %s" %
-           TEST_CONFIG["CHANGELOG_FILE"]), "",
+      Cmd("git checkout -f origin/candidates -- ChangeLog", "",
           cb=ResetChangeLog),
       Cmd("git checkout -f origin/candidates -- src/version.cc", "",
           cb=self.WriteFakeVersionFile),
@@ -846,7 +846,7 @@ Performance and stability improvements on all platforms.""", commit)
     else: args += ["-r", "reviewer@chromium.org"]
     PushToTrunk(TEST_CONFIG, self).Run(args)
 
-    cl = FileToText(TEST_CONFIG["CHANGELOG_FILE"])
+    cl = FileToText(os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     self.assertTrue(re.search(r"^\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
     self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
     self.assertTrue(re.search(r"1999\-04\-05: Version 3\.22\.4", cl))
@@ -873,9 +873,9 @@ Performance and stability improvements on all platforms.""", commit)
     self.WriteFakeVersionFile(build=5)
 
     TEST_CONFIG["CHANGELOG_ENTRY_FILE"] = self.MakeEmptyTempFile()
-    TEST_CONFIG["CHANGELOG_FILE"] = self.MakeEmptyTempFile()
     bleeding_edge_change_log = "2014-03-17: Sentinel\n"
-    TextToFile(bleeding_edge_change_log, TEST_CONFIG["CHANGELOG_FILE"])
+    TextToFile(bleeding_edge_change_log,
+               os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
 
     def ResetChangeLog():
       """On 'git co -b new_branch svn/trunk', and 'git checkout -- ChangeLog',
@@ -883,7 +883,8 @@ Performance and stability improvements on all platforms.""", commit)
       trunk_change_log = """1999-04-05: Version 3.22.4
 
         Performance and stability improvements on all platforms.\n"""
-      TextToFile(trunk_change_log, TEST_CONFIG["CHANGELOG_FILE"])
+      TextToFile(trunk_change_log,
+                 os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
 
     def ResetToTrunk():
       ResetChangeLog()
@@ -906,7 +907,8 @@ Performance and stability improvements on all platforms.""", commit)
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
       # Check that the change log on the trunk branch got correctly modified.
-      change_log = FileToText(TEST_CONFIG["CHANGELOG_FILE"])
+      change_log = FileToText(
+          os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
       self.assertEquals(
 """1999-07-31: Version 3.22.5
 
@@ -949,8 +951,7 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd(("git new-branch %s --upstream origin/candidates" %
            TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
-      Cmd(("git checkout -f origin/candidates -- %s" %
-           TEST_CONFIG["CHANGELOG_FILE"]), "",
+      Cmd("git checkout -f origin/candidates -- ChangeLog", "",
           cb=ResetChangeLog),
       Cmd("git checkout -f origin/candidates -- src/version.cc", "",
           cb=self.WriteFakeVersionFile),
@@ -989,7 +990,7 @@ Performance and stability improvements on all platforms.""", commit)
             "--work-dir", TEST_CONFIG["DEFAULT_CWD"]]
     PushToTrunk(TEST_CONFIG, self).Run(args)
 
-    cl = FileToText(TEST_CONFIG["CHANGELOG_FILE"])
+    cl = FileToText(os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     self.assertTrue(re.search(r"^\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
     self.assertTrue(re.search(r"        Log text 1 \(issue 321\).", cl))
     self.assertTrue(re.search(r"1999\-04\-05: Version 3\.22\.4", cl))

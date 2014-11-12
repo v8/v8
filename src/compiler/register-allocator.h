@@ -322,12 +322,15 @@ class LiveRange FINAL : public ZoneObject {
 
 class RegisterAllocator FINAL {
  public:
+  enum VerificationType { kNoVerify, kVerifyAssignment };
+
   explicit RegisterAllocator(const RegisterConfiguration* config,
                              Zone* local_zone, Frame* frame,
                              InstructionSequence* code,
                              const char* debug_name = nullptr);
 
-  bool Allocate(PipelineStatistics* stats = NULL);
+  bool Allocate(PipelineStatistics* stats = NULL,
+                VerificationType verification_type = kNoVerify);
   bool AllocationOk() { return allocation_ok_; }
   BitVector* assigned_registers() { return assigned_registers_; }
   BitVector* assigned_double_registers() { return assigned_double_registers_; }

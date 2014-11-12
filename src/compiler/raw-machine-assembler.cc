@@ -17,7 +17,7 @@ RawMachineAssembler::RawMachineAssembler(Graph* graph,
                                          MachineOperatorBuilder::Flags flags)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(word, flags),
+      machine_(zone(), word, flags),
       common_(zone()),
       machine_sig_(machine_sig),
       call_descriptor_(

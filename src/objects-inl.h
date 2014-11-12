@@ -479,11 +479,6 @@ Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
 }
 
 
-Handle<Object> MapCacheShape::AsHandle(Isolate* isolate, HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-
 Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
                                                HashTableKey* key) {
   return key->AsHandle(isolate);
@@ -3288,7 +3283,6 @@ CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(Map)
-CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)

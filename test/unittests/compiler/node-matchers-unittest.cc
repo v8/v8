@@ -18,7 +18,7 @@ namespace compiler {
 
 class NodeMatcherTest : public GraphTest {
  public:
-  NodeMatcherTest() {}
+  NodeMatcherTest() : machine_(zone()) {}
   virtual ~NodeMatcherTest() {}
 
   MachineOperatorBuilder* machine() { return &machine_; }

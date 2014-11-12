@@ -21,6 +21,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         binop(NULL),
         unop(NULL),
         javascript(main_zone()),
+        machine(main_zone()),
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),

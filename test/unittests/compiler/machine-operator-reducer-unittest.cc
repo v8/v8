@@ -22,7 +22,7 @@ namespace compiler {
 class MachineOperatorReducerTest : public TypedGraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : TypedGraphTest(num_parameters) {}
+      : TypedGraphTest(num_parameters), machine_(zone()) {}
 
  protected:
   Reduction Reduce(Node* node) {

@@ -5,6 +5,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
+#include "src/compiler/register-allocator-verifier.h"
 #include "src/string-stream.h"
 
 namespace v8 {
@@ -1116,7 +1117,16 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
 }
 
 
-bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
+bool RegisterAllocator::Allocate(PipelineStatistics* stats,
+                                 VerificationType verification_type) {
+  SmartPointer<Zone> verifier_zone;
+  RegisterAllocatorVerifier* verifier = NULL;
+  if (verification_type == kVerifyAssignment) {
+    // Don't track usage for this zone in compiler stats.
+    verifier_zone.Reset(new Zone(local_zone()->isolate()));
+    verifier = new (verifier_zone.get())
+        RegisterAllocatorVerifier(verifier_zone.get(), code());
+  }
   assigned_registers_ = new (code_zone())
       BitVector(config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -1158,6 +1168,9 @@ bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
   }
   frame()->SetAllocatedRegisters(assigned_registers_);
   frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
+  if (verifier != NULL) {
+    verifier->VerifyAssignment();
+  }
   return true;
 }
 

@@ -73,7 +73,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
-  explicit MachineOperatorBuilder(MachineType word = kMachPtr,
+  explicit MachineOperatorBuilder(Zone* zone, MachineType word = kMachPtr,
                                   Flags supportedOperators = kNoFlags);
 
   const Operator* Word32And();
@@ -211,6 +211,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
+  Zone* zone_;
   const MachineOperatorGlobalCache& cache_;
   const MachineType word_;
   const Flags flags_;

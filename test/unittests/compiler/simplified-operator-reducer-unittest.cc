@@ -22,7 +22,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine;
+    MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(graph(), common(), &javascript, &machine);
     SimplifiedOperatorReducer reducer(&jsgraph);

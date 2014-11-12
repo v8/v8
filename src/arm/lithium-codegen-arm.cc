@@ -2964,6 +2964,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
         __ add(sp, sp, Operand(sp_delta));
       }
     } else {
+      DCHECK(info()->IsStub());  // Functions would need to drop one more value.
       Register reg = ToRegister(instr->parameter_count());
       // The argument count parameter is a smi
       __ SmiUntag(reg);

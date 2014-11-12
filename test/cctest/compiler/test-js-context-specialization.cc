@@ -21,7 +21,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
       : DirectGraphBuilder(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
-        machine_(),
+        machine_(main_zone()),
         simplified_(main_zone()),
         jsgraph_(graph(), common(), &javascript_, &machine_),
         info_(main_isolate(), main_zone()) {}

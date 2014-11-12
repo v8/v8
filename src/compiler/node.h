@@ -68,6 +68,8 @@ typedef std::set<Node*, std::less<Node*>, zone_allocator<Node*> > NodeSet;
 typedef NodeSet::iterator NodeSetIter;
 typedef NodeSet::reverse_iterator NodeSetRIter;
 
+typedef ZoneDeque<Node*> NodeDeque;
+
 typedef ZoneVector<Node*> NodeVector;
 typedef NodeVector::iterator NodeVectorIter;
 typedef NodeVector::const_iterator NodeVectorConstIter;

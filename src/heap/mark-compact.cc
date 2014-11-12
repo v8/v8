@@ -2232,12 +2232,6 @@ void MarkCompactCollector::MarkLiveObjects() {
 
 
 void MarkCompactCollector::AfterMarking() {
-  // Object literal map caches reference strings (cache keys) and maps
-  // (cache values). At this point still useful maps have already been
-  // marked. Mark the keys for the alive values before we process the
-  // string table.
-  ProcessMapCaches();
-
   // Prune the string table removing all strings only pointed to by the
   // string table.  Cannot use string_table() here because the string
   // table is marked.
@@ -2271,57 +2265,6 @@ void MarkCompactCollector::AfterMarking() {
   if (FLAG_track_gc_object_stats) {
     heap()->CheckpointObjectStats();
   }
-}
-
-
-void MarkCompactCollector::ProcessMapCaches() {
-  Object* raw_context = heap()->native_contexts_list();
-  while (raw_context != heap()->undefined_value()) {
-    Context* context = reinterpret_cast<Context*>(raw_context);
-    if (IsMarked(context)) {
-      HeapObject* raw_map_cache =
-          HeapObject::cast(context->get(Context::MAP_CACHE_INDEX));
-      // A map cache may be reachable from the stack. In this case
-      // it's already transitively marked and it's too late to clean
-      // up its parts.
-      if (!IsMarked(raw_map_cache) &&
-          raw_map_cache != heap()->undefined_value()) {
-        MapCache* map_cache = reinterpret_cast<MapCache*>(raw_map_cache);
-        int existing_elements = map_cache->NumberOfElements();
-        int used_elements = 0;
-        for (int i = MapCache::kElementsStartIndex; i < map_cache->length();
-             i += MapCache::kEntrySize) {
-          Object* raw_key = map_cache->get(i);
-          if (raw_key == heap()->undefined_value() ||
-              raw_key == heap()->the_hole_value())
-            continue;
-          STATIC_ASSERT(MapCache::kEntrySize == 2);
-          Object* raw_map = map_cache->get(i + 1);
-          if (raw_map->IsHeapObject() && IsMarked(raw_map)) {
-            ++used_elements;
-          } else {
-            // Delete useless entries with unmarked maps.
-            DCHECK(raw_map->IsMap());
-            map_cache->set_the_hole(i);
-            map_cache->set_the_hole(i + 1);
-          }
-        }
-        if (used_elements == 0) {
-          context->set(Context::MAP_CACHE_INDEX, heap()->undefined_value());
-        } else {
-          // Note: we don't actually shrink the cache here to avoid
-          // extra complexity during GC. We rely on subsequent cache
-          // usages (EnsureCapacity) to do this.
-          map_cache->ElementsRemoved(existing_elements - used_elements);
-          MarkBit map_cache_markbit = Marking::MarkBitFrom(map_cache);
-          MarkObject(map_cache, map_cache_markbit);
-        }
-      }
-    }
-    // Move to next element in the list.
-    raw_context = context->get(Context::NEXT_CONTEXT_LINK);
-  }
-  ProcessMarkingDeque();
 }
 
 
