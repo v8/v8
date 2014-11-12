@@ -1221,13 +1221,13 @@ function SetUpError() {
     %AddNamedProperty(f.prototype, "name", name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
+        try { captureStackTrace(this, f); } catch (e) { }
         // Define all the expected properties directly on the error
         // object. This avoids going through getters and setters defined
         // on prototype objects.
         if (!IS_UNDEFINED(m)) {
           %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
         }
-        try { captureStackTrace(this, f); } catch (e) { }
       } else {
         return new f(m);
       }
