@@ -251,7 +251,7 @@ namespace internal {
   F(DateCacheVersion, 0, 1)                            \
                                                        \
   /* Globals */                                        \
-  F(CompileString, 2, 1)                               \
+  F(CompileString, 3, 1)                               \
                                                        \
   /* Eval */                                           \
   F(GlobalProxy, 1, 1)                                 \

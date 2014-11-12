@@ -44,13 +44,7 @@ function GeneratorFunctionPrototypeConstructor(x) {
 }
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
-  var source = NewFunctionString(arguments, 'function*');
-  var global_proxy = %GlobalProxy(global);
-  // Compile the string in the constructor and not a helper so that errors
-  // appear to come from here.
-  var f = %_CallFunction(global_proxy, %CompileString(source, true));
-  %FunctionMarkNameShouldPrintAsAnonymous(f);
-  return f;
+  return NewFunctionFromString(arguments, 'function*');
 }
 
 
