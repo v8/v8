@@ -1045,6 +1045,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Get the object to enumerate over. If the object is null or undefined, skip
   // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  SetExpressionPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
   __ cmp(eax, isolate()->factory()->undefined_value());
   __ j(equal, &exit);
@@ -1139,6 +1140,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Generate code for doing the condition check.
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&loop);
+  SetExpressionPosition(stmt->each());
+
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // Get the current index.
   __ cmp(eax, Operand(esp, 1 * kPointerSize));  // Compare to the array length.
   __ j(above_equal, loop_statement.break_label());
@@ -1201,48 +1204,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(&exit);
-  decrement_loop_depth();
-}
-
-
-void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  Comment cmnt(masm_, "[ ForOfStatement");
-  SetStatementPosition(stmt);
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // var iterator = iterable[Symbol.iterator]();
-  VisitForEffect(stmt->assign_iterator());
-
-  // Loop entry.
-  __ bind(loop_statement.continue_label());
-
-  // result = iterator.next()
-  VisitForEffect(stmt->next_result());
-
-  // if (result.done) break;
-  Label result_not_done;
-  VisitForControl(stmt->result_done(),
-                  loop_statement.break_label(),
-                  &result_not_done,
-                  &result_not_done);
-  __ bind(&result_not_done);
-
-  // each = result.value
-  VisitForEffect(stmt->assign_each());
-
-  // Generate code for the body of the loop.
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
-  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
-  __ jmp(loop_statement.continue_label());
-
-  // Exit and decrement the loop depth.
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
 
