@@ -534,9 +534,9 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
+    DCHECK(schedule_->end()->SuccessorCount() == 0);
     DCHECK_EQ(NULL, order_);  // Main order does not exist yet.
-    // TODO(mstarzinger): Should use Schedule::end() after tests are fixed.
-    ComputeAndInsertSpecialRPO(schedule_->start(), NULL);
+    ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
   }
 
   // Computes the special reverse-post-order for a partial control flow graph,
