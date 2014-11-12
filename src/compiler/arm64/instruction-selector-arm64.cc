@@ -1270,8 +1270,11 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
     }
   }
 
-  // Branch could not be combined with a compare, emit compare against 0.
-  VisitWord32Test(this, value, &cont);
+  // Branch could not be combined with a compare, compare against 0 and branch.
+  DCHECK((cont.condition() == kEqual) || (cont.condition() == kNotEqual));
+  ArchOpcode opcode = (cont.condition() == kEqual) ? kArm64Cbz32 : kArm64Cbnz32;
+  Emit(opcode, NULL, g.UseRegister(value), g.Label(cont.true_block()),
+       g.Label(cont.false_block()))->MarkAsControl();
 }
 
 

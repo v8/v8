@@ -952,6 +952,41 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
 }
 
 
+TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    Node* p0 = m.Parameter(0);
+    m.Branch(p0, &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  }
+
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    Node* p0 = m.Parameter(0);
+    m.Branch(m.Word32BinaryNot(p0), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cbz32, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Add and subtract instructions with overflow.
 
