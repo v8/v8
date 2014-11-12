@@ -209,6 +209,7 @@ namespace internal {
   V(Boolean_string, "Boolean")                             \
   V(callee_string, "callee")                               \
   V(constructor_string, "constructor")                     \
+  V(dot_result_string, ".result")                          \
   V(eval_string, "eval")                                   \
   V(empty_string, "")                                      \
   V(function_string, "function")                           \
