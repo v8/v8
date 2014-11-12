@@ -34,7 +34,6 @@ import urllib2
 
 from common_includes import *
 
-PUSH_MSG_SVN_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
 PUSH_MSG_GIT_SUFFIX = " (based on %s)"
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 
@@ -51,6 +50,11 @@ class Preparation(Step):
 
     self.PrepareBranch()
     self.DeleteBranch(self.Config("TRUNKBRANCH"))
+
+    # Allow directly pushing to candidates.
+    if not self.Git("config --get remote.origin.push").strip():
+      self.Git("config --add remote.origin.push "
+               "refs/remotes/origin/candidates:refs/pending/heads/candidates")
 
 
 class FreshBranch(Step):
@@ -93,18 +97,8 @@ class DetectLastPush(Step):
       # Retrieve the bleeding edge revision of the last push from the text in
       # the push commit message.
       last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
-      # TODO(machenbach): This is only needed for the git transition. Can be
-      # removed after one successful trunk push.
-      match = PUSH_MSG_SVN_RE.match(last_push_title)
-      if match:
-        last_push_be_svn = match.group(1)
-        if not last_push_be_svn:  # pragma: no cover
-          self.Die("Could not retrieve bleeding edge rev for trunk push %s"
-                   % last_push)
-        last_push_bleeding_edge = self.vc.SvnGit(last_push_be_svn)
-      else:
-        last_push_bleeding_edge = PUSH_MSG_GIT_RE.match(
-            last_push_title).group("git_rev")
+      last_push_bleeding_edge = PUSH_MSG_GIT_RE.match(
+          last_push_title).group("git_rev")
 
       if not last_push_bleeding_edge:  # pragma: no cover
         self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
@@ -357,14 +351,11 @@ class SanityCheck(Step):
       self.Die("Execution canceled.")  # pragma: no cover
 
 
-class CommitSVN(Step):
-  MESSAGE = "Commit to SVN."
+class Land(Step):
+  MESSAGE = "Land the patch."
 
   def RunStep(self):
-    if self._options.svn:
-      self.SVNCommit("trunk", self["commit_title"])
-    else:
-      self.vc.Land()
+    self.vc.Land()
 
 
 class TagRevision(Step):
@@ -445,7 +436,7 @@ class PushToTrunk(ScriptsBase):
       SetVersion,
       CommitTrunk,
       SanityCheck,
-      CommitSVN,
+      Land,
       TagRevision,
       CleanUp,
     ]

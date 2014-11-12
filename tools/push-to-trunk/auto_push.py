@@ -112,12 +112,6 @@ class PushToCandidates(Step):
       "--force",
     ]
 
-    if self._options.svn:
-      args.extend(["--svn", self._options.svn])
-    if self._options.svn_config:
-      args.extend(["--svn-config", self._options.svn_config])
-    if self._options.vc_interface:
-      args.extend(["--vc-interface", self._options.vc_interface])
     if self._options.work_dir:
       args.extend(["--work-dir", self._options.work_dir])
 
