@@ -4,6 +4,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/register-allocator.h"
+#include "src/compiler/register-allocator-verifier.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -37,7 +38,7 @@ static void InitializeRegisterNames() {
   }
 }
 
-enum BlockCompletionType { kFallThrough, kBranch, kJump };
+enum BlockCompletionType { kBlockEnd, kFallThrough, kBranch, kJump };
 
 struct BlockCompletion {
   BlockCompletionType type_;
@@ -77,7 +78,8 @@ class RegisterAllocatorTest : public TestWithZone {
         num_double_registers_(kDefaultNRegs),
         instruction_blocks_(zone()),
         current_block_(nullptr),
-        is_last_block_(false) {
+        is_last_block_(false),
+        block_returns_(false) {
     InitializeRegisterNames();
   }
 
@@ -142,21 +144,29 @@ class RegisterAllocatorTest : public TestWithZone {
 
   void StartBlock() {
     CHECK(!is_last_block_);
+    block_returns_ = false;
     NewBlock();
   }
 
   void EndBlock(BlockCompletion completion = FallThrough()) {
     completions_.push_back(completion);
     switch (completion.type_) {
+      case kBlockEnd:
+        CHECK(false);  // unreachable;
+        break;
       case kFallThrough:
-        if (is_last_block_) break;
-        // TODO(dcarney): we don't emit this after returns.
+        if (is_last_block_ || block_returns_) {
+          completions_.back().type_ = kBlockEnd;
+          break;
+        }
         EmitFallThrough();
         break;
       case kJump:
+        CHECK(!block_returns_);
         EmitJump();
         break;
       case kBranch:
+        CHECK(!block_returns_);
         EmitBranch(completion.vreg_);
         break;
     }
@@ -169,6 +179,7 @@ class RegisterAllocatorTest : public TestWithZone {
     CHECK_EQ(nullptr, current_block_);
     CHECK(is_last_block_);
     WireBlocks();
+    RegisterAllocatorVerifier verifier(zone(), config(), sequence());
     if (FLAG_trace_alloc || FLAG_trace_turbo) {
       OFStream os(stdout);
       PrintableInstructionSequence printable = {config(), sequence()};
@@ -180,6 +191,8 @@ class RegisterAllocatorTest : public TestWithZone {
       PrintableInstructionSequence printable = {config(), sequence()};
       os << "After: " << std::endl << printable << std::endl;
     }
+    verifier.VerifyAssignment();
+    verifier.VerifyGapMoves();
   }
 
   int NewReg() { return sequence()->NextVirtualRegister(); }
@@ -192,6 +205,7 @@ class RegisterAllocatorTest : public TestWithZone {
   }
 
   Instruction* Return(int vreg) {
+    block_returns_ = true;
     InstructionOperand* inputs[1]{UseRegister(vreg)};
     return Emit(kArchRet, 0, nullptr, 1, inputs);
   }
@@ -344,12 +358,11 @@ class RegisterAllocatorTest : public TestWithZone {
   void WireBlocks() {
     CHECK(instruction_blocks_.size() == completions_.size());
     size_t offset = 0;
-    size_t size = instruction_blocks_.size();
     for (const auto& completion : completions_) {
       switch (completion.type_) {
-        case kFallThrough:
-          if (offset == size - 1) break;
-        // Fallthrough.
+        case kBlockEnd:
+          break;
+        case kFallThrough:  // Fallthrough.
         case kJump:
           WireBlock(offset, completion.offset_0_);
           break;
@@ -393,6 +406,7 @@ class RegisterAllocatorTest : public TestWithZone {
   LoopBlocks loop_blocks_;
   InstructionBlock* current_block_;
   bool is_last_block_;
+  bool block_returns_;
 };
 
 

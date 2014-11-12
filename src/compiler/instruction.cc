@@ -435,8 +435,8 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
 
 
 BlockStartInstruction* InstructionSequence::GetBlockStart(
-    BasicBlock::RpoNumber rpo) {
-  InstructionBlock* block = InstructionBlockAt(rpo);
+    BasicBlock::RpoNumber rpo) const {
+  const InstructionBlock* block = InstructionBlockAt(rpo);
   return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 

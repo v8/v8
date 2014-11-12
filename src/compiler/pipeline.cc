@@ -24,6 +24,7 @@
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
+#include "src/compiler/register-allocator-verifier.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
@@ -575,6 +576,13 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     data->pipeline_statistics()->BeginPhaseKind("register allocation");
   }
 
+#ifdef DEBUG
+  // Don't track usage for this zone in compiler stats.
+  Zone verifier_zone(info()->isolate());
+  RegisterAllocatorVerifier verifier(
+      &verifier_zone, RegisterConfiguration::ArchDefault(), &sequence);
+#endif
+
   // Allocate registers.
   Frame frame;
   {
@@ -586,17 +594,14 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     ZonePool::Scope zone_scope(data->zone_pool());
 
     SmartArrayPointer<char> debug_name;
-    RegisterAllocator::VerificationType verification_type =
-        RegisterAllocator::kNoVerify;
 #ifdef DEBUG
     debug_name = GetDebugName(info());
-    verification_type = RegisterAllocator::kVerifyAssignment;
 #endif
 
     RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
                                 zone_scope.zone(), &frame, &sequence,
                                 debug_name.get());
-    if (!allocator.Allocate(data->pipeline_statistics(), verification_type)) {
+    if (!allocator.Allocate(data->pipeline_statistics())) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }
@@ -613,6 +618,11 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     os << "----- Instruction sequence after register allocation -----\n"
        << printable;
   }
+
+#ifdef DEBUG
+  verifier.VerifyAssignment();
+  verifier.VerifyGapMoves();
+#endif
 
   if (data->pipeline_statistics() != NULL) {
     data->pipeline_statistics()->BeginPhaseKind("code generation");

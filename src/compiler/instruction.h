@@ -60,7 +60,7 @@ class InstructionOperand : public ZoneObject {
   INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED, 0)
   INSTRUCTION_OPERAND_PREDICATE(Ignored, INVALID, 0)
 #undef INSTRUCTION_OPERAND_PREDICATE
-  bool Equals(InstructionOperand* other) const {
+  bool Equals(const InstructionOperand* other) const {
     return value_ == other->value_;
   }
 
@@ -120,6 +120,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   explicit UnallocatedOperand(ExtendedPolicy policy)
       : InstructionOperand(UNALLOCATED, 0) {
+    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -128,6 +129,7 @@ class UnallocatedOperand : public InstructionOperand {
   UnallocatedOperand(BasicPolicy policy, int index)
       : InstructionOperand(UNALLOCATED, 0) {
     DCHECK(policy == FIXED_SLOT);
+    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= index << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
@@ -136,6 +138,7 @@ class UnallocatedOperand : public InstructionOperand {
   UnallocatedOperand(ExtendedPolicy policy, int index)
       : InstructionOperand(UNALLOCATED, 0) {
     DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
+    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -144,6 +147,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   UnallocatedOperand(ExtendedPolicy policy, Lifetime lifetime)
       : InstructionOperand(UNALLOCATED, 0) {
+    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(lifetime);
@@ -198,7 +202,8 @@ class UnallocatedOperand : public InstructionOperand {
   class LifetimeField : public BitField<Lifetime, 25, 1> {};
   class FixedRegisterField : public BitField<int, 26, 6> {};
 
-  static const int kMaxVirtualRegisters = VirtualRegisterField::kMax + 1;
+  static const int kInvalidVirtualRegister = VirtualRegisterField::kMax;
+  static const int kMaxVirtualRegisters = VirtualRegisterField::kMax;
   static const int kFixedSlotIndexWidth = FixedSlotIndexField::kSize;
   static const int kMaxFixedSlotIndex = (1 << (kFixedSlotIndexWidth - 1)) - 1;
   static const int kMinFixedSlotIndex = -(1 << (kFixedSlotIndexWidth - 1));
@@ -586,7 +591,11 @@ class GapInstruction : public Instruction {
     return parallel_moves_[pos];
   }
 
-  ParallelMove* GetParallelMove(InnerPosition pos) const {
+  ParallelMove* GetParallelMove(InnerPosition pos) {
+    return parallel_moves_[pos];
+  }
+
+  const ParallelMove* GetParallelMove(InnerPosition pos) const {
     return parallel_moves_[pos];
   }
 
@@ -632,6 +641,11 @@ class BlockStartInstruction FINAL : public GapInstruction {
   static BlockStartInstruction* cast(Instruction* instr) {
     DCHECK(instr->IsBlockStart());
     return static_cast<BlockStartInstruction*>(instr);
+  }
+
+  static const BlockStartInstruction* cast(const Instruction* instr) {
+    DCHECK(instr->IsBlockStart());
+    return static_cast<const BlockStartInstruction*>(instr);
   }
 
  private:
@@ -917,7 +931,7 @@ class InstructionSequence FINAL {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo);
+  BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
 
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
