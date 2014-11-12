@@ -829,12 +829,6 @@ class WhileStatement FINAL : public IterationStatement {
   }
 
   Expression* cond() const { return cond_; }
-  bool may_have_function_literal() const {
-    return may_have_function_literal_;
-  }
-  void set_may_have_function_literal(bool value) {
-    may_have_function_literal_ = value;
-  }
 
   static int num_ids() { return parent_num_ids() + 1; }
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
@@ -843,18 +837,13 @@ class WhileStatement FINAL : public IterationStatement {
 
  protected:
   WhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos),
-        cond_(NULL),
-        may_have_function_literal_(true) {}
+      : IterationStatement(zone, labels, pos), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* cond_;
-
-  // True if there is a function literal subexpression in the condition.
-  bool may_have_function_literal_;
 };
 
 
@@ -876,13 +865,6 @@ class ForStatement FINAL : public IterationStatement {
   Expression* cond() const { return cond_; }
   Statement* next() const { return next_; }
 
-  bool may_have_function_literal() const {
-    return may_have_function_literal_;
-  }
-  void set_may_have_function_literal(bool value) {
-    may_have_function_literal_ = value;
-  }
-
   static int num_ids() { return parent_num_ids() + 2; }
   virtual BailoutId ContinueId() const OVERRIDE {
     return BailoutId(local_id(0));
@@ -890,18 +872,12 @@ class ForStatement FINAL : public IterationStatement {
   virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
   BailoutId BodyId() const { return BailoutId(local_id(1)); }
 
-  bool is_fast_smi_loop() { return loop_variable_ != NULL; }
-  Variable* loop_variable() { return loop_variable_; }
-  void set_loop_variable(Variable* var) { loop_variable_ = var; }
-
  protected:
   ForStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(zone, labels, pos),
         init_(NULL),
         cond_(NULL),
-        next_(NULL),
-        may_have_function_literal_(true),
-        loop_variable_(NULL) {}
+        next_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
@@ -910,10 +886,6 @@ class ForStatement FINAL : public IterationStatement {
   Statement* init_;
   Expression* cond_;
   Statement* next_;
-
-  // True if there is a function literal subexpression in the condition.
-  bool may_have_function_literal_;
-  Variable* loop_variable_;
 };
 
 
