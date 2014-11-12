@@ -1825,10 +1825,8 @@ TEST(NestedFloatingDiamondWithLoop) {
   Node* loop = graph.NewNode(common.Loop(2), f, start);
   Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
 
-  // TODO(mstarzinger): Make scheduler deal with non-empty loops here.
-  // Node* add = graph.NewNode(&kIntAdd, ind, fv);
-
-  Node* br1 = graph.NewNode(common.Branch(), ind, loop);
+  Node* add = graph.NewNode(&kIntAdd, ind, fv);
+  Node* br1 = graph.NewNode(common.Branch(), add, loop);
   Node* t1 = graph.NewNode(common.IfTrue(), br1);
   Node* f1 = graph.NewNode(common.IfFalse(), br1);
 
@@ -1843,7 +1841,7 @@ TEST(NestedFloatingDiamondWithLoop) {
 
   graph.SetEnd(end);
 
-  ComputeAndVerifySchedule(19, &graph);
+  ComputeAndVerifySchedule(20, &graph);
 }
 
 

@@ -295,6 +295,9 @@ class CFGBuilder {
   }
 
  private:
+  // TODO(mstarzinger): Only for Scheduler::FuseFloatingControl.
+  friend class Scheduler;
+
   void FixNode(BasicBlock* block, Node* node) {
     schedule_->AddNode(block, node);
     scheduler_->UpdatePlacement(node, Scheduler::kFixed);
@@ -1158,7 +1161,6 @@ class ScheduleEarlyNodeVisitor {
 
     // Fixed nodes already know their schedule early position.
     if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
-      DCHECK_EQ(schedule_->start(), data->minimum_block_);
       data->minimum_block_ = schedule_->block(node);
       Trace("Fixing #%d:%s minimum_block = B%d, dominator_depth = %d\n",
             node->id(), node->op()->mnemonic(),
@@ -1449,6 +1451,29 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
     block->set_dominator(NULL);
   }
   GenerateImmediateDominatorTree();
+
+  // Iterate on phase 4: Schedule nodes early.
+  // TODO(mstarzinger): The following loop gathering the propagation roots is a
+  // temporary solution and should be merged into the rest of the scheduler as
+  // soon as the approach settled for all floating loops.
+  NodeVector propagation_roots(cfg_builder.control_);
+  for (Node* node : cfg_builder.control_) {
+    for (Node* use : node->uses()) {
+      if (use->opcode() == IrOpcode::kPhi ||
+          use->opcode() == IrOpcode::kEffectPhi) {
+        propagation_roots.push_back(use);
+      }
+    }
+  }
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("propagation roots: ");
+    for (Node* node : propagation_roots) {
+      Trace("#%d:%s ", node->id(), node->op()->mnemonic());
+    }
+    Trace("\n");
+  }
+  ScheduleEarlyNodeVisitor schedule_early_visitor(zone_, this);
+  schedule_early_visitor.Run(&propagation_roots);
 
   // Move previously planned nodes.
   // TODO(mstarzinger): Improve that by supporting bulk moves.
