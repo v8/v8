@@ -1243,9 +1243,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
-      // TODO(dslomov): Issue 3628.
-      // Reenable when harmony scoping serialization issues are fixed.
-      if (FLAG_serialize_toplevel && !FLAG_harmony_scoping &&
+      if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());

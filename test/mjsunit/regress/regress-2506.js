@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-scoping
+// TODO(dslomov): Bug 3689. Code caching does not work well with for-of
+// Flags: --harmony-scoping --cache=none
 
 'use strict';
 
