@@ -4894,7 +4894,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     Expression *value,
     JSGeneratorObject::ResumeMode resume_mode) {
   ASM_LOCATION("FullCodeGenerator::EmitGeneratorResume");
-  Register value_reg = x0;
   Register generator_object = x1;
   Register the_hole = x2;
   Register operand_stack_size = w3;
@@ -4907,15 +4906,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForStackValue(generator);
   VisitForAccumulatorValue(value);
   __ Pop(generator_object);
-
-  // Check generator state.
-  Label wrong_state, closed_state, done;
-  __ Ldr(x10, FieldMemOperand(generator_object,
-                              JSGeneratorObject::kContinuationOffset));
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
-  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
-  __ CompareAndBranch(x10, Smi::FromInt(0), eq, &closed_state);
-  __ CompareAndBranch(x10, Smi::FromInt(0), lt, &wrong_state);
 
   // Load suspended function and context.
   __ Ldr(cp, FieldMemOperand(generator_object,
@@ -4942,7 +4932,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
-  Label resume_frame;
+  Label resume_frame, done;
   __ Bl(&resume_frame);
   __ B(&done);
 
@@ -4986,26 +4976,6 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
   __ Unreachable();
-
-  // Reach here when generator is closed.
-  __ Bind(&closed_state);
-  if (resume_mode == JSGeneratorObject::NEXT) {
-    // Return completed iterator result when generator is closed.
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-    __ Push(x10);
-    // Pop value from top-of-stack slot; box result into result register.
-    EmitCreateIteratorResult(true);
-  } else {
-    // Throw the provided value.
-    __ Push(value_reg);
-    __ CallRuntime(Runtime::kThrow, 1);
-  }
-  __ B(&done);
-
-  // Throw error if we attempt to operate on a running generator.
-  __ Bind(&wrong_state);
-  __ Push(generator_object);
-  __ CallRuntime(Runtime::kThrowGeneratorStateError, 1);
 
   __ Bind(&done);
   context()->Plug(result_register());

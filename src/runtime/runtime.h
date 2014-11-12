@@ -477,7 +477,7 @@ namespace internal {
   F(CreateJSGeneratorObject, 0, 1)                           \
   F(SuspendJSGeneratorObject, 1, 1)                          \
   F(ResumeJSGeneratorObject, 3, 1)                           \
-  F(ThrowGeneratorStateError, 1, 1)                          \
+  F(GeneratorClose, 1, 1)                                    \
                                                              \
   /* Arrays */                                               \
   F(ArrayConstructor, -1, 1)                                 \

@@ -20,8 +20,23 @@ function GeneratorObjectNext(value) {
                         ['[Generator].prototype.next', this]);
   }
 
-  if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
-  return %_GeneratorNext(this, value);
+  var continuation = %GeneratorGetContinuation(this);
+  if (continuation > 0) {
+    // Generator is suspended.
+    if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
+    try {
+      return %_GeneratorNext(this, value);
+    } catch (e) {
+      %GeneratorClose(this);
+      throw e;
+    }
+  } else if (continuation == 0) {
+    // Generator is already closed.
+    return { value: void 0, done: true };
+  } else {
+    // Generator is running.
+    throw MakeTypeError('generator_running', []);
+  }
 }
 
 function GeneratorObjectThrow(exn) {
@@ -30,7 +45,22 @@ function GeneratorObjectThrow(exn) {
                         ['[Generator].prototype.throw', this]);
   }
 
-  return %_GeneratorThrow(this, exn);
+  var continuation = %GeneratorGetContinuation(this);
+  if (continuation > 0) {
+    // Generator is suspended.
+    try {
+      return %_GeneratorThrow(this, exn);
+    } catch (e) {
+      %GeneratorClose(this);
+      throw e;
+    }
+  } else if (continuation == 0) {
+    // Generator is already closed.
+    throw exn;
+  } else {
+    // Generator is running.
+    throw MakeTypeError('generator_running', []);
+  }
 }
 
 function GeneratorObjectIterator() {
