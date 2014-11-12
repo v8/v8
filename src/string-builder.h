@@ -325,7 +325,7 @@ class IncrementalStringBuilder {
       while (*u != '\0') Append(*(u++));
     }
 
-    int written() { return cursor_ - start_; }
+    int written() { return static_cast<int>(cursor_ - start_); }
 
    private:
     DestChar* start_;
