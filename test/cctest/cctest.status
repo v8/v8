@@ -81,9 +81,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(mstarzinger): The scheduler cannot handle free-floating loops yet.
-  'test-run-inlining/InlineLoop': [SKIP],
-
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
