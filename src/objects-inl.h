@@ -5368,12 +5368,10 @@ void Map::SetPrototypeTransitions(
     Handle<Map> map, Handle<FixedArray> proto_transitions) {
   EnsureHasTransitionArray(map);
   int old_number_of_transitions = map->NumberOfProtoTransitions();
-#ifdef DEBUG
-  if (map->HasPrototypeTransitions()) {
+  if (Heap::ShouldZapGarbage() && map->HasPrototypeTransitions()) {
     DCHECK(map->GetPrototypeTransitions() != *proto_transitions);
     map->ZapPrototypeTransitions();
   }
-#endif
   map->transitions()->SetPrototypeTransitions(*proto_transitions);
   map->SetNumberOfProtoTransitions(old_number_of_transitions);
 }
