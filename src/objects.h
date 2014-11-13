@@ -6815,6 +6815,10 @@ class SharedFunctionInfo: public HeapObject {
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
 
+  // Indicates that this function uses super. This is needed to set up the
+  // [[HomeObject]] on the function instance.
+  DECL_BOOLEAN_ACCESSORS(uses_super)
+
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
@@ -6861,10 +6865,6 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that this function is a default constructor.
   DECL_BOOLEAN_ACCESSORS(is_default_constructor)
-
-  // Indicates that this function is a default constructor that needs to call
-  // super.
-  DECL_BOOLEAN_ACCESSORS(is_default_constructor_call_super)
 
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
@@ -7096,6 +7096,7 @@ class SharedFunctionInfo: public HeapObject {
     kOptimizationDisabled,
     kStrictModeFunction,
     kUsesArguments,
+    kUsesSuper,
     kHasDuplicateParameters,
     kNative,
     kInlineBuiltin,
@@ -7109,13 +7110,12 @@ class SharedFunctionInfo: public HeapObject {
     kIsGenerator,
     kIsConciseMethod,
     kIsDefaultConstructor,
-    kIsDefaultConstructorCallSuper,
     kIsAsmFunction,
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
   };
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 4> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

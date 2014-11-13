@@ -5746,6 +5746,7 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
 }
 
 
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_super, kUsesSuper)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5763,9 +5764,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
                kIsConciseMethod)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
-               is_default_constructor_call_super,
-               kIsDefaultConstructorCallSuper)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

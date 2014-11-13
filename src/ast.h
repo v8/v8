@@ -2469,11 +2469,11 @@ class FunctionLiteral FINAL : public Expression {
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   StrictMode strict_mode() const;
-  bool needs_super_binding() const;
+  bool uses_super() const;
 
   static bool NeedsHomeObject(Expression* literal) {
     return literal != NULL && literal->IsFunctionLiteral() &&
-           literal->AsFunctionLiteral()->needs_super_binding();
+           literal->AsFunctionLiteral()->uses_super();
   }
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -2557,9 +2557,6 @@ class FunctionLiteral FINAL : public Expression {
   bool is_default_constructor() {
     return IsDefaultConstructor(FunctionKindBits::decode(bitfield_));
   }
-  bool is_default_constructor_call_super() {
-    return IsDefaultConstructorCallSuper(FunctionKindBits::decode(bitfield_));
-  }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2631,7 +2628,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 4> {};
 };
 
 

@@ -615,6 +615,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   MaybeDisableOptimization(function_info, lit->dont_optimize_reason());
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_kind(lit->kind());
+  function_info->set_uses_super(lit->uses_super());
   function_info->set_asm_function(lit->scope()->asm_function());
 }
 
@@ -1341,6 +1342,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
   result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
+  result->set_uses_super(literal->uses_super());
 
   // Set the expected number of properties for instances and return
   // the resulting function.

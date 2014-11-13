@@ -279,8 +279,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   int parameter_count = 0;
   AstProperties ast_properties;
   const AstRawString* name = ast_value_factory()->empty_string();
-  FunctionKind kind = call_super ? FunctionKind::kDefaultConstructorCallSuper
-                                 : FunctionKind::kDefaultConstructor;
 
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE);
   function_scope->SetStrictMode(STRICT);
@@ -304,6 +302,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
           Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
           pos);
       body->Add(factory()->NewExpressionStatement(call, pos), zone());
+      function_scope->RecordSuperUsage();
     }
 
     materialized_literal_count = function_state.materialized_literal_count();
@@ -318,7 +317,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       materialized_literal_count, expected_property_count, handler_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, kind, pos);
+      FunctionLiteral::kNotParenthesized, FunctionKind::kDefaultConstructor,
+      pos);
 
   function_literal->set_ast_properties(&ast_properties);
 
@@ -1060,11 +1060,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
       Expression* expression = ParseExpression(false, &ok);
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
-    } else if (shared_info->is_default_constructor() ||
-               shared_info->is_default_constructor_call_super()) {
-      result = DefaultConstructor(
-          shared_info->is_default_constructor_call_super(), scope,
-          shared_info->start_position(), shared_info->end_position());
+    } else if (shared_info->is_default_constructor()) {
+      result = DefaultConstructor(shared_info->uses_super(), scope,
+                                  shared_info->start_position(),
+                                  shared_info->end_position());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     false,  // Strict mode name already checked.
