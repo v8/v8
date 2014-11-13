@@ -1119,10 +1119,9 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
 Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
-  if (current_type->IsRange() && previous_type->IsRange()) {
-    Type::RangeType* previous = previous_type->AsRange();
-    Type::RangeType* current = current_type->AsRange();
-
+  Type::RangeType* previous = previous_type->GetRange();
+  Type::RangeType* current = current_type->GetRange();
+  if (previous != NULL && current != NULL) {
     double current_min = current->Min()->Number();
     Handle<Object> new_min = current->Min();
 
@@ -1152,7 +1151,9 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
       }
     }
 
-    return Type::Range(new_min, new_max, typer_->zone());
+    return Type::Union(current_type,
+                       Type::Range(new_min, new_max, typer_->zone()),
+                       typer_->zone());
   }
   return current_type;
 }

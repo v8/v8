@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <iomanip>
+
 #include "src/types.h"
 
 #include "src/ostreams.h"
@@ -1017,8 +1019,12 @@ void TypeImpl<Config>::PrintTo(std::ostream& os, PrintDimension dim) {
     } else if (this->IsConstant()) {
       os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
     } else if (this->IsRange()) {
-      os << "Range(" << this->AsRange()->Min()->Number()
-         << ", " << this->AsRange()->Max()->Number() << ")";
+      std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
+      std::streamsize saved_precision = os.precision(0);
+      os << "Range(" << this->AsRange()->Min()->Number() << ", "
+         << this->AsRange()->Max()->Number() << ")";
+      os.flags(saved_flags);
+      os.precision(saved_precision);
     } else if (this->IsContext()) {
       os << "Context(";
       this->AsContext()->Outer()->PrintTo(os, dim);

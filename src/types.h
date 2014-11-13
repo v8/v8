@@ -464,6 +464,11 @@ class TypeImpl : public Config::Base {
   double Min();
   double Max();
 
+  // Extracts a range from the type. If the type is a range, it just
+  // returns it; if it is a union, it returns the range component.
+  // Note that it does not contain range for constants.
+  RangeType* GetRange();
+
   int NumClasses();
   int NumConstants();
 
@@ -551,7 +556,6 @@ class TypeImpl : public Config::Base {
   static bool Contains(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* range, i::Object* val);
 
-  RangeType* GetRange();
   static int UpdateRange(
       RangeHandle type, UnionHandle result, int size, Region* region);
 
