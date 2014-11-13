@@ -39,9 +39,6 @@ class ScriptData {
 
   const byte* data() const { return data_; }
   int length() const { return length_; }
-  bool rejected() const { return rejected_; }
-
-  void Reject() { rejected_ = true; }
 
   void AcquireDataOwnership() {
     DCHECK(!owns_data_);
@@ -54,8 +51,7 @@ class ScriptData {
   }
 
  private:
-  bool owns_data_ : 1;
-  bool rejected_ : 1;
+  bool owns_data_;
   const byte* data_;
   int length_;
 

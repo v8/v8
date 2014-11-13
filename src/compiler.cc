@@ -34,7 +34,7 @@ namespace internal {
 
 
 ScriptData::ScriptData(const byte* data, int length)
-    : owns_data_(false), rejected_(false), data_(data), length_(length) {
+    : owns_data_(false), data_(data), length_(length) {
   if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
     byte* copy = NewArray<byte>(length);
     DCHECK(IsAligned(reinterpret_cast<intptr_t>(copy), kPointerAlignment));
