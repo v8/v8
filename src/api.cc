@@ -14,6 +14,7 @@
 #include "include/v8-testing.h"
 #include "src/assert-scope.h"
 #include "src/background-parsing-task.h"
+#include "src/base/functional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1843,6 +1844,13 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
     return Local<Script>();
   }
   return generic->BindToCurrentContext();
+}
+
+
+uint32_t ScriptCompiler::CachedDataVersionTag() {
+  return static_cast<uint32_t>(base::hash_combine(
+      internal::Version::Hash(), internal::FlagList::Hash(),
+      static_cast<uint32_t>(internal::CpuFeatures::SupportedFeatures())));
 }
 
 
