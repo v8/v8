@@ -1746,6 +1746,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  OnExit();
 #ifndef V8_SHARED
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
@@ -1758,8 +1759,6 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete platform;
-
-  OnExit();
 
   return result;
 }
