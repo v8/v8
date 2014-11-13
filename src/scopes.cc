@@ -373,6 +373,11 @@ Scope* Scope::FinalizeBlockScope() {
     outer_scope()->unresolved_.Add(unresolved_[i], zone());
   }
 
+  // Propagate usage flags to outer scope.
+  if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
+  if (uses_super()) outer_scope_->RecordSuperUsage();
+  if (uses_this()) outer_scope_->RecordThisUsage();
+
   return NULL;
 }
 

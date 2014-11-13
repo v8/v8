@@ -72,6 +72,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // other dependencies tracked by the environment might be mutated though.
   //
 
+  // Builder to create a receiver check for sloppy mode.
+  Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
+
   // Builder to create a local function context.
   Node* BuildLocalFunctionContext(Node* context, Node* closure);
 
@@ -92,6 +95,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
   Node* BuildLoadGlobalObject();
+  Node* BuildLoadGlobalProxy();
   Node* BuildLoadClosure();
   Node* BuildLoadObjectField(Node* object, int offset);
 
