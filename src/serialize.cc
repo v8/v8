@@ -2185,7 +2185,7 @@ void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
 
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
-    Isolate* isolate, ScriptData* data, Handle<String> source) {
+    Isolate* isolate, ScriptData* cached_data, Handle<String> source) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -2194,18 +2194,24 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   {
     HandleScope scope(isolate);
 
-    SerializedCodeData scd(data, *source);
-    SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
+    SerializedCodeData* scd =
+        SerializedCodeData::FromCachedData(cached_data, *source);
+    if (scd == NULL) {
+      if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+      DCHECK(cached_data->rejected());
+      return MaybeHandle<SharedFunctionInfo>();
+    }
+    SnapshotByteSource payload(scd->Payload(), scd->PayloadLength());
     Deserializer deserializer(&payload);
 
     // Eagerly expand string table to avoid allocations during deserialization.
-    StringTable::EnsureCapacityForDeserialization(isolate,
-                                                  scd.NumInternalizedStrings());
+    StringTable::EnsureCapacityForDeserialization(
+        isolate, scd->NumInternalizedStrings());
 
     // Set reservations.
     STATIC_ASSERT(NEW_SPACE == 0);
     int current_space = NEW_SPACE;
-    Vector<const SerializedCodeData::Reservation> res = scd.Reservations();
+    Vector<const SerializedCodeData::Reservation> res = scd->Reservations();
     for (const auto& r : res) {
       deserializer.AddReservation(current_space, r.chunk_size());
       if (r.is_last_chunk()) current_space++;
@@ -2213,7 +2219,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     DCHECK_EQ(kNumberOfSpaces, current_space);
 
     // Prepare and register list of attached objects.
-    Vector<const uint32_t> code_stub_keys = scd.CodeStubKeys();
+    Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
     Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
         code_stub_keys.length() + kCodeStubsBaseIndex);
     attached_objects[kSourceObjectIndex] = source;
@@ -2235,7 +2241,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
-    int length = data->length();
+    int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
   Handle<SharedFunctionInfo> result(SharedFunctionInfo::cast(root), isolate);
@@ -2315,11 +2321,6 @@ bool SerializedCodeData::IsSane(String* source) {
 
 
 int SerializedCodeData::CheckSum(String* string) {
-  int checksum = Version::Hash();
-#ifdef DEBUG
-  uint32_t seed = static_cast<uint32_t>(checksum);
-  checksum = static_cast<int>(IteratingStringHasher::Hash(string, seed));
-#endif  // DEBUG
-  return checksum;
+  return Version::Hash() ^ string->length();
 }
 } }  // namespace v8::internal

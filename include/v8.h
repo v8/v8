@@ -1045,7 +1045,11 @@ class V8_EXPORT ScriptCompiler {
       BufferOwned
     };
 
-    CachedData() : data(NULL), length(0), buffer_policy(BufferNotOwned) {}
+    CachedData()
+        : data(NULL),
+          length(0),
+          rejected(false),
+          buffer_policy(BufferNotOwned) {}
 
     // If buffer_policy is BufferNotOwned, the caller keeps the ownership of
     // data and guarantees that it stays alive until the CachedData object is
@@ -1058,6 +1062,7 @@ class V8_EXPORT ScriptCompiler {
     // which will be called when V8 no longer needs the data.
     const uint8_t* data;
     int length;
+    bool rejected;
     BufferPolicy buffer_policy;
 
    private:

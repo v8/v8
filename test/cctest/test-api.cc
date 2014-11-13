@@ -24207,3 +24207,28 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
   const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
+
+
+void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
+  const char* garbage = "garbage garbage garbage garbage.";
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(garbage);
+  int length = 16;
+  v8::ScriptCompiler::CachedData* cached_data =
+      new v8::ScriptCompiler::CachedData(data, length);
+  DCHECK(!cached_data->rejected);
+  v8::ScriptOrigin origin(v8_str("origin"));
+  v8::ScriptCompiler::Source source(v8_str("42"), origin, cached_data);
+  v8::Handle<v8::Script> script =
+      v8::ScriptCompiler::Compile(CcTest::isolate(), &source, option);
+  CHECK(cached_data->rejected);
+  CHECK_EQ(42, script->Run()->Int32Value());
+}
+
+
+TEST(InvalidCacheData) {
+  v8::V8::Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
+  TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
+}

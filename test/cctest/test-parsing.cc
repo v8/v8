@@ -454,14 +454,14 @@ TEST(Regress928) {
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   i::ScriptData* sd = log.GetScriptData();
-  i::ParseData pd(sd);
-  pd.Initialize();
+  i::ParseData* pd = i::ParseData::FromCachedData(sd);
+  pd->Initialize();
 
   int first_function =
       static_cast<int>(strstr(program, "function") - program);
   int first_lbrace = first_function + i::StrLength("function () ");
   CHECK_EQ('{', program[first_lbrace]);
-  i::FunctionEntry entry1 = pd.GetFunctionEntry(first_lbrace);
+  i::FunctionEntry entry1 = pd->GetFunctionEntry(first_lbrace);
   CHECK(!entry1.is_valid());
 
   int second_function =
@@ -469,10 +469,11 @@ TEST(Regress928) {
   int second_lbrace =
       second_function + i::StrLength("function () ");
   CHECK_EQ('{', program[second_lbrace]);
-  i::FunctionEntry entry2 = pd.GetFunctionEntry(second_lbrace);
+  i::FunctionEntry entry2 = pd->GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
   delete sd;
+  delete pd;
 }
 
 
@@ -2451,17 +2452,18 @@ TEST(DontRegressPreParserDataSizes) {
     i::ScriptData* sd = NULL;
     info.SetCachedData(&sd, v8::ScriptCompiler::kProduceParserCache);
     i::Parser::Parse(&info, true);
-    i::ParseData pd(sd);
+    i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
-    if (pd.FunctionCount() != test_cases[i].functions) {
+    if (pd->FunctionCount() != test_cases[i].functions) {
       v8::base::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
-          program, test_cases[i].functions, pd.FunctionCount());
+          program, test_cases[i].functions, pd->FunctionCount());
       CHECK(false);
     }
     delete sd;
+    delete pd;
   }
 }
 

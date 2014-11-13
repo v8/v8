@@ -62,10 +62,14 @@ class FunctionEntry BASE_EMBEDDED {
 // Wrapper around ScriptData to provide parser-specific functionality.
 class ParseData {
  public:
-  explicit ParseData(ScriptData* script_data) : script_data_(script_data) {
-    CHECK(IsAligned(script_data->length(), sizeof(unsigned)));
-    CHECK(IsSane());
+  static ParseData* FromCachedData(ScriptData* cached_data) {
+    ParseData* pd = new ParseData(cached_data);
+    if (pd->IsSane()) return pd;
+    cached_data->Reject();
+    delete pd;
+    return NULL;
   }
+
   void Initialize();
   FunctionEntry GetFunctionEntry(int start);
   int FunctionCount();
@@ -77,6 +81,8 @@ class ParseData {
   }
 
  private:
+  explicit ParseData(ScriptData* script_data) : script_data_(script_data) {}
+
   bool IsSane();
   unsigned Magic();
   unsigned Version();
@@ -687,6 +693,13 @@ class Parser : public ParserBase<ParserTraits> {
   bool inside_with() const { return scope_->inside_with(); }
   ScriptCompiler::CompileOptions compile_options() const {
     return info_->compile_options();
+  }
+  bool consume_cached_parse_data() const {
+    return compile_options() == ScriptCompiler::kConsumeParserCache &&
+           cached_parse_data_ != NULL;
+  }
+  bool produce_cached_parse_data() const {
+    return compile_options() == ScriptCompiler::kProduceParserCache;
   }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
