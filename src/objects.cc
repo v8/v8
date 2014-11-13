@@ -10155,8 +10155,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // regenerated and set on the shared function info it is marked as
   // non-optimizable if optimization is disabled for the shared
   // function info.
+  DCHECK(reason != kNoReason);
   set_optimization_disabled(true);
-  set_bailout_reason(reason);
+  set_disable_optimization_reason(reason);
   // Code should be the lazy compilation stub or else unoptimized.  If the
   // latter, disable optimization for the code too.
   DCHECK(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);

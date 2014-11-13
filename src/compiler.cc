@@ -578,6 +578,14 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 }
 
 
+static void MaybeDisableOptimization(Handle<SharedFunctionInfo> shared_info,
+                                     BailoutReason bailout_reason) {
+  if (bailout_reason != kNoReason) {
+    shared_info->DisableOptimization(bailout_reason);
+  }
+}
+
+
 // Sets the function info on a function.
 // The start_position points to the first '(' character after the function name
 // in the full script source. When counting characters in the script source the
@@ -604,7 +612,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
   function_info->set_is_function(lit->is_function());
-  function_info->set_bailout_reason(lit->dont_optimize_reason());
+  MaybeDisableOptimization(function_info, lit->dont_optimize_reason());
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_kind(lit->kind());
   function_info->set_asm_function(lit->scope()->asm_function());
@@ -667,7 +675,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   FunctionLiteral* lit = info->function();
   shared->set_strict_mode(lit->strict_mode());
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
-  shared->set_bailout_reason(lit->dont_optimize_reason());
+  MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
   // Compile unoptimized code.
   if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
@@ -740,7 +748,10 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 static bool Renumber(CompilationInfo* info) {
   if (!AstNumbering::Renumber(info->function(), info->zone())) return false;
   if (!info->shared_info().is_null()) {
-    info->shared_info()->set_ast_node_count(info->function()->ast_node_count());
+    FunctionLiteral* lit = info->function();
+    info->shared_info()->set_ast_node_count(lit->ast_node_count());
+    MaybeDisableOptimization(info->shared_info(), lit->dont_optimize_reason());
+    info->shared_info()->set_dont_cache(lit->flags()->Contains(kDontCache));
   }
   return true;
 }

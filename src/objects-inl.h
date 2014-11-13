@@ -5943,10 +5943,9 @@ void SharedFunctionInfo::set_opt_count(int opt_count) {
 }
 
 
-BailoutReason SharedFunctionInfo::DisableOptimizationReason() {
-  BailoutReason reason = static_cast<BailoutReason>(
+BailoutReason SharedFunctionInfo::disable_optimization_reason() {
+  return static_cast<BailoutReason>(
       DisabledOptimizationReasonBits::decode(opt_count_and_bailout_reason()));
-  return reason;
 }
 
 

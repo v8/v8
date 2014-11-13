@@ -816,7 +816,6 @@ class PreParserExpression {
   int position() const { return RelocInfo::kNoPosition; }
   void set_function_token_position(int position) {}
   void set_ast_properties(int* ast_properties) {}
-  void set_dont_optimize_reason(BailoutReason dont_optimize_reason) {}
 
  private:
   enum Type {
@@ -1103,7 +1102,6 @@ class PreParserFactory {
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
-  BailoutReason dont_optimize_reason() { return kNoReason; }
   int* ast_properties() {
     static int dummy = 42;
     return &dummy;
@@ -2635,7 +2633,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   typename Traits::Type::ScopePtr scope = this->NewScope(scope_, ARROW_SCOPE);
   typename Traits::Type::StatementList body;
   typename Traits::Type::AstProperties ast_properties;
-  BailoutReason dont_optimize_reason = kNoReason;
   int num_parameters = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -2719,7 +2716,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
       this->CheckConflictingVarDeclarations(scope, CHECK_OK);
 
     ast_properties = *factory()->visitor()->ast_properties();
-    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
@@ -2732,7 +2728,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
   function_literal->set_function_token_position(start_pos);
   function_literal->set_ast_properties(&ast_properties);
-  function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 
