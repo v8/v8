@@ -98,17 +98,9 @@ class TransitionArray: public FixedArray {
   static Handle<TransitionArray> Insert(Handle<Map> map, Handle<Name> name,
                                         Handle<Map> target,
                                         SimpleTransitionFlag flag);
-  // Search a  transition for a given type, property name and attributes.
-  int Search(PropertyType type, Name* name, PropertyAttributes attributes,
-             int* out_insertion_index = NULL);
 
-  // Search a non-property transition (like elements kind, observe or frozen
-  // transitions).
-  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = NULL) {
-    return SearchName(symbol, out_insertion_index);
-  }
-
-  static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
+  // Search a transition for a given property name.
+  inline int Search(Name* name, int* out_insertion_index = NULL);
 
   // Allocates a TransitionArray.
   static Handle<TransitionArray> Allocate(Isolate* isolate,
@@ -175,10 +167,6 @@ class TransitionArray: public FixedArray {
   bool IsSortedNoDuplicates(int valid_entries = -1);
   bool IsConsistentWithBackPointers(Map* current_map);
   bool IsEqualTo(TransitionArray* other);
-
-  // Returns true for a non-property transitions like elements kind, observed
-  // or frozen transitions.
-  static inline bool IsSpecialTransition(Name* name);
 #endif
 
   // The maximum number of transitions we want in a transition array (should
@@ -213,31 +201,6 @@ class TransitionArray: public FixedArray {
                                          Handle<Name> name,
                                          Handle<Map> target,
                                          SimpleTransitionFlag flag);
-
-  // Search a first transition for a given property name.
-  inline int SearchName(Name* name, int* out_insertion_index = NULL);
-  int SearchDetails(int transition, PropertyType type,
-                    PropertyAttributes attributes, int* out_insertion_index);
-
-  // Compares two tuples <key, is_data_property, attributes>, returns -1 if
-  // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
-  static inline int CompareKeys(Name* key1, uint32_t hash1,
-                                bool is_data_property1,
-                                PropertyAttributes attributes1, Name* key2,
-                                uint32_t hash2, bool is_data_property2,
-                                PropertyAttributes attributes2);
-
-  // Compares keys, returns -1 if key1 is "less" than key2,
-  // 0 if key1 equal to key2 and 1 otherwise.
-  static inline int CompareNames(Name* key1, uint32_t hash1, Name* key2,
-                                 uint32_t hash2);
-
-  // Compares two details, returns -1 if details1 is "less" than details2,
-  // 0 if details1 equal to details2 and 1 otherwise.
-  static inline int CompareDetails(bool is_data_property1,
-                                   PropertyAttributes attributes1,
-                                   bool is_data_property2,
-                                   PropertyAttributes attributes2);
 
   inline void NoIncrementalWriteBarrierSet(int transition_number,
                                            Name* key,

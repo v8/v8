@@ -280,11 +280,7 @@ enum DebugExtraICState {
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.
-enum SimpleTransitionFlag {
-  SIMPLE_PROPERTY_TRANSITION,
-  PROPERTY_TRANSITION,
-  SPECIAL_TRANSITION
-};
+enum SimpleTransitionFlag { SIMPLE_TRANSITION, FULL_TRANSITION };
 
 
 // Indicates whether we are only interested in the descriptors of a particular
@@ -5793,9 +5789,7 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
 
   inline Map* GetTransition(int transition_index);
-  inline int SearchSpecialTransition(Symbol* name);
-  inline int SearchTransition(PropertyType type, Name* name,
-                              PropertyAttributes attributes);
+  inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
@@ -5949,7 +5943,6 @@ class Map: public HeapObject {
                                LookupResult* result);
 
   inline void LookupTransition(JSObject* holder, Name* name,
-                               PropertyAttributes attributes,
                                LookupResult* result);
 
   inline PropertyDetails GetLastDescriptorDetails();
@@ -6340,8 +6333,7 @@ class Map: public HeapObject {
       Handle<Map> map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
       MaybeHandle<Name> maybe_name, const char* reason,
-      SimpleTransitionFlag simple_flag);
-
+      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
   static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor,
@@ -6369,9 +6361,7 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  void DeprecateTarget(PropertyType type, Name* key,
-                       PropertyAttributes attributes,
-                       DescriptorArray* new_descriptors,
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
                        LayoutDescriptor* new_layout_descriptor);
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);

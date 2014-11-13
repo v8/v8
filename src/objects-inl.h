@@ -1901,11 +1901,11 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
-  int transition = transitions->Search(FIELD, *key, NONE);
+  int transition = transitions->Search(*key);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
-  PropertyDetails details = transitions->GetTargetDetails(transition);
-  if (details.type() != FIELD) return Handle<Map>::null();
-  DCHECK_EQ(NONE, details.attributes());
+  PropertyDetails target_details = transitions->GetTargetDetails(transition);
+  if (target_details.type() != FIELD) return Handle<Map>::null();
+  if (target_details.attributes() != NONE) return Handle<Map>::null();
   return Handle<Map>(transitions->GetTarget(transition));
 }
 
@@ -2995,10 +2995,8 @@ void Map::LookupDescriptor(JSObject* holder,
 }
 
 
-void Map::LookupTransition(JSObject* holder, Name* name,
-                           PropertyAttributes attributes,
-                           LookupResult* result) {
-  int transition_index = this->SearchTransition(FIELD, name, attributes);
+void Map::LookupTransition(JSObject* holder, Name* name, LookupResult* result) {
+  int transition_index = this->SearchTransition(name);
   if (transition_index == TransitionArray::kNotFound) return result->NotFound();
   result->TransitionResult(holder, this->GetTransition(transition_index));
 }
@@ -5320,8 +5318,7 @@ bool Map::HasTransitionArray() const {
 
 
 Map* Map::elements_transition_map() {
-  int index =
-      transitions()->SearchSpecial(GetHeap()->elements_transition_symbol());
+  int index = transitions()->Search(GetHeap()->elements_transition_symbol());
   return transitions()->GetTarget(index);
 }
 
@@ -5338,19 +5335,8 @@ Map* Map::GetTransition(int transition_index) {
 }
 
 
-int Map::SearchSpecialTransition(Symbol* name) {
-  if (HasTransitionArray()) {
-    return transitions()->SearchSpecial(name);
-  }
-  return TransitionArray::kNotFound;
-}
-
-
-int Map::SearchTransition(PropertyType type, Name* name,
-                          PropertyAttributes attributes) {
-  if (HasTransitionArray()) {
-    return transitions()->Search(type, name, attributes);
-  }
+int Map::SearchTransition(Name* name) {
+  if (HasTransitionArray()) return transitions()->Search(name);
   return TransitionArray::kNotFound;
 }
 
@@ -5401,17 +5387,9 @@ void Map::set_transitions(TransitionArray* transition_array,
       Map* target = transitions()->GetTarget(i);
       if (target->instance_descriptors() == instance_descriptors()) {
         Name* key = transitions()->GetKey(i);
-        int new_target_index;
-        if (TransitionArray::IsSpecialTransition(key)) {
-          new_target_index = transition_array->SearchSpecial(Symbol::cast(key));
-        } else {
-          PropertyDetails details =
-              TransitionArray::GetTargetDetails(key, target);
-          new_target_index = transition_array->Search(details.type(), key,
-                                                      details.attributes());
-        }
-        DCHECK_NE(TransitionArray::kNotFound, new_target_index);
-        DCHECK_EQ(target, transition_array->GetTarget(new_target_index));
+        int new_target_index = transition_array->Search(key);
+        DCHECK(new_target_index != TransitionArray::kNotFound);
+        DCHECK(transition_array->GetTarget(new_target_index) == target);
       }
     }
 #endif
