@@ -2921,6 +2921,17 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
+  {
+    HandleScope scope(isolate());
+#define SYMBOL_INIT(name, varname, description)                             \
+  Handle<Symbol> name = factory->NewSymbol();                               \
+  Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
+  name->set_name(*name##d);                                                 \
+  roots_[k##name##RootIndex] = *name;
+    PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
+#undef SYMBOL_INIT
+  }
+
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.

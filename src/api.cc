@@ -6227,27 +6227,21 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
 }
 
 
-static Local<Symbol> GetWellKnownSymbol(Isolate* isolate, const char* name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::String> i_name =
-      Utils::OpenHandle(*String::NewFromUtf8(isolate, name));
-  i::Handle<i::String> part = i_isolate->factory()->for_intern_string();
-  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part));
-}
-
-
 Local<Symbol> v8::Symbol::GetIterator(Isolate* isolate) {
-  return GetWellKnownSymbol(isolate, "Symbol.iterator");
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return Utils::ToLocal(i_isolate->factory()->iterator_symbol());
 }
 
 
 Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
-  return GetWellKnownSymbol(isolate, "Symbol.unscopables");
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return Utils::ToLocal(i_isolate->factory()->unscopables_symbol());
 }
 
 
 Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
-  return GetWellKnownSymbol(isolate, "Symbol.toStringTag");
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return Utils::ToLocal(i_isolate->factory()->to_string_tag_symbol());
 }
 
 

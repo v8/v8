@@ -757,7 +757,7 @@ Expression* ParserTraits::ExpressionFromString(
 Expression* ParserTraits::GetIterator(
     Expression* iterable, AstNodeFactory<AstConstructionVisitor>* factory) {
   Expression* iterator_symbol_literal =
-      factory->NewSymbolLiteral("symbolIterator", RelocInfo::kNoPosition);
+      factory->NewSymbolLiteral("iterator_symbol", RelocInfo::kNoPosition);
   int pos = iterable->position();
   Expression* prop =
       factory->NewProperty(iterable, iterator_symbol_literal, pos);

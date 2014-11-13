@@ -181,7 +181,7 @@ void Accessors::ArgumentsIteratorSetter(
 
 Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(
     Isolate* isolate, PropertyAttributes attributes) {
-  Handle<Name> name(isolate->native_context()->iterator_symbol(), isolate);
+  Handle<Name> name = isolate->factory()->iterator_symbol();
   return MakeAccessor(isolate, name, &ArgumentsIteratorGetter,
                       &ArgumentsIteratorSetter, attributes);
 }
