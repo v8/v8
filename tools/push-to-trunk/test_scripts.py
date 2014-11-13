@@ -772,9 +772,6 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git config --get remote.origin.push", ""),
-      Cmd("git config --add remote.origin.push "
-          "refs/remotes/origin/candidates:refs/pending/heads/candidates", ""),
       Cmd(("git new-branch %s --upstream origin/master" %
            TEST_CONFIG["BRANCHNAME"]),
           ""),
@@ -823,7 +820,7 @@ Performance and stability improvements on all platforms.""", commit)
     if manual:
       expectations.append(RL("Y"))  # Sanity check.
     expectations += [
-      Cmd("git push origin", ""),
+      Cmd("git cl land -f --bypass-hooks", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
           "\"Version 3.22.5 (based on push_hash)\""

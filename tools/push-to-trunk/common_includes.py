@@ -287,9 +287,6 @@ class VCInterface(object):
   def RemoteBranch(self, name):
     raise NotImplementedError()
 
-  def Land(self):
-    raise NotImplementedError()
-
   def CLLand(self):
     raise NotImplementedError()
 
@@ -355,9 +352,6 @@ class GitInterface(VCInterface):
 
     self.step.Git("tag %s %s" % (tag, commit))
     self.step.Git("push origin %s" % tag)
-
-  def Land(self):
-    self.step.Git("push origin")
 
   def CLLand(self):
     self.step.GitCLLand()

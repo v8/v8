@@ -51,11 +51,6 @@ class Preparation(Step):
     self.PrepareBranch()
     self.DeleteBranch(self.Config("TRUNKBRANCH"))
 
-    # Allow directly pushing to candidates.
-    if not self.Git("config --get remote.origin.push").strip():
-      self.Git("config --add remote.origin.push "
-               "refs/remotes/origin/candidates:refs/pending/heads/candidates")
-
 
 class FreshBranch(Step):
   MESSAGE = "Create a fresh branch."
@@ -355,7 +350,7 @@ class Land(Step):
   MESSAGE = "Land the patch."
 
   def RunStep(self):
-    self.vc.Land()
+    self.vc.CLLand()
 
 
 class TagRevision(Step):

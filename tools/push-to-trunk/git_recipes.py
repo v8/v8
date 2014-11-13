@@ -231,10 +231,6 @@ class GitRecipesMixin(object):
   def GitPresubmit(self, **kwargs):
     self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"", **kwargs)
 
-  def GitDCommit(self, **kwargs):
-    self.Git(
-        "cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
-
   def GitCLLand(self, **kwargs):
     self.Git(
         "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
