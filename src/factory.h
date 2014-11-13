@@ -485,12 +485,11 @@ class Factory FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
-                                 Handle<Object> prototype,
-                                 InstanceType type,
+  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
+                                 Handle<Object> prototype, InstanceType type,
                                  int instance_size,
-                                 bool read_only_prototype = false);
+                                 bool read_only_prototype = false,
+                                 bool install_constructor = false);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,
