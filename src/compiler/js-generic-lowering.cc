@@ -120,7 +120,7 @@ REPLACE_RUNTIME_CALL(JSCreateCatchContext, Runtime::kPushCatchContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
-REPLACE_RUNTIME_CALL(JSCreateGlobalContext, Runtime::kAbort)
+REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kAbort)
 #undef REPLACE_RUNTIME
 
 

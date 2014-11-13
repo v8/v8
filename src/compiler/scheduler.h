@@ -24,11 +24,10 @@ class Scheduler {
  public:
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(ZonePool* zone_pool, Graph* graph);
+  static Schedule* ComputeSchedule(Zone* zone, Graph* graph);
 
   // Compute the RPO of blocks in an existing schedule.
-  static BasicBlockVector* ComputeSpecialRPO(ZonePool* zone_pool,
-                                             Schedule* schedule);
+  static BasicBlockVector* ComputeSpecialRPO(Zone* zone, Schedule* schedule);
 
  private:
   // Placement of a node changes during scheduling. The placement state

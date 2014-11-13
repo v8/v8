@@ -69,6 +69,7 @@ namespace internal {
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
   V(KeyedLoadGeneric)                       \
+  V(LoadScriptContextField)                 \
   V(LoadDictionaryElement)                  \
   V(LoadFastElement)                        \
   V(MegamorphicLoad)                        \
@@ -76,6 +77,7 @@ namespace internal {
   V(NumberToString)                         \
   V(RegExpConstructResult)                  \
   V(StoreFastElement)                       \
+  V(StoreScriptContextField)                \
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
@@ -2013,6 +2015,66 @@ class DoubleToIStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
+};
+
+
+class ScriptContextFieldStub : public HandlerStub {
+ public:
+  ScriptContextFieldStub(Isolate* isolate,
+                         const ScriptContextTable::LookupResult* lookup_result)
+      : HandlerStub(isolate) {
+    DCHECK(Accepted(lookup_result));
+    set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
+                      SlotIndexBits::encode(lookup_result->slot_index));
+  }
+
+  int context_index() const {
+    return ContextIndexBits::decode(sub_minor_key());
+  }
+
+  int slot_index() const { return SlotIndexBits::decode(sub_minor_key()); }
+
+  static bool Accepted(const ScriptContextTable::LookupResult* lookup_result) {
+    return ContextIndexBits::is_valid(lookup_result->context_index) &&
+           SlotIndexBits::is_valid(lookup_result->slot_index);
+  }
+
+ private:
+  static const int kContextIndexBits = 13;
+  static const int kSlotIndexBits = 13;
+  class ContextIndexBits : public BitField<int, 0, kContextIndexBits> {};
+  class SlotIndexBits
+      : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
+
+  virtual Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+
+  DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, HandlerStub);
+};
+
+
+class LoadScriptContextFieldStub : public ScriptContextFieldStub {
+ public:
+  LoadScriptContextFieldStub(
+      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
+      : ScriptContextFieldStub(isolate, lookup_result) {}
+
+ private:
+  virtual Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
+
+  DEFINE_HANDLER_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
+};
+
+
+class StoreScriptContextFieldStub : public ScriptContextFieldStub {
+ public:
+  StoreScriptContextFieldStub(
+      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
+      : ScriptContextFieldStub(isolate, lookup_result) {}
+
+ private:
+  virtual Code::Kind kind() const OVERRIDE { return Code::STORE_IC; }
+
+  DEFINE_HANDLER_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
 };
 
 

@@ -242,10 +242,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+MaybeHandle<Object> Runtime::GetPrototype(Isolate* isolate,
+                                          Handle<Object> obj) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
@@ -257,15 +255,26 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
       isolate->ReportFailedAccessCheck(
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
           v8::ACCESS_GET);
-      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-      return isolate->heap()->undefined_value();
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return isolate->factory()->undefined_value();
     }
     iter.AdvanceIgnoringProxies();
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      return *PrototypeIterator::GetCurrent(iter);
+      return PrototypeIterator::GetCurrent(iter);
     }
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
-  return *PrototypeIterator::GetCurrent(iter);
+  return PrototypeIterator::GetCurrent(iter);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetPrototype) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Runtime::GetPrototype(isolate, obj));
+  return *result;
 }
 
 
@@ -1400,9 +1409,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
     RUNTIME_ASSERT(field_index.outobject_array_index() <
                    object->properties()->length());
   }
-  Handle<Object> raw_value(object->RawFastPropertyAt(field_index), isolate);
-  RUNTIME_ASSERT(raw_value->IsMutableHeapNumber());
-  return *Object::WrapForRead(isolate, raw_value, Representation::Double());
+  return *JSObject::FastPropertyAt(object, Representation::Double(),
+                                   field_index);
 }
 
 
@@ -1455,10 +1463,8 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  bool fast = obj->HasFastProperties();
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::DefineAccessor(obj, name, getter, setter, attr));
-  if (fast) JSObject::MigrateSlowToFast(obj, 0, "RuntimeDefineAccessor");
   return isolate->heap()->undefined_value();
 }
 

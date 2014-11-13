@@ -2308,8 +2308,13 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
+  // Initialize to only containing tagged fields.
   reinterpret_cast<Map*>(result)->set_visitor_id(
-      StaticVisitorBase::GetVisitorId(instance_type, instance_size));
+      StaticVisitorBase::GetVisitorId(instance_type, instance_size, false));
+  if (FLAG_unbox_double_fields) {
+    reinterpret_cast<Map*>(result)
+        ->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+  }
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
@@ -2332,8 +2337,6 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   result->set_map_no_write_barrier(meta_map());
   Map* map = Map::cast(result);
   map->set_instance_type(instance_type);
-  map->set_visitor_id(
-      StaticVisitorBase::GetVisitorId(instance_type, instance_size));
   map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
   map->set_constructor(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
@@ -2345,6 +2348,12 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+  }
+  // Must be called only after |instance_type|, |instance_size| and
+  // |layout_descriptor| are set.
+  map->set_visitor_id(StaticVisitorBase::GetVisitorId(map));
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
@@ -2471,28 +2480,46 @@ bool Heap::CreateInitialMaps() {
   meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
   meta_map()->init_back_pointer(undefined_value());
   meta_map()->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    meta_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+  }
 
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->set_dependent_code(
       DependentCode::cast(empty_fixed_array()));
   fixed_array_map()->init_back_pointer(undefined_value());
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    fixed_array_map()->set_layout_descriptor(
+        LayoutDescriptor::FastPointerLayout());
+  }
 
   undefined_map()->set_code_cache(empty_fixed_array());
   undefined_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
   undefined_map()->init_back_pointer(undefined_value());
   undefined_map()->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    undefined_map()->set_layout_descriptor(
+        LayoutDescriptor::FastPointerLayout());
+  }
 
   null_map()->set_code_cache(empty_fixed_array());
   null_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
   null_map()->init_back_pointer(undefined_value());
   null_map()->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    null_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+  }
 
   constant_pool_array_map()->set_code_cache(empty_fixed_array());
   constant_pool_array_map()->set_dependent_code(
       DependentCode::cast(empty_fixed_array()));
   constant_pool_array_map()->init_back_pointer(undefined_value());
   constant_pool_array_map()->set_instance_descriptors(empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    constant_pool_array_map()->set_layout_descriptor(
+        LayoutDescriptor::FastPointerLayout());
+  }
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -2608,8 +2635,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, with_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_context)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, global_context)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, global_context_table)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, native_context)
     native_context_map()->set_dictionary_map(true);
@@ -5013,9 +5040,10 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     } else {
       target_semispace_size_ = target_semispace_size;
     }
+  } else {
+    target_semispace_size_ = max_semi_space_size_;
   }
 
-  target_semispace_size_ = Max(initial_semispace_size_, target_semispace_size_);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;

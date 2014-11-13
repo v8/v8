@@ -476,7 +476,6 @@
         '../../src/compiler/operator-properties.h',
         '../../src/compiler/operator.cc',
         '../../src/compiler/operator.h',
-        '../../src/compiler/phi-reducer.h',
         '../../src/compiler/pipeline.cc',
         '../../src/compiler/pipeline.h',
         '../../src/compiler/pipeline-statistics.cc',
@@ -694,6 +693,9 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
+	'../../src/layout-descriptor-inl.h',
+	'../../src/layout-descriptor.cc',
+	'../../src/layout-descriptor.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -788,7 +790,6 @@
         '../../src/runtime/runtime-utils.h',
         '../../src/runtime/runtime.cc',
         '../../src/runtime/runtime.h',
-        '../../src/runtime/string-builder.h',
         '../../src/safepoint-table.cc',
         '../../src/safepoint-table.h',
         '../../src/sampler.cc',
@@ -808,6 +809,8 @@
         '../../src/snapshot.h',
         '../../src/snapshot-source-sink.cc',
         '../../src/snapshot-source-sink.h',
+        '../../src/string-builder.cc',
+        '../../src/string-builder.h',
         '../../src/string-search.cc',
         '../../src/string-search.h',
         '../../src/string-stream.cc',
@@ -1424,7 +1427,7 @@
         ['OS=="solaris"', {
             'link_settings': {
               'libraries': [
-                '-lnsl',
+                '-lnsl -lrt',
             ]},
             'sources': [
               '../../src/base/platform/platform-solaris.cc',

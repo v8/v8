@@ -209,11 +209,10 @@ class CopyVisitor : public NullNodeVisitor {
   }
 
   Node* GetSentinel(Node* original) {
-    Node* sentinel = sentinels_[original->id()];
-    if (sentinel == NULL) {
-      sentinel = target_graph_->NewNode(&sentinel_op_);
+    if (sentinels_[original->id()] == NULL) {
+      sentinels_[original->id()] = target_graph_->NewNode(&sentinel_op_);
     }
-    return sentinel;
+    return sentinels_[original->id()];
   }
 
   NodeVector copies_;

@@ -51,6 +51,9 @@
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
+  # Issue 3689: serializer does not handle internal symbols.
+  'regress/regress-2506': [PASS, FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -123,6 +126,9 @@
   'regress/regress-269': [PASS, NO_VARIANTS],
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
+
+  # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
+  'harmony/object-literals-super': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -221,6 +227,7 @@
   'harmony/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
+  'regress/regress-crbug-137689': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   # Tests taking too long

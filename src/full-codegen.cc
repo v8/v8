@@ -136,21 +136,19 @@ void BreakableStatementChecker::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void BreakableStatementChecker::VisitForStatement(ForStatement* stmt) {
-  // Mark for statements breakable if the condition expression is.
-  if (stmt->cond() != NULL) {
-    Visit(stmt->cond());
-  }
+  // We set positions for both init and condition, if they exist.
+  if (stmt->cond() != NULL || stmt->init() != NULL) is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForInStatement(ForInStatement* stmt) {
-  // Mark for in statements breakable if the enumerable expression is.
-  Visit(stmt->enumerable());
+  // For-in is breakable because we set the position for the enumerable.
+  is_breakable_ = true;
 }
 
 
 void BreakableStatementChecker::VisitForOfStatement(ForOfStatement* stmt) {
-  // For-of is breakable because of the next() call.
+  // For-of is breakable because we set the position for the next() call.
   is_breakable_ = true;
 }
 
@@ -603,7 +601,7 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 
 void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
-  DCHECK(scope_->is_global_scope());
+  DCHECK(scope_->is_script_scope());
 
   for (int i = 0; i < declarations->length(); i++) {
     ModuleDeclaration* declaration = declarations->at(i)->AsModuleDeclaration();
@@ -644,8 +642,8 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 // modules themselves, however, are simple data properties.)
 //
 // All modules have a _hosting_ scope/context, which (currently) is the
-// (innermost) enclosing global scope. To deal with recursion, nested modules
-// are hosted by the same scope as global ones.
+// enclosing script scope. To deal with recursion, nested modules are hosted
+// by the same scope as global ones.
 //
 // For every (global or nested) module literal, the hosting context has an
 // internal slot that points directly to the respective module context. This
@@ -675,7 +673,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
 //
 // To deal with arbitrary recursion and aliases between modules,
 // they are created and initialized in several stages. Each stage applies to
-// all modules in the hosting global scope, including nested ones.
+// all modules in the hosting script scope, including nested ones.
 //
 // 1. Allocate: for each module _literal_, allocate the module contexts and
 //    respective instance object and wire them up. This happens in the
@@ -710,7 +708,7 @@ void FullCodeGenerator::VisitDeclarations(
     // This is a scope hosting modules. Allocate a descriptor array to pass
     // to the runtime for initialization.
     Comment cmnt(masm_, "[ Allocate modules");
-    DCHECK(scope_->is_global_scope());
+    DCHECK(scope_->is_script_scope());
     modules_ =
         isolate()->factory()->NewFixedArray(scope_->num_modules(), TENURED);
     module_index_ = 0;
@@ -1345,6 +1343,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   SetStatementPosition(stmt);
 
   if (stmt->init() != NULL) {
+    SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
 
@@ -1359,6 +1358,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   __ bind(loop_statement.continue_label());
   if (stmt->next() != NULL) {
+    SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
 
@@ -1371,6 +1371,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   __ bind(&test);
   if (stmt->cond() != NULL) {
+    SetExpressionPosition(stmt->cond());
     VisitForControl(stmt->cond(),
                     &body,
                     loop_statement.break_label(),
@@ -1379,6 +1380,47 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
     __ jmp(&body);
   }
 
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_label());
+  decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+  Comment cmnt(masm_, "[ ForOfStatement");
+  SetStatementPosition(stmt);
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // var iterator = iterable[Symbol.iterator]();
+  VisitForEffect(stmt->assign_iterator());
+
+  // Loop entry.
+  __ bind(loop_statement.continue_label());
+
+  // result = iterator.next()
+  SetExpressionPosition(stmt->next_result());
+  VisitForEffect(stmt->next_result());
+
+  // if (result.done) break;
+  Label result_not_done;
+  VisitForControl(stmt->result_done(), loop_statement.break_label(),
+                  &result_not_done, &result_not_done);
+  __ bind(&result_not_done);
+
+  // each = result.value
+  VisitForEffect(stmt->assign_each());
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
+  EmitBackEdgeBookkeeping(stmt, loop_statement.continue_label());
+  __ jmp(loop_statement.continue_label());
+
+  // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();

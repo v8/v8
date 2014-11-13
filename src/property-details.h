@@ -248,6 +248,8 @@ class PropertyDetails BASE_EMBEDDED {
     return FieldIndexField::decode(value_);
   }
 
+  inline int field_width_in_words() const;
+
   inline PropertyDetails AsDeleted() const;
 
   static bool IsValidIndex(int index) {

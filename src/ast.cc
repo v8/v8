@@ -151,6 +151,12 @@ StrictMode FunctionLiteral::strict_mode() const {
 }
 
 
+bool FunctionLiteral::needs_super_binding() const {
+  DCHECK_NOT_NULL(scope());
+  return scope()->uses_super() || scope()->inner_uses_super();
+}
+
+
 void FunctionLiteral::InitializeSharedInfo(
     Handle<Code> unoptimized_code) {
   for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {

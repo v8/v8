@@ -17,9 +17,11 @@ class InstructionSequence;
 
 class RegisterAllocatorVerifier FINAL : public ZoneObject {
  public:
-  RegisterAllocatorVerifier(Zone* zone, const InstructionSequence* sequence);
+  RegisterAllocatorVerifier(Zone* zone, const RegisterConfiguration* config,
+                            const InstructionSequence* sequence);
 
   void VerifyAssignment();
+  void VerifyGapMoves();
 
  private:
   enum ConstraintType {
@@ -38,6 +40,7 @@ class RegisterAllocatorVerifier FINAL : public ZoneObject {
   struct OperandConstraint {
     ConstraintType type_;
     int value_;  // subkind index when relevant
+    int virtual_register_;
   };
 
   struct InstructionConstraint {
@@ -46,15 +49,30 @@ class RegisterAllocatorVerifier FINAL : public ZoneObject {
     OperandConstraint* operand_constraints_;
   };
 
-  typedef ZoneVector<InstructionConstraint> Constraints;
+  class OutgoingMapping;
 
+  typedef ZoneVector<InstructionConstraint> Constraints;
+  typedef ZoneVector<OutgoingMapping*> OutgoingMappings;
+
+  Zone* zone() const { return zone_; }
+  const RegisterConfiguration* config() { return config_; }
   const InstructionSequence* sequence() const { return sequence_; }
   Constraints* constraints() { return &constraints_; }
+
+  static void VerifyInput(const OperandConstraint& constraint);
+  static void VerifyTemp(const OperandConstraint& constraint);
+  static void VerifyOutput(const OperandConstraint& constraint);
+
   void BuildConstraint(const InstructionOperand* op,
                        OperandConstraint* constraint);
   void CheckConstraint(const InstructionOperand* op,
                        const OperandConstraint* constraint);
 
+  void ConstructOutgoingMappings(OutgoingMappings* outgoing_mappings,
+                                 bool initial_pass);
+
+  Zone* const zone_;
+  const RegisterConfiguration* config_;
   const InstructionSequence* const sequence_;
   Constraints constraints_;
 

@@ -81,6 +81,13 @@ namespace internal {
 #endif
 
 
+// Determine whether double field unboxing feature is enabled.
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#define V8_DOUBLE_FIELDS_UNBOXING 0
+#else
+#define V8_DOUBLE_FIELDS_UNBOXING 0
+#endif
+
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
 // For instance, 'bool b = "false";' results in b == true! This is a hidden
@@ -644,7 +651,7 @@ enum ScopeType {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
-  GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+  SCRIPT_SCOPE,    // The top-level scope for a script or a top-level eval.
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
   WITH_SCOPE,      // The scope introduced by with.

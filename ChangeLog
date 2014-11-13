@@ -1,3 +1,27 @@
+2014-11-13: Version 3.31.2
+
+        MIPS: Leaving a generator via an exception causes it to close (issue
+        3096).
+
+        MIPS: ES6: Add support for super in object literals (issue 3571).
+
+        Increase the target new space size to the max new space size (issue
+        3626).
+
+        Leaving a generator via an exception causes it to close (issue 3096).
+
+        Correctly compute line numbers in functions from the function
+        constructor (Chromium issue 109362).
+
+        Rename v8::Exception::GetMessage to CreateMessage.
+
+        Classes: Add support for arguments in default constructor (issue 3672).
+
+        ES6: Add support for super in object literals (issue 3571).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-12: Version 3.31.1
 
         Fix has_constant_parameter_count() confusion in LReturn (Chromium issue

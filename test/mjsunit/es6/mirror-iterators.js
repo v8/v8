@@ -5,18 +5,21 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for collection iterators.
 
-function testIteratorMirror(iter, offset, expected) {
+function testIteratorMirror(iter, offset, expected, opt_limit) {
   while (offset-- > 0) iter.next();
 
   var mirror = debug.MakeMirror(iter);
   assertTrue(mirror.isIterator());
 
-  var preview = mirror.preview();
+  var preview = mirror.preview(opt_limit);
   assertArrayEquals(expected, preview);
 
   // Check that iterator has not changed after taking preview.
   var values = [];
-  for (var i of iter) values.push(i);
+  for (var i of iter) {
+    if (opt_limit && values.length >= opt_limit) break;
+    values.push(i);
+  }
   assertArrayEquals(expected, values);
 }
 
@@ -39,6 +42,11 @@ testIteratorMirror(map.keys(), 2, []);
 testIteratorMirror(map.values(), 2, []);
 testIteratorMirror(map.entries(), 2, []);
 
+// Test with maximum limit.
+testIteratorMirror(map.keys(), 0, [41], 1);
+testIteratorMirror(map.values(), 0, [42], 1);
+testIteratorMirror(map.entries(), 0, [[41, 42]], 1);
+
 var set = new Set();
 set.add(41);
 set.add(42);
@@ -60,3 +68,8 @@ testIteratorMirror(set.entries(), 3, [[o2, o2]]);
 testIteratorMirror(set.keys(), 5, []);
 testIteratorMirror(set.values(), 5, []);
 testIteratorMirror(set.entries(), 5, []);
+
+// Test with maximum limit.
+testIteratorMirror(set.keys(), 1, [42, o1], 2);
+testIteratorMirror(set.values(), 1, [42, o1], 2);
+testIteratorMirror(set.entries(), 1, [[42, 42], [o1, o1]], 2);

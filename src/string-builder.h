@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_RUNTIME_STRING_BUILDER_H_
-#define V8_RUNTIME_STRING_BUILDER_H_
+#ifndef V8_STRING_BUILDER_H_
+#define V8_STRING_BUILDER_H_
+
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -233,39 +235,7 @@ class ReplacementStringBuilder {
   }
 
 
-  MaybeHandle<String> ToString() {
-    Isolate* isolate = heap_->isolate();
-    if (array_builder_.length() == 0) {
-      return isolate->factory()->empty_string();
-    }
-
-    Handle<String> joined_string;
-    if (is_one_byte_) {
-      Handle<SeqOneByteString> seq;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, seq,
-          isolate->factory()->NewRawOneByteString(character_count_), String);
-
-      DisallowHeapAllocation no_gc;
-      uint8_t* char_buffer = seq->GetChars();
-      StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                                array_builder_.length());
-      joined_string = Handle<String>::cast(seq);
-    } else {
-      // Two-byte.
-      Handle<SeqTwoByteString> seq;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, seq,
-          isolate->factory()->NewRawTwoByteString(character_count_), String);
-
-      DisallowHeapAllocation no_gc;
-      uc16* char_buffer = seq->GetChars();
-      StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                                array_builder_.length());
-      joined_string = Handle<String>::cast(seq);
-    }
-    return joined_string;
-  }
+  MaybeHandle<String> ToString();
 
 
   void IncrementCharacterCount(int by) {
@@ -290,7 +260,171 @@ class ReplacementStringBuilder {
   int character_count_;
   bool is_one_byte_;
 };
+
+
+class IncrementalStringBuilder {
+ public:
+  explicit IncrementalStringBuilder(Isolate* isolate);
+
+  INLINE(String::Encoding CurrentEncoding()) { return encoding_; }
+
+  template <typename SrcChar, typename DestChar>
+  INLINE(void Append(SrcChar c));
+
+  INLINE(void AppendCharacter(uint8_t c)) {
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      Append<uint8_t, uint8_t>(c);
+    } else {
+      Append<uint8_t, uc16>(c);
+    }
+  }
+
+  INLINE(void AppendCString(const char* s)) {
+    const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
+    } else {
+      while (*u != '\0') Append<uint8_t, uc16>(*(u++));
+    }
+  }
+
+  INLINE(bool CurrentPartCanFit(int length)) {
+    return part_length_ - current_index_ > length;
+  }
+
+  void AppendString(Handle<String> string);
+
+  MaybeHandle<String> Finish();
+
+  // Change encoding to two-byte.
+  void ChangeEncoding() {
+    DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
+    ShrinkCurrentPart();
+    encoding_ = String::TWO_BYTE_ENCODING;
+    Extend();
+  }
+
+  template <typename DestChar>
+  class NoExtend {
+   public:
+    explicit NoExtend(Handle<String> string, int offset) {
+      DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
+      if (sizeof(DestChar) == 1) {
+        start_ = reinterpret_cast<DestChar*>(
+            Handle<SeqOneByteString>::cast(string)->GetChars() + offset);
+      } else {
+        start_ = reinterpret_cast<DestChar*>(
+            Handle<SeqTwoByteString>::cast(string)->GetChars() + offset);
+      }
+      cursor_ = start_;
+    }
+
+    INLINE(void Append(DestChar c)) { *(cursor_++) = c; }
+    INLINE(void AppendCString(const char* s)) {
+      const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
+      while (*u != '\0') Append(*(u++));
+    }
+
+    int written() { return static_cast<int>(cursor_ - start_); }
+
+   private:
+    DestChar* start_;
+    DestChar* cursor_;
+    DisallowHeapAllocation no_gc_;
+  };
+
+  template <typename DestChar>
+  class NoExtendString : public NoExtend<DestChar> {
+   public:
+    NoExtendString(Handle<String> string, int required_length)
+        : NoExtend<DestChar>(string, 0), string_(string) {
+      DCHECK(string->length() >= required_length);
+    }
+
+    ~NoExtendString() {
+      Handle<SeqString> string = Handle<SeqString>::cast(string_);
+      int length = NoExtend<DestChar>::written();
+      *string_.location() = *SeqString::Truncate(string, length);
+    }
+
+   private:
+    Handle<String> string_;
+  };
+
+  template <typename DestChar>
+  class NoExtendBuilder : public NoExtend<DestChar> {
+   public:
+    NoExtendBuilder(IncrementalStringBuilder* builder, int required_length)
+        : NoExtend<DestChar>(builder->current_part(), builder->current_index_),
+          builder_(builder) {
+      DCHECK(builder->CurrentPartCanFit(required_length));
+    }
+
+    ~NoExtendBuilder() {
+      builder_->current_index_ += NoExtend<DestChar>::written();
+    }
+
+   private:
+    IncrementalStringBuilder* builder_;
+  };
+
+ private:
+  Factory* factory() { return isolate_->factory(); }
+
+  INLINE(Handle<String> accumulator()) { return accumulator_; }
+
+  INLINE(void set_accumulator(Handle<String> string)) {
+    *accumulator_.location() = *string;
+  }
+
+  INLINE(Handle<String> current_part()) { return current_part_; }
+
+  INLINE(void set_current_part(Handle<String> string)) {
+    *current_part_.location() = *string;
+  }
+
+  // Add the current part to the accumulator.
+  void Accumulate();
+
+  // Finish the current part and allocate a new part.
+  void Extend();
+
+  // Shrink current part to the right size.
+  void ShrinkCurrentPart() {
+    DCHECK(current_index_ < part_length_);
+    set_current_part(SeqString::Truncate(
+        Handle<SeqString>::cast(current_part()), current_index_));
+  }
+
+  static const int kInitialPartLength = 32;
+  static const int kMaxPartLength = 16 * 1024;
+  static const int kPartLengthGrowthFactor = 2;
+
+  Isolate* isolate_;
+  String::Encoding encoding_;
+  bool overflowed_;
+  int part_length_;
+  int current_index_;
+  Handle<String> accumulator_;
+  Handle<String> current_part_;
+};
+
+
+template <typename SrcChar, typename DestChar>
+void IncrementalStringBuilder::Append(SrcChar c) {
+  DCHECK_EQ(encoding_ == String::ONE_BYTE_ENCODING, sizeof(DestChar) == 1);
+  if (sizeof(DestChar) == 1) {
+    DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
+    SeqOneByteString::cast(*current_part_)
+        ->SeqOneByteStringSet(current_index_++, c);
+  } else {
+    DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
+    SeqTwoByteString::cast(*current_part_)
+        ->SeqTwoByteStringSet(current_index_++, c);
+  }
+  if (current_index_ == part_length_) Extend();
+}
 }
 }  // namespace v8::internal
 
-#endif  // V8_RUNTIME_STRING_BUILDER_H_
+#endif  // V8_STRING_BUILDER_H_

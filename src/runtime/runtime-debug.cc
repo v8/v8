@@ -1147,7 +1147,7 @@ class ScopeIterator {
           scope_info->scope_type() != ARROW_SCOPE) {
         // Global or eval code.
         CompilationInfoWithZone info(script);
-        if (scope_info->scope_type() == GLOBAL_SCOPE) {
+        if (scope_info->scope_type() == SCRIPT_SCOPE) {
           info.MarkAsGlobal();
         } else {
           DCHECK(scope_info->scope_type() == EVAL_SCOPE);
@@ -1223,7 +1223,7 @@ class ScopeIterator {
         case MODULE_SCOPE:
           DCHECK(context_->IsModuleContext());
           return ScopeTypeModule;
-        case GLOBAL_SCOPE:
+        case SCRIPT_SCOPE:
           DCHECK(context_->IsNativeContext());
           return ScopeTypeGlobal;
         case WITH_SCOPE:

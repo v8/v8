@@ -229,7 +229,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   DCHECK(function != NULL);
   Scope* scope = function->scope();
   DCHECK(scope != NULL);
-  if (!scope->is_global_scope() && !scope->is_eval_scope()) return true;
+  if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {

@@ -1878,6 +1878,7 @@ class HGraphBuilder {
 
   HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
+  HInstruction* BuildGetScriptContext(int context_index);
   HInstruction* BuildGetArrayFunction();
 
  protected:

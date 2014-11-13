@@ -2753,12 +2753,23 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
     Address dst_slot = dst_addr;
     DCHECK(IsAligned(size, kPointerSize));
 
+    bool may_contain_raw_values = src->MayContainRawValues();
+#if V8_DOUBLE_FIELDS_UNBOXING
+    InobjectPropertiesHelper helper(src->map());
+    bool has_only_tagged_fields = helper.all_fields_tagged();
+#endif
     for (int remaining = size / kPointerSize; remaining > 0; remaining--) {
       Object* value = Memory::Object_at(src_slot);
 
       Memory::Object_at(dst_slot) = value;
 
-      if (!src->MayContainRawValues()) {
+#if V8_DOUBLE_FIELDS_UNBOXING
+      if (!may_contain_raw_values &&
+          (has_only_tagged_fields || helper.IsTagged(src_slot - src_addr)))
+#else
+      if (!may_contain_raw_values)
+#endif
+      {
         RecordMigratedSlot(value, dst_slot);
       }
 

@@ -965,6 +965,7 @@ class PreParserScope {
   bool IsDeclared(const PreParserIdentifier& identifier) const { return false; }
   void DeclareParameter(const PreParserIdentifier& identifier, VariableMode) {}
   void RecordArgumentsUsage() {}
+  void RecordSuperUsage() {}
   void RecordThisUsage() {}
 
   // Allow scope->Foo() to work.
@@ -1434,7 +1435,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram() {
-    PreParserScope scope(scope_, GLOBAL_SCOPE);
+    PreParserScope scope(scope_, SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
     FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
     bool ok = true;
@@ -2508,6 +2509,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(bool* ok) {
     int new_pos = position();
     ExpressionT result = this->EmptyExpression();
     if (Check(Token::SUPER)) {
+      scope_->RecordSuperUsage();
       result = this->SuperReference(scope_, factory());
     } else {
       result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
@@ -2567,6 +2569,7 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
   } else if (peek() == Token::SUPER) {
     int beg_pos = position();
     Consume(Token::SUPER);
+    scope_->RecordSuperUsage();
     Token::Value next = peek();
     if (next == Token::PERIOD || next == Token::LBRACK ||
         next == Token::LPAREN) {

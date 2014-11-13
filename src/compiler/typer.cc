@@ -1264,7 +1264,7 @@ Bounds Typer::Visitor::TypeJSCreateModuleContext(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeJSCreateGlobalContext(Node* node) {
+Bounds Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
   Bounds outer = ContextOperand(node);
   return Bounds(Type::Context(outer.upper, zone()));
 }

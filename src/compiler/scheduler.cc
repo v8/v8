@@ -38,11 +38,10 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone) {}
 
 
-Schedule* Scheduler::ComputeSchedule(ZonePool* zone_pool, Graph* graph) {
-  ZonePool::Scope zone_scope(zone_pool);
+Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph) {
   Schedule* schedule = new (graph->zone())
       Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-  Scheduler scheduler(zone_scope.zone(), graph, schedule);
+  Scheduler scheduler(zone, graph, schedule);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
@@ -296,6 +295,9 @@ class CFGBuilder {
   }
 
  private:
+  // TODO(mstarzinger): Only for Scheduler::FuseFloatingControl.
+  friend class Scheduler;
+
   void FixNode(BasicBlock* block, Node* node) {
     schedule_->AddNode(block, node);
     scheduler_->UpdatePlacement(node, Scheduler::kFixed);
@@ -535,9 +537,9 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
+    DCHECK(schedule_->end()->SuccessorCount() == 0);
     DCHECK_EQ(NULL, order_);  // Main order does not exist yet.
-    // TODO(mstarzinger): Should use Schedule::end() after tests are fixed.
-    ComputeAndInsertSpecialRPO(schedule_->start(), NULL);
+    ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
   }
 
   // Computes the special reverse-post-order for a partial control flow graph,
@@ -1025,11 +1027,7 @@ class SpecialRPONumberer : public ZoneObject {
 };
 
 
-BasicBlockVector* Scheduler::ComputeSpecialRPO(ZonePool* zone_pool,
-                                               Schedule* schedule) {
-  ZonePool::Scope zone_scope(zone_pool);
-  Zone* zone = zone_scope.zone();
-
+BasicBlockVector* Scheduler::ComputeSpecialRPO(Zone* zone, Schedule* schedule) {
   SpecialRPONumberer numberer(zone, schedule);
   numberer.ComputeSpecialRPO();
   numberer.SerializeAOIntoSchedule();
@@ -1163,7 +1161,6 @@ class ScheduleEarlyNodeVisitor {
 
     // Fixed nodes already know their schedule early position.
     if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
-      DCHECK_EQ(schedule_->start(), data->minimum_block_);
       data->minimum_block_ = schedule_->block(node);
       Trace("Fixing #%d:%s minimum_block = B%d, dominator_depth = %d\n",
             node->id(), node->op()->mnemonic(),
@@ -1454,6 +1451,29 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
     block->set_dominator(NULL);
   }
   GenerateImmediateDominatorTree();
+
+  // Iterate on phase 4: Schedule nodes early.
+  // TODO(mstarzinger): The following loop gathering the propagation roots is a
+  // temporary solution and should be merged into the rest of the scheduler as
+  // soon as the approach settled for all floating loops.
+  NodeVector propagation_roots(cfg_builder.control_);
+  for (Node* node : cfg_builder.control_) {
+    for (Node* use : node->uses()) {
+      if (use->opcode() == IrOpcode::kPhi ||
+          use->opcode() == IrOpcode::kEffectPhi) {
+        propagation_roots.push_back(use);
+      }
+    }
+  }
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("propagation roots: ");
+    for (Node* node : propagation_roots) {
+      Trace("#%d:%s ", node->id(), node->op()->mnemonic());
+    }
+    Trace("\n");
+  }
+  ScheduleEarlyNodeVisitor schedule_early_visitor(zone_, this);
+  schedule_early_visitor.Run(&propagation_roots);
 
   // Move previously planned nodes.
   // TODO(mstarzinger): Improve that by supporting bulk moves.

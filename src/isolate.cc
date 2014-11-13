@@ -1485,11 +1485,6 @@ Handle<Context> Isolate::native_context() {
 }
 
 
-Handle<Context> Isolate::global_context() {
-  return handle(context()->global_object()->global_context());
-}
-
-
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
   if (debug_->in_debug_scope()) {

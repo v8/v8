@@ -460,7 +460,7 @@ void Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSCreateBlockContext:
     case IrOpcode::kJSCreateModuleContext:
-    case IrOpcode::kJSCreateGlobalContext: {
+    case IrOpcode::kJSCreateScriptContext: {
       // Type is Context, and operand is Internal.
       Node* context = NodeProperties::GetContextInput(node);
       // TODO(rossberg): This should really be Is(Internal), but the typer

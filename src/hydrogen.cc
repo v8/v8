@@ -3119,7 +3119,7 @@ void HGraphBuilder::BuildCreateAllocationMemento(
 
 
 HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
-  // Get the global context, then the native context
+  // Get the global object, then the native context
   HInstruction* context =
       Add<HLoadNamedField>(closure, static_cast<HValue*>(NULL),
                            HObjectAccess::ForFunctionContextPointer());
@@ -3133,8 +3133,18 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
 }
 
 
+HInstruction* HGraphBuilder::BuildGetScriptContext(int context_index) {
+  HValue* native_context = BuildGetNativeContext();
+  HValue* script_context_table = Add<HLoadNamedField>(
+      native_context, static_cast<HValue*>(NULL),
+      HObjectAccess::ForContextSlot(Context::SCRIPT_CONTEXT_TABLE_INDEX));
+  return Add<HLoadNamedField>(script_context_table, static_cast<HValue*>(NULL),
+                              HObjectAccess::ForScriptContext(context_index));
+}
+
+
 HInstruction* HGraphBuilder::BuildGetNativeContext() {
-  // Get the global context, then the native context
+  // Get the global object, then the native context
   HValue* global_object = Add<HLoadNamedField>(
       context(), static_cast<HValue*>(NULL),
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
@@ -4555,7 +4565,7 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
       Scope* declaration_scope = scope->DeclarationScope();
       HInstruction* function;
       HValue* outer_context = environment()->context();
-      if (declaration_scope->is_global_scope() ||
+      if (declaration_scope->is_script_scope() ||
           declaration_scope->is_eval_scope()) {
         function = new(zone()) HLoadContextSlot(
             outer_context, Context::CLOSURE_INDEX, HLoadContextSlot::kNoCheck);
@@ -5376,6 +5386,22 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       Handle<GlobalObject> global(current_info()->global_object());
+
+      if (FLAG_harmony_scoping) {
+        Handle<ScriptContextTable> script_contexts(
+            global->native_context()->script_context_table());
+        ScriptContextTable::LookupResult lookup;
+        if (ScriptContextTable::Lookup(script_contexts, variable->name(),
+                                       &lookup)) {
+          Handle<Context> script_context = ScriptContextTable::GetContext(
+              script_contexts, lookup.context_index);
+          HInstruction* result = New<HLoadNamedField>(
+              Add<HConstant>(script_context), static_cast<HValue*>(NULL),
+              HObjectAccess::ForContextSlot(lookup.slot_index));
+          return ast_context()->ReturnInstruction(result, expr->id());
+        }
+      }
+
       LookupIterator it(global, variable->name(),
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       GlobalPropertyAccess type = LookupGlobalProperty(variable, &it, LOAD);
@@ -5533,9 +5559,11 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.type() != FIELD) continue;
-      int index = descriptors->GetFieldIndex(i);
       if ((*max_properties)-- == 0) return false;
-      Handle<Object> value(boilerplate->InObjectPropertyAt(index), isolate);
+      FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
+      if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
+      Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
+                           isolate);
       if (value->IsJSObject()) {
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
         if (!IsFastLiteral(value_object,
@@ -5625,6 +5653,17 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           if (property->emit_store()) {
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
+
+            // Add [[HomeObject]] to function literals.
+            if (FunctionLiteral::NeedsHomeObject(property->value())) {
+              Handle<Symbol> sym = isolate()->factory()->home_object_symbol();
+              HInstruction* store_home = BuildKeyedGeneric(
+                  STORE, NULL, value, Add<HConstant>(sym), literal);
+              AddInstruction(store_home);
+              DCHECK(store_home->HasObservableSideEffects());
+              Add<HSimulate>(property->value()->id(), REMOVABLE_SIMULATE);
+            }
+
             Handle<Map> map = property->GetReceiverType();
             Handle<String> name = property->key()->AsPropertyName();
             HInstruction* store;
@@ -5646,9 +5685,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               }
             }
             AddInstruction(store);
-            if (store->HasObservableSideEffects()) {
-              Add<HSimulate>(key->id(), REMOVABLE_SIMULATE);
-            }
+            DCHECK(store->HasObservableSideEffects());
+            Add<HSimulate>(key->id(), REMOVABLE_SIMULATE);
           } else {
             CHECK_ALIVE(VisitForEffect(value));
           }
@@ -5838,7 +5876,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
   }
 
   HObjectAccess access = info->access();
-  if (access.representation().IsDouble()) {
+  if (access.representation().IsDouble() &&
+      (!FLAG_unbox_double_fields || !access.IsInobject())) {
     // Load the heap number.
     checked_object = Add<HLoadNamedField>(
         checked_object, static_cast<HValue*>(NULL),
@@ -5870,7 +5909,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   HObjectAccess field_access = info->access();
 
   HStoreNamedField *instr;
-  if (field_access.representation().IsDouble()) {
+  if (field_access.representation().IsDouble() &&
+      (!FLAG_unbox_double_fields || !field_access.IsInobject())) {
     HObjectAccess heap_number_access =
         field_access.WithRepresentation(Representation::Tagged());
     if (transition_to_field) {
@@ -6502,6 +6542,24 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* value,
     BailoutId ast_id) {
   Handle<GlobalObject> global(current_info()->global_object());
+
+  if (FLAG_harmony_scoping) {
+    Handle<ScriptContextTable> script_contexts(
+        global->native_context()->script_context_table());
+    ScriptContextTable::LookupResult lookup;
+    if (ScriptContextTable::Lookup(script_contexts, var->name(), &lookup)) {
+      Handle<Context> script_context =
+          ScriptContextTable::GetContext(script_contexts, lookup.context_index);
+      HStoreNamedField* instr = Add<HStoreNamedField>(
+          Add<HConstant>(script_context),
+          HObjectAccess::ForContextSlot(lookup.slot_index), value);
+      USE(instr);
+      DCHECK(instr->HasObservableSideEffects());
+      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      return;
+    }
+  }
+
   LookupIterator it(global, var->name(), LookupIterator::OWN_SKIP_INTERCEPTOR);
   GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
   if (type == kUseCell) {
@@ -11186,17 +11244,26 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
     copied_fields++;
-    int index = descriptors->GetFieldIndex(i);
-    int property_offset = boilerplate_object->GetInObjectPropertyOffset(index);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*boilerplate_map, i);
+
+
+    int property_offset = field_index.offset();
     Handle<Name> name(descriptors->GetKey(i));
-    Handle<Object> value =
-        Handle<Object>(boilerplate_object->InObjectPropertyAt(index),
-        isolate());
 
     // The access for the store depends on the type of the boilerplate.
     HObjectAccess access = boilerplate_object->IsJSArray() ?
         HObjectAccess::ForJSArrayOffset(property_offset) :
         HObjectAccess::ForMapAndOffset(boilerplate_map, property_offset);
+
+    if (boilerplate_object->IsUnboxedDoubleField(field_index)) {
+      CHECK(!boilerplate_object->IsJSArray());
+      double value = boilerplate_object->RawFastDoublePropertyAt(field_index);
+      access = access.WithRepresentation(Representation::Double());
+      Add<HStoreNamedField>(object, access, Add<HConstant>(value));
+      continue;
+    }
+    Handle<Object> value(boilerplate_object->RawFastPropertyAt(field_index),
+                         isolate());
 
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);

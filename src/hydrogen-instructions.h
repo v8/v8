@@ -6276,6 +6276,8 @@ class HObjectAccess FINAL {
 
   static HObjectAccess ForContextSlot(int index);
 
+  static HObjectAccess ForScriptContext(int index);
+
   // Create an access to the backing store of an object.
   static HObjectAccess ForBackingStoreOffset(int offset,
       Representation representation = Representation::Tagged());
@@ -6943,7 +6945,9 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
   }
 
   bool NeedsWriteBarrier() const {
-    DCHECK(!field_representation().IsDouble() || !has_transition());
+    DCHECK(!field_representation().IsDouble() ||
+           (FLAG_unbox_double_fields && access_.IsInobject()) ||
+           !has_transition());
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;

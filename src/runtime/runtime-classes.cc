@@ -113,6 +113,8 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                    constructor, isolate->factory()->prototype_string(),
                    prototype, attribs));
+
+  // TODO(arv): Only do this conditionally.
   Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -153,11 +155,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   function, isolate->factory()->home_object_symbol(), object,
-                   DONT_ENUM));
-
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
     RETURN_FAILURE_ON_EXCEPTION(
@@ -191,11 +188,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassGetter) {
                                      Runtime::ToName(isolate, key));
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          getter, isolate->factory()->home_object_symbol(), object, DONT_ENUM));
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
       JSObject::DefineAccessor(object, name, getter,
                                isolate->factory()->null_value(), NONE));
   return isolate->heap()->undefined_value();
@@ -212,10 +204,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassSetter) {
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          setter, isolate->factory()->home_object_symbol(), object, DONT_ENUM));
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       JSObject::DefineAccessor(object, name, isolate->factory()->null_value(),
@@ -447,6 +435,53 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   return StoreKeyedToSuper(isolate, home_object, receiver, key, value, SLOPPY);
+}
+
+
+RUNTIME_FUNCTION(Runtime_DefaultConstructorSuperCall) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+
+  // Compute the frame holding the arguments.
+  JavaScriptFrameIterator it(isolate);
+  it.AdvanceToArgumentsFrame();
+  JavaScriptFrame* frame = it.frame();
+
+  Handle<JSFunction> function(frame->function(), isolate);
+  Handle<Object> receiver(frame->receiver(), isolate);
+
+  Handle<Object> proto_function;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, proto_function,
+                                     Runtime::GetPrototype(isolate, function));
+
+  // Get the actual number of provided arguments.
+  const int argc = frame->ComputeParametersCount();
+
+  // Loose upper bound to allow fuzzing. We'll most likely run out of
+  // stack space before hitting this limit.
+  static int kMaxArgc = 1000000;
+  RUNTIME_ASSERT(argc >= 0 && argc <= kMaxArgc);
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = handle(frame->GetParameter(i), isolate);
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, proto_function, receiver, argc, argv, false));
+  return *result;
 }
 }
 }  // namespace v8::internal

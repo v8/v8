@@ -1239,7 +1239,7 @@ TEST(SerializeToplevelIsolates) {
 }
 
 
-TEST(Bug3628) {
+TEST(SerializeWithHarmonyScoping) {
   FLAG_serialize_toplevel = true;
   FLAG_harmony_scoping = true;
 
