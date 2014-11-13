@@ -1831,48 +1831,6 @@ struct Tests : Rep {
     */
   }
 
-  TypeHandle RangeToHandle(typename Type::RangeType* range) {
-    return T.Range(range->Min(), range->Max());
-  }
-
-  void GetRange() {
-    // GetRange(Range(a, b)) = Range(a, b).
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      TypeHandle type1 = *it1;
-      if (type1->IsRange()) {
-        typename Type::RangeType* range = type1->GetRange();
-        CHECK(type1->Equals(RangeToHandle(range)));
-      }
-    }
-
-    // GetRange(Union(Constant(x), Range(min,max))) == Range(min, max).
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        TypeHandle type1 = *it1;
-        TypeHandle type2 = *it2;
-        if (type1->IsConstant() && type2->IsRange()) {
-          TypeHandle u = T.Union(type1, type2);
-
-          CHECK(type2->Equals(RangeToHandle(u->GetRange())));
-        }
-      }
-    }
-
-    // GetRange is monotone whenever it is defined.
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        TypeHandle type1 = *it1;
-        TypeHandle type2 = *it2;
-        if (type1->GetRange() != NULL && type2->GetRange() != NULL &&
-            type1->Is(type2)) {
-          TypeHandle r1 = RangeToHandle(type1->GetRange());
-          TypeHandle r2 = RangeToHandle(type2->GetRange());
-          CHECK(r1->Is(r2));
-        }
-      }
-    }
-  }
-
   template<class Type2, class TypeHandle2, class Region2, class Rep2>
   void Convert() {
     Types<Type2, TypeHandle2, Region2> T2(
@@ -2069,13 +2027,6 @@ TEST(Distributivity) {
   CcTest::InitializeVM();
   ZoneTests().Distributivity();
   HeapTests().Distributivity();
-}
-
-
-TEST(GetRange) {
-  CcTest::InitializeVM();
-  ZoneTests().GetRange();
-  HeapTests().GetRange();
 }
 
 
