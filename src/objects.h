@@ -5825,8 +5825,8 @@ class Map: public HeapObject {
       Handle<HeapType> type1,
       Handle<HeapType> type2,
       Isolate* isolate);
-  static void GeneralizeFieldType(Handle<Map> map,
-                                  int modify_index,
+  static void GeneralizeFieldType(Handle<Map> map, int modify_index,
+                                  Representation new_representation,
                                   Handle<HeapType> new_field_type);
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
@@ -6377,6 +6377,7 @@ class Map: public HeapObject {
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   void UpdateFieldType(int descriptor_number, Handle<Name> name,
+                       Representation new_representation,
                        Handle<HeapType> new_type);
 
   void PrintGeneralization(FILE* file,

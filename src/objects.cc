@@ -2354,6 +2354,7 @@ Map* Map::FindFieldOwner(int descriptor) {
 
 
 void Map::UpdateFieldType(int descriptor, Handle<Name> name,
+                          Representation new_representation,
                           Handle<HeapType> new_type) {
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
@@ -2361,13 +2362,18 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-      transitions->GetTarget(i)->UpdateFieldType(descriptor, name, new_type);
+      transitions->GetTarget(i)
+          ->UpdateFieldType(descriptor, name, new_representation, new_type);
     }
   }
+  // It is allowed to change representation here only from None to something.
+  DCHECK(details.representation().Equals(new_representation) ||
+         details.representation().IsNone());
+
   // Skip if already updated the shared descriptor.
   if (instance_descriptors()->GetFieldType(descriptor) == *new_type) return;
   FieldDescriptor d(name, instance_descriptors()->GetFieldIndex(descriptor),
-                    new_type, details.attributes(), details.representation());
+                    new_type, details.attributes(), new_representation);
   instance_descriptors()->Replace(descriptor, &d);
 }
 
@@ -2393,15 +2399,20 @@ Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> type1,
 
 
 // static
-void Map::GeneralizeFieldType(Handle<Map> map,
-                              int modify_index,
+void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
+                              Representation new_representation,
                               Handle<HeapType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
 
   // Check if we actually need to generalize the field type at all.
-  Handle<HeapType> old_field_type(
-      map->instance_descriptors()->GetFieldType(modify_index), isolate);
-  if (new_field_type->NowIs(old_field_type)) {
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
+  Representation old_representation =
+      old_descriptors->GetDetails(modify_index).representation();
+  Handle<HeapType> old_field_type(old_descriptors->GetFieldType(modify_index),
+                                  isolate);
+
+  if (old_representation.Equals(new_representation) &&
+      new_field_type->NowIs(old_field_type)) {
     DCHECK(Map::GeneralizeFieldType(old_field_type,
                                     new_field_type,
                                     isolate)->NowIs(old_field_type));
@@ -2420,7 +2431,8 @@ void Map::GeneralizeFieldType(Handle<Map> map,
 
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
-  field_owner->UpdateFieldType(modify_index, name, new_field_type);
+  field_owner->UpdateFieldType(modify_index, name, new_representation,
+                               new_field_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kFieldTypeGroup);
 
@@ -2471,12 +2483,9 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // modification to the object, because the default uninitialized value for
   // representation None can be overwritten by both smi and tagged values.
   // Doubles, however, would require a box allocation.
-  if (old_representation.IsNone() &&
-      !new_representation.IsNone() &&
+  if (old_representation.IsNone() && !new_representation.IsNone() &&
       !new_representation.IsDouble()) {
     DCHECK(old_details.type() == FIELD);
-    DCHECK(old_descriptors->GetFieldType(modify_index)->NowIs(
-            HeapType::None()));
     if (FLAG_trace_generalization) {
       old_map->PrintGeneralization(
           stdout, "uninitialized field",
@@ -2485,8 +2494,13 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
           old_representation, new_representation,
           old_descriptors->GetFieldType(modify_index), *new_field_type);
     }
-    old_descriptors->SetRepresentation(modify_index, new_representation);
-    old_descriptors->SetValue(modify_index, *new_field_type);
+    Handle<Map> field_owner(old_map->FindFieldOwner(modify_index), isolate);
+
+    GeneralizeFieldType(field_owner, modify_index, new_representation,
+                        new_field_type);
+    DCHECK(old_descriptors->GetDetails(modify_index).representation().Equals(
+        new_representation));
+    DCHECK(old_descriptors->GetFieldType(modify_index)->NowIs(new_field_type));
     return old_map;
   }
 
@@ -2547,7 +2561,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         old_field_type = GeneralizeFieldType(
             new_field_type, old_field_type, isolate);
       }
-      GeneralizeFieldType(tmp_map, i, old_field_type);
+      GeneralizeFieldType(tmp_map, i, tmp_representation, old_field_type);
     } else if (tmp_type == CONSTANT) {
       if (old_type != CONSTANT ||
           old_descriptors->GetConstant(i) != tmp_descriptors->GetConstant(i)) {
