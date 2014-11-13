@@ -58,6 +58,7 @@ class JSTypedLowering FINAL : public Reducer {
   SimplifiedOperatorBuilder simplified_;
   Type* zero_range_;
   Type* one_range_;
+  Type* zero_thirtyone_range_;
 };
 
 }  // namespace compiler
