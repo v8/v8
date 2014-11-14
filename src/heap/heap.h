@@ -210,7 +210,6 @@ namespace internal {
   V(callee_string, "callee")                               \
   V(constructor_string, "constructor")                     \
   V(dot_result_string, ".result")                          \
-  V(dot_for_string, ".for.")                               \
   V(eval_string, "eval")                                   \
   V(empty_string, "")                                      \
   V(function_string, "function")                           \
@@ -299,6 +298,15 @@ namespace internal {
   V(class_script_symbol)            \
   V(class_start_position_symbol)    \
   V(class_end_position_symbol)
+
+#define PUBLIC_SYMBOL_LIST(V)                                    \
+  V(has_instance_symbol, symbolHasInstance, Symbol.hasInstance)  \
+  V(is_concat_spreadable_symbol, symbolIsConcatSpreadable,       \
+    Symbol.isConcatSpreadable)                                   \
+  V(is_regexp_symbol, symbolIsRegExp, Symbol.isRegExp)           \
+  V(iterator_symbol, symbolIterator, Symbol.iterator)            \
+  V(to_string_tag_symbol, symbolToStringTag, Symbol.toStringTag) \
+  V(unscopables_symbol, symbolUnscopables, Symbol.unscopables)
 
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.
@@ -810,6 +818,11 @@ class Heap {
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
+#define SYMBOL_ACCESSOR(name, varname, description) \
+  Symbol* name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
   // The hidden_string is special because it is the empty string, but does
   // not match the empty string.
   String* hidden_string() { return hidden_string_; }
@@ -1105,6 +1118,10 @@ class Heap {
 
 #define SYMBOL_INDEX_DECLARATION(name) k##name##RootIndex,
     PRIVATE_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
+#undef SYMBOL_INDEX_DECLARATION
+
+#define SYMBOL_INDEX_DECLARATION(name, varname, description) k##name##RootIndex,
+    PUBLIC_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_INDEX_DECLARATION
 
 // Utility type maps

@@ -109,6 +109,105 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumberAndBoolean) {
 
 
 // -----------------------------------------------------------------------------
+// JSShiftLeft
+
+
+TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
+  Node* const lhs = Parameter(Type::Signed32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs,
+                                NumberConstant(rhs), context, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsWord32Shl(lhs, IsNumberConstant(rhs)));
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
+  Node* const lhs = Parameter(Type::Signed32());
+  Node* const rhs = Parameter(Type::Unsigned32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs, rhs,
+                                        context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsWord32Shl(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSShiftRight
+
+
+TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
+  Node* const lhs = Parameter(Type::Signed32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs,
+                                NumberConstant(rhs), context, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsWord32Sar(lhs, IsNumberConstant(rhs)));
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
+  Node* const lhs = Parameter(Type::Signed32());
+  Node* const rhs = Parameter(Type::Unsigned32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs, rhs,
+                                        context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsWord32Sar(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSShiftRightLogical
+
+
+TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndConstant) {
+  Node* const lhs = Parameter(Type::Unsigned32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->ShiftRightLogical(), lhs,
+                                NumberConstant(rhs), context, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsWord32Shr(lhs, IsNumberConstant(rhs)));
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
+  Node* const lhs = Parameter(Type::Unsigned32());
+  Node* const rhs = Parameter(Type::Unsigned32());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(), lhs,
+                                        rhs, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsWord32Shr(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSLoadProperty
 
 

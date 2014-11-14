@@ -7567,9 +7567,6 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   bool is_generator() const { return IsGeneratorFunction(kind()); }
   bool is_concise_method() const { return IsConciseMethod(kind()); }
   bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
-  bool is_default_constructor_call_super() const {
-    return IsDefaultConstructorCallSuper(kind());
-  }
   FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
   StrictMode strict_mode() const { return StrictModeField::decode(bit_field_); }
 
@@ -7589,7 +7586,7 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
 
   virtual bool IsDeletable() const OVERRIDE { return true; }
 
-  class FunctionKindField : public BitField<FunctionKind, 0, 5> {};
+  class FunctionKindField : public BitField<FunctionKind, 0, 4> {};
   class PretenureField : public BitField<bool, 5, 1> {};
   class HasNoLiteralsField : public BitField<bool, 6, 1> {};
   class StrictModeField : public BitField<StrictMode, 7, 1> {};

@@ -9,8 +9,6 @@
 // var $Object = global.Object;
 // var $Symbol = global.Symbol;
 
-var symbolToStringTag = InternalSymbol("Symbol.toStringTag");
-
 var kBuiltinStringTags = {
   "__proto__": null,
   "Arguments": true,

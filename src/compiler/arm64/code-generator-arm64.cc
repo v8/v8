@@ -802,23 +802,6 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-    if (info->strict_mode() == SLOPPY && !info->is_native()) {
-      Label ok;
-      // +2 for return address and saved frame pointer.
-      int receiver_slot = info->scope()->num_parameters() + 2;
-      __ Ldr(x10, MemOperand(fp, receiver_slot * kXRegSize));
-      __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
-      __ Ldr(x10, GlobalObjectMemOperand());
-      __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kGlobalProxyOffset));
-      __ Str(x10, MemOperand(fp, receiver_slot * kXRegSize));
-      __ Bind(&ok);
-    }
-
   } else {
     __ SetStackPointer(jssp);
     __ StubPrologue();

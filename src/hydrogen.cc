@@ -6154,7 +6154,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
 
   if (IsAccessor()) return true;
   Handle<Map> map = this->map();
-  map->LookupTransition(NULL, *name_, NONE, &lookup_);
+  map->LookupTransition(NULL, *name_, &lookup_);
   if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();
@@ -7843,7 +7843,7 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
     TraceInline(target, caller, "target not inlineable");
     return kNotInlinable;
   }
-  if (target_shared->DisableOptimizationReason() != kNoReason) {
+  if (target_shared->disable_optimization_reason() != kNoReason) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
     return kNotInlinable;
   }

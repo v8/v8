@@ -327,9 +327,13 @@ TEST(Int32BitwiseShifts) {
 
         CheckToI32(p0, r0, R.signedness[k]);
 
-        R.CheckPureBinop(IrOpcode::kWord32And, r1);
-        CheckToI32(p1, r1->InputAt(0), R.signedness[k + 1]);
-        R.CheckInt32Constant(0x1F, r1->InputAt(1));
+        if (r1->opcode() == IrOpcode::kWord32And) {
+          R.CheckPureBinop(IrOpcode::kWord32And, r1);
+          CheckToI32(p1, r1->InputAt(0), R.signedness[k + 1]);
+          R.CheckInt32Constant(0x1F, r1->InputAt(1));
+        } else {
+          CheckToI32(p1, r1, R.signedness[k]);
+        }
       }
     }
   }

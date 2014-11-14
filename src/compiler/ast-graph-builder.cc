@@ -72,13 +72,22 @@ bool AstGraphBuilder::CreateGraph() {
   Environment env(this, scope, graph()->start());
   set_environment(&env);
 
+  // Initialize the incoming context.
+  Node* outer_context = GetFunctionContext();
+  set_current_context(outer_context);
+
+  // Build receiver check for sloppy mode if necessary.
+  // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
+  Node* original_receiver = env.Lookup(scope->receiver());
+  Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
+  env.Bind(scope->receiver(), patched_receiver);
+
   // Build node to initialize local function context.
   Node* closure = GetFunctionClosure();
-  Node* outer = GetFunctionContext();
-  Node* inner = BuildLocalFunctionContext(outer, closure);
+  Node* inner_context = BuildLocalFunctionContext(outer_context, closure);
 
   // Push top-level function scope for the function body.
-  ContextScope top_context(this, scope, inner);
+  ContextScope top_context(this, scope, inner_context);
 
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
@@ -1773,10 +1782,36 @@ Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
 }
 
 
+Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
+  // Sloppy mode functions and builtins need to replace the receiver with the
+  // global proxy when called as functions (without an explicit receiver
+  // object). Otherwise there is nothing left to do here.
+  if (info()->strict_mode() != SLOPPY || info()->is_native()) return receiver;
+
+  // There is no need to perform patching if the receiver is never used. Note
+  // that scope predicates are purely syntactical, a call to eval might still
+  // inspect the receiver value.
+  if (!info()->scope()->uses_this() && !info()->scope()->inner_uses_this() &&
+      !info()->scope()->calls_sloppy_eval()) {
+    return receiver;
+  }
+
+  IfBuilder receiver_check(this);
+  Node* undefined = jsgraph()->UndefinedConstant();
+  Node* check = NewNode(javascript()->StrictEqual(), receiver, undefined);
+  receiver_check.If(check);
+  receiver_check.Then();
+  environment()->Push(BuildLoadGlobalProxy());
+  receiver_check.Else();
+  environment()->Push(receiver);
+  receiver_check.End();
+  return environment()->Pop();
+}
+
+
 Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
   int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots <= 0) return context;
-  set_current_context(context);
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateFunctionContext();
@@ -2066,6 +2101,14 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
   const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
   return NewNode(load_op, context);
+}
+
+
+Node* AstGraphBuilder::BuildLoadGlobalProxy() {
+  Node* global = BuildLoadGlobalObject();
+  Node* proxy =
+      BuildLoadObjectField(global, JSGlobalObject::kGlobalProxyOffset);
+  return proxy;
 }
 
 

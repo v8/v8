@@ -1308,12 +1308,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Code> code,
+Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
-                                        InstanceType type,
-                                        int instance_size,
-                                        bool read_only_prototype) {
+                                        InstanceType type, int instance_size,
+                                        bool read_only_prototype,
+                                        bool install_constructor) {
   // Allocate the function
   Handle<JSFunction> function = NewFunction(
       name, code, prototype, read_only_prototype);
@@ -1321,8 +1320,13 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? FAST_SMI_ELEMENTS : FAST_HOLEY_SMI_ELEMENTS;
   Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
-  if (prototype->IsTheHole() && !function->shared()->is_generator()) {
-    prototype = NewFunctionPrototype(function);
+  if (!function->shared()->is_generator()) {
+    if (prototype->IsTheHole()) {
+      prototype = NewFunctionPrototype(function);
+    } else if (install_constructor) {
+      JSObject::AddProperty(Handle<JSObject>::cast(prototype),
+                            constructor_string(), function, DONT_ENUM);
+    }
   }
 
   JSFunction::SetInitialMap(function, initial_map,
@@ -2278,8 +2282,8 @@ Handle<JSFunction> Factory::CreateApiFunction(
         break;
     }
 
-    result = NewFunction(empty_string(), code, prototype, type,
-                         instance_size, obj->read_only_prototype());
+    result = NewFunction(empty_string(), code, prototype, type, instance_size,
+                         obj->read_only_prototype(), true);
   }
 
   result->shared()->set_length(obj->length());
@@ -2299,19 +2303,13 @@ Handle<JSFunction> Factory::CreateApiFunction(
     return result;
   }
 
-  if (prototype->IsTheHole()) {
 #ifdef DEBUG
-    LookupIterator it(handle(JSObject::cast(result->prototype())),
-                      constructor_string(),
-                      LookupIterator::OWN_SKIP_INTERCEPTOR);
-    MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
-    DCHECK(it.IsFound());
-    DCHECK(maybe_prop.ToHandleChecked().is_identical_to(result));
+  LookupIterator it(handle(JSObject::cast(result->prototype())),
+                    constructor_string(), LookupIterator::OWN_SKIP_INTERCEPTOR);
+  MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
+  DCHECK(it.IsFound());
+  DCHECK(maybe_prop.ToHandleChecked().is_identical_to(result));
 #endif
-  } else {
-    JSObject::AddProperty(handle(JSObject::cast(result->prototype())),
-                          constructor_string(), result, DONT_ENUM);
-  }
 
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).

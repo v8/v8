@@ -278,10 +278,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   int handler_count = 0;
   int parameter_count = 0;
   AstProperties ast_properties;
-  BailoutReason dont_optimize_reason = kNoReason;
   const AstRawString* name = ast_value_factory()->empty_string();
-  FunctionKind kind = call_super ? FunctionKind::kDefaultConstructorCallSuper
-                                 : FunctionKind::kDefaultConstructor;
 
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE);
   function_scope->SetStrictMode(STRICT);
@@ -305,6 +302,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
           Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
           pos);
       body->Add(factory()->NewExpressionStatement(call, pos), zone());
+      function_scope->RecordSuperUsage();
     }
 
     materialized_literal_count = function_state.materialized_literal_count();
@@ -312,7 +310,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
     handler_count = function_state.handler_count();
 
     ast_properties = *factory()->visitor()->ast_properties();
-    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
@@ -320,10 +317,10 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       materialized_literal_count, expected_property_count, handler_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, kind, pos);
+      FunctionLiteral::kNotParenthesized, FunctionKind::kDefaultConstructor,
+      pos);
 
   function_literal->set_ast_properties(&ast_properties);
-  function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   return function_literal;
 }
@@ -757,7 +754,7 @@ Expression* ParserTraits::ExpressionFromString(
 Expression* ParserTraits::GetIterator(
     Expression* iterable, AstNodeFactory<AstConstructionVisitor>* factory) {
   Expression* iterator_symbol_literal =
-      factory->NewSymbolLiteral("symbolIterator", RelocInfo::kNoPosition);
+      factory->NewSymbolLiteral("iterator_symbol", RelocInfo::kNoPosition);
   int pos = iterable->position();
   Expression* prop =
       factory->NewProperty(iterable, iterator_symbol_literal, pos);
@@ -972,8 +969,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
           FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
           FunctionLiteral::kNotParenthesized, FunctionKind::kNormalFunction, 0);
       result->set_ast_properties(factory()->visitor()->ast_properties());
-      result->set_dont_optimize_reason(
-          factory()->visitor()->dont_optimize_reason());
     }
   }
 
@@ -1065,11 +1060,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
       Expression* expression = ParseExpression(false, &ok);
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
-    } else if (shared_info->is_default_constructor() ||
-               shared_info->is_default_constructor_call_super()) {
-      result = DefaultConstructor(
-          shared_info->is_default_constructor_call_super(), scope,
-          shared_info->start_position(), shared_info->end_position());
+    } else if (shared_info->is_default_constructor()) {
+      result = DefaultConstructor(shared_info->uses_super(), scope,
+                                  shared_info->start_position(),
+                                  shared_info->end_position());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     false,  // Strict mode name already checked.
@@ -3560,7 +3554,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       ? FunctionLiteral::kIsParenthesized
       : FunctionLiteral::kNotParenthesized;
   AstProperties ast_properties;
-  BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
   {
     AstNodeFactory<AstConstructionVisitor> function_factory(
@@ -3729,7 +3722,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         CHECK_OK);
     }
     ast_properties = *factory()->visitor()->ast_properties();
-    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
 
     if (allow_harmony_scoping() && strict_mode() == STRICT) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
@@ -3743,7 +3735,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       FunctionLiteral::kIsFunction, parenthesized, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_ast_properties(&ast_properties);
-  function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;

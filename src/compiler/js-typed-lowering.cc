@@ -36,6 +36,8 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph)
   Handle<Object> one = factory->NewNumber(1.0);
   zero_range_ = Type::Range(zero, zero, zone());
   one_range_ = Type::Range(one, one, zone());
+  Handle<Object> thirtyone = factory->NewNumber(31.0);
+  zero_thirtyone_range_ = Type::Range(zero, thirtyone, zone());
 }
 
 
@@ -79,8 +81,12 @@ class JSBinopReduction {
   void ConvertInputsForShift(bool left_signed) {
     node_->ReplaceInput(0, ConvertToI32(left_signed, left()));
     Node* rnum = ConvertToI32(false, right());
-    node_->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rnum,
-                                            jsgraph()->Int32Constant(0x1F)));
+    Type* rnum_type = NodeProperties::GetBounds(rnum).upper;
+    if (!rnum_type->Is(lowering_->zero_thirtyone_range_)) {
+      rnum = graph()->NewNode(machine()->Word32And(), rnum,
+                              jsgraph()->Int32Constant(0x1F));
+    }
+    node_->ReplaceInput(1, rnum);
   }
 
   void SwapInputs() {

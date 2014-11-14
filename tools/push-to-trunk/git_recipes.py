@@ -45,7 +45,7 @@ GIT_SVN_ID_FOOTER_KEY = 'git-svn-id'
 
 # e.g., git-svn-id: https://v8.googlecode.com/svn/trunk@23117
 #     ce2b1a6d-e550-0410-aec6-3dcde31c8c00
-GIT_SVN_ID_RE = re.compile(r'((?:\w+)://[^@]+)@(\d+)\s+(?:[a-zA-Z0-9\-]+)')
+GIT_SVN_ID_RE = re.compile(r'[^@]+@(\d+)\s+(?:[a-zA-Z0-9\-]+)')
 
 
 # Copied from bot_update.py.
@@ -231,10 +231,6 @@ class GitRecipesMixin(object):
   def GitPresubmit(self, **kwargs):
     self.Git("cl presubmit", "PRESUBMIT_TREE_CHECK=\"skip\"", **kwargs)
 
-  def GitDCommit(self, **kwargs):
-    self.Git(
-        "cl dcommit -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
-
   def GitCLLand(self, **kwargs):
     self.Git(
         "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
@@ -285,39 +281,6 @@ class GitRecipesMixin(object):
     if value:
       match = GIT_SVN_ID_RE.match(value)
       if match:
-        return match.group(2)
-    return None
-
-  ### Git svn stuff
-
-  def GitSVNFetch(self, **kwargs):
-    self.Git("svn fetch", **kwargs)
-
-  def GitSVNRebase(self, **kwargs):
-    self.Git("svn rebase", **kwargs)
-
-  # TODO(machenbach): Unused? Remove.
-  @Strip
-  def GitSVNLog(self, **kwargs):
-    return self.Git("svn log -1 --oneline", **kwargs)
-
-  @Strip
-  def GitSVNFindGitHash(self, revision, branch="", **kwargs):
-    assert revision
-    args = MakeArgs(["svn find-rev", "r%s" % revision, branch])
-
-    # Pick the last line if multiple lines are available. The first lines might
-    # print information about rebuilding the svn-git mapping.
-    return self.Git(args, **kwargs).splitlines()[-1]
-
-  @Strip
-  def GitSVNFindSVNRev(self, git_hash, branch="", **kwargs):
-    return self.Git(MakeArgs(["svn find-rev", git_hash, branch]), **kwargs)
-
-  def GitSVNDCommit(self, **kwargs):
-    return self.Git("svn dcommit 2>&1", retry_on=lambda x: x is None, **kwargs)
-
-  def GitSVNTag(self, version, **kwargs):
-    self.Git(("svn tag %s -m \"Tagging version %s\"" % (version, version)),
-             retry_on=lambda x: x is None,
-             **kwargs)
+        return match.group(1)
+    raise GitFailedException("Couldn't determine commit position for %s" %
+                             git_hash)

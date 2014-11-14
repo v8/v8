@@ -2921,6 +2921,17 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
+  {
+    HandleScope scope(isolate());
+#define SYMBOL_INIT(name, varname, description)                             \
+  Handle<Symbol> name = factory->NewSymbol();                               \
+  Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
+  name->set_name(*name##d);                                                 \
+  roots_[k##name##RootIndex] = *name;
+    PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
+#undef SYMBOL_INIT
+  }
+
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.
@@ -5040,10 +5051,9 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     } else {
       target_semispace_size_ = target_semispace_size;
     }
-  } else {
-    target_semispace_size_ = max_semi_space_size_;
   }
 
+  target_semispace_size_ = Max(initial_semispace_size_, target_semispace_size_);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;

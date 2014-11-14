@@ -1831,6 +1831,32 @@ struct Tests : Rep {
     */
   }
 
+  void GetRange() {
+    // GetRange(Range(a, b)) = Range(a, b).
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      TypeHandle type1 = *it1;
+      if (type1->IsRange()) {
+        typename Type::RangeType* range = type1->GetRange();
+        CHECK(type1->Min() == range->Min()->Number());
+        CHECK(type1->Max() == range->Max()->Number());
+      }
+    }
+
+    // GetRange(Union(Constant(x), Range(min,max))) == Range(min, max).
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        if (type1->IsConstant() && type2->IsRange()) {
+          TypeHandle u = T.Union(type1, type2);
+
+          CHECK(type2->Min() == u->GetRange()->Min()->Number());
+          CHECK(type2->Max() == u->GetRange()->Max()->Number());
+        }
+      }
+    }
+  }
+
   template<class Type2, class TypeHandle2, class Region2, class Rep2>
   void Convert() {
     Types<Type2, TypeHandle2, Region2> T2(
@@ -2027,6 +2053,13 @@ TEST(Distributivity) {
   CcTest::InitializeVM();
   ZoneTests().Distributivity();
   HeapTests().Distributivity();
+}
+
+
+TEST(GetRange) {
+  CcTest::InitializeVM();
+  ZoneTests().GetRange();
+  HeapTests().GetRange();
 }
 
 

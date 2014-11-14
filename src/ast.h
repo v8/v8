@@ -829,12 +829,6 @@ class WhileStatement FINAL : public IterationStatement {
   }
 
   Expression* cond() const { return cond_; }
-  bool may_have_function_literal() const {
-    return may_have_function_literal_;
-  }
-  void set_may_have_function_literal(bool value) {
-    may_have_function_literal_ = value;
-  }
 
   static int num_ids() { return parent_num_ids() + 1; }
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
@@ -843,18 +837,13 @@ class WhileStatement FINAL : public IterationStatement {
 
  protected:
   WhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos),
-        cond_(NULL),
-        may_have_function_literal_(true) {}
+      : IterationStatement(zone, labels, pos), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* cond_;
-
-  // True if there is a function literal subexpression in the condition.
-  bool may_have_function_literal_;
 };
 
 
@@ -876,13 +865,6 @@ class ForStatement FINAL : public IterationStatement {
   Expression* cond() const { return cond_; }
   Statement* next() const { return next_; }
 
-  bool may_have_function_literal() const {
-    return may_have_function_literal_;
-  }
-  void set_may_have_function_literal(bool value) {
-    may_have_function_literal_ = value;
-  }
-
   static int num_ids() { return parent_num_ids() + 2; }
   virtual BailoutId ContinueId() const OVERRIDE {
     return BailoutId(local_id(0));
@@ -890,18 +872,12 @@ class ForStatement FINAL : public IterationStatement {
   virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
   BailoutId BodyId() const { return BailoutId(local_id(1)); }
 
-  bool is_fast_smi_loop() { return loop_variable_ != NULL; }
-  Variable* loop_variable() { return loop_variable_; }
-  void set_loop_variable(Variable* var) { loop_variable_ = var; }
-
  protected:
   ForStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(zone, labels, pos),
         init_(NULL),
         cond_(NULL),
-        next_(NULL),
-        may_have_function_literal_(true),
-        loop_variable_(NULL) {}
+        next_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
@@ -910,10 +886,6 @@ class ForStatement FINAL : public IterationStatement {
   Statement* init_;
   Expression* cond_;
   Statement* next_;
-
-  // True if there is a function literal subexpression in the condition.
-  bool may_have_function_literal_;
-  Variable* loop_variable_;
 };
 
 
@@ -2497,11 +2469,11 @@ class FunctionLiteral FINAL : public Expression {
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   StrictMode strict_mode() const;
-  bool needs_super_binding() const;
+  bool uses_super() const;
 
   static bool NeedsHomeObject(Expression* literal) {
     return literal != NULL && literal->IsFunctionLiteral() &&
-           literal->AsFunctionLiteral()->needs_super_binding();
+           literal->AsFunctionLiteral()->uses_super();
   }
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -2585,9 +2557,6 @@ class FunctionLiteral FINAL : public Expression {
   bool is_default_constructor() {
     return IsDefaultConstructor(FunctionKindBits::decode(bitfield_));
   }
-  bool is_default_constructor_call_super() {
-    return IsDefaultConstructorCallSuper(FunctionKindBits::decode(bitfield_));
-  }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2659,7 +2628,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 4> {};
 };
 
 
@@ -3188,17 +3157,9 @@ private:                                                            \
 
 class AstConstructionVisitor BASE_EMBEDDED {
  public:
-  AstConstructionVisitor()
-      : dont_crankshaft_reason_(kNoReason), dont_turbofan_reason_(kNoReason) {}
+  AstConstructionVisitor() {}
 
   AstProperties* ast_properties() { return &properties_; }
-  BailoutReason dont_optimize_reason() {
-    if (dont_turbofan_reason_ != kNoReason) {
-      return dont_turbofan_reason_;
-    } else {
-      return dont_crankshaft_reason_;
-    }
-  }
 
  private:
   template<class> friend class AstNodeFactory;
@@ -3208,14 +3169,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
   void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
-
-  void add_flag(AstPropertiesFlag flag) { properties_.flags()->Add(flag); }
-  void set_dont_crankshaft_reason(BailoutReason reason) {
-    dont_crankshaft_reason_ = reason;
-  }
-  void set_dont_turbofan_reason(BailoutReason reason) {
-    dont_turbofan_reason_ = reason;
-  }
 
   void add_slot_node(AstNode* slot_node) {
     FeedbackVectorRequirements reqs = slot_node->ComputeFeedbackRequirements();
@@ -3232,8 +3185,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
   }
 
   AstProperties properties_;
-  BailoutReason dont_crankshaft_reason_;
-  BailoutReason dont_turbofan_reason_;
 };
 
 

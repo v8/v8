@@ -181,8 +181,6 @@ enum BindingFlags {
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
-  V(ITERATOR_SYMBOL_INDEX, Symbol, iterator_symbol)                            \
-  V(UNSCOPABLES_SYMBOL_INDEX, Symbol, unscopables_symbol)                      \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)
 
@@ -415,8 +413,6 @@ class Context: public FixedArray {
     ITERATOR_RESULT_MAP_INDEX,
     MAP_ITERATOR_MAP_INDEX,
     SET_ITERATOR_MAP_INDEX,
-    ITERATOR_SYMBOL_INDEX,
-    UNSCOPABLES_SYMBOL_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,
     SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,

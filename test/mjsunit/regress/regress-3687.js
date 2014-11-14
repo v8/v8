@@ -4,11 +4,19 @@
 
 // Flags: --allow-natives-syntax
 
-function foo() { return 1; };
-var o1 = {};
-o1.foo = foo;
+var t1 = { f1: 0 };
+var t2 = { f2: 0 };
 
-var json = '{"foo": {"x": 1}}';
-var o2 = JSON.parse(json);
-var o3 = JSON.parse(json);
-assertTrue(%HaveSameMap(o2, o3));
+var z = {
+  x: {
+    x: t1,
+    y: {
+      x: {},
+      z1: {
+        x: t2,
+        y: 1
+      }
+    }
+  },
+  z2: 0
+};

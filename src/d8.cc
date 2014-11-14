@@ -1625,9 +1625,9 @@ class StartupDataHandler {
     rewind(file);
 
     startup_data->data = new char[startup_data->raw_size];
-    startup_data->compressed_size = fread(
-        const_cast<char*>(startup_data->data), 1, startup_data->raw_size,
-        file);
+    startup_data->compressed_size =
+        static_cast<int>(fread(const_cast<char*>(startup_data->data), 1,
+                               startup_data->raw_size, file));
     fclose(file);
 
     if (startup_data->raw_size == startup_data->compressed_size)
@@ -1746,6 +1746,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  OnExit();
 #ifndef V8_SHARED
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
@@ -1758,8 +1759,6 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete platform;
-
-  OnExit();
 
   return result;
 }

@@ -1238,6 +1238,26 @@ class V8_EXPORT ScriptCompiler {
   static Local<Script> Compile(Isolate* isolate, StreamedSource* source,
                                Handle<String> full_source_string,
                                const ScriptOrigin& origin);
+
+  /**
+   * Return a version tag for CachedData for the current V8 version & flags.
+   *
+   * This value is meant only for determining whether a previously generated
+   * CachedData instance is still valid; the tag has no other meaing.
+   *
+   * Background: The data carried by CachedData may depend on the exact
+   *   V8 version number or currently compiler flags. This means when
+   *   persisting CachedData, the embedder must take care to not pass in
+   *   data from another V8 version, or the same version with different
+   *   features enabled.
+   *
+   *   The easiest way to do so is to clear the embedder's cache on any
+   *   such change.
+   *
+   *   Alternatively, this tag can be stored alongside the cached data and
+   *   compared when it is being used.
+   */
+  static uint32_t CachedDataVersionTag();
 };
 
 
@@ -6118,7 +6138,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 155;
+  static const int kEmptyStringRootIndex = 154;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

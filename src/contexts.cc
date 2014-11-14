@@ -125,8 +125,7 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   DCHECK(attrs.has_value || isolate->has_pending_exception());
   if (!attrs.has_value || attrs.value == ABSENT) return attrs;
 
-  Handle<Symbol> unscopables_symbol(
-      isolate->native_context()->unscopables_symbol(), isolate);
+  Handle<Symbol> unscopables_symbol = isolate->factory()->unscopables_symbol();
   Handle<Object> receiver = it->GetReceiver();
   Handle<Object> unscopables;
   MaybeHandle<Object> maybe_unscopables =

@@ -485,12 +485,11 @@ class Factory FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
-                                 Handle<Object> prototype,
-                                 InstanceType type,
+  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
+                                 Handle<Object> prototype, InstanceType type,
                                  int instance_size,
-                                 bool read_only_prototype = false);
+                                 bool read_only_prototype = false,
+                                 bool install_constructor = false);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,
@@ -610,6 +609,14 @@ class Factory FINAL {
         &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
   }
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name, varname, description)             \
+  inline Handle<Symbol> name() {                                \
+    return Handle<Symbol>(bit_cast<Symbol**>(                   \
+        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
+  }
+  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
   inline void set_string_table(Handle<StringTable> table) {

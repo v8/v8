@@ -799,23 +799,6 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-    if (info->strict_mode() == SLOPPY && !info->is_native()) {
-      Label ok;
-      StackArgumentsAccessor args(rbp, info->scope()->num_parameters());
-      __ movp(rcx, args.GetReceiverOperand());
-      __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &ok, Label::kNear);
-      __ movp(rcx, GlobalObjectOperand());
-      __ movp(rcx, FieldOperand(rcx, GlobalObject::kGlobalProxyOffset));
-      __ movp(args.GetReceiverOperand(), rcx);
-      __ bind(&ok);
-    }
-
   } else {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(

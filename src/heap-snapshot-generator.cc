@@ -2162,6 +2162,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #define SYMBOL_NAME(name) NAME_ENTRY(name)
     PRIVATE_SYMBOL_LIST(SYMBOL_NAME)
 #undef SYMBOL_NAME
+#define SYMBOL_NAME(name, varname, description) NAME_ENTRY(name)
+    PUBLIC_SYMBOL_LIST(SYMBOL_NAME)
+#undef SYMBOL_NAME
 #undef NAME_ENTRY
     CHECK(!strong_gc_subroot_names_.is_empty());
   }

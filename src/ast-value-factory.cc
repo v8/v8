@@ -182,9 +182,8 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      value_ = Object::GetProperty(
-                   isolate, handle(isolate->native_context()->builtins()),
-                   symbol_name_).ToHandleChecked();
+      DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
+      value_ = isolate->factory()->iterator_symbol();
       break;
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);

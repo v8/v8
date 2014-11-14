@@ -280,11 +280,7 @@ enum DebugExtraICState {
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.
-enum SimpleTransitionFlag {
-  SIMPLE_PROPERTY_TRANSITION,
-  PROPERTY_TRANSITION,
-  SPECIAL_TRANSITION
-};
+enum SimpleTransitionFlag { SIMPLE_TRANSITION, FULL_TRANSITION };
 
 
 // Indicates whether we are only interested in the descriptors of a particular
@@ -3155,9 +3151,12 @@ class DescriptorArray: public FixedArray {
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
-template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name* name, int valid_entries = 0,
-                  int* out_insertion_index = NULL);
+template<SearchMode search_mode, typename T>
+inline int LinearSearch(T* array, Name* name, int len, int valid_entries);
+
+
+template<SearchMode search_mode, typename T>
+inline int Search(T* array, Name* name, int valid_entries = 0);
 
 
 // HashTable is a subclass of FixedArray that implements a hash table
@@ -5793,9 +5792,7 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
 
   inline Map* GetTransition(int transition_index);
-  inline int SearchSpecialTransition(Symbol* name);
-  inline int SearchTransition(PropertyType type, Name* name,
-                              PropertyAttributes attributes);
+  inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
@@ -5825,8 +5822,8 @@ class Map: public HeapObject {
       Handle<HeapType> type1,
       Handle<HeapType> type2,
       Isolate* isolate);
-  static void GeneralizeFieldType(Handle<Map> map,
-                                  int modify_index,
+  static void GeneralizeFieldType(Handle<Map> map, int modify_index,
+                                  Representation new_representation,
                                   Handle<HeapType> new_field_type);
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
@@ -5949,7 +5946,6 @@ class Map: public HeapObject {
                                LookupResult* result);
 
   inline void LookupTransition(JSObject* holder, Name* name,
-                               PropertyAttributes attributes,
                                LookupResult* result);
 
   inline PropertyDetails GetLastDescriptorDetails();
@@ -6340,8 +6336,7 @@ class Map: public HeapObject {
       Handle<Map> map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
       MaybeHandle<Name> maybe_name, const char* reason,
-      SimpleTransitionFlag simple_flag);
-
+      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
   static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor,
@@ -6369,14 +6364,13 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  void DeprecateTarget(PropertyType type, Name* key,
-                       PropertyAttributes attributes,
-                       DescriptorArray* new_descriptors,
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
                        LayoutDescriptor* new_layout_descriptor);
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   void UpdateFieldType(int descriptor_number, Handle<Name> name,
+                       Representation new_representation,
                        Handle<HeapType> new_type);
 
   void PrintGeneralization(FILE* file,
@@ -6824,6 +6818,10 @@ class SharedFunctionInfo: public HeapObject {
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
 
+  // Indicates that this function uses super. This is needed to set up the
+  // [[HomeObject]] on the function instance.
+  DECL_BOOLEAN_ACCESSORS(uses_super)
+
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
@@ -6871,10 +6869,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a default constructor.
   DECL_BOOLEAN_ACCESSORS(is_default_constructor)
 
-  // Indicates that this function is a default constructor that needs to call
-  // super.
-  DECL_BOOLEAN_ACCESSORS(is_default_constructor_call_super)
-
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
 
@@ -6895,7 +6889,7 @@ class SharedFunctionInfo: public HeapObject {
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
-  inline BailoutReason DisableOptimizationReason();
+  inline BailoutReason disable_optimization_reason();
 
   // Lookup the bailout ID and DCHECK that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -6930,7 +6924,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_opt_count_and_bailout_reason(int value);
   inline int opt_count_and_bailout_reason() const;
 
-  void set_bailout_reason(BailoutReason reason) {
+  void set_disable_optimization_reason(BailoutReason reason) {
     set_opt_count_and_bailout_reason(
         DisabledOptimizationReasonBits::update(opt_count_and_bailout_reason(),
                                                reason));
@@ -7105,6 +7099,7 @@ class SharedFunctionInfo: public HeapObject {
     kOptimizationDisabled,
     kStrictModeFunction,
     kUsesArguments,
+    kUsesSuper,
     kHasDuplicateParameters,
     kNative,
     kInlineBuiltin,
@@ -7118,13 +7113,12 @@ class SharedFunctionInfo: public HeapObject {
     kIsGenerator,
     kIsConciseMethod,
     kIsDefaultConstructor,
-    kIsDefaultConstructorCallSuper,
     kIsAsmFunction,
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
   };
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 4> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};
