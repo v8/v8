@@ -64,6 +64,21 @@ class AstNumberingVisitor FINAL : public AstVisitor {
     properties_.flags()->Add(kDontCache);
   }
 
+  template <typename Node>
+  void ReserveFeedbackSlots(Node* node) {
+    FeedbackVectorRequirements reqs = node->ComputeFeedbackRequirements();
+    if (reqs.slots() > 0) {
+      node->SetFirstFeedbackSlot(
+          FeedbackVectorSlot(properties_.feedback_slots()));
+      properties_.increase_feedback_slots(reqs.slots());
+    }
+    if (reqs.ic_slots() > 0) {
+      node->SetFirstFeedbackICSlot(
+          FeedbackVectorICSlot(properties_.ic_feedback_slots()));
+      properties_.increase_ic_feedback_slots(reqs.ic_slots());
+    }
+  }
+
   BailoutReason dont_optimize_reason() const {
     return (dont_turbofan_reason_ != kNoReason) ? dont_turbofan_reason_
                                                 : dont_crankshaft_reason_;
@@ -145,6 +160,7 @@ void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
   if (node->var()->IsLookupSlot()) {
     DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
   }
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
 
@@ -158,6 +174,7 @@ void AstNumberingVisitor::VisitThisFunction(ThisFunction* node) {
 void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
   IncrementNodeCount();
   DisableTurbofan(kSuperReference);
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(SuperReference::num_ids()));
   Visit(node->this_var());
 }
@@ -215,6 +232,7 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
 void AstNumberingVisitor::VisitYield(Yield* node) {
   IncrementNodeCount();
   DisableCrankshaft(kYield);
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Yield::num_ids()));
   Visit(node->generator_object());
   Visit(node->expression());
@@ -319,6 +337,7 @@ void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 void AstNumberingVisitor::VisitProperty(Property* node) {
   IncrementNodeCount();
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Property::num_ids()));
   Visit(node->key());
   Visit(node->obj());
@@ -353,6 +372,7 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(ForInStatement::num_ids()));
   Visit(node->each());
   Visit(node->enumerable());
@@ -461,6 +481,7 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
 
 void AstNumberingVisitor::VisitCall(Call* node) {
   IncrementNodeCount();
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Call::num_ids()));
   Visit(node->expression());
   VisitArguments(node->arguments());
@@ -469,6 +490,7 @@ void AstNumberingVisitor::VisitCall(Call* node) {
 
 void AstNumberingVisitor::VisitCallNew(CallNew* node) {
   IncrementNodeCount();
+  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(CallNew::num_ids()));
   Visit(node->expression());
   VisitArguments(node->arguments());
@@ -507,10 +529,6 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
 
 
 void AstNumberingVisitor::Renumber(FunctionLiteral* node) {
-  properties_.flags()->Add(*node->flags());
-  properties_.increase_feedback_slots(node->slot_count());
-  properties_.increase_ic_feedback_slots(node->ic_slot_count());
-
   if (node->scope()->HasIllegalRedeclaration()) {
     node->scope()->VisitIllegalRedeclaration(this);
     return;

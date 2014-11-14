@@ -277,7 +277,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   int expected_property_count = -1;
   int handler_count = 0;
   int parameter_count = 0;
-  AstProperties ast_properties;
   const AstRawString* name = ast_value_factory()->empty_string();
 
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE);
@@ -308,8 +307,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
     materialized_literal_count = function_state.materialized_literal_count();
     expected_property_count = function_state.expected_property_count();
     handler_count = function_state.handler_count();
-
-    ast_properties = *factory()->visitor()->ast_properties();
   }
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
@@ -319,8 +316,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
       FunctionLiteral::kNotParenthesized, FunctionKind::kDefaultConstructor,
       pos);
-
-  function_literal->set_ast_properties(&ast_properties);
 
   return function_literal;
 }
@@ -968,7 +963,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
           FunctionLiteral::kNotParenthesized, FunctionKind::kNormalFunction, 0);
-      result->set_ast_properties(factory()->visitor()->ast_properties());
     }
   }
 
@@ -3553,7 +3547,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
       ? FunctionLiteral::kIsParenthesized
       : FunctionLiteral::kNotParenthesized;
-  AstProperties ast_properties;
   // Parse function body.
   {
     AstNodeFactory<AstConstructionVisitor> function_factory(
@@ -3721,8 +3714,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         scope->end_position(),
                         CHECK_OK);
     }
-    ast_properties = *factory()->visitor()->ast_properties();
-
     if (allow_harmony_scoping() && strict_mode() == STRICT) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
     }
@@ -3734,7 +3725,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       num_parameters, duplicate_parameters, function_type,
       FunctionLiteral::kIsFunction, parenthesized, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
-  function_literal->set_ast_properties(&ast_properties);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;

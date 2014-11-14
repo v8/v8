@@ -291,9 +291,11 @@ bool CompilationInfo::ShouldSelfOptimize() {
 void CompilationInfo::PrepareForCompilation(Scope* scope) {
   DCHECK(scope_ == NULL);
   scope_ = scope;
+}
 
+
+void CompilationInfo::EnsureFeedbackVector() {
   if (feedback_vector_.is_null()) {
-    // Allocate the feedback vector too.
     feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
         function()->slot_count(), function()->ic_slot_count());
   }
@@ -1326,8 +1328,18 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
     Handle<Code> code = isolate->builtins()->CompileLazy();
     info.SetCode(code);
+    // There's no need in theory for a lazy-compiled function to have a type
+    // feedback vector, but some parts of the system expect all
+    // SharedFunctionInfo instances to have one.  The size of the vector depends
+    // on how many feedback-needing nodes are in the tree, and when lazily
+    // parsing we might not know that, if this function was never parsed before.
+    // In that case the vector will be replaced the next time MakeCode is
+    // called.
+    info.EnsureFeedbackVector();
     scope_info = Handle<ScopeInfo>(ScopeInfo::Empty(isolate));
   } else if (Renumber(&info) && FullCodeGenerator::MakeCode(&info)) {
+    // MakeCode will ensure that the feedback vector is present and
+    // appropriately sized.
     DCHECK(!info.code().is_null());
     scope_info = ScopeInfo::Create(info.scope(), info.zone());
   } else {

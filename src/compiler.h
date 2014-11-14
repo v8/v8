@@ -235,6 +235,7 @@ class CompilationInfo {
     DCHECK(script_scope_ == NULL);
     script_scope_ = script_scope;
   }
+  void EnsureFeedbackVector();
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }

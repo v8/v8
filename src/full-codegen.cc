@@ -306,6 +306,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
 
+  // Ensure that the feedback vector is large enough.
+  info->EnsureFeedbackVector();
+
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();

@@ -815,7 +815,6 @@ class PreParserExpression {
 
   int position() const { return RelocInfo::kNoPosition; }
   void set_function_token_position(int position) {}
-  void set_ast_properties(int* ast_properties) {}
 
  private:
   enum Type {
@@ -1097,14 +1096,6 @@ class PreParserFactory {
                                       PreParserExpressionList properties,
                                       int start_position, int end_position) {
     return PreParserExpression::Default();
-  }
-
-  // Return the object itself as AstVisitor and implement the needed
-  // dummy method right in this class.
-  PreParserFactory* visitor() { return this; }
-  int* ast_properties() {
-    static int dummy = 42;
-    return &dummy;
   }
 };
 
@@ -2632,7 +2623,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
                                        bool* ok) {
   typename Traits::Type::ScopePtr scope = this->NewScope(scope_, ARROW_SCOPE);
   typename Traits::Type::StatementList body;
-  typename Traits::Type::AstProperties ast_properties;
   int num_parameters = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -2714,8 +2704,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
     if (allow_harmony_scoping() && strict_mode() == STRICT)
       this->CheckConflictingVarDeclarations(scope, CHECK_OK);
-
-    ast_properties = *factory()->visitor()->ast_properties();
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
@@ -2727,7 +2715,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
       start_pos);
 
   function_literal->set_function_token_position(start_pos);
-  function_literal->set_ast_properties(&ast_properties);
 
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 
