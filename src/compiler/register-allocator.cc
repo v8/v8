@@ -1125,7 +1125,6 @@ bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
     PhaseScope phase_scope(stats, "meet register constraints");
     MeetRegisterConstraints();
   }
-  if (!AllocationOk()) return false;
   {
     PhaseScope phase_scope(stats, "resolve phis");
     ResolvePhis();
@@ -1134,6 +1133,14 @@ bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
     PhaseScope phase_scope(stats, "build live ranges");
     BuildLiveRanges();
   }
+  if (FLAG_trace_turbo) {
+    OFStream os(stdout);
+    PrintableInstructionSequence printable = {config(), code()};
+    os << "----- Instruction sequence before register allocation -----\n"
+       << printable;
+  }
+  // This can be triggered in debug mode.
+  DCHECK(!ExistsUseWithoutDefinition());
   {
     PhaseScope phase_scope(stats, "allocate general registers");
     AllocateGeneralRegisters();
@@ -1487,28 +1494,6 @@ void RegisterAllocator::BuildLiveRanges() {
         live_in_sets_[i]->Union(*live);
       }
     }
-
-#ifdef DEBUG
-    if (block_id == 0) {
-      BitVector::Iterator iterator(live);
-      bool found = false;
-      while (!iterator.Done()) {
-        found = true;
-        int operand_index = iterator.Current();
-        PrintF("Register allocator error: live v%d reached first block.\n",
-               operand_index);
-        LiveRange* range = LiveRangeFor(operand_index);
-        PrintF("  (first use is at %d)\n", range->first_pos()->pos().Value());
-        if (debug_name() == nullptr) {
-          PrintF("\n");
-        } else {
-          PrintF("  (function: %s)\n", debug_name());
-        }
-        iterator.Advance();
-      }
-      DCHECK(!found);
-    }
-#endif
   }
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
@@ -1536,6 +1521,27 @@ void RegisterAllocator::BuildLiveRanges() {
       }
     }
   }
+}
+
+
+bool RegisterAllocator::ExistsUseWithoutDefinition() {
+  bool found = false;
+  BitVector::Iterator iterator(live_in_sets_[0]);
+  while (!iterator.Done()) {
+    found = true;
+    int operand_index = iterator.Current();
+    PrintF("Register allocator error: live v%d reached first block.\n",
+           operand_index);
+    LiveRange* range = LiveRangeFor(operand_index);
+    PrintF("  (first use is at %d)\n", range->first_pos()->pos().Value());
+    if (debug_name() == nullptr) {
+      PrintF("\n");
+    } else {
+      PrintF("  (function: %s)\n", debug_name());
+    }
+    iterator.Advance();
+  }
+  return found;
 }
 
 

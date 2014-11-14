@@ -388,6 +388,7 @@ class RegisterAllocator FINAL {
   bool IsOutputRegisterOf(Instruction* instr, int index);
   bool IsOutputDoubleRegisterOf(Instruction* instr, int index);
   void ProcessInstructions(const InstructionBlock* block, BitVector* live);
+  bool ExistsUseWithoutDefinition();
   void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBetween(Instruction* first, Instruction* second,
                               int gap_index);

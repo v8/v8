@@ -110,6 +110,8 @@ class PipelineData {
   }
 
   Zone* instruction_zone() const { return instruction_zone_; }
+  // RawMachineAssembler generally produces graphs which cannot be verified.
+  bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
 
   void DeleteGraphZone() {
     // Destroy objects with destructors first.
@@ -563,12 +565,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     selector.SelectInstructions();
   }
 
-  if (FLAG_trace_turbo) {
-    OFStream os(stdout);
-    PrintableInstructionSequence printable = {
-        RegisterConfiguration::ArchDefault(), &sequence};
-    os << "----- Instruction sequence before register allocation -----\n"
-       << printable;
+  if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  &sequence);
@@ -609,7 +606,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }
-    if (FLAG_trace_turbo) {
+    if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
       TurboCfgFile tcf(isolate());
       tcf << AsC1VAllocator("CodeGen", &allocator);
     }
