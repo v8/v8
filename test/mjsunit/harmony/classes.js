@@ -673,15 +673,98 @@ function assertAccessorDescriptor(object, name) {
 })();
 
 
-/* TODO(arv): Implement
-(function TestNameBindingInConstructor() {
+(function TestNameBindingConst() {
+  assertThrows('class C { constructor() { C = 42; } }', SyntaxError);
+  assertThrows('(class C { constructor() { C = 42; } })', SyntaxError);
+  assertThrows('class C { m() { C = 42; } }', SyntaxError);
+  assertThrows('(class C { m() { C = 42; } })', SyntaxError);
+  assertThrows('class C { get x() { C = 42; } }', SyntaxError);
+  assertThrows('(class C { get x() { C = 42; } })', SyntaxError);
+  assertThrows('class C { set x(_) { C = 42; } }', SyntaxError);
+  assertThrows('(class C { set x(_) { C = 42; } })', SyntaxError);
+})();
+
+
+(function TestNameBinding() {
+  var C2;
   class C {
     constructor() {
-      assertThrows(function() {
-        C = 42;
-      }, ReferenceError);
+      C2 = C;
+    }
+    m() {
+      C2 = C;
+    }
+    get x() {
+      C2 = C;
+    }
+    set x(_) {
+      C2 = C;
     }
   }
   new C();
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().m();
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().x;
+  assertEquals(C, C2);
+
+  C2 = undefined;
+  new C().x = 1;
+  assertEquals(C, C2);
 })();
-*/
+
+
+(function TestNameBindingExpression() {
+  var C3;
+  var C = class C2 {
+    constructor() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    m() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    get x() {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+    set x(_) {
+      assertEquals(C2, C);
+      C3 = C2;
+    }
+  }
+  new C();
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().m();
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().x;
+  assertEquals(C, C3);
+
+  C3 = undefined;
+  new C().x = 1;
+  assertEquals(C, C3);
+})();
+
+
+(function TestNameBindingInExtendsExpression() {
+  assertThrows(function() {
+    class x extends x {}
+  }, ReferenceError);
+
+  assertThrows(function() {
+    (class x extends x {});
+  }, ReferenceError);
+
+  assertThrows(function() {
+    var x = (class x extends x {});
+  }, ReferenceError);
+})();

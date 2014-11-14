@@ -538,12 +538,6 @@ class ParserTraits {
                              int pos = RelocInfo::kNoPosition);
   Expression* SuperReference(Scope* scope, AstNodeFactory* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* ClassExpression(const AstRawString* name, Expression* extends,
-                              Expression* constructor,
-                              ZoneList<ObjectLiteral::Property*>* properties,
-                              int start_position, int end_position,
-                              AstNodeFactory* factory);
-
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                  int end_pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
@@ -583,6 +577,12 @@ class ParserTraits {
   V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* name, int pos, Variable* fvar,
       Token::Value fvar_init_op, bool is_generator, bool* ok);
+
+  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+                                  Scanner::Location class_name_location,
+                                  bool name_is_strict_reserved, int pos,
+                                  bool* ok);
+
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
 
@@ -762,6 +762,12 @@ class Parser : public ParserBase<ParserTraits> {
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+
+
+  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+                                  Scanner::Location class_name_location,
+                                  bool name_is_strict_reserved, int pos,
+                                  bool* ok);
 
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);

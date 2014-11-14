@@ -2641,6 +2641,8 @@ class ClassLiteral FINAL : public Expression {
 
   Handle<String> name() const { return raw_name_->string(); }
   const AstRawString* raw_name() const { return raw_name_; }
+  Scope* scope() const { return scope_; }
+  VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
   Expression* constructor() const { return constructor_; }
   ZoneList<Property*>* properties() const { return properties_; }
@@ -2648,11 +2650,14 @@ class ClassLiteral FINAL : public Expression {
   int end_position() const { return end_position_; }
 
  protected:
-  ClassLiteral(Zone* zone, const AstRawString* name, Expression* extends,
+  ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,
+               VariableProxy* class_variable_proxy, Expression* extends,
                Expression* constructor, ZoneList<Property*>* properties,
                int start_position, int end_position)
       : Expression(zone, start_position),
         raw_name_(name),
+        scope_(scope),
+        class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
         properties_(properties),
@@ -2660,6 +2665,8 @@ class ClassLiteral FINAL : public Expression {
 
  private:
   const AstRawString* raw_name_;
+  Scope* scope_;
+  VariableProxy* class_variable_proxy_;
   Expression* extends_;
   Expression* constructor_;
   ZoneList<Property*>* properties_;
@@ -3500,12 +3507,14 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
         position);
   }
 
-  ClassLiteral* NewClassLiteral(const AstRawString* name, Expression* extends,
+  ClassLiteral* NewClassLiteral(const AstRawString* name, Scope* scope,
+                                VariableProxy* proxy, Expression* extends,
                                 Expression* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
-    return new (zone_) ClassLiteral(zone_, name, extends, constructor,
-                                    properties, start_position, end_position);
+    return new (zone_)
+        ClassLiteral(zone_, name, scope, proxy, extends, constructor,
+                     properties, start_position, end_position);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

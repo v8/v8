@@ -132,6 +132,14 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 }
 
 
+PreParserExpression PreParserTraits::ParseClassLiteral(
+    PreParserIdentifier name, Scanner::Location class_name_location,
+    bool name_is_strict_reserved, int pos, bool* ok) {
+  return pre_parser_->ParseClassLiteral(name, class_name_location,
+                                        name_is_strict_reserved, pos, ok);
+}
+
+
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
 // See preparser-data.h for the data.
@@ -925,6 +933,47 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
                     function_state_->materialized_literal_count(),
                     function_state_->expected_property_count(),
                     strict_mode());
+}
+
+
+PreParserExpression PreParser::ParseClassLiteral(
+    PreParserIdentifier name, Scanner::Location class_name_location,
+    bool name_is_strict_reserved, int pos, bool* ok) {
+  // All parts of a ClassDeclaration and ClassExpression are strict code.
+  if (name_is_strict_reserved) {
+    ReportMessageAt(class_name_location, "unexpected_strict_reserved");
+    *ok = false;
+    return EmptyExpression();
+  }
+  if (IsEvalOrArguments(name)) {
+    ReportMessageAt(class_name_location, "strict_eval_arguments");
+    *ok = false;
+    return EmptyExpression();
+  }
+
+  PreParserScope scope = NewScope(scope_, BLOCK_SCOPE);
+  BlockState block_state(&scope_, &scope);
+  scope_->SetStrictMode(STRICT);
+  scope_->SetScopeName(name);
+
+  if (Check(Token::EXTENDS)) {
+    ParseLeftHandSideExpression(CHECK_OK);
+  }
+
+  bool has_seen_constructor = false;
+
+  Expect(Token::LBRACE, CHECK_OK);
+  while (peek() != Token::RBRACE) {
+    if (Check(Token::SEMICOLON)) continue;
+    const bool in_class = true;
+    const bool is_static = false;
+    ParsePropertyDefinition(NULL, in_class, is_static, &has_seen_constructor,
+                            CHECK_OK);
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+
+  return Expression::Default();
 }
 
 

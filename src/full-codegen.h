@@ -882,6 +882,22 @@ class FullCodeGenerator: public AstVisitor {
     virtual bool IsEffect() const { return true; }
   };
 
+  class EnterBlockScopeIfNeeded {
+   public:
+    EnterBlockScopeIfNeeded(FullCodeGenerator* codegen, Scope* scope,
+                            BailoutId entry_id, BailoutId declarations_id,
+                            BailoutId exit_id);
+    ~EnterBlockScopeIfNeeded();
+
+   private:
+    MacroAssembler* masm() const { return codegen_->masm(); }
+
+    FullCodeGenerator* codegen_;
+    Scope* scope_;
+    Scope* saved_scope_;
+    BailoutId exit_id_;
+  };
+
   MacroAssembler* masm_;
   CompilationInfo* info_;
   Scope* scope_;
