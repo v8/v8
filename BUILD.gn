@@ -245,7 +245,8 @@ action("js2c_experimental") {
     "src/harmony-array.js",
     "src/harmony-typedarray.js",
     "src/harmony-classes.js",
-    "src/harmony-tostring.js"
+    "src/harmony-tostring.js",
+    "src/harmony-templates.js"
   ]
 
   outputs = [

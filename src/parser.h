@@ -586,6 +586,47 @@ class ParserTraits {
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
 
+  class TemplateLiteral : public ZoneObject {
+   public:
+    TemplateLiteral(Zone* zone, int pos)
+        : cooked_(8, zone),
+          lengths_(8, zone),
+          expressions_(8, zone),
+          pos_(pos) {}
+
+    const ZoneList<Expression*>* cooked() const { return &cooked_; }
+    const ZoneList<int>* lengths() const { return &lengths_; }
+    const ZoneList<Expression*>* expressions() const { return &expressions_; }
+    int position() const { return pos_; }
+
+    void AddTemplateSpan(Literal* cooked, int end, Zone* zone) {
+      DCHECK_NOT_NULL(cooked);
+      cooked_.Add(cooked, zone);
+      lengths_.Add(end - cooked->position(), zone);
+    }
+
+    void AddExpression(Expression* expression, Zone* zone) {
+      DCHECK_NOT_NULL(expression);
+      expressions_.Add(expression, zone);
+    }
+
+   private:
+    ZoneList<Expression*> cooked_;
+    ZoneList<int> lengths_;
+    ZoneList<Expression*> expressions_;
+    int pos_;
+  };
+
+  typedef TemplateLiteral* TemplateLiteralState;
+
+  V8_INLINE TemplateLiteralState OpenTemplateLiteral(int pos);
+  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool tail);
+  V8_INLINE void AddTemplateExpression(TemplateLiteralState* state,
+                                       Expression* expression);
+  V8_INLINE Expression* CloseTemplateLiteral(TemplateLiteralState* state,
+                                             int start, Expression* tag);
+  V8_INLINE Expression* NoTemplateTag() { return NULL; }
+
  private:
   Parser* parser_;
 };
@@ -826,6 +867,13 @@ class Parser : public ParserBase<ParserTraits> {
 
   void ThrowPendingError();
 
+  TemplateLiteralState OpenTemplateLiteral(int pos);
+  void AddTemplateSpan(TemplateLiteralState* state, bool tail);
+  void AddTemplateExpression(TemplateLiteralState* state,
+                             Expression* expression);
+  Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
+                                   Expression* tag);
+  ZoneList<Expression*>* TemplateRawStrings(const TemplateLiteral* lit);
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
@@ -925,6 +973,27 @@ class CompileTimeValue: public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
 
+
+ParserTraits::TemplateLiteralState ParserTraits::OpenTemplateLiteral(int pos) {
+  return parser_->OpenTemplateLiteral(pos);
+}
+
+
+void ParserTraits::AddTemplateSpan(TemplateLiteralState* state, bool tail) {
+  parser_->AddTemplateSpan(state, tail);
+}
+
+
+void ParserTraits::AddTemplateExpression(TemplateLiteralState* state,
+                                         Expression* expression) {
+  parser_->AddTemplateExpression(state, expression);
+}
+
+
+Expression* ParserTraits::CloseTemplateLiteral(TemplateLiteralState* state,
+                                               int start, Expression* tag) {
+  return parser_->CloseTemplateLiteral(state, start, tag);
+}
 } }  // namespace v8::internal
 
 #endif  // V8_PARSER_H_

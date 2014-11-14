@@ -1628,6 +1628,7 @@
           '../../src/harmony-tostring.js',
           '../../src/harmony-typedarray.js',
           '../../src/harmony-classes.js',
+          '../../src/harmony-templates.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

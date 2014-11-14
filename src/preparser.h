@@ -102,6 +102,7 @@ class ParserBase : public Traits {
   bool allow_harmony_object_literals() const {
     return allow_harmony_object_literals_;
   }
+  bool allow_harmony_templates() const { return scanner()->HarmonyTemplates(); }
 
   // Setters that determine whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -118,6 +119,9 @@ class ParserBase : public Traits {
   void set_allow_classes(bool allow) { scanner()->SetHarmonyClasses(allow); }
   void set_allow_harmony_object_literals(bool allow) {
     allow_harmony_object_literals_ = allow;
+  }
+  void set_allow_harmony_templates(bool allow) {
+    scanner()->SetHarmonyTemplates(allow);
   }
 
  protected:
@@ -490,6 +494,8 @@ class ParserBase : public Traits {
                                                 bool* ok);
   ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
                                         bool* ok);
+  ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
+  void AddTemplateExpression(ExpressionT);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -1365,6 +1371,18 @@ class PreParserTraits {
     return 0;
   }
 
+  struct TemplateLiteralState {};
+
+  TemplateLiteralState OpenTemplateLiteral(int pos) {
+    return TemplateLiteralState();
+  }
+  void AddTemplateSpan(TemplateLiteralState*, bool) {}
+  void AddTemplateExpression(TemplateLiteralState*, PreParserExpression) {}
+  PreParserExpression CloseTemplateLiteral(TemplateLiteralState*, int,
+                                           PreParserExpression) {
+    return EmptyExpression();
+  }
+  PreParserExpression NoTemplateTag() { return PreParserExpression::Default(); }
   static AstValueFactory* ast_value_factory() { return NULL; }
 
   void CheckConflictingVarDeclarations(PreParserScope scope, bool* ok) {}
@@ -1599,6 +1617,10 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessageAt(source_location, strict_mode() == SLOPPY
           ? "unexpected_token_identifier" : "unexpected_strict_reserved");
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      return Traits::ReportMessageAt(source_location,
+          "unexpected_template_string");
     default:
       const char* name = Token::String(token);
       DCHECK(name != NULL);
@@ -1745,6 +1767,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
   //   RegExpLiteral
   //   ClassLiteral
   //   '(' Expression ')'
+  //   TemplateLiteral
 
   int pos = peek_position();
   ExpressionT result = this->EmptyExpression();
@@ -1832,6 +1855,12 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
                                        class_token_position, CHECK_OK);
       break;
     }
+
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      result =
+          this->ParseTemplateLiteral(Traits::NoTemplateTag(), pos, CHECK_OK);
+      break;
 
     case Token::MOD:
       if (allow_natives_syntax() || extension_ != NULL) {
@@ -2456,6 +2485,23 @@ ParserBase<Traits>::ParseLeftHandSideExpression(bool* ok) {
         break;
       }
 
+      case Token::TEMPLATE_SPAN:
+      case Token::TEMPLATE_TAIL: {
+        int pos;
+        if (scanner()->current_token() == Token::IDENTIFIER) {
+          pos = position();
+        } else {
+          pos = peek_position();
+          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+            // If the tag function looks like an IIFE, set_parenthesized() to
+            // force eager compilation.
+            result->AsFunctionLiteral()->set_parenthesized();
+          }
+        }
+        result = ParseTemplateLiteral(result, pos, CHECK_OK);
+        break;
+      }
+
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         int pos = position();
@@ -2724,9 +2770,86 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
 template <typename Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::CheckAndRewriteReferenceExpression(
-    ExpressionT expression,
-    Scanner::Location location, const char* message, bool* ok) {
+ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
+  // A TemplateLiteral is made up of 0 or more TEMPLATE_SPAN tokens (literal
+  // text followed by a substitution expression), finalized by a single
+  // TEMPLATE_TAIL.
+  //
+  // In terms of draft language, TEMPLATE_SPAN may be either the TemplateHead or
+  // TemplateMiddle productions, while TEMPLATE_TAIL is either TemplateTail, or
+  // NoSubstitutionTemplate.
+  //
+  // When parsing a TemplateLiteral, we must have scanned either an initial
+  // TEMPLATE_SPAN, or a TEMPLATE_TAIL.
+  CHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
+
+  // If we reach a TEMPLATE_TAIL first, we are parsing a NoSubstitutionTemplate.
+  // In this case we may simply consume the token and build a template with a
+  // single TEMPLATE_SPAN and no expressions.
+  if (peek() == Token::TEMPLATE_TAIL) {
+    Consume(Token::TEMPLATE_TAIL);
+    int pos = position();
+    typename Traits::TemplateLiteralState ts = Traits::OpenTemplateLiteral(pos);
+    Traits::AddTemplateSpan(&ts, true);
+    return Traits::CloseTemplateLiteral(&ts, start, tag);
+  }
+
+  Consume(Token::TEMPLATE_SPAN);
+  int pos = position();
+  typename Traits::TemplateLiteralState ts = Traits::OpenTemplateLiteral(pos);
+  Traits::AddTemplateSpan(&ts, false);
+  Token::Value next;
+
+  // If we open with a TEMPLATE_SPAN, we must scan the subsequent expression,
+  // and repeat if the following token is a TEMPLATE_SPAN as well (in this
+  // case, representing a TemplateMiddle).
+
+  do {
+    next = peek();
+    if (!next) {
+      ReportMessageAt(Scanner::Location(start, peek_position()),
+                      "unterminated_template");
+      *ok = false;
+      return Traits::EmptyExpression();
+    }
+
+    int pos = peek_position();
+    ExpressionT expression = this->ParseExpression(true, CHECK_OK);
+    Traits::AddTemplateExpression(&ts, expression);
+
+    if (peek() != Token::RBRACE) {
+      ReportMessageAt(Scanner::Location(pos, peek_position()),
+                      "unterminated_template_expr");
+      *ok = false;
+      return Traits::EmptyExpression();
+    }
+
+    // If we didn't die parsing that expression, our next token should be a
+    // TEMPLATE_SPAN or TEMPLATE_TAIL.
+    next = scanner()->ScanTemplateSpan();
+    Next();
+
+    if (!next) {
+      ReportMessageAt(Scanner::Location(start, position()),
+                      "unterminated_template");
+      *ok = false;
+      return Traits::EmptyExpression();
+    }
+
+    Traits::AddTemplateSpan(&ts, next == Token::TEMPLATE_TAIL);
+  } while (next == Token::TEMPLATE_SPAN);
+
+  DCHECK_EQ(next, Token::TEMPLATE_TAIL);
+  // Once we've reached a TEMPLATE_TAIL, we can close the TemplateLiteral.
+  return Traits::CloseTemplateLiteral(&ts, start, tag);
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::ExpressionT ParserBase<
+    Traits>::CheckAndRewriteReferenceExpression(ExpressionT expression,
+                                                Scanner::Location location,
+                                                const char* message, bool* ok) {
   if (strict_mode() == STRICT && this->IsIdentifier(expression) &&
       this->IsEvalOrArguments(this->AsIdentifier(expression))) {
     this->ReportMessageAt(location, "strict_eval_arguments", false);

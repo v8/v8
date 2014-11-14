@@ -172,7 +172,8 @@ DEFINE_IMPLICATION(harmony, es_staging)
   V(harmony_regexps, "harmony regular expression extensions")     \
   V(harmony_arrow_functions, "harmony arrow functions")           \
   V(harmony_tostring, "harmony toString")                         \
-  V(harmony_proxies, "harmony proxies")
+  V(harmony_proxies, "harmony proxies")                           \
+  V(harmony_templates, "harmony template literals")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V) V(harmony_strings, "harmony string methods")

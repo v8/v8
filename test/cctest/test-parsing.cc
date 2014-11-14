@@ -1344,7 +1344,8 @@ enum ParserFlag {
   kAllowHarmonyNumericLiterals,
   kAllowArrowFunctions,
   kAllowClasses,
-  kAllowHarmonyObjectLiterals
+  kAllowHarmonyObjectLiterals,
+  kAllowHarmonyTemplates
 };
 
 
@@ -1367,6 +1368,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyObjectLiterals));
   parser->set_allow_arrow_functions(flags.Contains(kAllowArrowFunctions));
   parser->set_allow_classes(flags.Contains(kAllowClasses));
+  parser->set_allow_harmony_templates(flags.Contains(kAllowHarmonyTemplates));
 }
 
 
@@ -1666,6 +1668,7 @@ void RunParserSyncTest(const char* context_data[][2],
     kAllowLazy,
     kAllowModules,
     kAllowNativesSyntax,
+    kAllowHarmonyTemplates
   };
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
@@ -4317,4 +4320,113 @@ TEST(InvalidUnicodeEscapes) {
     "/regex/\\u006g",
     NULL};
   RunParserSyncTest(context_data, data, kError);
+}
+
+
+TEST(ScanTemplateLiterals) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';"
+                                    "  var a, b, c; return ", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "``",
+      "`no-subst-template`",
+      "`template-head${a}`",
+      "`${a}`",
+      "`${a}template-tail`",
+      "`template-head${a}template-tail`",
+      "`${a}${b}${c}`",
+      "`a${a}b${b}c${c}`",
+      "`${a}a${b}b${c}c`",
+      "`foo\n\nbar\r\nbaz`",
+      "`foo\n\n${  bar  }\r\nbaz`",
+      "`foo${a /* comment */}`",
+      "`foo${a // comment\n}`",
+      "`foo${a \n}`",
+      "`foo${a \r\n}`",
+      "`foo${a \r}`",
+      "`foo${/* comment */ a}`",
+      "`foo${// comment\na}`",
+      "`foo${\n a}`",
+      "`foo${\r\n a}`",
+      "`foo${\r a}`",
+      "`foo${'a' in a}`",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ScanTaggedTemplateLiterals) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';"
+                                    "  function tag() {}"
+                                    "  var a, b, c; return ", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "tag ``",
+      "tag `no-subst-template`",
+      "tag`template-head${a}`",
+      "tag `${a}`",
+      "tag `${a}template-tail`",
+      "tag   `template-head${a}template-tail`",
+      "tag\n`${a}${b}${c}`",
+      "tag\r\n`a${a}b${b}c${c}`",
+      "tag    `${a}a${b}b${c}c`",
+      "tag\t`foo\n\nbar\r\nbaz`",
+      "tag\r`foo\n\n${  bar  }\r\nbaz`",
+      "tag`foo${a /* comment */}`",
+      "tag`foo${a // comment\n}`",
+      "tag`foo${a \n}`",
+      "tag`foo${a \r\n}`",
+      "tag`foo${a \r}`",
+      "tag`foo${/* comment */ a}`",
+      "tag`foo${// comment\na}`",
+      "tag`foo${\n a}`",
+      "tag`foo${\r\n a}`",
+      "tag`foo${\r a}`",
+      "tag`foo${'a' in a}`",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ScanUnterminatedTemplateLiterals) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function foo(){ 'use strict';"
+                                    "  var a, b, c; return ", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "`no-subst-template",
+      "`template-head${a}",
+      "`${a}template-tail",
+      "`template-head${a}template-tail",
+      "`${a}${b}${c}",
+      "`a${a}b${b}c${c}",
+      "`${a}a${b}b${c}c",
+      "`foo\n\nbar\r\nbaz",
+      "`foo\n\n${  bar  }\r\nbaz",
+      "`foo${a /* comment } */`",
+      "`foo${a /* comment } `*/",
+      "`foo${a // comment}`",
+      "`foo${a \n`",
+      "`foo${a \r\n`",
+      "`foo${a \r`",
+      "`foo${/* comment */ a`",
+      "`foo${// commenta}`",
+      "`foo${\n a`",
+      "`foo${\r\n a`",
+      "`foo${\r a`",
+      "`foo${fn(}`",
+      "`foo${1 if}`",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }

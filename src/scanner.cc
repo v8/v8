@@ -38,7 +38,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       harmony_scoping_(false),
       harmony_modules_(false),
       harmony_numeric_literals_(false),
-      harmony_classes_(false) { }
+      harmony_classes_(false),
+      harmony_templates_(false) {}
 
 
 void Scanner::Initialize(Utf16CharacterStream* source) {
@@ -626,6 +627,12 @@ void Scanner::Scan() {
         token = Select(Token::BIT_NOT);
         break;
 
+      case '`':
+        if (HarmonyTemplates()) {
+          token = ScanTemplateSpan();
+          break;
+        }
+
       default:
         if (c0_ < 0) {
           token = Token::EOS;
@@ -767,6 +774,77 @@ Token::Value Scanner::ScanString() {
 
   Advance();  // consume quote
   return Token::STRING;
+}
+
+
+Token::Value Scanner::ScanTemplateSpan() {
+  // When scanning a TemplateSpan, we are looking for the following construct:
+  // TEMPLATE_SPAN ::
+  //     ` LiteralChars* ${
+  //   | } LiteralChars* ${
+  //
+  // TEMPLATE_TAIL ::
+  //     ` LiteralChars* `
+  //   | } LiteralChar* `
+  //
+  // A TEMPLATE_SPAN should always be followed by an Expression, while a
+  // TEMPLATE_TAIL terminates a TemplateLiteral and does not need to be
+  // followed by an Expression.
+  //
+
+  if (next_.token == Token::RBRACE) {
+    // After parsing an Expression, the source position is incorrect due to
+    // having scanned the brace. Push the RBRACE back into the stream.
+    PushBack('}');
+  }
+
+  next_.location.beg_pos = source_pos();
+  Token::Value result = Token::TEMPLATE_SPAN;
+  DCHECK(c0_ == '`' || c0_ == '}');
+  Advance();  // Consume ` or }
+
+  LiteralScope literal(this);
+  while (true) {
+    uc32 c = c0_;
+    Advance();
+    if (c == '`') {
+      result = Token::TEMPLATE_TAIL;
+      break;
+    } else if (c == '$' && c0_ == '{') {
+      Advance();  // Consume '{'
+      break;
+    } else if (c == '\\') {
+      if (unicode_cache_->IsLineTerminator(c0_)) {
+        // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
+        // code unit sequence.
+        uc32 lastChar = c0_;
+        Advance();
+        if (lastChar == '\r' && c0_ == '\n') Advance();
+      } else if (c0_ == '0') {
+        Advance();
+        AddLiteralChar('0');
+      } else {
+        ScanEscape();
+      }
+    } else if (c < 0) {
+      // Unterminated template literal
+      PushBack(c);
+      break;
+    } else {
+      // The TRV of LineTerminatorSequence :: <CR> is the CV 0x000A.
+      // The TRV of LineTerminatorSequence :: <CR><LF> is the sequence
+      // consisting of the CV 0x000A.
+      if (c == '\r') {
+        if (c0_ == '\n') Advance();
+        c = '\n';
+      }
+      AddLiteralChar(c);
+    }
+  }
+  literal.Complete();
+  next_.location.end_pos = source_pos();
+  next_.token = result;
+  return result;
 }
 
 

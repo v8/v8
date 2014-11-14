@@ -802,6 +802,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_classes(FLAG_harmony_classes);
   set_allow_harmony_object_literals(FLAG_harmony_object_literals);
+  set_allow_harmony_templates(FLAG_harmony_templates);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -3882,6 +3883,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_classes(allow_classes());
     reusable_preparser_->set_allow_harmony_object_literals(
         allow_harmony_object_literals());
+    reusable_preparser_->set_allow_harmony_templates(allow_harmony_templates());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),
@@ -5083,5 +5085,142 @@ void Parser::ParseOnBackground() {
     if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }
+}
+
+
+ParserTraits::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
+  return new (zone()) ParserTraits::TemplateLiteral(zone(), pos);
+}
+
+
+void Parser::AddTemplateSpan(TemplateLiteralState* state, bool tail) {
+  int pos = scanner()->location().beg_pos;
+  int end = scanner()->location().end_pos - (tail ? 1 : 2);
+  const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
+  Literal* cooked = factory()->NewStringLiteral(tv, pos);
+  (*state)->AddTemplateSpan(cooked, end, zone());
+}
+
+
+void Parser::AddTemplateExpression(TemplateLiteralState* state,
+                                   Expression* expression) {
+  (*state)->AddExpression(expression, zone());
+}
+
+
+Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
+                                         Expression* tag) {
+  TemplateLiteral* lit = *state;
+  int pos = lit->position();
+  const ZoneList<Expression*>* cooked_strings = lit->cooked();
+  const ZoneList<Expression*>* expressions = lit->expressions();
+  CHECK(cooked_strings->length() == (expressions->length() + 1));
+
+  if (!tag) {
+    // Build tree of BinaryOps to simplify code-generation
+    Expression* expr = NULL;
+
+    if (expressions->length() == 0) {
+      // Simple case: treat as string literal
+      expr = cooked_strings->at(0);
+    } else {
+      int i;
+      Expression* cooked_str = cooked_strings->at(0);
+      expr = factory()->NewBinaryOperation(
+          Token::ADD, cooked_str, expressions->at(0), cooked_str->position());
+      for (i = 1; i < expressions->length(); ++i) {
+        cooked_str = cooked_strings->at(i);
+        expr = factory()->NewBinaryOperation(
+            Token::ADD, expr, factory()->NewBinaryOperation(
+                                  Token::ADD, cooked_str, expressions->at(i),
+                                  cooked_str->position()),
+            cooked_str->position());
+      }
+      cooked_str = cooked_strings->at(i);
+      expr = factory()->NewBinaryOperation(Token::ADD, expr, cooked_str,
+                                           cooked_str->position());
+    }
+    return expr;
+  } else {
+    ZoneList<Expression*>* raw_strings = TemplateRawStrings(lit);
+    Handle<String> source(String::cast(script()->source()));
+
+    int cooked_idx = function_state_->NextMaterializedLiteralIndex();
+    int raw_idx = function_state_->NextMaterializedLiteralIndex();
+
+    // GetTemplateCallSite
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
+    args->Add(factory()->NewArrayLiteral(
+                  const_cast<ZoneList<Expression*>*>(cooked_strings),
+                  cooked_idx, pos),
+              zone());
+    args->Add(
+        factory()->NewArrayLiteral(
+            const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
+        zone());
+    this->CheckPossibleEvalCall(tag, scope_);
+    Expression* call_site = factory()->NewCallRuntime(
+        ast_value_factory()->get_template_callsite_string(), NULL, args, start);
+
+    // Call TagFn
+    ZoneList<Expression*>* call_args =
+        new (zone()) ZoneList<Expression*>(expressions->length() + 1, zone());
+    call_args->Add(call_site, zone());
+    call_args->AddAll(*expressions, zone());
+    return factory()->NewCall(tag, call_args, pos);
+  }
+}
+
+
+ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit) {
+  const ZoneList<int>* lengths = lit->lengths();
+  const ZoneList<Expression*>* cooked_strings = lit->cooked();
+  int total = lengths->length();
+  ZoneList<Expression*>* raw_strings;
+
+  // Given a TemplateLiteral, produce a list of raw strings, used for generating
+  // a CallSite object for a tagged template invocations.
+  //
+  // A raw string will consist of the unescaped characters of a template span,
+  // with end-of-line sequences normalized to U+000A LINE FEEDs, and without
+  // leading or trailing template delimiters.
+  //
+
+  DCHECK(total);
+
+  Handle<String> source(String::cast(script()->source()));
+
+  raw_strings = new (zone()) ZoneList<Expression*>(total, zone());
+
+  for (int index = 0; index < total; ++index) {
+    int span_start = cooked_strings->at(index)->position() + 1;
+    int span_end = lengths->at(index) - 1;
+    int length;
+    int to_index = 0;
+
+    SmartArrayPointer<char> raw_chars =
+        source->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL, span_start,
+                          span_end, &length);
+
+    // Normalize raw line-feeds. [U+000D U+000A] (CRLF) and [U+000D] (CR) must
+    // be translated into U+000A (LF).
+    for (int from_index = 0; from_index < length; ++from_index) {
+      char ch = raw_chars[from_index];
+      if (ch == '\r') {
+        ch = '\n';
+        if (from_index + 1 < length && raw_chars[from_index + 1] == '\n') {
+          ++from_index;
+        }
+      }
+      raw_chars[to_index++] = ch;
+    }
+
+    const AstRawString* raw_str = ast_value_factory()->GetOneByteString(
+        OneByteVector(raw_chars.get(), to_index));
+    Literal* raw_lit = factory()->NewStringLiteral(raw_str, span_start - 1);
+    raw_strings->Add(raw_lit, zone());
+  }
+
+  return raw_strings;
 }
 } }  // namespace v8::internal
