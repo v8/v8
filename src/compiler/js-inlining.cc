@@ -405,19 +405,21 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
 
   Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
 
-  Node* outer_frame_state = call.frame_state();
-  // Insert argument adaptor frame if required.
-  if (call.formal_arguments() != inlinee.formal_parameters()) {
-    outer_frame_state =
-        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
-  }
+  if (FLAG_turbo_deoptimization) {
+    Node* outer_frame_state = call.frame_state();
+    // Insert argument adaptor frame if required.
+    if (call.formal_arguments() != inlinee.formal_parameters()) {
+      outer_frame_state =
+          CreateArgumentsAdaptorFrameState(&call, function, info.zone());
+    }
 
-  for (NodeVectorConstIter it = visitor.copies().begin();
-       it != visitor.copies().end(); ++it) {
-    Node* node = *it;
-    if (node != NULL && node->opcode() == IrOpcode::kFrameState) {
-      AddClosureToFrameState(node, function);
-      NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
+    for (NodeVectorConstIter it = visitor.copies().begin();
+         it != visitor.copies().end(); ++it) {
+      Node* node = *it;
+      if (node != NULL && node->opcode() == IrOpcode::kFrameState) {
+        AddClosureToFrameState(node, function);
+        NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
+      }
     }
   }
 
