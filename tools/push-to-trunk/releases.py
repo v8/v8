@@ -322,7 +322,7 @@ def ConvertToCommitNumber(step, revision):
   # Simple check for git hashes.
   if revision.isdigit() and len(revision) < 8:
     return revision
-  return step.GitConvertToSVNRevision(
+  return step.GetCommitPositionNumber(
       revision, cwd=os.path.join(step._options.chromium, "v8"))
 
 

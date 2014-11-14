@@ -244,17 +244,6 @@ class GitRecipesMixin(object):
   def GitFetchOrigin(self, **kwargs):
     self.Git("fetch origin", **kwargs)
 
-  def GitConvertToSVNRevision(self, git_hash, **kwargs):
-    result = self.Git(MakeArgs(["rev-list", "-n", "1", git_hash]), **kwargs)
-    if not result or not SHA1_RE.match(result):
-      raise GitFailedException("Git hash %s is unknown." % git_hash)
-    log = self.GitLog(n=1, format="%B", git_hash=git_hash, **kwargs)
-    for line in reversed(log.splitlines()):
-      match = ROLL_DEPS_GIT_SVN_ID_RE.match(line.strip())
-      if match:
-        return match.group(1)
-    raise GitFailedException("Couldn't convert %s to SVN." % git_hash)
-
   @Strip
   # Copied from bot_update.py and modified for svn-like numbers only.
   def GetCommitPositionNumber(self, git_hash, **kwargs):

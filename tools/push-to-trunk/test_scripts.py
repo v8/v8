@@ -1320,8 +1320,6 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
           cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash2", c_hash2_commit_log,
           cwd=chrome_dir),
-      Cmd("git rev-list -n 1 0123456789012345678901234567890123456789",
-          "0123456789012345678901234567890123456789", cwd=chrome_v8_dir),
       Cmd("git log -1 --format=%B 0123456789012345678901234567890123456789",
           self.C_V8_22624_LOG, cwd=chrome_v8_dir),
       Cmd("git diff --name-only c_hash3 c_hash3^", "DEPS", cwd=chrome_dir),
