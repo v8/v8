@@ -1325,28 +1325,98 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
 Node* SimplifiedLowering::Int32Mod(Node* const node) {
   Int32BinopMatcher m(node);
   Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const minus_one = jsgraph()->Int32Constant(-1);
   Node* const lhs = m.left().node();
   Node* const rhs = m.right().node();
 
   if (m.right().Is(-1) || m.right().Is(0)) {
     return zero;
-  } else if (machine()->Int32ModIsSafe() || m.right().HasValue()) {
+  } else if (m.right().HasValue()) {
     return graph()->NewNode(machine()->Int32Mod(), lhs, rhs, graph()->start());
   }
 
-  Diamond if_zero(graph(), common(),
-                  graph()->NewNode(machine()->Word32Equal(), rhs, zero),
-                  BranchHint::kFalse);
+  // General case for signed integer modulus, with optimization for (unknown)
+  // power of 2 right hand side.
+  //
+  //   if 0 < rhs then
+  //     msk = rhs - 1
+  //     if rhs & msk != 0 then
+  //       lhs % rhs
+  //     else
+  //       if lhs < 0 then
+  //         -(-lhs & msk)
+  //       else
+  //         lhs & msk
+  //   else
+  //     if rhs < -1 then
+  //       lhs % rhs
+  //     else
+  //       zero
+  //
+  // Note: We do not use the Diamond helper class here, because it really hurts
+  // readability with nested diamonds.
+  const Operator* const merge_op = common()->Merge(2);
+  const Operator* const phi_op = common()->Phi(kMachInt32, 2);
 
-  Diamond if_minus_one(graph(), common(),
-                       graph()->NewNode(machine()->Word32Equal(), rhs,
-                                        jsgraph()->Int32Constant(-1)),
-                       BranchHint::kFalse);
-  if_minus_one.Nest(if_zero, false);
-  Node* mod =
-      graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_minus_one.if_false);
+  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), check0,
+                                   graph()->start());
 
-  return if_zero.Phi(kMachInt32, zero, if_minus_one.Phi(kMachInt32, zero, mod));
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* true0;
+  {
+    Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minus_one);
+
+    Node* check1 = graph()->NewNode(machine()->Word32And(), rhs, msk);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1;
+    {
+      Node* check2 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
+      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check2, if_false1);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* true2 = graph()->NewNode(
+          machine()->Int32Sub(), zero,
+          graph()->NewNode(machine()->Word32And(),
+                           graph()->NewNode(machine()->Int32Sub(), zero, lhs),
+                           msk));
+
+      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+      Node* false2 = graph()->NewNode(machine()->Word32And(), lhs, msk);
+
+      if_false1 = graph()->NewNode(merge_op, if_true2, if_false2);
+      false1 = graph()->NewNode(phi_op, true2, false2, if_false1);
+    }
+
+    if_true0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    true0 = graph()->NewNode(phi_op, true1, false1, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0;
+  {
+    Node* check1 = graph()->NewNode(machine()->Int32LessThan(), rhs, minus_one);
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1 = zero;
+
+    if_false0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    false0 = graph()->NewNode(phi_op, true1, false1, if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
+  return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
 
@@ -1371,20 +1441,60 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
 
 Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   Uint32BinopMatcher m(node);
+  Node* const minus_one = jsgraph()->Int32Constant(-1);
   Node* const zero = jsgraph()->Uint32Constant(0);
   Node* const lhs = m.left().node();
   Node* const rhs = m.right().node();
 
   if (m.right().Is(0)) {
     return zero;
-  } else if (machine()->Uint32ModIsSafe() || m.right().HasValue()) {
+  } else if (m.right().HasValue()) {
     return graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, graph()->start());
   }
 
-  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  Diamond d(graph(), common(), check, BranchHint::kFalse);
-  Node* mod = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, d.if_false);
-  return d.Phi(kMachUint32, zero, mod);
+  // General case for unsigned integer modulus, with optimization for (unknown)
+  // power of 2 right hand side.
+  //
+  //   if rhs then
+  //     msk = rhs - 1
+  //     if rhs & msk != 0 then
+  //       lhs % rhs
+  //     else
+  //       lhs & msk
+  //   else
+  //     zero
+  //
+  // Note: We do not use the Diamond helper class here, because it really hurts
+  // readability with nested diamonds.
+  const Operator* const merge_op = common()->Merge(2);
+  const Operator* const phi_op = common()->Phi(kMachInt32, 2);
+
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), rhs,
+                                   graph()->start());
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* true0;
+  {
+    Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minus_one);
+
+    Node* check1 = graph()->NewNode(machine()->Word32And(), rhs, msk);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1 = graph()->NewNode(machine()->Word32And(), lhs, msk);
+
+    if_true0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    true0 = graph()->NewNode(phi_op, true1, false1, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0 = zero;
+
+  Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
+  return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
 

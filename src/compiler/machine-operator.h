@@ -67,9 +67,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
     kFloat64RoundTruncate = 1u << 2,
     kFloat64RoundTiesAway = 1u << 3,
     kInt32DivIsSafe = 1u << 4,
-    kInt32ModIsSafe = 1u << 5,
-    kUint32DivIsSafe = 1u << 6,
-    kUint32ModIsSafe = 1u << 7
+    kUint32DivIsSafe = 1u << 5
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -110,9 +108,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Uint32Mod();
   const Operator* Uint32MulHigh();
   bool Int32DivIsSafe() const { return flags_ & kInt32DivIsSafe; }
-  bool Int32ModIsSafe() const { return flags_ & kInt32ModIsSafe; }
   bool Uint32DivIsSafe() const { return flags_ & kUint32DivIsSafe; }
-  bool Uint32ModIsSafe() const { return flags_ & kUint32ModIsSafe; }
 
   const Operator* Int64Add();
   const Operator* Int64Sub();

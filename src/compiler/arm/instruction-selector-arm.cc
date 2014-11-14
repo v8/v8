@@ -1255,9 +1255,7 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kInt32DivIsSafe |
-      MachineOperatorBuilder::kInt32ModIsSafe |
-      MachineOperatorBuilder::kUint32DivIsSafe |
-      MachineOperatorBuilder::kUint32ModIsSafe;
+      MachineOperatorBuilder::kUint32DivIsSafe;
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     flags |= MachineOperatorBuilder::kFloat64Floor |
