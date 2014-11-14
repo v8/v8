@@ -36,8 +36,6 @@ class InstructionTester : public HandleAndZoneScope {
         machine(zone()),
         code(NULL) {}
 
-  ~InstructionTester() { delete code; }
-
   Isolate* isolate;
   Graph graph;
   Schedule schedule;
@@ -57,7 +55,7 @@ class InstructionTester : public HandleAndZoneScope {
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new TestInstrSeq(main_zone(), instruction_blocks);
+    code = new (main_zone()) TestInstrSeq(main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {

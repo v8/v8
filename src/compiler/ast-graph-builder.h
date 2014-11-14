@@ -58,10 +58,6 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   typedef StructuredGraphBuilder::Environment BaseEnvironment;
   virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
 
-  // TODO(mstarzinger): The pipeline only needs to be a friend to access the
-  // function context. Remove as soon as the context is a parameter.
-  friend class Pipeline;
-
   // Getters for values in the activation record.
   Node* GetFunctionClosure();
   Node* GetFunctionContext();

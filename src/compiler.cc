@@ -876,7 +876,6 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 
     info.MarkAsContextSpecializing();
     info.MarkAsTypingEnabled();
-    info.MarkAsInliningDisabled();
 
     if (GetOptimizedCodeNow(&info)) {
       DCHECK(function->shared()->is_compiled());

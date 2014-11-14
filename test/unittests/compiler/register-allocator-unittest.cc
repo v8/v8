@@ -124,7 +124,9 @@ class RegisterAllocatorTest : public TestWithZone {
   }
 
   RegisterAllocatorTest()
-      : num_general_registers_(kDefaultNRegs),
+      : frame_(nullptr),
+        sequence_(nullptr),
+        num_general_registers_(kDefaultNRegs),
         num_double_registers_(kDefaultNRegs),
         instruction_blocks_(zone()),
         current_instruction_index_(-1),
@@ -151,17 +153,18 @@ class RegisterAllocatorTest : public TestWithZone {
   }
 
   Frame* frame() {
-    if (frame_.is_empty()) {
-      frame_.Reset(new Frame());
+    if (frame_ == nullptr) {
+      frame_ = new (zone()) Frame();
     }
-    return frame_.get();
+    return frame_;
   }
 
   InstructionSequence* sequence() {
-    if (sequence_.is_empty()) {
-      sequence_.Reset(new InstructionSequence(zone(), &instruction_blocks_));
+    if (sequence_ == nullptr) {
+      sequence_ =
+          new (zone()) InstructionSequence(zone(), &instruction_blocks_);
     }
-    return sequence_.get();
+    return sequence_;
   }
 
   RegisterAllocator* allocator() {
@@ -516,9 +519,9 @@ class RegisterAllocatorTest : public TestWithZone {
   typedef std::vector<BlockCompletion> Completions;
 
   SmartPointer<RegisterConfiguration> config_;
-  SmartPointer<Frame> frame_;
+  Frame* frame_;
   SmartPointer<RegisterAllocator> allocator_;
-  SmartPointer<InstructionSequence> sequence_;
+  InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;
 

@@ -1073,41 +1073,12 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   NestedBlock nested_block(this, stmt);
   SetStatementPosition(stmt);
 
-  Scope* saved_scope = scope();
-  // Push a block context when entering a block with block scoped variables.
-  if (stmt->scope() == NULL) {
-    PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-  } else {
-    scope_ = stmt->scope();
-    DCHECK(!scope_->is_module_scope());
-    { Comment cmnt(masm_, "[ Extend block context");
-      __ Push(scope_->GetScopeInfo());
-      PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
-
-      // Replace the context stored in the frame.
-      StoreToFrameField(StandardFrameConstants::kContextOffset,
-                        context_register());
-      PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-    }
-    { Comment cmnt(masm_, "[ Declarations");
-      VisitDeclarations(scope_->declarations());
-      PrepareForBailoutForId(stmt->DeclsId(), NO_REGISTERS);
-    }
+  {
+    EnterBlockScopeIfNeeded block_scope_state(
+        this, stmt->scope(), stmt->EntryId(), stmt->DeclsId(), stmt->ExitId());
+    VisitStatements(stmt->statements());
+    __ bind(nested_block.break_label());
   }
-
-  VisitStatements(stmt->statements());
-  scope_ = saved_scope;
-  __ bind(nested_block.break_label());
-
-  // Pop block context if necessary.
-  if (stmt->scope() != NULL) {
-    LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-    // Update local stack frame context field.
-    StoreToFrameField(StandardFrameConstants::kContextOffset,
-                      context_register());
-  }
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
 
@@ -1608,26 +1579,38 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   Comment cmnt(masm_, "[ ClassLiteral");
 
-  if (lit->raw_name() != NULL) {
-    __ Push(lit->name());
-  } else {
-    __ Push(isolate()->factory()->undefined_value());
+  {
+    EnterBlockScopeIfNeeded block_scope_state(
+        this, lit->scope(), BailoutId::None(), BailoutId::None(),
+        BailoutId::None());
+
+    if (lit->raw_name() != NULL) {
+      __ Push(lit->name());
+    } else {
+      __ Push(isolate()->factory()->undefined_value());
+    }
+
+    if (lit->extends() != NULL) {
+      VisitForStackValue(lit->extends());
+    } else {
+      __ Push(isolate()->factory()->the_hole_value());
+    }
+
+    VisitForStackValue(lit->constructor());
+
+    __ Push(script());
+    __ Push(Smi::FromInt(lit->start_position()));
+    __ Push(Smi::FromInt(lit->end_position()));
+
+    __ CallRuntime(Runtime::kDefineClass, 6);
+    EmitClassDefineProperties(lit);
+
+    if (lit->scope() != NULL) {
+      DCHECK_NOT_NULL(lit->class_variable_proxy());
+      EmitVariableAssignment(lit->class_variable_proxy()->var(),
+                             Token::INIT_CONST);
+    }
   }
-
-  if (lit->extends() != NULL) {
-    VisitForStackValue(lit->extends());
-  } else {
-    __ Push(isolate()->factory()->the_hole_value());
-  }
-
-  VisitForStackValue(lit->constructor());
-
-  __ Push(script());
-  __ Push(Smi::FromInt(lit->start_position()));
-  __ Push(Smi::FromInt(lit->end_position()));
-
-  __ CallRuntime(Runtime::kDefineClass, 6);
-  EmitClassDefineProperties(lit);
 
   context()->Plug(result_register());
 }
@@ -1793,6 +1776,49 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
   return true;
 }
 #endif  // DEBUG
+
+
+FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
+    FullCodeGenerator* codegen, Scope* scope, BailoutId entry_id,
+    BailoutId declarations_id, BailoutId exit_id)
+    : codegen_(codegen), scope_(scope), exit_id_(exit_id) {
+  saved_scope_ = codegen_->scope();
+
+  if (scope == NULL) {
+    codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+  } else {
+    codegen_->scope_ = scope;
+    {
+      Comment cmnt(masm(), "[ Extend block context");
+      __ Push(scope->GetScopeInfo());
+      codegen_->PushFunctionArgumentForContextAllocation();
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
+
+      // Replace the context stored in the frame.
+      codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                  codegen_->context_register());
+      codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+    }
+    {
+      Comment cmnt(masm(), "[ Declarations");
+      codegen_->VisitDeclarations(scope->declarations());
+      codegen_->PrepareForBailoutForId(declarations_id, NO_REGISTERS);
+    }
+  }
+}
+
+
+FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
+  if (scope_ != NULL) {
+    codegen_->LoadContextField(codegen_->context_register(),
+                               Context::PREVIOUS_INDEX);
+    // Update local stack frame context field.
+    codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                codegen_->context_register());
+  }
+  codegen_->PrepareForBailoutForId(exit_id_, NO_REGISTERS);
+  codegen_->scope_ = saved_scope_;
+}
 
 
 #undef __

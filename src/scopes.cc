@@ -277,7 +277,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->ast_value_factory());
+    AstNodeFactory ast_node_factory(info->ast_value_factory());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 
@@ -424,7 +424,7 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
 
 
 Variable* Scope::LookupFunctionVar(const AstRawString* name,
-                                   AstNodeFactory<AstNullVisitor>* factory) {
+                                   AstNodeFactory* factory) {
   if (function_ != NULL && function_->proxy()->raw_name() == name) {
     return function_->proxy()->var();
   } else if (!scope_info_.is_null()) {
@@ -643,8 +643,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
 }
 
 
-bool Scope::AllocateVariables(CompilationInfo* info,
-                              AstNodeFactory<AstNullVisitor>* factory) {
+bool Scope::AllocateVariables(CompilationInfo* info, AstNodeFactory* factory) {
   // 1) Propagate scope information.
   bool outer_scope_calls_sloppy_eval = false;
   if (outer_scope_ != NULL) {
@@ -981,7 +980,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 
 Variable* Scope::LookupRecursive(VariableProxy* proxy,
                                  BindingKind* binding_kind,
-                                 AstNodeFactory<AstNullVisitor>* factory) {
+                                 AstNodeFactory* factory) {
   DCHECK(binding_kind != NULL);
   if (already_resolved() && is_with_scope()) {
     // Short-cut: if the scope is deserialized from a scope info, variable
@@ -1043,9 +1042,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
 }
 
 
-bool Scope::ResolveVariable(CompilationInfo* info,
-                            VariableProxy* proxy,
-                            AstNodeFactory<AstNullVisitor>* factory) {
+bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
+                            AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // If the proxy is already resolved there's nothing to do
@@ -1152,9 +1150,8 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 }
 
 
-bool Scope::ResolveVariablesRecursively(
-    CompilationInfo* info,
-    AstNodeFactory<AstNullVisitor>* factory) {
+bool Scope::ResolveVariablesRecursively(CompilationInfo* info,
+                                        AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // Resolve unresolved variables for this scope.

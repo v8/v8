@@ -287,8 +287,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   ZoneList<Statement*>* body = NULL;
 
   {
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, function_scope,
                                  &function_factory);
 
@@ -460,7 +459,7 @@ Expression* ParserTraits::MarkExpressionAsAssigned(Expression* expression) {
 
 bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
     Expression** x, Expression* y, Token::Value op, int pos,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+    AstNodeFactory* factory) {
   if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
       y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
     double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
@@ -518,9 +517,9 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
 }
 
 
-Expression* ParserTraits::BuildUnaryExpression(
-    Expression* expression, Token::Value op, int pos,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
+                                               Token::Value op, int pos,
+                                               AstNodeFactory* factory) {
   DCHECK(expression != NULL);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
@@ -674,24 +673,16 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
 }
 
 
-Expression* ParserTraits::ThisExpression(
-    Scope* scope, AstNodeFactory<AstConstructionVisitor>* factory, int pos) {
+Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
+                                         int pos) {
   return factory->NewVariableProxy(scope->receiver(), pos);
 }
 
-Expression* ParserTraits::SuperReference(
-    Scope* scope, AstNodeFactory<AstConstructionVisitor>* factory, int pos) {
+Expression* ParserTraits::SuperReference(Scope* scope, AstNodeFactory* factory,
+                                         int pos) {
   return factory->NewSuperReference(
       ThisExpression(scope, factory, pos)->AsVariableProxy(),
       pos);
-}
-
-Expression* ParserTraits::ClassExpression(
-    const AstRawString* name, Expression* extends, Expression* constructor,
-    ZoneList<ObjectLiteral::Property*>* properties, int start_position,
-    int end_position, AstNodeFactory<AstConstructionVisitor>* factory) {
-  return factory->NewClassLiteral(name, extends, constructor, properties,
-                                  start_position, end_position);
 }
 
 
@@ -701,10 +692,9 @@ Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
 }
 
 
-Literal* ParserTraits::ExpressionFromLiteral(
-    Token::Value token, int pos,
-    Scanner* scanner,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
+                                             Scanner* scanner,
+                                             AstNodeFactory* factory) {
   switch (token) {
     case Token::NULL_LITERAL:
       return factory->NewNullLiteral(pos);
@@ -723,9 +713,9 @@ Literal* ParserTraits::ExpressionFromLiteral(
 }
 
 
-Expression* ParserTraits::ExpressionFromIdentifier(
-    const AstRawString* name, int pos, Scope* scope,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
+                                                   int pos, Scope* scope,
+                                                   AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
   // The name may refer to a module instance object, so its type is unknown.
 #ifdef DEBUG
@@ -737,17 +727,16 @@ Expression* ParserTraits::ExpressionFromIdentifier(
 }
 
 
-Expression* ParserTraits::ExpressionFromString(
-    int pos, Scanner* scanner,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::ExpressionFromString(int pos, Scanner* scanner,
+                                               AstNodeFactory* factory) {
   const AstRawString* symbol = GetSymbol(scanner);
   if (parser_->fni_ != NULL) parser_->fni_->PushLiteralName(symbol);
   return factory->NewStringLiteral(symbol, pos);
 }
 
 
-Expression* ParserTraits::GetIterator(
-    Expression* iterable, AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::GetIterator(Expression* iterable,
+                                      AstNodeFactory* factory) {
   Expression* iterator_symbol_literal =
       factory->NewSymbolLiteral("iterator_symbol", RelocInfo::kNoPosition);
   int pos = iterable->position();
@@ -759,8 +748,8 @@ Expression* ParserTraits::GetIterator(
 }
 
 
-Literal* ParserTraits::GetLiteralTheHole(
-    int position, AstNodeFactory<AstConstructionVisitor>* factory) {
+Literal* ParserTraits::GetLiteralTheHole(int position,
+                                         AstNodeFactory* factory) {
   return factory->NewTheHoleLiteral(RelocInfo::kNoPosition);
 }
 
@@ -778,6 +767,14 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
   return parser_->ParseFunctionLiteral(
       name, function_name_location, name_is_strict_reserved, kind,
       function_token_position, type, arity_restriction, ok);
+}
+
+
+ClassLiteral* ParserTraits::ParseClassLiteral(
+    const AstRawString* name, Scanner::Location class_name_location,
+    bool name_is_strict_reserved, int pos, bool* ok) {
+  return parser_->ParseClassLiteral(name, class_name_location,
+                                    name_is_strict_reserved, pos, ok);
 }
 
 
@@ -924,8 +921,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, *scope,
                                  &function_factory);
 
@@ -1036,8 +1032,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
                                            zone());
     }
     original_scope_ = scope;
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
@@ -1999,8 +1994,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   bool is_strict_reserved = false;
   const AstRawString* name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  Expression* value = ParseClassLiteral(name, scanner()->location(),
-                                        is_strict_reserved, pos, CHECK_OK);
+  ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
+                                          is_strict_reserved, pos, CHECK_OK);
 
   VariableProxy* proxy = NewUnresolved(name, LET, Interface::NewValue());
   Declaration* declaration =
@@ -3549,8 +3544,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       : FunctionLiteral::kNotParenthesized;
   // Parse function body.
   {
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     scope_->SetScopeName(function_name);
@@ -3897,6 +3891,90 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     pre_parse_timer_->Stop();
   }
   return result;
+}
+
+
+ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
+                                        Scanner::Location class_name_location,
+                                        bool name_is_strict_reserved, int pos,
+                                        bool* ok) {
+  // All parts of a ClassDeclaration and ClassExpression are strict code.
+  if (name_is_strict_reserved) {
+    ReportMessageAt(class_name_location, "unexpected_strict_reserved");
+    *ok = false;
+    return NULL;
+  }
+  if (IsEvalOrArguments(name)) {
+    ReportMessageAt(class_name_location, "strict_eval_arguments");
+    *ok = false;
+    return NULL;
+  }
+
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+  BlockState block_state(&scope_, block_scope);
+  scope_->SetStrictMode(STRICT);
+  scope_->SetScopeName(name);
+
+  VariableProxy* proxy = NULL;
+  if (name != NULL) {
+    proxy = NewUnresolved(name, CONST, Interface::NewConst());
+    Declaration* declaration =
+        factory()->NewVariableDeclaration(proxy, CONST, block_scope, pos);
+    Declare(declaration, true, CHECK_OK);
+  }
+
+  Expression* extends = NULL;
+  if (Check(Token::EXTENDS)) {
+    block_scope->set_start_position(scanner()->location().end_pos);
+    extends = ParseLeftHandSideExpression(CHECK_OK);
+  } else {
+    block_scope->set_start_position(scanner()->location().end_pos);
+  }
+
+  ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
+  Expression* constructor = NULL;
+  bool has_seen_constructor = false;
+
+  Expect(Token::LBRACE, CHECK_OK);
+  while (peek() != Token::RBRACE) {
+    if (Check(Token::SEMICOLON)) continue;
+    if (fni_ != NULL) fni_->Enter();
+    const bool in_class = true;
+    const bool is_static = false;
+    ObjectLiteral::Property* property = ParsePropertyDefinition(
+        NULL, in_class, is_static, &has_seen_constructor, CHECK_OK);
+
+    if (has_seen_constructor && constructor == NULL) {
+      constructor = GetPropertyValue(property);
+    } else {
+      properties->Add(property, zone());
+    }
+
+    if (fni_ != NULL) {
+      fni_->Infer();
+      fni_->Leave();
+    }
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+  int end_pos = scanner()->location().end_pos;
+
+  if (constructor == NULL) {
+    constructor =
+        DefaultConstructor(extends != NULL, block_scope, pos, end_pos);
+  }
+
+  block_scope->set_end_position(end_pos);
+  block_scope = block_scope->FinalizeBlockScope();
+
+  if (name != NULL) {
+    DCHECK_NOT_NULL(proxy);
+    DCHECK_NOT_NULL(block_scope);
+    proxy->var()->set_initializer_position(end_pos);
+  }
+
+  return factory()->NewClassLiteral(name, block_scope, proxy, extends,
+                                    constructor, properties, pos, end_pos);
 }
 
 

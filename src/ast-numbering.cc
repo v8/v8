@@ -448,6 +448,9 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
+  if (node->class_variable_proxy()) {
+    VisitVariableProxy(node->class_variable_proxy());
+  }
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }

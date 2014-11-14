@@ -1,3 +1,10 @@
+2014-11-14: Version 3.31.5
+
+        Classes: Implement correct name binding (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-14: Version 3.31.4
 
         Performance and stability improvements on all platforms.

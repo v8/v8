@@ -213,6 +213,7 @@
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
+  'field-type-tracking': [SKIP],
   'getters-on-elements': [SKIP],
   'harmony/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],

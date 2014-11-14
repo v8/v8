@@ -889,7 +889,7 @@ struct PrintableInstructionSequence;
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
-class InstructionSequence FINAL {
+class InstructionSequence FINAL : public ZoneObject {
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);
@@ -1015,6 +1015,8 @@ class InstructionSequence FINAL {
   VirtualRegisterSet doubles_;
   VirtualRegisterSet references_;
   DeoptimizationVector deoptimization_entries_;
+
+  DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
 };
 
 

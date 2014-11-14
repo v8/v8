@@ -42,17 +42,25 @@ class Pipeline {
 
  private:
   CompilationInfo* info_;
+  PipelineData* data_;
+
+  // Helpers for executing pipeline phases.
+  template <typename Phase>
+  void Run();
+  template <typename Phase, typename Arg0>
+  void Run(Arg0 arg_0);
+  template <typename Phase, typename Arg0, typename Arg1>
+  void Run(Arg0 arg_0, Arg1 arg_1);
 
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() { return info_->isolate(); }
 
-  void ComputeSchedule(PipelineData* data);
-  void VerifyAndPrintGraph(Graph* graph, const char* phase,
-                           bool untyped = false);
-  Handle<Code> GenerateCode(Linkage* linkage, PipelineData* data);
+  void RunPrintAndVerify(const char* phase, bool untyped = false);
+  void GenerateCode(Linkage* linkage);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_PIPELINE_H_

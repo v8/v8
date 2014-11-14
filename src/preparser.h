@@ -490,10 +490,6 @@ class ParserBase : public Traits {
                                                 bool* ok);
   ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
                                         bool* ok);
-  ExpressionT ParseClassLiteral(IdentifierT name,
-                                Scanner::Location function_name_location,
-                                bool name_is_strict_reserved, int pos,
-                                bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -1090,12 +1086,13 @@ class PreParserFactory {
       int position) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewClassLiteral(PreParserIdentifier name,
-                                      PreParserExpression extends,
-                                      PreParserExpression constructor,
-                                      PreParserExpressionList properties,
-                                      int start_position, int end_position) {
-    return PreParserExpression::Default();
+
+  // Return the object itself as AstVisitor and implement the needed
+  // dummy method right in this class.
+  PreParserFactory* visitor() { return this; }
+  int* ast_properties() {
+    static int dummy = 42;
+    return &dummy;
   }
 };
 
@@ -1308,13 +1305,6 @@ class PreParserTraits {
     return PreParserExpression::Super();
   }
 
-  static PreParserExpression ClassExpression(
-      PreParserIdentifier name, PreParserExpression extends,
-      PreParserExpression constructor, PreParserExpressionList properties,
-      int start_position, int end_position, PreParserFactory* factory) {
-    return PreParserExpression::Default();
-  }
-
   static PreParserExpression DefaultConstructor(bool call_super,
                                                 PreParserScope* scope, int pos,
                                                 int end_pos) {
@@ -1386,6 +1376,11 @@ class PreParserTraits {
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+
+  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
+                                        Scanner::Location class_name_location,
+                                        bool name_is_strict_reserved, int pos,
+                                        bool* ok);
 
  private:
   PreParser* pre_parser_;
@@ -1523,6 +1518,11 @@ class PreParser : public ParserBase<PreParserTraits> {
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
+
+  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
+                                        Scanner::Location class_name_location,
+                                        bool name_is_strict_reserved, int pos,
+                                        bool* ok);
 
   bool CheckInOrOf(bool accept_OF);
 };
@@ -2719,78 +2719,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 
   return function_literal;
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
-    IdentifierT name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
-  // All parts of a ClassDeclaration or a ClassExpression are strict code.
-  if (name_is_strict_reserved) {
-    ReportMessageAt(class_name_location, "unexpected_strict_reserved");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-  if (this->IsEvalOrArguments(name)) {
-    ReportMessageAt(class_name_location, "strict_eval_arguments");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  bool has_extends = false;
-  ExpressionT extends = this->EmptyExpression();
-  if (Check(Token::EXTENDS)) {
-    typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
-    BlockState block_state(&scope_, Traits::Type::ptr_to_scope(scope));
-    scope_->SetStrictMode(STRICT);
-    extends = this->ParseLeftHandSideExpression(CHECK_OK);
-    has_extends = true;
-  }
-
-  // TODO(arv): Implement scopes and name binding in class body only.
-  typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
-  BlockState block_state(&scope_, Traits::Type::ptr_to_scope(scope));
-  scope_->SetStrictMode(STRICT);
-  scope_->SetScopeName(name);
-
-  typename Traits::Type::PropertyList properties =
-      this->NewPropertyList(4, zone_);
-  ExpressionT constructor = this->EmptyExpression();
-  bool has_seen_constructor = false;
-
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
-    if (Check(Token::SEMICOLON)) continue;
-    if (fni_ != NULL) fni_->Enter();
-    const bool in_class = true;
-    const bool is_static = false;
-    bool old_has_seen_constructor = has_seen_constructor;
-    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        NULL, in_class, is_static, &has_seen_constructor, CHECK_OK);
-
-    if (has_seen_constructor != old_has_seen_constructor) {
-      constructor = this->GetPropertyValue(property);
-    } else {
-      properties->Add(property, zone());
-    }
-
-    if (fni_ != NULL) {
-      fni_->Infer();
-      fni_->Leave();
-    }
-  }
-
-  int end_pos = peek_position();
-  Expect(Token::RBRACE, CHECK_OK);
-
-  if (!has_seen_constructor) {
-    constructor =
-        this->DefaultConstructor(has_extends, scope_, pos, end_pos + 1);
-  }
-
-  return this->ClassExpression(name, extends, constructor, properties, pos,
-                               end_pos + 1, factory());
 }
 
 

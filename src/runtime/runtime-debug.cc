@@ -986,6 +986,17 @@ static bool SetClosureVariableValue(Isolate* isolate, Handle<Context> context,
 }
 
 
+static bool SetBlockContextVariableValue(Handle<Context> block_context,
+                                         Handle<String> variable_name,
+                                         Handle<Object> new_value) {
+  DCHECK(block_context->IsBlockContext());
+  Handle<ScopeInfo> scope_info(ScopeInfo::cast(block_context->extension()));
+
+  return SetContextLocalValue(block_context->GetIsolate(), scope_info,
+                              block_context, variable_name, new_value);
+}
+
+
 // Create a plain JSObject which materializes the scope for the specified
 // catch context.
 MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeCatchScope(
@@ -1304,8 +1315,8 @@ class ScopeIterator {
         return SetClosureVariableValue(isolate_, CurrentContext(),
                                        variable_name, new_value);
       case ScopeIterator::ScopeTypeBlock:
-        // TODO(2399): should we implement it?
-        break;
+        return SetBlockContextVariableValue(CurrentContext(), variable_name,
+                                            new_value);
       case ScopeIterator::ScopeTypeModule:
         // TODO(2399): should we implement it?
         break;

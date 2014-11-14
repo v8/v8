@@ -26,6 +26,10 @@ const ExternalArrayType kExternalArrayTypes[] = {
 };
 
 
+Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
+                          Type::Number(),    Type::String(), Type::Object()};
+
+
 const StrictMode kStrictModes[] = {SLOPPY, STRICT};
 
 }  // namespace
@@ -105,6 +109,25 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumberAndBoolean) {
       r.replacement(),
       IsPhi(kMachAnyTagged,
             IsBooleanNot(IsNumberEqual(p0, IsNumberConstant(0))), p1, control));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSStrictEqual
+
+
+TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
+  Node* const the_hole = HeapConstant(factory()->the_hole_value());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(Type*, type, kJSTypes) {
+    Node* const lhs = Parameter(type);
+    Reduction r = Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs,
+                                          the_hole, context, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFalseConstant());
+  }
 }
 
 

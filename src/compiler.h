@@ -200,8 +200,6 @@ class CompilationInfo {
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 
-  void MarkAsInliningDisabled() { SetFlag(kInliningEnabled, false); }
-
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
