@@ -4392,8 +4392,6 @@ bool Heap::WorthActivatingIncrementalMarking() {
 
 
 bool Heap::IdleNotification(int idle_time_in_ms) {
-  // If incremental marking is off, we do not perform idle notification.
-  if (!FLAG_incremental_marking) return true;
   base::ElapsedTimer timer;
   timer.Start();
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
@@ -4409,7 +4407,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
   heap_state.can_start_incremental_marking =
-      incremental_marking()->ShouldActivate();
+      incremental_marking()->ShouldActivate() && FLAG_incremental_marking;
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
   heap_state.mark_compact_speed_in_bytes_per_ms =

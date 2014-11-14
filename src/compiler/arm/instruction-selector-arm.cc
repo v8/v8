@@ -368,6 +368,16 @@ void EmitBic(InstructionSelector* selector, Node* node, Node* left,
                  g.UseRegister(right));
 }
 
+
+void EmitUbfx(InstructionSelector* selector, Node* node, Node* left,
+              uint32_t lsb, uint32_t width) {
+  DCHECK_LE(1, width);
+  DCHECK_LE(width, 32 - lsb);
+  ArmOperandGenerator g(selector);
+  selector->Emit(kArmUbfx, g.DefineAsRegister(node), g.UseRegister(left),
+                 g.TempImmediate(lsb), g.TempImmediate(width));
+}
+
 }  // namespace
 
 
@@ -398,15 +408,16 @@ void InstructionSelector::VisitWord32And(Node* node) {
       if (m.left().IsWord32Shr()) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().IsInRange(0, 31)) {
-          Emit(kArmUbfx, g.DefineAsRegister(node),
-               g.UseRegister(mleft.left().node()),
-               g.UseImmediate(mleft.right().node()), g.TempImmediate(width));
-          return;
+          // UBFX cannot extract bits past the register size, however since
+          // shifting the original value would have introduced some zeros we can
+          // still use UBFX with a smaller mask and the remaining bits will be
+          // zeros.
+          uint32_t const lsb = mleft.right().Value();
+          return EmitUbfx(this, node, mleft.left().node(), lsb,
+                          std::min(width, 32 - lsb));
         }
       }
-      Emit(kArmUbfx, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(0), g.TempImmediate(width));
-      return;
+      return EmitUbfx(this, node, m.left().node(), 0, width);
     }
     // Try to interpret this AND as BIC.
     if (g.CanBeImmediate(~value)) {
@@ -523,10 +534,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if (msb + width + lsb == 32) {
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));
-        Emit(kArmUbfx, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
-             g.TempImmediate(width));
-        return;
+        return EmitUbfx(this, node, mleft.left().node(), lsb, width);
       }
     }
   }
@@ -1247,9 +1255,7 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kInt32DivIsSafe |
-      MachineOperatorBuilder::kInt32ModIsSafe |
-      MachineOperatorBuilder::kUint32DivIsSafe |
-      MachineOperatorBuilder::kUint32ModIsSafe;
+      MachineOperatorBuilder::kUint32DivIsSafe;
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     flags |= MachineOperatorBuilder::kFloat64Floor |

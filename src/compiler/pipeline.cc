@@ -110,6 +110,8 @@ class PipelineData {
   }
 
   Zone* instruction_zone() const { return instruction_zone_; }
+  // RawMachineAssembler generally produces graphs which cannot be verified.
+  bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
 
   void DeleteGraphZone() {
     // Destroy objects with destructors first.
@@ -384,12 +386,13 @@ Handle<Code> Pipeline::GenerateCode() {
     {
       // Lower JSOperators where we can determine types.
       PhaseScope phase_scope(pipeline_statistics.get(), "typed lowering");
+      ZonePool::Scope zone_scope(data.zone_pool());
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
       ValueNumberingReducer vn_reducer(data.graph_zone());
       JSTypedLowering lowering(data.jsgraph());
       SimplifiedOperatorReducer simple_reducer(data.jsgraph());
-      GraphReducer graph_reducer(data.graph());
+      GraphReducer graph_reducer(data.graph(), zone_scope.zone());
       graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&lowering);
       graph_reducer.AddReducer(&simple_reducer);
@@ -400,13 +403,14 @@ Handle<Code> Pipeline::GenerateCode() {
     {
       // Lower simplified operators and insert changes.
       PhaseScope phase_scope(pipeline_statistics.get(), "simplified lowering");
+      ZonePool::Scope zone_scope(data.zone_pool());
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
       SimplifiedLowering lowering(data.jsgraph());
       lowering.LowerAllNodes();
       ValueNumberingReducer vn_reducer(data.graph_zone());
       SimplifiedOperatorReducer simple_reducer(data.jsgraph());
-      GraphReducer graph_reducer(data.graph());
+      GraphReducer graph_reducer(data.graph(), zone_scope.zone());
       graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.ReduceGraph();
@@ -416,6 +420,7 @@ Handle<Code> Pipeline::GenerateCode() {
     {
       // Lower changes that have been inserted before.
       PhaseScope phase_scope(pipeline_statistics.get(), "change lowering");
+      ZonePool::Scope zone_scope(data.zone_pool());
       SourcePositionTable::Scope pos(data.source_positions(),
                                      SourcePosition::Unknown());
       Linkage linkage(data.graph_zone(), info());
@@ -423,7 +428,7 @@ Handle<Code> Pipeline::GenerateCode() {
       SimplifiedOperatorReducer simple_reducer(data.jsgraph());
       ChangeLowering lowering(data.jsgraph(), &linkage);
       MachineOperatorReducer mach_reducer(data.jsgraph());
-      GraphReducer graph_reducer(data.graph());
+      GraphReducer graph_reducer(data.graph(), zone_scope.zone());
       // TODO(titzer): Figure out if we should run all reducers at once here.
       graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&simple_reducer);
@@ -451,11 +456,12 @@ Handle<Code> Pipeline::GenerateCode() {
   {
     // Lower any remaining generic JSOperators.
     PhaseScope phase_scope(pipeline_statistics.get(), "generic lowering");
+    ZonePool::Scope zone_scope(data.zone_pool());
     SourcePositionTable::Scope pos(data.source_positions(),
                                    SourcePosition::Unknown());
     JSGenericLowering generic(info(), data.jsgraph());
     SelectLowering select(data.jsgraph()->graph(), data.jsgraph()->common());
-    GraphReducer graph_reducer(data.graph());
+    GraphReducer graph_reducer(data.graph(), zone_scope.zone());
     graph_reducer.AddReducer(&generic);
     graph_reducer.AddReducer(&select);
     graph_reducer.ReduceGraph();
@@ -559,12 +565,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
     selector.SelectInstructions();
   }
 
-  if (FLAG_trace_turbo) {
-    OFStream os(stdout);
-    PrintableInstructionSequence printable = {
-        RegisterConfiguration::ArchDefault(), &sequence};
-    os << "----- Instruction sequence before register allocation -----\n"
-       << printable;
+  if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  &sequence);
@@ -605,7 +606,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, PipelineData* data) {
       info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }
-    if (FLAG_trace_turbo) {
+    if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
       TurboCfgFile tcf(isolate());
       tcf << AsC1VAllocator("CodeGen", &allocator);
     }

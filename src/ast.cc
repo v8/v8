@@ -1006,28 +1006,24 @@ CaseClause::CaseClause(Zone* zone, Expression* label,
   }
 #define REGULAR_NODE_WITH_FEEDBACK_SLOTS(NodeType)               \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
   }
 #define DONT_OPTIMIZE_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
   }
 #define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
   }
 #define DONT_TURBOFAN_NODE(NodeType)                             \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
   }
 #define DONT_TURBOFAN_NODE_WITH_FEEDBACK_SLOTS(NodeType)         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
   }
 #define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
   }
 #define DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType)     \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    add_slot_node(node);                                         \
   }
 #define DONT_CACHE_NODE(NodeType)                                \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
@@ -1101,7 +1097,6 @@ DONT_CACHE_NODE(ModuleLiteral)
 
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
-  add_slot_node(node);
 }
 
 #undef REGULAR_NODE

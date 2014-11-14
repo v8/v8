@@ -1705,6 +1705,7 @@ class VariableProxy FINAL : public Expression {
   }
 
   FeedbackVectorICSlot VariableFeedbackSlot() {
+    DCHECK(!FLAG_vector_ics || !variable_feedback_slot_.IsInvalid());
     return variable_feedback_slot_;
   }
 
@@ -1790,6 +1791,7 @@ class Property FINAL : public Expression {
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
+    DCHECK(!FLAG_vector_ics || !property_feedback_slot_.IsInvalid());
     return property_feedback_slot_;
   }
 
@@ -1834,7 +1836,10 @@ class Call FINAL : public Expression {
   }
 
   bool HasCallFeedbackSlot() const { return !call_feedback_slot_.IsInvalid(); }
-  FeedbackVectorICSlot CallFeedbackSlot() const { return call_feedback_slot_; }
+  FeedbackVectorICSlot CallFeedbackSlot() const {
+    DCHECK(!call_feedback_slot_.IsInvalid());
+    return call_feedback_slot_;
+  }
 
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     if (expression()->IsProperty()) {
@@ -1933,7 +1938,10 @@ class CallNew FINAL : public Expression {
     callnew_feedback_slot_ = slot;
   }
 
-  FeedbackVectorSlot CallNewFeedbackSlot() { return callnew_feedback_slot_; }
+  FeedbackVectorSlot CallNewFeedbackSlot() {
+    DCHECK(!callnew_feedback_slot_.IsInvalid());
+    return callnew_feedback_slot_;
+  }
   FeedbackVectorSlot AllocationSiteFeedbackSlot() {
     DCHECK(FLAG_pretenuring_call_new);
     return CallNewFeedbackSlot().next();
@@ -1997,6 +2005,8 @@ class CallRuntime FINAL : public Expression {
   }
 
   FeedbackVectorICSlot CallRuntimeFeedbackSlot() {
+    DCHECK(!(FLAG_vector_ics && is_jsruntime()) ||
+           !callruntime_feedback_slot_.IsInvalid());
     return callruntime_feedback_slot_;
   }
 
@@ -2383,6 +2393,7 @@ class Yield FINAL : public Expression {
   }
 
   FeedbackVectorICSlot KeyedLoadFeedbackSlot() {
+    DCHECK(!FLAG_vector_ics || !yield_first_feedback_slot_.IsInvalid());
     return yield_first_feedback_slot_;
   }
 
@@ -3159,8 +3170,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
  public:
   AstConstructionVisitor() {}
 
-  AstProperties* ast_properties() { return &properties_; }
-
  private:
   template<class> friend class AstNodeFactory;
 
@@ -3169,22 +3178,6 @@ class AstConstructionVisitor BASE_EMBEDDED {
   void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
-
-  void add_slot_node(AstNode* slot_node) {
-    FeedbackVectorRequirements reqs = slot_node->ComputeFeedbackRequirements();
-    if (reqs.slots() > 0) {
-      slot_node->SetFirstFeedbackSlot(
-          FeedbackVectorSlot(properties_.feedback_slots()));
-      properties_.increase_feedback_slots(reqs.slots());
-    }
-    if (reqs.ic_slots() > 0) {
-      slot_node->SetFirstFeedbackICSlot(
-          FeedbackVectorICSlot(properties_.ic_feedback_slots()));
-      properties_.increase_ic_feedback_slots(reqs.ic_slots());
-    }
-  }
-
-  AstProperties properties_;
 };
 
 
