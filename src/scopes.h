@@ -108,7 +108,7 @@ class Scope: public ZoneObject {
   // the name of named function literal is kept in an intermediate scope
   // in between this scope and the next outer scope.)
   Variable* LookupFunctionVar(const AstRawString* name,
-                              AstNodeFactory<AstNullVisitor>* factory);
+                              AstNodeFactory* factory);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
@@ -141,8 +141,7 @@ class Scope: public ZoneObject {
   Variable* DeclareDynamicGlobal(const AstRawString* name);
 
   // Create a new unresolved variable.
-  template<class Visitor>
-  VariableProxy* NewUnresolved(AstNodeFactory<Visitor>* factory,
+  VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
                                Interface* interface = Interface::NewValue(),
                                int position = RelocInfo::kNoPosition) {
@@ -594,16 +593,14 @@ class Scope: public ZoneObject {
   // Lookup a variable reference given by name recursively starting with this
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
-  Variable* LookupRecursive(VariableProxy* proxy,
-                            BindingKind* binding_kind,
-                            AstNodeFactory<AstNullVisitor>* factory);
+  Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
+                            AstNodeFactory* factory);
   MUST_USE_RESULT
-  bool ResolveVariable(CompilationInfo* info,
-                       VariableProxy* proxy,
-                       AstNodeFactory<AstNullVisitor>* factory);
+  bool ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
+                       AstNodeFactory* factory);
   MUST_USE_RESULT
   bool ResolveVariablesRecursively(CompilationInfo* info,
-                                   AstNodeFactory<AstNullVisitor>* factory);
+                                   AstNodeFactory* factory);
 
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
@@ -632,8 +629,7 @@ class Scope: public ZoneObject {
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
   MUST_USE_RESULT
-  bool AllocateVariables(CompilationInfo* info,
-                         AstNodeFactory<AstNullVisitor>* factory);
+  bool AllocateVariables(CompilationInfo* info, AstNodeFactory* factory);
 
  private:
   // Construct a scope based on the scope info.

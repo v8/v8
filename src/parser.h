@@ -373,7 +373,7 @@ class ParserTraits {
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
-    typedef AstNodeFactory<AstConstructionVisitor> Factory;
+    typedef AstNodeFactory Factory;
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
@@ -451,9 +451,9 @@ class ParserTraits {
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
   // computed value.
-  bool ShortcutNumericLiteralBinaryExpression(
-      Expression** x, Expression* y, Token::Value op, int pos,
-      AstNodeFactory<AstConstructionVisitor>* factory);
+  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
+                                              Token::Value op, int pos,
+                                              AstNodeFactory* factory);
 
   // Rewrites the following types of unary expressions:
   // not <literal> -> true / false
@@ -466,9 +466,8 @@ class ParserTraits {
   // + foo -> foo * 1
   // - foo -> foo * (-1)
   // ~ foo -> foo ^(~0)
-  Expression* BuildUnaryExpression(
-      Expression* expression, Token::Value op, int pos,
-      AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
+                                   int pos, AstNodeFactory* factory);
 
   // Generate AST node that throws a ReferenceError with the given type.
   Expression* NewThrowReferenceError(const char* type, int pos);
@@ -528,38 +527,32 @@ class ParserTraits {
   V8_INLINE const AstRawString* EmptyIdentifierString();
 
   // Odd-ball literal creators.
-  Literal* GetLiteralTheHole(int position,
-                             AstNodeFactory<AstConstructionVisitor>* factory);
+  Literal* GetLiteralTheHole(int position, AstNodeFactory* factory);
 
   // Producing data during the recursive descent.
   const AstRawString* GetSymbol(Scanner* scanner);
   const AstRawString* GetNextSymbol(Scanner* scanner);
   const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
-  Expression* ThisExpression(Scope* scope,
-                             AstNodeFactory<AstConstructionVisitor>* factory,
+  Expression* ThisExpression(Scope* scope, AstNodeFactory* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* SuperReference(Scope* scope,
-                             AstNodeFactory<AstConstructionVisitor>* factory,
+  Expression* SuperReference(Scope* scope, AstNodeFactory* factory,
                              int pos = RelocInfo::kNoPosition);
   Expression* ClassExpression(const AstRawString* name, Expression* extends,
                               Expression* constructor,
                               ZoneList<ObjectLiteral::Property*>* properties,
                               int start_position, int end_position,
-                              AstNodeFactory<AstConstructionVisitor>* factory);
+                              AstNodeFactory* factory);
+
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                  int end_pos);
-  Literal* ExpressionFromLiteral(
-      Token::Value token, int pos, Scanner* scanner,
-      AstNodeFactory<AstConstructionVisitor>* factory);
-  Expression* ExpressionFromIdentifier(
-      const AstRawString* name, int pos, Scope* scope,
-      AstNodeFactory<AstConstructionVisitor>* factory);
-  Expression* ExpressionFromString(
-      int pos, Scanner* scanner,
-      AstNodeFactory<AstConstructionVisitor>* factory);
-  Expression* GetIterator(Expression* iterable,
-                          AstNodeFactory<AstConstructionVisitor>* factory);
+  Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
+                                 AstNodeFactory* factory);
+  Expression* ExpressionFromIdentifier(const AstRawString* name, int pos,
+                                       Scope* scope, AstNodeFactory* factory);
+  Expression* ExpressionFromString(int pos, Scanner* scanner,
+                                   AstNodeFactory* factory);
+  Expression* GetIterator(Expression* iterable, AstNodeFactory* factory);
   ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
   }

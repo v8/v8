@@ -105,8 +105,7 @@ namespace internal {
   EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
-class AstConstructionVisitor;
-template<class> class AstNodeFactory;
+class AstNodeFactory;
 class AstVisitor;
 class Declaration;
 class Module;
@@ -142,12 +141,12 @@ typedef ZoneList<Handle<String> > ZoneStringList;
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 
-#define DECLARE_NODE_TYPE(type)                                 \
-  virtual void Accept(AstVisitor* v) OVERRIDE;                  \
-  virtual AstNode::NodeType node_type() const FINAL OVERRIDE {  \
-    return AstNode::k##type;                                    \
-  }                                                             \
-  template<class> friend class AstNodeFactory;
+#define DECLARE_NODE_TYPE(type)                                \
+  virtual void Accept(AstVisitor* v) OVERRIDE;                 \
+  virtual AstNode::NodeType node_type() const FINAL OVERRIDE { \
+    return AstNode::k##type;                                   \
+  }                                                            \
+  friend class AstNodeFactory;
 
 
 enum AstPropertiesFlag {
@@ -1498,7 +1497,7 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
   bool is_static() const { return is_static_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
+  friend class AstNodeFactory;
 
   ObjectLiteralProperty(Zone* zone, bool is_getter, FunctionLiteral* value,
                         bool is_static);
@@ -2329,15 +2328,6 @@ class Assignment FINAL : public Expression {
              int pos);
   static int parent_num_ids() { return Expression::num_ids(); }
 
-  template <class Visitor>
-  void Init(AstNodeFactory<Visitor>* factory) {
-    DCHECK(Token::IsAssignmentOp(op()));
-    if (is_compound()) {
-      binary_operation_ = factory->NewBinaryOperation(
-          binary_op(), target_, value_, position() + 1);
-    }
-  }
-
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
@@ -3164,57 +3154,19 @@ private:                                                            \
 
 
 // ----------------------------------------------------------------------------
-// Construction time visitor.
-
-class AstConstructionVisitor BASE_EMBEDDED {
- public:
-  AstConstructionVisitor() {}
-
- private:
-  template<class> friend class AstNodeFactory;
-
-  // Node visitors.
-#define DEF_VISIT(type) \
-  void Visit##type(type* node);
-  AST_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-};
-
-
-class AstNullVisitor BASE_EMBEDDED {
- public:
-  // Node visitors.
-#define DEF_VISIT(type) \
-  void Visit##type(type* node) {}
-  AST_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-};
-
-
-
-// ----------------------------------------------------------------------------
 // AstNode factory
 
-template<class Visitor>
 class AstNodeFactory FINAL BASE_EMBEDDED {
  public:
   explicit AstNodeFactory(AstValueFactory* ast_value_factory)
       : zone_(ast_value_factory->zone()),
         ast_value_factory_(ast_value_factory) {}
 
-  Visitor* visitor() { return &visitor_; }
-
-#define VISIT_AND_RETURN(NodeType, node) \
-  visitor_.Visit##NodeType((node)); \
-  return node;
-
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode,
                                               Scope* scope,
                                               int pos) {
-    VariableDeclaration* decl =
-        new(zone_) VariableDeclaration(zone_, proxy, mode, scope, pos);
-    VISIT_AND_RETURN(VariableDeclaration, decl)
+    return new (zone_) VariableDeclaration(zone_, proxy, mode, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
@@ -3222,71 +3174,56 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                               FunctionLiteral* fun,
                                               Scope* scope,
                                               int pos) {
-    FunctionDeclaration* decl =
-        new(zone_) FunctionDeclaration(zone_, proxy, mode, fun, scope, pos);
-    VISIT_AND_RETURN(FunctionDeclaration, decl)
+    return new (zone_) FunctionDeclaration(zone_, proxy, mode, fun, scope, pos);
   }
 
   ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
                                           Module* module,
                                           Scope* scope,
                                           int pos) {
-    ModuleDeclaration* decl =
-        new(zone_) ModuleDeclaration(zone_, proxy, module, scope, pos);
-    VISIT_AND_RETURN(ModuleDeclaration, decl)
+    return new (zone_) ModuleDeclaration(zone_, proxy, module, scope, pos);
   }
 
   ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
                                           Module* module,
                                           Scope* scope,
                                           int pos) {
-    ImportDeclaration* decl =
-        new(zone_) ImportDeclaration(zone_, proxy, module, scope, pos);
-    VISIT_AND_RETURN(ImportDeclaration, decl)
+    return new (zone_) ImportDeclaration(zone_, proxy, module, scope, pos);
   }
 
   ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
                                           Scope* scope,
                                           int pos) {
-    ExportDeclaration* decl =
-        new(zone_) ExportDeclaration(zone_, proxy, scope, pos);
-    VISIT_AND_RETURN(ExportDeclaration, decl)
+    return new (zone_) ExportDeclaration(zone_, proxy, scope, pos);
   }
 
   ModuleLiteral* NewModuleLiteral(Block* body, Interface* interface, int pos) {
-    ModuleLiteral* module =
-        new(zone_) ModuleLiteral(zone_, body, interface, pos);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+    return new (zone_) ModuleLiteral(zone_, body, interface, pos);
   }
 
   ModuleVariable* NewModuleVariable(VariableProxy* proxy, int pos) {
-    ModuleVariable* module = new(zone_) ModuleVariable(zone_, proxy, pos);
-    VISIT_AND_RETURN(ModuleVariable, module)
+    return new (zone_) ModuleVariable(zone_, proxy, pos);
   }
 
   ModulePath* NewModulePath(Module* origin, const AstRawString* name, int pos) {
-    ModulePath* module = new (zone_) ModulePath(zone_, origin, name, pos);
-    VISIT_AND_RETURN(ModulePath, module)
+    return new (zone_) ModulePath(zone_, origin, name, pos);
   }
 
   ModuleUrl* NewModuleUrl(Handle<String> url, int pos) {
-    ModuleUrl* module = new(zone_) ModuleUrl(zone_, url, pos);
-    VISIT_AND_RETURN(ModuleUrl, module)
+    return new (zone_) ModuleUrl(zone_, url, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels,
                   int capacity,
                   bool is_initializer_block,
                   int pos) {
-    Block* block =
-        new (zone_) Block(zone_, labels, capacity, is_initializer_block, pos);
-    VISIT_AND_RETURN(Block, block)
+    return new (zone_)
+        Block(zone_, labels, capacity, is_initializer_block, pos);
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \
   NodeType* New##NodeType(ZoneList<const AstRawString*>* labels, int pos) { \
-    NodeType* stmt = new (zone_) NodeType(zone_, labels, pos);              \
-    VISIT_AND_RETURN(NodeType, stmt);                                       \
+    return new (zone_) NodeType(zone_, labels, pos);                        \
   }
   STATEMENT_WITH_LABELS(DoWhileStatement)
   STATEMENT_WITH_LABELS(WhileStatement)
@@ -3299,12 +3236,10 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                         int pos) {
     switch (visit_mode) {
       case ForEachStatement::ENUMERATE: {
-        ForInStatement* stmt = new (zone_) ForInStatement(zone_, labels, pos);
-        VISIT_AND_RETURN(ForInStatement, stmt);
+        return new (zone_) ForInStatement(zone_, labels, pos);
       }
       case ForEachStatement::ITERATE: {
-        ForOfStatement* stmt = new (zone_) ForOfStatement(zone_, labels, pos);
-        VISIT_AND_RETURN(ForOfStatement, stmt);
+        return new (zone_) ForOfStatement(zone_, labels, pos);
       }
     }
     UNREACHABLE();
@@ -3313,47 +3248,38 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
 
   ModuleStatement* NewModuleStatement(
       VariableProxy* proxy, Block* body, int pos) {
-    ModuleStatement* stmt = new(zone_) ModuleStatement(zone_, proxy, body, pos);
-    VISIT_AND_RETURN(ModuleStatement, stmt)
+    return new (zone_) ModuleStatement(zone_, proxy, body, pos);
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
-    ExpressionStatement* stmt =
-        new(zone_) ExpressionStatement(zone_, expression, pos);
-    VISIT_AND_RETURN(ExpressionStatement, stmt)
+    return new (zone_) ExpressionStatement(zone_, expression, pos);
   }
 
   ContinueStatement* NewContinueStatement(IterationStatement* target, int pos) {
-    ContinueStatement* stmt = new(zone_) ContinueStatement(zone_, target, pos);
-    VISIT_AND_RETURN(ContinueStatement, stmt)
+    return new (zone_) ContinueStatement(zone_, target, pos);
   }
 
   BreakStatement* NewBreakStatement(BreakableStatement* target, int pos) {
-    BreakStatement* stmt = new(zone_) BreakStatement(zone_, target, pos);
-    VISIT_AND_RETURN(BreakStatement, stmt)
+    return new (zone_) BreakStatement(zone_, target, pos);
   }
 
   ReturnStatement* NewReturnStatement(Expression* expression, int pos) {
-    ReturnStatement* stmt = new(zone_) ReturnStatement(zone_, expression, pos);
-    VISIT_AND_RETURN(ReturnStatement, stmt)
+    return new (zone_) ReturnStatement(zone_, expression, pos);
   }
 
   WithStatement* NewWithStatement(Scope* scope,
                                   Expression* expression,
                                   Statement* statement,
                                   int pos) {
-    WithStatement* stmt = new(zone_) WithStatement(
-        zone_, scope, expression, statement, pos);
-    VISIT_AND_RETURN(WithStatement, stmt)
+    return new (zone_) WithStatement(zone_, scope, expression, statement, pos);
   }
 
   IfStatement* NewIfStatement(Expression* condition,
                               Statement* then_statement,
                               Statement* else_statement,
                               int pos) {
-    IfStatement* stmt = new (zone_)
+    return new (zone_)
         IfStatement(zone_, condition, then_statement, else_statement, pos);
-    VISIT_AND_RETURN(IfStatement, stmt)
   }
 
   TryCatchStatement* NewTryCatchStatement(int index,
@@ -3362,23 +3288,20 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                           Variable* variable,
                                           Block* catch_block,
                                           int pos) {
-    TryCatchStatement* stmt = new(zone_) TryCatchStatement(
-        zone_, index, try_block, scope, variable, catch_block, pos);
-    VISIT_AND_RETURN(TryCatchStatement, stmt)
+    return new (zone_) TryCatchStatement(zone_, index, try_block, scope,
+                                         variable, catch_block, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(int index,
                                               Block* try_block,
                                               Block* finally_block,
                                               int pos) {
-    TryFinallyStatement* stmt = new(zone_) TryFinallyStatement(
-        zone_, index, try_block, finally_block, pos);
-    VISIT_AND_RETURN(TryFinallyStatement, stmt)
+    return new (zone_)
+        TryFinallyStatement(zone_, index, try_block, finally_block, pos);
   }
 
   DebuggerStatement* NewDebuggerStatement(int pos) {
-    DebuggerStatement* stmt = new (zone_) DebuggerStatement(zone_, pos);
-    VISIT_AND_RETURN(DebuggerStatement, stmt)
+    return new (zone_) DebuggerStatement(zone_, pos);
   }
 
   EmptyStatement* NewEmptyStatement(int pos) {
@@ -3387,57 +3310,42 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
 
   CaseClause* NewCaseClause(
       Expression* label, ZoneList<Statement*>* statements, int pos) {
-    CaseClause* clause = new (zone_) CaseClause(zone_, label, statements, pos);
-    VISIT_AND_RETURN(CaseClause, clause)
+    return new (zone_) CaseClause(zone_, label, statements, pos);
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewString(string), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_)
+        Literal(zone_, ast_value_factory_->NewString(string), pos);
   }
 
   // A JavaScript symbol (ECMA-262 edition 6).
   Literal* NewSymbolLiteral(const char* name, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
   }
 
   Literal* NewNumberLiteral(double number, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewNumber(number), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_)
+        Literal(zone_, ast_value_factory_->NewNumber(number), pos);
   }
 
   Literal* NewSmiLiteral(int number, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewSmi(number), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewSmi(number), pos);
   }
 
   Literal* NewBooleanLiteral(bool b, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewBoolean(b), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewBoolean(b), pos);
   }
 
   Literal* NewNullLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
   }
 
   Literal* NewUndefinedLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewUndefined(), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewUndefined(), pos);
   }
 
   Literal* NewTheHoleLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewTheHole(), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return new (zone_) Literal(zone_, ast_value_factory_->NewTheHole(), pos);
   }
 
   ObjectLiteral* NewObjectLiteral(
@@ -3446,10 +3354,8 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
       int boilerplate_properties,
       bool has_function,
       int pos) {
-    ObjectLiteral* lit =
-        new (zone_) ObjectLiteral(zone_, properties, literal_index,
-                                  boilerplate_properties, has_function, pos);
-    VISIT_AND_RETURN(ObjectLiteral, lit)
+    return new (zone_) ObjectLiteral(zone_, properties, literal_index,
+                                     boilerplate_properties, has_function, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(Literal* key,
@@ -3465,120 +3371,104 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
     ObjectLiteral::Property* prop =
         new (zone_) ObjectLiteral::Property(zone_, is_getter, value, is_static);
     prop->set_key(NewStringLiteral(value->raw_name(), pos));
-    return prop;  // Not an AST node, will not be visited.
+    return prop;
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern,
                                   const AstRawString* flags,
                                   int literal_index,
                                   int pos) {
-    RegExpLiteral* lit =
-        new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index, pos);
-    VISIT_AND_RETURN(RegExpLiteral, lit);
+    return new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int literal_index,
                                 int pos) {
-    ArrayLiteral* lit =
-        new (zone_) ArrayLiteral(zone_, values, literal_index, pos);
-    VISIT_AND_RETURN(ArrayLiteral, lit)
+    return new (zone_) ArrayLiteral(zone_, values, literal_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
                                   int pos = RelocInfo::kNoPosition) {
-    VariableProxy* proxy = new (zone_) VariableProxy(zone_, var, pos);
-    VISIT_AND_RETURN(VariableProxy, proxy)
+    return new (zone_) VariableProxy(zone_, var, pos);
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
                                   bool is_this,
                                   Interface* interface = Interface::NewValue(),
                                   int position = RelocInfo::kNoPosition) {
-    VariableProxy* proxy =
-        new (zone_) VariableProxy(zone_, name, is_this, interface, position);
-    VISIT_AND_RETURN(VariableProxy, proxy)
+    return new (zone_) VariableProxy(zone_, name, is_this, interface, position);
   }
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {
-    Property* prop = new (zone_) Property(zone_, obj, key, pos);
-    VISIT_AND_RETURN(Property, prop)
+    return new (zone_) Property(zone_, obj, key, pos);
   }
 
   Call* NewCall(Expression* expression,
                 ZoneList<Expression*>* arguments,
                 int pos) {
-    Call* call = new (zone_) Call(zone_, expression, arguments, pos);
-    VISIT_AND_RETURN(Call, call)
+    return new (zone_) Call(zone_, expression, arguments, pos);
   }
 
   CallNew* NewCallNew(Expression* expression,
                       ZoneList<Expression*>* arguments,
                       int pos) {
-    CallNew* call = new (zone_) CallNew(zone_, expression, arguments, pos);
-    VISIT_AND_RETURN(CallNew, call)
+    return new (zone_) CallNew(zone_, expression, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(const AstRawString* name,
                               const Runtime::Function* function,
                               ZoneList<Expression*>* arguments,
                               int pos) {
-    CallRuntime* call =
-        new (zone_) CallRuntime(zone_, name, function, arguments, pos);
-    VISIT_AND_RETURN(CallRuntime, call)
+    return new (zone_) CallRuntime(zone_, name, function, arguments, pos);
   }
 
   UnaryOperation* NewUnaryOperation(Token::Value op,
                                     Expression* expression,
                                     int pos) {
-    UnaryOperation* node =
-        new (zone_) UnaryOperation(zone_, op, expression, pos);
-    VISIT_AND_RETURN(UnaryOperation, node)
+    return new (zone_) UnaryOperation(zone_, op, expression, pos);
   }
 
   BinaryOperation* NewBinaryOperation(Token::Value op,
                                       Expression* left,
                                       Expression* right,
                                       int pos) {
-    BinaryOperation* node =
-        new (zone_) BinaryOperation(zone_, op, left, right, pos);
-    VISIT_AND_RETURN(BinaryOperation, node)
+    return new (zone_) BinaryOperation(zone_, op, left, right, pos);
   }
 
   CountOperation* NewCountOperation(Token::Value op,
                                     bool is_prefix,
                                     Expression* expr,
                                     int pos) {
-    CountOperation* node =
-        new (zone_) CountOperation(zone_, op, is_prefix, expr, pos);
-    VISIT_AND_RETURN(CountOperation, node)
+    return new (zone_) CountOperation(zone_, op, is_prefix, expr, pos);
   }
 
   CompareOperation* NewCompareOperation(Token::Value op,
                                         Expression* left,
                                         Expression* right,
                                         int pos) {
-    CompareOperation* node =
-        new (zone_) CompareOperation(zone_, op, left, right, pos);
-    VISIT_AND_RETURN(CompareOperation, node)
+    return new (zone_) CompareOperation(zone_, op, left, right, pos);
   }
 
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
                               int position) {
-    Conditional* cond = new (zone_) Conditional(
-        zone_, condition, then_expression, else_expression, position);
-    VISIT_AND_RETURN(Conditional, cond)
+    return new (zone_) Conditional(zone_, condition, then_expression,
+                                   else_expression, position);
   }
 
   Assignment* NewAssignment(Token::Value op,
                             Expression* target,
                             Expression* value,
                             int pos) {
+    DCHECK(Token::IsAssignmentOp(op));
     Assignment* assign = new (zone_) Assignment(zone_, op, target, value, pos);
-    assign->Init(this);
-    VISIT_AND_RETURN(Assignment, assign)
+    if (assign->is_compound()) {
+      DCHECK(Token::IsAssignmentOp(op));
+      assign->binary_operation_ =
+          NewBinaryOperation(assign->binary_op(), target, value, pos + 1);
+    }
+    return assign;
   }
 
   Yield* NewYield(Expression *generator_object,
@@ -3586,14 +3476,12 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                   Yield::Kind yield_kind,
                   int pos) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    Yield* yield =
-        new (zone_) Yield(zone_, generator_object, expression, yield_kind, pos);
-    VISIT_AND_RETURN(Yield, yield)
+    return new (zone_)
+        Yield(zone_, generator_object, expression, yield_kind, pos);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
-    Throw* t = new (zone_) Throw(zone_, exception, pos);
-    VISIT_AND_RETURN(Throw, t)
+    return new (zone_) Throw(zone_, exception, pos);
   }
 
   FunctionLiteral* NewFunctionLiteral(
@@ -3605,51 +3493,37 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
       FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::IsParenthesizedFlag is_parenthesized, FunctionKind kind,
       int position) {
-    FunctionLiteral* lit = new (zone_) FunctionLiteral(
+    return new (zone_) FunctionLiteral(
         zone_, name, ast_value_factory, scope, body, materialized_literal_count,
         expected_property_count, handler_count, parameter_count, function_type,
         has_duplicate_parameters, is_function, is_parenthesized, kind,
         position);
-    // Top-level literal doesn't count for the AST's properties.
-    if (is_function == FunctionLiteral::kIsFunction) {
-      visitor_.VisitFunctionLiteral(lit);
-    }
-    return lit;
   }
 
   ClassLiteral* NewClassLiteral(const AstRawString* name, Expression* extends,
                                 Expression* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
-    ClassLiteral* lit =
-        new (zone_) ClassLiteral(zone_, name, extends, constructor, properties,
-                                 start_position, end_position);
-    VISIT_AND_RETURN(ClassLiteral, lit)
+    return new (zone_) ClassLiteral(zone_, name, extends, constructor,
+                                    properties, start_position, end_position);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
                                                   v8::Extension* extension,
                                                   int pos) {
-    NativeFunctionLiteral* lit =
-        new (zone_) NativeFunctionLiteral(zone_, name, extension, pos);
-    VISIT_AND_RETURN(NativeFunctionLiteral, lit)
+    return new (zone_) NativeFunctionLiteral(zone_, name, extension, pos);
   }
 
   ThisFunction* NewThisFunction(int pos) {
-    ThisFunction* fun = new (zone_) ThisFunction(zone_, pos);
-    VISIT_AND_RETURN(ThisFunction, fun)
+    return new (zone_) ThisFunction(zone_, pos);
   }
 
   SuperReference* NewSuperReference(VariableProxy* this_var, int pos) {
-    SuperReference* super = new (zone_) SuperReference(zone_, this_var, pos);
-    VISIT_AND_RETURN(SuperReference, super);
+    return new (zone_) SuperReference(zone_, this_var, pos);
   }
-
-#undef VISIT_AND_RETURN
 
  private:
   Zone* zone_;
-  Visitor visitor_;
   AstValueFactory* ast_value_factory_;
 };
 

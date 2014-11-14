@@ -29,9 +29,7 @@ class Processor: public AstVisitor {
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
 
-  AstNodeFactory<AstNullVisitor>* factory() {
-    return &factory_;
-  }
+  AstNodeFactory* factory() { return &factory_; }
 
  private:
   Variable* result_;
@@ -49,7 +47,7 @@ class Processor: public AstVisitor {
   bool is_set_;
   bool in_try_;
 
-  AstNodeFactory<AstNullVisitor> factory_;
+  AstNodeFactory factory_;
 
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;

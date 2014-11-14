@@ -287,8 +287,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   ZoneList<Statement*>* body = NULL;
 
   {
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, function_scope,
                                  &function_factory);
 
@@ -460,7 +459,7 @@ Expression* ParserTraits::MarkExpressionAsAssigned(Expression* expression) {
 
 bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
     Expression** x, Expression* y, Token::Value op, int pos,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+    AstNodeFactory* factory) {
   if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
       y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
     double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
@@ -518,9 +517,9 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
 }
 
 
-Expression* ParserTraits::BuildUnaryExpression(
-    Expression* expression, Token::Value op, int pos,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
+                                               Token::Value op, int pos,
+                                               AstNodeFactory* factory) {
   DCHECK(expression != NULL);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
@@ -674,13 +673,13 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
 }
 
 
-Expression* ParserTraits::ThisExpression(
-    Scope* scope, AstNodeFactory<AstConstructionVisitor>* factory, int pos) {
+Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
+                                         int pos) {
   return factory->NewVariableProxy(scope->receiver(), pos);
 }
 
-Expression* ParserTraits::SuperReference(
-    Scope* scope, AstNodeFactory<AstConstructionVisitor>* factory, int pos) {
+Expression* ParserTraits::SuperReference(Scope* scope, AstNodeFactory* factory,
+                                         int pos) {
   return factory->NewSuperReference(
       ThisExpression(scope, factory, pos)->AsVariableProxy(),
       pos);
@@ -689,11 +688,10 @@ Expression* ParserTraits::SuperReference(
 Expression* ParserTraits::ClassExpression(
     const AstRawString* name, Expression* extends, Expression* constructor,
     ZoneList<ObjectLiteral::Property*>* properties, int start_position,
-    int end_position, AstNodeFactory<AstConstructionVisitor>* factory) {
+    int end_position, AstNodeFactory* factory) {
   return factory->NewClassLiteral(name, extends, constructor, properties,
                                   start_position, end_position);
 }
-
 
 Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
                                              int pos, int end_pos) {
@@ -701,10 +699,9 @@ Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
 }
 
 
-Literal* ParserTraits::ExpressionFromLiteral(
-    Token::Value token, int pos,
-    Scanner* scanner,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
+                                             Scanner* scanner,
+                                             AstNodeFactory* factory) {
   switch (token) {
     case Token::NULL_LITERAL:
       return factory->NewNullLiteral(pos);
@@ -723,9 +720,9 @@ Literal* ParserTraits::ExpressionFromLiteral(
 }
 
 
-Expression* ParserTraits::ExpressionFromIdentifier(
-    const AstRawString* name, int pos, Scope* scope,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
+                                                   int pos, Scope* scope,
+                                                   AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
   // The name may refer to a module instance object, so its type is unknown.
 #ifdef DEBUG
@@ -737,17 +734,16 @@ Expression* ParserTraits::ExpressionFromIdentifier(
 }
 
 
-Expression* ParserTraits::ExpressionFromString(
-    int pos, Scanner* scanner,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::ExpressionFromString(int pos, Scanner* scanner,
+                                               AstNodeFactory* factory) {
   const AstRawString* symbol = GetSymbol(scanner);
   if (parser_->fni_ != NULL) parser_->fni_->PushLiteralName(symbol);
   return factory->NewStringLiteral(symbol, pos);
 }
 
 
-Expression* ParserTraits::GetIterator(
-    Expression* iterable, AstNodeFactory<AstConstructionVisitor>* factory) {
+Expression* ParserTraits::GetIterator(Expression* iterable,
+                                      AstNodeFactory* factory) {
   Expression* iterator_symbol_literal =
       factory->NewSymbolLiteral("iterator_symbol", RelocInfo::kNoPosition);
   int pos = iterable->position();
@@ -759,8 +755,8 @@ Expression* ParserTraits::GetIterator(
 }
 
 
-Literal* ParserTraits::GetLiteralTheHole(
-    int position, AstNodeFactory<AstConstructionVisitor>* factory) {
+Literal* ParserTraits::GetLiteralTheHole(int position,
+                                         AstNodeFactory* factory) {
   return factory->NewTheHoleLiteral(RelocInfo::kNoPosition);
 }
 
@@ -924,8 +920,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, *scope,
                                  &function_factory);
 
@@ -1036,8 +1031,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
                                            zone());
     }
     original_scope_ = scope;
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
@@ -3549,8 +3543,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       : FunctionLiteral::kNotParenthesized;
   // Parse function body.
   {
-    AstNodeFactory<AstConstructionVisitor> function_factory(
-        ast_value_factory());
+    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     scope_->SetScopeName(function_name);
