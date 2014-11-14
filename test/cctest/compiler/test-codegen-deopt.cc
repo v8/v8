@@ -56,7 +56,7 @@ class DeoptCodegenTester {
     graph = new (scope_->main_zone()) Graph(scope_->main_zone());
   }
 
-  virtual ~DeoptCodegenTester() { delete code; }
+  virtual ~DeoptCodegenTester() {}
 
   void GenerateCodeFromSchedule(Schedule* schedule) {
     OFStream os(stdout);
@@ -68,7 +68,8 @@ class DeoptCodegenTester {
     Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(scope_->main_zone(), schedule);
-    code = new TestInstrSeq(scope_->main_zone(), instruction_blocks);
+    code = new (scope_->main_zone())
+        TestInstrSeq(scope_->main_zone(), instruction_blocks);
     SourcePositionTable source_positions(graph);
     InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
                                  schedule, &source_positions);
