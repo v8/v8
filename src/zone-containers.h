@@ -7,7 +7,6 @@
 
 #include <deque>
 #include <queue>
-#include <stack>
 #include <vector>
 
 #include "src/zone-allocator.h"
@@ -37,45 +36,29 @@ class ZoneVector : public std::vector<T, zone_allocator<T> > {
   }
 };
 
-
 // A wrapper subclass std::deque to make it easy to construct one
 // that uses a zone allocator.
 template <typename T>
 class ZoneDeque : public std::deque<T, zone_allocator<T> > {
  public:
-  // Constructs an empty deque.
   explicit ZoneDeque(Zone* zone)
       : std::deque<T, zone_allocator<T> >(zone_allocator<T>(zone)) {}
 };
 
-
 // A wrapper subclass for std::queue to make it easy to construct one
 // that uses a zone allocator.
 template <typename T>
-class ZoneQueue : public std::queue<T, ZoneDeque<T>> {
+class ZoneQueue : public std::queue<T, std::deque<T, zone_allocator<T> > > {
  public:
   // Constructs an empty queue.
   explicit ZoneQueue(Zone* zone)
-      : std::queue<T, ZoneDeque<T>>(ZoneDeque<T>(zone)) {}
+      : std::queue<T, std::deque<T, zone_allocator<T> > >(
+            std::deque<T, zone_allocator<T> >(zone_allocator<T>(zone))) {}
 };
-
-
-// A wrapper subclass for std::stack to make it easy to construct one that uses
-// a zone allocator.
-template <typename T>
-class ZoneStack : public std::stack<T, ZoneDeque<T>> {
- public:
-  // Constructs an empty stack.
-  explicit ZoneStack(Zone* zone)
-      : std::stack<T, ZoneDeque<T>>(ZoneDeque<T>(zone)) {}
-};
-
 
 // Typedefs to shorten commonly used vectors.
 typedef ZoneVector<bool> BoolVector;
 typedef ZoneVector<int> IntVector;
-
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_ZONE_CONTAINERS_H_

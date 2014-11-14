@@ -55,39 +55,20 @@ class Reducer {
 // Performs an iterative reduction of a node graph.
 class GraphReducer FINAL {
  public:
-  GraphReducer(Graph* graph, Zone* zone);
+  explicit GraphReducer(Graph* graph);
 
   Graph* graph() const { return graph_; }
 
-  void AddReducer(Reducer* reducer);
+  void AddReducer(Reducer* reducer) { reducers_.push_back(reducer); }
 
   // Reduce a single node.
-  void ReduceNode(Node* const);
+  void ReduceNode(Node* node);
   // Reduce the whole graph.
   void ReduceGraph();
 
  private:
-  enum class State : uint8_t;
-
-  // Reduce a single node.
-  Reduction Reduce(Node* const);
-  // Reduce the node on top of the stack.
-  void ReduceTop();
-
-  // Node stack operations.
-  void Pop();
-  void Push(Node* const);
-  Node* Top() const;
-
-  // Revisit queue operations.
-  bool Recurse(Node* const);
-  void Revisit(Node* const);
-
   Graph* graph_;
   ZoneVector<Reducer*> reducers_;
-  ZoneStack<Node*> revisit_;
-  ZoneStack<Node*> stack_;
-  ZoneDeque<State> state_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };
