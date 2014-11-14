@@ -12,79 +12,189 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-GraphReducer::GraphReducer(Graph* graph)
-    : graph_(graph), reducers_(graph->zone()) {}
+enum class GraphReducer::State : uint8_t {
+  kUnvisited,
+  kRevisit,
+  kOnStack,
+  kVisited
+};
 
 
-static bool NodeIdIsLessThan(const Node* node, NodeId id) {
-  return node->id() < id;
+GraphReducer::GraphReducer(Graph* graph, Zone* zone)
+    : graph_(graph),
+      reducers_(zone),
+      revisit_(zone),
+      stack_(zone),
+      state_(zone) {}
+
+
+void GraphReducer::AddReducer(Reducer* reducer) {
+  reducers_.push_back(reducer);
 }
 
 
 void GraphReducer::ReduceNode(Node* node) {
-  static const unsigned kMaxAttempts = 16;
-  bool reduce = true;
-  for (unsigned attempts = 0; attempts <= kMaxAttempts; ++attempts) {
-    if (!reduce) return;
-    reduce = false;  // Assume we don't need to rerun any reducers.
-    int before = graph_->NodeCount();
-    for (ZoneVector<Reducer*>::iterator i = reducers_.begin();
-         i != reducers_.end(); ++i) {
+  DCHECK(stack_.empty());
+  DCHECK(revisit_.empty());
+  std::fill(state_.begin(), state_.end(), State::kUnvisited);
+  Push(node);
+  for (;;) {
+    DCHECK(!stack_.empty() ||
+           std::find(state_.begin(), state_.end(), State::kOnStack) ==
+               state_.end());
+    if (!stack_.empty()) {
+      // Process the node on the top of the stack, potentially pushing more or
+      // popping the node off the stack.
+      ReduceTop();
+    } else if (!revisit_.empty()) {
+      // If the stack becomes empty, revisit any nodes in the revisit queue.
+      Node* const node = revisit_.top();
+      revisit_.pop();
+      if (state_[node->id()] == State::kRevisit) {
+        // state can change while in queue.
+        Push(node);
+      }
+    } else {
+      break;
+    }
+  }
+  DCHECK(std::find(state_.begin(), state_.end(), State::kOnStack) ==
+         state_.end());
+  DCHECK(revisit_.empty());
+  DCHECK(stack_.empty());
+}
+
+
+void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
+
+
+Reduction GraphReducer::Reduce(Node* const node) {
+  auto skip = reducers_.end();
+  for (auto i = reducers_.begin(); i != reducers_.end();) {
+    if (i != skip) {
       Reduction reduction = (*i)->Reduce(node);
-      Node* replacement = reduction.replacement();
-      if (replacement == NULL) {
+      if (!reduction.Changed()) {
         // No change from this reducer.
-      } else if (replacement == node) {
-        // {replacement == node} represents an in-place reduction.
-        // Rerun all the reducers for this node, as now there may be more
+      } else if (reduction.replacement() == node) {
+        // {replacement} == {node} represents an in-place reduction. Rerun
+        // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
-        reduce = true;
-        break;
+        skip = i;
+        i = reducers_.begin();
+        continue;
       } else {
-        if (node == graph_->start()) graph_->SetStart(replacement);
-        if (node == graph_->end()) graph_->SetEnd(replacement);
-        // If {node} was replaced by an old node, unlink {node} and assume that
-        // {replacement} was already reduced and finish.
-        if (replacement->id() < before) {
-          node->ReplaceUses(replacement);
-          node->Kill();
-          return;
-        }
-        // Otherwise, {node} was replaced by a new node. Replace all old uses of
+        // {node} was replaced by another node.
+        return reduction;
+      }
+    }
+    ++i;
+  }
+  if (skip == reducers_.end()) {
+    // No change from any reducer.
+    return Reducer::NoChange();
+  }
+  // At least one reducer did some in-place reduction.
+  return Reducer::Changed(node);
+}
+
+
+void GraphReducer::ReduceTop() {
+  Node* const node = Top();
+  if (node->IsDead()) return Pop();  // Node was killed while on stack.
+
+  // Recurse on an input if necessary.
+  for (auto const input : node->inputs()) {
+    if (input != node && Recurse(input)) return;
+  }
+
+  // Remember the node count before reduction.
+  const int node_count = graph()->NodeCount();
+
+  // All inputs should be visited or on stack. Apply reductions to node.
+  Reduction reduction = Reduce(node);
+
+  // After reducing the node, pop it off the stack.
+  Pop();
+
+  // If there was a reduction, revisit the uses and reduce the replacement.
+  if (reduction.Changed()) {
+    for (Node* const use : node->uses()) {
+      // Don't revisit this node if it refers to itself.
+      if (use != node) Revisit(use);
+    }
+    Node* const replacement = reduction.replacement();
+    if (replacement != node) {
+      if (node == graph()->start()) graph()->SetStart(replacement);
+      if (node == graph()->end()) graph()->SetEnd(replacement);
+      // If {node} was replaced by an old node, unlink {node} and assume that
+      // {replacement} was already reduced and finish.
+      if (replacement->id() < node_count) {
+        node->ReplaceUses(replacement);
+        node->Kill();
+      } else {
+        // Otherwise {node} was replaced by a new node. Replace all old uses of
         // {node} with {replacement}. New nodes created by this reduction can
         // use {node}.
-        node->ReplaceUsesIf(
-            std::bind2nd(std::ptr_fun(&NodeIdIsLessThan), before), replacement);
+        node->ReplaceUsesIf([node_count](Node* const node) {
+                              return node->id() < node_count;
+                            },
+                            replacement);
         // Unlink {node} if it's no longer used.
         if (node->uses().empty()) {
           node->Kill();
         }
-        // Rerun all the reductions on the {replacement}.
-        node = replacement;
-        reduce = true;
-        break;
+
+        // If there was a replacement, reduce it after popping {node}.
+        Recurse(replacement);
       }
     }
   }
 }
 
 
-// A helper class to reuse the node traversal algorithm.
-struct GraphReducerVisitor FINAL : public NullNodeVisitor {
-  explicit GraphReducerVisitor(GraphReducer* reducer) : reducer_(reducer) {}
-  void Post(Node* node) { reducer_->ReduceNode(node); }
-  GraphReducer* reducer_;
-};
-
-
-void GraphReducer::ReduceGraph() {
-  GraphReducerVisitor visitor(this);
-  // Perform a post-order reduction of all nodes starting from the end.
-  graph()->VisitNodeInputsFromEnd(&visitor);
+void GraphReducer::Pop() {
+  Node* const node = Top();
+  state_[node->id()] = State::kVisited;
+  stack_.pop();
 }
 
 
-// TODO(titzer): partial graph reductions.
+void GraphReducer::Push(Node* const node) {
+  size_t const id = static_cast<size_t>(node->id());
+  if (id >= state_.size()) state_.resize(id + 1);
+  DCHECK(id < state_.size());
+  DCHECK(state_[id] != State::kOnStack);
+  state_[id] = State::kOnStack;
+  stack_.push(node);
+}
+
+
+Node* GraphReducer::Top() const {
+  DCHECK(!stack_.empty());
+  Node* const node = stack_.top();
+  size_t const id = static_cast<size_t>(node->id());
+  DCHECK(id < state_.size());
+  DCHECK(state_[id] == State::kOnStack);
+  USE(id);
+  return node;
+}
+
+
+bool GraphReducer::Recurse(Node* const node) {
+  size_t const id = static_cast<size_t>(node->id());
+  if (id < state_.size() && state_[id] > State::kRevisit) return false;
+  Push(node);
+  return true;
+}
+
+
+void GraphReducer::Revisit(Node* const node) {
+  size_t const id = static_cast<size_t>(node->id());
+  if (id < state_.size() && state_[id] == State::kVisited) {
+    state_[id] = State::kRevisit;
+    revisit_.push(node);
+  }
+}
 
 }  // namespace compiler
 }  // namespace internal
