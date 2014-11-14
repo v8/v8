@@ -4,14 +4,12 @@
 
 // Flags: --allow-natives-syntax
 
-function test(mode) {
+function testAdd(mode) {
   var a = [];
   Object.defineProperty(a, "length", { writable : false});
 
   function check(f) {
-    try {
-      f(a);
-    } catch(e) { }
+    assertThrows(function() { f(a) }, TypeError);
     assertFalse(0 in a);
     assertEquals(0, a.length);
   }
@@ -37,11 +35,67 @@ function test(mode) {
   check(unshift);
   %OptimizeFunctionOnNextCall(unshift);
   check(unshift);
+
+  function splice(a) {
+    a.splice(0, 0, 3);
+  }
+
+  check(splice);
+  check(splice);
+  check(splice);
+  %OptimizeFunctionOnNextCall(splice);
+  check(splice);
 }
 
-test("fast properties");
+testAdd("fast properties");
 
-test("normalized");
+testAdd("normalized");
+
+function testRemove(mode) {
+  var a = [1, 2, 3];
+  Object.defineProperty(a, "length", { writable : false});
+
+  function check(f) {
+    assertThrows(function() { f(a) }, TypeError);
+    assertEquals(3, a.length);
+  }
+
+  if (mode == "fast properties") %ToFastProperties(a);
+
+  function pop(a) {
+    a.pop();
+  }
+
+  check(pop);
+  check(pop);
+  check(pop);
+  %OptimizeFunctionOnNextCall(pop);
+  check(pop);
+
+  function shift(a) {
+    a.shift();
+  }
+
+  check(shift);
+  check(shift);
+  check(shift);
+  %OptimizeFunctionOnNextCall(shift);
+  check(shift);
+
+  function splice(a) {
+    a.splice(0, 1);
+  }
+
+  check(splice);
+  check(splice);
+  check(splice);
+  %OptimizeFunctionOnNextCall(splice);
+  check(splice);
+}
+
+testRemove("fast properties");
+
+testRemove("normalized");
 
 var b = [];
 Object.defineProperty(b.__proto__, "0", {
@@ -97,11 +151,6 @@ try {
   b.unshift(3, 4, 5);
 } catch(e) { }
 
-// TODO(ulan): According to the ECMA-262 unshift should throw an exception
-// when moving b[0] to b[3] (see 15.4.4.13 step 6.d.ii). This is difficult
-// to do with our current implementation of SmartMove() in src/array.js and
-// it will regress performance. Uncomment the following line once acceptable
-// solution is found:
-// assertFalse(2 in b);
-// assertFalse(3 in b);
-// assertEquals(2, b.length);
+assertFalse(2 in b);
+assertFalse(3 in b);
+assertEquals(2, b.length);

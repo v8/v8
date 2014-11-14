@@ -10184,9 +10184,12 @@ class JSArray: public JSObject {
                                            uint32_t index,
                                            Handle<Object> value);
 
-  static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
+  static bool HasReadOnlyLength(Handle<JSArray> array);
   static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
   static MaybeHandle<Object> ReadOnlyLengthError(Handle<JSArray> array);
+
+  // TODO(adamk): Remove this method in favor of HasReadOnlyLength().
+  static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested

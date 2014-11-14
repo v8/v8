@@ -420,6 +420,10 @@ BUILTIN(ArrayPop) {
   int len = Smi::cast(array->length())->value();
   if (len == 0) return isolate->heap()->undefined_value();
 
+  if (JSArray::HasReadOnlyLength(array)) {
+    return CallJsBuiltin(isolate, "ArrayPop", args);
+  }
+
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
   Handle<Object> element =
@@ -450,6 +454,10 @@ BUILTIN(ArrayShift) {
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
+
+  if (JSArray::HasReadOnlyLength(array)) {
+    return CallJsBuiltin(isolate, "ArrayShift", args);
+  }
 
   // Get first element
   ElementsAccessor* accessor = array->GetElementsAccessor();
@@ -753,6 +761,11 @@ BUILTIN(ArraySplice) {
 
   // For double mode we do not support changing the length.
   if (new_length > len && IsFastDoubleElementsKind(elements_kind)) {
+    return CallJsBuiltin(isolate, "ArraySplice", args);
+  }
+
+  if (new_length != len && JSArray::HasReadOnlyLength(array)) {
+    AllowHeapAllocation allow_allocation;
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
 
