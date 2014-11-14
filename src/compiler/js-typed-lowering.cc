@@ -459,8 +459,15 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
     if (!r.left_type()->Maybe(Type::NaN())) {
-      return ReplaceEagerly(node, invert ? jsgraph()->FalseConstant()
-                                         : jsgraph()->TrueConstant());
+      return ReplaceEagerly(node, jsgraph()->BooleanConstant(!invert));
+    }
+  }
+  Type* string_or_number = Type::Union(Type::String(), Type::Number(), zone());
+  if (r.OneInputCannotBe(string_or_number)) {
+    // For values with canonical representation (i.e. not string nor number) an
+    // empty type intersection means the values cannot be strictly equal.
+    if (!r.left_type()->Maybe(r.right_type())) {
+      return ReplaceEagerly(node, jsgraph()->BooleanConstant(invert));
     }
   }
   if (r.OneInputIs(Type::Undefined())) {
