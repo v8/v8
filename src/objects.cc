@@ -13097,18 +13097,21 @@ bool JSArray::IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
 }
 
 
+bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
+  LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+  CHECK(it.IsFound());
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+  return it.IsReadOnly();
+}
+
+
 bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
                                         uint32_t index) {
   uint32_t length = 0;
   CHECK(array->length()->ToArrayIndex(&length));
-  if (length <= index) {
-    LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
-                      LookupIterator::OWN_SKIP_INTERCEPTOR);
-    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-    CHECK(it.IsFound());
-    CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-    return it.IsReadOnly();
-  }
+  if (length <= index) return HasReadOnlyLength(array);
   return false;
 }
 

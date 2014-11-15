@@ -248,6 +248,7 @@ class AstValue : public ZoneObject {
   F(dot_result, ".result")                              \
   F(empty, "")                                          \
   F(eval, "eval")                                       \
+  F(get_template_callsite, "GetTemplateCallSite")       \
   F(initialize_const_global, "initializeConstGlobal")   \
   F(initialize_var_global, "initializeVarGlobal")       \
   F(make_reference_error, "MakeReferenceErrorEmbedded") \
