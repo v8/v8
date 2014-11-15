@@ -390,6 +390,9 @@ class Debug {
   void FloodWithOneShot(Handle<JSFunction> function,
                         BreakLocatorType type = ALL_BREAK_LOCATIONS);
   void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
+  void FloodDefaultConstructorWithOneShot(Handle<JSFunction> function);
+  void FloodWithOneShotGeneric(Handle<JSFunction> function,
+                               Handle<Object> holder = Handle<Object>());
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);

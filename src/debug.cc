@@ -1225,7 +1225,48 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
   if (!bindee.is_null() && bindee->IsJSFunction() &&
       !JSFunction::cast(*bindee)->IsFromNativeScript()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
-    FloodWithOneShot(bindee_function);
+    FloodWithOneShotGeneric(bindee_function);
+  }
+}
+
+
+void Debug::FloodDefaultConstructorWithOneShot(Handle<JSFunction> function) {
+  DCHECK(function->shared()->is_default_constructor());
+  // Instead of stepping into the function we directly step into the super class
+  // constructor.
+  Isolate* isolate = function->GetIsolate();
+  PrototypeIterator iter(isolate, function);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSFunction()) return;  // Object.prototype
+  Handle<JSFunction> function_proto = Handle<JSFunction>::cast(proto);
+  FloodWithOneShotGeneric(function_proto);
+}
+
+
+void Debug::FloodWithOneShotGeneric(Handle<JSFunction> function,
+                                    Handle<Object> holder) {
+  if (function->shared()->bound()) {
+    FloodBoundFunctionWithOneShot(function);
+  } else if (function->shared()->is_default_constructor()) {
+    FloodDefaultConstructorWithOneShot(function);
+  } else if (!function->IsFromNativeScript()) {
+    Isolate* isolate = function->GetIsolate();
+    // Don't allow step into functions in the native context.
+    if (function->shared()->code() ==
+            isolate->builtins()->builtin(Builtins::kFunctionApply) ||
+        function->shared()->code() ==
+            isolate->builtins()->builtin(Builtins::kFunctionCall)) {
+      // Handle function.apply and function.call separately to flood the
+      // function to be called and not the code for Builtins::FunctionApply or
+      // Builtins::FunctionCall. The receiver of call/apply is the target
+      // function.
+      if (!holder.is_null() && holder->IsJSFunction()) {
+        Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
+        FloodWithOneShotGeneric(js_function);
+      }
+    } else {
+      FloodWithOneShot(function);
+    }
   }
 }
 
@@ -1464,13 +1505,7 @@ void Debug::PrepareStep(StepAction step_action,
 
       if (fun->IsJSFunction()) {
         Handle<JSFunction> js_function(JSFunction::cast(fun));
-        if (js_function->shared()->bound()) {
-          FloodBoundFunctionWithOneShot(js_function);
-        } else if (!js_function->IsFromNativeScript()) {
-          // Don't step into builtins.
-          // It will also compile target function if it's not compiled yet.
-          FloodWithOneShot(js_function);
-        }
+        FloodWithOneShotGeneric(js_function);
       }
     }
 
@@ -1612,32 +1647,7 @@ void Debug::HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
   // Flood the function with one-shot break points if it is called from where
   // step into was requested, or when stepping into a new frame.
   if (fp == thread_local_.step_into_fp_ || step_frame) {
-    if (function->shared()->bound()) {
-      // Handle Function.prototype.bind
-      FloodBoundFunctionWithOneShot(function);
-    } else if (!function->IsFromNativeScript()) {
-      // Don't allow step into functions in the native context.
-      if (function->shared()->code() ==
-          isolate->builtins()->builtin(Builtins::kFunctionApply) ||
-          function->shared()->code() ==
-          isolate->builtins()->builtin(Builtins::kFunctionCall)) {
-        // Handle function.apply and function.call separately to flood the
-        // function to be called and not the code for Builtins::FunctionApply or
-        // Builtins::FunctionCall. The receiver of call/apply is the target
-        // function.
-        if (!holder.is_null() && holder->IsJSFunction()) {
-          Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
-          if (!js_function->IsFromNativeScript()) {
-            FloodWithOneShot(js_function);
-          } else if (js_function->shared()->bound()) {
-            // Handle Function.prototype.bind
-            FloodBoundFunctionWithOneShot(js_function);
-          }
-        }
-      } else {
-        FloodWithOneShot(function);
-      }
-    }
+    FloodWithOneShotGeneric(function, holder);
   }
 }
 
