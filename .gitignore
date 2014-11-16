@@ -66,6 +66,7 @@ shell_g
 /test/test262-es6/tc39-test262-*
 /testing/gmock
 /testing/gtest
+/third_party
 /third_party/icu
 /third_party/llvm
 /tools/jsfunfuzz

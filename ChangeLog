@@ -1,3 +1,11 @@
+2014-11-15: Version 3.31.7
+
+        Classes: Add support for stepping through default constructors (issue
+        3674).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-14: Version 3.31.6
 
         Fix desugaring of let bindings in for loops to handle continue properly
