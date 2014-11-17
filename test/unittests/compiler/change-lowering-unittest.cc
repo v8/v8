@@ -188,6 +188,7 @@ class ChangeLowering32Test : public ChangeLoweringTest {
 TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Signed32()));
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 
@@ -209,6 +210,19 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
                     IsIfFalse(AllOf(CaptureEq(&branch),
                                     IsBranch(IsProjection(1, CaptureEq(&add)),
                                              graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTaggedSmall) {
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::SignedSmall()));
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* change = reduction.replacement();
+  Capture<Node*> add, branch, heap_number, if_true;
+  EXPECT_THAT(change, IsWord32Shl(val, IsInt32Constant(SmiShiftAmount())));
 }
 
 
