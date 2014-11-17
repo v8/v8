@@ -12,8 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class PipelineStatistics;
-
 enum RegisterKind {
   UNALLOCATED_REGISTERS,
   GENERAL_REGISTERS,
@@ -320,17 +318,14 @@ class LiveRange FINAL : public ZoneObject {
 };
 
 
-class RegisterAllocator FINAL {
+class RegisterAllocator FINAL : public ZoneObject {
  public:
   explicit RegisterAllocator(const RegisterConfiguration* config,
                              Zone* local_zone, Frame* frame,
                              InstructionSequence* code,
                              const char* debug_name = nullptr);
 
-  bool Allocate(PipelineStatistics* stats = NULL);
   bool AllocationOk() { return allocation_ok_; }
-  BitVector* assigned_registers() { return assigned_registers_; }
-  BitVector* assigned_double_registers() { return assigned_double_registers_; }
 
   const ZoneList<LiveRange*>& live_ranges() const { return live_ranges_; }
   const ZoneVector<LiveRange*>& fixed_live_ranges() const {
@@ -342,6 +337,30 @@ class RegisterAllocator FINAL {
   InstructionSequence* code() const { return code_; }
   // This zone is for datastructures only needed during register allocation.
   Zone* local_zone() const { return local_zone_; }
+
+  // Phase 1 : insert moves to account for fixed register operands.
+  void MeetRegisterConstraints();
+
+  // Phase 2: deconstruct SSA by inserting moves in successors and the headers
+  // of blocks containing phis.
+  void ResolvePhis();
+
+  // Phase 3: compute liveness of all virtual register.
+  void BuildLiveRanges();
+  bool ExistsUseWithoutDefinition();
+
+  // Phase 4: compute register assignments.
+  void AllocateGeneralRegisters();
+  void AllocateDoubleRegisters();
+
+  // Phase 5: compute values for pointer maps.
+  void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
+
+  // Phase 6: reconnect split ranges with moves.
+  void ConnectRanges();
+
+  // Phase 7: insert moves to connect ranges across basic blocks.
+  void ResolveControlFlow();
 
  private:
   int GetVirtualRegister() {
@@ -365,18 +384,13 @@ class RegisterAllocator FINAL {
   // allocation.
   Zone* code_zone() const { return code()->zone(); }
 
+  BitVector* assigned_registers() { return assigned_registers_; }
+  BitVector* assigned_double_registers() { return assigned_double_registers_; }
+
 #ifdef DEBUG
   void Verify() const;
 #endif
 
-  void MeetRegisterConstraints();
-  void ResolvePhis();
-  void BuildLiveRanges();
-  void AllocateGeneralRegisters();
-  void AllocateDoubleRegisters();
-  void ConnectRanges();
-  void ResolveControlFlow();
-  void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
   void AllocateRegisters();
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
   bool SafePointsAreInOrder() const;
@@ -388,7 +402,6 @@ class RegisterAllocator FINAL {
   bool IsOutputRegisterOf(Instruction* instr, int index);
   bool IsOutputDoubleRegisterOf(Instruction* instr, int index);
   void ProcessInstructions(const InstructionBlock* block, BitVector* live);
-  bool ExistsUseWithoutDefinition();
   void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBetween(Instruction* first, Instruction* second,
                               int gap_index);

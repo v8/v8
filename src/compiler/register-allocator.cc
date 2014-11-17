@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/compiler/linkage.h"
-#include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/string-stream.h"
 
@@ -536,6 +535,12 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
   // when allocating local arrays.
   DCHECK(this->config()->num_double_registers() >=
          this->config()->num_general_registers());
+  assigned_registers_ =
+      new (code_zone()) BitVector(config->num_general_registers(), code_zone());
+  assigned_double_registers_ = new (code_zone())
+      BitVector(config->num_aliased_double_registers(), code_zone());
+  frame->SetAllocatedRegisters(assigned_registers_);
+  frame->SetAllocatedDoubleRegisters(assigned_double_registers_);
 }
 
 
@@ -1113,59 +1118,6 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
       live_range->set_is_non_loop_phi(true);
     }
   }
-}
-
-
-bool RegisterAllocator::Allocate(PipelineStatistics* stats) {
-  assigned_registers_ = new (code_zone())
-      BitVector(config()->num_general_registers(), code_zone());
-  assigned_double_registers_ = new (code_zone())
-      BitVector(config()->num_aliased_double_registers(), code_zone());
-  {
-    PhaseScope phase_scope(stats, "meet register constraints");
-    MeetRegisterConstraints();
-  }
-  {
-    PhaseScope phase_scope(stats, "resolve phis");
-    ResolvePhis();
-  }
-  {
-    PhaseScope phase_scope(stats, "build live ranges");
-    BuildLiveRanges();
-  }
-  if (FLAG_trace_turbo) {
-    OFStream os(stdout);
-    PrintableInstructionSequence printable = {config(), code()};
-    os << "----- Instruction sequence before register allocation -----\n"
-       << printable;
-  }
-  // This can be triggered in debug mode.
-  DCHECK(!ExistsUseWithoutDefinition());
-  {
-    PhaseScope phase_scope(stats, "allocate general registers");
-    AllocateGeneralRegisters();
-  }
-  if (!AllocationOk()) return false;
-  {
-    PhaseScope phase_scope(stats, "allocate double registers");
-    AllocateDoubleRegisters();
-  }
-  if (!AllocationOk()) return false;
-  {
-    PhaseScope phase_scope(stats, "populate pointer maps");
-    PopulatePointerMaps();
-  }
-  {
-    PhaseScope phase_scope(stats, "connect ranges");
-    ConnectRanges();
-  }
-  {
-    PhaseScope phase_scope(stats, "resolve control flow");
-    ResolveControlFlow();
-  }
-  frame()->SetAllocatedRegisters(assigned_registers_);
-  frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
-  return true;
 }
 
 

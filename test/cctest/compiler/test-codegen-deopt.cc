@@ -64,38 +64,10 @@ class DeoptCodegenTester {
       os << *schedule;
     }
 
-    // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
-    InstructionBlocks* instruction_blocks =
-        TestInstrSeq::InstructionBlocksFor(scope_->main_zone(), schedule);
-    code = new (scope_->main_zone())
-        TestInstrSeq(scope_->main_zone(), instruction_blocks);
-    SourcePositionTable source_positions(graph);
-    InstructionSelector selector(scope_->main_zone(), graph, linkage, code,
-                                 schedule, &source_positions);
-    selector.SelectInstructions();
-
-    if (FLAG_trace_turbo) {
-      PrintableInstructionSequence printable = {
-          RegisterConfiguration::ArchDefault(), code};
-      os << "----- Instruction sequence before register allocation -----\n"
-         << printable;
-    }
-
-    Frame frame;
-    RegisterAllocator allocator(RegisterConfiguration::ArchDefault(),
-                                scope_->main_zone(), &frame, code);
-    CHECK(allocator.Allocate());
-
-    if (FLAG_trace_turbo) {
-      PrintableInstructionSequence printable = {
-          RegisterConfiguration::ArchDefault(), code};
-      os << "----- Instruction sequence after register allocation -----\n"
-         << printable;
-    }
-
-    compiler::CodeGenerator generator(&frame, linkage, code, &info);
-    result_code = generator.GenerateCode();
+    Pipeline pipeline(&info);
+    result_code =
+        pipeline.GenerateCodeForMachineGraph(linkage, graph, schedule);
 
 #ifdef OBJECT_PRINT
     if (FLAG_print_opt_code || FLAG_trace_turbo) {

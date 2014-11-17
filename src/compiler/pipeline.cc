@@ -43,39 +43,9 @@ namespace compiler {
 
 class PipelineData {
  public:
-  PipelineData(CompilationInfo* info, ZonePool* zone_pool,
-               PipelineStatistics* pipeline_statistics)
+  explicit PipelineData(ZonePool* zone_pool, CompilationInfo* info)
       : isolate_(info->zone()->isolate()),
         info_(info),
-        outer_zone_(info->zone()),
-        zone_pool_(zone_pool),
-        pipeline_statistics_(pipeline_statistics),
-        compilation_failed_(false),
-        code_(Handle<Code>::null()),
-        graph_zone_scope_(zone_pool_),
-        graph_zone_(graph_zone_scope_.zone()),
-        graph_(new (graph_zone()) Graph(graph_zone())),
-        source_positions_(new SourcePositionTable(graph())),
-        machine_(new (graph_zone()) MachineOperatorBuilder(
-            graph_zone(), kMachPtr,
-            InstructionSelector::SupportedMachineOperatorFlags())),
-        common_(new (graph_zone()) CommonOperatorBuilder(graph_zone())),
-        javascript_(new (graph_zone()) JSOperatorBuilder(graph_zone())),
-        jsgraph_(new (graph_zone())
-                 JSGraph(graph(), common(), javascript(), machine())),
-        typer_(new Typer(graph(), info->context())),
-        context_node_(nullptr),
-        schedule_(nullptr),
-        instruction_zone_scope_(zone_pool_),
-        instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr) {}
-
-
-  // For machine graph testing only.
-  PipelineData(Graph* graph, Schedule* schedule, ZonePool* zone_pool)
-      : isolate_(graph->zone()->isolate()),
-        info_(nullptr),
         outer_zone_(nullptr),
         zone_pool_(zone_pool),
         pipeline_statistics_(nullptr),
@@ -83,23 +53,55 @@ class PipelineData {
         code_(Handle<Code>::null()),
         graph_zone_scope_(zone_pool_),
         graph_zone_(nullptr),
-        graph_(graph),
-        source_positions_(new SourcePositionTable(graph)),
+        graph_(nullptr),
         machine_(nullptr),
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
         typer_(nullptr),
         context_node_(nullptr),
-        schedule_(schedule),
+        schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
-        instruction_zone_(instruction_zone_scope_.zone()),
+        instruction_zone_(nullptr),
         sequence_(nullptr),
-        frame_(nullptr) {}
+        frame_(nullptr),
+        register_allocator_(nullptr) {}
 
   ~PipelineData() {
     DeleteInstructionZone();
     DeleteGraphZone();
+  }
+
+  // For main entry point.
+  void Initialize(PipelineStatistics* pipeline_statistics) {
+    outer_zone_ = info()->zone();
+    pipeline_statistics_ = pipeline_statistics;
+    graph_zone_ = graph_zone_scope_.zone();
+    graph_ = new (graph_zone()) Graph(graph_zone());
+    source_positions_.Reset(new SourcePositionTable(graph()));
+    machine_ = new (graph_zone()) MachineOperatorBuilder(
+        graph_zone(), kMachPtr,
+        InstructionSelector::SupportedMachineOperatorFlags());
+    common_ = new (graph_zone()) CommonOperatorBuilder(graph_zone());
+    javascript_ = new (graph_zone()) JSOperatorBuilder(graph_zone());
+    jsgraph_ =
+        new (graph_zone()) JSGraph(graph(), common(), javascript(), machine());
+    typer_.Reset(new Typer(graph(), info()->context()));
+    instruction_zone_ = instruction_zone_scope_.zone();
+  }
+
+  // For machine graph testing entry point.
+  void Initialize(Graph* graph, Schedule* schedule) {
+    graph_ = graph;
+    source_positions_.Reset(new SourcePositionTable(graph));
+    schedule_ = schedule;
+    instruction_zone_ = instruction_zone_scope_.zone();
+  }
+
+  // For register allocation entry point.
+  void Initialize(InstructionSequence* sequence) {
+    instruction_zone_ = sequence->zone();
+    sequence_ = sequence;
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -142,15 +144,8 @@ class PipelineData {
 
   Zone* instruction_zone() const { return instruction_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
-  void set_sequence(InstructionSequence* sequence) {
-    DCHECK_EQ(nullptr, sequence_);
-    sequence_ = sequence;
-  }
   Frame* frame() const { return frame_; }
-  void set_frame(Frame* frame) {
-    DCHECK_EQ(nullptr, frame_);
-    frame_ = frame;
-  }
+  RegisterAllocator* register_allocator() const { return register_allocator_; }
 
   void DeleteGraphZone() {
     // Destroy objects with destructors first.
@@ -175,13 +170,33 @@ class PipelineData {
     instruction_zone_ = nullptr;
     sequence_ = nullptr;
     frame_ = nullptr;
+    register_allocator_ = nullptr;
+  }
+
+  void InitializeInstructionSequence() {
+    DCHECK_EQ(nullptr, sequence_);
+    InstructionBlocks* instruction_blocks =
+        InstructionSequence::InstructionBlocksFor(instruction_zone(),
+                                                  schedule());
+    sequence_ = new (instruction_zone())
+        InstructionSequence(instruction_zone(), instruction_blocks);
+  }
+
+  void InitializeRegisterAllocator(Zone* local_zone,
+                                   const RegisterConfiguration* config,
+                                   const char* debug_name) {
+    DCHECK_EQ(nullptr, register_allocator_);
+    DCHECK_EQ(nullptr, frame_);
+    frame_ = new (instruction_zone()) Frame();
+    register_allocator_ = new (instruction_zone())
+        RegisterAllocator(config, local_zone, frame(), sequence(), debug_name);
   }
 
  private:
   Isolate* isolate_;
   CompilationInfo* info_;
   Zone* outer_zone_;
-  ZonePool* zone_pool_;
+  ZonePool* const zone_pool_;
   PipelineStatistics* pipeline_statistics_;
   bool compilation_failed_;
   Handle<Code> code_;
@@ -209,6 +224,7 @@ class PipelineData {
   Zone* instruction_zone_;
   InstructionSequence* sequence_;
   Frame* frame_;
+  RegisterAllocator* register_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -314,15 +330,6 @@ void Pipeline::Run(Arg0 arg_0) {
   PipelineRunScope scope(this->data_, Phase::phase_name());
   Phase phase;
   phase.Run(this->data_, scope.zone(), arg_0);
-}
-
-
-// TODO(dcarney): this one should be unecessary.
-template <typename Phase, typename Arg0, typename Arg1>
-void Pipeline::Run(Arg0 arg_0, Arg1 arg_1) {
-  PipelineRunScope scope(this->data_, Phase::phase_name());
-  Phase phase;
-  phase.Run(this->data_, scope.zone(), arg_0, arg_1);
 }
 
 
@@ -490,45 +497,74 @@ struct InstructionSelectionPhase {
 };
 
 
-// TODO(dcarney): break this up.
-struct RegisterAllocationPhase {
-  static const char* phase_name() { return nullptr; }
+struct MeetRegisterConstraintsPhase {
+  static const char* phase_name() { return "meet register constraints"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    int node_count = data->sequence()->VirtualRegisterCount();
-    if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
-      data->set_compilation_failed();
-      return;
-    }
+    data->register_allocator()->MeetRegisterConstraints();
+  }
+};
 
-    SmartArrayPointer<char> debug_name;
-#ifdef DEBUG
-    if (data->info() != nullptr) {
-      debug_name = GetDebugName(data->info());
-    }
-#endif
 
-    RegisterAllocator allocator(RegisterConfiguration::ArchDefault(), temp_zone,
-                                data->frame(), data->sequence(),
-                                debug_name.get());
+struct ResolvePhisPhase {
+  static const char* phase_name() { return "resolve phis"; }
 
-    if (!allocator.Allocate(data->pipeline_statistics())) {
-      data->set_compilation_failed();
-      return;
-    }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->ResolvePhis();
+  }
+};
 
-    if (FLAG_trace_turbo) {
-      OFStream os(stdout);
-      PrintableInstructionSequence printable = {
-          RegisterConfiguration::ArchDefault(), data->sequence()};
-      os << "----- Instruction sequence after register allocation -----\n"
-         << printable;
-    }
 
-    if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(data->isolate());
-      tcf << AsC1VAllocator("CodeGen", &allocator);
-    }
+struct BuildLiveRangesPhase {
+  static const char* phase_name() { return "build live ranges"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->BuildLiveRanges();
+  }
+};
+
+
+struct AllocateGeneralRegistersPhase {
+  static const char* phase_name() { return "allocate general registers"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->AllocateGeneralRegisters();
+  }
+};
+
+
+struct AllocateDoubleRegistersPhase {
+  static const char* phase_name() { return "allocate double registers"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->AllocateDoubleRegisters();
+  }
+};
+
+
+struct PopulatePointerMapsPhase {
+  static const char* phase_name() { return "populate pointer maps"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->PopulatePointerMaps();
+  }
+};
+
+
+struct ConnectRangesPhase {
+  static const char* phase_name() { return "connect ranges"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->ConnectRanges();
+  }
+};
+
+
+struct ResolveControlFlowPhase {
+  static const char* phase_name() { return "resolve control flow"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->ResolveControlFlow();
   }
 };
 
@@ -536,9 +572,9 @@ struct RegisterAllocationPhase {
 struct GenerateCodePhase {
   static const char* phase_name() { return "generate code"; }
 
-  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage,
-           CompilationInfo* info) {
-    CodeGenerator generator(data->frame(), linkage, data->sequence(), info);
+  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
+    CodeGenerator generator(data->frame(), linkage, data->sequence(),
+                            data->info());
     data->set_code(generator.GenerateCode());
   }
 };
@@ -600,6 +636,13 @@ struct VerifyGraphPhase {
 };
 
 
+void Pipeline::BeginPhaseKind(const char* phase_kind_name) {
+  if (data_->pipeline_statistics() != NULL) {
+    data_->pipeline_statistics()->BeginPhaseKind("phase_kind_name");
+  }
+}
+
+
 void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
   if (FLAG_trace_turbo) {
     Run<PrintGraphPhase>(phase);
@@ -630,11 +673,13 @@ Handle<Code> Pipeline::GenerateCode() {
 
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
-    pipeline_statistics->BeginPhaseKind("graph creation");
   }
 
-  PipelineData data(info(), &zone_pool, pipeline_statistics.get());
+  PipelineData data(&zone_pool, info());
   this->data_ = &data;
+  data.Initialize(pipeline_statistics.get());
+
+  BeginPhaseKind("graph creation");
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
@@ -679,9 +724,7 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Typed");
   }
 
-  if (!pipeline_statistics.is_empty()) {
-    data.pipeline_statistics()->BeginPhaseKind("lowering");
-  }
+  BeginPhaseKind("lowering");
 
   if (info()->is_typing_enabled()) {
     // Lower JSOperators where we can determine types.
@@ -706,9 +749,7 @@ Handle<Code> Pipeline::GenerateCode() {
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
   RunPrintAndVerify("Lowered generic", true);
 
-  if (!pipeline_statistics.is_empty()) {
-    data.pipeline_statistics()->BeginPhaseKind("block building");
-  }
+  BeginPhaseKind("block building");
 
   data.source_positions()->RemoveDecorator();
 
@@ -742,7 +783,8 @@ Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
                                                    Schedule* schedule) {
   ZonePool zone_pool(isolate());
   CHECK(SupportedBackend());
-  PipelineData data(graph, schedule, &zone_pool);
+  PipelineData data(&zone_pool, info());
+  data.Initialize(graph, schedule);
   this->data_ = &data;
   if (schedule == NULL) {
     // TODO(rossberg): Should this really be untyped?
@@ -766,6 +808,20 @@ Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
 }
 
 
+bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
+                                 InstructionSequence* sequence,
+                                 bool run_verifier) {
+  CompilationInfo info(sequence->zone()->isolate(), sequence->zone());
+  ZonePool zone_pool(sequence->zone()->isolate());
+  PipelineData data(&zone_pool, &info);
+  data.Initialize(sequence);
+  Pipeline pipeline(&info);
+  pipeline.data_ = &data;
+  pipeline.AllocateRegisters(config, run_verifier);
+  return !data.compilation_failed();
+}
+
+
 void Pipeline::GenerateCode(Linkage* linkage) {
   PipelineData* data = this->data_;
 
@@ -780,11 +836,7 @@ void Pipeline::GenerateCode(Linkage* linkage) {
                                                        data->schedule());
   }
 
-  InstructionBlocks* instruction_blocks =
-      InstructionSequence::InstructionBlocksFor(data->instruction_zone(),
-                                                data->schedule());
-  data->set_sequence(new (data->instruction_zone()) InstructionSequence(
-      data->instruction_zone(), instruction_blocks));
+  data->InitializeInstructionSequence();
 
   // Select and schedule instructions covering the scheduled graph.
   Run<InstructionSelectionPhase>(linkage);
@@ -797,36 +849,23 @@ void Pipeline::GenerateCode(Linkage* linkage) {
 
   data->DeleteGraphZone();
 
-  if (data->pipeline_statistics() != NULL) {
-    data->pipeline_statistics()->BeginPhaseKind("register allocation");
-  }
+  BeginPhaseKind("register allocation");
 
+  bool run_verifier = false;
 #ifdef DEBUG
-  // Don't track usage for this zone in compiler stats.
-  Zone verifier_zone(info()->isolate());
-  RegisterAllocatorVerifier verifier(
-      &verifier_zone, RegisterConfiguration::ArchDefault(), data->sequence());
+  run_verifier = true;
 #endif
-
   // Allocate registers.
-  data->set_frame(new (data->instruction_zone()) Frame);
-  Run<RegisterAllocationPhase>();
+  AllocateRegisters(RegisterConfiguration::ArchDefault(), run_verifier);
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return;
   }
 
-#ifdef DEBUG
-  verifier.VerifyAssignment();
-  verifier.VerifyGapMoves();
-#endif
-
-  if (data->pipeline_statistics() != NULL) {
-    data->pipeline_statistics()->BeginPhaseKind("code generation");
-  }
+  BeginPhaseKind("code generation");
 
   // Generate native sequence.
-  Run<GenerateCodePhase>(linkage, info());
+  Run<GenerateCodePhase>(linkage);
 
   if (profiler_data != NULL) {
 #if ENABLE_DISASSEMBLER
@@ -834,6 +873,77 @@ void Pipeline::GenerateCode(Linkage* linkage) {
     data->code()->Disassemble(NULL, os);
     profiler_data->SetCode(&os);
 #endif
+  }
+}
+
+
+void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
+                                 bool run_verifier) {
+  PipelineData* data = this->data_;
+
+  int node_count = data->sequence()->VirtualRegisterCount();
+  if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
+    data->set_compilation_failed();
+    return;
+  }
+
+  // Don't track usage for this zone in compiler stats.
+  SmartPointer<Zone> verifier_zone;
+  RegisterAllocatorVerifier* verifier = nullptr;
+  if (run_verifier) {
+    verifier_zone.Reset(new Zone(info()->isolate()));
+    verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
+        verifier_zone.get(), config, data->sequence());
+  }
+
+  SmartArrayPointer<char> debug_name;
+#ifdef DEBUG
+  debug_name = GetDebugName(data->info());
+#endif
+
+  ZonePool::Scope zone_scope(data->zone_pool());
+  data->InitializeRegisterAllocator(zone_scope.zone(), config,
+                                    debug_name.get());
+
+  Run<MeetRegisterConstraintsPhase>();
+  Run<ResolvePhisPhase>();
+  Run<BuildLiveRangesPhase>();
+  if (FLAG_trace_turbo) {
+    OFStream os(stdout);
+    PrintableInstructionSequence printable = {config, data->sequence()};
+    os << "----- Instruction sequence before register allocation -----\n"
+       << printable;
+  }
+  DCHECK(!data->register_allocator()->ExistsUseWithoutDefinition());
+  Run<AllocateGeneralRegistersPhase>();
+  if (!data->register_allocator()->AllocationOk()) {
+    data->set_compilation_failed();
+    return;
+  }
+  Run<AllocateDoubleRegistersPhase>();
+  if (!data->register_allocator()->AllocationOk()) {
+    data->set_compilation_failed();
+    return;
+  }
+  Run<PopulatePointerMapsPhase>();
+  Run<ConnectRangesPhase>();
+  Run<ResolveControlFlowPhase>();
+
+  if (FLAG_trace_turbo) {
+    OFStream os(stdout);
+    PrintableInstructionSequence printable = {config, data->sequence()};
+    os << "----- Instruction sequence after register allocation -----\n"
+       << printable;
+  }
+
+  if (verifier != nullptr) {
+    verifier->VerifyAssignment();
+    verifier->VerifyGapMoves();
+  }
+
+  if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
+    TurboCfgFile tcf(data->isolate());
+    tcf << AsC1VAllocator("CodeGen", data->register_allocator());
   }
 }
 

@@ -18,8 +18,10 @@ namespace compiler {
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 class Graph;
+class InstructionSequence;
 class Linkage;
 class PipelineData;
+class RegisterConfiguration;
 class Schedule;
 
 class Pipeline {
@@ -33,6 +35,10 @@ class Pipeline {
   // is {NULL}, then compute a new schedule for code generation.
   Handle<Code> GenerateCodeForMachineGraph(Linkage* linkage, Graph* graph,
                                            Schedule* schedule = NULL);
+
+  static bool AllocateRegisters(const RegisterConfiguration* config,
+                                InstructionSequence* sequence,
+                                bool run_verifier);
 
   static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
   static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
@@ -49,14 +55,15 @@ class Pipeline {
   void Run();
   template <typename Phase, typename Arg0>
   void Run(Arg0 arg_0);
-  template <typename Phase, typename Arg0, typename Arg1>
-  void Run(Arg0 arg_0, Arg1 arg_1);
 
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() { return info_->isolate(); }
 
+  void BeginPhaseKind(const char* phase_kind);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   void GenerateCode(Linkage* linkage);
+  void AllocateRegisters(const RegisterConfiguration* config,
+                         bool run_verifier);
 };
 
 }  // namespace compiler
