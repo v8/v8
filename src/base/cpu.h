@@ -47,6 +47,8 @@ class CPU FINAL {
   static const int NVIDIA = 0x4e;
   static const int QUALCOMM = 0x51;
   int architecture() const { return architecture_; }
+  int variant() const { return variant_; }
+  static const int NV_VIRIANT_DENVER = 0x0;
   int part() const { return part_; }
   static const int ARM_CORTEX_A5 = 0xc05;
   static const int ARM_CORTEX_A7 = 0xc07;
@@ -54,6 +56,7 @@ class CPU FINAL {
   static const int ARM_CORTEX_A9 = 0xc09;
   static const int ARM_CORTEX_A12 = 0xc0c;
   static const int ARM_CORTEX_A15 = 0xc0f;
+  static const int NV_DENVER_V1 = 0x000;
 
   // General features
   bool has_fpu() const { return has_fpu_; }
@@ -90,6 +93,7 @@ class CPU FINAL {
   int type_;
   int implementer_;
   int architecture_;
+  int variant_;
   int part_;
   bool has_fpu_;
   bool has_cmov_;

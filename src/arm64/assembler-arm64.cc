@@ -44,8 +44,13 @@ namespace internal {
 // CpuFeatures implementation.
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  // AArch64 has no configuration options, no further probing is required.
   supported_ = 0;
+  // Probe for runtime features
+  base::CPU cpu;
+    if (cpu.implementer() == base::CPU::NVIDIA &&
+        cpu.variant() == base::CPU::NV_VIRIANT_DENVER &&
+        cpu.part() == base::CPU::NV_DENVER_V1)
+        supported_ |= 1u << COHERENT_CACHE;
 }
 
 
