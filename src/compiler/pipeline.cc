@@ -382,7 +382,7 @@ struct TypedLoweringPhase {
     ValueNumberingReducer vn_reducer(data->graph_zone());
     JSTypedLowering lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
-    GraphReducer graph_reducer(data->graph());
+    GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&lowering);
     graph_reducer.AddReducer(&simple_reducer);
@@ -401,7 +401,7 @@ struct SimplifiedLoweringPhase {
     lowering.LowerAllNodes();
     ValueNumberingReducer vn_reducer(data->graph_zone());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
-    GraphReducer graph_reducer(data->graph());
+    GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&simple_reducer);
     graph_reducer.ReduceGraph();
@@ -420,7 +420,7 @@ struct ChangeLoweringPhase {
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ChangeLowering lowering(data->jsgraph(), &linkage);
     MachineOperatorReducer mach_reducer(data->jsgraph());
-    GraphReducer graph_reducer(data->graph());
+    GraphReducer graph_reducer(data->graph(), temp_zone);
     // TODO(titzer): Figure out if we should run all reducers at once here.
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&simple_reducer);
@@ -458,7 +458,7 @@ struct GenericLoweringPhase {
                                    SourcePosition::Unknown());
     JSGenericLowering generic(data->info(), data->jsgraph());
     SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
-    GraphReducer graph_reducer(data->graph());
+    GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&generic);
     graph_reducer.AddReducer(&select);
     graph_reducer.ReduceGraph();

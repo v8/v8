@@ -63,7 +63,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     Linkage linkage(
         zone, Linkage::GetSimplifiedCDescriptor(zone, this->machine_sig_));
     ChangeLowering lowering(&jsgraph, &linkage);
-    GraphReducer reducer(this->graph());
+    GraphReducer reducer(this->graph(), this->zone());
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());
