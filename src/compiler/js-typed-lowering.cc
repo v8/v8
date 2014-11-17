@@ -527,11 +527,8 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
 Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
   if (input->opcode() == IrOpcode::kJSToBoolean) {
     // Recursively try to reduce the input first.
-    Reduction result = ReduceJSToBooleanInput(input->InputAt(0));
-    if (result.Changed()) {
-      RelaxEffects(input);
-      return result;
-    }
+    Reduction result = ReduceJSToBoolean(input);
+    if (result.Changed()) return result;
     return Changed(input);  // JSToBoolean(JSToBoolean(x)) => JSToBoolean(x)
   }
   Type* input_type = NodeProperties::GetBounds(input).upper;
@@ -571,37 +568,54 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
     return ReplaceWith(inv);
   }
-  // TODO(turbofan): We need some kinda of PrimitiveToBoolean simplified
-  // operator, then we can do the pushing in the SimplifiedOperatorReducer
-  // and do not need to protect against stack overflow (because of backedges
-  // in phis) below.
-  if (input->opcode() == IrOpcode::kPhi &&
-      input_type->Is(
-          Type::Union(Type::Boolean(), Type::OrderedNumber(), zone()))) {
-    // JSToBoolean(phi(x1,...,xn):ordered-number|boolean)
-    //   => phi(JSToBoolean(x1),...,JSToBoolean(xn))
-    int input_count = input->InputCount() - 1;
-    Node** inputs = zone()->NewArray<Node*>(input_count + 1);
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
+  // Try to reduce the input first.
+  Node* const input = node->InputAt(0);
+  Reduction reduction = ReduceJSToBooleanInput(input);
+  if (reduction.Changed()) {
+    NodeProperties::ReplaceWithValue(node, reduction.replacement());
+    return reduction;
+  }
+  Type* const input_type = NodeProperties::GetBounds(input).upper;
+  if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
+    // JSToBoolean(phi(x1,...,xn,control):primitive)
+    //   => phi(JSToBoolean(x1),...,JSToBoolean(xn),control):boolean
+    RelaxEffects(node);
+    int const input_count = input->InputCount() - 1;
+    Node* const control = input->InputAt(input_count);
+    DCHECK_LE(0, input_count);
+    DCHECK(NodeProperties::IsControl(control));
+    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Boolean()));
+    DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Boolean()));
+    node->set_op(common()->Phi(kMachAnyTagged, input_count));
     for (int i = 0; i < input_count; ++i) {
       Node* value = input->InputAt(i);
-      Type* value_type = NodeProperties::GetBounds(value).upper;
       // Recursively try to reduce the value first.
-      Reduction result = (value_type->Is(Type::Boolean()) ||
-                          value_type->Is(Type::OrderedNumber()))
-                             ? ReduceJSToBooleanInput(value)
-                             : NoChange();
-      if (result.Changed()) {
-        inputs[i] = result.replacement();
+      Reduction reduction = ReduceJSToBooleanInput(value);
+      if (reduction.Changed()) {
+        value = reduction.replacement();
       } else {
-        inputs[i] = graph()->NewNode(javascript()->ToBoolean(), value,
-                                     jsgraph()->ZeroConstant(),
-                                     graph()->start(), graph()->start());
+        value = graph()->NewNode(javascript()->ToBoolean(), value,
+                                 jsgraph()->ZeroConstant(), graph()->start(),
+                                 graph()->start());
+      }
+      if (i < node->InputCount()) {
+        node->ReplaceInput(i, value);
+      } else {
+        node->AppendInput(graph()->zone(), value);
       }
     }
-    inputs[input_count] = input->InputAt(input_count);
-    Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, input_count),
-                                 input_count + 1, inputs);
-    return ReplaceWith(phi);
+    if (input_count < node->InputCount()) {
+      node->ReplaceInput(input_count, control);
+    } else {
+      node->AppendInput(graph()->zone(), control);
+    }
+    node->TrimInputCount(input_count + 1);
+    return Changed(node);
   }
   return NoChange();
 }
@@ -753,8 +767,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       }
     }
     case IrOpcode::kJSToBoolean:
-      return ReplaceWithReduction(node,
-                                  ReduceJSToBooleanInput(node->InputAt(0)));
+      return ReduceJSToBoolean(node);
     case IrOpcode::kJSToNumber:
       return ReplaceWithReduction(node,
                                   ReduceJSToNumberInput(node->InputAt(0)));
