@@ -312,8 +312,7 @@ Token::Value Scanner::SkipSourceURLComment() {
 void Scanner::TryToParseSourceURLComment() {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
-  if (!unicode_cache_->IsWhiteSpace(c0_))
-    return;
+  if (c0_ < 0 || !unicode_cache_->IsWhiteSpace(c0_)) return;
   Advance();
   LiteralBuffer name;
   while (c0_ >= 0 && !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) &&
