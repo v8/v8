@@ -762,3 +762,46 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }
+
+
+static void ObserverCallback(const FunctionCallbackInfo<Value>& args) {
+  *static_cast<int*>(Handle<External>::Cast(args.Data())->Value()) =
+      Handle<Array>::Cast(args[0])->Length();
+}
+
+
+TEST(ObjectObserveCallsCppFunction) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext context(isolate);
+  int numRecordsSent = 0;
+  Handle<Function> observer =
+      Function::New(CcTest::isolate(), ObserverCallback,
+                    External::New(isolate, &numRecordsSent));
+  context->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "observer"),
+                         observer);
+  CompileRun(
+      "var obj = {};"
+      "Object.observe(obj, observer);"
+      "obj.foo = 1;"
+      "obj.bar = 2;");
+  CHECK_EQ(2, numRecordsSent);
+}
+
+
+TEST(ObjectObserveCallsFunctionTemplateInstance) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext context(isolate);
+  int numRecordsSent = 0;
+  Handle<FunctionTemplate> tmpl = FunctionTemplate::New(
+      isolate, ObserverCallback, External::New(isolate, &numRecordsSent));
+  context->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "observer"),
+                         tmpl->GetFunction());
+  CompileRun(
+      "var obj = {};"
+      "Object.observe(obj, observer);"
+      "obj.foo = 1;"
+      "obj.bar = 2;");
+  CHECK_EQ(2, numRecordsSent);
+}
