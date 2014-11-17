@@ -1231,6 +1231,7 @@ TEST(SerializeToplevelIsolates) {
       script = v8::ScriptCompiler::CompileUnbound(
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
     }
+    CHECK(!cache->rejected);
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
     CHECK(result->ToString()->Equals(v8_str("abcdef")));
   }

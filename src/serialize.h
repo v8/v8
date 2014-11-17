@@ -706,7 +706,7 @@ class CodeSerializer : public Serializer {
                                Handle<String> source);
 
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
-      Isolate* isolate, ScriptData* data, Handle<String> source);
+      Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
   static const int kSourceObjectIndex = 0;
   static const int kCodeStubsBaseIndex = 1;
@@ -757,10 +757,14 @@ class CodeSerializer : public Serializer {
 class SerializedCodeData {
  public:
   // Used by when consuming.
-  explicit SerializedCodeData(ScriptData* data, String* source)
-      : script_data_(data), owns_script_data_(false) {
+  static SerializedCodeData* FromCachedData(ScriptData* cached_data,
+                                            String* source) {
     DisallowHeapAllocation no_gc;
-    CHECK(IsSane(source));
+    SerializedCodeData* scd = new SerializedCodeData(cached_data);
+    if (scd->IsSane(source)) return scd;
+    cached_data->Reject();
+    delete scd;
+    return NULL;
   }
 
   // Used when producing.
@@ -822,6 +826,9 @@ class SerializedCodeData {
   }
 
  private:
+  explicit SerializedCodeData(ScriptData* data)
+      : script_data_(data), owns_script_data_(false) {}
+
   void SetHeaderValue(int offset, int value) {
     reinterpret_cast<int*>(const_cast<byte*>(script_data_->data()))[offset] =
         value;
