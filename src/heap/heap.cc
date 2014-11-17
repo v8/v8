@@ -4485,7 +4485,13 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
     PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
            idle_time_in_ms, actual_time_in_ms);
     action.Print();
-    PrintF("]\n");
+    PrintF("]");
+    if (FLAG_trace_idle_notification_verbose) {
+      PrintF("[");
+      heap_state.Print();
+      PrintF("]");
+    }
+    PrintF("\n");
   }
 
   contexts_disposed_ = 0;

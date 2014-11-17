@@ -116,7 +116,10 @@ class GCIdleTimeHandler {
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 
-  struct HeapState {
+  class HeapState {
+   public:
+    void Print();
+
     int contexts_disposed;
     double contexts_disposal_rate;
     size_t size_of_objects;
