@@ -388,9 +388,12 @@ AddressingMode GenerateMemoryOperandInputs(X64OperandGenerator* g, Node* scaled,
         mode = kMRn_modes[scale_exponent];
       }
     } else {
-      DCHECK(constant != NULL);
-      inputs[(*input_count)++] = g->UseImmediate(constant);
-      mode = kMode_MRI;
+      if (constant == NULL) {
+        mode = kMode_MR;
+      } else {
+        inputs[(*input_count)++] = g->UseImmediate(constant);
+        mode = kMode_MRI;
+      }
     }
   } else {
     DCHECK(scaled != NULL);
@@ -415,7 +418,7 @@ AddressingMode GenerateMemoryOperandInputs(X64OperandGenerator* g, Node* scaled,
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   // Try to match the Add to a leal pattern
-  ScaledWithOffsetMatcher m(node);
+  ScaledWithOffset32Matcher m(node);
   X64OperandGenerator g(this);
   if (m.matches() && (m.constant() == NULL || g.CanBeImmediate(m.constant()))) {
     InstructionOperand* inputs[4];
