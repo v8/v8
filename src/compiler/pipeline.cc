@@ -91,15 +91,15 @@ class PipelineData {
   }
 
   // For machine graph testing entry point.
-  void Initialize(Graph* graph, Schedule* schedule) {
+  void InitializeTorTesting(Graph* graph, Schedule* schedule) {
     graph_ = graph;
     source_positions_.Reset(new SourcePositionTable(graph));
     schedule_ = schedule;
     instruction_zone_ = instruction_zone_scope_.zone();
   }
 
-  // For register allocation entry point.
-  void Initialize(InstructionSequence* sequence) {
+  // For register allocation testing entry point.
+  void InitializeTorTesting(InstructionSequence* sequence) {
     instruction_zone_ = sequence->zone();
     sequence_ = sequence;
   }
@@ -778,28 +778,48 @@ Handle<Code> Pipeline::GenerateCode() {
 }
 
 
-Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
-                                                   Graph* graph,
-                                                   Schedule* schedule) {
-  ZonePool zone_pool(isolate());
+Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
+                                              Graph* graph,
+                                              Schedule* schedule) {
+  CallDescriptor* call_descriptor =
+      Linkage::ComputeIncoming(info->zone(), info);
+  return GenerateCodeForTesting(info, call_descriptor, graph, schedule);
+}
+
+
+Handle<Code> Pipeline::GenerateCodeForTesting(CallDescriptor* call_descriptor,
+                                              Graph* graph,
+                                              Schedule* schedule) {
+  CompilationInfo info(graph->zone()->isolate(), graph->zone());
+  return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
+}
+
+
+Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
+                                              CallDescriptor* call_descriptor,
+                                              Graph* graph,
+                                              Schedule* schedule) {
   CHECK(SupportedBackend());
-  PipelineData data(&zone_pool, info());
-  data.Initialize(graph, schedule);
-  this->data_ = &data;
+  ZonePool zone_pool(info->isolate());
+  Pipeline pipeline(info);
+  PipelineData data(&zone_pool, info);
+  pipeline.data_ = &data;
+  data.InitializeTorTesting(graph, schedule);
   if (schedule == NULL) {
     // TODO(rossberg): Should this really be untyped?
-    RunPrintAndVerify("Machine", true);
-    Run<ComputeSchedulePhase>();
+    pipeline.RunPrintAndVerify("Machine", true);
+    pipeline.Run<ComputeSchedulePhase>();
   } else {
     TraceSchedule(schedule);
   }
 
-  GenerateCode(linkage);
+  Linkage linkage(info->zone(), call_descriptor);
+  pipeline.GenerateCode(&linkage);
   Handle<Code> code = data.code();
 
 #if ENABLE_DISASSEMBLER
   if (!code.is_null() && FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
     code->Disassemble("test code", os);
   }
@@ -808,13 +828,13 @@ Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
 }
 
 
-bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
-                                 InstructionSequence* sequence,
-                                 bool run_verifier) {
+bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
+                                           InstructionSequence* sequence,
+                                           bool run_verifier) {
   CompilationInfo info(sequence->zone()->isolate(), sequence->zone());
   ZonePool zone_pool(sequence->zone()->isolate());
   PipelineData data(&zone_pool, &info);
-  data.Initialize(sequence);
+  data.InitializeTorTesting(sequence);
   Pipeline pipeline(&info);
   pipeline.data_ = &data;
   pipeline.AllocateRegisters(config, run_verifier);

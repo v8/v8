@@ -219,7 +219,7 @@ class RegisterAllocatorTest : public TestWithZone {
   void Allocate() {
     CHECK_EQ(nullptr, current_block_);
     WireBlocks();
-    Pipeline::AllocateRegisters(config(), sequence(), true);
+    Pipeline::AllocateRegistersForTesting(config(), sequence(), true);
   }
 
   TestOperand Imm(int32_t imm = 0) {

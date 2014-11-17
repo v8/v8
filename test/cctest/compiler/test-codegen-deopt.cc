@@ -63,12 +63,7 @@ class DeoptCodegenTester {
     if (FLAG_trace_turbo) {
       os << *schedule;
     }
-
-    Linkage* linkage = new (scope_->main_zone()) Linkage(info.zone(), &info);
-    Pipeline pipeline(&info);
-    result_code =
-        pipeline.GenerateCodeForMachineGraph(linkage, graph, schedule);
-
+    result_code = Pipeline::GenerateCodeForTesting(&info, graph, schedule);
 #ifdef OBJECT_PRINT
     if (FLAG_print_opt_code || FLAG_trace_turbo) {
       result_code->Print();
