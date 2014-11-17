@@ -571,6 +571,7 @@ DEFINE_BOOL(age_code, true,
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_steps, true, "do incremental marking steps")
+DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(track_gc_object_stats, false,
@@ -706,6 +707,7 @@ DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,
 DEFINE_BOOL(predictable, false, "enable predictable mode")
 DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
+DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
 
 
 //

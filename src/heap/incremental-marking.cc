@@ -936,7 +936,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     if (state_ == SWEEPING) {
       if (heap_->mark_compact_collector()->sweeping_in_progress() &&
-          heap_->mark_compact_collector()->IsSweepingCompleted()) {
+          (heap_->mark_compact_collector()->IsSweepingCompleted() ||
+           !FLAG_concurrent_sweeping)) {
         heap_->mark_compact_collector()->EnsureSweepingCompleted();
       }
       if (!heap_->mark_compact_collector()->sweeping_in_progress()) {

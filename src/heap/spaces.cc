@@ -2569,7 +2569,7 @@ void PagedSpace::PrepareForMarkCompact() {
 
 
 intptr_t PagedSpace::SizeOfObjects() {
-  DCHECK(FLAG_predictable ||
+  DCHECK(!FLAG_concurrent_sweeping ||
          heap()->mark_compact_collector()->sweeping_in_progress() ||
          (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
