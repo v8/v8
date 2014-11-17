@@ -919,6 +919,22 @@ ObjectMirror.GetInternalProperties = function(value) {
       result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
     }
     return result;
+  } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
+    var details = IS_MAP_ITERATOR(value) ? %MapIteratorDetails(value)
+                                         : %SetIteratorDetails(value);
+    var kind;
+    switch (details[2]) {
+      case 1: kind = "keys"; break;
+      case 2: kind = "values"; break;
+      case 3: kind = "entries"; break;
+    }
+    var result = [];
+    result.push(new InternalPropertyMirror("[[IteratorHasMore]]", details[0]));
+    result.push(new InternalPropertyMirror("[[IteratorIndex]]", details[1]));
+    if (kind) {
+      result.push(new InternalPropertyMirror("[[IteratorKind]]", kind));
+    }
+    return result;
   } else if (ObjectIsPromise(value)) {
     var result = [];
     result.push(new InternalPropertyMirror("[[PromiseStatus]]",
