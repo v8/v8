@@ -193,13 +193,16 @@ PropertyAttribute.DontEnum   = DONT_ENUM;
 PropertyAttribute.DontDelete = DONT_DELETE;
 
 
-// A copy of the scope types from runtime.cc.
+// A copy of the scope types from runtime-debug.cc.
+// NOTE: these constants should be backward-compatible, so
+// add new ones to the end of this list.
 var ScopeType = { Global: 0,
                   Local: 1,
                   With: 2,
                   Closure: 3,
                   Catch: 4,
-                  Block: 5 };
+                  Block: 5,
+                  Script: 6 };
 
 
 // Mirror hierarchy:
@@ -917,6 +920,22 @@ ObjectMirror.GetInternalProperties = function(value) {
         boundArgs.push(bindings[i]);
       }
       result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
+    }
+    return result;
+  } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
+    var details = IS_MAP_ITERATOR(value) ? %MapIteratorDetails(value)
+                                         : %SetIteratorDetails(value);
+    var kind;
+    switch (details[2]) {
+      case 1: kind = "keys"; break;
+      case 2: kind = "values"; break;
+      case 3: kind = "entries"; break;
+    }
+    var result = [];
+    result.push(new InternalPropertyMirror("[[IteratorHasMore]]", details[0]));
+    result.push(new InternalPropertyMirror("[[IteratorIndex]]", details[1]));
+    if (kind) {
+      result.push(new InternalPropertyMirror("[[IteratorKind]]", kind));
     }
     return result;
   } else if (ObjectIsPromise(value)) {
@@ -2293,11 +2312,12 @@ ScopeMirror.prototype.scopeType = function() {
 
 
 ScopeMirror.prototype.scopeObject = function() {
-  // For local and closure scopes create a transient mirror as these objects are
-  // created on the fly materializing the local or closure scopes and
-  // therefore will not preserve identity.
+  // For local, closure and script scopes create a transient mirror
+  // as these objects are created on the fly materializing the local
+  // or closure scopes and therefore will not preserve identity.
   var transient = this.scopeType() == ScopeType.Local ||
-                  this.scopeType() == ScopeType.Closure;
+                  this.scopeType() == ScopeType.Closure ||
+                  this.scopeType() == ScopeType.Script;
   return MakeMirror(this.details_.object(), transient);
 };
 

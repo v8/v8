@@ -1537,7 +1537,10 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 
 ScriptCompiler::CachedData::CachedData(const uint8_t* data_, int length_,
                                        BufferPolicy buffer_policy_)
-    : data(data_), length(length_), buffer_policy(buffer_policy_) {}
+    : data(data_),
+      length(length_),
+      rejected(false),
+      buffer_policy(buffer_policy_) {}
 
 
 ScriptCompiler::CachedData::~CachedData() {
@@ -1753,6 +1756,8 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
       source->cached_data = new CachedData(
           script_data->data(), script_data->length(), CachedData::BufferOwned);
       script_data->ReleaseDataOwnership();
+    } else if (options == kConsumeParserCache || options == kConsumeCodeCache) {
+      source->cached_data->rejected = script_data->rejected();
     }
     delete script_data;
   }

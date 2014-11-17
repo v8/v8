@@ -7630,9 +7630,25 @@ static void DebugHarmonyScopingListener(
   char script[128];
   i::Vector<char> script_vector(script, sizeof(script));
   SNPrintF(script_vector, "%%GetFrameCount(%d)", break_id);
-  v8::Local<v8::Value> result = CompileRun(script);
+  ExpectInt32(script, 1);
 
-  CHECK_EQ(1, result->Int32Value());
+  SNPrintF(script_vector, "var frame = new FrameMirror(%d, 0);", break_id);
+  CompileRun(script);
+  ExpectInt32("frame.evaluate('x').value_", 1);
+  ExpectInt32("frame.evaluate('y').value_", 2);
+
+  CompileRun("var allScopes = frame.allScopes()");
+  ExpectInt32("allScopes.length", 2);
+
+  ExpectBoolean("allScopes[0].scopeType() === ScopeType.Script", true);
+
+  ExpectInt32("allScopes[0].scopeObject().value_.x", 1);
+
+  ExpectInt32("allScopes[0].scopeObject().value_.y", 2);
+
+  CompileRun("allScopes[0].setVariableValue('x', 5);");
+  CompileRun("allScopes[0].setVariableValue('y', 6);");
+  ExpectInt32("frame.evaluate('x + y').value_", 11);
 }
 
 
@@ -7648,8 +7664,15 @@ TEST(DebugBreakInLexicalScopes) {
   CompileRun(
       "'use strict';            \n"
       "let x = 1;               \n");
-  CompileRun(
+  ExpectInt32(
       "'use strict';            \n"
-      "let y = 1;               \n"
-      "debugger                 \n");
+      "let y = 2;               \n"
+      "debugger;                \n"
+      "x * y",
+      30);
+  ExpectInt32(
+      "x = 1; y = 2; \n"
+      "debugger;"
+      "x * y",
+      30);
 }

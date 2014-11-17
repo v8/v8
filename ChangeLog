@@ -1,3 +1,10 @@
+2014-11-17: Version 3.31.9
+
+        Expose internal properties of map/set iterators via mirrors.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-17: Version 3.31.8
 
         Performance and stability improvements on all platforms.

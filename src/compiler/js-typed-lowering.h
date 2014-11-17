@@ -43,6 +43,7 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToBooleanInput(Node* input);
+  Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceI32Binop(Node* node, bool left_signed, bool right_signed,
                            const Operator* intOp);

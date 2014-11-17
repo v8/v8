@@ -115,6 +115,22 @@ RUNTIME_FUNCTION(Runtime_SetIteratorNext) {
 }
 
 
+// The array returned contains the following information:
+// 0: HasMore flag
+// 1: Iteration index
+// 2: Iteration kind
+RUNTIME_FUNCTION(Runtime_SetIteratorDetails) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
+  Handle<FixedArray> details = isolate->factory()->NewFixedArray(4);
+  details->set(0, isolate->heap()->ToBoolean(holder->HasMore()));
+  details->set(1, holder->index());
+  details->set(2, holder->kind());
+  return *isolate->factory()->NewJSArrayWithElements(details);
+}
+
+
 RUNTIME_FUNCTION(Runtime_MapInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -222,6 +238,22 @@ RUNTIME_FUNCTION(Runtime_MapIteratorClone) {
   result->set_kind(Smi::FromInt(Smi::cast(holder->kind())->value()));
 
   return *result;
+}
+
+
+// The array returned contains the following information:
+// 0: HasMore flag
+// 1: Iteration index
+// 2: Iteration kind
+RUNTIME_FUNCTION(Runtime_MapIteratorDetails) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
+  Handle<FixedArray> details = isolate->factory()->NewFixedArray(4);
+  details->set(0, isolate->heap()->ToBoolean(holder->HasMore()));
+  details->set(1, holder->index());
+  details->set(2, holder->kind());
+  return *isolate->factory()->NewJSArrayWithElements(details);
 }
 
 

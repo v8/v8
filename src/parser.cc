@@ -202,6 +202,7 @@ int ParseData::FunctionCount() {
 
 
 bool ParseData::IsSane() {
+  if (!IsAligned(script_data_->length(), sizeof(unsigned))) return false;
   // Check that the header data is valid and doesn't specify
   // point to positions outside the store.
   int data_length = Length();
@@ -256,7 +257,7 @@ void Parser::SetCachedData() {
   } else {
     DCHECK(info_->cached_data() != NULL);
     if (compile_options() == ScriptCompiler::kConsumeParserCache) {
-      cached_parse_data_ = new ParseData(*info_->cached_data());
+      cached_parse_data_ = ParseData::FromCachedData(*info_->cached_data());
     }
   }
 }
@@ -834,9 +835,9 @@ FunctionLiteral* Parser::ParseProgram() {
   CompleteParserRecorder recorder;
 
   debug_saved_compile_options_ = compile_options();
-  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+  if (produce_cached_parse_data()) {
     log_ = &recorder;
-  } else if (compile_options() == ScriptCompiler::kConsumeParserCache) {
+  } else if (consume_cached_parse_data()) {
     cached_parse_data_->Initialize();
   }
 
@@ -877,7 +878,7 @@ FunctionLiteral* Parser::ParseProgram() {
     }
     PrintF(" - took %0.3f ms]\n", ms);
   }
-  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+  if (produce_cached_parse_data()) {
     if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }
@@ -3809,12 +3810,10 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
   CHECK(materialized_literal_count);
   CHECK(expected_property_count);
   CHECK(debug_saved_compile_options_ == compile_options());
-  if (compile_options() == ScriptCompiler::kProduceParserCache) {
-    CHECK(log_);
-  }
+  if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
-  if (compile_options() == ScriptCompiler::kConsumeParserCache) {
+  if (consume_cached_parse_data()) {
     // If we have cached data, we use it to skip parsing the function body. The
     // data contains the information we need to construct the lazy function.
     FunctionEntry entry =
@@ -3862,7 +3861,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
     *materialized_literal_count = logger.literals();
     *expected_property_count = logger.properties();
     scope_->SetStrictMode(logger.strict_mode());
-    if (compile_options() == ScriptCompiler::kProduceParserCache) {
+    if (produce_cached_parse_data()) {
       DCHECK(log_);
       // Position right after terminal '}'.
       int body_end = scanner()->location().end_pos;
@@ -5123,9 +5122,7 @@ void Parser::ParseOnBackground() {
 
   CompleteParserRecorder recorder;
   debug_saved_compile_options_ = compile_options();
-  if (compile_options() == ScriptCompiler::kProduceParserCache) {
-    log_ = &recorder;
-  }
+  if (produce_cached_parse_data()) log_ = &recorder;
 
   DCHECK(info()->source_stream() != NULL);
   ExternalStreamingStream stream(info()->source_stream(),
@@ -5153,7 +5150,7 @@ void Parser::ParseOnBackground() {
   // We cannot internalize on a background thread; a foreground task will take
   // care of calling Parser::Internalize just before compilation.
 
-  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+  if (produce_cached_parse_data()) {
     if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }

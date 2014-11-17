@@ -163,6 +163,9 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
         machine()->Word64Shl(),
         graph()->NewNode(machine()->ChangeInt32ToInt64(), value),
         SmiShiftBitsConstant()));
+  } else if (NodeProperties::GetBounds(value).upper->Is(Type::SignedSmall())) {
+    return Replace(
+        graph()->NewNode(machine()->WordShl(), value, SmiShiftBitsConstant()));
   }
 
   Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);

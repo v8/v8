@@ -39,8 +39,11 @@ struct NodeMatcher {
 
 
 // A pattern matcher for abitrary value constants.
-template <typename T, IrOpcode::Value kOpcode>
+template <typename T, IrOpcode::Value kMatchOpcode>
 struct ValueMatcher : public NodeMatcher {
+  typedef T ValueType;
+  static const IrOpcode::Value kOpcode = kMatchOpcode;
+
   explicit ValueMatcher(Node* node)
       : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
     if (has_value_) {
@@ -124,6 +127,9 @@ struct BinopMatcher : public NodeMatcher {
     if (HasProperty(Operator::kCommutative)) PutConstantOnRight();
   }
 
+  typedef Left LeftMatcher;
+  typedef Right RightMatcher;
+
   const Left& left() const { return left_; }
   const Right& right() const { return right_; }
 
@@ -157,16 +163,19 @@ typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
 
-struct Int32AddMatcher : public Int32BinopMatcher {
-  explicit Int32AddMatcher(Node* node)
-      : Int32BinopMatcher(node), scale_exponent_(-1) {
-    PutScaledInputOnLeft();
+template <class BinopMatcher, IrOpcode::Value kAddOpcode,
+          IrOpcode::Value kMulOpcode, IrOpcode::Value kShiftOpcode>
+struct AddMatcher : public BinopMatcher {
+  static const IrOpcode::Value kOpcode = kAddOpcode;
+
+  explicit AddMatcher(Node* node) : BinopMatcher(node), scale_exponent_(-1) {
+    if (this->HasProperty(Operator::kCommutative)) PutScaledInputOnLeft();
   }
 
   bool HasScaledInput() const { return scale_exponent_ != -1; }
   Node* ScaledInput() const {
     DCHECK(HasScaledInput());
-    return left().node()->InputAt(0);
+    return this->left().node()->InputAt(0);
   }
   int ScaleExponent() const {
     DCHECK(HasScaledInput());
@@ -175,18 +184,20 @@ struct Int32AddMatcher : public Int32BinopMatcher {
 
  private:
   int GetInputScaleExponent(Node* node) const {
-    if (node->opcode() == IrOpcode::kWord32Shl) {
-      Int32BinopMatcher m(node);
+    if (node->opcode() == kShiftOpcode) {
+      BinopMatcher m(node);
       if (m.right().HasValue()) {
-        int32_t value = m.right().Value();
+        typename BinopMatcher::RightMatcher::ValueType value =
+            m.right().Value();
         if (value >= 0 && value <= 3) {
-          return value;
+          return static_cast<int>(value);
         }
       }
-    } else if (node->opcode() == IrOpcode::kInt32Mul) {
-      Int32BinopMatcher m(node);
+    } else if (node->opcode() == kMulOpcode) {
+      BinopMatcher m(node);
       if (m.right().HasValue()) {
-        int32_t value = m.right().Value();
+        typename BinopMatcher::RightMatcher::ValueType value =
+            m.right().Value();
         if (value == 1) {
           return 0;
         } else if (value == 2) {
@@ -202,20 +213,20 @@ struct Int32AddMatcher : public Int32BinopMatcher {
   }
 
   void PutScaledInputOnLeft() {
-    scale_exponent_ = GetInputScaleExponent(right().node());
+    scale_exponent_ = GetInputScaleExponent(this->right().node());
     if (scale_exponent_ >= 0) {
-      int left_scale_exponent = GetInputScaleExponent(left().node());
+      int left_scale_exponent = GetInputScaleExponent(this->left().node());
       if (left_scale_exponent == -1) {
-        SwapInputs();
+        this->SwapInputs();
       } else {
         scale_exponent_ = left_scale_exponent;
       }
     } else {
-      scale_exponent_ = GetInputScaleExponent(left().node());
+      scale_exponent_ = GetInputScaleExponent(this->left().node());
       if (scale_exponent_ == -1) {
-        if (right().opcode() == IrOpcode::kInt32Add &&
-            left().opcode() != IrOpcode::kInt32Add) {
-          SwapInputs();
+        if (this->right().opcode() == kAddOpcode &&
+            this->left().opcode() != kAddOpcode) {
+          this->SwapInputs();
         }
       }
     }
@@ -224,6 +235,12 @@ struct Int32AddMatcher : public Int32BinopMatcher {
   int scale_exponent_;
 };
 
+typedef AddMatcher<Int32BinopMatcher, IrOpcode::kInt32Add, IrOpcode::kInt32Mul,
+                   IrOpcode::kWord32Shl> Int32AddMatcher;
+typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Mul,
+                   IrOpcode::kWord64Shl> Int64AddMatcher;
+
+template <class AddMatcher>
 struct ScaledWithOffsetMatcher {
   explicit ScaledWithOffsetMatcher(Node* node)
       : matches_(false),
@@ -231,13 +248,12 @@ struct ScaledWithOffsetMatcher {
         scale_exponent_(0),
         offset_(NULL),
         constant_(NULL) {
-    if (node->opcode() != IrOpcode::kInt32Add) return;
-
-    // The Int32AddMatcher canonicalizes the order of constants and scale
-    // factors that are used as inputs, so instead of enumerating all possible
-    // patterns by brute force, checking for node clusters using the following
-    // templates in the following order suffices to find all of the interesting
-    // cases (S = scaled input, O = offset input, C = constant input):
+    // The ScaledWithOffsetMatcher canonicalizes the order of constants and
+    // scale factors that are used as inputs, so instead of enumerating all
+    // possible patterns by brute force, checking for node clusters using the
+    // following templates in the following order suffices to find all of the
+    // interesting cases (S = scaled input, O = offset input, C = constant
+    // input):
     // (S + (O + C))
     // (S + (O + O))
     // (S + C)
@@ -248,14 +264,15 @@ struct ScaledWithOffsetMatcher {
     // ((O + O) + C)
     // (O + C)
     // (O + O)
-    Int32AddMatcher base_matcher(node);
+    if (node->InputCount() < 2) return;
+    AddMatcher base_matcher(node);
     Node* left = base_matcher.left().node();
     Node* right = base_matcher.right().node();
     if (base_matcher.HasScaledInput() && left->OwnedBy(node)) {
       scaled_ = base_matcher.ScaledInput();
       scale_exponent_ = base_matcher.ScaleExponent();
-      if (right->opcode() == IrOpcode::kInt32Add && right->OwnedBy(node)) {
-        Int32AddMatcher right_matcher(right);
+      if (right->opcode() == AddMatcher::kOpcode && right->OwnedBy(node)) {
+        AddMatcher right_matcher(right);
         if (right_matcher.right().HasValue()) {
           // (S + (O + C))
           offset_ = right_matcher.left().node();
@@ -272,8 +289,8 @@ struct ScaledWithOffsetMatcher {
         offset_ = right;
       }
     } else {
-      if (left->opcode() == IrOpcode::kInt32Add && left->OwnedBy(node)) {
-        Int32AddMatcher left_matcher(left);
+      if (left->opcode() == AddMatcher::kOpcode && left->OwnedBy(node)) {
+        AddMatcher left_matcher(left);
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
         if (left_matcher.HasScaledInput() && left_left->OwnedBy(left)) {
@@ -321,6 +338,25 @@ struct ScaledWithOffsetMatcher {
         }
       }
     }
+    int64_t value = 0;
+    if (constant_ != NULL) {
+      switch (constant_->opcode()) {
+        case IrOpcode::kInt32Constant: {
+          value = OpParameter<int32_t>(constant_);
+          break;
+        }
+        case IrOpcode::kInt64Constant: {
+          value = OpParameter<int64_t>(constant_);
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
+      }
+      if (value == 0) {
+        constant_ = NULL;
+      }
+    }
     matches_ = true;
   }
 
@@ -339,6 +375,9 @@ struct ScaledWithOffsetMatcher {
   Node* offset_;
   Node* constant_;
 };
+
+typedef ScaledWithOffsetMatcher<Int32AddMatcher> ScaledWithOffset32Matcher;
+typedef ScaledWithOffsetMatcher<Int64AddMatcher> ScaledWithOffset64Matcher;
 
 }  // namespace compiler
 }  // namespace internal

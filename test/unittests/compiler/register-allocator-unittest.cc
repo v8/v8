@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/compiler/register-allocator.h"
-#include "src/compiler/register-allocator-verifier.h"
+#include "src/compiler/instruction.h"
+#include "src/compiler/pipeline.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -167,14 +167,6 @@ class RegisterAllocatorTest : public TestWithZone {
     return sequence_;
   }
 
-  RegisterAllocator* allocator() {
-    if (allocator_.is_empty()) {
-      allocator_.Reset(
-          new RegisterAllocator(config(), zone(), frame(), sequence()));
-    }
-    return allocator_.get();
-  }
-
   void StartLoop(int loop_blocks) {
     CHECK(current_block_ == nullptr);
     if (!loop_blocks_.empty()) {
@@ -227,20 +219,7 @@ class RegisterAllocatorTest : public TestWithZone {
   void Allocate() {
     CHECK_EQ(nullptr, current_block_);
     WireBlocks();
-    RegisterAllocatorVerifier verifier(zone(), config(), sequence());
-    if (FLAG_trace_alloc || FLAG_trace_turbo) {
-      OFStream os(stdout);
-      PrintableInstructionSequence printable = {config(), sequence()};
-      os << "Before: " << std::endl << printable << std::endl;
-    }
-    allocator()->Allocate();
-    if (FLAG_trace_alloc || FLAG_trace_turbo) {
-      OFStream os(stdout);
-      PrintableInstructionSequence printable = {config(), sequence()};
-      os << "After: " << std::endl << printable << std::endl;
-    }
-    verifier.VerifyAssignment();
-    verifier.VerifyGapMoves();
+    Pipeline::AllocateRegistersForTesting(config(), sequence(), true);
   }
 
   TestOperand Imm(int32_t imm = 0) {
@@ -520,7 +499,6 @@ class RegisterAllocatorTest : public TestWithZone {
 
   SmartPointer<RegisterConfiguration> config_;
   Frame* frame_;
-  SmartPointer<RegisterAllocator> allocator_;
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;
