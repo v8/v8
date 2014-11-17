@@ -179,48 +179,10 @@ class JSBinopReduction {
     return n;
   }
 
-  // Try narrowing a double or number operation to an Int32 operation.
-  bool TryNarrowingToI32(Type* type, Node* node) {
-    switch (node->opcode()) {
-      case IrOpcode::kFloat64Add:
-      case IrOpcode::kNumberAdd: {
-        JSBinopReduction r(lowering_, node);
-        if (r.BothInputsAre(Type::Integral32())) {
-          node->set_op(lowering_->machine()->Int32Add());
-          // TODO(titzer): narrow bounds instead of overwriting.
-          NodeProperties::SetBounds(node, Bounds(type));
-          return true;
-        }
-      }
-      case IrOpcode::kFloat64Sub:
-      case IrOpcode::kNumberSubtract: {
-        JSBinopReduction r(lowering_, node);
-        if (r.BothInputsAre(Type::Integral32())) {
-          node->set_op(lowering_->machine()->Int32Sub());
-          // TODO(titzer): narrow bounds instead of overwriting.
-          NodeProperties::SetBounds(node, Bounds(type));
-          return true;
-        }
-      }
-      default:
-        return false;
-    }
-  }
-
   Node* ConvertToI32(bool is_signed, Node* node) {
-    Type* type = is_signed ? Type::Signed32() : Type::Unsigned32();
-    if (node->OwnedBy(node_)) {
-      // If this node {node_} has the only edge to {node}, then try narrowing
-      // its operation to an Int32 add or subtract.
-      if (TryNarrowingToI32(type, node)) return node;
-    } else {
-      // Otherwise, {node} has multiple uses. Leave it as is and let the
-      // further lowering passes deal with it, which use a full backwards
-      // fixpoint.
-    }
-
     // Avoid introducing too many eager NumberToXXnt32() operations.
     node = ConvertToNumber(node);
+    Type* type = is_signed ? Type::Signed32() : Type::Unsigned32();
     Type* input_type = NodeProperties::GetBounds(node).upper;
 
     if (input_type->Is(type)) return node;  // already in the value range.
