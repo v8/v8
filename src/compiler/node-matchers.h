@@ -190,7 +190,7 @@ struct AddMatcher : public BinopMatcher {
         typename BinopMatcher::RightMatcher::ValueType value =
             m.right().Value();
         if (value >= 0 && value <= 3) {
-          return value;
+          return static_cast<int>(value);
         }
       }
     } else if (node->opcode() == kMulOpcode) {
