@@ -6794,6 +6794,8 @@ class SharedFunctionInfo: public HeapObject {
   inline int ic_age();
   inline void set_ic_age(int age);
 
+  DECL_BOOLEAN_ACCESSORS(optimize_next_closure)
+
   // Indicates if this function can be lazy compiled.
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
@@ -7096,6 +7098,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
+    kOptimizeNextClosure,
     kOptimizationDisabled,
     kStrictModeFunction,
     kUsesArguments,
@@ -7323,7 +7326,7 @@ class JSFunction: public JSObject {
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForOptimization();
-  void MarkForConcurrentOptimization();
+  void AttemptConcurrentOptimization();
   void MarkInOptimizationQueue();
 
   // Tells whether or not the function is already marked for lazy
