@@ -2479,12 +2479,20 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
 
   // Parsed expression statement, or the context-sensitive 'module' keyword.
   // Only expect semicolon in the former case.
+  // Also detect attempts at 'let' declarations in sloppy mode.
   if (!FLAG_harmony_modules || peek() != Token::IDENTIFIER ||
       scanner()->HasAnyLineTerminatorBeforeNext() ||
       expr->AsVariableProxy() == NULL ||
       expr->AsVariableProxy()->raw_name() !=
           ast_value_factory()->module_string() ||
       scanner()->literal_contains_escapes()) {
+    if (peek() == Token::IDENTIFIER && expr->AsVariableProxy() != NULL &&
+        expr->AsVariableProxy()->raw_name() ==
+            ast_value_factory()->let_string()) {
+      ReportMessage("lexical_strict_mode", NULL);
+      *ok = false;
+      return NULL;
+    }
     ExpectSemicolon(CHECK_OK);
   }
   return factory()->NewExpressionStatement(expr, pos);
@@ -3214,6 +3222,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   for_scope->set_start_position(scanner()->location().beg_pos);
+  bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR ||
         (peek() == Token::CONST && strict_mode() == SLOPPY)) {
@@ -3325,6 +3334,10 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       Expression* expression = ParseExpression(false, CHECK_OK);
       ForEachStatement::VisitMode mode;
       bool accept_OF = expression->IsVariableProxy();
+      is_let_identifier_expression =
+        expression->IsVariableProxy() &&
+        expression->AsVariableProxy()->raw_name() ==
+            ast_value_factory()->let_string();
 
       if (CheckInOrOf(accept_OF, &mode)) {
         expression = this->CheckAndRewriteReferenceExpression(
@@ -3357,6 +3370,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   Target target(&this->target_stack_, loop);
 
   // Parsed initializer at this point.
+  // Detect attempts at 'let' declarations in sloppy mode.
+  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+      is_let_identifier_expression) {
+    ReportMessage("lexical_strict_mode", NULL);
+    *ok = false;
+    return NULL;
+  }
   Expect(Token::SEMICOLON, CHECK_OK);
 
   // If there are let bindings, then condition and the next statement of the
