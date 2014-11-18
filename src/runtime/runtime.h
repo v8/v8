@@ -272,7 +272,6 @@ namespace internal {
   F(MoveArrayContents, 2, 1)                           \
   F(EstimateNumberOfElements, 1, 1)                    \
   F(NormalizeElements, 1, 1)                           \
-  F(GrowArrayElements, 3, 1)                           \
   F(HasComplexElements, 1, 1)                          \
                                                        \
   /* Getters and Setters */                            \
