@@ -639,17 +639,9 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
         &builder_, worst_case_length);
     SerializeStringUnchecked_(vector, &no_extend);
   } else {
-    String* string_location = NULL;
-    Vector<const SrcChar> vector(NULL, 0);
-    for (int i = 0; i < length; i++) {
-      // If GC moved the string, we need to refresh the vector.
-      if (*string != string_location) {
-        DisallowHeapAllocation no_gc;
-        // This does not actually prevent the string from being relocated later.
-        vector = GetCharVector<SrcChar>(string);
-        string_location = *string;
-      }
-      SrcChar c = vector[i];
+    FlatStringReader reader(isolate_, string);
+    for (int i = 0; i < reader.length(); i++) {
+      SrcChar c = static_cast<SrcChar>(reader.Get(i));
       if (DoNotEscape(c)) {
         builder_.Append<SrcChar, DestChar>(c);
       } else {
