@@ -103,6 +103,7 @@ var lastMicrotaskId = 0;
   function PromiseHandle(value, handler, deferred) {
     try {
       %DebugPushPromise(deferred.promise);
+      DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
       var result = handler(value);
       if (result === deferred.promise)
         throw MakeTypeError('promise_cyclic', [result]);
@@ -270,8 +271,15 @@ var lastMicrotaskId = 0;
       this,
       function(x) {
         x = PromiseCoerce(constructor, x);
-        return x === that ? onReject(MakeTypeError('promise_cyclic', [x])) :
-               IsPromise(x) ? x.then(onResolve, onReject) : onResolve(x);
+        if (x === that) {
+          DEBUG_PREPARE_STEP_IN_IF_STEPPING(onReject);
+          return onReject(MakeTypeError('promise_cyclic', [x]));
+        } else if (IsPromise(x)) {
+          return x.then(onResolve, onReject);
+        } else {
+          DEBUG_PREPARE_STEP_IN_IF_STEPPING(onResolve);
+          return onResolve(x);
+        }
       },
       onReject,
       PromiseChain
