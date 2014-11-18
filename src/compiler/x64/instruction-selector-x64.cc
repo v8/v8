@@ -346,6 +346,15 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  X64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kX64Movsxwl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
+      return;
+    }
+  }
   VisitWord32Shift(this, node, kX64Sar32);
 }
 
@@ -363,6 +372,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 void InstructionSelector::VisitWord64Ror(Node* node) {
   VisitWord64Shift(this, node, kX64Ror);
 }
+
 
 namespace {
 
@@ -1161,6 +1171,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   }
   return MachineOperatorBuilder::kNoFlags;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

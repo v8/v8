@@ -1401,6 +1401,15 @@ void Assembler::movsxbq(Register dst, const Operand& src) {
 }
 
 
+void Assembler::movsxwl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBF);
+  emit_modrm(dst, src);
+}
+
+
 void Assembler::movsxwl(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
