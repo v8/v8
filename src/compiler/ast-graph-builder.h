@@ -126,7 +126,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   JSGraph* jsgraph_;
 
   // List of global declarations for functions and variables.
-  ZoneList<Handle<Object> > globals_;
+  ZoneVector<Handle<Object>> globals_;
 
   // Stack of breakable statements entered by the visitor.
   BreakableScope* breakable_;
@@ -145,7 +145,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   inline StrictMode strict_mode() const;
   JSGraph* jsgraph() { return jsgraph_; }
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
-  ZoneList<Handle<Object> >* globals() { return &globals_; }
+  ZoneVector<Handle<Object>>* globals() { return &globals_; }
 
   // Current scope during visitation.
   inline Scope* current_scope() const;
