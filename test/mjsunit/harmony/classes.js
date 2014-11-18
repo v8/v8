@@ -159,6 +159,15 @@
   assertThrows('class C extends function B() { with ({}); return B; }() {}',
                SyntaxError);
 
+  var D = class extends function() {
+    arguments.caller;
+  } {};
+  assertThrows(function() {
+    Object.getPrototypeOf(D).arguments;
+  }, TypeError);
+  assertThrows(function() {
+    new D;
+  }, TypeError);
 })();
 
 
