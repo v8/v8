@@ -466,11 +466,8 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   if (input->opcode() == IrOpcode::kJSToNumber) {
     // Recursively try to reduce the input first.
-    Reduction result = ReduceJSToNumberInput(input->InputAt(0));
-    if (result.Changed()) {
-      RelaxEffects(input);
-      return result;
-    }
+    Reduction result = ReduceJSToNumber(input);
+    if (result.Changed()) return result;
     return Changed(input);  // JSToNumber(JSToNumber(x)) => JSToNumber(x)
   }
   Type* input_type = NodeProperties::GetBounds(input).upper;
@@ -492,6 +489,55 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
         graph()->NewNode(simplified()->BooleanToNumber(), input));
   }
   // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
+  // Try to reduce the input first.
+  Node* const input = node->InputAt(0);
+  Reduction reduction = ReduceJSToNumberInput(input);
+  if (reduction.Changed()) {
+    NodeProperties::ReplaceWithValue(node, reduction.replacement());
+    return reduction;
+  }
+  Type* const input_type = NodeProperties::GetBounds(input).upper;
+  if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
+    Node* const context = node->InputAt(1);
+    // JSToNumber(phi(x1,...,xn,control):primitive)
+    //   => phi(JSToNumber(x1),...,JSToNumber(xn),control):number
+    RelaxEffects(node);
+    int const input_count = input->InputCount() - 1;
+    Node* const control = input->InputAt(input_count);
+    DCHECK_LE(0, input_count);
+    DCHECK(NodeProperties::IsControl(control));
+    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
+    DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+    node->set_op(common()->Phi(kMachAnyTagged, input_count));
+    for (int i = 0; i < input_count; ++i) {
+      Node* value = input->InputAt(i);
+      // Recursively try to reduce the value first.
+      Reduction reduction = ReduceJSToNumberInput(value);
+      if (reduction.Changed()) {
+        value = reduction.replacement();
+      } else {
+        value = graph()->NewNode(javascript()->ToNumber(), value, context,
+                                 graph()->start(), graph()->start());
+      }
+      if (i < node->InputCount()) {
+        node->ReplaceInput(i, value);
+      } else {
+        node->AppendInput(graph()->zone(), value);
+      }
+    }
+    if (input_count < node->InputCount()) {
+      node->ReplaceInput(input_count, control);
+    } else {
+      node->AppendInput(graph()->zone(), control);
+    }
+    node->TrimInputCount(input_count + 1);
+    return Changed(node);
+  }
   return NoChange();
 }
 
@@ -582,6 +628,7 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
+    Node* const context = node->InputAt(1);
     // JSToBoolean(phi(x1,...,xn,control):primitive)
     //   => phi(JSToBoolean(x1),...,JSToBoolean(xn),control):boolean
     RelaxEffects(node);
@@ -599,9 +646,8 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
       if (reduction.Changed()) {
         value = reduction.replacement();
       } else {
-        value = graph()->NewNode(javascript()->ToBoolean(), value,
-                                 jsgraph()->ZeroConstant(), graph()->start(),
-                                 graph()->start());
+        value = graph()->NewNode(javascript()->ToBoolean(), value, context,
+                                 graph()->start(), graph()->start());
       }
       if (i < node->InputCount()) {
         node->ReplaceInput(i, value);
@@ -769,8 +815,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToBoolean:
       return ReduceJSToBoolean(node);
     case IrOpcode::kJSToNumber:
-      return ReplaceWithReduction(node,
-                                  ReduceJSToNumberInput(node->InputAt(0)));
+      return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:
       return ReplaceWithReduction(node,
                                   ReduceJSToStringInput(node->InputAt(0)));
