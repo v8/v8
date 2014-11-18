@@ -483,7 +483,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kX64Movsxbl:
-      __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      if (instr->addressing_mode() != kMode_None) {
+        __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ movsxbl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ movsxbl(i.OutputRegister(), i.InputOperand(0));
+      }
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:

@@ -353,6 +353,9 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
     if (mleft.right().Is(16) && m.right().Is(16)) {
       Emit(kX64Movsxwl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
       return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kX64Movsxbl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
+      return;
     }
   }
   VisitWord32Shift(this, node, kX64Sar32);
