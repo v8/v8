@@ -250,6 +250,21 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {                                  // K >> K => K
         return ReplaceInt32(m.left().Value() >> m.right().Value());
       }
+      if (m.left().IsWord32Shl()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.left().IsLoad()) {
+          LoadRepresentation const rep =
+              OpParameter<LoadRepresentation>(mleft.left().node());
+          if (m.right().Is(24) && mleft.right().Is(24) && rep == kMachInt8) {
+            // Load[kMachInt8] << 24 >> 24 => Load[kMachInt8]
+            return Replace(mleft.left().node());
+          }
+          if (m.right().Is(16) && mleft.right().Is(16) && rep == kMachInt16) {
+            // Load[kMachInt16] << 16 >> 16 => Load[kMachInt8]
+            return Replace(mleft.left().node());
+          }
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Ror: {

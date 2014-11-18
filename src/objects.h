@@ -8353,14 +8353,11 @@ class AllocationSite: public Struct {
   static void DigestTransitionFeedback(Handle<AllocationSite> site,
                                        ElementsKind to_kind);
 
-  enum Reason {
-    TENURING,
-    TRANSITIONS
-  };
+  static void RegisterForDeoptOnTenureChange(Handle<AllocationSite> site,
+                                             CompilationInfo* info);
 
-  static void AddDependentCompilationInfo(Handle<AllocationSite> site,
-                                          Reason reason,
-                                          CompilationInfo* info);
+  static void RegisterForDeoptOnTransitionChange(Handle<AllocationSite> site,
+                                                 CompilationInfo* info);
 
   DECLARE_PRINTER(AllocationSite)
   DECLARE_VERIFIER(AllocationSite)
@@ -8392,7 +8389,10 @@ class AllocationSite: public Struct {
                               kSize> BodyDescriptor;
 
  private:
-  inline DependentCode::DependencyGroup ToDependencyGroup(Reason reason);
+  static void AddDependentCompilationInfo(Handle<AllocationSite> site,
+                                          DependentCode::DependencyGroup group,
+                                          CompilationInfo* info);
+
   bool PretenuringDecisionMade() {
     return pretenure_decision() != kUndecided;
   }

@@ -12959,10 +12959,32 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
 
 
 // static
-void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
-                                                 Reason reason,
-                                                 CompilationInfo* info) {
-  DependentCode::DependencyGroup group = site->ToDependencyGroup(reason);
+void AllocationSite::RegisterForDeoptOnTenureChange(Handle<AllocationSite> site,
+                                                    CompilationInfo* info) {
+  AddDependentCompilationInfo(
+      site, DependentCode::kAllocationSiteTenuringChangedGroup, info);
+}
+
+
+// static
+void AllocationSite::RegisterForDeoptOnTransitionChange(
+    Handle<AllocationSite> site, CompilationInfo* info) {
+  // Do nothing if the object doesn't have any useful element transitions left.
+  ElementsKind kind =
+      site->SitePointsToLiteral()
+          ? JSObject::cast(site->transition_info())->GetElementsKind()
+          : site->GetElementsKind();
+  if (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE) {
+    AddDependentCompilationInfo(
+        site, DependentCode::kAllocationSiteTransitionChangedGroup, info);
+  }
+}
+
+
+// static
+void AllocationSite::AddDependentCompilationInfo(
+    Handle<AllocationSite> site, DependentCode::DependencyGroup group,
+    CompilationInfo* info) {
   Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());

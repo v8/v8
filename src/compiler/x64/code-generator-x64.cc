@@ -483,7 +483,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kX64Movsxbl:
-      __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      if (instr->addressing_mode() != kMode_None) {
+        __ movsxbl(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ movsxbl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ movsxbl(i.OutputRegister(), i.InputOperand(0));
+      }
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
       __ movzxbl(i.OutputRegister(), i.MemoryOperand());
@@ -499,10 +506,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX64Movsxwl:
-      __ movsxwl(i.OutputRegister(), i.MemoryOperand());
+      if (instr->addressing_mode() != kMode_None) {
+        __ movsxwl(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ movsxwl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ movsxwl(i.OutputRegister(), i.InputOperand(0));
+      }
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
       __ movzxwl(i.OutputRegister(), i.MemoryOperand());
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
       int index = 0;
@@ -525,6 +540,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         } else {
           __ movl(i.OutputRegister(), i.MemoryOperand());
         }
+        __ AssertZeroExtended(i.OutputRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
@@ -576,6 +592,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX64Lea32:
       __ leal(i.OutputRegister(), i.MemoryOperand());
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Lea:
       __ leaq(i.OutputRegister(), i.MemoryOperand());

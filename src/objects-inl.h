@@ -1652,21 +1652,6 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
 }
 
 
-inline DependentCode::DependencyGroup AllocationSite::ToDependencyGroup(
-    Reason reason) {
-  switch (reason) {
-    case TENURING:
-      return DependentCode::kAllocationSiteTenuringChangedGroup;
-      break;
-    case TRANSITIONS:
-      return DependentCode::kAllocationSiteTransitionChangedGroup;
-      break;
-  }
-  UNREACHABLE();
-  return DependentCode::kAllocationSiteTransitionChangedGroup;
-}
-
-
 inline void AllocationSite::set_memento_found_count(int count) {
   int value = pretenure_data()->value();
   // Verify that we can count more mementos than we can possibly find in one

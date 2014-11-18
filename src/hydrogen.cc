@@ -5529,7 +5529,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
       elements->map() != isolate->heap()->fixed_cow_array_map()) {
-    if (boilerplate->HasFastObjectElements()) {
+    if (boilerplate->HasFastSmiOrObjectElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
       for (int i = 0; i < length; i++) {
@@ -5790,17 +5790,13 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                         Add<HConstant>(constants),
                         Add<HConstant>(flags));
 
-    // TODO(mvstanton): Consider a flag to turn off creation of any
-    // AllocationMementos for this call: we are in crankshaft and should have
-    // learned enough about transition behavior to stop emitting mementos.
     Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                                 Runtime::FunctionForId(function_id),
                                 4);
 
-    // De-opt if elements kind changed from boilerplate_elements_kind.
-    Handle<Map> map = Handle<Map>(boilerplate_object->map(), isolate());
-    literal = Add<HCheckMaps>(literal, map);
+    // Register to deopt if the boilerplate ElementsKind changes.
+    AllocationSite::RegisterForDeoptOnTransitionChange(site, top_info());
   }
 
   // The array is expected in the bailout environment during computation
@@ -9349,8 +9345,7 @@ void HOptimizedGraphBuilder::BuildInlinedCallArray(
   HValue* constructor = environment()->ExpressionStackAt(argument_count);
 
   // Register on the site for deoptimization if the transition feedback changes.
-  AllocationSite::AddDependentCompilationInfo(
-      site, AllocationSite::TRANSITIONS, top_info());
+  AllocationSite::RegisterForDeoptOnTransitionChange(site, top_info());
   ElementsKind kind = site->GetElementsKind();
   HInstruction* site_instruction = Add<HConstant>(site);
 
@@ -9480,9 +9475,8 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
         Handle<AllocationSite> allocation_site = expr->allocation_site();
         allocation_mode = HAllocationMode(allocation_site);
         // Take a dependency on allocation site.
-        AllocationSite::AddDependentCompilationInfo(allocation_site,
-                                                    AllocationSite::TENURING,
-                                                    top_info());
+        AllocationSite::RegisterForDeoptOnTenureChange(allocation_site,
+                                                       top_info());
       }
     }
 
@@ -10525,8 +10519,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     if (!allocation_mode.feedback_site().is_null()) {
       DCHECK(!graph()->info()->IsStub());
       Handle<AllocationSite> site(allocation_mode.feedback_site());
-      AllocationSite::AddDependentCompilationInfo(
-          site, AllocationSite::TENURING, top_info());
+      AllocationSite::RegisterForDeoptOnTenureChange(site, top_info());
     }
 
     // Inline the string addition into the stub when creating allocation
@@ -11121,12 +11114,13 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       boilerplate_object->map()->instance_size());
 
   PretenureFlag pretenure_flag = NOT_TENURED;
+  Handle<AllocationSite> site(site_context->current());
   if (FLAG_allocation_site_pretenuring) {
     pretenure_flag = site_context->current()->GetPretenureMode();
-    Handle<AllocationSite> site(site_context->current());
-    AllocationSite::AddDependentCompilationInfo(
-        site, AllocationSite::TENURING, top_info());
+    AllocationSite::RegisterForDeoptOnTenureChange(site, top_info());
   }
+
+  AllocationSite::RegisterForDeoptOnTransitionChange(site, top_info());
 
   HInstruction* object = Add<HAllocate>(object_size_constant, type,
       pretenure_flag, instance_type, site_context->current());

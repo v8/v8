@@ -1383,6 +1383,20 @@ void Assembler::movl(const Operand& dst, Label* src) {
 }
 
 
+void Assembler::movsxbl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  } else {
+    emit_optional_rex_32(dst, src);
+  }
+  emit(0x0F);
+  emit(0xBE);
+  emit_modrm(dst, src);
+}
+
+
 void Assembler::movsxbl(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
@@ -1398,6 +1412,15 @@ void Assembler::movsxbq(Register dst, const Operand& src) {
   emit(0x0F);
   emit(0xBE);
   emit_operand(dst, src);
+}
+
+
+void Assembler::movsxwl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBF);
+  emit_modrm(dst, src);
 }
 
 

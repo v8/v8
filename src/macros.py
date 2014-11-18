@@ -291,3 +291,5 @@ const ITERATOR_KIND_ENTRIES = 3;
 
 # Check whether debug is active.
 const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
+macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
+macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (DEBUG_IS_STEPPING(function)) %DebugPrepareStepInIfStepping(function);

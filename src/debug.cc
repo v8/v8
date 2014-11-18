@@ -1199,6 +1199,9 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
+  // Do not ever break in native functions.
+  if (function->IsFromNativeScript()) return;
+
   PrepareForBreakPoints();
 
   // Make sure the function is compiled and has set up the debug info.
@@ -1249,7 +1252,7 @@ void Debug::FloodWithOneShotGeneric(Handle<JSFunction> function,
     FloodBoundFunctionWithOneShot(function);
   } else if (function->shared()->is_default_constructor()) {
     FloodDefaultConstructorWithOneShot(function);
-  } else if (!function->IsFromNativeScript()) {
+  } else {
     Isolate* isolate = function->GetIsolate();
     // Don't allow step into functions in the native context.
     if (function->shared()->code() ==
