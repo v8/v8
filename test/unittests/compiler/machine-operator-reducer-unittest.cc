@@ -645,6 +645,36 @@ TEST_F(MachineOperatorReducerTest, Word32RorWithConstants) {
 
 
 // -----------------------------------------------------------------------------
+// Word32Sar
+
+
+TEST_F(MachineOperatorReducerTest, Word32SarWithWord32ShlAndLoad) {
+  Node* const p0 = Parameter(0);
+  Node* const p1 = Parameter(1);
+  {
+    Node* const l = graph()->NewNode(machine()->Load(kMachInt8), p0, p1,
+                                     graph()->start(), graph()->start());
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Word32Sar(),
+        graph()->NewNode(machine()->Word32Shl(), l, Int32Constant(24)),
+        Int32Constant(24)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(l, r.replacement());
+  }
+  {
+    Node* const l = graph()->NewNode(machine()->Load(kMachInt16), p0, p1,
+                                     graph()->start(), graph()->start());
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Word32Sar(),
+        graph()->NewNode(machine()->Word32Shl(), l, Int32Constant(16)),
+        Int32Constant(16)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(l, r.replacement());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Word32Shl
 
 
