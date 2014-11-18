@@ -46,7 +46,7 @@ void SimplifiedGraphBuilder::End() {
 Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
                                        Node** value_inputs, bool incomplete) {
-  DCHECK(op->InputCount() == value_input_count);
+  DCHECK(op->ValueInputCount() == value_input_count);
 
   DCHECK(!OperatorProperties::HasContextInput(op));
   DCHECK(!OperatorProperties::HasFrameStateInput(op));

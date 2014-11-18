@@ -45,7 +45,7 @@ Node** StructuredGraphBuilder::EnsureInputBufferSize(int size) {
 Node* StructuredGraphBuilder::MakeNode(const Operator* op,
                                        int value_input_count,
                                        Node** value_inputs, bool incomplete) {
-  DCHECK(op->InputCount() == value_input_count);
+  DCHECK(op->ValueInputCount() == value_input_count);
 
   bool has_context = OperatorProperties::HasContextInput(op);
   bool has_framestate = OperatorProperties::HasFrameStateInput(op);
