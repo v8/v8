@@ -4,6 +4,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
+#include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
