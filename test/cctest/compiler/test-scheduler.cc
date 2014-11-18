@@ -1810,7 +1810,6 @@ TEST(NestedFloatingDiamondWithLoop) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1849,7 +1848,6 @@ TEST(LoopedFloatingDiamond1) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1887,7 +1885,6 @@ TEST(LoopedFloatingDiamond2) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1922,11 +1919,60 @@ TEST(LoopedFloatingDiamond2) {
 }
 
 
+TEST(LoopedFloatingDiamond3) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+
+  Node* c = graph.NewNode(common.Int32Constant(7));
+  Node* loop = graph.NewNode(common.Loop(2), start, start);
+  Node* ind = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* br1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* t1 = graph.NewNode(common.IfTrue(), br1);
+  Node* f1 = graph.NewNode(common.IfFalse(), br1);
+
+  Node* loop1 = graph.NewNode(common.Loop(2), t1, start);
+  Node* ind1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p0, loop);
+
+  Node* add1 = graph.NewNode(&kIntAdd, ind1, c);
+  Node* br2 = graph.NewNode(common.Branch(), add1, loop1);
+  Node* t2 = graph.NewNode(common.IfTrue(), br2);
+  Node* f2 = graph.NewNode(common.IfFalse(), br2);
+
+  loop1->ReplaceInput(1, t2);   // close inner loop.
+  ind1->ReplaceInput(1, ind1);  // close inner induction variable.
+
+  Node* m1 = graph.NewNode(common.Merge(2), f1, f2);
+  Node* phi1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), c, ind1, m1);
+
+  Node* add = graph.NewNode(&kIntAdd, ind, phi1);
+
+  Node* br = graph.NewNode(common.Branch(), add, loop);
+  Node* t = graph.NewNode(common.IfTrue(), br);
+  Node* f = graph.NewNode(common.IfFalse(), br);
+
+  loop->ReplaceInput(1, t);   // close loop.
+  ind->ReplaceInput(1, add);  // close induction variable.
+
+  Node* ret = graph.NewNode(common.Return(), ind, start, f);
+  Node* end = graph.NewNode(common.End(), ret, f);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(28, &graph);
+}
+
+
 TEST(PhisPushedDownToDifferentBranches) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  SimplifiedOperatorBuilder simplified(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
