@@ -40,6 +40,7 @@ Debug::Debug(Isolate* isolate)
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
       has_break_points_(false),
       break_disabled_(false),
+      in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
       script_cache_(NULL),
@@ -872,7 +873,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   LiveEdit::InitializeThreadLocal(this);
 
   // Just continue if breaks are disabled or debugger cannot be loaded.
-  if (break_disabled_) return;
+  if (break_disabled()) return;
 
   // Enter the debugger.
   DebugScope debug_scope(this);
@@ -2815,7 +2816,8 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               Handle<Object> exec_state,
                               Handle<Object> event_data,
                               v8::Debug::ClientData* client_data) {
-  DisableBreak no_break(this, true);
+  bool previous = in_debug_event_listener_;
+  in_debug_event_listener_ = true;
   if (event_listener_->IsForeign()) {
     // Invoke the C debug event listener.
     v8::Debug::EventCallback callback =
@@ -2839,6 +2841,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
     Execution::TryCall(Handle<JSFunction>::cast(event_listener_),
                        global, arraysize(argv), argv);
   }
+  in_debug_event_listener_ = previous;
 }
 
 
@@ -3092,7 +3095,7 @@ void Debug::HandleDebugBreak() {
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
   // Just continue if breaks are disabled.
-  if (break_disabled_) return;
+  if (break_disabled()) return;
   // Ignore debug break if debugger is not active.
   if (!is_active()) return;
 
