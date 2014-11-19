@@ -6364,7 +6364,7 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
+  bool DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
                        LayoutDescriptor* new_layout_descriptor);
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
