@@ -39,6 +39,18 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   Handle<Object> infinity = f->NewNumber(+V8_INFINITY);
   Handle<Object> minusinfinity = f->NewNumber(-V8_INFINITY);
 
+  Type* number = Type::Number();
+  Type* signed32 = Type::Signed32();
+  Type* unsigned32 = Type::Unsigned32();
+  Type* integral32 = Type::Integral32();
+  Type* object = Type::Object();
+  Type* undefined = Type::Undefined();
+  Type* nan_or_minuszero = Type::Union(Type::NaN(), Type::MinusZero(), zone);
+  Type* truncating_to_zero =
+      Type::Union(Type::Union(Type::Constant(infinity, zone),
+                              Type::Constant(minusinfinity, zone), zone),
+                  nan_or_minuszero, zone);
+
   negative_signed32 = Type::Union(
       Type::SignedSmall(), Type::OtherSigned32(), zone);
   non_negative_signed32 = Type::Union(
@@ -49,20 +61,13 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   singleton_zero = Type::Range(zero, zero, zone);
   singleton_one = Type::Range(one, one, zone);
   zero_or_one = Type::Union(singleton_zero, singleton_one, zone);
-  zeroish = Type::Union(
-      singleton_zero, Type::Union(Type::NaN(), Type::MinusZero(), zone), zone);
+  zeroish = Type::Union(singleton_zero, nan_or_minuszero, zone);
+  signed32ish = Type::Union(signed32, truncating_to_zero, zone);
+  unsigned32ish = Type::Union(unsigned32, truncating_to_zero, zone);
   falsish = Type::Union(Type::Undetectable(),
       Type::Union(zeroish, undefined_or_null, zone), zone);
   integer = Type::Range(minusinfinity, infinity, zone);
-  weakint = Type::Union(
-      integer, Type::Union(Type::NaN(), Type::MinusZero(), zone), zone);
-
-  Type* number = Type::Number();
-  Type* signed32 = Type::Signed32();
-  Type* unsigned32 = Type::Unsigned32();
-  Type* integral32 = Type::Integral32();
-  Type* object = Type::Object();
-  Type* undefined = Type::Undefined();
+  weakint = Type::Union(integer, nan_or_minuszero, zone);
 
   number_fun0_ = Type::Function(number, zone);
   number_fun1_ = Type::Function(number, number, zone);
@@ -467,6 +472,10 @@ Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Signed32())) return type;
   if (type->Is(t->zeroish)) return t->singleton_zero;
+  if (type->Is(t->signed32ish)) {
+    return Type::Intersect(Type::Union(type, t->singleton_zero, t->zone()),
+                           Type::Signed32(), t->zone());
+  }
   return Type::Signed32();
 }
 
@@ -475,6 +484,10 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Unsigned32())) return type;
   if (type->Is(t->zeroish)) return t->singleton_zero;
+  if (type->Is(t->unsigned32ish)) {
+    return Type::Intersect(Type::Union(type, t->singleton_zero, t->zone()),
+                           Type::Unsigned32(), t->zone());
+  }
   return Type::Unsigned32();
 }
 
