@@ -40,8 +40,6 @@
 #include "src/d8.h"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-platform.h"
-
 #ifndef V8_SHARED
 #include "src/api.h"
 #include "src/base/cpu.h"

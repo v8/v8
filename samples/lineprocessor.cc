@@ -29,7 +29,6 @@
 
 #include <include/libplatform/libplatform.h>
 #include <include/v8-debug.h>
-#include <include/v8-platform.h>
 
 #include <fcntl.h>
 #include <stdio.h>

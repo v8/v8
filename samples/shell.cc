@@ -28,7 +28,6 @@
 #include <include/v8.h>
 
 #include <include/libplatform/libplatform.h>
-#include <include/v8-platform.h>
 
 #include <assert.h>
 #include <fcntl.h>
