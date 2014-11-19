@@ -2731,7 +2731,9 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   DCHECK(args.length() == 1);
-  if (!isolate->debug()->is_active() || !isolate->debug()->StepInActive()) {
+  Debug* debug = isolate->debug();
+  if (!debug->is_active() || !debug->IsStepping() ||
+      debug->last_step_action() != StepIn) {
     return isolate->heap()->false_value();
   }
   CONVERT_ARG_CHECKED(Object, callback, 0);
