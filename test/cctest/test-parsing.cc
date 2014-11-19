@@ -1840,6 +1840,13 @@ TEST(NoErrorsEvalAndArgumentsStrict) {
   V(yield)
 
 
+#define LIMITED_FUTURE_STRICT_RESERVED_WORDS(V) \
+  V(implements)                                 \
+  V(let)                                        \
+  V(static)                                     \
+  V(yield)
+
+
 #define FUTURE_STRICT_RESERVED_STATEMENTS(NAME) \
   "var " #NAME ";",                             \
   "var foo, " #NAME ";",                        \
@@ -1861,14 +1868,13 @@ TEST(ErrorsFutureStrictReservedWords) {
   // it's ok to use future strict reserved words as identifiers. With the strict
   // mode, it isn't.
   const char* context_data[][2] = {
-    { "\"use strict\";", "" },
     { "function test_func() {\"use strict\"; ", "}"},
     { "() => { \"use strict\"; ", "}" },
     { NULL, NULL }
   };
 
   const char* statement_data[] {
-    FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
+    LIMITED_FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
     NULL
   };
 
@@ -1881,6 +1887,9 @@ TEST(ErrorsFutureStrictReservedWords) {
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     classes_flags, arraysize(classes_flags));
 }
+
+
+#undef LIMITED_FUTURE_STRICT_RESERVED_WORDS
 
 
 TEST(NoErrorsFutureStrictReservedWords) {
