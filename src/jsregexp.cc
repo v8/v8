@@ -58,28 +58,6 @@ MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
 }
 
 
-static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
-  int flags = JSRegExp::NONE;
-  for (int i = 0; i < str->length(); i++) {
-    switch (str->Get(i)) {
-      case 'i':
-        flags |= JSRegExp::IGNORE_CASE;
-        break;
-      case 'g':
-        flags |= JSRegExp::GLOBAL;
-        break;
-      case 'm':
-        flags |= JSRegExp::MULTILINE;
-        break;
-      case 'y':
-        if (FLAG_harmony_regexps) flags |= JSRegExp::STICKY;
-        break;
-    }
-  }
-  return JSRegExp::Flags(flags);
-}
-
-
 MUST_USE_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
     Handle<JSRegExp> re,
@@ -156,10 +134,9 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 
 MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
-                                        Handle<String> flag_str) {
+                                        JSRegExp::Flags flags) {
   Isolate* isolate = re->GetIsolate();
   Zone zone(isolate);
-  JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<FixedArray> maybe_cached =
       compilation_cache->LookupRegExp(pattern, flags);
