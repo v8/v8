@@ -42,12 +42,37 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
+struct FastPropertyDetails {
+  explicit FastPropertyDetails(const PropertyDetails& v) : details(v) {}
+  const PropertyDetails details;
+};
+
+
+// Outputs PropertyDetails as a dictionary details.
 std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
   os << "(";
   switch (details.type()) {
-    case NORMAL:
-      os << "normal: dictionary_index: " << details.dictionary_index();
+    case FIELD:
+      os << "normal: ";
       break;
+    case CONSTANT:
+      os << "constant: ";
+      break;
+    case CALLBACKS:
+      UNREACHABLE();
+      break;
+  }
+  return os << " dictionary_index: " << details.dictionary_index()
+            << ", attrs: " << details.attributes() << ")";
+}
+
+
+// Outputs PropertyDetails as a descriptor array details.
+std::ostream& operator<<(std::ostream& os,
+                         const FastPropertyDetails& details_fast) {
+  const PropertyDetails& details = details_fast.details;
+  os << "(";
+  switch (details.type()) {
     case CONSTANT:
       os << "constant: p: " << details.pointer();
       break;
@@ -60,14 +85,27 @@ std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
       os << "callbacks: p: " << details.pointer();
       break;
   }
-  os << ", attrs: " << details.attributes() << ")";
-  return os;
+  return os << ", attrs: " << details.attributes() << ")";
 }
+
+
+#ifdef OBJECT_PRINT
+void PropertyDetails::Print(bool dictionary_mode) {
+  OFStream os(stdout);
+  if (dictionary_mode) {
+    os << *this;
+  } else {
+    os << FastPropertyDetails(*this);
+  }
+  os << "\n" << std::flush;
+}
+#endif
 
 
 std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
   return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
-            << Brief(*d.GetValue()) << " " << d.GetDetails();
+            << Brief(*d.GetValue()) << " "
+            << FastPropertyDetails(d.GetDetails());
 }
 
 } }  // namespace v8::internal

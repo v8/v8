@@ -1335,10 +1335,6 @@ class HGraphBuilder {
                                     bool is_js_array,
                                     PropertyAccessType access_type);
 
-  HValue* BuildCheckAndGrowElementsCapacity(HValue* object, HValue* elements,
-                                            ElementsKind kind, HValue* length,
-                                            HValue* capacity, HValue* key);
-
   HValue* BuildCopyElementsOnWrite(HValue* object,
                                    HValue* elements,
                                    ElementsKind kind,

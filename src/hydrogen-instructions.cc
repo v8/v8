@@ -783,9 +783,6 @@ void HInstruction::Verify() {
 
 bool HInstruction::CanDeoptimize() {
   // TODO(titzer): make this a virtual method?
-  // TODO(all): Some of these may be incorrect, since any method that can
-  // collect can provoke lazy deoptimization. Methods like CallNew can
-  // certainly do that.
   switch (opcode()) {
     case HValue::kAbnormalExit:
     case HValue::kAccessArgumentsAt:
@@ -799,6 +796,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCallNew:
     case HValue::kCallNewArray:
     case HValue::kCallStub:
+    case HValue::kCallWithDescriptor:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
     case HValue::kCompareGeneric:
@@ -865,7 +863,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBranch:
     case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
-    case HValue::kCallWithDescriptor:
     case HValue::kChange:
     case HValue::kCheckHeapObject:
     case HValue::kCheckInstanceType:

@@ -46,10 +46,9 @@ class RegExpImpl {
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
-  MUST_USE_RESULT static MaybeHandle<Object> Compile(
-      Handle<JSRegExp> re,
-      Handle<String> pattern,
-      Handle<String> flags);
+  MUST_USE_RESULT static MaybeHandle<Object> Compile(Handle<JSRegExp> re,
+                                                     Handle<String> pattern,
+                                                     JSRegExp::Flags flags);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.

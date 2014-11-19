@@ -136,8 +136,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
         isolate, element_or_char,
         Runtime::GetElementOrCharAt(isolate, obj, index));
     details->set(0, *element_or_char);
-    details->set(1,
-                 PropertyDetails(NONE, NORMAL, Representation::None()).AsSmi());
+    details->set(1, PropertyDetails(NONE, FIELD, 0).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
@@ -159,7 +158,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   details->set(0, *value);
   // TODO(verwaest): Get rid of this random way of handling interceptors.
   PropertyDetails d = it.state() == LookupIterator::INTERCEPTOR
-                          ? PropertyDetails(NONE, NORMAL, 0)
+                          ? PropertyDetails(NONE, FIELD, 0)
                           : it.property_details();
   details->set(1, d.AsSmi());
   details->set(
@@ -214,7 +213,7 @@ RUNTIME_FUNCTION(Runtime_DebugPropertyIndexFromDetails) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
-  // TODO(verwaest): Depends on the type of details.
+  // TODO(verwaest): Works only for dictionary mode holders.
   return Smi::FromInt(details.dictionary_index());
 }
 
@@ -2732,7 +2731,9 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   DCHECK(args.length() == 1);
-  if (!isolate->debug()->is_active() || !isolate->debug()->StepInActive()) {
+  Debug* debug = isolate->debug();
+  if (!debug->is_active() || !debug->IsStepping() ||
+      debug->last_step_action() != StepIn) {
     return isolate->heap()->false_value();
   }
   CONVERT_ARG_CHECKED(Object, callback, 0);

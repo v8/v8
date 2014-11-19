@@ -2599,10 +2599,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
-        // Do not occur since the from object has fast properties.
-        case NORMAL:
-          UNREACHABLE();
-          break;
       }
     }
   } else {

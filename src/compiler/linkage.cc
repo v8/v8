@@ -183,7 +183,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kPreventExtensions:
     case Runtime::kPromiseRejectEvent:
     case Runtime::kPromiseRevokeReject:
-    case Runtime::kRegExpCompile:
+    case Runtime::kRegExpInitializeAndCompile:
     case Runtime::kRegExpExecMultiple:
     case Runtime::kResolvePossiblyDirectEval:
     case Runtime::kRunMicrotasks:

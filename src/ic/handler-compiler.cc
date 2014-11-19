@@ -241,7 +241,8 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     case LookupIterator::NOT_FOUND:
       break;
     case LookupIterator::DATA:
-      inline_followup = it->property_details().type() == FIELD;
+      inline_followup =
+          it->property_details().type() == FIELD && !it->is_dictionary_holder();
       break;
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();

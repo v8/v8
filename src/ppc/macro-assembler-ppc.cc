@@ -1509,12 +1509,13 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss, Register elements,
   }
 
   bind(&done);
-  // Check that the value is a normal property.
+  // Check that the value is a field property.
   // t2: elements + (index * kPointerSize)
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   LoadP(t1, FieldMemOperand(t2, kDetailsOffset));
   LoadSmiLiteral(ip, Smi::FromInt(PropertyDetails::TypeField::kMask));
+  DCHECK_EQ(FIELD, 0);
   and_(r0, t1, ip, SetRC);
   bne(miss, cr0);
 

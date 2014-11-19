@@ -1,6 +1,7 @@
 // Copyright 2006-2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+"use strict";
 
 // Handle id counters.
 var next_handle_ = 0;
@@ -44,7 +45,7 @@ function MakeMirror(value, opt_transient) {
 
   // Look for non transient mirrors in the mirror cache.
   if (!opt_transient && mirror_cache_enabled_) {
-    for (id in mirror_cache_) {
+    for (var id in mirror_cache_) {
       mirror = mirror_cache_[id];
       if (mirror.value() === value) {
         return mirror;
@@ -179,10 +180,9 @@ PropertyKind.Indexed = 2;
 
 // A copy of the PropertyType enum from property-details.h
 var PropertyType = {};
-PropertyType.Normal                  = 0;
-PropertyType.Field                   = 1;
-PropertyType.Constant                = 2;
-PropertyType.Callbacks               = 3;
+PropertyType.Field                   = 0;
+PropertyType.Constant                = 1;
+PropertyType.Callbacks               = 2;
 
 
 // Different attributes for a property.
@@ -1288,11 +1288,11 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    str = %_CallFunction(this.value_, builtins.ErrorToString);
+    text = %_CallFunction(this.value_, builtins.ErrorToString);
   } catch (e) {
-    str = '#<Error>';
+    text = '#<Error>';
   }
-  return str;
+  return text;
 };
 
 
@@ -2902,10 +2902,9 @@ function serializeLocationFields (location, content) {
  *    "ref":<number>}
  *
  * If the attribute for the property is PropertyAttribute.None it is not added.
- * If the propertyType for the property is PropertyType.Normal it is not added.
  * Here are a couple of examples.
  *
- *   {"name":"hello","ref":1}
+ *   {"name":"hello","propertyType":0,"ref":1}
  *   {"name":"length","attributes":7,"propertyType":3,"ref":2}
  *
  * @param {PropertyMirror} propertyMirror The property to serialize.
@@ -2922,9 +2921,7 @@ JSONProtocolSerializer.prototype.serializeProperty_ = function(propertyMirror) {
     if (propertyMirror.attributes() != PropertyAttribute.None) {
       result.attributes = propertyMirror.attributes();
     }
-    if (propertyMirror.propertyType() != PropertyType.Normal) {
-      result.propertyType = propertyMirror.propertyType();
-    }
+    result.propertyType = propertyMirror.propertyType();
     result.ref = propertyValue.handle();
   }
   return result;

@@ -66,7 +66,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
       switch (property_details_.type()) {
         case v8::internal::CONSTANT:
         case v8::internal::FIELD:
-        case v8::internal::NORMAL:
           return DATA;
         case v8::internal::CALLBACKS:
           return ACCESSOR;

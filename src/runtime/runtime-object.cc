@@ -617,7 +617,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         NameDictionary* dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(key);
         if ((entry != NameDictionary::kNotFound) &&
-            (dictionary->DetailsAt(entry).type() == NORMAL)) {
+            (dictionary->DetailsAt(entry).type() == FIELD)) {
           Object* value = dictionary->ValueAt(entry);
           if (!receiver->IsGlobalObject()) return value;
           value = PropertyCell::cast(value)->value();

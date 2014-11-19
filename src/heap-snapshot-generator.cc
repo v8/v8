@@ -1671,9 +1671,6 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
               js_obj, entry,
               descs->GetKey(i), descs->GetValue(i));
           break;
-        case NORMAL:  // only in slow mode
-          UNREACHABLE();
-          break;
       }
     }
   } else {

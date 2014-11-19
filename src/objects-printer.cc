@@ -247,9 +247,6 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
         case CALLBACKS:
           os << Brief(descs->GetCallbacksObject(i)) << " (callback)\n";
           break;
-        case NORMAL:  // only in slow mode
-          UNREACHABLE();
-          break;
       }
     }
   } else {
@@ -1073,6 +1070,7 @@ void DescriptorArray::Print() {
 
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
+  HandleScope scope(GetIsolate());
   os << "Descriptor array " << number_of_descriptors() << "\n";
   for (int i = 0; i < number_of_descriptors(); i++) {
     Descriptor desc;
@@ -1156,10 +1154,6 @@ void TransitionArray::PrintTransitions(std::ostream& os,
           break;
         case CALLBACKS:
           os << " (transition to callback " << Brief(GetTargetValue(i)) << ")";
-          break;
-        // Values below are never in the target descriptor array.
-        case NORMAL:
-          UNREACHABLE();
           break;
       }
       os << ", attrs: " << details.attributes();
