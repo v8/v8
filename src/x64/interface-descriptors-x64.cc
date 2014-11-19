@@ -56,12 +56,6 @@ const Register MathPowIntegerDescriptor::exponent() {
 }
 
 
-// IC register specifications
-const Register GrowArrayElementsDescriptor::ObjectRegister() { return rax; }
-const Register GrowArrayElementsDescriptor::KeyRegister() { return rbx; }
-const Register GrowArrayElementsDescriptor::CapacityRegister() { return rcx; }
-
-
 void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {rsi, rbx};
   data->Initialize(arraysize(registers), registers, NULL);

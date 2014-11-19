@@ -4015,12 +4015,8 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
     PlatformInterfaceDescriptor* call_descriptor =
         instr->descriptor().platform_specific_descriptor();
-    if (call_descriptor != NULL) {
-      __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al,
-              call_descriptor->storage_mode());
-    } else {
-      __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al);
-    }
+    __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al,
+            call_descriptor->storage_mode());
   } else {
     DCHECK(instr->target()->IsRegister());
     Register target = ToRegister(instr->target());

@@ -11253,8 +11253,10 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
 
-Handle<FixedArray> JSObject::SetFastElementsCapacity(
-    Handle<JSObject> object, int capacity,
+Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
+    Handle<JSObject> object,
+    int capacity,
+    int length,
     SetFastElementsCapacitySmiMode smi_mode) {
   // We should never end in here with a pixel or external array.
   DCHECK(!object->HasExternalArrayElements());
@@ -11306,15 +11308,6 @@ Handle<FixedArray> JSObject::SetFastElementsCapacity(
                             object->GetElementsKind(), new_elements);
   }
 
-  return new_elements;
-}
-
-
-Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
-    Handle<JSObject> object, int capacity, int length,
-    SetFastElementsCapacitySmiMode smi_mode) {
-  Handle<FixedArray> new_elements =
-      SetFastElementsCapacity(object, capacity, smi_mode);
   if (object->IsJSArray()) {
     Handle<JSArray>::cast(object)->set_length(Smi::FromInt(length));
   }
@@ -11322,8 +11315,9 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
 }
 
 
-Handle<FixedArrayBase> JSObject::SetFastDoubleElementsCapacity(
-    Handle<JSObject> object, int capacity) {
+void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
+                                                      int capacity,
+                                                      int length) {
   // We should never end in here with a pixel or external array.
   DCHECK(!object->HasExternalArrayElements());
 
@@ -11353,18 +11347,9 @@ Handle<FixedArrayBase> JSObject::SetFastDoubleElementsCapacity(
                             object->GetElementsKind(), elems);
   }
 
-  return elems;
-}
-
-
-Handle<FixedArrayBase> JSObject::SetFastDoubleElementsCapacityAndLength(
-    Handle<JSObject> object, int capacity, int length) {
-  Handle<FixedArrayBase> new_elements =
-      SetFastDoubleElementsCapacity(object, capacity);
   if (object->IsJSArray()) {
     Handle<JSArray>::cast(object)->set_length(Smi::FromInt(length));
   }
-  return new_elements;
 }
 
 
@@ -13289,8 +13274,9 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
 }
 
 
-bool JSObject::WouldConvertToSlowElements(uint32_t index) {
-  if (HasFastElements()) {
+bool JSObject::WouldConvertToSlowElements(Handle<Object> key) {
+  uint32_t index;
+  if (HasFastElements() && key->ToArrayIndex(&index)) {
     Handle<FixedArrayBase> backing_store(FixedArrayBase::cast(elements()));
     uint32_t capacity = static_cast<uint32_t>(backing_store->length());
     if (index >= capacity) {
