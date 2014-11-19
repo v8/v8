@@ -339,7 +339,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   // an inline cache miss for the builtins object after lazily loading
   // JavaScript builtins, we return uninitialized as the state to
   // force the inline cache back to monomorphic state.
-  if (receiver->IsJSBuiltinsObject()) state_ = UNINITIALIZED;
+  if (receiver->IsJSBuiltinsObject()) state_ = PREMONOMORPHIC;
 }
 
 

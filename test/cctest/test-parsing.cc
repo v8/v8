@@ -4432,3 +4432,28 @@ TEST(ScanUnterminatedTemplateLiterals) {
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
+
+
+TEST(LexicalScopingSloppyMode) {
+  const char* context_data[][2] = {
+      {"", ""},
+      {"function f() {", "}"},
+      {"{", "}"},
+      {NULL, NULL}};
+  const char* bad_data[] = {
+    "let x = 1;",
+    "for(let x = 1;;){}",
+    "for(let x of []){}",
+    "for(let x in []){}",
+    NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyScoping};
+  RunParserSyncTest(context_data, bad_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  const char* good_data[] = {
+    "let = 1;",
+    "for(let = 1;;){}",
+    NULL};
+  RunParserSyncTest(context_data, good_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}

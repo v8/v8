@@ -23,8 +23,6 @@ class ParserLog;
 class PositionStack;
 class Target;
 
-template <typename T> class ZoneListWrapper;
-
 
 class FunctionEntry BASE_EMBEDDED {
  public:

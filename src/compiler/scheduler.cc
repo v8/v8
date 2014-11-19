@@ -763,7 +763,7 @@ class SpecialRPONumberer : public ZoneObject {
               static_cast<int>(frame->index - block->SuccessorCount());
           LoopInfo* info = &loops_[GetLoopNumber(block)];
           DCHECK(loop != info);
-          if (info->outgoing != NULL &&
+          if (block != entry && info->outgoing != NULL &&
               outgoing_index < info->outgoing->length()) {
             succ = info->outgoing->at(outgoing_index);
             frame->index++;
@@ -871,6 +871,15 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes loop membership from the backedges of the control flow graph.
   void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>& queue,
                        size_t num_loops, ZoneList<Backedge>* backedges) {
+    // Extend existing loop membership vectors.
+    for (LoopInfo& loop : loops_) {
+      BitVector* new_members = new (zone_)
+          BitVector(static_cast<int>(schedule_->BasicBlockCount()), zone_);
+      new_members->CopyFrom(*loop.members);
+      loop.members = new_members;
+    }
+
+    // Extend loop information vector.
     loops_.resize(num_loops, LoopInfo());
 
     // Compute loop membership starting from backedges.

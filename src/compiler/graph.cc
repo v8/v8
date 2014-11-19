@@ -32,7 +32,7 @@ void Graph::Decorate(Node* node) {
 
 Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
                      bool incomplete) {
-  DCHECK_LE(op->InputCount(), input_count);
+  DCHECK_LE(op->ValueInputCount(), input_count);
   Node* result = Node::New(this, input_count, inputs, incomplete);
   result->Initialize(op);
   if (!incomplete) {

@@ -330,6 +330,14 @@ var obj = {
 })();
 
 
+(function testStringRawAsTagFn() {
+  assertEquals("\\u0065\\`\\r\\r\\n\\ntestcheck",
+               String.raw`\u0065\`\r\r\n\n${"test"}check`);
+  assertEquals("\\\n\\\n\\\n", eval("String.raw`\\\r\\\r\n\\\n`"));
+  assertEquals("", String.raw``);
+})();
+
+
 (function testExtendedArrayPrototype() {
   Object.defineProperty(Array.prototype, 0, {
     set: function() {

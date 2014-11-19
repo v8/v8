@@ -820,7 +820,7 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != NULL) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->InputCount(); i++) {
+      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
         CHECK_NE(R.start(), effect_use->InputAt(i));
       }
     }

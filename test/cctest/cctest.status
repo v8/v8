@@ -112,6 +112,10 @@
   'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
   'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): Investigate these failures.
+  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

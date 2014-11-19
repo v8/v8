@@ -87,7 +87,7 @@ class Inlinee {
   }
 
   // Counts JSFunction, Receiver, arguments, context but not effect, control.
-  size_t total_parameters() { return start_->op()->OutputCount(); }
+  size_t total_parameters() { return start_->op()->ValueOutputCount(); }
 
   // Counts only formal parameters.
   size_t formal_parameters() {

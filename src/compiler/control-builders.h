@@ -110,13 +110,13 @@ class SwitchBuilder : public ControlBuilder {
   virtual void Break();
 
   // The number of cases within a switch is statically known.
-  int case_count() const { return body_environments_.capacity(); }
+  size_t case_count() const { return body_environments_.size(); }
 
  private:
   Environment* body_environment_;   // Environment after last case body.
   Environment* label_environment_;  // Environment for next label condition.
   Environment* break_environment_;  // Environment after the switch exits.
-  ZoneList<Environment*> body_environments_;
+  ZoneVector<Environment*> body_environments_;
 };
 
 

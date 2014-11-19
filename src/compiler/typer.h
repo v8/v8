@@ -47,6 +47,8 @@ class Typer {
   Type* singleton_one;
   Type* zero_or_one;
   Type* zeroish;
+  Type* signed32ish;
+  Type* unsigned32ish;
   Type* falsish;
   Type* integer;
   Type* weakint;

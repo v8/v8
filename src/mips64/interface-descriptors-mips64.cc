@@ -60,6 +60,12 @@ void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+// IC register specifications
+const Register GrowArrayElementsDescriptor::ObjectRegister() { return a0; }
+const Register GrowArrayElementsDescriptor::KeyRegister() { return a1; }
+const Register GrowArrayElementsDescriptor::CapacityRegister() { return a2; }
+
+
 void FastNewContextDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {cp, a1};
   data->Initialize(arraysize(registers), registers, NULL);

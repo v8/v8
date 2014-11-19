@@ -509,6 +509,13 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     // accept "native function" in the preparser.
   }
   // Parsed expression statement.
+  // Detect attempts at 'let' declarations in sloppy mode.
+  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+      expr.IsIdentifier() && expr.AsIdentifier().IsLet()) {
+    ReportMessage("lexical_strict_mode", NULL);
+    *ok = false;
+    return Statement::Default();
+  }
   ExpectSemicolon(CHECK_OK);
   return Statement::ExpressionStatement(expr);
 }
@@ -688,6 +695,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
+  bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && strict_mode() == STRICT)) {
@@ -709,6 +717,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       }
     } else {
       Expression lhs = ParseExpression(false, CHECK_OK);
+      is_let_identifier_expression =
+          lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
       if (CheckInOrOf(lhs.IsIdentifier())) {
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
@@ -720,6 +730,13 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   }
 
   // Parsed initializer at this point.
+  // Detect attempts at 'let' declarations in sloppy mode.
+  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+      is_let_identifier_expression) {
+    ReportMessage("lexical_strict_mode", NULL);
+    *ok = false;
+    return Statement::Default();
+  }
   Expect(Token::SEMICOLON, CHECK_OK);
 
   if (peek() != Token::SEMICOLON) {

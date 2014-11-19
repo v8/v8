@@ -395,8 +395,8 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       Handle<Oddball> value = variable->binding_needs_init()
                                   ? isolate()->factory()->the_hole_value()
                                   : isolate()->factory()->undefined_value();
-      globals()->Add(variable->name(), zone());
-      globals()->Add(value, zone());
+      globals()->push_back(variable->name());
+      globals()->push_back(value);
       break;
     }
     case Variable::PARAMETER:
@@ -427,8 +427,8 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
           Compiler::BuildFunctionInfo(decl->fun(), info()->script(), info());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
-      globals()->Add(variable->name(), zone());
-      globals()->Add(function, zone());
+      globals()->push_back(variable->name());
+      globals()->push_back(function);
       break;
     }
     case Variable::PARAMETER:
@@ -1639,12 +1639,13 @@ void AstGraphBuilder::VisitCaseClause(CaseClause* expr) { UNREACHABLE(); }
 
 
 void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  DCHECK(globals()->is_empty());
+  DCHECK(globals()->empty());
   AstVisitor::VisitDeclarations(declarations);
-  if (globals()->is_empty()) return;
-  Handle<FixedArray> data =
-      isolate()->factory()->NewFixedArray(globals()->length(), TENURED);
-  for (int i = 0; i < globals()->length(); ++i) data->set(i, *globals()->at(i));
+  if (globals()->empty()) return;
+  int array_index = 0;
+  Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
+      static_cast<int>(globals()->size()), TENURED);
+  for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
   int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
                       DeclareGlobalsNativeFlag::encode(info()->is_native()) |
                       DeclareGlobalsStrictMode::encode(strict_mode());
@@ -1652,7 +1653,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   Node* pairs = jsgraph()->Constant(data);
   const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
   NewNode(op, current_context(), pairs, flags);
-  globals()->Rewind(0);
+  globals()->clear();
 }
 
 

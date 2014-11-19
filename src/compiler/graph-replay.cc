@@ -59,7 +59,7 @@ void GraphReplayPrinter::PrintReplayOpCreator(const Operator* op) {
       PrintF("unique_constant");
       break;
     case IrOpcode::kPhi:
-      PrintF("%d", op->InputCount());
+      PrintF("%d", op->ValueInputCount());
       break;
     case IrOpcode::kEffectPhi:
       PrintF("%d", op->EffectInputCount());

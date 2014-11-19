@@ -82,14 +82,6 @@ class Operator : public ZoneObject {
     return (properties() & property) == property;
   }
 
-  // Number of data inputs to the operator, for verifying graph structure.
-  // TODO(titzer): convert callers to ValueInputCount();
-  int InputCount() const { return ValueInputCount(); }
-
-  // Number of data outputs from the operator, for verifying graph structure.
-  // TODO(titzer): convert callers to ValueOutputCount();
-  int OutputCount() const { return ValueOutputCount(); }
-
   Properties properties() const { return properties_; }
 
   // TODO(titzer): convert return values here to size_t.
