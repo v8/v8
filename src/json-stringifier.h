@@ -641,7 +641,7 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
   } else {
     FlatStringReader reader(isolate_, string);
     for (int i = 0; i < reader.length(); i++) {
-      SrcChar c = static_cast<SrcChar>(reader.Get(i));
+      SrcChar c = reader.Get<SrcChar>(i);
       if (DoNotEscape(c)) {
         builder_.Append<SrcChar, DestChar>(c);
       } else {

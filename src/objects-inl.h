@@ -473,12 +473,24 @@ STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
 
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
+
 uc32 FlatStringReader::Get(int index) {
-  DCHECK(0 <= index && index <= length_);
   if (is_one_byte_) {
-    return static_cast<const byte*>(start_)[index];
+    return Get<uint8_t>(index);
   } else {
-    return static_cast<const uc16*>(start_)[index];
+    return Get<uc16>(index);
+  }
+}
+
+
+template <typename Char>
+Char FlatStringReader::Get(int index) {
+  DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
+  DCHECK(0 <= index && index <= length_);
+  if (sizeof(Char) == 1) {
+    return static_cast<Char>(static_cast<const uint8_t*>(start_)[index]);
+  } else {
+    return static_cast<Char>(static_cast<const uc16*>(start_)[index]);
   }
 }
 
