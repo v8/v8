@@ -102,7 +102,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder_map_->is_dictionary_map()) {
-    PropertyDetails details(attributes, NORMAL, 0);
+    PropertyDetails details(attributes, FIELD, 0);
     JSObject::SetNormalizedProperty(holder, name(), value, details);
   } else {
     holder_map_ = Map::ReconfigureDataProperty(holder_map_, descriptor_number(),

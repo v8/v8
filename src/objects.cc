@@ -1836,7 +1836,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
-      PropertyDetails details = PropertyDetails(attributes, NORMAL, index);
+      PropertyDetails details(attributes, FIELD, index);
       dict->SetNextEnumerationIndex(index + 1);
       dict->SetEntry(entry, name, cell, details);
       return;
@@ -1845,7 +1845,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
     PropertyCell::SetValueInferType(cell, value);
     value = cell;
   }
-  PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
+  PropertyDetails details(attributes, FIELD, 0);
   Handle<NameDictionary> result =
       NameDictionary::Add(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
@@ -2855,9 +2855,6 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
           return MaybeHandle<Map>();
         }
         break;
-
-      case NORMAL:
-        UNREACHABLE();
     }
   }
   if (new_map->NumberOfOwnDescriptors() != old_nof) return MaybeHandle<Map>();
@@ -4347,8 +4344,7 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
       case CONSTANT: {
         Handle<Name> key(descs->GetKey(i));
         Handle<Object> value(descs->GetConstant(i), isolate);
-        PropertyDetails d = PropertyDetails(
-            details.attributes(), NORMAL, i + 1);
+        PropertyDetails d(details.attributes(), FIELD, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
@@ -4367,22 +4363,17 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
             value = isolate->factory()->NewHeapNumber(old->value());
           }
         }
-        PropertyDetails d =
-            PropertyDetails(details.attributes(), NORMAL, i + 1);
+        PropertyDetails d(details.attributes(), FIELD, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
         Handle<Name> key(descs->GetKey(i));
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
-        PropertyDetails d = PropertyDetails(
-            details.attributes(), CALLBACKS, i + 1);
+        PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
-      case NORMAL:
-        UNREACHABLE();
-        break;
     }
   }
 
@@ -4455,8 +4446,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     Object* value = dictionary->ValueAt(index);
     PropertyType type = dictionary->DetailsAt(index).type();
-    DCHECK(type != FIELD);
-    if (type == NORMAL && !value->IsJSFunction()) {
+    if (type == FIELD && !value->IsJSFunction()) {
       number_of_fields += 1;
     }
   }
@@ -4527,7 +4517,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     if (value->IsJSFunction()) {
       ConstantDescriptor d(key, handle(value, isolate), details.attributes());
       descriptors->Set(enumeration_index - 1, &d);
-    } else if (type == NORMAL) {
+    } else if (type == FIELD) {
       if (current_offset < inobject_props) {
         object->InObjectPropertyAtPut(current_offset, value,
                                       UPDATE_WRITE_BARRIER);
@@ -4603,7 +4593,7 @@ static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
       value = handle(Handle<FixedArray>::cast(array)->get(i), isolate);
     }
     if (!value->IsTheHole()) {
-      PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
+      PropertyDetails details(NONE, FIELD, 0);
       dictionary =
           SeededNumberDictionary::AddNumberEntry(dictionary, i, value, details);
     }
@@ -7005,10 +6995,6 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
 
     case CALLBACKS:
       return false;
-
-    case NORMAL:
-      UNREACHABLE();
-      break;
   }
 
   UNREACHABLE();
@@ -12408,8 +12394,8 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       // is read-only (a declared const that has not been initialized).  If a
       // value is being defined we skip attribute checks completely.
       if (set_mode == DEFINE_PROPERTY) {
-        details = PropertyDetails(
-            attributes, NORMAL, details.dictionary_index());
+        details =
+            PropertyDetails(attributes, FIELD, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
         if (strict_mode == SLOPPY) {
@@ -12460,7 +12446,7 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       }
     }
 
-    PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
+    PropertyDetails details(attributes, FIELD, 0);
     Handle<SeededNumberDictionary> new_dictionary =
         SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
                                                details);
@@ -14592,7 +14578,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
   }
 
   uint32_t result = pos;
-  PropertyDetails no_details = PropertyDetails(NONE, NORMAL, 0);
+  PropertyDetails no_details(NONE, FIELD, 0);
   while (undefs > 0) {
     if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
       // Adding an entry with the key beyond smi-range requires
@@ -14978,7 +14964,7 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
     Isolate* isolate = global->GetIsolate();
     Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(
         isolate->factory()->the_hole_value());
-    PropertyDetails details(NONE, NORMAL, 0);
+    PropertyDetails details(NONE, FIELD, 0);
     details = details.AsDeleted();
     Handle<NameDictionary> dictionary = NameDictionary::Add(
         handle(global->property_dictionary()), name, cell, details);
@@ -15458,7 +15444,7 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
 #ifdef DEBUG
   USE(Shape::AsHandle(dictionary->GetIsolate(), key));
 #endif
-  PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
+  PropertyDetails details(NONE, FIELD, 0);
 
   AddEntry(dictionary, key, value, details, dictionary->Hash(key));
   return dictionary;
@@ -15546,7 +15532,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
     uint32_t key,
     Handle<Object> value) {
   SLOW_DCHECK(dictionary->FindEntry(key) == kNotFound);
-  return Add(dictionary, key, value, PropertyDetails(NONE, NORMAL, 0));
+  return Add(dictionary, key, value, PropertyDetails(NONE, FIELD, 0));
 }
 
 

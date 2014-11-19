@@ -4213,10 +4213,11 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   }
 
   Bind(&done);
-  // Check that the value is a normal property.
+  // Check that the value is a field property.
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   Ldrsw(scratch1, UntagSmiFieldMemOperand(scratch2, kDetailsOffset));
+  DCHECK_EQ(FIELD, 0);
   TestAndBranchIfAnySet(scratch1, PropertyDetails::TypeField::kMask, miss);
 
   // Get the value at the masked, scaled index and return.

@@ -44,14 +44,7 @@ class TypeInfo;
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
-enum PropertyType {
-  // Only in slow mode.
-  NORMAL = 0,
-  // Only in fast mode.
-  FIELD = 1,
-  CONSTANT = 2,
-  CALLBACKS = 3
-};
+enum PropertyType { FIELD = 0, CONSTANT = 1, CALLBACKS = 2 };
 
 
 class Representation {
@@ -240,13 +233,10 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   Representation representation() const {
-    DCHECK(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
-  int field_index() const {
-    return FieldIndexField::decode(value_);
-  }
+  int field_index() const { return FieldIndexField::decode(value_); }
 
   inline int field_width_in_words() const;
 
@@ -259,7 +249,7 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
   bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
-  bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
+  bool IsDeleted() const { return DeletedField::decode(value_) != 0; }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
@@ -277,10 +267,17 @@ class PropertyDetails BASE_EMBEDDED {
   class FieldIndexField
       : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
                         kDescriptorIndexBitCount> {};  // NOLINT
-  // All bits for fast objects must fix in a smi.
-  STATIC_ASSERT(9 + kDescriptorIndexBitCount + kDescriptorIndexBitCount <= 31);
+
+  // All bits for both fast and slow objects must fit in a smi.
+  STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
+  STATIC_ASSERT(FieldIndexField::kNext <= 31);
 
   static const int kInitialIndex = 1;
+
+#ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print(bool dictionary_mode);
+#endif
 
  private:
   PropertyDetails(int value, int pointer) {

@@ -179,10 +179,9 @@ PropertyKind.Indexed = 2;
 
 // A copy of the PropertyType enum from property-details.h
 var PropertyType = {};
-PropertyType.Normal                  = 0;
-PropertyType.Field                   = 1;
-PropertyType.Constant                = 2;
-PropertyType.Callbacks               = 3;
+PropertyType.Field                   = 0;
+PropertyType.Constant                = 1;
+PropertyType.Callbacks               = 2;
 
 
 // Different attributes for a property.
@@ -2902,10 +2901,9 @@ function serializeLocationFields (location, content) {
  *    "ref":<number>}
  *
  * If the attribute for the property is PropertyAttribute.None it is not added.
- * If the propertyType for the property is PropertyType.Normal it is not added.
  * Here are a couple of examples.
  *
- *   {"name":"hello","ref":1}
+ *   {"name":"hello","propertyType":0,"ref":1}
  *   {"name":"length","attributes":7,"propertyType":3,"ref":2}
  *
  * @param {PropertyMirror} propertyMirror The property to serialize.
@@ -2922,9 +2920,7 @@ JSONProtocolSerializer.prototype.serializeProperty_ = function(propertyMirror) {
     if (propertyMirror.attributes() != PropertyAttribute.None) {
       result.attributes = propertyMirror.attributes();
     }
-    if (propertyMirror.propertyType() != PropertyType.Normal) {
-      result.propertyType = propertyMirror.propertyType();
-    }
+    result.propertyType = propertyMirror.propertyType();
     result.ref = propertyValue.handle();
   }
   return result;
