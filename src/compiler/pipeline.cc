@@ -638,7 +638,7 @@ struct VerifyGraphPhase {
 
 void Pipeline::BeginPhaseKind(const char* phase_kind_name) {
   if (data_->pipeline_statistics() != NULL) {
-    data_->pipeline_statistics()->BeginPhaseKind("phase_kind_name");
+    data_->pipeline_statistics()->BeginPhaseKind(phase_kind_name);
   }
 }
 
