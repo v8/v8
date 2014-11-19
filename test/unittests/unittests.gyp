@@ -87,6 +87,11 @@
             'compiler/mips/instruction-selector-mips-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="mips64el"', {
+          'sources': [  ### gcmole(arch:mips64el) ###
+            'compiler/mips64/instruction-selector-mips64-unittest.cc',
+          ],
+        }],
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'compiler/x64/instruction-selector-x64-unittest.cc',
