@@ -244,21 +244,17 @@ class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
     size_t predecessor_index = block->predecessors()[phi_index].ToSize();
     CHECK(sequence->instruction_blocks()[predecessor_index]->SuccessorCount() ==
           1);
-    const auto* gap = sequence->GetBlockStart(block->rpo_number());
-    // The first moves in the BlockStartInstruction are the phi moves inserted
-    // by ResolvePhis.
-    const ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
-    CHECK_NE(nullptr, move);
-    const auto* move_ops = move->move_operands();
-    CHECK(block->phis().size() <= static_cast<size_t>(move_ops->length()));
-    auto move_it = move_ops->begin();
     for (const auto* phi : block->phis()) {
-      const auto* op = move_it->source();
-      auto it = locations()->find(op);
+      auto input = phi->inputs()[phi_index];
+      CHECK(locations()->find(input) != locations()->end());
+      auto it = locations()->find(phi->output());
       CHECK(it != locations()->end());
-      CHECK_EQ(it->second, phi->operands()[phi_index]);
+      if (input->IsConstant()) {
+        CHECK_EQ(it->second, input->index());
+      } else {
+        CHECK_EQ(it->second, phi->operands()[phi_index]);
+      }
       it->second = phi->virtual_register();
-      ++move_it;
     }
   }
 

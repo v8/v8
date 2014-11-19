@@ -644,9 +644,12 @@ std::ostream& operator<<(std::ostream& os,
     os << "\n";
 
     for (auto phi : block->phis()) {
-      os << "     phi: v" << phi->virtual_register() << " =";
-      for (auto op_vreg : phi->operands()) {
-        os << " v" << op_vreg;
+      PrintableInstructionOperand printable_op = {
+          printable.register_configuration_, phi->output()};
+      os << "     phi: " << printable_op << " =";
+      for (auto input : phi->inputs()) {
+        printable_op.op_ = input;
+        os << " " << printable_op;
       }
       os << "\n";
     }

@@ -787,19 +787,45 @@ class FrameStateDescriptor : public ZoneObject {
 std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
 
-// TODO(dcarney): this is a temporary hack.  turn into an actual instruction.
 class PhiInstruction FINAL : public ZoneObject {
  public:
-  PhiInstruction(Zone* zone, int virtual_register)
-      : virtual_register_(virtual_register), operands_(zone) {}
+  typedef ZoneVector<InstructionOperand*> Inputs;
+
+  PhiInstruction(Zone* zone, int virtual_register, size_t reserved_input_count)
+      : virtual_register_(virtual_register),
+        operands_(zone),
+        output_(nullptr),
+        inputs_(zone) {
+    UnallocatedOperand* output =
+        new (zone) UnallocatedOperand(UnallocatedOperand::NONE);
+    output->set_virtual_register(virtual_register);
+    output_ = output;
+    inputs_.reserve(reserved_input_count);
+    operands_.reserve(reserved_input_count);
+  }
 
   int virtual_register() const { return virtual_register_; }
   const IntVector& operands() const { return operands_; }
-  IntVector& operands() { return operands_; }
+
+  void Extend(Zone* zone, int virtual_register) {
+    UnallocatedOperand* input =
+        new (zone) UnallocatedOperand(UnallocatedOperand::ANY);
+    input->set_virtual_register(virtual_register);
+    operands_.push_back(virtual_register);
+    inputs_.push_back(input);
+  }
+
+  InstructionOperand* output() const { return output_; }
+  const Inputs& inputs() const { return inputs_; }
+  Inputs& inputs() { return inputs_; }
 
  private:
+  // TODO(dcarney): some of these fields are only for verification, move them to
+  // verifier.
   const int virtual_register_;
   IntVector operands_;
+  InstructionOperand* output_;
+  Inputs inputs_;
 };
 
 
