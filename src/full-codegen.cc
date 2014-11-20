@@ -338,6 +338,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
+  code->set_has_reloc_info_for_serialization(info->will_serialize());
   code->set_handler_table(*cgen.handler_table());
   code->set_compiled_optimizable(info->IsOptimizable());
   code->set_allow_osr_at_loop_nesting_level(0);
