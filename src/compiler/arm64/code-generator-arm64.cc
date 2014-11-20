@@ -214,7 +214,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ B(GetLabel(i.InputRpo(0)));
+      AssembleArchJump(i.InputRpo(0));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -612,21 +612,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
 
 // Assemble branches after this instruction.
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Arm64OperandConverter i(this, instr);
-  Label done;
-
-  // Emit a branch. The true and false targets are always the last two inputs
-  // to the instruction.
-  BasicBlock::RpoNumber tblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
-  BasicBlock::RpoNumber fblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
-  bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = GetLabel(tblock);
-  Label* flabel = fallthru ? &done : GetLabel(fblock);
-  switch (condition) {
+  Label* tlabel = branch->true_label;
+  Label* flabel = branch->false_label;
+  switch (branch->condition) {
     case kUnorderedEqual:
       __ B(vs, flabel);
     // Fall through.
@@ -682,8 +672,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
       __ B(vc, tlabel);
       break;
   }
-  if (!fallthru) __ B(flabel);  // no fallthru to flabel.
-  __ Bind(&done);
+  if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
+}
+
+
+void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+  if (!IsNextInAssemblyOrder(target)) __ B(GetLabel(target));
 }
 
 

@@ -966,14 +966,9 @@ void InstructionSelector::VisitConstant(Node* node) {
 
 
 void InstructionSelector::VisitGoto(BasicBlock* target) {
-  if (IsNextInAssemblyOrder(target)) {
-    // fall through to the next block.
-    Emit(kArchNop, NULL)->MarkAsControl();
-  } else {
-    // jump to the next block.
-    OperandGenerator g(this);
-    Emit(kArchJmp, NULL, g.Label(target))->MarkAsControl();
-  }
+  // jump to the next block.
+  OperandGenerator g(this);
+  Emit(kArchJmp, NULL, g.Label(target))->MarkAsControl();
 }
 
 
