@@ -75,6 +75,8 @@ namespace compiler {
   V(X64Movss)                      \
   V(X64Lea32)                      \
   V(X64Lea)                        \
+  V(X64Dec32)                      \
+  V(X64Inc32)                      \
   V(X64Push)                       \
   V(X64StoreWriteBarrier)
 
