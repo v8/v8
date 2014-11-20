@@ -222,8 +222,8 @@ TEST(Regress3540) {
   }
   Address address;
   size_t size;
-  address = code_range->AllocateRawMemory(code_range_size - MB,
-                                          code_range_size - MB, &size);
+  address = code_range->AllocateRawMemory(code_range_size - 2 * MB,
+                                          code_range_size - 2 * MB, &size);
   CHECK(address != NULL);
   Address null_address;
   size_t null_size;
