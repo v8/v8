@@ -218,8 +218,6 @@ DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
             "use optimizing compiler to generate keyed generic load stubs")
-DEFINE_BOOL(clever_optimizations, true,
-            "Optimize object size, Array shift, DOM strings and string +")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_BOOL(pretenuring_call_new, false, "pretenure call new")

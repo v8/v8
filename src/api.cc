@@ -5660,7 +5660,6 @@ bool v8::String::MakeExternal(
 
 
 bool v8::String::CanMakeExternal() {
-  if (!internal::FLAG_clever_optimizations) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
 

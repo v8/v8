@@ -1206,7 +1206,6 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // except the maps for the object and its possible substrings might be
   // marked.
   HeapObject* object = HeapObject::cast(*p);
-  if (!FLAG_clever_optimizations) return object;
   Map* map = object->map();
   InstanceType type = map->instance_type();
   if (!IsShortcutCandidate(type)) return object;
