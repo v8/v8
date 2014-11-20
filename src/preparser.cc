@@ -350,6 +350,12 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 
 PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   Expect(Token::CLASS, CHECK_OK);
+  if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+    ReportMessage("sloppy_lexical");
+    *ok = false;
+    return Statement::Default();
+  }
+
   int pos = position();
   bool is_strict_reserved = false;
   Identifier name =
@@ -512,7 +518,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   // Detect attempts at 'let' declarations in sloppy mode.
   if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
       expr.IsIdentifier() && expr.AsIdentifier().IsLet()) {
-    ReportMessage("lexical_strict_mode", NULL);
+    ReportMessage("sloppy_lexical", NULL);
     *ok = false;
     return Statement::Default();
   }
@@ -733,7 +739,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // Detect attempts at 'let' declarations in sloppy mode.
   if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
       is_let_identifier_expression) {
-    ReportMessage("lexical_strict_mode", NULL);
+    ReportMessage("sloppy_lexical", NULL);
     *ok = false;
     return Statement::Default();
   }
@@ -998,7 +1004,7 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   // CallRuntime ::
   //   '%' Identifier Arguments
   Expect(Token::MOD, CHECK_OK);
-  if (!allow_natives_syntax()) {
+  if (!allow_natives()) {
     *ok = false;
     return Expression::Default();
   }

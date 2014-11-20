@@ -181,7 +181,7 @@ var kMessages = {
   extends_value_not_a_function:  ["Class extends value ", "%0", " is not a function or null"],
   prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"],
   duplicate_constructor:         ["A class may only have one constructor"],
-  lexical_strict_mode:           ["Lexical declarations are currently only allowed in strict mode"],
+  sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
 };
 
 
