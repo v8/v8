@@ -2088,7 +2088,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           *i64hilo = rs * rt;
           break;
         case MULTU:
-          *u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);
+          *u64hilo = static_cast<uint64_t>(rs_u & 0xffffffff) *
+                     static_cast<uint64_t>(rt_u & 0xffffffff);
           break;
         case DMULT:  // DMULT == D_MUL_MUH.
           if (kArchVariant != kMips64r6) {
@@ -2230,7 +2231,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           // Interpret sa field as 5-bit lsb of insert.
           uint16_t lsb = sa;
           uint16_t size = msb - lsb + 1;
-          uint32_t mask = (1 << size) - 1;
+          uint64_t mask = (1ULL << size) - 1;
           *alu_out = (rt_u & ~(mask << lsb)) | ((rs_u & mask) << lsb);
           break;
         }
@@ -2240,8 +2241,18 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           // Interpret sa field as 5-bit lsb of extract.
           uint16_t lsb = sa;
           uint16_t size = msb + 1;
-          uint32_t mask = (1 << size) - 1;
-          *alu_out = (rs_u & (mask << lsb)) >> lsb;
+          uint64_t mask = (1ULL << size) - 1;
+          *alu_out = static_cast<int32_t>((rs_u & (mask << lsb)) >> lsb);
+          break;
+        }
+        case DEXT: {  // Mips32r2 instruction.
+          // Interpret rd field as 5-bit msb of extract.
+          uint16_t msb = rd_reg;
+          // Interpret sa field as 5-bit lsb of extract.
+          uint16_t lsb = sa;
+          uint16_t size = msb + 1;
+          uint64_t mask = (1ULL << size) - 1;
+          *alu_out = static_cast<int64_t>((rs_u & (mask << lsb)) >> lsb);
           break;
         }
         default:
@@ -2783,7 +2794,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           TraceRegWr(alu_out);
           break;
         case EXT:
-          // Ext instr leaves result in Rt, rather than Rd.
+        case DEXT:
+          // Dext/Ext instr leaves result in Rt, rather than Rd.
           set_register(rt_reg, alu_out);
           TraceRegWr(alu_out);
           break;
@@ -2815,9 +2827,9 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   int64_t  ft     = get_fpu_register(ft_reg);
 
   // Zero extended immediate.
-  uint32_t  oe_imm16 = 0xffff & imm16;
+  uint64_t oe_imm16 = 0xffff & imm16;
   // Sign extended immediate.
-  int32_t   se_imm16 = imm16;
+  int64_t se_imm16 = imm16;
 
   // Get current pc.
   int64_t current_pc = get_pc();

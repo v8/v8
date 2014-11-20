@@ -1,3 +1,10 @@
+2014-11-19: Version 3.31.14
+
+        Remove Weak{Map,Set}.prototype.clear.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-19: Version 3.31.13
 
         Performance and stability improvements on all platforms.

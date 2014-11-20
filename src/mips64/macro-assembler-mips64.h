@@ -599,12 +599,19 @@ class MacroAssembler: public Assembler {
 
   DEFINE_INSTRUCTION(Addu);
   DEFINE_INSTRUCTION(Daddu);
+  DEFINE_INSTRUCTION(Div);
+  DEFINE_INSTRUCTION(Divu);
+  DEFINE_INSTRUCTION(Ddivu);
+  DEFINE_INSTRUCTION(Mod);
+  DEFINE_INSTRUCTION(Modu);
   DEFINE_INSTRUCTION(Ddiv);
   DEFINE_INSTRUCTION(Subu);
   DEFINE_INSTRUCTION(Dsubu);
   DEFINE_INSTRUCTION(Dmod);
+  DEFINE_INSTRUCTION(Dmodu);
   DEFINE_INSTRUCTION(Mul);
   DEFINE_INSTRUCTION(Mulh);
+  DEFINE_INSTRUCTION(Mulhu);
   DEFINE_INSTRUCTION(Dmul);
   DEFINE_INSTRUCTION(Dmulh);
   DEFINE_INSTRUCTION2(Mult);
@@ -758,6 +765,7 @@ class MacroAssembler: public Assembler {
   // MIPS64 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
 
   // ---------------------------------------------------------------------------
   // FPU macros. These do not handle special cases like NaN or +- inf.
@@ -1168,10 +1176,18 @@ class MacroAssembler: public Assembler {
                                Register overflow_dst,
                                Register scratch = at);
 
+  void AdduAndCheckForOverflow(Register dst, Register left,
+                               const Operand& right, Register overflow_dst,
+                               Register scratch = at);
+
   void SubuAndCheckForOverflow(Register dst,
                                Register left,
                                Register right,
                                Register overflow_dst,
+                               Register scratch = at);
+
+  void SubuAndCheckForOverflow(Register dst, Register left,
+                               const Operand& right, Register overflow_dst,
                                Register scratch = at);
 
   void BranchOnOverflow(Label* label,
@@ -1198,13 +1214,10 @@ class MacroAssembler: public Assembler {
   // Runtime calls.
 
   // See comments at the beginning of CEntryStub::Generate.
-  inline void PrepareCEntryArgs(int num_args) {
-    li(s0, num_args);
-    li(s1, (num_args - 1) * kPointerSize);
-  }
+  inline void PrepareCEntryArgs(int num_args) { li(a0, num_args); }
 
   inline void PrepareCEntryFunction(const ExternalReference& ref) {
-    li(s2, Operand(ref));
+    li(a1, Operand(ref));
   }
 
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
@@ -1720,6 +1733,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   bool generating_stub_;
   bool has_frame_;
+  bool has_double_zero_reg_set_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

@@ -243,8 +243,9 @@ class RegisterAllocatorTest : public TestWithZone {
   int Return(VReg vreg) { return Return(Reg(vreg, 0)); }
 
   PhiInstruction* Phi(VReg incoming_vreg) {
-    PhiInstruction* phi = new (zone()) PhiInstruction(zone(), NewReg().value_);
-    phi->operands().push_back(incoming_vreg.value_);
+    PhiInstruction* phi =
+        new (zone()) PhiInstruction(zone(), NewReg().value_, 10);
+    phi->Extend(zone(), incoming_vreg.value_);
     current_block_->AddPhi(phi);
     return phi;
   }
@@ -255,8 +256,8 @@ class RegisterAllocatorTest : public TestWithZone {
     return phi;
   }
 
-  static void Extend(PhiInstruction* phi, VReg vreg) {
-    phi->operands().push_back(vreg.value_);
+  void Extend(PhiInstruction* phi, VReg vreg) {
+    phi->Extend(zone(), vreg.value_);
   }
 
   VReg DefineConstant(int32_t imm = 0) {

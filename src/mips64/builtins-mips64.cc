@@ -44,11 +44,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
-  // JumpToExternalReference expects s0 to contain the number of arguments
+  // JumpToExternalReference expects a0 to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ Daddu(s0, a0, num_extra_args + 1);
-  __ dsll(s1, s0, kPointerSizeLog2);
-  __ Dsubu(s1, s1, kPointerSize);
+  __ Daddu(a0, a0, num_extra_args + 1);
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 

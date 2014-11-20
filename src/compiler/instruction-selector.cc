@@ -925,16 +925,15 @@ void InstructionSelector::VisitParameter(Node* node) {
 
 
 void InstructionSelector::VisitPhi(Node* node) {
-  // TODO(bmeurer): Emit a PhiInstruction here.
-  PhiInstruction* phi = new (instruction_zone())
-      PhiInstruction(instruction_zone(), GetVirtualRegister(node));
-  sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
   const int input_count = node->op()->ValueInputCount();
-  phi->operands().reserve(static_cast<size_t>(input_count));
+  PhiInstruction* phi = new (instruction_zone())
+      PhiInstruction(instruction_zone(), GetVirtualRegister(node),
+                     static_cast<size_t>(input_count));
+  sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
   for (int i = 0; i < input_count; ++i) {
     Node* const input = node->InputAt(i);
     MarkAsUsed(input);
-    phi->operands().push_back(GetVirtualRegister(input));
+    phi->Extend(instruction_zone(), GetVirtualRegister(input));
   }
 }
 
