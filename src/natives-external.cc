@@ -191,8 +191,6 @@ void NativesCollection<type>::SetRawScriptsSource(
 // my chose to elide them. This we'll explicitly instantiate these.
 template class NativesCollection<CORE>;
 template class NativesCollection<EXPERIMENTAL>;
-template class NativesCollection<D8>;
-template class NativesCollection<TEST>;
 
 }  // namespace v8::internal
 }  // namespace v8
