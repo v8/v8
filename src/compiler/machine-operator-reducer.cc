@@ -151,29 +151,31 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         Int32BinopMatcher mleft(m.left().node());
         Int32BinopMatcher mright(m.right().node());
         if (mleft.left().node() == mright.left().node()) {
-          // (x << y) | (x >> (32 - y)) => x ror y
+          // TODO(turbofan): here we are matching rotate left, shall we add
+          // support for rotate right?
+          // (x << y) | (x >>> (32 - y)) => x ror (32 - y)
           if (mright.right().IsInt32Sub()) {
             Int32BinopMatcher mrightright(mright.right().node());
             if (mrightright.left().Is(32) &&
                 mrightright.right().node() == mleft.right().node()) {
               node->set_op(machine()->Word32Ror());
               node->ReplaceInput(0, mleft.left().node());
-              node->ReplaceInput(1, mleft.right().node());
+              node->ReplaceInput(1, mright.right().node());
               return Changed(node);
             }
           }
-          // (x << K) | (x >> (32 - K)) => x ror K
+          // (x << K) | (x >>> (32 - K)) => x ror (32 - K)
           if (mleft.right().IsInRange(0, 31) &&
               mright.right().Is(32 - mleft.right().Value())) {
             node->set_op(machine()->Word32Ror());
             node->ReplaceInput(0, mleft.left().node());
-            node->ReplaceInput(1, mleft.right().node());
+            node->ReplaceInput(1, mright.right().node());
             return Changed(node);
           }
         }
       }
       if (m.left().IsWord32Shr() && m.right().IsWord32Shl()) {
-        // (x >> (32 - y)) | (x << y)  => x ror y
+        // (x >>> (32 - y)) | (x << y)  => x ror (32 -y)
         Int32BinopMatcher mleft(m.left().node());
         Int32BinopMatcher mright(m.right().node());
         if (mleft.left().node() == mright.left().node()) {
@@ -183,16 +185,16 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
                 mleftright.right().node() == mright.right().node()) {
               node->set_op(machine()->Word32Ror());
               node->ReplaceInput(0, mright.left().node());
-              node->ReplaceInput(1, mright.right().node());
+              node->ReplaceInput(1, mleft.right().node());
               return Changed(node);
             }
           }
-          // (x >> (32 - K)) | (x << K) => x ror K
+          // (x >>> (32 - K)) | (x << K) => x ror (32 - K)
           if (mright.right().IsInRange(0, 31) &&
               mleft.right().Is(32 - mright.right().Value())) {
             node->set_op(machine()->Word32Ror());
             node->ReplaceInput(0, mright.left().node());
-            node->ReplaceInput(1, mright.right().node());
+            node->ReplaceInput(1, mleft.right().node());
             return Changed(node);
           }
         }
@@ -234,7 +236,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           }
         }
       }
-      break;
+      return ReduceWord32Shifts(node);
     }
     case IrOpcode::kWord32Shr: {
       Uint32BinopMatcher m(node);
@@ -242,7 +244,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {                                  // K >>> K => K
         return ReplaceInt32(m.left().Value() >> m.right().Value());
       }
-      break;
+      return ReduceWord32Shifts(node);
     }
     case IrOpcode::kWord32Sar: {
       Int32BinopMatcher m(node);
@@ -265,7 +267,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           }
         }
       }
-      break;
+      return ReduceWord32Shifts(node);
     }
     case IrOpcode::kWord32Ror: {
       Int32BinopMatcher m(node);
@@ -800,6 +802,27 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
     }
     default:
       break;
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
+  DCHECK((node->opcode() == IrOpcode::kWord32Shl) ||
+         (node->opcode() == IrOpcode::kWord32Shr) ||
+         (node->opcode() == IrOpcode::kWord32Sar));
+
+  if (machine()->Word32ShiftIsSafe()) {
+    // Remove the explicit 'and' with 0x1f if the shift provided by the machine
+    // instruction matches that required by JavaScript.
+    Int32BinopMatcher m(node);
+    if (m.right().IsWord32And()) {
+      Int32BinopMatcher mright(m.right().node());
+      if (mright.right().Is(0x1f)) {
+        node->ReplaceInput(1, mright.left().node());
+        return Changed(node);
+      }
+    }
   }
   return NoChange();
 }

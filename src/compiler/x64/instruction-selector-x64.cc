@@ -275,12 +275,6 @@ void VisitWord32Shift(InstructionSelector* selector, Node* node,
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
-    if (m.right().IsWord32And()) {
-      Int32BinopMatcher mright(right);
-      if (mright.right().Is(0x1F)) {
-        right = mright.left().node();
-      }
-    }
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, rcx));
   }
@@ -1170,7 +1164,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(SSE4_1)) {
     return MachineOperatorBuilder::kFloat64Floor |
            MachineOperatorBuilder::kFloat64Ceil |
-           MachineOperatorBuilder::kFloat64RoundTruncate;
+           MachineOperatorBuilder::kFloat64RoundTruncate |
+           MachineOperatorBuilder::kWord32ShiftIsSafe;
   }
   return MachineOperatorBuilder::kNoFlags;
 }
