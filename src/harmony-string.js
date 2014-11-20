@@ -95,14 +95,14 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 
 
 // ES6 draft 04-05-14, section 21.1.3.6
-function StringIncludes(searchString /* position */) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.includes");
+function StringContains(searchString /* position */) {  // length == 1
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.contains");
 
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
     throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.includes"]);
+                        ["String.prototype.contains"]);
   }
 
   var ss = TO_STRING_INLINE(searchString);
@@ -184,7 +184,7 @@ function ExtendStringPrototype() {
   // Set up the non-enumerable functions on the String prototype object.
   InstallFunctions($String.prototype, DONT_ENUM, $Array(
     "codePointAt", StringCodePointAt,
-    "includes", StringIncludes,
+    "contains", StringContains,
     "endsWith", StringEndsWith,
     "repeat", StringRepeat,
     "startsWith", StringStartsWith
