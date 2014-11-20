@@ -216,7 +216,8 @@ TEST(Regress3540) {
   if (!code_range->SetUp(
           code_range_size +
           RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
-                  MemoryChunk::kAlignment))) {
+                  MemoryChunk::kAlignment) +
+          v8::internal::MemoryAllocator::CodePageAreaSize())) {
     return;
   }
   Address address;
