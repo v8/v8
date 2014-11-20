@@ -959,8 +959,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
   } else if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
     UseScratchRegisterScope scope(masm());
-    CPURegister temp_0 = scope.AcquireX();
-    CPURegister temp_1 = scope.AcquireX();
+    DoubleRegister temp_0 = scope.AcquireD();
+    DoubleRegister temp_1 = scope.AcquireD();
     MemOperand src = g.ToMemOperand(source, masm());
     MemOperand dst = g.ToMemOperand(destination, masm());
     __ Ldr(temp_0, src);
