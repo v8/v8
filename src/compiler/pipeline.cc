@@ -533,6 +533,15 @@ struct AllocateDoubleRegistersPhase {
 };
 
 
+struct ReuseSpillSlotsPhase {
+  static const char* phase_name() { return "reuse spill slots"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->ReuseSpillSlots();
+  }
+};
+
+
 struct PopulatePointerMapsPhase {
   static const char* phase_name() { return "populate pointer maps"; }
 
@@ -935,6 +944,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     data->set_compilation_failed();
     return;
   }
+  Run<ReuseSpillSlotsPhase>();
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();

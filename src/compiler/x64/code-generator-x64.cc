@@ -1007,7 +1007,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ movsd(xmm0, src);
     __ movsd(src, dst);
     __ movsd(dst, xmm0);
-  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
+  } else if (source->IsDoubleRegister() && destination->IsDoubleStackSlot()) {
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = g.ToDoubleRegister(source);

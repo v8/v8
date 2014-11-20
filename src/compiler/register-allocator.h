@@ -171,6 +171,7 @@ class UsePosition FINAL : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(UsePosition);
 };
 
+class SpillRange;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
@@ -257,6 +258,10 @@ class LiveRange FINAL : public ZoneObject {
   InstructionOperand* GetSpillOperand() const { return spill_operand_; }
   void SetSpillOperand(InstructionOperand* operand);
 
+  void SetSpillRange(SpillRange* spill_range) { spill_range_ = spill_range; }
+  SpillRange* GetSpillRange() const { return spill_range_; }
+  void CommitSpillOperand(InstructionOperand* operand);
+
   void SetSpillStartIndex(int start) {
     spill_start_index_ = Min(start, spill_start_index_);
   }
@@ -283,6 +288,7 @@ class LiveRange FINAL : public ZoneObject {
 
  private:
   void ConvertOperands(Zone* zone);
+  void ConvertUsesToOperand(InstructionOperand* op);
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
@@ -303,10 +309,34 @@ class LiveRange FINAL : public ZoneObject {
   InstructionOperand* current_hint_operand_;
   InstructionOperand* spill_operand_;
   int spill_start_index_;
+  SpillRange* spill_range_;
 
   friend class RegisterAllocator;  // Assigns to kind_.
 
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
+};
+
+
+class SpillRange : public ZoneObject {
+ public:
+  SpillRange(LiveRange* range, int id, Zone* zone);
+  bool TryMerge(SpillRange* other, Zone* zone);
+  void SetOperand(InstructionOperand* op);
+  bool IsEmpty() { return live_ranges_.length() == 0; }
+  int id() const { return id_; }
+  UseInterval* interval() { return use_interval_; }
+  RegisterKind Kind() const { return live_ranges_.at(0)->Kind(); }
+  LifetimePosition End() const { return end_position_; }
+  bool IsIntersectingWith(SpillRange* other);
+
+ private:
+  int id_;
+  ZoneList<LiveRange*> live_ranges_;
+  UseInterval* use_interval_;
+  LifetimePosition end_position_;
+
+  // Merge intervals, making sure the use intervals are sorted
+  void MergeDisjointIntervals(UseInterval* other, Zone* zone);
 };
 
 
@@ -341,13 +371,16 @@ class RegisterAllocator FINAL : public ZoneObject {
   void AllocateGeneralRegisters();
   void AllocateDoubleRegisters();
 
-  // Phase 4: compute values for pointer maps.
+  // Phase 4: reassign spill splots for maximal reuse.
+  void ReuseSpillSlots();
+
+  // Phase 5: compute values for pointer maps.
   void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
 
-  // Phase 5: reconnect split ranges with moves.
+  // Phase 6: reconnect split ranges with moves.
   void ConnectRanges();
 
-  // Phase 6: insert moves to connect ranges across basic blocks.
+  // Phase 7: insert moves to connect ranges across basic blocks.
   void ResolveControlFlow();
 
  private:
@@ -419,12 +452,11 @@ class RegisterAllocator FINAL : public ZoneObject {
   void ActiveToInactive(LiveRange* range);
   void InactiveToHandled(LiveRange* range);
   void InactiveToActive(LiveRange* range);
-  void FreeSpillSlot(LiveRange* range);
-  InstructionOperand* TryReuseSpillSlot(LiveRange* range);
 
   // Helper methods for allocating registers.
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
+  SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
 
   // Live range splitting helpers.
 
@@ -521,6 +553,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;
   ZoneList<LiveRange*> reusable_slots_;
+  ZoneList<SpillRange*> spill_ranges_;
 
   RegisterKind mode_;
   int num_registers_;
