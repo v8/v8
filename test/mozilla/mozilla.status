@@ -866,9 +866,6 @@
 
 
 ['arch ==  arm64', {
-  # BUG(v8:3152): Runs out of stack in debug mode.
-  'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
-
   # BUG(v8:3503): Times out in debug mode.
   'js1_5/Regress/regress-280769-2': [PASS, FAIL, ['mode == debug', SKIP]],
 }],  # 'arch ==  arm64'
@@ -892,6 +889,10 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el'
+
+['arch == mips64el and simulator_run == True', {
+  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+}],
 
 ['arch == mips', {
 
@@ -931,5 +932,8 @@
   'js1_5/extensions/regress-330569': [SKIP],
   'js1_5/extensions/regress-351448': [SKIP],
   'js1_5/extensions/regress-336410-1': [SKIP],
+
+  #BUG(3152): Avoid C stack overflow.
+  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run == True'
 ]
