@@ -812,3 +812,66 @@ function MathCosh(x) {
   // |x| > overflowthreshold.
   return INFINITY;
 }
+
+// ES6 draft 09-27-13, section 20.2.2.21.
+// Return the base 10 logarithm of x
+//
+// Method :
+//      Let log10_2hi = leading 40 bits of log10(2) and
+//          log10_2lo = log10(2) - log10_2hi,
+//          ivln10   = 1/log(10) rounded.
+//      Then
+//              n = ilogb(x),
+//              if(n<0)  n = n+1;
+//              x = scalbn(x,-n);
+//              log10(x) := n*log10_2hi + (n*log10_2lo + ivln10*log(x))
+//
+// Note 1:
+//      To guarantee log10(10**n)=n, where 10**n is normal, the rounding
+//      mode must set to Round-to-Nearest.
+// Note 2:
+//      [1/log(10)] rounded to 53 bits has error .198 ulps;
+//      log10 is monotonic at all binary break points.
+//
+// Special cases:
+//      log10(x) is NaN if x < 0;
+//      log10(+INF) is +INF; log10(0) is -INF;
+//      log10(NaN) is that NaN;
+//      log10(10**N) = N  for N=0,1,...,22.
+//
+
+const IVLN10 = kMath[53];
+const LOG10_2HI = kMath[54];
+const LOG10_2LO = kMath[55];
+
+function MathLog10(x) {
+  x = x * 1;  // Convert to number.
+  var hx = %_DoubleHi(x);
+  var lx = %_DoubleLo(x);
+  var k = 0;
+
+  if (hx < 0x00100000) {
+    // x < 2^-1022
+    // log10(+/- 0) = -Infinity.
+    if (((hx & 0x7fffffff) | lx) === 0) return -INFINITY;
+    // log10 of negative number is NaN.
+    if (hx < 0) return NAN;
+    // Subnormal number. Scale up x.
+    k -= 54;
+    x *= TWO54;
+    hx = %_DoubleHi(x);
+    lx = %_DoubleLo(x);
+  }
+
+  // Infinity or NaN.
+  if (hx >= 0x7ff00000) return x;
+
+  k += (hx >> 20) - 1023;
+  i = (k & 0x80000000) >> 31;
+  hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
+  y = k + i;
+  x = %_ConstructDouble(hx, lx);
+
+  z = y * LOG10_2LO + IVLN10 * MathLog(x);
+  return z + y * LOG10_2HI;
+}

@@ -39,7 +39,10 @@
   assertEquals("Infinity", String(fun(Infinity)));
 });
 
-for (var i = -300; i < 300; i += 0.7) {
-  assertEqualsDelta(i, Math.log10(Math.pow(10, i)), 1E-13);
+for (var i = -310; i <= 308; i += 0.5) {
+  assertEquals(i, Math.log10(Math.pow(10, i)));
   assertEqualsDelta(i, Math.log2(Math.pow(2, i)), 1E-13);
 }
+
+// Test denormals.
+assertEquals(-307.77759430519706, Math.log10(1.5 * Math.pow(2, -1023)));
