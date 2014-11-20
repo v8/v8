@@ -197,7 +197,6 @@ static bool ArrayPrototypeHasNoElements(Heap* heap, PrototypeIterator* iter) {
 
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
-  if (!FLAG_clever_optimizations) return false;
   DisallowHeapAllocation no_gc;
   PrototypeIterator iter(heap->isolate(), receiver);
   return ArrayPrototypeHasNoElements(heap, &iter);

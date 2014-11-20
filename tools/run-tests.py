@@ -491,7 +491,8 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
-      arch in ['arm64', 'arm', 'mips'] and ARCH_GUESS and arch != ARCH_GUESS
+      arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64el'] and \
+      ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,

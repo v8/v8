@@ -275,12 +275,6 @@ void VisitWord32Shift(InstructionSelector* selector, Node* node,
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
-    if (m.right().IsWord32And()) {
-      Int32BinopMatcher mright(right);
-      if (mright.right().Is(0x1F)) {
-        right = mright.left().node();
-      }
-    }
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, rcx));
   }
@@ -434,9 +428,33 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   ScaledWithOffset32Matcher m(node);
   X64OperandGenerator g(this);
   if (m.matches() && (m.constant() == NULL || g.CanBeImmediate(m.constant()))) {
+    // The add can be represented as a "leal", but there may be a smaller
+    // representation that is better and no more expensive.
+    if (m.offset() != NULL) {
+      if (m.scaled() == NULL) {
+        if (!IsLive(m.offset())) {
+          // If the add is of the form (r1 + immediate) and the non-constant
+          // input to the add is owned by the add, then it doesn't need to be
+          // preserved across the operation, so use more compact,
+          // source-register-overwriting versions when they are available and
+          // smaller, e.g. "incl" and "decl".
+          int32_t value =
+              m.constant() == NULL ? 0 : OpParameter<int32_t>(m.constant());
+          if (value == 1) {
+            Emit(kX64Inc32, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.offset()));
+            return;
+          } else if (value == -1) {
+            Emit(kX64Dec32, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.offset()));
+            return;
+          }
+        }
+      }
+    }
+
     InstructionOperand* inputs[4];
     size_t input_count = 0;
-
     AddressingMode mode = GenerateMemoryOperandInputs(
         &g, m.scaled(), m.scale_exponent(), m.offset(), m.constant(), inputs,
         &input_count);
@@ -468,6 +486,31 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
+    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+      // If the Non-constant input is owned by the subtract, using a "decl" or
+      // "incl" that overwrites that input is smaller and probably an overall
+      // win.
+      if (!IsLive(m.left().node())) {
+        if (m.right().Value() == 1) {
+          Emit(kX64Dec32, g.DefineSameAsFirst(node),
+               g.UseRegister(m.left().node()));
+          return;
+        }
+        if (m.right().Value() == -1) {
+          Emit(kX64Inc32, g.DefineSameAsFirst(node),
+               g.UseRegister(m.left().node()));
+          return;
+        }
+      } else {
+        // Special handling for subtraction of constants where the non-constant
+        // input is used elsewhere. To eliminate the gap move before the sub to
+        // copy the destination register, use a "leal" instead.
+        Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+             g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+             g.TempImmediate(-m.right().Value()));
+        return;
+      }
+    }
     VisitBinop(this, node, kX64Sub32);
   }
 }
@@ -1170,7 +1213,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(SSE4_1)) {
     return MachineOperatorBuilder::kFloat64Floor |
            MachineOperatorBuilder::kFloat64Ceil |
-           MachineOperatorBuilder::kFloat64RoundTruncate;
+           MachineOperatorBuilder::kFloat64RoundTruncate |
+           MachineOperatorBuilder::kWord32ShiftIsSafe;
   }
   return MachineOperatorBuilder::kNoFlags;
 }

@@ -10209,7 +10209,6 @@ bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
 void JSFunction::StartInobjectSlackTracking() {
   DCHECK(has_initial_map() && !IsInobjectSlackTrackingInProgress());
 
-  if (!FLAG_clever_optimizations) return;
   Map* map = initial_map();
 
   // Only initiate the tracking the first time.

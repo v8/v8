@@ -568,12 +568,10 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
   // the estimate conservatively.
   if (shared->GetIsolate()->serializer_enabled()) {
     estimate += 2;
-  } else if (FLAG_clever_optimizations) {
+  } else {
     // Inobject slack tracking will reclaim redundant inobject space later,
     // so we can afford to adjust the estimate generously.
     estimate += 8;
-  } else {
-    estimate += 3;
   }
 
   shared->set_expected_nof_properties(estimate);

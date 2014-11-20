@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-scoping
+// Flags: --harmony-scoping --harmony-classes
 
 function CheckError(source) {
   var exception = null;
@@ -13,7 +13,7 @@ function CheckError(source) {
   }
   assertNotNull(exception);
   assertEquals(
-      "Lexical declarations are currently only allowed in strict mode",
+      "Block-scoped declarations (let, const, function, class) not yet supported outside strict mode",
       exception.message);
 }
 
@@ -28,6 +28,12 @@ CheckError("function f() { let x = 1; }");
 CheckError("for (let x = 1; x < 1; x++) {}");
 CheckError("for (let x of []) {}");
 CheckError("for (let x in []) {}");
+CheckError("class C {}");
+CheckError("class C extends Array {}");
+CheckError("(class {});");
+CheckError("(class extends Array {});");
+CheckError("(class C {});");
+CheckError("(class C exends Array {});");
 
 CheckOk("let = 1;");
 CheckOk("{ let = 1; }");

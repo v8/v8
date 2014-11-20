@@ -1,3 +1,10 @@
+2014-11-20: Version 3.31.15
+
+        Rename String.prototype.contains to 'includes'.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-19: Version 3.31.14
 
         Remove Weak{Map,Set}.prototype.clear.

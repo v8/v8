@@ -795,15 +795,16 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL) {
   DCHECK(!script().is_null() || info->source_stream() != NULL);
-  set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
-  set_allow_modules(!info->is_native() && FLAG_harmony_modules);
-  set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
   set_allow_lazy(false);  // Must be explicitly enabled.
-  set_allow_arrow_functions(FLAG_harmony_arrow_functions);
+  set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
+  set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
+  set_allow_harmony_modules(!info->is_native() && FLAG_harmony_modules);
+  set_allow_harmony_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
-  set_allow_classes(FLAG_harmony_classes);
+  set_allow_harmony_classes(FLAG_harmony_classes);
   set_allow_harmony_object_literals(FLAG_harmony_object_literals);
   set_allow_harmony_templates(FLAG_harmony_templates);
+  set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -916,7 +917,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 
     // Compute the parsing mode.
     Mode mode = (FLAG_lazy && allow_lazy()) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives_syntax() || extension_ != NULL ||
+    if (allow_natives() || extension_ != NULL ||
         (*scope)->is_eval_scope()) {
       mode = PARSE_EAGERLY;
     }
@@ -1992,6 +1993,12 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   // so rewrite it as such.
 
   Expect(Token::CLASS, CHECK_OK);
+  if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+    ReportMessage("sloppy_lexical");
+    *ok = false;
+    return NULL;
+  }
+
   int pos = position();
   bool is_strict_reserved = false;
   const AstRawString* name =
@@ -2489,7 +2496,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     if (peek() == Token::IDENTIFIER && expr->AsVariableProxy() != NULL &&
         expr->AsVariableProxy()->raw_name() ==
             ast_value_factory()->let_string()) {
-      ReportMessage("lexical_strict_mode", NULL);
+      ReportMessage("sloppy_lexical", NULL);
       *ok = false;
       return NULL;
     }
@@ -3373,7 +3380,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // Detect attempts at 'let' declarations in sloppy mode.
   if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
       is_let_identifier_expression) {
-    ReportMessage("lexical_strict_mode", NULL);
+    ReportMessage("sloppy_lexical", NULL);
     *ok = false;
     return NULL;
   }
@@ -3964,17 +3971,19 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 
   if (reusable_preparser_ == NULL) {
     reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit_);
-    reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
-    reusable_preparser_->set_allow_modules(allow_modules());
-    reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
     reusable_preparser_->set_allow_lazy(true);
-    reusable_preparser_->set_allow_arrow_functions(allow_arrow_functions());
+    reusable_preparser_->set_allow_natives(allow_natives());
+    reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
+    reusable_preparser_->set_allow_harmony_modules(allow_harmony_modules());
+    reusable_preparser_->set_allow_harmony_arrow_functions(
+        allow_harmony_arrow_functions());
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
-    reusable_preparser_->set_allow_classes(allow_classes());
+    reusable_preparser_->set_allow_harmony_classes(allow_harmony_classes());
     reusable_preparser_->set_allow_harmony_object_literals(
         allow_harmony_object_literals());
     reusable_preparser_->set_allow_harmony_templates(allow_harmony_templates());
+    reusable_preparser_->set_allow_harmony_sloppy(allow_harmony_sloppy());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),
@@ -5109,7 +5118,7 @@ bool Parser::Parse() {
   DCHECK(info()->function() == NULL);
   FunctionLiteral* result = NULL;
   pre_parse_timer_ = isolate()->counters()->pre_parse();
-  if (FLAG_trace_parse || allow_natives_syntax() || extension_ != NULL) {
+  if (FLAG_trace_parse || allow_natives() || extension_ != NULL) {
     // If intrinsics are allowed, the Parser cannot operate independent of the
     // V8 heap because of Runtime. Tell the string table to internalize strings
     // and values right after they're created.

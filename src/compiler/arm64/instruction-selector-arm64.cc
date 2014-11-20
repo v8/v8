@@ -1414,7 +1414,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat64Floor |
          MachineOperatorBuilder::kFloat64Ceil |
          MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTiesAway;
+         MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kWord32ShiftIsSafe;
 }
 }  // namespace compiler
 }  // namespace internal

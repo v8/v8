@@ -83,45 +83,58 @@ class ParserBase : public Traits {
         scanner_(scanner),
         stack_overflow_(false),
         allow_lazy_(false),
-        allow_natives_syntax_(false),
-        allow_arrow_functions_(false),
+        allow_natives_(false),
+        allow_harmony_arrow_functions_(false),
         allow_harmony_object_literals_(false),
+        allow_harmony_sloppy_(false),
         zone_(zone) {}
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
   bool allow_lazy() const { return allow_lazy_; }
-  bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_arrow_functions() const { return allow_arrow_functions_; }
-  bool allow_modules() const { return scanner()->HarmonyModules(); }
+  bool allow_natives() const { return allow_natives_; }
+  bool allow_harmony_arrow_functions() const {
+    return allow_harmony_arrow_functions_;
+  }
+  bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
   bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
   bool allow_harmony_numeric_literals() const {
     return scanner()->HarmonyNumericLiterals();
   }
-  bool allow_classes() const { return scanner()->HarmonyClasses(); }
+  bool allow_harmony_classes() const { return scanner()->HarmonyClasses(); }
   bool allow_harmony_object_literals() const {
     return allow_harmony_object_literals_;
   }
   bool allow_harmony_templates() const { return scanner()->HarmonyTemplates(); }
+  bool allow_harmony_sloppy() const { return allow_harmony_sloppy_; }
 
   // Setters that determine whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
   void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
-  void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_arrow_functions(bool allow) { allow_arrow_functions_ = allow; }
-  void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
+  void set_allow_natives(bool allow) { allow_natives_ = allow; }
+  void set_allow_harmony_arrow_functions(bool allow) {
+    allow_harmony_arrow_functions_ = allow;
+  }
+  void set_allow_harmony_modules(bool allow) {
+    scanner()->SetHarmonyModules(allow);
+  }
   void set_allow_harmony_scoping(bool allow) {
     scanner()->SetHarmonyScoping(allow);
   }
   void set_allow_harmony_numeric_literals(bool allow) {
     scanner()->SetHarmonyNumericLiterals(allow);
   }
-  void set_allow_classes(bool allow) { scanner()->SetHarmonyClasses(allow); }
+  void set_allow_harmony_classes(bool allow) {
+    scanner()->SetHarmonyClasses(allow);
+  }
   void set_allow_harmony_object_literals(bool allow) {
     allow_harmony_object_literals_ = allow;
   }
   void set_allow_harmony_templates(bool allow) {
     scanner()->SetHarmonyTemplates(allow);
+  }
+  void set_allow_harmony_sloppy(bool allow) {
+    allow_harmony_sloppy_ = allow;
   }
 
  protected:
@@ -577,9 +590,10 @@ class ParserBase : public Traits {
   bool stack_overflow_;
 
   bool allow_lazy_;
-  bool allow_natives_syntax_;
-  bool allow_arrow_functions_;
+  bool allow_natives_;
+  bool allow_harmony_arrow_functions_;
   bool allow_harmony_object_literals_;
+  bool allow_harmony_sloppy_;
 
   typename Traits::Type::Zone* zone_;  // Only used by Parser.
 };
@@ -1823,7 +1837,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
-      if (allow_arrow_functions() && peek() == Token::RPAREN) {
+      if (allow_harmony_arrow_functions() && peek() == Token::RPAREN) {
         // Arrow functions are the only expression type constructions
         // for which an empty parameter list "()" is valid input.
         Consume(Token::RPAREN);
@@ -1841,6 +1855,11 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::CLASS: {
       Consume(Token::CLASS);
+      if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+        ReportMessage("sloppy_lexical", NULL);
+        *ok = false;
+        break;
+      }
       int class_token_position = position();
       IdentifierT name = this->EmptyIdentifier();
       bool is_strict_reserved_name = false;
@@ -1863,7 +1882,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
       break;
 
     case Token::MOD:
-      if (allow_natives_syntax() || extension_ != NULL) {
+      if (allow_natives() || extension_ != NULL) {
         result = this->ParseV8Intrinsic(CHECK_OK);
         break;
       }
@@ -2191,7 +2210,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   ExpressionT expression =
       this->ParseConditionalExpression(accept_IN, CHECK_OK);
 
-  if (allow_arrow_functions() && peek() == Token::ARROW) {
+  if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
     checkpoint.Restore();
     expression = this->ParseArrowFunctionLiteral(lhs_location.beg_pos,
                                                  expression, CHECK_OK);
