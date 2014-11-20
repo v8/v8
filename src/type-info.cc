@@ -89,6 +89,14 @@ bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
 }
 
 
+bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorICSlot slot) {
+  Handle<Object> value = GetInfo(slot);
+  return value->IsUndefined() ||
+         value.is_identical_to(
+             TypeFeedbackVector::UninitializedSentinel(isolate()));
+}
+
+
 bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
   Handle<Object> value = GetInfo(slot);
   return value->IsAllocationSite() || value->IsJSFunction();
