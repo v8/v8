@@ -301,9 +301,6 @@ class CompilationInfo {
     SetFlag(kDeoptimizationSupport);
   }
 
-  // Determines whether or not to insert a self-optimization header.
-  bool ShouldSelfOptimize();
-
   void set_deferred_handles(DeferredHandles* deferred_handles) {
     DCHECK(deferred_handles_ == NULL);
     deferred_handles_ = deferred_handles;

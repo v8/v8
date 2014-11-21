@@ -411,14 +411,9 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
     // Pretend that the exit is a backwards jump to the entry.
-    int weight = 1;
-    if (info_->ShouldSelfOptimize()) {
-      weight = FLAG_interrupt_budget / FLAG_self_opt_count;
-    } else {
-      int distance = masm_->pc_offset();
-      weight = Min(kMaxBackEdgeWeight,
-                   Max(1, distance / kCodeSizeMultiplier));
-    }
+    int distance = masm_->pc_offset();
+    int weight =
+        Min(kMaxBackEdgeWeight, Max(1, distance / kCodeSizeMultiplier));
     EmitProfilingCounterDecrement(weight);
     Label ok;
     __ Branch(&ok, ge, a3, Operand(zero_reg));
