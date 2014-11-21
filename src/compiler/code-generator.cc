@@ -512,13 +512,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
 
 void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+                                       BranchInfo* branch) {
   UNIMPLEMENTED();
 }
 
 
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
   UNIMPLEMENTED();
 }
 
