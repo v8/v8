@@ -6556,6 +6556,9 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         global->native_context()->script_context_table());
     ScriptContextTable::LookupResult lookup;
     if (ScriptContextTable::Lookup(script_contexts, var->name(), &lookup)) {
+      if (lookup.mode == CONST) {
+        return Bailout(kNonInitializerAssignmentToConst);
+      }
       Handle<Context> script_context =
           ScriptContextTable::GetContext(script_contexts, lookup.context_index);
       HStoreNamedField* instr = Add<HStoreNamedField>(

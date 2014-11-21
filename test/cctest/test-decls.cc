@@ -1136,3 +1136,26 @@ TEST(CrossScriptStoreICs) {
                   Number::New(CcTest::isolate(), 20));
   }
 }
+
+
+TEST(CrossScriptAssignmentToConst) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+
+    context.Check("function f() { x = 27; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    context.Check("'use strict';const x = 1; x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 1));
+    context.Check("f();", EXPECT_EXCEPTION);
+    context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    context.Check("f();", EXPECT_EXCEPTION);
+    context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    context.Check("%OptimizeFunctionOnNextCall(f);f();", EXPECT_EXCEPTION);
+    context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+  }
+}
