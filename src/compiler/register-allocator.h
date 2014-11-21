@@ -457,6 +457,8 @@ class RegisterAllocator FINAL : public ZoneObject {
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
+  void FreeSpillSlot(LiveRange* range);
+  InstructionOperand* TryReuseSpillSlot(LiveRange* range);
 
   // Live range splitting helpers.
 

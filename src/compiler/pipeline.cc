@@ -944,7 +944,9 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     data->set_compilation_failed();
     return;
   }
-  Run<ReuseSpillSlotsPhase>();
+  if (FLAG_turbo_reuse_spill_slots) {
+    Run<ReuseSpillSlotsPhase>();
+  }
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
