@@ -2042,10 +2042,11 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         SerializeIC(code_object, how_to_code, where_to_point);
         return;
       case Code::FUNCTION:
-        // Only serialize the code for the toplevel function. Replace code
-        // of included function literals by the lazy compile builtin.
+        DCHECK(code_object->has_reloc_info_for_serialization());
+        // Only serialize the code for the toplevel function unless specified
+        // by flag. Replace code of inner functions by the lazy compile builtin.
         // This is safe, as checked in Compiler::BuildFunctionInfo.
-        if (code_object != main_code_) {
+        if (code_object != main_code_ && !FLAG_serialize_inner) {
           SerializeBuiltin(Builtins::kCompileLazy, how_to_code, where_to_point);
         } else {
           code_object->MakeYoung();
@@ -2062,6 +2063,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsGlobalObject());
   // There should be no hash table embedded. They would require rehashing.
   CHECK(!obj->IsHashTable());
+  // We expect no instantiated function objects or contexts.
+  CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
   SerializeGeneric(obj, how_to_code, where_to_point);
 }

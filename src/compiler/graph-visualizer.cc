@@ -723,14 +723,18 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
       }
     } else if (range->IsSpilled()) {
-      InstructionOperand* op = range->TopLevel()->GetSpillOperand();
-      if (op->IsDoubleStackSlot()) {
-        os_ << " \"double_stack:" << op->index() << "\"";
-      } else if (op->IsStackSlot()) {
-        os_ << " \"stack:" << op->index() << "\"";
+      int index = -1;
+      if (range->TopLevel()->GetSpillRange()->id() != -1) {
+        index = range->TopLevel()->GetSpillRange()->id();
       } else {
-        DCHECK(op->IsConstant());
-        os_ << " \"const(nostack):" << op->index() << "\"";
+        index = range->TopLevel()->GetSpillOperand()->index();
+      }
+      if (range->TopLevel()->Kind() == DOUBLE_REGISTERS) {
+        os_ << " \"double_stack:" << index << "\"";
+      } else if (range->TopLevel()->Kind() == GENERAL_REGISTERS) {
+        os_ << " \"stack:" << index << "\"";
+      } else {
+        os_ << " \"const(nostack):" << index << "\"";
       }
     }
     int parent_index = -1;

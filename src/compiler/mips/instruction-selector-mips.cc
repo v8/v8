@@ -634,11 +634,6 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
-  // If we can fall through to the true block, invert the branch.
-  if (IsNextInAssemblyOrder(tbranch)) {
-    cont.Negate();
-    cont.SwapBlocks();
-  }
   VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 

@@ -938,16 +938,23 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK(info->function() != NULL);
   DCHECK(info->scope() != NULL);
   if (!info->shared_info()->has_deoptimization_support()) {
-    CompilationInfoWithZone unoptimized(info->shared_info());
+    Handle<SharedFunctionInfo> shared = info->shared_info();
+    CompilationInfoWithZone unoptimized(shared);
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     unoptimized.SetFunction(info->function());
     unoptimized.PrepareForCompilation(info->scope());
     unoptimized.SetContext(info->context());
     unoptimized.EnableDeoptimizationSupport();
+    // If the current code has reloc info for serialization, also include
+    // reloc info for serialization for the new code, so that deopt support
+    // can be added without losing IC state.
+    if (shared->code()->kind() == Code::FUNCTION &&
+        shared->code()->has_reloc_info_for_serialization()) {
+      unoptimized.PrepareForSerializing();
+    }
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
-    Handle<SharedFunctionInfo> shared = info->shared_info();
     shared->EnableDeoptimizationSupport(*unoptimized.code());
     shared->set_feedback_vector(*unoptimized.feedback_vector());
 
@@ -1313,10 +1320,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !DebuggerWantsEagerCompilation(&info, allow_lazy_without_ctx);
 
-
   if (outer_info->is_toplevel() && outer_info->will_serialize()) {
     // Make sure that if the toplevel code (possibly to be serialized),
     // the inner function must be allowed to be compiled lazily.
+    // This is necessary to serialize toplevel code without inner functions.
     DCHECK(allow_lazy);
   }
 
@@ -1351,7 +1358,6 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
   result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
-  result->set_uses_super(literal->uses_super());
 
   // Set the expected number of properties for instances and return
   // the resulting function.

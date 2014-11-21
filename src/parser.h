@@ -884,7 +884,8 @@ class Parser : public ParserBase<ParserTraits> {
                              Expression* expression);
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
-  ZoneList<Expression*>* TemplateRawStrings(const TemplateLiteral* lit);
+  ZoneList<Expression*>* TemplateRawStrings(const TemplateLiteral* lit,
+                                            uint32_t* hash);
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval

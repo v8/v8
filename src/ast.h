@@ -1879,6 +1879,13 @@ class Call FINAL : public Expression {
   BailoutId ReturnId() const { return BailoutId(local_id(0)); }
   BailoutId EvalOrLookupId() const { return BailoutId(local_id(1)); }
 
+  bool is_uninitialized() const {
+    return IsUninitializedField::decode(bit_field_);
+  }
+  void set_is_uninitialized(bool b) {
+    bit_field_ = IsUninitializedField::update(bit_field_, b);
+  }
+
   enum CallType {
     POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
@@ -1903,7 +1910,8 @@ class Call FINAL : public Expression {
       : Expression(zone, pos),
         call_feedback_slot_(FeedbackVectorICSlot::Invalid()),
         expression_(expression),
-        arguments_(arguments) {
+        arguments_(arguments),
+        bit_field_(IsUninitializedField::encode(false)) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
@@ -1919,6 +1927,8 @@ class Call FINAL : public Expression {
   Handle<JSFunction> target_;
   Handle<Cell> cell_;
   Handle<AllocationSite> allocation_site_;
+  class IsUninitializedField : public BitField8<bool, 0, 1> {};
+  uint8_t bit_field_;
 };
 
 

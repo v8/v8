@@ -5240,7 +5240,8 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     }
     return expr;
   } else {
-    ZoneList<Expression*>* raw_strings = TemplateRawStrings(lit);
+    uint32_t hash;
+    ZoneList<Expression*>* raw_strings = TemplateRawStrings(lit, &hash);
     Handle<String> source(String::cast(script()->source()));
 
     int cooked_idx = function_state_->NextMaterializedLiteralIndex();
@@ -5256,6 +5257,11 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
         factory()->NewArrayLiteral(
             const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
         zone());
+
+    // Ensure hash is suitable as an Smi value
+    Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
+    args->Add(factory()->NewSmiLiteral(hash_obj->value(), pos), zone());
+
     this->CheckPossibleEvalCall(tag, scope_);
     Expression* call_site = factory()->NewCallRuntime(
         ast_value_factory()->get_template_callsite_string(), NULL, args, start);
@@ -5270,7 +5276,8 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
 }
 
 
-ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit) {
+ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
+                                                  uint32_t* hash) {
   const ZoneList<int>* lengths = lit->lengths();
   const ZoneList<Expression*>* cooked_strings = lit->cooked();
   int total = lengths->length();
@@ -5290,11 +5297,26 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit) {
 
   raw_strings = new (zone()) ZoneList<Expression*>(total, zone());
 
+  int num_hash_chars = (total - 1) * 3;
+  for (int index = 0; index < total; ++index) {
+    // Allow about length * 4 to handle most UTF8 sequences.
+    num_hash_chars += lengths->at(index) * 4;
+  }
+
+  Vector<uint8_t> hash_string = Vector<uint8_t>::New(num_hash_chars);
+  num_hash_chars = 0;
+
   for (int index = 0; index < total; ++index) {
     int span_start = cooked_strings->at(index)->position() + 1;
     int span_end = lengths->at(index) - 1;
     int length;
     int to_index = 0;
+
+    if (index) {
+      hash_string[num_hash_chars++] = '$';
+      hash_string[num_hash_chars++] = '{';
+      hash_string[num_hash_chars++] = '}';
+    }
 
     SmartArrayPointer<char> raw_chars =
         source->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL, span_start,
@@ -5310,6 +5332,7 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit) {
           ++from_index;
         }
       }
+      hash_string[num_hash_chars++] = ch;
       raw_chars[to_index++] = ch;
     }
 
@@ -5318,6 +5341,12 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit) {
     Literal* raw_lit = factory()->NewStringLiteral(raw_str, span_start - 1);
     raw_strings->Add(raw_lit, zone());
   }
+
+  hash_string.Truncate(num_hash_chars);
+  int utf16_length;
+  *hash = StringHasher::ComputeUtf8Hash(Vector<const char>::cast(hash_string),
+      num_hash_chars, &utf16_length);
+  hash_string.Dispose();
 
   return raw_strings;
 }

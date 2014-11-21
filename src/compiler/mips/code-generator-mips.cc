@@ -154,7 +154,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ Branch(GetLabel(i.InputRpo(0)));
+      AssembleArchJump(i.InputRpo(0));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -391,33 +391,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   UNIMPLEMENTED();
 
 // Assembles branches after an instruction.
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   MipsOperandConverter i(this, instr);
-  Label done;
-
-  // Emit a branch. The true and false targets are always the last two inputs
-  // to the instruction.
-  BasicBlock::RpoNumber tblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
-  BasicBlock::RpoNumber fblock =
-      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
-  bool fallthru = IsNextInAssemblyOrder(fblock);
-  Label* tlabel = GetLabel(tblock);
-  Label* flabel = fallthru ? &done : GetLabel(fblock);
+  Label* tlabel = branch->true_label;
+  Label* flabel = branch->false_label;
   Condition cc = kNoCondition;
 
   // MIPS does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit mips psuedo-instructions, which are handled here by branch
+  // emit mips pseudo-instructions, which are handled here by branch
   // instructions that do the actual comparison. Essential that the input
-  // registers to compare psuedo-op are not modified before this branch op, as
+  // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
   // TODO(plind): Add CHECK() to ensure that test/cmp and this branch were
   //    not separated by other instructions.
 
   if (instr->arch_opcode() == kMipsTst) {
-    switch (condition) {
+    switch (branch->condition) {
       case kNotEqual:
         cc = ne;
         break;
@@ -425,7 +415,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
         cc = eq;
         break;
       default:
-        UNSUPPORTED_COND(kMipsTst, condition);
+        UNSUPPORTED_COND(kMipsTst, branch->condition);
         break;
     }
     __ And(at, i.InputRegister(0), i.InputOperand(1));
@@ -434,7 +424,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
   } else if (instr->arch_opcode() == kMipsAddOvf ||
              instr->arch_opcode() == kMipsSubOvf) {
     // kMipsAddOvf, SubOvf emit negative result to 'kCompareReg' on overflow.
-    switch (condition) {
+    switch (branch->condition) {
       case kOverflow:
         cc = lt;
         break;
@@ -442,13 +432,13 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
         cc = ge;
         break;
       default:
-        UNSUPPORTED_COND(kMipsAddOvf, condition);
+        UNSUPPORTED_COND(kMipsAddOvf, branch->condition);
         break;
     }
     __ Branch(tlabel, cc, kCompareReg, Operand(zero_reg));
 
   } else if (instr->arch_opcode() == kMipsCmp) {
-    switch (condition) {
+    switch (branch->condition) {
       case kEqual:
         cc = eq;
         break;
@@ -480,19 +470,18 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
         cc = hi;
         break;
       default:
-        UNSUPPORTED_COND(kMipsCmp, condition);
+        UNSUPPORTED_COND(kMipsCmp, branch->condition);
         break;
     }
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
 
-    if (!fallthru) __ Branch(flabel);  // no fallthru to flabel.
-    __ bind(&done);
+    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
   } else if (instr->arch_opcode() == kMipsCmpD) {
-    // TODO(dusmil) optimize unordered checks to use less instructions
+    // TODO(dusmil) optimize unordered checks to use fewer instructions
     // even if we have to unfold BranchF macro.
     Label* nan = flabel;
-    switch (condition) {
+    switch (branch->condition) {
       case kUnorderedEqual:
         cc = eq;
         break;
@@ -515,20 +504,24 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
         nan = tlabel;
         break;
       default:
-        UNSUPPORTED_COND(kMipsCmpD, condition);
+        UNSUPPORTED_COND(kMipsCmpD, branch->condition);
         break;
     }
     __ BranchF(tlabel, nan, cc, i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
 
-    if (!fallthru) __ Branch(flabel);  // no fallthru to flabel.
-    __ bind(&done);
+    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());
     UNIMPLEMENTED();
   }
+}
+
+
+void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+  if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));
 }
 
 

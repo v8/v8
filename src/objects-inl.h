@@ -4858,6 +4858,21 @@ void Code::set_compiled_optimizable(bool value) {
 }
 
 
+bool Code::has_reloc_info_for_serialization() {
+  DCHECK_EQ(FUNCTION, kind());
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasRelocInfoForSerialization::decode(flags);
+}
+
+
+void Code::set_has_reloc_info_for_serialization(bool value) {
+  DCHECK_EQ(FUNCTION, kind());
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasRelocInfoForSerialization::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
 int Code::allow_osr_at_loop_nesting_level() {
   DCHECK_EQ(FUNCTION, kind());
   int fields = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);

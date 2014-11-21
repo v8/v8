@@ -98,6 +98,10 @@ enum FlagsCondition {
   kNotOverflow
 };
 
+inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
+  return static_cast<FlagsCondition>(condition ^ 1);
+}
+
 std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc);
 
 // The InstructionCode is an opaque, target-specific integer that encodes

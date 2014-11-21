@@ -4179,6 +4179,10 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
+  CodeRange* code_range = heap()->isolate()->code_range();
+  if (code_range != NULL && code_range->valid()) {
+    code_range->ReserveEmergencyBlock();
+  }
 
   if (FLAG_print_cumulative_gc_stat) {
     heap_->tracer()->AddSweepingTime(base::OS::TimeCurrentMillis() -

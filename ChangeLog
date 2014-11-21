@@ -1,3 +1,14 @@
+2014-11-21: Version 3.31.16
+
+        Cache template literal callSiteObj (issue 3230).
+
+        Rename String.prototype.contains to 'includes'.
+
+        Reserve code range block for evacuation (Chromium issue 430118).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-20: Version 3.31.15
 
         Rename String.prototype.contains to 'includes'.

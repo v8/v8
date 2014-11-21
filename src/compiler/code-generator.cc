@@ -139,18 +139,39 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
     // Assemble architecture-specific code for the instruction.
     AssembleArchInstruction(instr);
 
-    // Assemble branches or boolean materializations after this instruction.
     FlagsMode mode = FlagsModeField::decode(instr->opcode());
     FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
-    switch (mode) {
-      case kFlags_none:
+    if (mode == kFlags_branch) {
+      // Assemble a branch after this instruction.
+      InstructionOperandConverter i(this, instr);
+      BasicBlock::RpoNumber true_rpo =
+          i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
+      BasicBlock::RpoNumber false_rpo =
+          i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
+
+      if (true_rpo == false_rpo) {
+        // redundant branch.
+        if (!IsNextInAssemblyOrder(true_rpo)) {
+          AssembleArchJump(true_rpo);
+        }
         return;
-      case kFlags_set:
-        return AssembleArchBoolean(instr, condition);
-      case kFlags_branch:
-        return AssembleArchBranch(instr, condition);
+      }
+      if (IsNextInAssemblyOrder(true_rpo)) {
+        // true block is next, can fall through if condition negated.
+        std::swap(true_rpo, false_rpo);
+        condition = NegateFlagsCondition(condition);
+      }
+      BranchInfo branch;
+      branch.condition = condition;
+      branch.true_label = GetLabel(true_rpo);
+      branch.false_label = GetLabel(false_rpo);
+      branch.fallthru = IsNextInAssemblyOrder(false_rpo);
+      // Assemble architecture-specific branch.
+      AssembleArchBranch(instr, &branch);
+    } else if (mode == kFlags_set) {
+      // Assemble a boolean materialization after this instruction.
+      AssembleArchBoolean(instr, condition);
     }
-    UNREACHABLE();
   }
 }
 

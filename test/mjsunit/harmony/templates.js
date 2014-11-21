@@ -338,6 +338,75 @@ var obj = {
 })();
 
 
+(function testCallSiteCaching() {
+  var callSites = [];
+  function tag(cs) { callSites.push(cs); }
+  var a = 1;
+  var b = 2;
+
+  tag`head${a}tail`;
+  tag`head${b}tail`;
+
+  assertEquals(2, callSites.length);
+  assertSame(callSites[0], callSites[1]);
+
+  eval("tag`head${a}tail`");
+  assertEquals(3, callSites.length);
+  assertSame(callSites[1], callSites[2]);
+
+  eval("tag`head${b}tail`");
+  assertEquals(4, callSites.length);
+  assertSame(callSites[2], callSites[3]);
+
+  (new Function("tag", "a", "b", "return tag`head${a}tail`;"))(tag, 1, 2);
+  assertEquals(5, callSites.length);
+  assertSame(callSites[3], callSites[4]);
+
+  (new Function("tag", "a", "b", "return tag`head${b}tail`;"))(tag, 1, 2);
+  assertEquals(6, callSites.length);
+  assertSame(callSites[4], callSites[5]);
+
+  callSites = [];
+
+  tag`foo${a}bar`;
+  tag`foo\${.}bar`;
+  assertEquals(2, callSites.length);
+  assertEquals(2, callSites[0].length);
+  assertEquals(1, callSites[1].length);
+
+  callSites = [];
+
+  eval("tag`\\\r\n\\\n\\\r`");
+  eval("tag`\\\r\n\\\n\\\r`");
+  assertEquals(2, callSites.length);
+  assertSame(callSites[0], callSites[1]);
+  assertEquals("", callSites[0][0]);
+  assertEquals("\\\n\\\n\\\n", callSites[0].raw[0]);
+
+  callSites = [];
+
+  tag`\uc548\ub155`;
+  tag`\uc548\ub155`;
+  assertEquals(2, callSites.length);
+  assertSame(callSites[0], callSites[1]);
+  assertEquals("안녕", callSites[0][0]);
+  assertEquals("\\uc548\\ub155", callSites[0].raw[0]);
+
+  callSites = [];
+
+  tag`\uc548\ub155`;
+  tag`안녕`;
+  assertEquals(2, callSites.length);
+  assertTrue(callSites[0] !== callSites[1]);
+  assertEquals("안녕", callSites[0][0]);
+  assertEquals("\\uc548\\ub155", callSites[0].raw[0]);
+  assertEquals("안녕", callSites[1][0]);
+  // TODO(caitp, arv): blocked on correctly generating raw strings from
+  // multi-byte UTF8.
+  // assertEquals("안녕", callSites[1].raw[0]);
+})();
+
+
 (function testExtendedArrayPrototype() {
   Object.defineProperty(Array.prototype, 0, {
     set: function() {

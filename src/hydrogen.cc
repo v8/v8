@@ -4050,8 +4050,12 @@ void EffectContext::ReturnValue(HValue* value) {
 void ValueContext::ReturnValue(HValue* value) {
   // The value is tracked in the bailout environment, and communicated
   // through the environment as the result of the expression.
-  if (!arguments_allowed() && value->CheckFlag(HValue::kIsArguments)) {
-    owner()->Bailout(kBadValueContextForArgumentsValue);
+  if (value->CheckFlag(HValue::kIsArguments)) {
+    if (flag_ == ARGUMENTS_FAKED) {
+      value = owner()->graph()->GetConstantUndefined();
+    } else if (!arguments_allowed()) {
+      owner()->Bailout(kBadValueContextForArgumentsValue);
+    }
   }
   owner()->Push(value);
 }
@@ -4273,6 +4277,14 @@ void HOptimizedGraphBuilder::VisitExpressions(
     ZoneList<Expression*>* exprs) {
   for (int i = 0; i < exprs->length(); ++i) {
     CHECK_ALIVE(VisitForValue(exprs->at(i)));
+  }
+}
+
+
+void HOptimizedGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs,
+                                              ArgumentsAllowedFlag flag) {
+  for (int i = 0; i < exprs->length(); ++i) {
+    CHECK_ALIVE(VisitForValue(exprs->at(i), flag));
   }
 }
 
@@ -8861,13 +8873,8 @@ bool HOptimizedGraphBuilder::TryIndirectCall(Call* expr) {
       // is supported.
       if (current_info()->scope()->arguments() == NULL) return false;
 
-      ZoneList<Expression*>* args = expr->arguments();
-      if (args->length() != 2) return false;
+      if (!CanBeFunctionApplyArguments(expr)) return false;
 
-      VariableProxy* arg_two = args->at(1)->AsVariableProxy();
-      if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
-      HValue* arg_two_value = LookupAndMakeLive(arg_two->var());
-      if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
       BuildFunctionApply(expr);
       return true;
     }
@@ -9154,6 +9161,17 @@ bool HOptimizedGraphBuilder::TryHandleArrayCallNew(CallNew* expr,
 }
 
 
+bool HOptimizedGraphBuilder::CanBeFunctionApplyArguments(Call* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  if (args->length() != 2) return false;
+  VariableProxy* arg_two = args->at(1)->AsVariableProxy();
+  if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
+  HValue* arg_two_value = LookupAndMakeLive(arg_two->var());
+  if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
@@ -9190,13 +9208,14 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
     if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
-    // Push the function under the receiver.
-    environment()->SetExpressionStackAt(0, function);
 
-    Push(receiver);
 
     if (function->IsConstant() &&
         HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
+      // Push the function under the receiver.
+      environment()->SetExpressionStackAt(0, function);
+      Push(receiver);
+
       Handle<JSFunction> known_function = Handle<JSFunction>::cast(
           HConstant::cast(function)->handle(isolate()));
       expr->set_target(known_function);
@@ -9232,7 +9251,20 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else {
-      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      ArgumentsAllowedFlag arguments_flag = ARGUMENTS_NOT_ALLOWED;
+      if (CanBeFunctionApplyArguments(expr) && expr->is_uninitialized()) {
+        // We have to use EAGER deoptimization here because Deoptimizer::SOFT
+        // gets ignored by the always-opt flag, which leads to incorrect code.
+        Add<HDeoptimize>("Insufficient type feedback for call with arguments",
+                         Deoptimizer::EAGER);
+        arguments_flag = ARGUMENTS_FAKED;
+      }
+
+      // Push the function under the receiver.
+      environment()->SetExpressionStackAt(0, function);
+      Push(receiver);
+
+      CHECK_ALIVE(VisitExpressions(expr->arguments(), arguments_flag));
       CallFunctionFlags flags = receiver->type().IsJSObject()
           ? NO_CALL_FUNCTION_FLAGS : CALL_AS_METHOD;
       call = New<HCallFunction>(function, argument_count, flags);

@@ -111,13 +111,16 @@ LiveRange::LiveRange(int id, Zone* zone)
       last_processed_use_(NULL),
       current_hint_operand_(NULL),
       spill_operand_(new (zone) InstructionOperand()),
-      spill_start_index_(kMaxInt) {}
+      spill_start_index_(kMaxInt),
+      spill_range_(NULL) {}
 
 
 void LiveRange::set_assigned_register(int reg, Zone* zone) {
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
-  ConvertOperands(zone);
+  if (spill_range_ == nullptr) {
+    ConvertOperands(zone);
+  }
 }
 
 
@@ -132,7 +135,7 @@ void LiveRange::MakeSpilled(Zone* zone) {
 
 bool LiveRange::HasAllocatedSpillOperand() const {
   DCHECK(spill_operand_ != NULL);
-  return !spill_operand_->IsIgnored();
+  return !spill_operand_->IsIgnored() || spill_range_ != NULL;
 }
 
 
@@ -141,6 +144,19 @@ void LiveRange::SetSpillOperand(InstructionOperand* operand) {
   DCHECK(spill_operand_ != NULL);
   DCHECK(spill_operand_->IsIgnored());
   spill_operand_->ConvertTo(operand->kind(), operand->index());
+}
+
+
+void LiveRange::CommitSpillOperand(InstructionOperand* operand) {
+  DCHECK(spill_range_ != NULL);
+  DCHECK(!IsChild());
+  spill_range_ = NULL;
+  SetSpillOperand(operand);
+  for (LiveRange* range = this; range != NULL; range = range->next()) {
+    if (range->IsSpilled()) {
+      range->ConvertUsesToOperand(operand);
+    }
+  }
 }
 
 
@@ -440,8 +456,7 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
 }
 
 
-void LiveRange::ConvertOperands(Zone* zone) {
-  InstructionOperand* op = CreateAssignedOperand(zone);
+void LiveRange::ConvertUsesToOperand(InstructionOperand* op) {
   UsePosition* use_pos = first_pos();
   while (use_pos != NULL) {
     DCHECK(Start().Value() <= use_pos->pos().Value() &&
@@ -454,6 +469,11 @@ void LiveRange::ConvertOperands(Zone* zone) {
     }
     use_pos = use_pos->next();
   }
+}
+
+
+void LiveRange::ConvertOperands(Zone* zone) {
+  ConvertUsesToOperand(CreateAssignedOperand(zone));
 }
 
 
@@ -522,6 +542,7 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       active_live_ranges_(8, local_zone()),
       inactive_live_ranges_(8, local_zone()),
       reusable_slots_(8, local_zone()),
+      spill_ranges_(8, local_zone()),
       mode_(UNALLOCATED_REGISTERS),
       num_registers_(-1),
       allocation_ok_(true) {
@@ -748,6 +769,157 @@ void RegisterAllocator::AddConstraintsGapMove(int index,
     }
   }
   move->AddMove(from, to, code_zone());
+}
+
+
+static bool AreUseIntervalsIntersecting(UseInterval* interval1,
+                                        UseInterval* interval2) {
+  while (interval1 != NULL && interval2 != NULL) {
+    if (interval1->start().Value() < interval2->start().Value()) {
+      if (interval1->end().Value() >= interval2->start().Value()) {
+        return true;
+      }
+      interval1 = interval1->next();
+    } else {
+      if (interval2->end().Value() >= interval1->start().Value()) {
+        return true;
+      }
+      interval2 = interval2->next();
+    }
+  }
+  return false;
+}
+
+
+SpillRange::SpillRange(LiveRange* range, int id, Zone* zone)
+    : id_(id), live_ranges_(1, zone), end_position_(range->End()) {
+  UseInterval* src = range->first_interval();
+  UseInterval* result = NULL;
+  UseInterval* node = NULL;
+  // Copy the nodes
+  while (src != NULL) {
+    UseInterval* new_node = new (zone) UseInterval(src->start(), src->end());
+    if (result == NULL) {
+      result = new_node;
+    } else {
+      node->set_next(new_node);
+    }
+    node = new_node;
+    src = src->next();
+  }
+  use_interval_ = result;
+  live_ranges_.Add(range, zone);
+  DCHECK(range->GetSpillRange() == NULL);
+  range->SetSpillRange(this);
+}
+
+
+bool SpillRange::IsIntersectingWith(SpillRange* other) {
+  if (End().Value() <= other->use_interval_->start().Value() ||
+      other->End().Value() <= use_interval_->start().Value()) {
+    return false;
+  }
+  return AreUseIntervalsIntersecting(use_interval_, other->use_interval_);
+}
+
+
+bool SpillRange::TryMerge(SpillRange* other, Zone* zone) {
+  if (Kind() == other->Kind() &&
+      !AreUseIntervalsIntersecting(use_interval_, other->use_interval_)) {
+    if (End().Value() < other->End().Value()) {
+      end_position_ = other->End();
+    }
+
+    MergeDisjointIntervals(other->use_interval_, zone);
+    other->use_interval_ = NULL;
+
+    for (int i = 0; i < other->live_ranges_.length(); i++) {
+      DCHECK(other->live_ranges_.at(i)->GetSpillRange() == other);
+      other->live_ranges_.at(i)->SetSpillRange(this);
+    }
+
+    live_ranges_.AddAll(other->live_ranges_, zone);
+    other->live_ranges_.Clear();
+
+    return true;
+  }
+  return false;
+}
+
+
+void SpillRange::SetOperand(InstructionOperand* op) {
+  for (int i = 0; i < live_ranges_.length(); i++) {
+    DCHECK(live_ranges_.at(i)->GetSpillRange() == this);
+    live_ranges_.at(i)->CommitSpillOperand(op);
+  }
+}
+
+
+void SpillRange::MergeDisjointIntervals(UseInterval* other, Zone* zone) {
+  UseInterval* tail = NULL;
+  UseInterval* current = use_interval_;
+  while (other != NULL) {
+    // Make sure the 'current' list starts first
+    if (current == NULL || current->start().Value() > other->start().Value()) {
+      std::swap(current, other);
+    }
+
+    // Check disjointness
+    DCHECK(other == NULL || current->end().Value() <= other->start().Value());
+
+    // Append the 'current' node to the result accumulator and move forward
+    if (tail == NULL) {
+      use_interval_ = current;
+    } else {
+      tail->set_next(current);
+    }
+    tail = current;
+    current = current->next();
+  }
+  // Other list is empty => we are done
+}
+
+
+void RegisterAllocator::ReuseSpillSlots() {
+  // Merge disjoint spill ranges
+  for (int i = 0; i < spill_ranges_.length(); i++) {
+    SpillRange* range = spill_ranges_.at(i);
+    if (!range->IsEmpty()) {
+      for (int j = i + 1; j < spill_ranges_.length(); j++) {
+        SpillRange* other = spill_ranges_.at(j);
+        if (!other->IsEmpty()) {
+          range->TryMerge(spill_ranges_.at(j), local_zone());
+        }
+      }
+    }
+  }
+
+  // Allocate slots for the merged spill ranges.
+  for (int i = 0; i < spill_ranges_.length(); i++) {
+    SpillRange* range = spill_ranges_.at(i);
+    if (!range->IsEmpty()) {
+      // Allocate a new operand referring to the spill slot.
+      RegisterKind kind = range->Kind();
+      int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
+      InstructionOperand* op = nullptr;
+      if (kind == DOUBLE_REGISTERS) {
+        op = DoubleStackSlotOperand::Create(index, local_zone());
+      } else {
+        DCHECK(kind == GENERAL_REGISTERS);
+        op = StackSlotOperand::Create(index, local_zone());
+      }
+      range->SetOperand(op);
+    }
+  }
+}
+
+
+SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
+  int spill_id = spill_ranges_.length();
+  SpillRange* spill_range =
+      new (local_zone()) SpillRange(range, spill_id, local_zone());
+  spill_ranges_.Add(spill_range, local_zone());
+  return spill_range;
 }
 
 
@@ -1760,38 +1932,10 @@ bool RegisterAllocator::UnhandledIsSorted() {
 }
 
 
-void RegisterAllocator::FreeSpillSlot(LiveRange* range) {
-  // Check that we are the last range.
-  if (range->next() != NULL) return;
-
-  if (!range->TopLevel()->HasAllocatedSpillOperand()) return;
-
-  InstructionOperand* spill_operand = range->TopLevel()->GetSpillOperand();
-  if (spill_operand->IsConstant()) return;
-  if (spill_operand->index() >= 0) {
-    reusable_slots_.Add(range, local_zone());
-  }
-}
-
-
-InstructionOperand* RegisterAllocator::TryReuseSpillSlot(LiveRange* range) {
-  if (reusable_slots_.is_empty()) return NULL;
-  if (reusable_slots_.first()->End().Value() >
-      range->TopLevel()->Start().Value()) {
-    return NULL;
-  }
-  InstructionOperand* result =
-      reusable_slots_.first()->TopLevel()->GetSpillOperand();
-  reusable_slots_.Remove(0);
-  return result;
-}
-
-
 void RegisterAllocator::ActiveToHandled(LiveRange* range) {
   DCHECK(active_live_ranges_.Contains(range));
   active_live_ranges_.RemoveElement(range);
   TraceAlloc("Moving live range %d from active to handled\n", range->id());
-  FreeSpillSlot(range);
 }
 
 
@@ -1807,7 +1951,6 @@ void RegisterAllocator::InactiveToHandled(LiveRange* range) {
   DCHECK(inactive_live_ranges_.Contains(range));
   inactive_live_ranges_.RemoveElement(range);
   TraceAlloc("Moving live range %d from inactive to handled\n", range->id());
-  FreeSpillSlot(range);
 }
 
 
@@ -2192,19 +2335,7 @@ void RegisterAllocator::Spill(LiveRange* range) {
   LiveRange* first = range->TopLevel();
 
   if (!first->HasAllocatedSpillOperand()) {
-    InstructionOperand* op = TryReuseSpillSlot(range);
-    if (op == NULL) {
-      // Allocate a new operand referring to the spill slot.
-      RegisterKind kind = range->Kind();
-      int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
-      if (kind == DOUBLE_REGISTERS) {
-        op = DoubleStackSlotOperand::Create(index, local_zone());
-      } else {
-        DCHECK(kind == GENERAL_REGISTERS);
-        op = StackSlotOperand::Create(index, local_zone());
-      }
-    }
-    first->SetSpillOperand(op);
+    AssignSpillRangeToLiveRange(first);
   }
   range->MakeSpilled(code_zone());
 }
