@@ -367,7 +367,6 @@
 
 
   # No support for toSource().
-  'js1_5/Regress/regress-248444': [FAIL_OK],
   'js1_5/Regress/regress-313967-01': [FAIL_OK],
   'js1_5/Regress/regress-313967-02': [FAIL_OK],
 
