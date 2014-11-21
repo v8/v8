@@ -8367,6 +8367,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
+      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
       if (!IsFastElementsKind(elements_kind)) return false;
       if (receiver_map->is_observed()) return false;
       if (!receiver_map->is_extensible()) return false;
@@ -8484,6 +8485,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind kind = receiver_map->elements_kind();
+      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
       if (!IsFastElementsKind(kind)) return false;
       if (receiver_map->is_observed()) return false;
       if (!receiver_map->is_extensible()) return false;
@@ -8556,10 +8558,12 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                   graph()->GetConstant0(), new_length, Token::LT);
               HValue* key = AddUncasted<HAdd>(new_key, graph()->GetConstant1());
               key->ClearFlag(HValue::kCanOverflow);
+              ElementsKind copy_kind =
+                  kind == FAST_HOLEY_SMI_ELEMENTS ? FAST_HOLEY_ELEMENTS : kind;
               HValue* element = AddUncasted<HLoadKeyed>(
-                  elements, key, lengthiszero, kind, ALLOW_RETURN_HOLE);
-              HStoreKeyed* store = Add<HStoreKeyed>(
-                  elements, new_key, element, kind);
+                  elements, key, lengthiszero, copy_kind, ALLOW_RETURN_HOLE);
+              HStoreKeyed* store =
+                  Add<HStoreKeyed>(elements, new_key, element, copy_kind);
               store->SetFlag(HValue::kAllowUndefinedAsNaN);
             }
             loop.EndBody();
@@ -11407,11 +11411,13 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       site_context->ExitScope(current_site, value_object);
       Add<HStoreKeyed>(object_elements, key_constant, result, kind);
     } else {
-      HInstruction* value_instruction =
-          Add<HLoadKeyed>(boilerplate_elements, key_constant,
-                          static_cast<HValue*>(NULL), kind,
-                          ALLOW_RETURN_HOLE);
-      Add<HStoreKeyed>(object_elements, key_constant, value_instruction, kind);
+      ElementsKind copy_kind =
+          kind == FAST_HOLEY_SMI_ELEMENTS ? FAST_HOLEY_ELEMENTS : kind;
+      HInstruction* value_instruction = Add<HLoadKeyed>(
+          boilerplate_elements, key_constant, static_cast<HValue*>(NULL),
+          copy_kind, ALLOW_RETURN_HOLE);
+      Add<HStoreKeyed>(object_elements, key_constant, value_instruction,
+                       copy_kind);
     }
   }
 }
