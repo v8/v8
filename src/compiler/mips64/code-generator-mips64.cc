@@ -477,8 +477,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   UNIMPLEMENTED();
 
 // Assembles branches after an instruction.
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   MipsOperandConverter i(this, instr);
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
@@ -583,7 +582,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
-    __ bind(&done);
 
   } else if (instr->arch_opcode() == kMips64Cmp32) {
     switch (branch->condition) {
@@ -654,7 +652,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
-    __ bind(&done);
   } else if (instr->arch_opcode() == kMips64CmpD) {
     // TODO(dusmil) optimize unordered checks to use less instructions
     // even if we have to unfold BranchF macro.
@@ -689,8 +686,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
                i.InputDoubleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
-    __ bind(&done);
-
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());

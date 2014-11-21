@@ -391,8 +391,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   UNIMPLEMENTED();
 
 // Assembles branches after an instruction.
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       FlagsCondition condition) {
+void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   MipsOperandConverter i(this, instr);
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
@@ -416,7 +415,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
         cc = eq;
         break;
       default:
-        UNSUPPORTED_COND(kMipsTst, condition);
+        UNSUPPORTED_COND(kMipsTst, branch->condition);
         break;
     }
     __ And(at, i.InputRegister(0), i.InputOperand(1));
