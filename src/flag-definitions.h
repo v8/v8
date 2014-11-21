@@ -390,6 +390,9 @@ DEFINE_IMPLICATION(turbo_inlining, turbo_types)
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_reuse_spill_slots, false, "reuse spill slots in TurboFan")
+// TODO(dcarney): this is just for experimentation, remove when default.
+DEFINE_BOOL(turbo_delay_ssa_decon, false,
+            "delay ssa deconstruction in TurboFan register allocator")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")

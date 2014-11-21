@@ -198,6 +198,12 @@ class LiveRange FINAL : public ZoneObject {
   int spill_start_index() const { return spill_start_index_; }
   void set_assigned_register(int reg, Zone* zone);
   void MakeSpilled(Zone* zone);
+  bool is_phi() const { return is_phi_; }
+  void set_is_phi(bool is_phi) { is_phi_ = is_phi; }
+  bool is_non_loop_phi() const { return is_non_loop_phi_; }
+  void set_is_non_loop_phi(bool is_non_loop_phi) {
+    is_non_loop_phi_ = is_non_loop_phi;
+  }
 
   // Returns use position in this live range that follows both start
   // and last processed use position.
@@ -295,6 +301,8 @@ class LiveRange FINAL : public ZoneObject {
 
   int id_;
   bool spilled_;
+  bool is_phi_;
+  bool is_non_loop_phi_;
   RegisterKind kind_;
   int assigned_register_;
   UseInterval* last_interval_;
@@ -363,24 +371,28 @@ class RegisterAllocator FINAL : public ZoneObject {
   // Phase 1 : insert moves to account for fixed register operands.
   void MeetRegisterConstraints();
 
-  // Phase 2: compute liveness of all virtual register.
+  // Phase 2: deconstruct SSA by inserting moves in successors and the headers
+  // of blocks containing phis.
+  void ResolvePhis();
+
+  // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
   bool ExistsUseWithoutDefinition();
 
-  // Phase 3: compute register assignments.
+  // Phase 4: compute register assignments.
   void AllocateGeneralRegisters();
   void AllocateDoubleRegisters();
 
-  // Phase 4: reassign spill splots for maximal reuse.
+  // Phase 5: reassign spill splots for maximal reuse.
   void ReuseSpillSlots();
 
-  // Phase 5: compute values for pointer maps.
+  // Phase 6: compute values for pointer maps.
   void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
 
-  // Phase 6: reconnect split ranges with moves.
+  // Phase 7: reconnect split ranges with moves.
   void ConnectRanges();
 
-  // Phase 7: insert moves to connect ranges across basic blocks.
+  // Phase 8: insert moves to connect ranges across basic blocks.
   void ResolveControlFlow();
 
  private:
@@ -428,7 +440,7 @@ class RegisterAllocator FINAL : public ZoneObject {
                               int gap_index);
   void MeetRegisterConstraintsForLastInstructionInBlock(
       const InstructionBlock* block);
-  void ProcessPhis(const InstructionBlock* block);
+  void ResolvePhis(const InstructionBlock* block);
 
   // Helper methods for building intervals.
   InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
