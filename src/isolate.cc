@@ -1743,11 +1743,7 @@ void Isolate::Deinit() {
     heap_.mark_compact_collector()->EnsureSweepingCompleted();
   }
 
-  if (turbo_statistics() != NULL) {
-    OFStream os(stdout);
-    os << *turbo_statistics() << std::endl;
-  }
-  if (FLAG_hydrogen_stats) GetHStatistics()->Print();
+  DumpAndResetCompilationStats();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2246,6 +2242,19 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != NULL) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+
+void Isolate::DumpAndResetCompilationStats() {
+  if (turbo_statistics() != nullptr) {
+    OFStream os(stdout);
+    os << *turbo_statistics() << std::endl;
+  }
+  if (hstatistics() != nullptr) hstatistics()->Print();
+  delete turbo_statistics_;
+  turbo_statistics_ = nullptr;
+  delete hstatistics_;
+  hstatistics_ = nullptr;
 }
 
 

@@ -617,7 +617,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int exit_code = args[0]->Int32Value();
-  OnExit();
+  OnExit(args.GetIsolate());
   exit(exit_code);
 }
 
@@ -1054,10 +1054,11 @@ inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
 #endif  // !V8_SHARED
 
 
-void Shell::OnExit() {
+void Shell::OnExit(v8::Isolate* isolate) {
   LineEditor* line_editor = LineEditor::Get();
   if (line_editor) line_editor->Close();
 #ifndef V8_SHARED
+  reinterpret_cast<i::Isolate*>(isolate)->DumpAndResetCompilationStats();
   if (i::FLAG_dump_counters) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1746,7 +1747,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
-  OnExit();
+  OnExit(isolate);
 #ifndef V8_SHARED
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
