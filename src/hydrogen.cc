@@ -7106,7 +7106,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   MapHandleList possible_transitioned_maps(maps->length());
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
-    DCHECK(!map->IsStringMap());
+    // Loads from strings or loads with a mix of string and non-string maps
+    // shouldn't be handled polymorphically.
+    DCHECK(access_type != LOAD || !map->IsStringMap());
     ElementsKind elements_kind = map->elements_kind();
     if (CanInlineElementAccess(map) && IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
