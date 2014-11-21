@@ -1313,7 +1313,8 @@ void NewSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
   int new_capacity =
-      Min(MaximumCapacity(), 2 * static_cast<int>(TotalCapacity()));
+      Min(MaximumCapacity(),
+          FLAG_semi_space_growth_factor * static_cast<int>(TotalCapacity()));
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
