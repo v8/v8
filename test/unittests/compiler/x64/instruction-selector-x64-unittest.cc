@@ -249,10 +249,9 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32ParametersLea) {
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const a0 = m.Int32Add(p0, p1);
-  USE(a0);
   // Additional uses of input to add chooses lea
-  Node* const a1 = m.Int32Add(p0, p1);
-  m.Return(m.Int32Add(a0, a1));
+  Node* const a1 = m.Int32Div(p0, p1);
+  m.Return(m.Int32Div(a0, a1));
   Stream s = m.Build();
   ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
@@ -266,20 +265,21 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaSingle) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
-  // If there is only a single use of an add's input, still use lea and not add,
-  // it is faster.
-  m.Return(m.Int32Add(p0, c0));
+  // If there is only a single use of an add's input, use an "addl" not a
+  // "leal", it is faster.
+  Node* const v0 = m.Int32Add(p0, c0);
+  m.Return(v0);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }
 
 
-TEST_F(InstructionSelectorTest, Int32AddConstantAsInc) {
+TEST_F(InstructionSelectorTest, Int32AddConstantAsAdd) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(1);
@@ -288,26 +288,11 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsInc) {
   m.Return(m.Int32Add(p0, c0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Inc32, s[0]->arch_opcode());
+  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
   EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-}
-
-
-TEST_F(InstructionSelectorTest, Int32AddConstantAsDec) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
-  Node* const p0 = m.Parameter(0);
-  Node* const c0 = m.Int32Constant(-1);
-  // If there is only a single use of an add's input and the immediate constant
-  // for the add is -11, use dec.
-  m.Return(m.Int32Add(p0, c0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Dec32, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-  ASSERT_EQ(1U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }
 
 
@@ -317,10 +302,9 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaDouble) {
   Node* const c0 = m.Int32Constant(15);
   // A second use of an add's input uses lea
   Node* const a0 = m.Int32Add(p0, c0);
-  USE(a0);
-  m.Return(m.Int32Add(p0, c0));
+  m.Return(m.Int32Div(a0, p0));
   Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
   EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
   ASSERT_EQ(2U, s[0]->InputCount());
@@ -333,13 +317,12 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaSingle) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
-  // If there is only a single use of an add's input, still use lea... it's
-  // generally faster than the add to reduce register pressure.
+  // If there is only a single use of an add's input, use "addl"
   m.Return(m.Int32Add(c0, p0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
@@ -353,14 +336,47 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaDouble) {
   // A second use of an add's input uses lea
   Node* const a0 = m.Int32Add(c0, p0);
   USE(a0);
-  m.Return(m.Int32Add(c0, p0));
+  m.Return(m.Int32Div(a0, p0));
   Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
   EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddSimpleAsAdd) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  // If one of the add's operands is only used once, use an "addl".
+  m.Return(m.Int32Add(p0, p1));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32AddSimpleAsLea) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  // If all of of the add's operands are used multiple times, use an "leal".
+  Node* const v1 = m.Int32Add(p0, p1);
+  m.Return(m.Int32Add(m.Int32Add(v1, p1), p0));
+  Stream s = m.Build();
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
 }
 
 
@@ -690,35 +706,38 @@ TEST_F(InstructionSelectorTest, Int32AddScaled8ShlWithConstant) {
 }
 
 
-TEST_F(InstructionSelectorTest, Int32SubConstantAsInc) {
+TEST_F(InstructionSelectorTest, Int32SubConstantAsSub) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(-1);
-  // If there is only a single use of an add's input and the immediate constant
-  // for the add is 1, use inc.
+  // If there is only a single use of on of the sub's non-constant input, use a
+  // "subl" instruction.
   m.Return(m.Int32Sub(p0, c0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Inc32, s[0]->arch_opcode());
+  EXPECT_EQ(kX64Sub32, s[0]->arch_opcode());
   EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }
 
 
-TEST_F(InstructionSelectorTest, Int32SubConstantAsDec) {
+TEST_F(InstructionSelectorTest, Int32SubConstantAsLea) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   Node* const p0 = m.Parameter(0);
-  Node* const c0 = m.Int32Constant(1);
-  // If there is only a single use of an sub's input and the immediate constant
-  // for the add is 1, use dec.
-  m.Return(m.Int32Sub(p0, c0));
+  Node* const c0 = m.Int32Constant(-1);
+  // If there are multiple uses of on of the sub's non-constant input, use a
+  // "leal" instruction.
+  Node* const v0 = m.Int32Sub(p0, c0);
+  m.Return(m.Int32Div(p0, v0));
   Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Dec32, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }
 
 
