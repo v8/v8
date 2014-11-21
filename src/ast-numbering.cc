@@ -45,6 +45,7 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   void IncrementNodeCount() { properties_.add_node_count(1); }
   void DisableCrankshaft(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;
+    properties_.flags()->Add(kDontSelfOptimize);
   }
   // TODO(turbofan): Remove the dont_turbofan_reason once no nodes are
   // DontTurbofanNode.  That set of nodes must be kept in sync with
@@ -52,9 +53,14 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   void DisableTurbofan(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;
     dont_turbofan_reason_ = reason;
+    DisableSelfOptimization();
+  }
+  void DisableSelfOptimization() {
+    properties_.flags()->Add(kDontSelfOptimize);
   }
   void DisableCaching(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;
+    DisableSelfOptimization();
     properties_.flags()->Add(kDontCache);
   }
 
@@ -297,6 +303,7 @@ void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
 
 void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
   IncrementNodeCount();
+  DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(DoWhileStatement::num_ids()));
   Visit(node->body());
   Visit(node->cond());
@@ -305,6 +312,7 @@ void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
   IncrementNodeCount();
+  DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(WhileStatement::num_ids()));
   Visit(node->cond());
   Visit(node->body());
@@ -363,6 +371,7 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
+  DisableSelfOptimization();
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(ForInStatement::num_ids()));
   Visit(node->each());
@@ -424,6 +433,7 @@ void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
 
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
   IncrementNodeCount();
+  DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(ForStatement::num_ids()));
   if (node->init() != NULL) Visit(node->init());
   if (node->cond() != NULL) Visit(node->cond());

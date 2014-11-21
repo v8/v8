@@ -413,9 +413,14 @@ void FullCodeGenerator::EmitReturnSequence() {
       DCHECK(x0.Is(result_register()));
     }
     // Pretend that the exit is a backwards jump to the entry.
-    int distance = masm_->pc_offset() + kCodeSizeMultiplier / 2;
-    int weight =
-        Min(kMaxBackEdgeWeight, Max(1, distance / kCodeSizeMultiplier));
+    int weight = 1;
+    if (info_->ShouldSelfOptimize()) {
+      weight = FLAG_interrupt_budget / FLAG_self_opt_count;
+    } else {
+      int distance = masm_->pc_offset() + kCodeSizeMultiplier / 2;
+      weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kCodeSizeMultiplier));
+    }
     EmitProfilingCounterDecrement(weight);
     Label ok;
     __ B(pl, &ok);

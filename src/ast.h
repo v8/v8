@@ -150,6 +150,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 
 enum AstPropertiesFlag {
+  kDontSelfOptimize,
   kDontSoftInline,
   kDontCache
 };

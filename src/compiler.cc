@@ -276,6 +276,18 @@ Code::Flags CompilationInfo::flags() const {
 }
 
 
+// Primitive functions are unlikely to be picked up by the stack-walking
+// profiler, so they trigger their own optimization when they're called
+// for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
+bool CompilationInfo::ShouldSelfOptimize() {
+  return FLAG_crankshaft &&
+      !function()->flags()->Contains(kDontSelfOptimize) &&
+      !function()->dont_optimize() &&
+      function()->scope()->AllowsLazyCompilation() &&
+      (shared_info().is_null() || !shared_info()->optimization_disabled());
+}
+
+
 void CompilationInfo::PrepareForCompilation(Scope* scope) {
   DCHECK(scope_ == NULL);
   scope_ = scope;
