@@ -506,6 +506,15 @@ struct MeetRegisterConstraintsPhase {
 };
 
 
+struct ResolvePhisPhase {
+  static const char* phase_name() { return "resolve phis"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->ResolvePhis();
+  }
+};
+
+
 struct BuildLiveRangesPhase {
   static const char* phase_name() { return "build live ranges"; }
 
@@ -926,6 +935,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
                                     debug_name.get());
 
   Run<MeetRegisterConstraintsPhase>();
+  Run<ResolvePhisPhase>();
   Run<BuildLiveRangesPhase>();
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
@@ -944,7 +954,9 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     data->set_compilation_failed();
     return;
   }
-  Run<ReuseSpillSlotsPhase>();
+  if (FLAG_turbo_reuse_spill_slots) {
+    Run<ReuseSpillSlotsPhase>();
+  }
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();

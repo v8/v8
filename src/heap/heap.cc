@@ -5059,6 +5059,10 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
 
   target_semispace_size_ = Max(initial_semispace_size_, target_semispace_size_);
 
+  if (FLAG_semi_space_growth_factor < 2) {
+    FLAG_semi_space_growth_factor = 2;
+  }
+
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
   max_old_generation_size_ =

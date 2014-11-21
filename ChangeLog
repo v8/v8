@@ -1,3 +1,8 @@
+2014-11-21: Version 3.31.17
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-21: Version 3.31.16
 
         Cache template literal callSiteObj (issue 3230).

@@ -51,8 +51,7 @@ testAdd("fast properties");
 
 testAdd("normalized");
 
-function testRemove(mode) {
-  var a = [1, 2, 3];
+function testRemove(a, mode) {
   Object.defineProperty(a, "length", { writable : false});
 
   function check(f) {
@@ -91,11 +90,22 @@ function testRemove(mode) {
   check(splice);
   %OptimizeFunctionOnNextCall(splice);
   check(splice);
+
+  %ClearFunctionTypeFeedback(pop);
+  %ClearFunctionTypeFeedback(shift);
+  %ClearFunctionTypeFeedback(splice);
 }
 
-testRemove("fast properties");
-
-testRemove("normalized");
+for (var i = 0; i < 3; i++) {
+  var a = [1, 2, 3];
+  if (i == 1) {
+    a = [1, 2, 3.5];
+  } else if (i == 2) {
+    a = [1, 2, "string"];
+  }
+  testRemove(a, "fast properties");
+  testRemove(a, "normalized");
+}
 
 var b = [];
 Object.defineProperty(b.__proto__, "0", {

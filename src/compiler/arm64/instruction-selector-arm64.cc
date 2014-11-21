@@ -882,7 +882,41 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  Node* value = node->InputAt(0);
+  switch (value->opcode()) {
+    case IrOpcode::kWord32And:
+    case IrOpcode::kWord32Or:
+    case IrOpcode::kWord32Xor:
+    case IrOpcode::kWord32Shl:
+    case IrOpcode::kWord32Shr:
+    case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Ror:
+    case IrOpcode::kWord32Equal:
+    case IrOpcode::kInt32Add:
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32Sub:
+    case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kInt32Mul:
+    case IrOpcode::kInt32MulHigh:
+    case IrOpcode::kInt32Div:
+    case IrOpcode::kInt32Mod:
+    case IrOpcode::kInt32LessThan:
+    case IrOpcode::kInt32LessThanOrEqual:
+    case IrOpcode::kUint32Div:
+    case IrOpcode::kUint32LessThan:
+    case IrOpcode::kUint32LessThanOrEqual:
+    case IrOpcode::kUint32Mod:
+    case IrOpcode::kUint32MulHigh: {
+      // 32-bit operations will write their result in a W register (implicitly
+      // clearing the top 32-bit of the corresponding X register) so the
+      // zero-extension is a no-op.
+      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      return;
+    }
+    default:
+      break;
+  }
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
 

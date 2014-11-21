@@ -97,9 +97,6 @@ class BasicJsonStringifier BASE_EMBEDDED {
   template <typename Char>
   INLINE(static bool DoNotEscape(Char c));
 
-  template <typename Char>
-  INLINE(static Vector<const Char> GetCharVector(Handle<String> string));
-
   Result StackPush(Handle<Object> object);
   void StackPop();
 
@@ -634,7 +631,7 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
   int worst_case_length = length << 3;
   if (builder_.CurrentPartCanFit(worst_case_length)) {
     DisallowHeapAllocation no_gc;
-    Vector<const SrcChar> vector = GetCharVector<SrcChar>(string);
+    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
         &builder_, worst_case_length);
     SerializeStringUnchecked_(vector, &no_extend);
@@ -663,23 +660,6 @@ bool BasicJsonStringifier::DoNotEscape(uint8_t c) {
 template <>
 bool BasicJsonStringifier::DoNotEscape(uint16_t c) {
   return c >= '#' && c != '\\' && c != 0x7f;
-}
-
-
-template <>
-Vector<const uint8_t> BasicJsonStringifier::GetCharVector(
-    Handle<String> string) {
-  String::FlatContent flat = string->GetFlatContent();
-  DCHECK(flat.IsOneByte());
-  return flat.ToOneByteVector();
-}
-
-
-template <>
-Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
-  String::FlatContent flat = string->GetFlatContent();
-  DCHECK(flat.IsTwoByte());
-  return flat.ToUC16Vector();
 }
 
 

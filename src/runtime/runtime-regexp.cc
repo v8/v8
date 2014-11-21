@@ -865,7 +865,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   if (!FLAG_harmony_regexps && constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *source);
     // Both true and false are immovable immortal objects so no need for write
     // barrier.
     regexp->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex, *global,
@@ -887,8 +886,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
     Handle<Object> zero(Smi::FromInt(0), isolate);
-    JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->source_string(),
-                                             source, final).Check();
     JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->global_string(),
                                              global, final).Check();
     JSObject::SetOwnPropertyIgnoreAttributes(

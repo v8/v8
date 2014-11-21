@@ -29,8 +29,6 @@
 
 {
   'variables': {
-    'v8_compress_startup_data%': 'off',
-
     'v8_enable_disassembler%': 0,
 
     'v8_enable_gdbjit%': 0,
@@ -93,9 +91,6 @@
       }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_I18N_SUPPORT',],
-      }],
-      ['v8_compress_startup_data=="bz2"', {
-        'defines': ['COMPRESS_STARTUP_DATA_BZ2',],
       }],
       ['v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],

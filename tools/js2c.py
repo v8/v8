@@ -478,25 +478,6 @@ def BuildMetadata(sources, source_bytes, native_type):
   return metadata
 
 
-def CompressMaybe(sources, compression_type):
-  """Take the prepared sources and generate a sequence of bytes.
-
-  Args:
-    sources: A Sources instance with the prepared sourced.
-    compression_type: string, describing the desired compression.
-
-  Returns:
-    A sequence of bytes.
-  """
-  sources_bytes = "".join(sources.modules)
-  if compression_type == "off":
-    return sources_bytes
-  elif compression_type == "bz2":
-    return bz2.compress(sources_bytes)
-  else:
-    raise Error("Unknown compression type %s." % compression_type)
-
-
 def PutInt(blob_file, value):
   assert(value >= 0 and value < (1 << 28))
   if (value < 1 << 6):
@@ -545,9 +526,9 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(source, target, native_type, compression_type, raw_file, startup_blob):
+def JS2C(source, target, native_type, raw_file, startup_blob):
   sources = PrepareSources(source)
-  sources_bytes = CompressMaybe(sources, compression_type)
+  sources_bytes = "".join(sources.modules)
   metadata = BuildMetadata(sources, sources_bytes, native_type)
 
   # Optionally emit raw file.
@@ -571,14 +552,13 @@ def main():
                     help="file to write the processed sources array to.")
   parser.add_option("--startup_blob", action="store",
                     help="file to write the startup blob to.")
-  parser.set_usage("""js2c out.cc type compression sources.js ...
+  parser.set_usage("""js2c out.cc type sources.js ...
       out.cc: C code to be generated.
       type: type parameter for NativesCollection template.
-      compression: type of compression used. [off|bz2]
       sources.js: JS internal sources or macros.py.""")
   (options, args) = parser.parse_args()
 
-  JS2C(args[3:], args[0], args[1], args[2], options.raw, options.startup_blob)
+  JS2C(args[2:], args[0], args[1], options.raw, options.startup_blob)
 
 
 if __name__ == "__main__":

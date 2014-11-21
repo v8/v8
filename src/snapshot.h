@@ -21,21 +21,6 @@ class Snapshot {
   // Create a new context using the internal partial snapshot.
   static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
 
-  // These methods support COMPRESS_STARTUP_DATA_BZ2.
-  static const byte* data() { return data_; }
-  static int size() { return size_; }
-  static int raw_size() { return raw_size_; }
-  static void set_raw_data(const byte* raw_data) {
-    raw_data_ = raw_data;
-  }
-  static const byte* context_data() { return context_data_; }
-  static int context_size() { return context_size_; }
-  static int context_raw_size() { return context_raw_size_; }
-  static void set_context_raw_data(
-      const byte* context_raw_data) {
-    context_raw_data_ = context_raw_data;
-  }
-
  private:
   static const byte data_[];
   static const byte* raw_data_;

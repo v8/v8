@@ -427,27 +427,32 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   // Try to match the Add to a leal pattern
   ScaledWithOffset32Matcher m(node);
   X64OperandGenerator g(this);
+  // It's possible to use a "leal", but it may not be smaller/cheaper. In the
+  // case that there are only two operands to the add and one of them isn't
+  // live, use a plain "addl".
   if (m.matches() && (m.constant() == NULL || g.CanBeImmediate(m.constant()))) {
-    // The add can be represented as a "leal", but there may be a smaller
-    // representation that is better and no more expensive.
     if (m.offset() != NULL) {
-      if (m.scaled() == NULL) {
-        if (!IsLive(m.offset())) {
-          // If the add is of the form (r1 + immediate) and the non-constant
-          // input to the add is owned by the add, then it doesn't need to be
-          // preserved across the operation, so use more compact,
-          // source-register-overwriting versions when they are available and
-          // smaller, e.g. "incl" and "decl".
-          int32_t value =
-              m.constant() == NULL ? 0 : OpParameter<int32_t>(m.constant());
-          if (value == 1) {
-            Emit(kX64Inc32, g.DefineSameAsFirst(node),
-                 g.UseRegister(m.offset()));
+      if (m.constant() == NULL) {
+        if (m.scaled() != NULL && m.scale_exponent() == 0) {
+          if (!IsLive(m.offset())) {
+            Emit(kX64Add32, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.offset()), g.Use(m.scaled()));
             return;
-          } else if (value == -1) {
-            Emit(kX64Dec32, g.DefineSameAsFirst(node),
-                 g.UseRegister(m.offset()));
+          } else if (!IsLive(m.scaled())) {
+            Emit(kX64Add32, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.scaled()), g.Use(m.offset()));
             return;
+          }
+        }
+      } else {
+        if (m.scale_exponent() == 0) {
+          if (m.scaled() == NULL || m.offset() == NULL) {
+            Node* non_constant = m.scaled() == NULL ? m.offset() : m.scaled();
+            if (!IsLive(non_constant)) {
+              Emit(kX64Add32, g.DefineSameAsFirst(node),
+                   g.UseRegister(non_constant), g.UseImmediate(m.constant()));
+              return;
+            }
           }
         }
       }
@@ -487,21 +492,7 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
     if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
-      // If the Non-constant input is owned by the subtract, using a "decl" or
-      // "incl" that overwrites that input is smaller and probably an overall
-      // win.
-      if (!IsLive(m.left().node())) {
-        if (m.right().Value() == 1) {
-          Emit(kX64Dec32, g.DefineSameAsFirst(node),
-               g.UseRegister(m.left().node()));
-          return;
-        }
-        if (m.right().Value() == -1) {
-          Emit(kX64Inc32, g.DefineSameAsFirst(node),
-               g.UseRegister(m.left().node()));
-          return;
-        }
-      } else {
+      if (IsLive(m.left().node())) {
         // Special handling for subtraction of constants where the non-constant
         // input is used elsewhere. To eliminate the gap move before the sub to
         // copy the destination register, use a "leal" instead.
