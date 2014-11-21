@@ -301,7 +301,6 @@
             '../../tools/js2c.py',
             '<@(_outputs)',
             'TEST',  # type
-            'off',  # compression
             '<@(file_list)',
           ],
         }

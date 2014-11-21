@@ -4,7 +4,6 @@
 
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
-v8_compress_startup_data = "off"
 v8_deprecation_warnings = false
 v8_enable_disassembler = false
 v8_enable_gdbjit = false
@@ -93,11 +92,6 @@ config("features") {
   if (v8_enable_i18n_support == true) {
     defines += [
       "V8_I18N_SUPPORT",
-    ]
-  }
-  if (v8_compress_startup_data == "bz2") {
-    defines += [
-      "COMPRESS_STARTUP_DATA_BZ2",
     ]
   }
   if (v8_enable_extra_checks == true) {
@@ -216,7 +210,6 @@ action("js2c") {
   args = [
     rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
     "CORE",
-    v8_compress_startup_data
   ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
@@ -256,7 +249,6 @@ action("js2c_experimental") {
   args = [
     rebase_path("$target_gen_dir/experimental-libraries.cc", root_build_dir),
     "EXPERIMENTAL",
-    v8_compress_startup_data
   ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
@@ -1216,11 +1208,6 @@ source_set("v8_base") {
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
     cflags = [ "/wd4267" ]
   }
-  if (is_linux) {
-    if (v8_compress_startup_data == "bz2") {
-      libs += [ "bz2" ]
-    }
-  }
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
@@ -1394,10 +1381,6 @@ if (current_toolchain == host_toolchain) {
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
     ]
-
-    if (v8_compress_startup_data == "bz2") {
-      libs = [ "bz2" ]
-    }
   }
 }
 

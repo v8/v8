@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #include <errno.h>
-#include <stdio.h>
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#include <bzlib.h>
-#endif
 #include <signal.h>
+#include <stdio.h>
 
 #include "src/v8.h"
 
@@ -249,62 +246,6 @@ class SnapshotWriter {
 };
 
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-class BZip2Compressor : public Compressor {
- public:
-  BZip2Compressor() : output_(NULL) {}
-  virtual ~BZip2Compressor() {
-    delete output_;
-  }
-  virtual bool Compress(i::Vector<char> input) {
-    delete output_;
-    output_ = new i::ScopedVector<char>((input.length() * 101) / 100 + 1000);
-    unsigned int output_length_ = output_->length();
-    int result = BZ2_bzBuffToBuffCompress(output_->start(), &output_length_,
-                                          input.start(), input.length(),
-                                          9, 1, 0);
-    if (result == BZ_OK) {
-      output_->Truncate(output_length_);
-      return true;
-    } else {
-      fprintf(stderr, "bzlib error code: %d\n", result);
-      return false;
-    }
-  }
-  virtual i::Vector<char>* output() { return output_; }
-
- private:
-  i::ScopedVector<char>* output_;
-};
-
-
-class BZip2Decompressor : public StartupDataDecompressor {
- public:
-  virtual ~BZip2Decompressor() { }
-
- protected:
-  virtual int DecompressData(char* raw_data,
-                             int* raw_data_size,
-                             const char* compressed_data,
-                             int compressed_data_size) {
-    DCHECK_EQ(StartupData::kBZip2,
-              V8::GetCompressedStartupDataAlgorithm());
-    unsigned int decompressed_size = *raw_data_size;
-    int result =
-        BZ2_bzBuffToBuffDecompress(raw_data,
-                                   &decompressed_size,
-                                   const_cast<char*>(compressed_data),
-                                   compressed_data_size,
-                                   0, 1);
-    if (result == BZ_OK) {
-      *raw_data_size = decompressed_size;
-    }
-    return result;
-  }
-};
-#endif
-
-
 void DumpException(Handle<Message> message) {
   String::Utf8Value message_string(message->Get());
   String::Utf8Value message_line(message->GetSourceLine());
@@ -336,14 +277,6 @@ int main(int argc, char** argv) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-  BZip2Decompressor natives_decompressor;
-  int bz2_result = natives_decompressor.Decompress();
-  if (bz2_result != BZ_OK) {
-    fprintf(stderr, "bzip error code: %d\n", bz2_result);
-    exit(1);
-  }
-#endif
   i::FLAG_logfile_per_isolate = false;
 
   Isolate::CreateParams params;
@@ -437,10 +370,6 @@ int main(int argc, char** argv) {
         writer.SetRawFiles(i::FLAG_raw_file, i::FLAG_raw_context_file);
       if (i::FLAG_startup_blob)
         writer.SetStartupBlobFile(i::FLAG_startup_blob);
-  #ifdef COMPRESS_STARTUP_DATA_BZ2
-      BZip2Compressor bzip2;
-      writer.SetCompressor(&bzip2);
-  #endif
       writer.WriteSnapshot(snapshot_sink.data(), ser, context_sink.data(),
                            context_ser);
     }

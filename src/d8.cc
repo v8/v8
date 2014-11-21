@@ -8,10 +8,6 @@
 #define V8_SHARED
 #endif
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#include <bzlib.h>
-#endif
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -883,34 +879,6 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #endif  // !V8_SHARED
 
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-class BZip2Decompressor : public v8::StartupDataDecompressor {
- public:
-  virtual ~BZip2Decompressor() { }
-
- protected:
-  virtual int DecompressData(char* raw_data,
-                             int* raw_data_size,
-                             const char* compressed_data,
-                             int compressed_data_size) {
-    DCHECK_EQ(v8::StartupData::kBZip2,
-              v8::V8::GetCompressedStartupDataAlgorithm());
-    unsigned int decompressed_size = *raw_data_size;
-    int result =
-        BZ2_bzBuffToBuffDecompress(raw_data,
-                                   &decompressed_size,
-                                   const_cast<char*>(compressed_data),
-                                   compressed_data_size,
-                                   0, 1);
-    if (result == BZ_OK) {
-      *raw_data_size = decompressed_size;
-    }
-    return result;
-  }
-};
-#endif
-
-
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(String::NewFromUtf8(isolate, "print"),
@@ -967,15 +935,6 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 
 
 void Shell::Initialize(Isolate* isolate) {
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-  BZip2Decompressor startup_data_decompressor;
-  int bz2_result = startup_data_decompressor.Decompress();
-  if (bz2_result != BZ_OK) {
-    fprintf(stderr, "bzip error code: %d\n", bz2_result);
-    Exit(1);
-  }
-#endif
-
 #ifndef V8_SHARED
   Shell::counter_map_ = new CounterMap();
   // Set up counters

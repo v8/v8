@@ -1170,18 +1170,6 @@
             '../../src/compiler/x64/linkage-x64.cc',
           ],
         }],
-        ['OS=="linux"', {
-            'link_settings': {
-              'conditions': [
-                ['v8_compress_startup_data=="bz2"', {
-                  'libraries': [
-                    '-lbz2',
-                  ]
-                }],
-              ],
-            },
-          }
-        ],
         ['OS=="win"', {
           'variables': {
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
@@ -1653,7 +1641,6 @@
             '../../tools/js2c.py',
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
-            '<(v8_compress_startup_data)',
             '<@(library_files)',
             '<@(i18n_library_files)',
           ],
@@ -1680,7 +1667,6 @@
             '../../tools/js2c.py',
             '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
             'EXPERIMENTAL',
-            '<(v8_compress_startup_data)',
             '<@(experimental_library_files)'
           ],
           'conditions': [
@@ -1743,11 +1729,6 @@
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
-        }],
-        ['v8_compress_startup_data=="bz2"', {
-          'libraries': [
-            '-lbz2',
-          ]
         }],
       ],
     },

@@ -5160,39 +5160,9 @@ class V8_EXPORT Isolate {
 
 class V8_EXPORT StartupData {
  public:
-  enum CompressionAlgorithm {
-    kUncompressed,
-    kBZip2
-  };
-
   const char* data;
-  int compressed_size;
+  int compressed_size;  // TODO(yangguo): remove this.
   int raw_size;
-};
-
-
-/**
- * A helper class for driving V8 startup data decompression.  It is based on
- * "CompressedStartupData" API functions from the V8 class.  It isn't mandatory
- * for an embedder to use this class, instead, API functions can be used
- * directly.
- *
- * For an example of the class usage, see the "shell.cc" sample application.
- */
-class V8_EXPORT StartupDataDecompressor {  // NOLINT
- public:
-  StartupDataDecompressor();
-  virtual ~StartupDataDecompressor();
-  int Decompress();
-
- protected:
-  virtual int DecompressData(char* raw_data,
-                             int* raw_data_size,
-                             const char* compressed_data,
-                             int compressed_data_size) = 0;
-
- private:
-  char** raw_data;
 };
 
 
@@ -5251,30 +5221,6 @@ class V8_EXPORT V8 {
   */
   // TODO(dcarney): deprecate this.
   V8_INLINE static bool IsDead();
-
-  /**
-   * The following 4 functions are to be used when V8 is built with
-   * the 'compress_startup_data' flag enabled. In this case, the
-   * embedder must decompress startup data prior to initializing V8.
-   *
-   * This is how interaction with V8 should look like:
-   *   int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
-   *   v8::StartupData* compressed_data =
-   *     new v8::StartupData[compressed_data_count];
-   *   v8::V8::GetCompressedStartupData(compressed_data);
-   *   ... decompress data (compressed_data can be updated in-place) ...
-   *   v8::V8::SetDecompressedStartupData(compressed_data);
-   *   ... now V8 can be initialized
-   *   ... make sure the decompressed data stays valid until V8 shutdown
-   *
-   * A helper class StartupDataDecompressor is provided. It implements
-   * the protocol of the interaction described above, and can be used in
-   * most cases instead of calling these API functions directly.
-   */
-  static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
-  static int GetCompressedStartupDataCount();
-  static void GetCompressedStartupData(StartupData* compressed_data);
-  static void SetDecompressedStartupData(StartupData* decompressed_data);
 
   /**
    * Hand startup data to V8, in case the embedder has chosen to build
