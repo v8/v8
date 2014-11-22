@@ -37,7 +37,7 @@ enum PropertyKind {
   PROP_SMI,
   PROP_DOUBLE,
   PROP_TAGGED,
-  PROP_KIND_NUMBER
+  PROP_KIND_NUMBER,
 };
 
 static Representation representations[PROP_KIND_NUMBER] = {
