@@ -2764,7 +2764,8 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
 
 #if V8_DOUBLE_FIELDS_UNBOXING
       if (!may_contain_raw_values &&
-          (has_only_tagged_fields || helper.IsTagged(src_slot - src_addr)))
+          (has_only_tagged_fields ||
+           helper.IsTagged(static_cast<int>(src_slot - src_addr))))
 #else
       if (!may_contain_raw_values)
 #endif
