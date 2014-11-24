@@ -162,6 +162,9 @@ class GCIdleTimeHandler {
                                   size_t size_of_objects,
                                   size_t mark_compact_speed_in_bytes_per_ms);
 
+  static bool ShouldDoContextDisposalMarkCompact(bool context_disposed,
+                                                 double contexts_disposal_rate);
+
   static bool ShouldDoScavenge(
       size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
       size_t scavenger_speed_in_bytes_per_ms,

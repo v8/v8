@@ -248,7 +248,7 @@ class GCTracer {
     double scopes[Scope::NUMBER_OF_SCOPES];
   };
 
-  static const int kRingBufferMaxSize = 10;
+  static const size_t kRingBufferMaxSize = 10;
 
   typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
 

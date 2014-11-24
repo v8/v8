@@ -4451,8 +4451,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
     case DO_FULL_GC: {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       if (contexts_disposed_) {
-        CollectAllGarbage(kReduceMemoryFootprintMask,
-                          "idle notification: contexts disposed");
+        CollectAllGarbage(kNoGCFlags, "idle notification: contexts disposed");
         gc_idle_time_handler_.NotifyIdleMarkCompact();
         gc_count_at_last_idle_gc_ = gc_count_;
       } else {

@@ -142,6 +142,13 @@ bool GCIdleTimeHandler::ShouldDoMarkCompact(
 }
 
 
+bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
+    bool context_disposed, double contexts_disposal_rate) {
+  return context_disposed && contexts_disposal_rate > 0 &&
+         contexts_disposal_rate < kHighContextDisposalRate;
+}
+
+
 // The following logic is implemented by the controller:
 // (1) If we don't have any idle time, do nothing, unless a context was
 // disposed, incremental marking is stopped, and the heap is small. Then do
@@ -163,8 +170,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
   if (idle_time_in_ms == 0) {
     if (heap_state.incremental_marking_stopped) {
-      if (heap_state.contexts_disposed > 0 &&
-          heap_state.contexts_disposal_rate < kHighContextDisposalRate) {
+      if (ShouldDoContextDisposalMarkCompact(
+              heap_state.contexts_disposed,
+              heap_state.contexts_disposal_rate)) {
         return GCIdleTimeAction::FullGC();
       }
     }
