@@ -54,6 +54,9 @@
   ##############################################################################
   # TurboFan compiler failures.
 
+  # TODO(jarin) We should truncate instead of change for some stores.
+  'compiler/truncating-store': [PASS, FAIL],
+
   # TODO(mstarzinger): An arguments object materialized in the prologue can't
   # be accessed indirectly. Either we drop that requirement or wait for support
   # from the deoptimizer to do that.
