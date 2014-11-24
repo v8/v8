@@ -2896,8 +2896,13 @@ int32_t Value::Int32Value() const {
 
 
 bool Value::Equals(Handle<Value> that) const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
+  i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  if (obj->IsSmi() && other->IsSmi()) {
+    return obj->Number() == other->Number();
+  }
+  i::Object* ho = obj->IsSmi() ? *other : *obj;
+  i::Isolate* isolate = i::HeapObject::cast(ho)->GetIsolate();
   if (!Utils::ApiCheck(!obj.is_null() && !that.IsEmpty(),
                        "v8::Value::Equals()",
                        "Reading from empty handle")) {
@@ -2905,7 +2910,6 @@ bool Value::Equals(Handle<Value> that) const {
   }
   LOG_API(isolate, "Equals");
   ENTER_V8(isolate);
-  i::Handle<i::Object> other = Utils::OpenHandle(*that);
   // If both obj and other are JSObjects, we'd better compare by identity
   // immediately when going into JS builtin.  The reason is Invoke
   // would overwrite global object receiver with global proxy.
@@ -2924,15 +2928,18 @@ bool Value::Equals(Handle<Value> that) const {
 
 
 bool Value::StrictEquals(Handle<Value> that) const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
+  i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  if (obj->IsSmi()) {
+    return other->IsNumber() && obj->Number() == other->Number();
+  }
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   if (!Utils::ApiCheck(!obj.is_null() && !that.IsEmpty(),
                        "v8::Value::StrictEquals()",
                        "Reading from empty handle")) {
     return false;
   }
   LOG_API(isolate, "StrictEquals");
-  i::Handle<i::Object> other = Utils::OpenHandle(*that);
   // Must check HeapNumber first, since NaN !== NaN.
   if (obj->IsHeapNumber()) {
     if (!other->IsNumber()) return false;
