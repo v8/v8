@@ -27,6 +27,9 @@ namespace internal {
 namespace compiler {
 
 static int SafeId(Node* node) { return node == NULL ? -1 : node->id(); }
+static const char* SafeMnemonic(Node* node) {
+  return node == NULL ? "null" : node->op()->mnemonic();
+}
 
 #define DEAD_COLOR "#999999"
 
@@ -788,6 +791,43 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 std::ostream& operator<<(std::ostream& os, const AsC1VAllocator& ac) {
   Zone tmp_zone(ac.allocator_->code()->zone()->isolate());
   GraphC1Visualizer(os, &tmp_zone).PrintAllocator(ac.phase_, ac.allocator_);
+  return os;
+}
+
+const int kUnvisited = 0;
+const int kOnStack = 1;
+const int kVisited = 2;
+
+std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
+  Zone local_zone(ar.graph.zone()->isolate());
+  ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
+  ZoneStack<Node*> stack(&local_zone);
+
+  stack.push(ar.graph.end());
+  state[ar.graph.end()->id()] = kOnStack;
+  while (!stack.empty()) {
+    Node* n = stack.top();
+    bool pop = true;
+    for (Node* const i : n->inputs()) {
+      if (state[i->id()] == kUnvisited) {
+        state[i->id()] = kOnStack;
+        stack.push(i);
+        pop = false;
+        break;
+      }
+    }
+    if (pop) {
+      state[n->id()] = kVisited;
+      stack.pop();
+      os << "#" << SafeId(n) << ":" << SafeMnemonic(n) << "(";
+      int j = 0;
+      for (Node* const i : n->inputs()) {
+        if (j++ > 0) os << ", ";
+        os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
+      }
+      os << ")" << std::endl;
+    }
+  }
   return os;
 }
 }
