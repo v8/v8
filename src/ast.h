@@ -237,7 +237,8 @@ class AstNode: public ZoneObject {
   // node types which don't actually have this. Note that this is conceptually
   // not really nice, but multiple inheritance would introduce yet another
   // vtable entry per node, something we don't want for space reasons.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) {
     return FeedbackVectorRequirements(0, 0);
   }
   virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) { UNREACHABLE(); }
@@ -923,7 +924,8 @@ class ForInStatement FINAL : public ForEachStatement {
   }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(1, 0);
   }
   virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
@@ -1696,7 +1698,8 @@ class VariableProxy FINAL : public Expression {
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
@@ -1782,7 +1785,8 @@ class Property FINAL : public Expression {
     return obj()->IsSuperReference();
   }
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
@@ -1827,9 +1831,8 @@ class Call FINAL : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
-    return FeedbackVectorRequirements(0, 1);
-  }
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE;
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     call_feedback_slot_ = slot;
   }
@@ -1940,7 +1943,8 @@ class CallNew FINAL : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(FLAG_pretenuring_call_new ? 2 : 1, 0);
   }
   virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
@@ -2005,7 +2009,8 @@ class CallRuntime FINAL : public Expression {
   bool is_jsruntime() const { return function_ == NULL; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(
         0, (FLAG_vector_ics && is_jsruntime()) ? 1 : 0);
   }
@@ -2384,7 +2389,8 @@ class Yield FINAL : public Expression {
   }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(
         0, (FLAG_vector_ics && yield_kind() == kDelegating) ? 3 : 0);
   }
@@ -2721,7 +2727,8 @@ class SuperReference FINAL : public Expression {
   TypeFeedbackId HomeObjectFeedbackId() { return TypeFeedbackId(local_id(0)); }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements() OVERRIDE {
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate) OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {

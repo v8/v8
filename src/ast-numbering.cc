@@ -66,7 +66,8 @@ class AstNumberingVisitor FINAL : public AstVisitor {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    FeedbackVectorRequirements reqs = node->ComputeFeedbackRequirements();
+    FeedbackVectorRequirements reqs =
+        node->ComputeFeedbackRequirements(isolate());
     if (reqs.slots() > 0) {
       node->SetFirstFeedbackSlot(
           FeedbackVectorSlot(properties_.feedback_slots()));

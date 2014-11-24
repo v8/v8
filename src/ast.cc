@@ -573,6 +573,12 @@ bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
 }
 
 
+FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
+  int ic_slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
 Call::CallType Call::GetCallType(Isolate* isolate) const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
