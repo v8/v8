@@ -413,16 +413,9 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
     } else {
-      bool in_new_space = heap()->InNewSpace(*prototype);
-      // Two possible reasons for loading the prototype from the map:
-      // (1) Can't store references to new space in code.
-      // (2) Handler is shared for all receivers with the same prototype
-      //     map (but not necessarily the same prototype instance).
-      bool load_prototype_from_map = in_new_space || depth == 1;
-      if (load_prototype_from_map) {
-        // Save the map in scratch1 for later.
-        __ movp(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
-      }
+      // Save the map in scratch1 for later.
+      __ movp(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+
       if (depth != 1 || check == CHECK_ALL_MAPS) {
         __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
       }
@@ -441,11 +434,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       }
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      if (load_prototype_from_map) {
-        __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
-      } else {
-        __ Move(reg, prototype);
-      }
+      __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
     }
 
     // Go to the next object in the prototype chain.
