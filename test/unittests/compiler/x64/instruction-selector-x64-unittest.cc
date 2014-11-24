@@ -741,6 +741,31 @@ TEST_F(InstructionSelectorTest, Int32SubConstantAsLea) {
 }
 
 
+TEST_F(InstructionSelectorTest, Int32AddScaled2Other) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const p2 = m.Parameter(2);
+  Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
+  Node* const a0 = m.Int32Add(s0, p2);
+  Node* const a1 = m.Int32Add(p0, a0);
+  m.Return(a1);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR2, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(a0), s.ToVreg(s[0]->OutputAt(0)));
+  ASSERT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(kX64Add32, s[1]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(a0), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(a1), s.ToVreg(s[1]->OutputAt(0)));
+}
+
+
 // -----------------------------------------------------------------------------
 // Multiplication.
 

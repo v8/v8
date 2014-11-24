@@ -298,14 +298,16 @@ struct ScaledWithOffsetMatcher {
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
         if (left_matcher.HasScaledInput() && left_left->OwnedBy(left)) {
-          scaled_ = left_matcher.ScaledInput();
-          scale_exponent_ = left_matcher.ScaleExponent();
           if (left_matcher.right().HasValue()) {
             // ((S + C) + O)
+            scaled_ = left_matcher.ScaledInput();
+            scale_exponent_ = left_matcher.ScaleExponent();
             constant_ = left_right;
             offset_ = right;
           } else if (base_matcher.right().HasValue()) {
             // ((S + O) + C)
+            scaled_ = left_matcher.ScaledInput();
+            scale_exponent_ = left_matcher.ScaleExponent();
             offset_ = left_right;
             constant_ = right;
           } else {
