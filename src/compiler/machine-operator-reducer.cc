@@ -137,6 +137,19 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           return Changed(node);
         }
       }
+      if (m.left().IsInt32Add() && m.right().IsNegativePowerOf2()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().HasValue() &&
+            (mleft.right().Value() & m.right().Value()) ==
+                mleft.right().Value()) {
+          // (x + K) & K => (x & K) + K
+          return Replace(graph()->NewNode(
+              machine()->Int32Add(),
+              graph()->NewNode(machine()->Word32And(), mleft.left().node(),
+                               m.right().node()),
+              mleft.right().node()));
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Or: {

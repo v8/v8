@@ -274,28 +274,6 @@
               'inputs': [
                 '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
               ],
-              'conditions': [
-                ['want_separate_host_toolset==1', {
-                  'target_conditions': [
-                    ['_toolset=="host"', {
-                      'outputs': [
-                        '<(INTERMEDIATE_DIR)/snapshot.cc',
-                        '<(PRODUCT_DIR)/snapshot_blob_host.bin',
-                      ],
-                    }, {
-                      'outputs': [
-                        '<(INTERMEDIATE_DIR)/snapshot.cc',
-                        '<(PRODUCT_DIR)/snapshot_blob.bin',
-                      ],
-                    }],
-                  ],
-                }, {
-                  'outputs': [
-                    '<(INTERMEDIATE_DIR)/snapshot.cc',
-                    '<(PRODUCT_DIR)/snapshot_blob.bin',
-                  ],
-                }],
-              ],
               'variables': {
                 'mksnapshot_flags': [
                   '--log-snapshot-positions',
@@ -307,11 +285,45 @@
                   }],
                 ],
               },
-              'action': [
-                '<@(_inputs)',
-                '<@(mksnapshot_flags)',
-                '<@(INTERMEDIATE_DIR)/snapshot.cc',
-                '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+              'conditions': [
+                ['want_separate_host_toolset==1', {
+                  'target_conditions': [
+                    ['_toolset=="host"', {
+                      'outputs': [
+                        '<(INTERMEDIATE_DIR)/snapshot.cc',
+                        '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                      ],
+                      'action': [
+                        '<@(_inputs)',
+                        '<@(mksnapshot_flags)',
+                        '<@(INTERMEDIATE_DIR)/snapshot.cc',
+                        '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                      ],
+                    }, {
+                      'outputs': [
+                        '<(INTERMEDIATE_DIR)/snapshot.cc',
+                        '<(PRODUCT_DIR)/snapshot_blob.bin',
+                      ],
+                      'action': [
+                        '<@(_inputs)',
+                        '<@(mksnapshot_flags)',
+                        '<@(INTERMEDIATE_DIR)/snapshot.cc',
+                        '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                      ],
+                    }],
+                  ],
+                }, {
+                  'outputs': [
+                    '<(INTERMEDIATE_DIR)/snapshot.cc',
+                    '<(PRODUCT_DIR)/snapshot_blob.bin',
+                  ],
+                  'action': [
+                    '<@(_inputs)',
+                    '<@(mksnapshot_flags)',
+                    '<@(INTERMEDIATE_DIR)/snapshot.cc',
+                    '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                  ],
+                }],
               ],
             },
           ],

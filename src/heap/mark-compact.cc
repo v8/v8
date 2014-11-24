@@ -47,7 +47,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       was_marked_incrementally_(false),
       sweeping_in_progress_(false),
       pending_sweeper_jobs_semaphore_(0),
-      sequential_sweeping_(false),
+      evacuation_(false),
       migration_slots_buffer_(NULL),
       heap_(heap),
       code_flusher_(NULL),
@@ -487,7 +487,7 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (FLAG_verify_heap && !evacuation()) {
     VerifyEvacuation(heap_);
   }
 #endif
@@ -3393,6 +3393,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_PAGES);
+    EvacuationScope evacuation_scope(this);
     EvacuatePages();
   }
 
@@ -4139,7 +4140,6 @@ void MarkCompactCollector::SweepSpaces() {
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MC_SWEEP_OLDSPACE);
     {
-      SequentialSweepingScope scope(this);
       SweepSpace(heap()->old_pointer_space(), CONCURRENT_SWEEPING);
       SweepSpace(heap()->old_data_space(), CONCURRENT_SWEEPING);
     }

@@ -611,25 +611,34 @@ struct PrintGraphPhase {
     std::replace(filename.start(), filename.start() + filename.length(), ' ',
                  '_');
 
-    char dot_buffer[256];
-    Vector<char> dot_filename(dot_buffer, sizeof(dot_buffer));
-    SNPrintF(dot_filename, "%s.dot", filename.start());
-    FILE* dot_file = base::OS::FOpen(dot_filename.start(), "w+");
-    OFStream dot_of(dot_file);
-    dot_of << AsDOT(*graph);
-    fclose(dot_file);
+    {  // Print dot.
+      char dot_buffer[256];
+      Vector<char> dot_filename(dot_buffer, sizeof(dot_buffer));
+      SNPrintF(dot_filename, "%s.dot", filename.start());
+      FILE* dot_file = base::OS::FOpen(dot_filename.start(), "w+");
+      OFStream dot_of(dot_file);
+      dot_of << AsDOT(*graph);
+      fclose(dot_file);
+    }
 
-    char json_buffer[256];
-    Vector<char> json_filename(json_buffer, sizeof(json_buffer));
-    SNPrintF(json_filename, "%s.json", filename.start());
-    FILE* json_file = base::OS::FOpen(json_filename.start(), "w+");
-    OFStream json_of(json_file);
-    json_of << AsJSON(*graph);
-    fclose(json_file);
+    {  // Print JSON.
+      char json_buffer[256];
+      Vector<char> json_filename(json_buffer, sizeof(json_buffer));
+      SNPrintF(json_filename, "%s.json", filename.start());
+      FILE* json_file = base::OS::FOpen(json_filename.start(), "w+");
+      OFStream json_of(json_file);
+      json_of << AsJSON(*graph);
+      fclose(json_file);
+    }
 
     OFStream os(stdout);
+    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      os << "-- Graph after " << phase << " -- " << std::endl;
+      os << AsRPO(*graph);
+    }
+
     os << "-- " << phase << " graph printed to file " << filename.start()
-       << "\n";
+       << std::endl;
   }
 };
 

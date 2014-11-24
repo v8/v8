@@ -643,11 +643,9 @@ class MarkCompactCollector {
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() { return sweeping_in_progress_; }
 
-  void set_sequential_sweeping(bool sequential_sweeping) {
-    sequential_sweeping_ = sequential_sweeping;
-  }
+  void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
-  bool sequential_sweeping() const { return sequential_sweeping_; }
+  bool evacuation() const { return evacuation_; }
 
   // Mark the global table which maps weak objects to dependent code without
   // marking its contents.
@@ -704,7 +702,7 @@ class MarkCompactCollector {
 
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
-  bool sequential_sweeping_;
+  bool evacuation_;
 
   SlotsBufferAllocator slots_buffer_allocator_;
 
@@ -934,14 +932,14 @@ class MarkBitCellIterator BASE_EMBEDDED {
 };
 
 
-class SequentialSweepingScope BASE_EMBEDDED {
+class EvacuationScope BASE_EMBEDDED {
  public:
-  explicit SequentialSweepingScope(MarkCompactCollector* collector)
+  explicit EvacuationScope(MarkCompactCollector* collector)
       : collector_(collector) {
-    collector_->set_sequential_sweeping(true);
+    collector_->set_evacuation(true);
   }
 
-  ~SequentialSweepingScope() { collector_->set_sequential_sweeping(false); }
+  ~EvacuationScope() { collector_->set_evacuation(false); }
 
  private:
   MarkCompactCollector* collector_;

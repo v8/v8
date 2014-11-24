@@ -946,12 +946,15 @@ TEST(SerializeToplevelThreeBigStrings) {
   CHECK_EQ(600000 + 700000, CompileRun("(a + b).length")->Int32Value());
   CHECK_EQ(500000 + 600000, CompileRun("(b + c).length")->Int32Value());
   Heap* heap = isolate->heap();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("a")->ToString()),
-                      OLD_DATA_SPACE));
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("b")->ToString()),
-                      OLD_DATA_SPACE));
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("c")->ToString()),
-                      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("a")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("b")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(
+      *v8::Utils::OpenHandle(*CompileRun("c")->ToString(CcTest::isolate())),
+      OLD_DATA_SPACE));
 
   delete cache;
   source_a.Dispose();
@@ -1208,7 +1211,7 @@ TEST(SerializeToplevelIsolates) {
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("abcdef")));
+    CHECK(result->ToString(isolate1)->Equals(v8_str("abcdef")));
   }
   isolate1->Dispose();
 
@@ -1233,7 +1236,7 @@ TEST(SerializeToplevelIsolates) {
     }
     CHECK(!cache->rejected);
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("abcdef")));
+    CHECK(result->ToString(isolate2)->Equals(v8_str("abcdef")));
   }
   DCHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
@@ -1274,7 +1277,7 @@ TEST(SerializeWithHarmonyScoping) {
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("XY")));
+    CHECK(result->ToString(isolate1)->Equals(v8_str("XY")));
   }
   isolate1->Dispose();
 
@@ -1299,7 +1302,7 @@ TEST(SerializeWithHarmonyScoping) {
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
     }
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString()->Equals(v8_str("XY")));
+    CHECK(result->ToString(isolate2)->Equals(v8_str("XY")));
   }
   isolate2->Dispose();
 }

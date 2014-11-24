@@ -1020,11 +1020,12 @@ TEST(JSONStringifySliceMadeExternal) {
   // into a two-byte external string.  Check that JSON.stringify works.
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::Handle<v8::String> underlying =
-      CompileRun("var underlying = 'abcdefghijklmnopqrstuvwxyz';"
-                 "underlying")->ToString();
-  v8::Handle<v8::String> slice =
-      CompileRun("var slice = underlying.slice(1);"
-                 "slice")->ToString();
+      CompileRun(
+          "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
+          "underlying")->ToString(CcTest::isolate());
+  v8::Handle<v8::String> slice = CompileRun(
+                                     "var slice = underlying.slice(1);"
+                                     "slice")->ToString(CcTest::isolate());
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
   CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
 
@@ -1082,7 +1083,7 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
       CHECK_EQ(Object::ToSmi(isolate, results[i]).ToHandleChecked()->value(),
-               result->ToInt32()->Value());
+               result->ToInt32(CcTest::isolate())->Value());
     }
   }
 }
@@ -1313,7 +1314,7 @@ TEST(CountBreakIterator) {
       "  return iterator.next();"
       "})();");
   CHECK(result->IsNumber());
-  int uses = result->ToInt32()->Value() == 0 ? 0 : 1;
+  int uses = result->ToInt32(CcTest::isolate())->Value() == 0 ? 0 : 1;
   CHECK_EQ(uses, use_counts[v8::Isolate::kBreakIterator]);
   // Make sure GC cleans up the break iterator, so we don't get a memory leak
   // reported by ASAN.
