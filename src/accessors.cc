@@ -385,13 +385,16 @@ void Accessors::RegExpSourceGetter(
   Handle<Object> receiver =
       Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(receiver);
-  Handle<String> pattern(regexp->Pattern(), isolate);
-  MaybeHandle<String> maybe = EscapeRegExpSource(isolate, pattern);
-
   Handle<String> result;
-  if (!maybe.ToHandle(&result)) {
-    isolate->OptionalRescheduleException(false);
-    return;
+  if (regexp->TypeTag() == JSRegExp::NOT_COMPILED) {
+    result = isolate->factory()->empty_string();
+  } else {
+    Handle<String> pattern(regexp->Pattern(), isolate);
+    MaybeHandle<String> maybe = EscapeRegExpSource(isolate, pattern);
+    if (!maybe.ToHandle(&result)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
