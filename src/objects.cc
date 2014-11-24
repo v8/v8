@@ -2228,17 +2228,20 @@ void Map::DeprecateTransitionTree() {
 // Invalidates a transition target at |key|, and installs |new_descriptors| over
 // the current instance_descriptors to ensure proper sharing of descriptor
 // arrays.
-void Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors) {
+// Returns true if the transition target at given key was deprecated.
+bool Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors) {
+  bool transition_target_deprecated = false;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     int transition = transitions->Search(key);
     if (transition != TransitionArray::kNotFound) {
       transitions->GetTarget(transition)->DeprecateTransitionTree();
+      transition_target_deprecated = true;
     }
   }
 
   // Don't overwrite the empty descriptor array.
-  if (NumberOfOwnDescriptors() == 0) return;
+  if (NumberOfOwnDescriptors() == 0) return transition_target_deprecated;
 
   DescriptorArray* to_replace = instance_descriptors();
   Map* current = this;
@@ -2252,6 +2255,7 @@ void Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors) {
   }
 
   set_owns_descriptors(false);
+  return transition_target_deprecated;
 }
 
 
@@ -2685,9 +2689,17 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   int split_nof = split_map->NumberOfOwnDescriptors();
   DCHECK_NE(old_nof, split_nof);
 
-  split_map->DeprecateTarget(
-      old_descriptors->GetKey(split_nof), *new_descriptors);
+  bool transition_target_deprecated =
+      split_map->DeprecateTarget(old_descriptors->GetKey(split_nof),
+                                 *new_descriptors);
 
+  // If |transition_target_deprecated| is true then the transition array
+  // already contains entry for given descriptor. This means that the transition
+  // could be inserted regardless of whether transitions array is full or not.
+  if (!transition_target_deprecated && !split_map->CanHaveMoreTransitions()) {
+    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
+                                            "can't have more transitions");
+  }
   if (FLAG_trace_generalization) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
     PropertyDetails new_details = new_descriptors->GetDetails(modify_index);
@@ -2709,10 +2721,6 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Add missing transitions.
   Handle<Map> new_map = split_map;
   for (int i = split_nof; i < old_nof; ++i) {
-    if (!new_map->CanHaveMoreTransitions()) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-                                              "can't have more transitions");
-    }
     new_map = CopyInstallDescriptors(new_map, i, new_descriptors);
   }
   new_map->set_owns_descriptors(true);
