@@ -197,20 +197,12 @@ static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
 
 
 void V8::SetNativesDataBlob(StartupData* natives_blob) {
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  i::SetNativesFromFile(natives_blob);
-#else
-  CHECK(false);
-#endif
+  i::V8::SetNativesBlob(natives_blob);
 }
 
 
 void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  i::SetSnapshotFromFile(snapshot_blob);
-#else
-  CHECK(false);
-#endif
+  i::V8::SetSnapshotBlob(snapshot_blob);
 }
 
 
