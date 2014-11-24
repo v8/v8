@@ -6,3 +6,4 @@ TRY_ON_UPLOAD: False
 TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try-v8
 TRYSERVER_ROOT: v8
 PROJECT: v8
+PENDING_REF_PREFIX: refs/pending/
