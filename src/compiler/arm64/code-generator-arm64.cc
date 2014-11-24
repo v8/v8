@@ -416,6 +416,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Mov32:
       __ Mov(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Sxtb32:
+      __ Sxtb(i.OutputRegister32(), i.InputRegister32(0));
+      break;
+    case kArm64Sxth32:
+      __ Sxth(i.OutputRegister32(), i.InputRegister32(0));
+      break;
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
       break;

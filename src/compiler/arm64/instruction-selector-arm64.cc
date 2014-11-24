@@ -608,6 +608,21 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  // Select Sxth/Sxtb for (x << K) >> K where K is 16 or 24.
+  if (CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kArm64Sxth32, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()));
+      return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kArm64Sxtb32, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()));
+      return;
+    }
+  }
   VisitRRO(this, kArm64Asr32, node, kShift32Imm);
 }
 
