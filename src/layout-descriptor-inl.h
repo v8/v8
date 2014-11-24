@@ -120,7 +120,12 @@ bool LayoutDescriptor::IsTagged(int field_index) {
 
 
 bool LayoutDescriptor::IsFastPointerLayout() {
-  return IsSmi() && (Smi::cast(this)->value() == 0);
+  return this == FastPointerLayout();
+}
+
+
+bool LayoutDescriptor::IsFastPointerLayout(Object* layout_descriptor) {
+  return layout_descriptor == FastPointerLayout();
 }
 
 

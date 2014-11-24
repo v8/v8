@@ -5241,6 +5241,12 @@ LayoutDescriptor* Map::layout_descriptor_gc_safe() {
 }
 
 
+bool Map::HasFastPointerLayout() const {
+  Object* layout_desc = READ_FIELD(this, kLayoutDecriptorOffset);
+  return LayoutDescriptor::IsFastPointerLayout(layout_desc);
+}
+
+
 void Map::UpdateDescriptors(DescriptorArray* descriptors,
                             LayoutDescriptor* layout_desc) {
   set_instance_descriptors(descriptors);
@@ -7378,8 +7384,7 @@ template<int start_offset, int end_offset, int size>
 void FixedBodyDescriptor<start_offset, end_offset, size>::IterateBody(
     HeapObject* obj,
     ObjectVisitor* v) {
-  if (!FLAG_unbox_double_fields ||
-      obj->map()->layout_descriptor()->IsFastPointerLayout()) {
+  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
     v->VisitPointers(HeapObject::RawField(obj, start_offset),
                      HeapObject::RawField(obj, end_offset));
   } else {
@@ -7392,8 +7397,7 @@ template<int start_offset>
 void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
                                                        int object_size,
                                                        ObjectVisitor* v) {
-  if (!FLAG_unbox_double_fields ||
-      obj->map()->layout_descriptor()->IsFastPointerLayout()) {
+  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
     v->VisitPointers(HeapObject::RawField(obj, start_offset),
                      HeapObject::RawField(obj, object_size));
   } else {
