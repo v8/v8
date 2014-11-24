@@ -496,7 +496,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     }
     // The result either be a "true" literal or problem description.
     if (!result->IsTrue()) {
-      v8::Local<v8::String> s = result->ToString();
+      v8::Local<v8::String> s = result->ToString(isolate);
       i::ScopedVector<char> data(s->Utf8Length() + 1);
       CHECK_NE(NULL, data.start());
       s->WriteUtf8(data.start());

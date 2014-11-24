@@ -25,7 +25,8 @@ static void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
     frames_seen++;
     it.Advance();
   }
-  CHECK_EQ(args[0]->ToInt32()->Value(), topmost->GetInlineCount());
+  CHECK_EQ(args[0]->ToInt32(args.GetIsolate())->Value(),
+           topmost->GetInlineCount());
 }
 
 

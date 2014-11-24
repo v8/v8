@@ -2338,7 +2338,8 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
       "f(1); f(2); f(3);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(4);");
-  CHECK_EQ(4, res->ToObject()->GetRealNamedProperty(v8_str("x"))->Int32Value());
+  CHECK_EQ(
+      4, res.As<v8::Object>()->GetRealNamedProperty(v8_str("x"))->Int32Value());
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
@@ -4297,7 +4298,7 @@ void CheckWeakness(const char* source) {
   v8::Persistent<v8::Object> garbage;
   {
     v8::HandleScope scope(isolate);
-    garbage.Reset(isolate, CompileRun(source)->ToObject());
+    garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
   }
   weak_ic_cleared = false;
   garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
@@ -4542,7 +4543,7 @@ TEST(Regress357137) {
       "eval('function f() {' + locals + 'return function() { return v0; }; }');"
       "interrupt();"  // This triggers a fake stack overflow in f.
       "f()()");
-  CHECK_EQ(42.0, result->ToNumber()->Value());
+  CHECK_EQ(42.0, result->ToNumber(isolate)->Value());
 }
 
 

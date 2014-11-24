@@ -890,9 +890,10 @@ class OneByteResource : public v8::String::ExternalOneByteStringResource {
 }  // namespace
 
 TEST(HeapSnapshotJSONSerialization) {
+  v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
 #define STRING_LITERAL_FOR_TEST \
   "\"String \\n\\r\\u0008\\u0081\\u0101\\u0801\\u8001\""
@@ -923,7 +924,7 @@ TEST(HeapSnapshotJSONSerialization) {
 
   // Verify that snapshot object has required fields.
   v8::Local<v8::Object> parsed_snapshot =
-      env->Global()->Get(v8_str("parsed"))->ToObject();
+      env->Global()->Get(v8_str("parsed"))->ToObject(isolate);
   CHECK(parsed_snapshot->Has(v8_str("snapshot")));
   CHECK(parsed_snapshot->Has(v8_str("nodes")));
   CHECK(parsed_snapshot->Has(v8_str("edges")));
@@ -979,17 +980,18 @@ TEST(HeapSnapshotJSONSerialization) {
       "  \"s\", property_type)");
   CHECK(!string_obj_pos_val.IsEmpty());
   int string_obj_pos =
-      static_cast<int>(string_obj_pos_val->ToNumber()->Value());
+      static_cast<int>(string_obj_pos_val->ToNumber(isolate)->Value());
   v8::Local<v8::Object> nodes_array =
-      parsed_snapshot->Get(v8_str("nodes"))->ToObject();
+      parsed_snapshot->Get(v8_str("nodes"))->ToObject(isolate);
   int string_index = static_cast<int>(
-      nodes_array->Get(string_obj_pos + 1)->ToNumber()->Value());
+      nodes_array->Get(string_obj_pos + 1)->ToNumber(isolate)->Value());
   CHECK_GT(string_index, 0);
   v8::Local<v8::Object> strings_array =
-      parsed_snapshot->Get(v8_str("strings"))->ToObject();
-  v8::Local<v8::String> string = strings_array->Get(string_index)->ToString();
+      parsed_snapshot->Get(v8_str("strings"))->ToObject(isolate);
+  v8::Local<v8::String> string =
+      strings_array->Get(string_index)->ToString(isolate);
   v8::Local<v8::String> ref_string =
-      CompileRun(STRING_LITERAL_FOR_TEST)->ToString();
+      CompileRun(STRING_LITERAL_FOR_TEST)->ToString(isolate);
 #undef STRING_LITERAL_FOR_TEST
   CHECK_EQ(*v8::String::Utf8Value(ref_string),
            *v8::String::Utf8Value(string));
@@ -1949,9 +1951,10 @@ TEST(SlowCaseAccessors) {
 
 
 TEST(HiddenPropertiesFastCase) {
+  v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
   CompileRun(
       "function C(x) { this.a = this; this.b = x; }\n"
@@ -1970,7 +1973,7 @@ TEST(HiddenPropertiesFastCase) {
   v8::Handle<v8::Value> cHandle =
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject()->SetHiddenValue(v8_str("key"), v8_str("val"));
+  cHandle->ToObject(isolate)->SetHiddenValue(v8_str("key"), v8_str("val"));
 
   snapshot = heap_profiler->TakeHeapSnapshot(
       v8_str("HiddenPropertiesFastCase2"));
