@@ -1570,7 +1570,6 @@ class StartupDataHandler {
             v8::StartupData* startup_data,
             void (*setter_fn)(v8::StartupData*)) {
     startup_data->data = NULL;
-    startup_data->compressed_size = 0;
     startup_data->raw_size = 0;
 
     if (!blob_file)
@@ -1585,13 +1584,12 @@ class StartupDataHandler {
     rewind(file);
 
     startup_data->data = new char[startup_data->raw_size];
-    startup_data->compressed_size =
+    int read_size =
         static_cast<int>(fread(const_cast<char*>(startup_data->data), 1,
                                startup_data->raw_size, file));
     fclose(file);
 
-    if (startup_data->raw_size == startup_data->compressed_size)
-      (*setter_fn)(startup_data);
+    if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
   }
 
   v8::StartupData natives_;
