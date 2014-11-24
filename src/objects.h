@@ -5376,7 +5376,7 @@ class Code: public HeapObject {
       kKindSpecificFlags1Offset + kIntSize;
   // Note: We might be able to squeeze this into the flags above.
   static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
-  static const int kConstantPoolOffset = kPrologueOffset + kPointerSize;
+  static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
 
   static const int kHeaderPaddingStart = kConstantPoolOffset + kPointerSize;
 
@@ -5384,6 +5384,8 @@ class Code: public HeapObject {
   // the Code object header.
   static const int kHeaderSize =
       (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
+  // Ensure that the slot for the constant pool pointer is aligned.
+  STATIC_ASSERT((kConstantPoolOffset & kPointerAlignmentMask) == 0);
 
   // Byte offsets within kKindSpecificFlags1Offset.
   static const int kOptimizableOffset = kKindSpecificFlags1Offset;
