@@ -285,7 +285,8 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
 
       Node* key = Parameter(Type::Integral32());
       Node* base = HeapConstant(array);
-      Node* value = Parameter(Type::Any());
+      Node* value =
+          Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
@@ -305,6 +306,54 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
                       IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
                       key, IsNumberConstant(array->length()->Number()), value,
                       effect, control));
+    }
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
+  const size_t kLength = 17;
+  double backing_store[kLength];
+  Handle<JSArrayBuffer> buffer =
+      NewArrayBuffer(backing_store, sizeof(backing_store));
+  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
+    TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
+      Handle<JSTypedArray> array =
+          factory()->NewJSTypedArray(type, buffer, 0, kLength);
+
+      Node* key = Parameter(Type::Integral32());
+      Node* base = HeapConstant(array);
+      Node* value = Parameter(Type::Any());
+      Node* context = UndefinedConstant();
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+      Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
+                                    base, key, value, context);
+      if (FLAG_turbo_deoptimization) {
+        node->AppendInput(zone(), UndefinedConstant());
+      }
+      node->AppendInput(zone(), effect);
+      node->AppendInput(zone(), control);
+      Reduction r = Reduce(node);
+
+      Matcher<Node*> value_matcher =
+          IsToNumber(value, context, effect, control);
+      Matcher<Node*> effect_matcher = value_matcher;
+      if (AccessBuilder::ForTypedArrayElement(type, true)
+              .type->Is(Type::Signed32())) {
+        value_matcher = IsNumberToInt32(value_matcher);
+      } else if (AccessBuilder::ForTypedArrayElement(type, true)
+                     .type->Is(Type::Unsigned32())) {
+        value_matcher = IsNumberToUint32(value_matcher);
+      }
+
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsStoreElement(
+                      AccessBuilder::ForTypedArrayElement(type, true),
+                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      key, IsNumberConstant(array->length()->Number()),
+                      value_matcher, effect_matcher, control));
     }
   }
 }

@@ -3,11 +3,4 @@
 # found in the LICENSE file.
 
 [
-
-##############################################################################
-['arch == android_arm or arch == android_ia32', {
-
-  # This test times out.
-  'Thread.SelfJoin': [SKIP],
-}],  # 'arch == android_arm or arch == android_ia32'
 ]

@@ -725,10 +725,36 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         Node* length = jsgraph()->Constant(array->length()->Number());
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
-        Node* store = graph()->NewNode(
-            simplified()->StoreElement(
-                AccessBuilder::ForTypedArrayElement(type, true)),
-            pointer, key, length, value, effect, control);
+
+        ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
+        Type* value_type = NodeProperties::GetBounds(value).upper;
+        // If the value input does not have the required type, insert the
+        // appropriate conversion.
+
+        // Convert to a number first.
+        if (!value_type->Is(Type::Number())) {
+          Reduction number_reduction = ReduceJSToNumberInput(value);
+          if (number_reduction.Changed()) {
+            value = number_reduction.replacement();
+          } else {
+            Node* context = NodeProperties::GetContextInput(node);
+            value = graph()->NewNode(javascript()->ToNumber(), value, context,
+                                     effect, control);
+            effect = value;
+          }
+        }
+        // For integer-typed arrays, convert to the integer type.
+        if (access.type->Is(Type::Signed32()) &&
+            !value_type->Is(Type::Signed32())) {
+          value = graph()->NewNode(simplified()->NumberToInt32(), value);
+        } else if (access.type->Is(Type::Unsigned32()) &&
+                   !value_type->Is(Type::Unsigned32())) {
+          value = graph()->NewNode(simplified()->NumberToUint32(), value);
+        }
+
+        Node* store =
+            graph()->NewNode(simplified()->StoreElement(access), pointer, key,
+                             length, value, effect, control);
         return ReplaceEagerly(node, store);
       }
     }
