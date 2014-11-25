@@ -163,6 +163,12 @@ Matcher<Node*> IsFloat64Floor(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Ceil(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTruncate(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTiesAway(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
+                          const Matcher<Node*>& context_matcher,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 
 }  // namespace compiler
 }  // namespace internal
