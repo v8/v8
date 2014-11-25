@@ -2796,9 +2796,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     Target target(&this->target_stack_, &catch_collector);
-    VariableMode mode =
-        allow_harmony_scoping() && strict_mode() == STRICT ? LET : VAR;
-    catch_variable = catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
+    catch_variable = catch_scope->DeclareLocal(name, VAR, kCreatedInitialized);
     BlockState block_state(&scope_, catch_scope);
     catch_block = ParseBlock(NULL, CHECK_OK);
 
