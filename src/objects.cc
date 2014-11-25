@@ -8298,22 +8298,6 @@ String::FlatContent String::GetFlatContent() {
 }
 
 
-template <>
-Vector<const uint8_t> String::GetCharVector() {
-  String::FlatContent flat = GetFlatContent();
-  DCHECK(flat.IsOneByte());
-  return flat.ToOneByteVector();
-}
-
-
-template <>
-Vector<const uc16> String::GetCharVector() {
-  String::FlatContent flat = GetFlatContent();
-  DCHECK(flat.IsTwoByte());
-  return flat.ToUC16Vector();
-}
-
-
 SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
                                           RobustnessFlag robust_flag,
                                           int offset,
