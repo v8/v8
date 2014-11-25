@@ -106,7 +106,6 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  function->shared()->set_optimize_next_closure(true);
   function->AttemptConcurrentOptimization();
 }
 

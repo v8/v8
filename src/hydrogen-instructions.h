@@ -6171,18 +6171,6 @@ class HObjectAccess FINAL {
                          SharedFunctionInfo::kOptimizedCodeMapOffset);
   }
 
-  static HObjectAccess ForCompileHint() {
-// Compile hints are stored in the upper half of a pseudo-smi, which for
-// 64-bit means that the representation is an integer.
-#if V8_HOST_ARCH_32_BIT
-    Representation repr = Representation::Smi();
-#else
-    Representation repr = Representation::Integer32();
-#endif
-    return HObjectAccess(kInobject, SharedFunctionInfo::kCompilerHintsOffset,
-                         repr);
-  }
-
   static HObjectAccess ForFunctionContextPointer() {
     return HObjectAccess(kInobject, JSFunction::kContextOffset);
   }
