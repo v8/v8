@@ -2121,7 +2121,10 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
   Heap* heap = isolate_->heap();
   while (!done) {
     { // Extra scope for iterator.
-      HeapIterator iterator(heap);
+      // If lazy compilation is off, we won't have duplicate shared function
+      // infos that need to be filtered.
+      HeapIterator iterator(heap, FLAG_lazy ? HeapIterator::kNoFiltering
+                                            : HeapIterator::kFilterUnreachable);
       for (HeapObject* obj = iterator.next();
            obj != NULL; obj = iterator.next()) {
         bool found_next_candidate = false;

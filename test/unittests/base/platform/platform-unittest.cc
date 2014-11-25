@@ -94,7 +94,13 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
     return reinterpret_cast<void*>(static_cast<uintptr_t>(x + 1));
   }
 
+#if defined(ANDROID)
+  // Older versions of Android have fewer TLS slots (nominally 64, but the
+  // system uses "about 5 of them" itself).
+  Thread::LocalStorageKey keys_[32];
+#else
   Thread::LocalStorageKey keys_[256];
+#endif
 };
 
 }  // namespace

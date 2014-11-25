@@ -119,9 +119,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
       NameDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   const int kTypeAndReadOnlyMask =
-      (PropertyDetails::TypeField::kMask |
-       PropertyDetails::AttributesField::encode(READ_ONLY))
-      << kSmiTagSize;
+      PropertyDetails::TypeField::kMask |
+      PropertyDetails::AttributesField::encode(READ_ONLY);
   __ Test(Operand(elements, scratch1, times_pointer_size,
                   kDetailsOffset - kHeapObjectTag),
           Smi::FromInt(kTypeAndReadOnlyMask));

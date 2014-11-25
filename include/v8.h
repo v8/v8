@@ -5161,7 +5161,6 @@ class V8_EXPORT Isolate {
 class V8_EXPORT StartupData {
  public:
   const char* data;
-  int compressed_size;  // TODO(yangguo): remove this.
   int raw_size;
 };
 

@@ -28,6 +28,7 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
 
   // Returns true if this is a layout of the object having only tagged fields.
   V8_INLINE bool IsFastPointerLayout();
+  V8_INLINE static bool IsFastPointerLayout(Object* layout_descriptor);
 
   // Returns true if the layout descriptor is in non-Smi form.
   V8_INLINE bool IsSlowLayout();

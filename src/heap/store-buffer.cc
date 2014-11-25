@@ -519,7 +519,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                 if (!has_only_tagged_fields) {
                   for (Address slot = start_address; slot < end_address;
                        slot += kPointerSize) {
-                    if (helper.IsTagged(slot - obj_address)) {
+                    if (helper.IsTagged(static_cast<int>(slot - obj_address))) {
                       // TODO(ishell): call this once for contiguous region
                       // of tagged fields.
                       FindPointersToNewSpaceInRegion(slot, slot + kPointerSize,

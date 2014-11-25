@@ -490,7 +490,7 @@ intptr_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
 
 
 double GCTracer::ContextDisposalRateInMilliseconds() const {
-  if (context_disposal_events_.size() == 0) return 0.0;
+  if (context_disposal_events_.size() < kRingBufferMaxSize) return 0.0;
 
   double begin = base::OS::TimeCurrentMillis();
   double end = 0.0;

@@ -249,6 +249,9 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
+
+  # Issue 3723.
+  'regress/regress-3717': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################

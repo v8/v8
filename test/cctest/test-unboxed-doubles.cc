@@ -37,7 +37,7 @@ enum PropertyKind {
   PROP_SMI,
   PROP_DOUBLE,
   PROP_TAGGED,
-  PROP_KIND_NUMBER,
+  PROP_KIND_NUMBER
 };
 
 static Representation representations[PROP_KIND_NUMBER] = {
@@ -653,8 +653,8 @@ TEST(StoreBufferScanOnScavenge) {
   double boom_value = bit_cast<double>(fake_object);
 
   FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
-  obj->FastPropertyAtPut(field_index,
-                         *factory->NewHeapNumber(boom_value, MUTABLE));
+  Handle<HeapNumber> boom_number = factory->NewHeapNumber(boom_value, MUTABLE);
+  obj->FastPropertyAtPut(field_index, *boom_number);
 
   // Enforce scan on scavenge for the obj's page.
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());

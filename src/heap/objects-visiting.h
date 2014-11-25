@@ -111,9 +111,9 @@ class StaticVisitorBase : public AllStatic {
 
   // Determine which specialized visitor should be used for given map.
   static VisitorId GetVisitorId(Map* map) {
-    return GetVisitorId(map->instance_type(), map->instance_size(),
-                        FLAG_unbox_double_fields &&
-                            !map->layout_descriptor()->IsFastPointerLayout());
+    return GetVisitorId(
+        map->instance_type(), map->instance_size(),
+        FLAG_unbox_double_fields && !map->HasFastPointerLayout());
   }
 
   // For visitors that allow specialization by size calculate VisitorId based
@@ -198,15 +198,13 @@ class BodyVisitorBase : public AllStatic {
  public:
   INLINE(static void IteratePointers(Heap* heap, HeapObject* object,
                                      int start_offset, int end_offset)) {
-    DCHECK(!FLAG_unbox_double_fields ||
-           object->map()->layout_descriptor()->IsFastPointerLayout());
+    DCHECK(!FLAG_unbox_double_fields || object->map()->HasFastPointerLayout());
     IterateRawPointers(heap, object, start_offset, end_offset);
   }
 
   INLINE(static void IterateBody(Heap* heap, HeapObject* object,
                                  int start_offset, int end_offset)) {
-    if (!FLAG_unbox_double_fields ||
-        object->map()->layout_descriptor()->IsFastPointerLayout()) {
+    if (!FLAG_unbox_double_fields || object->map()->HasFastPointerLayout()) {
       IterateRawPointers(heap, object, start_offset, end_offset);
     } else {
       IterateBodyUsingLayoutDescriptor(heap, object, start_offset, end_offset);

@@ -438,17 +438,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      // Two possible reasons for loading the prototype from the map:
-      // (1) Can't store references to new space in code.
-      // (2) Handler is shared for all receivers with the same prototype
-      //     map (but not necessarily the same prototype instance).
-      bool load_prototype_from_map =
-          heap()->InNewSpace(*prototype) || depth == 1;
-      if (load_prototype_from_map) {
-        __ ldr(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
-      } else {
-        __ mov(reg, Operand(prototype));
-      }
+      __ ldr(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
     }
 
     // Go to the next object in the prototype chain.

@@ -55,14 +55,14 @@ std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
     case FIELD:
       os << "normal: ";
       break;
-    case CONSTANT:
-      os << "constant: ";
-      break;
     case CALLBACKS:
+      os << "callbacks: ";
+      break;
+    case CONSTANT:
       UNREACHABLE();
       break;
   }
-  return os << " dictionary_index: " << details.dictionary_index()
+  return os << "dictionary_index: " << details.dictionary_index()
             << ", attrs: " << details.attributes() << ")";
 }
 

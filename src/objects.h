@@ -5889,6 +5889,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
   inline LayoutDescriptor* layout_descriptor_gc_safe();
+  inline bool HasFastPointerLayout() const;
 
   // |layout descriptor| accessor that is safe to call even when
   // FLAG_unbox_double_fields is disabled (in this case Map does not contain
