@@ -47,10 +47,10 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
+  DCHECK(isolate->use_crankshaft());
 
   Handle<Code> unoptimized(function->shared()->code());
-  if (!isolate->use_crankshaft() ||
-      function->shared()->optimization_disabled() ||
+  if (function->shared()->optimization_disabled() ||
       isolate->DebuggerHasBreakPoints()) {
     // If the function is not optimizable or debugger is active continue
     // using the code from the full compiler.
@@ -176,7 +176,7 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function,
                                             Handle<Code> current_code) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!isolate->use_crankshaft() || !current_code->optimizable()) return false;
+  if (!current_code->optimizable()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been

@@ -7335,7 +7335,6 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForOptimization();
   void AttemptConcurrentOptimization();
-  void MarkInOptimizationQueue();
 
   // Tells whether or not the function is already marked for lazy
   // recompilation.

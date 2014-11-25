@@ -1382,6 +1382,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   Isolate* isolate = info->isolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
   VMState<COMPILER> state(isolate);
+  DCHECK(isolate->use_crankshaft());
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 

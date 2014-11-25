@@ -148,7 +148,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
 void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
-  if (isolate_->DebuggerHasBreakPoints()) return;
+  if (!isolate_->use_crankshaft() || isolate_->DebuggerHasBreakPoints()) return;
 
   DisallowHeapAllocation no_gc;
 

@@ -60,6 +60,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                  (function->code()->kind() == Code::FUNCTION &&
                   function->code()->optimizable()));
 
+  if (!isolate->use_crankshaft()) return isolate->heap()->undefined_value();
+
   // If the function is optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
