@@ -10753,9 +10753,9 @@ static Code::Age EffectiveAge(Code::Age age) {
 }
 
 
-void Code::MakeYoung() {
+void Code::MakeYoung(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, GetIsolate());
+  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, isolate);
 }
 
 

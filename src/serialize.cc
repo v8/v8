@@ -1874,6 +1874,8 @@ int Serializer::ObjectSerializer::OutputRawData(
     // To make snapshots reproducible, we need to wipe out all pointers in code.
     if (code_object_) {
       Code* code = CloneCodeObject(object_);
+      // Code age headers are not serializable.
+      code->MakeYoung(serializer_->isolate());
       WipeOutRelocations(code);
       // We need to wipe out the header fields *after* wiping out the
       // relocations, because some of these fields are needed for the latter.
@@ -2049,7 +2051,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         if (code_object != main_code_ && !FLAG_serialize_inner) {
           SerializeBuiltin(Builtins::kCompileLazy, how_to_code, where_to_point);
         } else {
-          code_object->MakeYoung();
           SerializeGeneric(code_object, how_to_code, where_to_point);
         }
         return;
