@@ -9409,12 +9409,14 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 
 void JSFunction::MarkForOptimization() {
+  Isolate* isolate = GetIsolate();
+  DCHECK(isolate->use_crankshaft());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   DCHECK(!shared()->is_generator());
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimized));
+      isolate->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
 }
 
@@ -9434,6 +9436,7 @@ void JSFunction::AttemptConcurrentOptimization() {
     // recompilation race.  This goes away as soon as OSR becomes one-shot.
     return;
   }
+  DCHECK(isolate->use_crankshaft());
   DCHECK(!IsInOptimizationQueue());
   DCHECK(is_compiled() || isolate->DebuggerHasBreakPoints());
   DCHECK(!IsOptimized());
@@ -9447,24 +9450,6 @@ void JSFunction::AttemptConcurrentOptimization() {
   }
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
-  // No write barrier required, since the builtin is part of the root set.
-}
-
-
-void JSFunction::MarkInOptimizationQueue() {
-  // We can only arrive here via the concurrent-recompilation builtin.  If
-  // break points were set, the code would point to the lazy-compile builtin.
-  DCHECK(!GetIsolate()->DebuggerHasBreakPoints());
-  DCHECK(IsMarkedForConcurrentOptimization() && !IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
-  DCHECK(GetIsolate()->concurrent_recompilation_enabled());
-  if (FLAG_trace_concurrent_recompilation) {
-    PrintF("  ** Queueing ");
-    ShortPrint();
-    PrintF(" for concurrent recompilation.\n");
-  }
-  set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kInOptimizationQueue));
   // No write barrier required, since the builtin is part of the root set.
 }
 
@@ -10753,9 +10738,9 @@ static Code::Age EffectiveAge(Code::Age age) {
 }
 
 
-void Code::MakeYoung() {
+void Code::MakeYoung(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, GetIsolate());
+  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, isolate);
 }
 
 

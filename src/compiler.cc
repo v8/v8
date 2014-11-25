@@ -1382,11 +1382,11 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   Isolate* isolate = info->isolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
   VMState<COMPILER> state(isolate);
+  DCHECK(isolate->use_crankshaft());
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  shared->set_optimize_next_closure(false);
   if (shared->code()->kind() != Code::FUNCTION ||
       ScopeInfo::Empty(isolate) == shared->scope_info()) {
     // The function was never compiled. Compile it unoptimized first.

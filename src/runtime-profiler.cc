@@ -106,7 +106,6 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  function->shared()->set_optimize_next_closure(true);
   function->AttemptConcurrentOptimization();
 }
 
@@ -148,7 +147,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
 void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
-  if (isolate_->DebuggerHasBreakPoints()) return;
+  if (!isolate_->use_crankshaft() || isolate_->DebuggerHasBreakPoints()) return;
 
   DisallowHeapAllocation no_gc;
 

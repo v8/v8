@@ -1419,9 +1419,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (FLAG_always_opt && ShouldOptimizeNewClosure(isolate(), info)) {
     result->MarkForOptimization();
-  } else if (info->optimize_next_closure() &&
-             ShouldOptimizeNewClosure(isolate(), info)) {
-    result->AttemptConcurrentOptimization();
   }
   return result;
 }
