@@ -854,16 +854,16 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   ArmOperandGenerator g(this);
-  Int32BinopMatcher m(node);
+  Float64BinopMatcher m(node);
   if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
-    Int32BinopMatcher mleft(m.left().node());
+    Float64BinopMatcher mleft(m.left().node());
     Emit(kArmVmlaF64, g.DefineSameAsFirst(node),
          g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
          g.UseRegister(mleft.right().node()));
     return;
   }
   if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
+    Float64BinopMatcher mright(m.right().node());
     Emit(kArmVmlaF64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
          g.UseRegister(mright.left().node()),
          g.UseRegister(mright.right().node()));
@@ -875,9 +875,14 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   ArmOperandGenerator g(this);
-  Int32BinopMatcher m(node);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero()) {
+    Emit(kArmVnegF64, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()));
+    return;
+  }
   if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
+    Float64BinopMatcher mright(m.right().node());
     Emit(kArmVmlsF64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
          g.UseRegister(mright.left().node()),
          g.UseRegister(mright.right().node()));
@@ -888,13 +893,7 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
-  ArmOperandGenerator g(this);
-  Float64BinopMatcher m(node);
-  if (m.right().Is(-1.0)) {
-    Emit(kArmVnegF64, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
-  } else {
-    VisitRRRFloat64(this, kArmVmulF64, node);
-  }
+  VisitRRRFloat64(this, kArmVmulF64, node);
 }
 
 
