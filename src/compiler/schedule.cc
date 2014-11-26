@@ -18,6 +18,7 @@ BasicBlock::BasicBlock(Zone* zone, Id id)
       deferred_(false),
       dominator_depth_(-1),
       dominator_(NULL),
+      rpo_next_(NULL),
       loop_header_(NULL),
       loop_end_(NULL),
       loop_depth_(0),
