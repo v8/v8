@@ -941,7 +941,7 @@ def get_list():
           "Version 3.4.5 (based on abc123)\n"),
     ])
 
-    self._state["lkgr"] = "abc123"
+    self._state["candidate"] = "abc123"
     self.assertEquals(0, self.RunStep(
         auto_push.AutoPush, CheckLastPush, AUTO_PUSH_ARGS))
 
@@ -955,8 +955,8 @@ def get_list():
       Cmd("git fetch", ""),
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is throttled\"}"),
-      URL("https://v8-status.appspot.com/lkgr", Exception("Network problem")),
-      URL("https://v8-status.appspot.com/lkgr", "abc123"),
+      Cmd("git fetch origin +refs/heads/candidate:refs/heads/candidate", ""),
+      Cmd("git show-ref -s refs/heads/candidate", "abc123"),
       Cmd(("git log -1 --format=%H --grep=\""
            "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
            " origin/candidates"), "push_hash\n"),
@@ -969,7 +969,7 @@ def get_list():
     state = json.loads(FileToText("%s-state.json"
                                   % TEST_CONFIG["PERSISTFILE_BASENAME"]))
 
-    self.assertEquals("abc123", state["lkgr"])
+    self.assertEquals("abc123", state["candidate"])
 
   def testAutoPushStoppedBySettings(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
