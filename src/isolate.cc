@@ -118,6 +118,9 @@ base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
+#if DEBUG
+base::Atomic32 Isolate::isolate_key_created_ = 0;
+#endif
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
@@ -157,6 +160,9 @@ void Isolate::InitializeOncePerProcess() {
   base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
   CHECK(thread_data_table_ == NULL);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
+#if DEBUG
+  base::NoBarrier_Store(&isolate_key_created_, 1);
+#endif
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
   thread_data_table_ = new Isolate::ThreadDataTable();
