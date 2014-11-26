@@ -369,6 +369,7 @@ DEFINE_STRING(trace_turbo_cfg_file, NULL,
 DEFINE_BOOL(trace_turbo_types, true, "trace TurboFan's types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace TurboFan's scheduler")
 DEFINE_BOOL(trace_turbo_reduction, false, "trace TurboFan's various reducers")
+DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
 DEFINE_BOOL(turbo_asm, false, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
@@ -391,6 +392,7 @@ DEFINE_BOOL(turbo_reuse_spill_slots, false, "reuse spill slots in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_delay_ssa_decon, false,
             "delay ssa deconstruction in TurboFan register allocator")
+DEFINE_BOOL(turbo_jt, true, "enable jump threading")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")

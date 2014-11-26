@@ -465,6 +465,8 @@
         '../../src/compiler/js-operator.h',
         '../../src/compiler/js-typed-lowering.cc',
         '../../src/compiler/js-typed-lowering.h',
+        '../../src/compiler/jump-threading.cc',
+        '../../src/compiler/jump-threading.h',
         '../../src/compiler/linkage-impl.h',
         '../../src/compiler/linkage.cc',
         '../../src/compiler/linkage.h',

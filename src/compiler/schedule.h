@@ -61,7 +61,7 @@ class BasicBlock FINAL : public ZoneObject {
       DCHECK(IsValid());
       return static_cast<size_t>(index_);
     }
-    bool IsValid() const { return index_ != kInvalidRpoNumber; }
+    bool IsValid() const { return index_ >= 0; }
     static RpoNumber FromInt(int index) { return RpoNumber(index); }
     static RpoNumber Invalid() { return RpoNumber(kInvalidRpoNumber); }
 
