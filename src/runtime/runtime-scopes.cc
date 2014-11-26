@@ -22,6 +22,14 @@ static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("harmony_const_assign", HandleVector<Object>(NULL, 0)));
+}
+
+
 // May throw a RedeclarationError.
 static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               Handle<String> name, Handle<Object> value,

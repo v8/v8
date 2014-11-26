@@ -1093,21 +1093,6 @@ bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
   DCHECK(var != NULL);
   if (proxy->is_assigned()) var->set_maybe_assigned();
 
-  if (FLAG_harmony_scoping && strict_mode() == STRICT &&
-      var->is_const_mode() && proxy->is_assigned()) {
-    // Assignment to const. Throw a syntax error.
-    MessageLocation location(
-        info->script(), proxy->position(), proxy->position());
-    Isolate* isolate = info->isolate();
-    Factory* factory = isolate->factory();
-    Handle<JSArray> array = factory->NewJSArray(0);
-    Handle<Object> error;
-    MaybeHandle<Object> maybe_error =
-        factory->NewSyntaxError("harmony_const_assign", array);
-    if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
-    return false;
-  }
-
   if (FLAG_harmony_modules) {
     bool ok;
 #ifdef DEBUG
