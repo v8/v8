@@ -617,6 +617,8 @@ enum CpuFeature {
   SSE4_1,
   SSE3,
   SAHF,
+  AVX,
+  FMA3,
   // ARM
   VFP3,
   ARMv7,

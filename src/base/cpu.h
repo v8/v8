@@ -68,6 +68,8 @@ class CPU FINAL {
   bool has_ssse3() const { return has_ssse3_; }
   bool has_sse41() const { return has_sse41_; }
   bool has_sse42() const { return has_sse42_; }
+  bool has_avx() const { return has_avx_; }
+  bool has_fma3() const { return has_fma3_; }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -101,6 +103,8 @@ class CPU FINAL {
   bool has_ssse3_;
   bool has_sse41_;
   bool has_sse42_;
+  bool has_avx_;
+  bool has_fma3_;
   bool has_idiva_;
   bool has_neon_;
   bool has_thumb2_;
