@@ -93,7 +93,8 @@ GCTracer::GCTracer(Heap* heap)
       longest_incremental_marking_step_(0.0),
       cumulative_marking_duration_(0.0),
       cumulative_sweeping_duration_(0.0),
-      new_space_top_after_gc_(0) {
+      new_space_top_after_gc_(0),
+      start_counter_(0) {
   current_ = Event(Event::START, NULL, NULL);
   current_.end_time = base::OS::TimeCurrentMillis();
   previous_ = previous_mark_compactor_event_ = current_;
@@ -102,6 +103,9 @@ GCTracer::GCTracer(Heap* heap)
 
 void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
                      const char* collector_reason) {
+  start_counter_++;
+  if (start_counter_ != 1) return;
+
   previous_ = current_;
   double start_time = base::OS::TimeCurrentMillis();
   if (new_space_top_after_gc_ != 0) {
@@ -142,7 +146,22 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
 }
 
 
-void GCTracer::Stop() {
+void GCTracer::Stop(GarbageCollector collector) {
+  start_counter_--;
+  if (start_counter_ != 0) {
+    if (FLAG_trace_gc) {
+      PrintF("[Finished reentrant %s during %s.]\n",
+             collector == SCAVENGER ? "Scavenge" : "Mark-sweep",
+             current_.TypeName(false));
+    }
+    return;
+  }
+
+  DCHECK(start_counter_ >= 0);
+  DCHECK(
+      (collector == SCAVENGER && current_.type == Event::SCAVENGER) ||
+      (collector == MARK_COMPACTOR && current_.type == Event::MARK_COMPACTOR));
+
   current_.end_time = base::OS::TimeCurrentMillis();
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();

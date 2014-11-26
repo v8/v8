@@ -65,6 +65,7 @@
         'compiler/test-js-context-specialization.cc',
         'compiler/test-js-constant-cache.cc',
         'compiler/test-js-typed-lowering.cc',
+        'compiler/test-jump-threading.cc',
         'compiler/test-linkage.cc',
         'compiler/test-loop-assignment-analysis.cc',
         'compiler/test-machine-operator-reducer.cc',

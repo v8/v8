@@ -9283,6 +9283,23 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
 }
 
 
+void IteratingStringHasher::VisitConsString(ConsString* cons_string) {
+  const int max_length = String::kMaxHashCalcLength;
+  int length = std::min(cons_string->length(), max_length);
+  if (cons_string->HasOnlyOneByteChars()) {
+    uint8_t* buffer = new uint8_t[length];
+    String::WriteToFlat(cons_string, buffer, 0, length);
+    AddCharacters(buffer, length);
+    delete[] buffer;
+  } else {
+    uint16_t* buffer = new uint16_t[length];
+    String::WriteToFlat(cons_string, buffer, 0, length);
+    AddCharacters(buffer, length);
+    delete[] buffer;
+  }
+}
+
+
 void String::PrintOn(FILE* file) {
   int length = this->length();
   for (int i = 0; i < length; i++) {

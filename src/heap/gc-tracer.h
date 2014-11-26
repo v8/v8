@@ -264,7 +264,7 @@ class GCTracer {
              const char* collector_reason);
 
   // Stop collecting data and print results.
-  void Stop();
+  void Stop(GarbageCollector collector);
 
   // Log an allocation throughput event.
   void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
@@ -418,6 +418,9 @@ class GCTracer {
   // Holds the new space top pointer recorded at the end of the last garbage
   // collection.
   intptr_t new_space_top_after_gc_;
+
+  // Counts how many tracers were started without stopping.
+  int start_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

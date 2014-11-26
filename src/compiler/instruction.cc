@@ -120,6 +120,16 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
+bool GapInstruction::IsRedundant() const {
+  for (int i = GapInstruction::FIRST_INNER_POSITION;
+       i <= GapInstruction::LAST_INNER_POSITION; i++) {
+    if (parallel_moves_[i] != NULL && !parallel_moves_[i]->IsRedundant())
+      return false;
+  }
+  return true;
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableParallelMove& printable) {
   const ParallelMove& pm = *printable.parallel_move_;

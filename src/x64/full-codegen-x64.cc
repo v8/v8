@@ -2596,8 +2596,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
+  } else if (IsSignallingAssignmentToConst(var, op, strict_mode())) {
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
   }
-  // Non-initializing assignments to consts are ignored.
 }
 
 

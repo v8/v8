@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CFGBuilder;
 class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
@@ -61,6 +62,7 @@ class Scheduler {
   NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
   ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
   ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
+  CFGBuilder* control_flow_builder_;     // Builds basic blocks for controls.
   SpecialRPONumberer* special_rpo_;      // Special RPO numbering of blocks.
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);

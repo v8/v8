@@ -234,7 +234,7 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
 // between them within a Schedule) from the node graph. Visits control edges of
 // the graph backwards from an end node in order to find the connected control
 // subgraph, needed for scheduling.
-class CFGBuilder {
+class CFGBuilder : public ZoneObject {
  public:
   CFGBuilder(Zone* zone, Scheduler* scheduler)
       : scheduler_(scheduler),
@@ -249,6 +249,7 @@ class CFGBuilder {
   // backwards from end through control edges, building and connecting the
   // basic blocks for control nodes.
   void Run() {
+    ResetDataStructures();
     Queue(scheduler_->graph_->end());
 
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
@@ -269,6 +270,7 @@ class CFGBuilder {
   // component ending in {node} and merge that component into an existing
   // control flow graph at the bottom of {block}.
   void Run(BasicBlock* block, Node* node) {
+    ResetDataStructures();
     Queue(node);
 
     component_start_ = block;
@@ -484,6 +486,12 @@ class CFGBuilder {
             node == scheduler_->graph_->end()->InputAt(0));
   }
 
+  void ResetDataStructures() {
+    control_.clear();
+    DCHECK(queue_.empty());
+    DCHECK(control_.empty());
+  }
+
   Scheduler* scheduler_;
   Schedule* schedule_;
   ZoneQueue<Node*> queue_;
@@ -499,8 +507,8 @@ void Scheduler::BuildCFG() {
 
   // Build a control-flow graph for the main control-connected component that
   // is being spanned by the graph's start and end nodes.
-  CFGBuilder cfg_builder(zone_, this);
-  cfg_builder.Run();
+  control_flow_builder_ = new (zone_) CFGBuilder(zone_, this);
+  control_flow_builder_->Run();
 
   // Initialize per-block data.
   scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
@@ -1063,9 +1071,9 @@ void Scheduler::GenerateImmediateDominatorTree() {
   // Build the block dominator tree.
   schedule_->start()->set_dominator_depth(0);
   typedef SpecialRPONumberer::BlockList BlockList;
-  for (BlockList* l = special_rpo_->order_; l != NULL; l = l->next) {
+  DCHECK_EQ(schedule_->start(), special_rpo_->order_->block);
+  for (BlockList* l = special_rpo_->order_->next; l != NULL; l = l->next) {
     BasicBlock* current = l->block;
-    if (current == schedule_->start()) continue;
     BasicBlock::Predecessors::iterator pred = current->predecessors_begin();
     BasicBlock::Predecessors::iterator end = current->predecessors_end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
@@ -1449,8 +1457,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   }
 
   // Iterate on phase 1: Build control-flow graph.
-  CFGBuilder cfg_builder(zone_, this);
-  cfg_builder.Run(block, node);
+  control_flow_builder_->Run(block, node);
 
   // Iterate on phase 2: Compute special RPO and dominator tree.
   special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
@@ -1465,8 +1472,8 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   // TODO(mstarzinger): The following loop gathering the propagation roots is a
   // temporary solution and should be merged into the rest of the scheduler as
   // soon as the approach settled for all floating loops.
-  NodeVector propagation_roots(cfg_builder.control_);
-  for (Node* node : cfg_builder.control_) {
+  NodeVector propagation_roots(control_flow_builder_->control_);
+  for (Node* node : control_flow_builder_->control_) {
     for (Node* use : node->uses()) {
       if (use->opcode() == IrOpcode::kPhi ||
           use->opcode() == IrOpcode::kEffectPhi) {

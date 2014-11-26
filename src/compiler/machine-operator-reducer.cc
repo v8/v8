@@ -152,68 +152,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kWord32Or: {
-      Int32BinopMatcher m(node);
-      if (m.right().Is(0)) return Replace(m.left().node());    // x | 0  => x
-      if (m.right().Is(-1)) return Replace(m.right().node());  // x | -1 => -1
-      if (m.IsFoldable()) {                                    // K | K  => K
-        return ReplaceInt32(m.left().Value() | m.right().Value());
-      }
-      if (m.LeftEqualsRight()) return Replace(m.left().node());  // x | x => x
-      if (m.left().IsWord32Shl() && m.right().IsWord32Shr()) {
-        Int32BinopMatcher mleft(m.left().node());
-        Int32BinopMatcher mright(m.right().node());
-        if (mleft.left().node() == mright.left().node()) {
-          // TODO(turbofan): here we are matching rotate left, shall we add
-          // support for rotate right?
-          // (x << y) | (x >>> (32 - y)) => x ror (32 - y)
-          if (mright.right().IsInt32Sub()) {
-            Int32BinopMatcher mrightright(mright.right().node());
-            if (mrightright.left().Is(32) &&
-                mrightright.right().node() == mleft.right().node()) {
-              node->set_op(machine()->Word32Ror());
-              node->ReplaceInput(0, mleft.left().node());
-              node->ReplaceInput(1, mright.right().node());
-              return Changed(node);
-            }
-          }
-          // (x << K) | (x >>> (32 - K)) => x ror (32 - K)
-          if (mleft.right().IsInRange(0, 31) &&
-              mright.right().Is(32 - mleft.right().Value())) {
-            node->set_op(machine()->Word32Ror());
-            node->ReplaceInput(0, mleft.left().node());
-            node->ReplaceInput(1, mright.right().node());
-            return Changed(node);
-          }
-        }
-      }
-      if (m.left().IsWord32Shr() && m.right().IsWord32Shl()) {
-        // (x >>> (32 - y)) | (x << y)  => x ror (32 -y)
-        Int32BinopMatcher mleft(m.left().node());
-        Int32BinopMatcher mright(m.right().node());
-        if (mleft.left().node() == mright.left().node()) {
-          if (mleft.right().IsInt32Sub()) {
-            Int32BinopMatcher mleftright(mleft.right().node());
-            if (mleftright.left().Is(32) &&
-                mleftright.right().node() == mright.right().node()) {
-              node->set_op(machine()->Word32Ror());
-              node->ReplaceInput(0, mright.left().node());
-              node->ReplaceInput(1, mleft.right().node());
-              return Changed(node);
-            }
-          }
-          // (x >>> (32 - K)) | (x << K) => x ror (32 - K)
-          if (mright.right().IsInRange(0, 31) &&
-              mleft.right().Is(32 - mright.right().Value())) {
-            node->set_op(machine()->Word32Ror());
-            node->ReplaceInput(0, mright.left().node());
-            node->ReplaceInput(1, mleft.right().node());
-            return Changed(node);
-          }
-        }
-      }
-      break;
-    }
+    case IrOpcode::kWord32Or:
+      return ReduceWord32Or(node);
     case IrOpcode::kWord32Xor: {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.left().node());  // x ^ 0 => x
@@ -838,6 +778,64 @@ Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
     }
   }
   return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kWord32Or);
+
+  Int32BinopMatcher m(node);
+  if (m.right().Is(0)) return Replace(m.left().node());    // x | 0  => x
+  if (m.right().Is(-1)) return Replace(m.right().node());  // x | -1 => -1
+  if (m.IsFoldable()) {                                    // K | K  => K
+    return ReplaceInt32(m.left().Value() | m.right().Value());
+  }
+  if (m.LeftEqualsRight()) return Replace(m.left().node());  // x | x => x
+
+  Node* shl = NULL;
+  Node* shr = NULL;
+  // Recognize rotation, we are matching either:
+  //  * x << y | x >>> (32 - y) => x ror (32 - y), i.e  x rol y
+  //  * x << (32 - y) | x >>> y => x ror y
+  // as well as their commuted form.
+  if (m.left().IsWord32Shl() && m.right().IsWord32Shr()) {
+    shl = m.left().node();
+    shr = m.right().node();
+  } else if (m.left().IsWord32Shr() && m.right().IsWord32Shl()) {
+    shl = m.right().node();
+    shr = m.left().node();
+  } else {
+    return NoChange();
+  }
+
+  Int32BinopMatcher mshl(shl);
+  Int32BinopMatcher mshr(shr);
+  if (mshl.left().node() != mshr.left().node()) return NoChange();
+
+  if (mshl.right().HasValue() && mshr.right().HasValue()) {
+    // Case where y is a constant.
+    if (mshl.right().Value() + mshr.right().Value() != 32) return NoChange();
+  } else {
+    Node* sub = NULL;
+    Node* y = NULL;
+    if (mshl.right().IsInt32Sub()) {
+      sub = mshl.right().node();
+      y = mshr.right().node();
+    } else if (mshr.right().IsInt32Sub()) {
+      sub = mshr.right().node();
+      y = mshl.right().node();
+    } else {
+      return NoChange();
+    }
+
+    Int32BinopMatcher msub(sub);
+    if (!msub.left().Is(32) || msub.right().node() != y) return NoChange();
+  }
+
+  node->set_op(machine()->Word32Ror());
+  node->ReplaceInput(0, mshl.left().node());
+  node->ReplaceInput(1, mshr.right().node());
+  return Changed(node);
 }
 
 

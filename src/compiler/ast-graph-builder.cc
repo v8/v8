@@ -2020,7 +2020,12 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           value = BuildHoleCheckSilent(current, value, current);
         }
       } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
-        // Non-initializing assignments to legacy const is ignored.
+        // Non-initializing assignments to legacy const is
+        // - exception in strict mode.
+        // - ignored in sloppy mode.
+        if (strict_mode() == STRICT) {
+          return BuildThrowConstAssignError(bailout_id);
+        }
         return value;
       } else if (mode == LET && op != Token::INIT_LET) {
         // Perform an initialization check for let declared variables.
@@ -2034,8 +2039,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           value = BuildHoleCheckThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op != Token::INIT_CONST) {
-        // All assignments to const variables are early errors.
-        UNREACHABLE();
+        // Non-initializing assignments to const is exception in all modes.
+        return BuildThrowConstAssignError(bailout_id);
       }
       environment()->Bind(variable, value);
       return value;
@@ -2049,7 +2054,12 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckSilent(current, value, current);
       } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
-        // Non-initializing assignments to legacy const is ignored.
+        // Non-initializing assignments to legacy const is
+        // - exception in strict mode.
+        // - ignored in sloppy mode.
+        if (strict_mode() == STRICT) {
+          return BuildThrowConstAssignError(bailout_id);
+        }
         return value;
       } else if (mode == LET && op != Token::INIT_LET) {
         // Perform an initialization check for let declared variables.
@@ -2058,8 +2068,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckThrow(current, variable, value, bailout_id);
       } else if (mode == CONST && op != Token::INIT_CONST) {
-        // All assignments to const variables are early errors.
-        UNREACHABLE();
+        // Non-initializing assignments to const is exception in all modes.
+        return BuildThrowConstAssignError(bailout_id);
       }
       const Operator* op = javascript()->StoreContext(depth, variable->index());
       return NewNode(op, current_context(), value);
@@ -2148,6 +2158,16 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
   const Operator* op =
       javascript()->CallRuntime(Runtime::kThrowReferenceError, 1);
   Node* call = NewNode(op, variable_name);
+  PrepareFrameState(call, bailout_id);
+  return call;
+}
+
+
+Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
+  // TODO(mstarzinger): Should be unified with the VisitThrow implementation.
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kThrowConstAssignError, 0);
+  Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
   return call;
 }

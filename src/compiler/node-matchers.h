@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_NODE_MATCHERS_H_
 #define V8_COMPILER_NODE_MATCHERS_H_
 
+#include <cmath>
+
 #include "src/compiler/generic-node.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/node.h"
@@ -104,6 +106,9 @@ template <typename T, IrOpcode::Value kOpcode>
 struct FloatMatcher FINAL : public ValueMatcher<T, kOpcode> {
   explicit FloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
+  bool IsMinusZero() const {
+    return this->Is(0.0) && std::signbit(this->Value());
+  }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
 };
 
@@ -166,6 +171,7 @@ typedef BinopMatcher<IntPtrMatcher, IntPtrMatcher> IntPtrBinopMatcher;
 typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
+
 
 template <class BinopMatcher, IrOpcode::Value kAddOpcode,
           IrOpcode::Value kMulOpcode, IrOpcode::Value kShiftOpcode>

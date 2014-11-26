@@ -2575,7 +2575,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
     __ bind(&assign);
     EmitStoreToStackLocalOrContextSlot(var, location);
-
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
     if (var->IsLookupSlot()) {
       // Assignment to var.
@@ -2597,8 +2596,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
+  } else if (IsSignallingAssignmentToConst(var, op, strict_mode())) {
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
   }
-  // Non-initializing assignments to consts are ignored.
 }
 
 

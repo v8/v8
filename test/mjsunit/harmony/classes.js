@@ -683,14 +683,14 @@ function assertAccessorDescriptor(object, name) {
 
 
 (function TestNameBindingConst() {
-  assertThrows('class C { constructor() { C = 42; } }', SyntaxError);
-  assertThrows('(class C { constructor() { C = 42; } })', SyntaxError);
-  assertThrows('class C { m() { C = 42; } }', SyntaxError);
-  assertThrows('(class C { m() { C = 42; } })', SyntaxError);
-  assertThrows('class C { get x() { C = 42; } }', SyntaxError);
-  assertThrows('(class C { get x() { C = 42; } })', SyntaxError);
-  assertThrows('class C { set x(_) { C = 42; } }', SyntaxError);
-  assertThrows('(class C { set x(_) { C = 42; } })', SyntaxError);
+  assertThrows('class C { constructor() { C = 42; } }; new C();', TypeError);
+  assertThrows('new (class C { constructor() { C = 42; } })', TypeError);
+  assertThrows('class C { m() { C = 42; } }; new C().m()', TypeError);
+  assertThrows('new (class C { m() { C = 42; } }).m()', TypeError);
+  assertThrows('class C { get x() { C = 42; } }; new C().x', TypeError);
+  assertThrows('(new (class C { get x() { C = 42; } })).x', TypeError);
+  assertThrows('class C { set x(_) { C = 42; } }; new C().x = 15;', TypeError);
+  assertThrows('(new (class C { set x(_) { C = 42; } })).x = 15;', TypeError);
 })();
 
 

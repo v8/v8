@@ -850,6 +850,7 @@ class AccessorPair;
 class AllocationSite;
 class AllocationSiteCreationContext;
 class AllocationSiteUsageContext;
+class ConsString;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
 class FixedArrayBase;
@@ -8524,6 +8525,7 @@ class IteratingStringHasher : public StringHasher {
  private:
   inline IteratingStringHasher(int len, uint32_t seed)
       : StringHasher(len, seed) {}
+  void VisitConsString(ConsString* cons_string);
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 
