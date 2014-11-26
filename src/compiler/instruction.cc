@@ -332,6 +332,8 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
                        constant.ToExternalReference().address());
     case Constant::kHeapObject:
       return os << Brief(*constant.ToHeapObject());
+    case Constant::kRpoNumber:
+      return os << "RPO" << constant.ToRpoNumber().ToInt();
   }
   UNREACHABLE();
   return os;

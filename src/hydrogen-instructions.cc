@@ -1155,12 +1155,10 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  static const ToBooleanStub::Types tagged_types(
-      ToBooleanStub::NULL_TYPE |
-      ToBooleanStub::SPEC_OBJECT |
-      ToBooleanStub::STRING |
-      ToBooleanStub::SYMBOL);
-  if (expected_input_types_.ContainsAnyOf(tagged_types)) {
+  if (expected_input_types_.Contains(ToBooleanStub::NULL_TYPE) ||
+      expected_input_types_.Contains(ToBooleanStub::SPEC_OBJECT) ||
+      expected_input_types_.Contains(ToBooleanStub::STRING) ||
+      expected_input_types_.Contains(ToBooleanStub::SYMBOL)) {
     return Representation::Tagged();
   }
   if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {

@@ -3581,6 +3581,22 @@ ConsString* String::VisitFlat(Visitor* visitor,
 }
 
 
+template <>
+inline Vector<const uint8_t> String::GetCharVector() {
+  String::FlatContent flat = GetFlatContent();
+  DCHECK(flat.IsOneByte());
+  return flat.ToOneByteVector();
+}
+
+
+template <>
+inline Vector<const uc16> String::GetCharVector() {
+  String::FlatContent flat = GetFlatContent();
+  DCHECK(flat.IsTwoByte());
+  return flat.ToUC16Vector();
+}
+
+
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);

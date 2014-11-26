@@ -8815,7 +8815,7 @@ class String: public Name {
   };
 
   template <typename Char>
-  Vector<const Char> GetCharVector();
+  INLINE(Vector<const Char> GetCharVector());
 
   // Get and set the length of the string.
   inline int length() const;

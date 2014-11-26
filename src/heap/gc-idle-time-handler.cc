@@ -11,7 +11,6 @@ namespace internal {
 
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
-const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
 const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
@@ -85,25 +84,13 @@ size_t GCIdleTimeHandler::EstimateMarkingStepSize(
 size_t GCIdleTimeHandler::EstimateMarkCompactTime(
     size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms) {
   // TODO(hpayer): Be more precise about the type of mark-compact event. It
-  // makes a huge difference if compaction is happening.
+  // makes a huge difference if it is incremental or non-incremental and if
+  // compaction is happening.
   if (mark_compact_speed_in_bytes_per_ms == 0) {
     mark_compact_speed_in_bytes_per_ms = kInitialConservativeMarkCompactSpeed;
   }
   size_t result = size_of_objects / mark_compact_speed_in_bytes_per_ms;
   return Min(result, kMaxMarkCompactTimeInMs);
-}
-
-
-size_t GCIdleTimeHandler::EstimateFinalIncrementalMarkCompactTime(
-    size_t size_of_objects,
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
-  if (final_incremental_mark_compact_speed_in_bytes_per_ms == 0) {
-    final_incremental_mark_compact_speed_in_bytes_per_ms =
-        kInitialConservativeFinalIncrementalMarkCompactSpeed;
-  }
-  size_t result =
-      size_of_objects / final_incremental_mark_compact_speed_in_bytes_per_ms;
-  return Min(result, kMaxFinalIncrementalMarkCompactTimeInMs);
 }
 
 
@@ -159,16 +146,6 @@ bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
     bool context_disposed, double contexts_disposal_rate) {
   return context_disposed && contexts_disposal_rate > 0 &&
          contexts_disposal_rate < kHighContextDisposalRate;
-}
-
-
-bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-    size_t idle_time_in_ms, size_t size_of_objects,
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
-  return idle_time_in_ms >=
-         EstimateFinalIncrementalMarkCompactTime(
-             size_of_objects,
-             final_incremental_mark_compact_speed_in_bytes_per_ms);
 }
 
 

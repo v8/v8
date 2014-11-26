@@ -69,6 +69,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
         return Immediate(constant.ToHeapObject());
       case Constant::kInt64:
         break;
+      case Constant::kRpoNumber:
+        return Immediate::CodeRelativeOffset(ToLabel(operand));
     }
     UNREACHABLE();
     return Immediate(-1);

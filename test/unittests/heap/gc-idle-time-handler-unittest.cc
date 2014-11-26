@@ -180,20 +180,6 @@ TEST_F(GCIdleTimeHandlerTest, DontDoMarkCompact) {
 }
 
 
-TEST_F(GCIdleTimeHandlerTest, ShouldDoFinalIncrementalMarkCompact) {
-  size_t idle_time_in_ms = 16;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-      idle_time_in_ms, 0, 0));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DontDoFinalIncrementalMarkCompact) {
-  size_t idle_time_in_ms = 1;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-      idle_time_in_ms, kSizeOfObjects, kMarkingSpeed));
-}
-
-
 TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;

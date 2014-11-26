@@ -919,6 +919,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kHeapObject:
           __ Move(dst, src.ToHeapObject());
           break;
+        case Constant::kRpoNumber:
+          UNREACHABLE();  // TODO(dcarney): load of labels on x64.
+          break;
       }
       if (destination->IsStackSlot()) {
         __ movq(g.ToOperand(destination), kScratchRegister);

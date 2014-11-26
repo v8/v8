@@ -198,7 +198,7 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
   # Too slow for slow variants.
-  'asm/embenchen/*': [PASS, FAST_VARIANTS],
+  'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################

@@ -142,6 +142,9 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
         return Operand(constant.ToExternalReference());
       case Constant::kHeapObject:
         return Operand(constant.ToHeapObject());
+      case Constant::kRpoNumber:
+        UNREACHABLE();  // TODO(dcarney): RPO immediates on arm64.
+        break;
     }
     UNREACHABLE();
     return Operand(-1);

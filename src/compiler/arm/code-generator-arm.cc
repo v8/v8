@@ -77,6 +77,7 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
       case Constant::kInt64:
       case Constant::kExternalReference:
       case Constant::kHeapObject:
+      case Constant::kRpoNumber:
         break;
     }
     UNREACHABLE();
@@ -820,6 +821,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kHeapObject:
           __ Move(dst, src.ToHeapObject());
+          break;
+        case Constant::kRpoNumber:
+          UNREACHABLE();  // TODO(dcarney): loading RPO constants on arm.
           break;
       }
       if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));

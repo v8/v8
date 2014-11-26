@@ -1509,7 +1509,9 @@ void TestParserSync(const char* source,
 }
 
 
-TEST(ParserSync) {
+// TODO(marja) This needs to be turned into a fuzzing test, trying all those
+// combinations below takes at least 2 orders of magnitude too long.
+DISABLED_TEST(ParserSync) {
   const char* context_data[][2] = {
     { "", "" },
     { "{", "}" },
