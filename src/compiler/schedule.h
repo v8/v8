@@ -146,10 +146,10 @@ class BasicBlock FINAL : public ZoneObject {
   void set_deferred(bool deferred) { deferred_ = deferred; }
 
   int32_t dominator_depth() const { return dominator_depth_; }
-  void set_dominator_depth(int32_t dominator_depth);
+  void set_dominator_depth(int32_t depth) { dominator_depth_ = depth; }
 
   BasicBlock* dominator() const { return dominator_; }
-  void set_dominator(BasicBlock* dominator);
+  void set_dominator(BasicBlock* dominator) { dominator_ = dominator; }
 
   BasicBlock* loop_header() const { return loop_header_; }
   void set_loop_header(BasicBlock* loop_header);

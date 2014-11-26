@@ -62,16 +62,6 @@ void BasicBlock::set_control_input(Node* control_input) {
 }
 
 
-void BasicBlock::set_dominator_depth(int32_t dominator_depth) {
-  dominator_depth_ = dominator_depth;
-}
-
-
-void BasicBlock::set_dominator(BasicBlock* dominator) {
-  dominator_ = dominator;
-}
-
-
 void BasicBlock::set_loop_depth(int32_t loop_depth) {
   loop_depth_ = loop_depth;
 }

@@ -1063,9 +1063,9 @@ void Scheduler::GenerateImmediateDominatorTree() {
   // Build the block dominator tree.
   schedule_->start()->set_dominator_depth(0);
   typedef SpecialRPONumberer::BlockList BlockList;
-  for (BlockList* l = special_rpo_->order_; l != NULL; l = l->next) {
+  DCHECK_EQ(schedule_->start(), special_rpo_->order_->block);
+  for (BlockList* l = special_rpo_->order_->next; l != NULL; l = l->next) {
     BasicBlock* current = l->block;
-    if (current == schedule_->start()) continue;
     BasicBlock::Predecessors::iterator pred = current->predecessors_begin();
     BasicBlock::Predecessors::iterator end = current->predecessors_end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
