@@ -844,7 +844,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     }
 
     GarbageCollectionEpilogue();
-    tracer()->Stop();
+    tracer()->Stop(collector);
   }
 
   // Start incremental marking for the next cycle. The heap snapshot
