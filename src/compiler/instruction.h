@@ -692,7 +692,8 @@ class Constant FINAL {
     kFloat32,
     kFloat64,
     kExternalReference,
-    kHeapObject
+    kHeapObject,
+    kRpoNumber
   };
 
   explicit Constant(int32_t v) : type_(kInt32), value_(v) {}
@@ -703,6 +704,8 @@ class Constant FINAL {
       : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
+  explicit Constant(BasicBlock::RpoNumber rpo)
+      : type_(kRpoNumber), value_(rpo.ToInt()) {}
 
   Type type() const { return type_; }
 
@@ -733,6 +736,11 @@ class Constant FINAL {
   ExternalReference ToExternalReference() const {
     DCHECK_EQ(kExternalReference, type());
     return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
+  }
+
+  BasicBlock::RpoNumber ToRpoNumber() const {
+    DCHECK_EQ(kRpoNumber, type());
+    return BasicBlock::RpoNumber::FromInt(static_cast<int>(value_));
   }
 
   Handle<HeapObject> ToHeapObject() const {
@@ -891,7 +899,6 @@ class InstructionBlock FINAL : public ZoneObject {
   PhiInstructions phis_;
   const BasicBlock::Id id_;
   const BasicBlock::RpoNumber ao_number_;  // Assembly order number.
-  // TODO(dcarney): probably dont't need this.
   const BasicBlock::RpoNumber rpo_number_;
   const BasicBlock::RpoNumber loop_header_;
   const BasicBlock::RpoNumber loop_end_;

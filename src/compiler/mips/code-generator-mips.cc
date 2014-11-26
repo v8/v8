@@ -70,6 +70,9 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
         break;
+      case Constant::kRpoNumber:
+        UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
+        break;
     }
     UNREACHABLE();
     return Operand(zero_reg);
@@ -795,6 +798,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kHeapObject:
           __ li(dst, src.ToHeapObject());
+          break;
+        case Constant::kRpoNumber:
+          UNREACHABLE();  // TODO(titzer): loading RPO numbers on mips.
           break;
       }
       if (destination->IsStackSlot()) __ sw(dst, g.ToMemOperand(destination));

@@ -137,8 +137,8 @@ class OperandGenerator {
   }
 
   InstructionOperand* Label(BasicBlock* block) {
-    // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->rpo_number());
+    int index = sequence()->AddImmediate(Constant(block->GetRpoNumber()));
+    return ImmediateOperand::Create(index, zone());
   }
 
  protected:
