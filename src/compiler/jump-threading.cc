@@ -112,19 +112,23 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
     }
   }
 
-#if DEBUG
-  for (RpoNumber num : result) DCHECK(num.IsValid());
+#ifdef DEBUG
+  for (RpoNumber num : result) {
+    CHECK(num.IsValid());
+  }
 #endif
 
-  for (int i = 0; i < static_cast<int>(result.size()); i++) {
-    TRACE(("RPO%d B%d ", i,
-           code->InstructionBlockAt(RpoNumber::FromInt(i))->id().ToInt()));
-    int to = result[i].ToInt();
-    if (i != to) {
-      TRACE(("-> B%d\n",
-             code->InstructionBlockAt(RpoNumber::FromInt(to))->id().ToInt()));
-    } else {
-      TRACE(("\n"));
+  if (FLAG_trace_turbo_jt) {
+    for (int i = 0; i < static_cast<int>(result.size()); i++) {
+      TRACE(("RPO%d B%d ", i,
+             code->InstructionBlockAt(RpoNumber::FromInt(i))->id().ToInt()));
+      int to = result[i].ToInt();
+      if (i != to) {
+        TRACE(("-> B%d\n",
+               code->InstructionBlockAt(RpoNumber::FromInt(to))->id().ToInt()));
+      } else {
+        TRACE(("\n"));
+      }
     }
   }
 
