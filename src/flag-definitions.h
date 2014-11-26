@@ -158,12 +158,10 @@ DEFINE_BOOL(use_strict, false, "enforce strict mode")
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_IMPLICATION(harmony, es_staging)
-// TODO(rossberg): activate once we have staged scoping:
-// DEFINE_IMPLICATION(es_staging, harmony)
+DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                     \
-  V(harmony_scoping, "harmony block scoping")                     \
   V(harmony_modules, "harmony modules (implies block scoping)")   \
   V(harmony_arrays, "harmony array methods")                      \
   V(harmony_classes,                                              \
@@ -177,7 +175,9 @@ DEFINE_IMPLICATION(harmony, es_staging)
   V(harmony_sloppy, "harmony features in sloppy mode")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V) V(harmony_strings, "harmony string methods")
+#define HARMONY_STAGED(V)                      \
+  V(harmony_strings, "harmony string methods") \
+  V(harmony_scoping, "harmony block scoping")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V) \
@@ -193,10 +193,6 @@ DEFINE_IMPLICATION(harmony, es_staging)
   DEFINE_BOOL(id, false, "enable " #description " (in progress)")
 HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
 #undef FLAG_INPROGRESS_FEATURES
-
-// TODO(rossberg): temporary, remove once we have staged scoping.
-// After that, --harmony will be synonymous to --es-staging.
-DEFINE_IMPLICATION(harmony, harmony_scoping)
 
 #define FLAG_STAGED_FEATURES(id, description) \
   DEFINE_BOOL(id, false, "enable " #description) \
