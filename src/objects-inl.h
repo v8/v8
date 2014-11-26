@@ -6787,13 +6787,8 @@ uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
   // Nothing to do.
   if (hasher.has_trivial_hash()) return hasher.GetHashField();
   ConsString* cons_string = String::VisitFlat(&hasher, string);
-  // The string was flat.
-  if (cons_string == NULL) return hasher.GetHashField();
-  // This is a ConsString, iterate across it.
-  ConsStringIterator iter(cons_string);
-  int offset;
-  while (NULL != (string = iter.Next(&offset))) {
-    String::VisitFlat(&hasher, string, offset);
+  if (cons_string != nullptr) {
+    hasher.VisitConsString(cons_string);
   }
   return hasher.GetHashField();
 }
