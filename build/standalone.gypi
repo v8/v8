@@ -127,6 +127,16 @@
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',
     'arm_thumb': 'default',
+
+    # Default MIPS variable settings.
+    'mips_arch_variant%': 'r2',
+    # Possible values fp32, fp64, fpxx.
+    # fp32 - 32 32-bit FPU registers are available, doubles are placed in
+    #        register pairs.
+    # fp64 - 32 64-bit FPU registers are available.
+    # fpxx - compatibility mode, it chooses fp32 or fp64 depending on runtime
+    #        detection
+    'mips_fpu_mode%': 'fp32',
   },
   'target_defaults': {
     'variables': {
