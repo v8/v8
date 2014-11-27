@@ -4393,7 +4393,7 @@ void Heap::TryFinalizeIdleIncrementalMarking(
        gc_idle_time_handler_.ShouldDoMarkCompact(
            idle_time_in_ms, size_of_objects,
            mark_compact_speed_in_bytes_per_ms))) {
-    IdleMarkCompact("idle notification: finalize incremental");
+    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
   }
 }
 
