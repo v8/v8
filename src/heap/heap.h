@@ -1195,6 +1195,7 @@ class Heap {
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
     DCHECK(survived >= 0);
+    survived_last_scavenge_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -1505,6 +1506,9 @@ class Heap {
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
   int survived_since_last_expansion_;
+
+  // ... and since the last scavenge.
+  int survived_last_scavenge_;
 
   // For keeping track on when to flush RegExp code.
   int sweep_generation_;

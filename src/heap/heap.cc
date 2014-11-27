@@ -70,6 +70,7 @@ Heap::Heap()
       // generation can be aligned to its size.
       maximum_committed_(0),
       survived_since_last_expansion_(0),
+      survived_last_scavenge_(0),
       sweep_generation_(0),
       always_allocate_scope_depth_(0),
       contexts_disposed_(0),
@@ -1301,11 +1302,18 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
 
 
 void Heap::CheckNewSpaceExpansionCriteria() {
-  if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.TotalCapacity()) {
-    // Grow the size of new space if there is room to grow, enough data
-    // has survived scavenge since the last expansion and we are not in
-    // high promotion mode.
+  if (FLAG_experimental_new_space_growth_heuristic) {
+    if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
+        survived_last_scavenge_ * 100 / new_space_.TotalCapacity() >= 10) {
+      // Grow the size of new space if there is room to grow, and more than 10%
+      // have survived the last scavenge.
+      new_space_.Grow();
+      survived_since_last_expansion_ = 0;
+    }
+  } else if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
+             survived_since_last_expansion_ > new_space_.TotalCapacity()) {
+    // Grow the size of new space if there is room to grow, and enough data
+    // has survived scavenge since the last expansion.
     new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }
