@@ -60,13 +60,23 @@ Node* JSGenericLowering::ExternalConstant(ExternalReference ref) {
 
 Reduction JSGenericLowering::Reduce(Node* node) {
   switch (node->opcode()) {
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    Lower##x(node);     \
-    break;
-    DECLARE_CASE(Branch)
+#define DECLARE_CASE(x)  \
+    case IrOpcode::k##x: \
+      Lower##x(node);    \
+      break;
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
+    case IrOpcode::kBranch:
+      // TODO(mstarzinger): If typing is enabled then simplified lowering will
+      // have inserted the correct ChangeBoolToBit, otherwise we need to perform
+      // poor-man's representation inference here and insert manual change.
+      if (!info()->is_typing_enabled()) {
+        Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
+                                      jsgraph()->TrueConstant());
+        node->ReplaceInput(0, test);
+        break;
+      }
+      // Fall-through.
     default:
       // Nothing to see.
       return NoChange();
@@ -227,18 +237,6 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   PatchInsertInput(node, nargs + 1, ref);
   PatchInsertInput(node, nargs + 2, arity);
   PatchOperator(node, common()->Call(desc));
-}
-
-
-void JSGenericLowering::LowerBranch(Node* node) {
-  if (!info()->is_typing_enabled()) {
-    // TODO(mstarzinger): If typing is enabled then simplified lowering will
-    // have inserted the correct ChangeBoolToBit, otherwise we need to perform
-    // poor-man's representation inference here and insert manual change.
-    Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
-                                  jsgraph()->TrueConstant());
-    node->ReplaceInput(0, test);
-  }
 }
 
 

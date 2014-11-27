@@ -33,7 +33,7 @@ class JSGenericLowering : public Reducer {
  protected:
 #define DECLARE_LOWER(x) void Lower##x(Node* node);
   // Dispatched depending on opcode.
-  ALL_OP_LIST(DECLARE_LOWER)
+  JS_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
 
   // Helpers to create new constant nodes.
