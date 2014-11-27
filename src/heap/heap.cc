@@ -1829,6 +1829,11 @@ static HeapObject* EnsureDoubleAligned(Heap* heap, HeapObject* object,
 }
 
 
+HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
+  return EnsureDoubleAligned(this, object, size);
+}
+
+
 enum LoggingAndProfiling {
   LOGGING_AND_PROFILING_ENABLED,
   LOGGING_AND_PROFILING_DISABLED

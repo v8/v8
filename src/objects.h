@@ -1443,6 +1443,8 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Object* p);
 #endif
 
+  inline bool NeedsToEnsureDoubleAlignment();
+
   // Layout description.
   // First field in a heap object is map.
   static const int kMapOffset = Object::kHeaderSize;
