@@ -4485,7 +4485,8 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
         actual_time_in_ms - idle_time_in_ms);
   }
 
-  if (FLAG_trace_idle_notification) {
+  if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
+      FLAG_trace_idle_notification_verbose) {
     PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
            idle_time_in_ms, actual_time_in_ms);
     action.Print();
