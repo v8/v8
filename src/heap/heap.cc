@@ -4387,12 +4387,12 @@ void Heap::IdleMarkCompact(const char* message) {
 
 void Heap::TryFinalizeIdleIncrementalMarking(
     size_t idle_time_in_ms, size_t size_of_objects,
-    size_t mark_compact_speed_in_bytes_per_ms) {
+    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (incremental_marking()->IsComplete() ||
       (mark_compact_collector()->IsMarkingDequeEmpty() &&
-       gc_idle_time_handler_.ShouldDoMarkCompact(
+       gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
            idle_time_in_ms, size_of_objects,
-           mark_compact_speed_in_bytes_per_ms))) {
+           final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
   }
 }
@@ -4427,6 +4427,9 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
   heap_state.incremental_marking_speed_in_bytes_per_ms = static_cast<size_t>(
       tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+  heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms =
+      static_cast<size_t>(
+          tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
   heap_state.scavenge_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
   heap_state.used_new_space_size = new_space_.Size();
@@ -4457,7 +4460,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       if (remaining_idle_time_in_ms > 0) {
         TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
-            heap_state.mark_compact_speed_in_bytes_per_ms);
+            heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms);
       }
       break;
     }
