@@ -4418,6 +4418,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
 
   object->set_properties(*dictionary);
 
+  // Ensure that in-object space of slow-mode object does not contain random
+  // garbage.
+  int inobject_properties = new_map->inobject_properties();
+  for (int i = 0; i < inobject_properties; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
+    object->RawFastPropertyAtPut(index, Smi::FromInt(0));
+  }
+
   isolate->counters()->props_to_dictionary()->Increment();
 
 #ifdef DEBUG

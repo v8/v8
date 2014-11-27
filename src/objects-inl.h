@@ -5342,7 +5342,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 
 Object* Map::GetBackPointer() {
   Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
-  if (object->IsDescriptorArray()) {
+  if (object->IsTransitionArray()) {
     return TransitionArray::cast(object)->back_pointer_storage();
   } else {
     DCHECK(object->IsMap() || object->IsUndefined());
