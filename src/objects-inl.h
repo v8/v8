@@ -5514,6 +5514,9 @@ ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
 ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
 ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
 ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
+SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
+BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
+               kCanInterceptSymbolsBit)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)

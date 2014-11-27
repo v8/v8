@@ -931,6 +931,7 @@ void InterceptorInfo::InterceptorInfoVerify() {
   VerifyPointer(deleter());
   VerifyPointer(enumerator());
   VerifyPointer(data());
+  VerifySmiField(kFlagsOffset);
 }
 
 

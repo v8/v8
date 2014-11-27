@@ -4350,9 +4350,10 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
 }
 
 
-static void NamedGetter(v8::Local<v8::String> name,
+static void NamedGetter(v8::Local<v8::Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::String::Utf8Value n(name);
+  if (name->IsSymbol()) return;
+  v8::String::Utf8Value n(v8::Local<v8::String>::Cast(name));
   if (strcmp(*n, "a") == 0) {
     info.GetReturnValue().Set(v8::String::NewFromUtf8(info.GetIsolate(), "AA"));
     return;
@@ -4385,7 +4386,8 @@ TEST(InterceptorPropertyMirror) {
 
   // Create object with named interceptor.
   v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
-  named->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
+  named->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      NamedGetter, NULL, NULL, NULL, NamedEnum));
   env->Global()->Set(
       v8::String::NewFromUtf8(isolate, "intercepted_named"),
       named->NewInstance());
@@ -4403,7 +4405,8 @@ TEST(InterceptorPropertyMirror) {
 
   // Create object with both named and indexed interceptor.
   v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New(isolate);
-  both->SetNamedPropertyHandler(NamedGetter, NULL, NULL, NULL, NamedEnum);
+  both->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      NamedGetter, NULL, NULL, NULL, NamedEnum));
   both->SetIndexedPropertyHandler(IndexedGetter, NULL, NULL, NULL, IndexedEnum);
   env->Global()->Set(
       v8::String::NewFromUtf8(isolate, "intercepted_both"),

@@ -766,10 +766,9 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      Handle<FixedArray> to,
-      Handle<FixedArrayBase> from) FINAL OVERRIDE {
+      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
+      Handle<FixedArrayBase> from,
+      FixedArray::KeyFilter filter) FINAL OVERRIDE {
     int len0 = to->length();
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
@@ -799,6 +798,9 @@ class ElementsAccessorBase : public ElementsAccessor {
             FixedArray);
 
         DCHECK(!value->IsTheHole());
+        if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
+          continue;
+        }
         if (!HasKey(to, value)) {
           extra++;
         }
@@ -832,6 +834,9 @@ class ElementsAccessorBase : public ElementsAccessor {
             isolate, value,
             ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
             FixedArray);
+        if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
+          continue;
+        }
         if (!value->IsTheHole() && !HasKey(to, value)) {
           result->set(len0 + index, *value);
           index++;

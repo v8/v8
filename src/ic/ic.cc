@@ -2643,19 +2643,17 @@ RUNTIME_FUNCTION(StoreCallbackProperty) {
  */
 RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
-  Handle<Name> name_handle =
+  Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
       NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex);
 
-  // TODO(rossberg): Support symbols in the API.
-  if (name_handle->IsSymbol())
+  if (name->IsSymbol() && !interceptor_info->can_intercept_symbols())
     return isolate->heap()->no_interceptor_result_sentinel();
-  Handle<String> name = Handle<String>::cast(name_handle);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::NamedPropertyGetterCallback getter =
-      FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
+  v8::GenericNamedPropertyGetterCallback getter =
+      FUNCTION_CAST<v8::GenericNamedPropertyGetterCallback>(getter_address);
   DCHECK(getter != NULL);
 
   Handle<JSObject> receiver =

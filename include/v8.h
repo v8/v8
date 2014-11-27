@@ -3545,6 +3545,51 @@ typedef void (*NamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
 
 
+// TODO(dcarney): Deprecate and remove previous typedefs, and replace
+// GenericNamedPropertyFooCallback with just NamedPropertyFooCallback.
+/**
+ * GenericNamedProperty[Getter|Setter] are used as interceptors on object.
+ * See ObjectTemplate::SetNamedPropertyHandler.
+ */
+typedef void (*GenericNamedPropertyGetterCallback)(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info);
+
+
+/**
+ * Returns the value if the setter intercepts the request.
+ * Otherwise, returns an empty handle.
+ */
+typedef void (*GenericNamedPropertySetterCallback)(
+    Local<Name> property, Local<Value> value,
+    const PropertyCallbackInfo<Value>& info);
+
+
+/**
+ * Returns a non-empty handle if the interceptor intercepts the request.
+ * The result is an integer encoding property attributes (like v8::None,
+ * v8::DontEnum, etc.)
+ */
+typedef void (*GenericNamedPropertyQueryCallback)(
+    Local<Name> property, const PropertyCallbackInfo<Integer>& info);
+
+
+/**
+ * Returns a non-empty handle if the deleter intercepts the request.
+ * The return value is true if the property could be deleted and false
+ * otherwise.
+ */
+typedef void (*GenericNamedPropertyDeleterCallback)(
+    Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
+
+
+/**
+ * Returns an array containing the names of the properties the named
+ * property getter intercepts.
+ */
+typedef void (*GenericNamedPropertyEnumeratorCallback)(
+    const PropertyCallbackInfo<Array>& info);
+
+
 /**
  * Returns the value of the property if the getter intercepts the
  * request.  Otherwise, returns an empty handle.
@@ -3797,6 +3842,31 @@ class V8_EXPORT FunctionTemplate : public Template {
 };
 
 
+struct NamedPropertyHandlerConfiguration {
+  NamedPropertyHandlerConfiguration(
+      /** Note: getter is required **/
+      GenericNamedPropertyGetterCallback getter = 0,
+      GenericNamedPropertySetterCallback setter = 0,
+      GenericNamedPropertyQueryCallback query = 0,
+      GenericNamedPropertyDeleterCallback deleter = 0,
+      GenericNamedPropertyEnumeratorCallback enumerator = 0,
+      Handle<Value> data = Handle<Value>())
+      : getter(getter),
+        setter(setter),
+        query(query),
+        deleter(deleter),
+        enumerator(enumerator),
+        data(data) {}
+
+  GenericNamedPropertyGetterCallback getter;
+  GenericNamedPropertySetterCallback setter;
+  GenericNamedPropertyQueryCallback query;
+  GenericNamedPropertyDeleterCallback deleter;
+  GenericNamedPropertyEnumeratorCallback enumerator;
+  Handle<Value> data;
+};
+
+
 /**
  * An ObjectTemplate is used to create objects at runtime.
  *
@@ -3866,6 +3936,9 @@ class V8_EXPORT ObjectTemplate : public Template {
    * from this object template, the provided callback is invoked instead of
    * accessing the property directly on the JavaScript object.
    *
+   * Note that new code should use the second version that can intercept
+   * symbol-named properties as well as string-named properties.
+   *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
    * \param query The callback to invoke to check if a property is present,
@@ -3883,6 +3956,7 @@ class V8_EXPORT ObjectTemplate : public Template {
       NamedPropertyDeleterCallback deleter = 0,
       NamedPropertyEnumeratorCallback enumerator = 0,
       Handle<Value> data = Handle<Value>());
+  void SetHandler(const NamedPropertyHandlerConfiguration& configuration);
 
   /**
    * Sets an indexed property handler on the object template.
