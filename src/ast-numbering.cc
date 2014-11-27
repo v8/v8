@@ -69,14 +69,18 @@ class AstNumberingVisitor FINAL : public AstVisitor {
     FeedbackVectorRequirements reqs =
         node->ComputeFeedbackRequirements(isolate());
     if (reqs.slots() > 0) {
-      node->SetFirstFeedbackSlot(
-          FeedbackVectorSlot(properties_.feedback_slots()));
-      properties_.increase_feedback_slots(reqs.slots());
+      node->SetFirstFeedbackSlot(FeedbackVectorSlot(properties_.slots()));
+      properties_.increase_slots(reqs.slots());
     }
     if (reqs.ic_slots() > 0) {
-      node->SetFirstFeedbackICSlot(
-          FeedbackVectorICSlot(properties_.ic_feedback_slots()));
-      properties_.increase_ic_feedback_slots(reqs.ic_slots());
+      int ic_slots = properties_.ic_slots();
+      node->SetFirstFeedbackICSlot(FeedbackVectorICSlot(ic_slots));
+      properties_.increase_ic_slots(reqs.ic_slots());
+      if (FLAG_vector_ics) {
+        for (int i = 0; i < reqs.ic_slots(); i++) {
+          properties_.SetKind(ic_slots + i, node->FeedbackICSlotKind(i));
+        }
+      }
     }
   }
 
@@ -285,6 +289,7 @@ void AstNumberingVisitor::VisitModuleLiteral(ModuleLiteral* node) {
 
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
+  ReserveFeedbackSlots(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
     DisableCrankshaft(kCallToAJavaScriptRuntimeFunction);
@@ -535,6 +540,7 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
 void AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   if (node->scope()->HasIllegalRedeclaration()) {
     node->scope()->VisitIllegalRedeclaration(this);
+    node->set_ast_properties(&properties_);
     return;
   }
 

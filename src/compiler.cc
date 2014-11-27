@@ -297,10 +297,8 @@ void CompilationInfo::PrepareForCompilation(Scope* scope) {
 void CompilationInfo::EnsureFeedbackVector() {
   if (feedback_vector_.is_null()) {
     feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
-        function()->slot_count(), function()->ic_slot_count());
+        function()->feedback_vector_spec());
   }
-  DCHECK(feedback_vector_->Slots() == function()->slot_count() &&
-         feedback_vector_->ICSlots() == function()->ic_slot_count());
 }
 
 

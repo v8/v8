@@ -76,12 +76,14 @@ void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
 
 
 // static
-Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
-                                                        int slot_count,
-                                                        int ic_slot_count) {
-  int index_count =
+Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
+    Isolate* isolate, const FeedbackVectorSpec& spec) {
+  const int slot_count = spec.slots();
+  const int ic_slot_count = spec.ic_slots();
+  const int index_count =
       FLAG_vector_ics ? VectorICComputer::word_count(ic_slot_count) : 0;
-  int length = slot_count + ic_slot_count + index_count + kReservedIndexCount;
+  const int length =
+      slot_count + ic_slot_count + index_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
     return Handle<TypeFeedbackVector>::cast(
         isolate->factory()->empty_fixed_array());
@@ -96,10 +98,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
   }
   array->set(kWithTypesIndex, Smi::FromInt(0));
   array->set(kGenericCountIndex, Smi::FromInt(0));
-  // Fill the indexes with zeros.
-  for (int i = 0; i < index_count; i++) {
-    array->set(kReservedIndexCount + i, Smi::FromInt(0));
-  }
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -107,7 +105,14 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
   for (int i = kReservedIndexCount + index_count; i < length; i++) {
     array->set(i, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
   }
-  return Handle<TypeFeedbackVector>::cast(array);
+
+  Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
+  if (FLAG_vector_ics) {
+    for (int i = 0; i < ic_slot_count; i++) {
+      vector->SetKind(FeedbackVectorICSlot(i), spec.GetKind(i));
+    }
+  }
+  return vector;
 }
 
 
@@ -118,6 +123,28 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
   result = Handle<TypeFeedbackVector>::cast(
       isolate->factory()->CopyFixedArray(Handle<FixedArray>::cast(vector)));
   return result;
+}
+
+
+// This logic is copied from
+// StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
+// TODO(mvstanton): with weak handling of all vector ics, this logic should
+// actually be completely eliminated and we no longer need to clear the
+// vector ICs.
+static bool ClearLogic(Heap* heap, int ic_age, Code::Kind kind,
+                       InlineCacheState state) {
+  if (FLAG_cleanup_code_caches_at_gc &&
+      (kind == Code::CALL_IC || state == MEGAMORPHIC || state == GENERIC ||
+       state == POLYMORPHIC || heap->flush_monomorphic_ics() ||
+       // TODO(mvstanton): is this ic_age granular enough? it comes from
+       // the SharedFunctionInfo which may change on a different schedule
+       // than ic targets.
+       // ic_age != heap->global_ic_age() ||
+       // is_invalidated_weak_stub ||
+       heap->isolate()->serializer_enabled())) {
+    return true;
+  }
+  return false;
 }
 
 
@@ -145,19 +172,33 @@ void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
   slots = ICSlots();
   if (slots == 0) return;
 
-  // Now clear vector-based ICs. They are all CallICs.
+  // Now clear vector-based ICs.
   // Try and pass the containing code (the "host").
+  Heap* heap = isolate->heap();
   Code* host = shared->code();
+  // I'm not sure yet if this ic age is the correct one.
+  int ic_age = shared->ic_age();
   for (int i = 0; i < slots; i++) {
     FeedbackVectorICSlot slot(i);
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      // TODO(mvstanton): To make this code work with --vector-ics,
-      // additional Nexus types must be created.
-      DCHECK(!FLAG_vector_ics);
-      DCHECK(GetKind(slot) == Code::CALL_IC);
-      CallICNexus nexus(this, slot);
-      ICUtility::Clear(isolate, Code::CALL_IC, host, &nexus);
+      Code::Kind kind = GetKind(slot);
+      if (kind == Code::CALL_IC) {
+        CallICNexus nexus(this, slot);
+        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
+          nexus.Clear(host);
+        }
+      } else if (kind == Code::LOAD_IC) {
+        LoadICNexus nexus(this, slot);
+        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
+          nexus.Clear(host);
+        }
+      } else if (kind == Code::KEYED_LOAD_IC) {
+        KeyedLoadICNexus nexus(this, slot);
+        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
+          nexus.Clear(host);
+        }
+      }
     }
   }
 }
@@ -190,21 +231,64 @@ void FeedbackNexus::InstallHandlers(int start_index, TypeHandleList* types,
 }
 
 
+InlineCacheState LoadICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+  if (feedback == *vector()->UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
+  } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
+    return PREMONOMORPHIC;
+  } else if (feedback->IsFixedArray()) {
+    FixedArray* array = FixedArray::cast(feedback);
+    int length = array->length();
+    DCHECK(length >= 2);
+    return length == 2 ? MONOMORPHIC : POLYMORPHIC;
+  }
+
+  return UNINITIALIZED;
+}
+
+
+InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+  if (feedback == *vector()->UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
+    return PREMONOMORPHIC;
+  } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
+  } else if (feedback == *vector()->GenericSentinel(isolate)) {
+    return GENERIC;
+  } else if (feedback->IsFixedArray()) {
+    FixedArray* array = FixedArray::cast(feedback);
+    int length = array->length();
+    DCHECK(length >= 3);
+    return length == 3 ? MONOMORPHIC : POLYMORPHIC;
+  }
+
+  return UNINITIALIZED;
+}
+
+
 InlineCacheState CallICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
-  InlineCacheState state = UNINITIALIZED;
   Object* feedback = GetFeedback();
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
-    state = GENERIC;
+    return GENERIC;
   } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
-    state = MONOMORPHIC;
-  } else {
-    CHECK(feedback == *vector()->UninitializedSentinel(isolate));
+    return MONOMORPHIC;
   }
 
-  return state;
+  CHECK(feedback == *vector()->UninitializedSentinel(isolate));
+  return UNINITIALIZED;
 }
+
+
+void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
 
 
 void CallICNexus::ConfigureGeneric() {
@@ -230,6 +314,79 @@ void CallICNexus::ConfigureUninitialized() {
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
   SetFeedback(*function);
+}
+
+
+void KeyedLoadICNexus::ConfigureGeneric() {
+  SetFeedback(*vector()->GenericSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+}
+
+
+void KeyedLoadICNexus::ConfigureMegamorphic() {
+  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+}
+
+
+void LoadICNexus::ConfigureMegamorphic() {
+  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+}
+
+
+void LoadICNexus::ConfigurePremonomorphic() {
+  SetFeedback(*vector()->PremonomorphicSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+}
+
+
+void KeyedLoadICNexus::ConfigurePremonomorphic() {
+  SetFeedback(*vector()->PremonomorphicSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+}
+
+
+void LoadICNexus::ConfigureMonomorphic(Handle<HeapType> type,
+                                       Handle<Code> handler) {
+  Handle<FixedArray> array = EnsureArrayOfSize(2);
+  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
+  array->set(0, *receiver_map);
+  array->set(1, *handler);
+}
+
+
+void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
+                                            Handle<HeapType> type,
+                                            Handle<Code> handler) {
+  Handle<FixedArray> array = EnsureArrayOfSize(3);
+  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
+  if (name.is_null()) {
+    array->set(0, Smi::FromInt(0));
+  } else {
+    array->set(0, *name);
+  }
+  array->set(1, *receiver_map);
+  array->set(2, *handler);
+}
+
+
+void LoadICNexus::ConfigurePolymorphic(TypeHandleList* types,
+                                       CodeHandleList* handlers) {
+  int receiver_count = types->length();
+  EnsureArrayOfSize(receiver_count * 2);
+  InstallHandlers(0, types, handlers);
+}
+
+
+void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
+                                            TypeHandleList* types,
+                                            CodeHandleList* handlers) {
+  int receiver_count = types->length();
+  Handle<FixedArray> array = EnsureArrayOfSize(1 + receiver_count * 2);
+  if (name.is_null()) {
+    array->set(0, Smi::FromInt(0));
+  } else {
+    array->set(0, *name);
+  }
+  InstallHandlers(1, types, handlers);
 }
 
 
@@ -288,6 +445,57 @@ bool FeedbackNexus::FindHandlers(int start_index, CodeHandleList* code_list,
     }
   }
   return count == length;
+}
+
+
+int LoadICNexus::ExtractMaps(MapHandleList* maps) const {
+  return FeedbackNexus::ExtractMaps(0, maps);
+}
+
+
+void LoadICNexus::Clear(Code* host) { LoadIC::Clear(GetIsolate(), host, this); }
+
+
+void KeyedLoadICNexus::Clear(Code* host) {
+  KeyedLoadIC::Clear(GetIsolate(), host, this);
+}
+
+
+int KeyedLoadICNexus::ExtractMaps(MapHandleList* maps) const {
+  return FeedbackNexus::ExtractMaps(1, maps);
+}
+
+
+MaybeHandle<Code> LoadICNexus::FindHandlerForMap(Handle<Map> map) const {
+  return FeedbackNexus::FindHandlerForMap(0, map);
+}
+
+
+MaybeHandle<Code> KeyedLoadICNexus::FindHandlerForMap(Handle<Map> map) const {
+  return FeedbackNexus::FindHandlerForMap(1, map);
+}
+
+
+bool LoadICNexus::FindHandlers(CodeHandleList* code_list, int length) const {
+  return FeedbackNexus::FindHandlers(0, code_list, length);
+}
+
+
+bool KeyedLoadICNexus::FindHandlers(CodeHandleList* code_list,
+                                    int length) const {
+  return FeedbackNexus::FindHandlers(1, code_list, length);
+}
+
+
+Name* KeyedLoadICNexus::FindFirstName() const {
+  Object* feedback = GetFeedback();
+  if (feedback->IsFixedArray()) {
+    FixedArray* array = FixedArray::cast(feedback);
+    DCHECK(array->length() >= 3);
+    Object* name = array->get(0);
+    if (name->IsName()) return Name::cast(name);
+  }
+  return NULL;
 }
 }
 }  // namespace v8::internal
