@@ -1037,15 +1037,8 @@ void Scheduler::ComputeSpecialRPONumbering() {
 }
 
 
-void Scheduler::GenerateImmediateDominatorTree() {
-  Trace("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
-
-  // TODO(danno): Consider using Lengauer & Tarjan's if this becomes too slow.
-
-  // Build the block dominator tree.
-  schedule_->start()->set_dominator_depth(0);
-  BasicBlock* second = schedule_->start()->rpo_next();
-  for (BasicBlock* block = second; block != NULL; block = block->rpo_next()) {
+void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
+  for (/*nop*/; block != NULL; block = block->rpo_next()) {
     BasicBlock::Predecessors::iterator pred = block->predecessors_begin();
     BasicBlock::Predecessors::iterator end = block->predecessors_end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
@@ -1065,6 +1058,17 @@ void Scheduler::GenerateImmediateDominatorTree() {
     Trace("Block B%d's idom is B%d, depth = %d\n", block->id().ToInt(),
           dominator->id().ToInt(), block->dominator_depth());
   }
+}
+
+
+void Scheduler::GenerateImmediateDominatorTree() {
+  Trace("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
+
+  // Seed start block to be the first dominator.
+  schedule_->start()->set_dominator_depth(0);
+
+  // Build the block dominator tree resulting from the above seed.
+  PropagateImmediateDominators(schedule_->start()->rpo_next());
 }
 
 
@@ -1434,11 +1438,11 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   // Iterate on phase 2: Compute special RPO and dominator tree.
   special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
   // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
-  for (BasicBlock* block : schedule_->all_blocks_) {
-    block->set_dominator_depth(-1);
-    block->set_dominator(NULL);
+  for (BasicBlock* b = block->rpo_next(); b != NULL; b = b->rpo_next()) {
+    b->set_dominator_depth(-1);
+    b->set_dominator(NULL);
   }
-  GenerateImmediateDominatorTree();
+  PropagateImmediateDominators(block->rpo_next());
 
   // Iterate on phase 4: Schedule nodes early.
   // TODO(mstarzinger): The following loop gathering the propagation roots is a
