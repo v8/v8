@@ -538,7 +538,7 @@ class SpecialRPONumberer : public ZoneObject {
         order_(NULL),
         beyond_end_(NULL),
         loops_(zone),
-        backedges_(1, zone),
+        backedges_(zone),
         stack_(zone),
         previous_block_count_(0) {}
 
@@ -690,7 +690,7 @@ class SpecialRPONumberer : public ZoneObject {
         if (succ->rpo_number() == kBlockVisited1) continue;
         if (succ->rpo_number() == kBlockOnStack) {
           // The successor is on the stack, so this is a backedge (cycle).
-          backedges_.Add(Backedge(frame->block, frame->index - 1), zone_);
+          backedges_.push_back(Backedge(frame->block, frame->index - 1));
           if (!HasLoopNumber(succ)) {
             // Assign a new loop number to the header if it doesn't have one.
             SetLoopNumber(succ, num_loops++);
@@ -853,7 +853,7 @@ class SpecialRPONumberer : public ZoneObject {
 
   // Computes loop membership from the backedges of the control flow graph.
   void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>& queue,
-                       size_t num_loops, ZoneList<Backedge>* backedges) {
+                       size_t num_loops, ZoneVector<Backedge>* backedges) {
     // Extend existing loop membership vectors.
     for (LoopInfo& loop : loops_) {
       BitVector* new_members = new (zone_)
@@ -867,7 +867,7 @@ class SpecialRPONumberer : public ZoneObject {
 
     // Compute loop membership starting from backedges.
     // O(max(loop_depth) * max(|loop|)
-    for (int i = 0; i < backedges->length(); i++) {
+    for (size_t i = 0; i < backedges->size(); i++) {
       BasicBlock* member = backedges->at(i).first;
       BasicBlock* header = member->SuccessorAt(backedges->at(i).second);
       size_t loop_num = GetLoopNumber(header);
@@ -1012,7 +1012,7 @@ class SpecialRPONumberer : public ZoneObject {
   BasicBlock* order_;
   BasicBlock* beyond_end_;
   ZoneVector<LoopInfo> loops_;
-  ZoneList<Backedge> backedges_;
+  ZoneVector<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
 };
