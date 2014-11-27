@@ -6736,6 +6736,30 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 }
 
 
+uint32_t StringHasher::ComputeRunningHash(uint32_t running_hash,
+                                          const uc16* chars, int length) {
+  DCHECK_NOT_NULL(chars);
+  DCHECK(length >= 0);
+  for (int i = 0; i < length; ++i) {
+    running_hash = AddCharacterCore(running_hash, *chars++);
+  }
+  return running_hash;
+}
+
+
+uint32_t StringHasher::ComputeRunningHashOneByte(uint32_t running_hash,
+                                                 const char* chars,
+                                                 int length) {
+  DCHECK_NOT_NULL(chars);
+  DCHECK(length >= 0);
+  for (int i = 0; i < length; ++i) {
+    uint16_t c = static_cast<uint16_t>(*chars++);
+    running_hash = AddCharacterCore(running_hash, c);
+  }
+  return running_hash;
+}
+
+
 void StringHasher::AddCharacter(uint16_t c) {
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.

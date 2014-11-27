@@ -5295,14 +5295,7 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
 
   raw_strings = new (zone()) ZoneList<Expression*>(total, zone());
 
-  int num_hash_chars = (total - 1) * 3;
-  for (int index = 0; index < total; ++index) {
-    // Allow about length * 4 to handle most UTF8 sequences.
-    num_hash_chars += lengths->at(index) * 4;
-  }
-
-  Vector<uint8_t> hash_string = Vector<uint8_t>::New(num_hash_chars);
-  num_hash_chars = 0;
+  uint32_t running_hash = 0;
 
   for (int index = 0; index < total; ++index) {
     int span_start = cooked_strings->at(index)->position() + 1;
@@ -5311,9 +5304,8 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
     int to_index = 0;
 
     if (index) {
-      hash_string[num_hash_chars++] = '$';
-      hash_string[num_hash_chars++] = '{';
-      hash_string[num_hash_chars++] = '}';
+      running_hash = StringHasher::ComputeRunningHashOneByte(
+          running_hash, "${}", 3);
     }
 
     SmartArrayPointer<char> raw_chars =
@@ -5330,7 +5322,6 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
           ++from_index;
         }
       }
-      hash_string[num_hash_chars++] = ch;
       raw_chars[to_index++] = ch;
     }
 
@@ -5342,6 +5333,8 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
     if (utf16_length > 0) {
       uc16* utf16_buffer = zone()->NewArray<uc16>(utf16_length);
       to_index = decoder->WriteUtf16(utf16_buffer, utf16_length);
+      running_hash = StringHasher::ComputeRunningHash(
+          running_hash, utf16_buffer, to_index);
       const uint16_t* data = reinterpret_cast<const uint16_t*>(utf16_buffer);
       const AstRawString* raw_str = ast_value_factory()->GetTwoByteString(
           Vector<const uint16_t>(data, to_index));
@@ -5354,11 +5347,10 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
     raw_strings->Add(raw_lit, zone());
   }
 
-  hash_string.Truncate(num_hash_chars);
-  int utf16_length;
-  *hash = StringHasher::ComputeUtf8Hash(Vector<const char>::cast(hash_string),
-      num_hash_chars, &utf16_length);
-  hash_string.Dispose();
+  // Hash key is used exclusively by template call site caching. There are no
+  // real security implications for unseeded hashes, and no issues with changing
+  // the hashing algorithm to improve performance or entropy.
+  *hash = running_hash;
 
   return raw_strings;
 }
