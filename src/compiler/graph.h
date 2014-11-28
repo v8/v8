@@ -19,7 +19,6 @@ namespace compiler {
 
 class GraphDecorator;
 
-
 class Graph : public GenericGraph<Node> {
  public:
   explicit Graph(Zone* zone);
@@ -78,10 +77,50 @@ class Graph : public GenericGraph<Node> {
   }
 
  private:
+  template <typename State>
+  friend class NodeMarker;
+
+  Mark mark_max_;
   ZoneVector<GraphDecorator*> decorators_;
 };
 
 
+// A NodeMarker uses monotonically increasing marks to assign local "states"
+// to nodes. Only one NodeMarker per graph is valid at a given time.
+template <typename State>
+class NodeMarker BASE_EMBEDDED {
+ public:
+  NodeMarker(Graph* graph, uint32_t num_states)
+      : mark_min_(graph->mark_max_), mark_max_(graph->mark_max_ += num_states) {
+    DCHECK(num_states > 0);         // user error!
+    DCHECK(mark_max_ > mark_min_);  // check for wraparound.
+  }
+
+  State Get(Node* node) {
+    Mark mark = node->mark();
+    if (mark < mark_min_) {
+      mark = mark_min_;
+      node->set_mark(mark_min_);
+    }
+    DCHECK_LT(mark, mark_max_);
+    return static_cast<State>(mark - mark_min_);
+  }
+
+  void Set(Node* node, State state) {
+    Mark local = static_cast<Mark>(state);
+    DCHECK(local < (mark_max_ - mark_min_));
+    DCHECK_LT(node->mark(), mark_max_);
+    node->set_mark(local + mark_min_);
+  }
+
+ private:
+  Mark mark_min_;
+  Mark mark_max_;
+};
+
+
+// A graph decorator can be used to add behavior to the creation of nodes
+// in a graph.
 class GraphDecorator : public ZoneObject {
  public:
   virtual ~GraphDecorator() {}

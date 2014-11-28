@@ -19,7 +19,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
+Graph::Graph(Zone* zone)
+    : GenericGraph<Node>(zone), mark_max_(0), decorators_(zone) {}
 
 
 void Graph::Decorate(Node* node) {

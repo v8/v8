@@ -21,6 +21,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Marks are used during traversal of the graph to distinguish states of nodes.
+// Each node has a mark which is a monotonically increasing integer, and a
+// {NodeMarker} has a range of values that indicate states of a node.
+typedef uint32_t Mark;
+
 class NodeData {
  public:
   const Operator* op() const { return op_; }
@@ -34,11 +39,19 @@ class NodeData {
  protected:
   const Operator* op_;
   Bounds bounds_;
+  Mark mark_;
   explicit NodeData(Zone* zone) {}
 
   friend class NodeProperties;
+  template <typename State>
+  friend class NodeMarker;
+
   Bounds bounds() { return bounds_; }
   void set_bounds(Bounds b) { bounds_ = b; }
+
+  // Only NodeMarkers should manipulate the marks on nodes.
+  Mark mark() { return mark_; }
+  void set_mark(Mark mark) { mark_ = mark; }
 };
 
 // A Node is the basic primitive of an IR graph. In addition to the members
@@ -51,7 +64,10 @@ class Node FINAL : public GenericNode<NodeData, Node> {
   Node(GenericGraphBase* graph, int input_count, int reserve_input_count)
       : GenericNode<NodeData, Node>(graph, input_count, reserve_input_count) {}
 
-  void Initialize(const Operator* op) { set_op(op); }
+  void Initialize(const Operator* op) {
+    set_op(op);
+    set_mark(0);
+  }
 
   bool IsDead() const { return InputCount() > 0 && InputAt(0) == NULL; }
   void Kill();
