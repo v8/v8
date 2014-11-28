@@ -8,11 +8,10 @@
 
 #include "graph-tester.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 
 using namespace v8::internal;

@@ -7,12 +7,14 @@
 
 #include <stack>
 
-#include "src/compiler/generic-node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+class Graph;
+class Node;
 
 // GenericGraphVisit allows visitation of graphs of nodes and edges in pre- and
 // post-order. Visitation uses an explicitly allocated stack rather than the
@@ -88,12 +90,11 @@ class GenericGraphVisit {
     Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }
 
-  template <class B, class S>
   struct NullNodeVisitor {
-    void Pre(GenericNode<B, S>* node) {}
-    void Post(GenericNode<B, S>* node) {}
-    void PreEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
-    void PostEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
+    void Pre(Node* node) {}
+    void Post(Node* node) {}
+    void PreEdge(Node* from, int index, Node* to) {}
+    void PostEdge(Node* from, int index, Node* to) {}
   };
 
  private:

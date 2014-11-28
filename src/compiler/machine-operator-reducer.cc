@@ -8,7 +8,6 @@
 #include "src/base/division-by-constant.h"
 #include "src/codegen.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"

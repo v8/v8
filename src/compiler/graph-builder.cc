@@ -5,9 +5,8 @@
 #include "src/compiler/graph-builder.h"
 
 #include "src/compiler.h"
-#include "src/compiler/generic-node.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/operator-properties.h"
