@@ -377,6 +377,8 @@ class SerializerDeserializer: public ObjectVisitor {
 
   static const int kNop = 0xf;  // Do nothing, used for padding.
 
+  static const int kNextChunk = 0x4f;  // Move to next reserved chunk.
+
   static const int kAnyOldSpace = -1;
 
   // A bitmask for getting the space out of an instruction.
