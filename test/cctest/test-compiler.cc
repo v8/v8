@@ -310,10 +310,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   int expected_slots = 0;
-  int expected_ic_slots = FLAG_vector_ics ? 2 : 1;
+  int expected_ic_slots = 1;
   CHECK_EQ(expected_slots, feedback_vector->Slots());
   CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
-  FeedbackVectorICSlot slot_for_a(FLAG_vector_ics ? 1 : 0);
+  FeedbackVectorICSlot slot_for_a(0);
   CHECK(feedback_vector->Get(slot_for_a)->IsJSFunction());
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");

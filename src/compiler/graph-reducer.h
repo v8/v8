@@ -68,6 +68,10 @@ class GraphReducer FINAL {
 
  private:
   enum class State : uint8_t;
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
 
   // Reduce a single node.
   Reduction Reduce(Node* const);
@@ -77,7 +81,6 @@ class GraphReducer FINAL {
   // Node stack operations.
   void Pop();
   void Push(Node* const);
-  Node* Top() const;
 
   // Revisit queue operations.
   bool Recurse(Node* const);
@@ -86,7 +89,7 @@ class GraphReducer FINAL {
   Graph* graph_;
   ZoneVector<Reducer*> reducers_;
   ZoneStack<Node*> revisit_;
-  ZoneStack<Node*> stack_;
+  ZoneStack<NodeState> stack_;
   ZoneDeque<State> state_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);

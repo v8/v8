@@ -18,6 +18,8 @@ deps = {
     Var("git_url") + "/external/googletest.git@4650552ff637bb44ecf7784060091cbed3252211",
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git@896ba0e03f520fb9b6ed582bde2bd00847e3c3f2",
+  "v8/tools/clang":
+    Var("git_url") + "/chromium/src/tools/clang.git@327e26ee7f6ae6f86fb335113b46cb86ed3cb0dc",
 }
 
 deps_os = {
@@ -80,6 +82,13 @@ hooks = [
                 "--bucket", "chromium-clang-format",
                 "-s", "v8/buildtools/linux64/clang-format.sha1",
     ],
+  },
+  {
+    # Pull clang if needed or requested via GYP_DEFINES.
+    # Note: On Win, this should run after win_toolchain, as it may use it.
+    'name': 'clang',
+    'pattern': '.',
+    'action': ['python', 'v8/tools/clang/scripts/update.py', '--if-needed'],
   },
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.

@@ -603,6 +603,51 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
 }
 
 
+TEST(Regress436816) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const int kPropsCount = kSmiValueSize * 3;
+  PropertyKind props[kPropsCount];
+  for (int i = 0; i < kPropsCount; i++) {
+    props[i] = PROP_DOUBLE;
+  }
+  Handle<DescriptorArray> descriptors =
+      CreateDescriptorArray(isolate, props, kPropsCount);
+
+  Handle<Map> map = Map::Create(isolate, kPropsCount);
+  Handle<LayoutDescriptor> layout_descriptor =
+      LayoutDescriptor::New(map, descriptors, kPropsCount);
+  map->InitializeDescriptors(*descriptors, *layout_descriptor);
+
+  Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
+
+  Address fake_address = reinterpret_cast<Address>(~kHeapObjectTagMask);
+  HeapObject* fake_object = HeapObject::FromAddress(fake_address);
+  CHECK(fake_object->IsHeapObject());
+
+  double boom_value = bit_cast<double>(fake_object);
+  for (int i = 0; i < kPropsCount; i++) {
+    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+    CHECK(map->IsUnboxedDoubleField(index));
+    object->RawFastDoublePropertyAtPut(index, boom_value);
+  }
+  CHECK(object->HasFastProperties());
+  CHECK(!object->map()->HasFastPointerLayout());
+
+  Handle<Map> normalized_map =
+      Map::Normalize(map, KEEP_INOBJECT_PROPERTIES, "testing");
+  JSObject::MigrateToMap(object, normalized_map);
+  CHECK(!object->HasFastProperties());
+  CHECK(object->map()->HasFastPointerLayout());
+
+  // Trigger GCs and heap verification.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+}
+
+
 TEST(StoreBufferScanOnScavenge) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

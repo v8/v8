@@ -585,8 +585,8 @@ class RegisterAllocator FINAL : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGISTER_ALLOCATOR_H_

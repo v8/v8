@@ -99,11 +99,22 @@ Reduction GraphReducer::Reduce(Node* const node) {
 
 
 void GraphReducer::ReduceTop() {
-  Node* const node = Top();
+  NodeState& entry = stack_.top();
+  Node* node = entry.node;
+  DCHECK(state_[node->id()] == State::kOnStack);
+
   if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
   // Recurse on an input if necessary.
-  for (auto const input : node->inputs()) {
+  int start = entry.input_index < node->InputCount() ? entry.input_index : 0;
+  for (int i = start; i < node->InputCount(); i++) {
+    Node* input = node->InputAt(i);
+    entry.input_index = i + 1;
+    if (input != node && Recurse(input)) return;
+  }
+  for (int i = 0; i < start; i++) {
+    Node* input = node->InputAt(i);
+    entry.input_index = i + 1;
     if (input != node && Recurse(input)) return;
   }
 
@@ -153,7 +164,7 @@ void GraphReducer::ReduceTop() {
 
 
 void GraphReducer::Pop() {
-  Node* const node = Top();
+  Node* const node = stack_.top().node;
   state_[node->id()] = State::kVisited;
   stack_.pop();
 }
@@ -165,18 +176,7 @@ void GraphReducer::Push(Node* const node) {
   DCHECK(id < state_.size());
   DCHECK(state_[id] != State::kOnStack);
   state_[id] = State::kOnStack;
-  stack_.push(node);
-}
-
-
-Node* GraphReducer::Top() const {
-  DCHECK(!stack_.empty());
-  Node* const node = stack_.top();
-  size_t const id = static_cast<size_t>(node->id());
-  DCHECK(id < state_.size());
-  DCHECK(state_[id] == State::kOnStack);
-  USE(id);
-  return node;
+  stack_.push({node, 0});
 }
 
 

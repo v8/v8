@@ -33,15 +33,8 @@ class JSGenericLowering : public Reducer {
  protected:
 #define DECLARE_LOWER(x) void Lower##x(Node* node);
   // Dispatched depending on opcode.
-  ALL_OP_LIST(DECLARE_LOWER)
+  JS_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
-
-  // Helpers to create new constant nodes.
-  Node* SmiConstant(int immediate);
-  Node* Int32Constant(int immediate);
-  Node* CodeConstant(Handle<Code> code);
-  Node* FunctionConstant(Handle<JSFunction> function);
-  Node* ExternalConstant(ExternalReference ref);
 
   // Helpers to patch existing nodes in the graph.
   void PatchOperator(Node* node, const Operator* new_op);
@@ -52,6 +45,9 @@ class JSGenericLowering : public Reducer {
   void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
+
+  // Helper for optimization of JSCallFunction.
+  bool TryLowerDirectJSCall(Node* node);
 
   Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return zone()->isolate(); }
@@ -66,8 +62,6 @@ class JSGenericLowering : public Reducer {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Linkage* linkage_;
-
-  bool TryLowerDirectJSCall(Node* node);
 };
 
 }  // namespace compiler

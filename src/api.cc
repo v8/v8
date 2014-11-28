@@ -1239,19 +1239,20 @@ void ObjectTemplate::SetAccessor(v8::Handle<Name> name,
 }
 
 
-void ObjectTemplate::SetNamedPropertyHandler(
-    NamedPropertyGetterCallback getter,
-    NamedPropertySetterCallback setter,
-    NamedPropertyQueryCallback query,
-    NamedPropertyDeleterCallback remover,
-    NamedPropertyEnumeratorCallback enumerator,
-    Handle<Value> data) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+template <typename Getter, typename Setter, typename Query, typename Deleter,
+          typename Enumerator>
+static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
+                                                  Getter getter, Setter setter,
+                                                  Query query, Deleter remover,
+                                                  Enumerator enumerator,
+                                                  Handle<Value> data,
+                                                  bool can_intercept_symbols) {
+  i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, this);
-  i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
-      Utils::OpenHandle(this)->constructor());
+  EnsureConstructor(isolate, templ);
+  i::FunctionTemplateInfo* constructor =
+      i::FunctionTemplateInfo::cast(Utils::OpenHandle(templ)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
@@ -1263,12 +1264,31 @@ void ObjectTemplate::SetNamedPropertyHandler(
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+  obj->set_flags(0);
+  obj->set_can_intercept_symbols(can_intercept_symbols);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
   cons->set_named_property_handler(*obj);
+}
+
+
+void ObjectTemplate::SetNamedPropertyHandler(
+    NamedPropertyGetterCallback getter, NamedPropertySetterCallback setter,
+    NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
+    NamedPropertyEnumeratorCallback enumerator, Handle<Value> data) {
+  ObjectTemplateSetNamedPropertyHandler(this, getter, setter, query, remover,
+                                        enumerator, data, false);
+}
+
+
+void ObjectTemplate::SetHandler(
+    const NamedPropertyHandlerConfiguration& config) {
+  ObjectTemplateSetNamedPropertyHandler(this, config.getter, config.setter,
+                                        config.query, config.deleter,
+                                        config.enumerator, config.data, true);
 }
 
 
@@ -1339,6 +1359,7 @@ void ObjectTemplate::SetIndexedPropertyHandler(
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+  obj->set_flags(0);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));

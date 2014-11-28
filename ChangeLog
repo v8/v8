@@ -1,3 +1,10 @@
+2014-11-28: Version 3.31.27
+
+        Ship harmony-strings.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-11-28: Version 3.31.26
 
         Abort optimization in corner case (Chromium issue 436893).

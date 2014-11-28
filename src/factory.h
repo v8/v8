@@ -10,8 +10,9 @@
 namespace v8 {
 namespace internal {
 
-// Interface for handle based allocation.
+class FeedbackVectorSpec;
 
+// Interface for handle based allocation.
 class Factory FINAL {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
@@ -636,8 +637,8 @@ class Factory FINAL {
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count,
-                                                   int ic_slot_count);
+  Handle<TypeFeedbackVector> NewTypeFeedbackVector(
+      const FeedbackVectorSpec& spec);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

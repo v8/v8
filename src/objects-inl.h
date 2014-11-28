@@ -2758,6 +2758,17 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 }
 
 
+bool HeapObject::NeedsToEnsureDoubleAlignment() {
+#ifndef V8_HOST_ARCH_64_BIT
+  return (IsFixedFloat64Array() || IsFixedDoubleArray() ||
+          IsConstantPoolArray()) &&
+         FixedArrayBase::cast(this)->length() != 0;
+#else
+  return false;
+#endif  // V8_HOST_ARCH_64_BIT
+}
+
+
 void FixedArray::set(int index,
                      Object* value,
                      WriteBarrierMode mode) {
@@ -5331,7 +5342,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 
 Object* Map::GetBackPointer() {
   Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
-  if (object->IsDescriptorArray()) {
+  if (object->IsTransitionArray()) {
     return TransitionArray::cast(object)->back_pointer_storage();
   } else {
     DCHECK(object->IsMap() || object->IsUndefined());
@@ -5503,6 +5514,9 @@ ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
 ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
 ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
 ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
+SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
+BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
+               kCanInterceptSymbolsBit)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
@@ -6717,6 +6731,30 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   running_hash += (running_hash << 15);
   if ((running_hash & String::kHashBitMask) == 0) {
     return kZeroHash;
+  }
+  return running_hash;
+}
+
+
+uint32_t StringHasher::ComputeRunningHash(uint32_t running_hash,
+                                          const uc16* chars, int length) {
+  DCHECK_NOT_NULL(chars);
+  DCHECK(length >= 0);
+  for (int i = 0; i < length; ++i) {
+    running_hash = AddCharacterCore(running_hash, *chars++);
+  }
+  return running_hash;
+}
+
+
+uint32_t StringHasher::ComputeRunningHashOneByte(uint32_t running_hash,
+                                                 const char* chars,
+                                                 int length) {
+  DCHECK_NOT_NULL(chars);
+  DCHECK(length >= 0);
+  for (int i = 0; i < length; ++i) {
+    uint16_t c = static_cast<uint16_t>(*chars++);
+    running_hash = AddCharacterCore(running_hash, c);
   }
   return running_hash;
 }

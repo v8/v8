@@ -70,9 +70,9 @@ class DeclarationContext {
   int query_count() const { return query_count_; }
 
  protected:
-  virtual v8::Handle<Value> Get(Local<String> key);
-  virtual v8::Handle<Value> Set(Local<String> key, Local<Value> value);
-  virtual v8::Handle<Integer> Query(Local<String> key);
+  virtual v8::Handle<Value> Get(Local<Name> key);
+  virtual v8::Handle<Value> Set(Local<Name> key, Local<Value> value);
+  virtual v8::Handle<Integer> Query(Local<Name> key);
 
   void InitializeIfNeeded();
 
@@ -88,12 +88,11 @@ class DeclarationContext {
 
   // The handlers are called as static functions that forward
   // to the instance specific virtual methods.
-  static void HandleGet(Local<String> key,
+  static void HandleGet(Local<Name> key,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleSet(Local<String> key,
-                        Local<Value> value,
+  static void HandleSet(Local<Name> key, Local<Value> value,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleQuery(Local<String> key,
+  static void HandleQuery(Local<Name> key,
                           const v8::PropertyCallbackInfo<v8::Integer>& info);
 
   v8::Isolate* isolate() const { return CcTest::isolate(); }
@@ -122,11 +121,8 @@ void DeclarationContext::InitializeIfNeeded() {
   HandleScope scope(isolate);
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate);
   Local<Value> data = External::New(CcTest::isolate(), this);
-  GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
-                                               &HandleSet,
-                                               &HandleQuery,
-                                               0, 0,
-                                               data);
+  GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      &HandleGet, &HandleSet, &HandleQuery, 0, 0, data));
   Local<Context> context = Context::New(isolate,
                                         0,
                                         function->InstanceTemplate(),
@@ -178,8 +174,7 @@ void DeclarationContext::Check(const char* source,
 
 
 void DeclarationContext::HandleGet(
-    Local<String> key,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->get_count_++;
   info.GetReturnValue().Set(context->Get(key));
@@ -187,8 +182,7 @@ void DeclarationContext::HandleGet(
 
 
 void DeclarationContext::HandleSet(
-    Local<String> key,
-    Local<Value> value,
+    Local<Name> key, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->set_count_++;
@@ -197,8 +191,7 @@ void DeclarationContext::HandleSet(
 
 
 void DeclarationContext::HandleQuery(
-    Local<String> key,
-    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+    Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->query_count_++;
   info.GetReturnValue().Set(context->Query(key));
@@ -211,18 +204,17 @@ DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
 }
 
 
-v8::Handle<Value> DeclarationContext::Get(Local<String> key) {
+v8::Handle<Value> DeclarationContext::Get(Local<Name> key) {
   return v8::Handle<Value>();
 }
 
 
-v8::Handle<Value> DeclarationContext::Set(Local<String> key,
-                                          Local<Value> value) {
+v8::Handle<Value> DeclarationContext::Set(Local<Name> key, Local<Value> value) {
   return v8::Handle<Value>();
 }
 
 
-v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
+v8::Handle<Integer> DeclarationContext::Query(Local<Name> key) {
   return v8::Handle<Integer>();
 }
 
@@ -272,7 +264,7 @@ TEST(Unknown) {
 
 class AbsentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<Name> key) {
     return v8::Handle<Integer>();
   }
 };
@@ -336,7 +328,7 @@ class AppearingPropertyContext: public DeclarationContext {
   AppearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<Name> key) {
     switch (state_) {
       case DECLARE:
         // Force declaration by returning that the
@@ -405,7 +397,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
  public:
   ExistsInPrototypeContext() { InitializeIfNeeded(); }
  protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<Name> key) {
     // Let it seem that the property exists in the prototype object.
     return Integer::New(isolate(), v8::None);
   }
@@ -464,7 +456,7 @@ TEST(ExistsInPrototype) {
 
 class AbsentInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<Name> key) {
     // Let it seem that the property is absent in the prototype object.
     return Handle<Integer>();
   }
@@ -499,7 +491,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
  protected:
-  virtual v8::Handle<Integer> Query(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<Name> key) {
     // Let it seem that the property exists in the hidden prototype object.
     return Integer::New(isolate(), v8::None);
   }

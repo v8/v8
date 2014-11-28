@@ -88,11 +88,6 @@ class IC {
   static void Clear(Isolate* isolate, Address address,
                     ConstantPoolArray* constant_pool);
 
-  // Clear the vector-based inline cache to initial state.
-  template <class Nexus>
-  static void Clear(Isolate* isolate, Code::Kind kind, Code* host,
-                    Nexus* nexus);
-
 #ifdef DEBUG
   bool IsLoadStub() const {
     return target()->is_load_stub() || target()->is_keyed_load_stub();
@@ -157,14 +152,27 @@ class IC {
   inline void set_target(Code* code);
   bool is_target_set() { return target_set_; }
 
+  static bool ICUseVector(Code::Kind kind) {
+    return (FLAG_vector_ics &&
+            (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC)) ||
+           kind == Code::CALL_IC;
+  }
+
   bool UseVector() const {
-    bool use = (FLAG_vector_ics &&
-                (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC)) ||
-               kind() == Code::CALL_IC;
+    bool use = ICUseVector(kind());
     // If we are supposed to use the nexus, verify the nexus is non-null.
     DCHECK(!use || nexus_ != NULL);
     return use;
   }
+
+  // Configure for most states.
+  void ConfigureVectorState(IC::State new_state);
+  // Configure the vector for MONOMORPHIC.
+  void ConfigureVectorState(Handle<Name> name, Handle<HeapType> type,
+                            Handle<Code> handler);
+  // Configure the vector for POLYMORPHIC.
+  void ConfigureVectorState(Handle<Name> name, TypeHandleList* types,
+                            CodeHandleList* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
@@ -272,11 +280,15 @@ class IC {
   void FindTargetMaps() {
     if (target_maps_set_) return;
     target_maps_set_ = true;
-    if (state_ == MONOMORPHIC) {
-      Map* map = target_->FindFirstMap();
-      if (map != NULL) target_maps_.Add(handle(map));
-    } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
-      target_->FindAllMaps(&target_maps_);
+    if (UseVector()) {
+      nexus()->ExtractMaps(&target_maps_);
+    } else {
+      if (state_ == MONOMORPHIC) {
+        Map* map = target_->FindFirstMap();
+        if (map != NULL) target_maps_.Add(handle(map));
+      } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
+        target_->FindAllMaps(&target_maps_);
+      }
     }
   }
 
@@ -364,7 +376,18 @@ class LoadIC : public IC {
     return LoadICState::GetContextualMode(extra_ic_state());
   }
 
-  explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
+  LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
+      : IC(depth, isolate, nexus) {
+    DCHECK(!FLAG_vector_ics || nexus != NULL);
+    DCHECK(IsLoadStub());
+  }
+
+  // TODO(mvstanton): The for_queries_only is because we have a case where we
+  // construct an IC only to gather the contextual mode, and we don't have
+  // vector/slot information. for_queries_only is a temporary hack to enable the
+  // strong DCHECK protection around vector/slot.
+  LoadIC(FrameDepth depth, Isolate* isolate, bool for_queries_only)
+      : IC(depth, isolate, NULL, for_queries_only) {
     DCHECK(IsLoadStub());
   }
 
@@ -395,6 +418,8 @@ class LoadIC : public IC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
+
+  static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
   inline void set_target(Code* code);
@@ -434,8 +459,10 @@ class LoadIC : public IC {
 
 class KeyedLoadIC : public LoadIC {
  public:
-  explicit KeyedLoadIC(FrameDepth depth, Isolate* isolate)
-      : LoadIC(depth, isolate) {
+  KeyedLoadIC(FrameDepth depth, Isolate* isolate,
+              KeyedLoadICNexus* nexus = NULL)
+      : LoadIC(depth, isolate, nexus) {
+    DCHECK(!FLAG_vector_ics || nexus != NULL);
     DCHECK(target()->is_keyed_load_stub());
   }
 
@@ -462,6 +489,8 @@ class KeyedLoadIC : public LoadIC {
   static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
   static Handle<Code> generic_stub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
+
+  static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject

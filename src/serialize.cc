@@ -807,11 +807,27 @@ Object* Deserializer::ProcessBackRefInSerializedCode(Object* obj) {
 // The reason for this strange interface is that otherwise the object is
 // written very late, which means the FreeSpace map is not set up by the
 // time we need to use it to mark the space at the end of a page free.
-void Deserializer::ReadObject(int space_number,
-                              Object** write_back) {
-  int size = source_->GetInt() << kObjectAlignmentBits;
-  Address address = Allocate(space_number, size);
-  HeapObject* obj = HeapObject::FromAddress(address);
+void Deserializer::ReadObject(int space_number, Object** write_back) {
+  Address address;
+  HeapObject* obj;
+  int next_int = source_->GetInt();
+
+  bool double_align = false;
+#ifndef V8_HOST_ARCH_64_BIT
+  double_align = next_int == kDoubleAlignmentSentinel;
+  if (double_align) next_int = source_->GetInt();
+#endif
+
+  DCHECK_NE(kDoubleAlignmentSentinel, next_int);
+  int size = next_int << kObjectAlignmentBits;
+  int reserved_size = size + (double_align ? kPointerSize : 0);
+  address = Allocate(space_number, reserved_size);
+  obj = HeapObject::FromAddress(address);
+  if (double_align) {
+    obj = isolate_->heap()->DoubleAlignForDeserialization(obj, reserved_size);
+    address = obj->address();
+  }
+
   isolate_->heap()->OnAllocationEvent(obj, size);
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
@@ -1549,9 +1565,19 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                                      int size, Map* map) {
+  int reserved_size = size;
+
   sink_->Put(kNewObject + reference_representation_ + space,
              "ObjectSerialization");
-  sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
+  // Objects on the large object space are always double-aligned.
+  if (space != LO_SPACE && object_->NeedsToEnsureDoubleAlignment()) {
+    sink_->PutInt(kDoubleAlignmentSentinel, "double align next object");
+    // Add wriggle room for double alignment padding.
+    reserved_size += kPointerSize;
+  }
+  int encoded_size = size >> kObjectAlignmentBits;
+  DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
+  sink_->PutInt(encoded_size, "Size in words");
 
   if (serializer_->code_address_map_) {
     const char* code_name =
@@ -1572,7 +1598,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     }
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
-    back_reference = serializer_->Allocate(space, size);
+    back_reference = serializer_->Allocate(space, reserved_size);
   }
   serializer_->back_reference_map()->Add(object_, back_reference);
 
@@ -1918,7 +1944,7 @@ BackReference Serializer::AllocateLargeObject(int size) {
 
 
 BackReference Serializer::Allocate(AllocationSpace space, int size) {
-  CHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
+  DCHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
   DCHECK(size > 0 && size <= static_cast<int>(max_chunk_size(space)));
   uint32_t new_chunk_size = pending_chunk_[space] + size;
   if (new_chunk_size > max_chunk_size(space)) {

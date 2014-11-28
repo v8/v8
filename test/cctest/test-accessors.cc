@@ -38,6 +38,7 @@ using ::v8::ObjectTemplate;
 using ::v8::Value;
 using ::v8::Context;
 using ::v8::Local;
+using ::v8::Name;
 using ::v8::String;
 using ::v8::Script;
 using ::v8::Function;
@@ -513,7 +514,7 @@ void JSONStringifyEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
 }
 
 
-void JSONStringifyGetter(Local<String> name,
+void JSONStringifyGetter(Local<Name> name,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_str("crbug-161028"));
 }
@@ -525,8 +526,8 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
   v8::HandleScope scope(isolate);
 
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetNamedPropertyHandler(
-      JSONStringifyGetter, NULL, NULL, NULL, JSONStringifyEnumerator);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      JSONStringifyGetter, NULL, NULL, NULL, JSONStringifyEnumerator));
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   v8::Handle<v8::String> expected = v8_str("{\"regress\":\"crbug-161028\"}");
   CHECK(CompileRun("JSON.stringify(obj)")->Equals(expected));

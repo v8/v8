@@ -616,6 +616,8 @@ class GapInstruction : public Instruction {
 
   bool IsRedundant() const;
 
+  ParallelMove** parallel_moves() { return parallel_moves_; }
+
   static GapInstruction* New(Zone* zone) {
     void* buffer = zone->New(sizeof(GapInstruction));
     return new (buffer) GapInstruction(kGapInstruction);

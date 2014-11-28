@@ -1443,6 +1443,8 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Object* p);
 #endif
 
+  inline bool NeedsToEnsureDoubleAlignment();
+
   // Layout description.
   // First field in a heap object is map.
   static const int kMapOffset = Object::kHeaderSize;
@@ -2456,10 +2458,12 @@ class FixedArray: public FixedArrayBase {
                                      int new_length,
                                      PretenureFlag pretenure = NOT_TENURED);
 
+  enum KeyFilter { ALL_KEYS, NON_SYMBOL_KEYS };
+
   // Add the elements of a JSArray to this FixedArray.
   MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromArrayLike(
-      Handle<FixedArray> content,
-      Handle<JSObject> array);
+      Handle<FixedArray> content, Handle<JSObject> array,
+      KeyFilter filter = ALL_KEYS);
 
   // Computes the union of keys and return the result.
   // Used for implementing "for (n in object) { }"
@@ -8489,6 +8493,11 @@ class StringHasher {
   // Reusable parts of the hashing algorithm.
   INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
   INLINE(static uint32_t GetHashCore(uint32_t running_hash));
+  INLINE(static uint32_t ComputeRunningHash(uint32_t running_hash,
+                                            const uc16* chars, int length));
+  INLINE(static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
+                                                   const char* chars,
+                                                   int length));
 
  protected:
   // Returns the value to store in the hash field of a string with
@@ -10556,6 +10565,10 @@ class InterceptorInfo: public Struct {
   DECL_ACCESSORS(deleter, Object)
   DECL_ACCESSORS(enumerator, Object)
   DECL_ACCESSORS(data, Object)
+  DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
+
+  inline int flags() const;
+  inline void set_flags(int flags);
 
   DECLARE_CAST(InterceptorInfo)
 
@@ -10569,7 +10582,10 @@ class InterceptorInfo: public Struct {
   static const int kDeleterOffset = kQueryOffset + kPointerSize;
   static const int kEnumeratorOffset = kDeleterOffset + kPointerSize;
   static const int kDataOffset = kEnumeratorOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
+  static const int kFlagsOffset = kDataOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
+
+  static const int kCanInterceptSymbolsBit = 0;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);

@@ -1041,6 +1041,7 @@ function ToNameArray(obj, trap, includeSymbols) {
 function ObjectGetOwnPropertyKeys(obj, filter) {
   var nameArrays = new InternalArray();
   filter |= PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
+  var interceptorInfo = %GetInterceptorInfo(obj);
 
   // Find all the indexed properties.
 
@@ -1051,9 +1052,7 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
       ownElementNames[i] = %_NumberToString(ownElementNames[i]);
     }
     nameArrays.push(ownElementNames);
-
     // Get names for indexed interceptor properties.
-    var interceptorInfo = %GetInterceptorInfo(obj);
     if ((interceptorInfo & 1) != 0) {
       var indexedInterceptorNames = %GetIndexedInterceptorElementNames(obj);
       if (!IS_UNDEFINED(indexedInterceptorNames)) {

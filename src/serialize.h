@@ -301,20 +301,20 @@ class SerializerDeserializer: public ObjectVisitor {
  protected:
   // Where the pointed-to object can be found:
   enum Where {
-    kNewObject = 0,  // Object is next in snapshot.
-    // 1-7                             One per space.
+    kNewObject = 0,  //              Object is next in snapshot.
+    // 1-7                           One per space.
     kRootArray = 0x9,             // Object is found in root array.
     kPartialSnapshotCache = 0xa,  // Object is in the cache.
     kExternalReference = 0xb,     // Pointer to an external reference.
     kSkip = 0xc,                  // Skip n bytes.
     kBuiltin = 0xd,               // Builtin code object.
     kAttachedReference = 0xe,     // Object is described in an attached list.
-    kNop = 0xf,                   // Does nothing, used to pad.
-    kBackref = 0x10,              // Object is described relative to end.
-    // 0x11-0x17                       One per space.
-    kBackrefWithSkip = 0x18,  // Object is described relative to end.
-    // 0x19-0x1f                       One per space.
-    // 0x20-0x3f                       Used by misc. tags below.
+    // 0xf                           Used by misc. See below.
+    kBackref = 0x10,  //             Object is described relative to end.
+    // 0x11-0x17                     One per space.
+    kBackrefWithSkip = 0x18,  //     Object is described relative to end.
+    // 0x19-0x1f                     One per space.
+    // 0x20-0x3f                     Used by misc. See below.
     kPointedToMask = 0x3f
   };
 
@@ -375,11 +375,16 @@ class SerializerDeserializer: public ObjectVisitor {
     return byte_code & 0x1f;
   }
 
+  static const int kNop = 0xf;  // Do nothing, used for padding.
+
   static const int kAnyOldSpace = -1;
 
   // A bitmask for getting the space out of an instruction.
   static const int kSpaceMask = 7;
   STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
+
+  // Sentinel after a new object to indicate that double alignment is needed.
+  static const int kDoubleAlignmentSentinel = 0;
 };
 
 

@@ -23,6 +23,7 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/machine-operator-reducer.h"
+#include "src/compiler/move-optimizer.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
@@ -579,6 +580,16 @@ struct ResolveControlFlowPhase {
 };
 
 
+struct OptimizeMovesPhase {
+  static const char* phase_name() { return "optimize moves"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    MoveOptimizer move_optimizer(temp_zone, data->sequence());
+    move_optimizer.Run();
+  }
+};
+
+
 struct JumpThreadingPhase {
   static const char* phase_name() { return "jump threading"; }
 
@@ -987,6 +998,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
+  Run<OptimizeMovesPhase>();
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);

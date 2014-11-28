@@ -538,7 +538,7 @@ class SpecialRPONumberer : public ZoneObject {
         order_(NULL),
         beyond_end_(NULL),
         loops_(zone),
-        backedges_(1, zone),
+        backedges_(zone),
         stack_(zone),
         previous_block_count_(0) {}
 
@@ -690,7 +690,7 @@ class SpecialRPONumberer : public ZoneObject {
         if (succ->rpo_number() == kBlockVisited1) continue;
         if (succ->rpo_number() == kBlockOnStack) {
           // The successor is on the stack, so this is a backedge (cycle).
-          backedges_.Add(Backedge(frame->block, frame->index - 1), zone_);
+          backedges_.push_back(Backedge(frame->block, frame->index - 1));
           if (!HasLoopNumber(succ)) {
             // Assign a new loop number to the header if it doesn't have one.
             SetLoopNumber(succ, num_loops++);
@@ -853,7 +853,7 @@ class SpecialRPONumberer : public ZoneObject {
 
   // Computes loop membership from the backedges of the control flow graph.
   void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>& queue,
-                       size_t num_loops, ZoneList<Backedge>* backedges) {
+                       size_t num_loops, ZoneVector<Backedge>* backedges) {
     // Extend existing loop membership vectors.
     for (LoopInfo& loop : loops_) {
       BitVector* new_members = new (zone_)
@@ -867,7 +867,7 @@ class SpecialRPONumberer : public ZoneObject {
 
     // Compute loop membership starting from backedges.
     // O(max(loop_depth) * max(|loop|)
-    for (int i = 0; i < backedges->length(); i++) {
+    for (size_t i = 0; i < backedges->size(); i++) {
       BasicBlock* member = backedges->at(i).first;
       BasicBlock* header = member->SuccessorAt(backedges->at(i).second);
       size_t loop_num = GetLoopNumber(header);
@@ -1012,7 +1012,7 @@ class SpecialRPONumberer : public ZoneObject {
   BasicBlock* order_;
   BasicBlock* beyond_end_;
   ZoneVector<LoopInfo> loops_;
-  ZoneList<Backedge> backedges_;
+  ZoneVector<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
 };
@@ -1037,15 +1037,8 @@ void Scheduler::ComputeSpecialRPONumbering() {
 }
 
 
-void Scheduler::GenerateImmediateDominatorTree() {
-  Trace("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
-
-  // TODO(danno): Consider using Lengauer & Tarjan's if this becomes too slow.
-
-  // Build the block dominator tree.
-  schedule_->start()->set_dominator_depth(0);
-  BasicBlock* second = schedule_->start()->rpo_next();
-  for (BasicBlock* block = second; block != NULL; block = block->rpo_next()) {
+void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
+  for (/*nop*/; block != NULL; block = block->rpo_next()) {
     BasicBlock::Predecessors::iterator pred = block->predecessors_begin();
     BasicBlock::Predecessors::iterator end = block->predecessors_end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
@@ -1065,6 +1058,17 @@ void Scheduler::GenerateImmediateDominatorTree() {
     Trace("Block B%d's idom is B%d, depth = %d\n", block->id().ToInt(),
           dominator->id().ToInt(), block->dominator_depth());
   }
+}
+
+
+void Scheduler::GenerateImmediateDominatorTree() {
+  Trace("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
+
+  // Seed start block to be the first dominator.
+  schedule_->start()->set_dominator_depth(0);
+
+  // Build the block dominator tree resulting from the above seed.
+  PropagateImmediateDominators(schedule_->start()->rpo_next());
 }
 
 
@@ -1434,11 +1438,11 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   // Iterate on phase 2: Compute special RPO and dominator tree.
   special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
   // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
-  for (BasicBlock* block : schedule_->all_blocks_) {
-    block->set_dominator_depth(-1);
-    block->set_dominator(NULL);
+  for (BasicBlock* b = block->rpo_next(); b != NULL; b = b->rpo_next()) {
+    b->set_dominator_depth(-1);
+    b->set_dominator(NULL);
   }
-  GenerateImmediateDominatorTree();
+  PropagateImmediateDominators(block->rpo_next());
 
   // Iterate on phase 4: Schedule nodes early.
   // TODO(mstarzinger): The following loop gathering the propagation roots is a

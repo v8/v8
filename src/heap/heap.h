@@ -1195,6 +1195,7 @@ class Heap {
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
     DCHECK(survived >= 0);
+    survived_last_scavenge_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -1506,6 +1507,9 @@ class Heap {
   // scavenge since last new space expansion.
   int survived_since_last_expansion_;
 
+  // ... and since the last scavenge.
+  int survived_last_scavenge_;
+
   // For keeping track on when to flush RegExp code.
   int sweep_generation_;
 
@@ -1725,6 +1729,8 @@ class Heap {
     if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
   }
+
+  HeapObject* DoubleAlignForDeserialization(HeapObject* object, int size);
 
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations

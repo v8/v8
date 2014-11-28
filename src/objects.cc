@@ -2880,22 +2880,23 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
 
 MaybeHandle<Object> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
                                                          Handle<Object> value) {
-  // TODO(rossberg): Support symbols in the API.
-  if (it->name()->IsSymbol()) return value;
-
-  Handle<String> name_string = Handle<String>::cast(it->name());
+  Handle<Name> name = it->name();
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
-  if (interceptor->setter()->IsUndefined()) return MaybeHandle<Object>();
+  if (interceptor->setter()->IsUndefined() ||
+      (name->IsSymbol() && !interceptor->can_intercept_symbols())) {
+    return MaybeHandle<Object>();
+  }
 
   LOG(it->isolate(),
-      ApiNamedPropertyAccess("interceptor-named-set", *holder, *name_string));
+      ApiNamedPropertyAccess("interceptor-named-set", *holder, *name));
   PropertyCallbackArguments args(it->isolate(), interceptor->data(), *holder,
                                  *holder);
-  v8::NamedPropertySetterCallback setter =
-      v8::ToCData<v8::NamedPropertySetterCallback>(interceptor->setter());
-  v8::Handle<v8::Value> result = args.Call(
-      setter, v8::Utils::ToLocal(name_string), v8::Utils::ToLocal(value));
+  v8::GenericNamedPropertySetterCallback setter =
+      v8::ToCData<v8::GenericNamedPropertySetterCallback>(
+          interceptor->setter());
+  v8::Handle<v8::Value> result =
+      args.Call(setter, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
   if (!result.IsEmpty()) return value;
 
@@ -4081,9 +4082,6 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
     Handle<JSObject> holder,
     Handle<Object> receiver,
     Handle<Name> name) {
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return maybe(ABSENT);
-
   Isolate* isolate = holder->GetIsolate();
   HandleScope scope(isolate);
 
@@ -4092,26 +4090,29 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
   AssertNoContextChange ncc(isolate);
 
   Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
+  if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
+    return maybe(ABSENT);
+  }
   PropertyCallbackArguments args(
       isolate, interceptor->data(), *receiver, *holder);
   if (!interceptor->query()->IsUndefined()) {
-    v8::NamedPropertyQueryCallback query =
-        v8::ToCData<v8::NamedPropertyQueryCallback>(interceptor->query());
+    v8::GenericNamedPropertyQueryCallback query =
+        v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
+            interceptor->query());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-has", *holder, *name));
-    v8::Handle<v8::Integer> result =
-        args.Call(query, v8::Utils::ToLocal(Handle<String>::cast(name)));
+    v8::Handle<v8::Integer> result = args.Call(query, v8::Utils::ToLocal(name));
     if (!result.IsEmpty()) {
       DCHECK(result->IsInt32());
       return maybe(static_cast<PropertyAttributes>(result->Int32Value()));
     }
   } else if (!interceptor->getter()->IsUndefined()) {
-    v8::NamedPropertyGetterCallback getter =
-        v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
+    v8::GenericNamedPropertyGetterCallback getter =
+        v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+            interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get-has", *holder, *name));
-    v8::Handle<v8::Value> result =
-        args.Call(getter, v8::Utils::ToLocal(Handle<String>::cast(name)));
+    v8::Handle<v8::Value> result = args.Call(getter, v8::Utils::ToLocal(name));
     if (!result.IsEmpty()) return maybe(DONT_ENUM);
   }
 
@@ -4417,6 +4418,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
   object->synchronized_set_map(*new_map);
 
   object->set_properties(*dictionary);
+
+  // Ensure that in-object space of slow-mode object does not contain random
+  // garbage.
+  int inobject_properties = new_map->inobject_properties();
+  for (int i = 0; i < inobject_properties; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
+    object->RawFastPropertyAtPut(index, Smi::FromInt(0));
+  }
 
   isolate->counters()->props_to_dictionary()->Increment();
 
@@ -4939,20 +4948,20 @@ MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
     Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name) {
   Isolate* isolate = holder->GetIsolate();
 
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return MaybeHandle<Object>();
-
   Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
-  if (interceptor->deleter()->IsUndefined()) return MaybeHandle<Object>();
+  if (interceptor->deleter()->IsUndefined() ||
+      (name->IsSymbol() && !interceptor->can_intercept_symbols())) {
+    return MaybeHandle<Object>();
+  }
 
-  v8::NamedPropertyDeleterCallback deleter =
-      v8::ToCData<v8::NamedPropertyDeleterCallback>(interceptor->deleter());
+  v8::GenericNamedPropertyDeleterCallback deleter =
+      v8::ToCData<v8::GenericNamedPropertyDeleterCallback>(
+          interceptor->deleter());
   LOG(isolate,
       ApiNamedPropertyAccess("interceptor-named-delete", *holder, *name));
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder);
-  v8::Handle<v8::Boolean> result =
-      args.Call(deleter, v8::Utils::ToLocal(Handle<String>::cast(name)));
+  v8::Handle<v8::Boolean> result = args.Call(deleter, v8::Utils::ToLocal(name));
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (result.IsEmpty()) return MaybeHandle<Object>();
 
@@ -5862,7 +5871,7 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
     Object* e = array->get(i);
-    if (!(e->IsString() || e->IsNumber())) return false;
+    if (!(e->IsName() || e->IsNumber())) return false;
   }
   return true;
 }
@@ -6070,14 +6079,14 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
         FixedArray);
     DCHECK(ContainsOnlyValidKeys(content));
 
-    // Add the property keys from the interceptor.
+    // Add the non-symbol property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
       Handle<JSObject> result;
       if (JSObject::GetKeysForNamedInterceptor(
               current, object).ToHandle(&result)) {
         ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, content,
-            FixedArray::AddKeysFromArrayLike(content, result),
+            isolate, content, FixedArray::AddKeysFromArrayLike(
+                                  content, result, FixedArray::NON_SYMBOL_KEYS),
             FixedArray);
       }
       DCHECK(ContainsOnlyValidKeys(content));
@@ -8002,14 +8011,13 @@ void FixedArray::Shrink(int new_length) {
 
 
 MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
-    Handle<FixedArray> content,
-    Handle<JSObject> array) {
+    Handle<FixedArray> content, Handle<JSObject> array, KeyFilter filter) {
   DCHECK(array->IsJSArray() || array->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = array->GetElementsAccessor();
   Handle<FixedArray> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       array->GetIsolate(), result,
-      accessor->AddElementsToFixedArray(array, array, content),
+      accessor->AddElementsToFixedArray(array, array, content, filter),
       FixedArray);
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -8032,10 +8040,9 @@ MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
   ASSIGN_RETURN_ON_EXCEPTION(
       first->GetIsolate(), result,
       accessor->AddElementsToFixedArray(
-          Handle<Object>::null(),     // receiver
-          Handle<JSObject>::null(),   // holder
-          first,
-          Handle<FixedArrayBase>::cast(second)),
+          Handle<Object>::null(),    // receiver
+          Handle<JSObject>::null(),  // holder
+          first, Handle<FixedArrayBase>::cast(second), ALL_KEYS),
       FixedArray);
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -13455,22 +13462,21 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
     Handle<Name> name) {
   Isolate* isolate = holder->GetIsolate();
 
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return isolate->factory()->undefined_value();
-
   Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
-  Handle<String> name_string = Handle<String>::cast(name);
-
   if (interceptor->getter()->IsUndefined()) return MaybeHandle<Object>();
 
-  v8::NamedPropertyGetterCallback getter =
-      v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
+  if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
+    return MaybeHandle<Object>();
+  }
+
+  v8::GenericNamedPropertyGetterCallback getter =
+      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+          interceptor->getter());
   LOG(isolate,
       ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
   PropertyCallbackArguments
       args(isolate, interceptor->data(), *receiver, *holder);
-  v8::Handle<v8::Value> result =
-      args.Call(getter, v8::Utils::ToLocal(name_string));
+  v8::Handle<v8::Value> result = args.Call(getter, v8::Utils::ToLocal(name));
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (result.IsEmpty()) return MaybeHandle<Object>();
 
@@ -13482,7 +13488,6 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
 
 
 // Compute the property keys from the interceptor.
-// TODO(rossberg): support symbols in API, and filter here if needed.
 MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
@@ -13491,8 +13496,8 @@ MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
       args(isolate, interceptor->data(), *receiver, *object);
   v8::Handle<v8::Object> result;
   if (!interceptor->enumerator()->IsUndefined()) {
-    v8::NamedPropertyEnumeratorCallback enum_fun =
-        v8::ToCData<v8::NamedPropertyEnumeratorCallback>(
+    v8::GenericNamedPropertyEnumeratorCallback enum_fun =
+        v8::ToCData<v8::GenericNamedPropertyEnumeratorCallback>(
             interceptor->enumerator());
     LOG(isolate, ApiObjectAccess("interceptor-named-enum", *object));
     result = args.Call(enum_fun);

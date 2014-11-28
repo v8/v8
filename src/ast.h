@@ -174,25 +174,24 @@ class AstProperties FINAL BASE_EMBEDDED {
  public:
   class Flags : public EnumSet<AstPropertiesFlag, int> {};
 
-  AstProperties() : node_count_(0), feedback_slots_(0), ic_feedback_slots_(0) {}
+  AstProperties() : node_count_(0) {}
 
   Flags* flags() { return &flags_; }
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
-  int feedback_slots() const { return feedback_slots_; }
-  void increase_feedback_slots(int count) {
-    feedback_slots_ += count;
-  }
+  int slots() const { return spec_.slots(); }
+  void increase_slots(int count) { spec_.increase_slots(count); }
 
-  int ic_feedback_slots() const { return ic_feedback_slots_; }
-  void increase_ic_feedback_slots(int count) { ic_feedback_slots_ += count; }
+  int ic_slots() const { return spec_.ic_slots(); }
+  void increase_ic_slots(int count) { spec_.increase_ic_slots(count); }
+  void SetKind(int ic_slot, Code::Kind kind) { spec_.SetKind(ic_slot, kind); }
+  const FeedbackVectorSpec& get_spec() const { return spec_; }
 
  private:
   Flags flags_;
   int node_count_;
-  int feedback_slots_;
-  int ic_feedback_slots_;
+  FeedbackVectorSpec spec_;
 };
 
 
@@ -244,6 +243,11 @@ class AstNode: public ZoneObject {
   virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) { UNREACHABLE(); }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
     UNREACHABLE();
+  }
+  // Each ICSlot stores a kind of IC which the participating node should know.
+  virtual Code::Kind FeedbackICSlotKind(int index) {
+    UNREACHABLE();
+    return Code::NUMBER_OF_KINDS;
   }
 
  private:
@@ -1698,16 +1702,23 @@ class VariableProxy FINAL : public Expression {
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
 
+  bool UsesVariableFeedbackSlot() const {
+    return FLAG_vector_ics && (var()->IsUnallocated() || var()->IsLookupSlot());
+  }
+
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate) OVERRIDE {
-    return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
+    return FeedbackVectorRequirements(0, UsesVariableFeedbackSlot() ? 1 : 0);
   }
+
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     variable_feedback_slot_ = slot;
   }
-
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return Code::LOAD_IC;
+  }
   FeedbackVectorICSlot VariableFeedbackSlot() {
-    DCHECK(!FLAG_vector_ics || !variable_feedback_slot_.IsInvalid());
+    DCHECK(!UsesVariableFeedbackSlot() || !variable_feedback_slot_.IsInvalid());
     return variable_feedback_slot_;
   }
 
@@ -1792,6 +1803,9 @@ class Property FINAL : public Expression {
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     property_feedback_slot_ = slot;
   }
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return key()->IsPropertyName() ? Code::LOAD_IC : Code::KEYED_LOAD_IC;
+  }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
     DCHECK(!FLAG_vector_ics || !property_feedback_slot_.IsInvalid());
@@ -1835,6 +1849,9 @@ class Call FINAL : public Expression {
       Isolate* isolate) OVERRIDE;
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     call_feedback_slot_ = slot;
+  }
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return Code::CALL_IC;
   }
 
   bool HasCallFeedbackSlot() const { return !call_feedback_slot_.IsInvalid(); }
@@ -2009,17 +2026,22 @@ class CallRuntime FINAL : public Expression {
   bool is_jsruntime() const { return function_ == NULL; }
 
   // Type feedback information.
+  bool HasCallRuntimeFeedbackSlot() const {
+    return FLAG_vector_ics && is_jsruntime();
+  }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate) OVERRIDE {
-    return FeedbackVectorRequirements(
-        0, (FLAG_vector_ics && is_jsruntime()) ? 1 : 0);
+    return FeedbackVectorRequirements(0, HasCallRuntimeFeedbackSlot() ? 1 : 0);
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     callruntime_feedback_slot_ = slot;
   }
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return Code::LOAD_IC;
+  }
 
   FeedbackVectorICSlot CallRuntimeFeedbackSlot() {
-    DCHECK(!(FLAG_vector_ics && is_jsruntime()) ||
+    DCHECK(!HasCallRuntimeFeedbackSlot() ||
            !callruntime_feedback_slot_.IsInvalid());
     return callruntime_feedback_slot_;
   }
@@ -2389,17 +2411,22 @@ class Yield FINAL : public Expression {
   }
 
   // Type feedback information.
+  bool HasFeedbackSlots() const {
+    return FLAG_vector_ics && (yield_kind() == kDelegating);
+  }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate) OVERRIDE {
-    return FeedbackVectorRequirements(
-        0, (FLAG_vector_ics && yield_kind() == kDelegating) ? 3 : 0);
+    return FeedbackVectorRequirements(0, HasFeedbackSlots() ? 3 : 0);
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     yield_first_feedback_slot_ = slot;
   }
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return index == 0 ? Code::KEYED_LOAD_IC : Code::LOAD_IC;
+  }
 
   FeedbackVectorICSlot KeyedLoadFeedbackSlot() {
-    DCHECK(!FLAG_vector_ics || !yield_first_feedback_slot_.IsInvalid());
+    DCHECK(!HasFeedbackSlots() || !yield_first_feedback_slot_.IsInvalid());
     return yield_first_feedback_slot_;
   }
 
@@ -2580,10 +2607,9 @@ class FunctionLiteral FINAL : public Expression {
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
-  int slot_count() {
-    return ast_properties_.feedback_slots();
+  const FeedbackVectorSpec& feedback_vector_spec() const {
+    return ast_properties_.get_spec();
   }
-  int ic_slot_count() { return ast_properties_.ic_feedback_slots(); }
   bool dont_optimize() { return dont_optimize_reason_ != kNoReason; }
   BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
   void set_dont_optimize_reason(BailoutReason reason) {
@@ -2733,6 +2759,9 @@ class SuperReference FINAL : public Expression {
   }
   virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
     homeobject_feedback_slot_ = slot;
+  }
+  virtual Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
+    return Code::LOAD_IC;
   }
 
   FeedbackVectorICSlot HomeObjectFeedbackSlot() {
