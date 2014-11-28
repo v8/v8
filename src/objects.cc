@@ -9298,6 +9298,18 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
 
 
 void IteratingStringHasher::VisitConsString(ConsString* cons_string) {
+  // Run small ConsStrings through ConsStringIterator.
+  if (cons_string->length() < 64) {
+    ConsStringIterator iter(cons_string);
+    int offset;
+    String* string;
+    while (nullptr != (string = iter.Next(&offset))) {
+      DCHECK_EQ(0, offset);
+      String::VisitFlat(this, string, 0);
+    }
+    return;
+  }
+  // Slow case.
   const int max_length = String::kMaxHashCalcLength;
   int length = std::min(cons_string->length(), max_length);
   if (cons_string->HasOnlyOneByteChars()) {
