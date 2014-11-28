@@ -777,3 +777,75 @@ function assertAccessorDescriptor(object, name) {
     var x = (class x extends x {});
   }, ReferenceError);
 })();
+
+
+(function TestSuperCallSyntacticRestriction() {
+  assertThrows(function() {
+    class C {
+      constructor() {
+        var y;
+        super();
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(this.x);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(this);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(1, 2, Object.getPrototypeOf(this));
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        { super(1, 2); }
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        if (1) super();
+      }
+    }; new C();
+  }, TypeError);
+
+  class C1 extends Object {
+    constructor() {
+      'use strict';
+      super();
+    }
+  };
+  new C1();
+
+  class C2 extends Object {
+    constructor() {
+      ; 'use strict';;;;;
+      super();
+    }
+  };
+  new C2();
+
+  class C3 extends Object {
+    constructor() {
+      ; 'use strict';;;;;
+      // This is a comment.
+      super();
+    }
+  };
+  new C3();
+}());
