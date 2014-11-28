@@ -157,6 +157,7 @@ DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
+DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
@@ -200,8 +201,9 @@ HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
 HARMONY_STAGED(FLAG_STAGED_FEATURES)
 #undef FLAG_STAGED_FEATURES
 
-#define FLAG_SHIPPING_FEATURES(id, description) \
-  DEFINE_BOOL_READONLY(id, true, "enable " #description)
+#define FLAG_SHIPPING_FEATURES(id, description)  \
+  DEFINE_BOOL(id, false, "enable " #description) \
+  DEFINE_IMPLICATION(harmony_shipping, id)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
