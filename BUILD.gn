@@ -429,6 +429,8 @@ source_set("v8_base") {
     "src/assert-scope.cc",
     "src/ast-numbering.cc",
     "src/ast-numbering.h",
+    "src/ast-this-access-visitor.cc",
+    "src/ast-this-access-visitor.h",
     "src/ast-value-factory.cc",
     "src/ast-value-factory.h",
     "src/ast.cc",

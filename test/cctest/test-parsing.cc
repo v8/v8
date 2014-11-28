@@ -932,11 +932,13 @@ TEST(ScopeUsesArgumentsSuperThis) {
   enum Expected {
     NONE = 0,
     ARGUMENTS = 1,
-    SUPER = 2,
-    THIS = 4,
-    INNER_ARGUMENTS = 8,
-    INNER_SUPER = 16,
-    INNER_THIS = 32
+    SUPER_PROPERTY = 2,
+    SUPER_CONSTRUCTOR_CALL = 4,
+    THIS = 8,
+    INNER_ARGUMENTS = 16,
+    INNER_SUPER_PROPERTY = 32,
+    INNER_SUPER_CONSTRUCTOR_CALL = 64,
+    INNER_THIS = 128
   };
 
   static const struct {
@@ -946,27 +948,29 @@ TEST(ScopeUsesArgumentsSuperThis) {
         {"", NONE},
         {"return this", THIS},
         {"return arguments", ARGUMENTS},
-        {"return super()", SUPER},
-        {"return super.x", SUPER},
+        {"return super()", SUPER_CONSTRUCTOR_CALL},
+        {"return super.x", SUPER_PROPERTY},
         {"return arguments[0]", ARGUMENTS},
         {"return this + arguments[0]", ARGUMENTS | THIS},
-        {"return this + arguments[0] + super.x", ARGUMENTS | SUPER | THIS},
+        {"return this + arguments[0] + super.x",
+         ARGUMENTS | SUPER_PROPERTY | THIS},
         {"return x => this + x", INNER_THIS},
-        {"return x => super() + x", INNER_SUPER},
+        {"return x => super() + x", INNER_SUPER_CONSTRUCTOR_CALL},
         {"this.foo = 42;", THIS},
         {"this.foo();", THIS},
         {"if (foo()) { this.f() }", THIS},
-        {"if (foo()) { super.f() }", SUPER},
+        {"if (foo()) { super.f() }", SUPER_PROPERTY},
         {"if (arguments.length) { this.f() }", ARGUMENTS | THIS},
         {"while (true) { this.f() }", THIS},
-        {"while (true) { super.f() }", SUPER},
+        {"while (true) { super.f() }", SUPER_PROPERTY},
         {"if (true) { while (true) this.foo(arguments) }", ARGUMENTS | THIS},
         // Multiple nesting levels must work as well.
         {"while (true) { while (true) { while (true) return this } }", THIS},
         {"while (true) { while (true) { while (true) return super() } }",
-         SUPER},
+         SUPER_CONSTRUCTOR_CALL},
         {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
-        {"if (1) { return () => { while (true) new super() } }", INNER_SUPER},
+        {"if (1) { return () => { while (true) new super() } }", NONE},
+        {"if (1) { return () => { while (true) new new super() } }", NONE},
         // Note that propagation of the inner_uses_this() value does not
         // cross boundaries of normal functions onto parent scopes.
         {"return function (x) { return this + x }", NONE},
@@ -981,9 +985,10 @@ TEST(ScopeUsesArgumentsSuperThis) {
         {"\"use strict\"; while (true) { let x; this, arguments; }",
          INNER_ARGUMENTS | INNER_THIS},
         {"\"use strict\"; while (true) { let x; this, super(), arguments; }",
-         INNER_ARGUMENTS | INNER_SUPER | INNER_THIS},
+         INNER_ARGUMENTS | INNER_SUPER_CONSTRUCTOR_CALL | INNER_THIS},
         {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
-        {"\"use strict\"; if (foo()) { let x; super.f() }", INNER_SUPER},
+        {"\"use strict\"; if (foo()) { let x; super.f() }",
+         INNER_SUPER_PROPERTY},
         {"\"use strict\"; if (1) {"
          "  let x; return function () { return this + super() + arguments }"
          "}",
@@ -1033,12 +1038,17 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::Scope* scope = script_scope->inner_scopes()->at(0);
       CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
                scope->uses_arguments());
-      CHECK_EQ((source_data[i].expected & SUPER) != 0, scope->uses_super());
+      CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
+               scope->uses_super_property());
+      CHECK_EQ((source_data[i].expected & SUPER_CONSTRUCTOR_CALL) != 0,
+               scope->uses_super_constructor_call());
       CHECK_EQ((source_data[i].expected & THIS) != 0, scope->uses_this());
       CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
-      CHECK_EQ((source_data[i].expected & INNER_SUPER) != 0,
-               scope->inner_uses_super());
+      CHECK_EQ((source_data[i].expected & INNER_SUPER_PROPERTY) != 0,
+               scope->inner_uses_super_property());
+      CHECK_EQ((source_data[i].expected & INNER_SUPER_CONSTRUCTOR_CALL) != 0,
+               scope->inner_uses_super_constructor_call());
       CHECK_EQ((source_data[i].expected & INNER_THIS) != 0,
                scope->inner_uses_this());
     }

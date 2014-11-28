@@ -75,7 +75,7 @@ class FetchCandidate(Step):
 
   def RunStep(self):
     self.Git("fetch origin +refs/heads/candidate:refs/heads/candidate")
-    self["candidate"] = self.Git("show-ref -s refs/heads/candidate")
+    self["candidate"] = self.Git("show-ref -s refs/heads/candidate").strip()
 
 
 class CheckLastPush(Step):

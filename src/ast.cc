@@ -151,9 +151,16 @@ StrictMode FunctionLiteral::strict_mode() const {
 }
 
 
-bool FunctionLiteral::uses_super() const {
+bool FunctionLiteral::uses_super_property() const {
   DCHECK_NOT_NULL(scope());
-  return scope()->uses_super() || scope()->inner_uses_super();
+  return scope()->uses_super_property() || scope()->inner_uses_super_property();
+}
+
+
+bool FunctionLiteral::uses_super_constructor_call() const {
+  DCHECK_NOT_NULL(scope());
+  return scope()->uses_super_constructor_call() ||
+         scope()->inner_uses_super_constructor_call();
 }
 
 

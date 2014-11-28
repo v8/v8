@@ -161,7 +161,8 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
-  scope_uses_super_ = false;
+  scope_uses_super_property_ = false;
+  scope_uses_super_constructor_call_ = false;
   scope_uses_this_ = false;
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
@@ -171,7 +172,8 @@ void Scope::SetDefaults(ScopeType scope_type,
   inner_scope_calls_eval_ = false;
   inner_scope_uses_arguments_ = false;
   inner_scope_uses_this_ = false;
-  inner_scope_uses_super_ = false;
+  inner_scope_uses_super_property_ = false;
+  inner_scope_uses_super_constructor_call_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
@@ -375,7 +377,9 @@ Scope* Scope::FinalizeBlockScope() {
 
   // Propagate usage flags to outer scope.
   if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
-  if (uses_super()) outer_scope_->RecordSuperUsage();
+  if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
+  if (uses_super_constructor_call())
+    outer_scope_->RecordSuperConstructorCallUsage();
   if (uses_this()) outer_scope_->RecordThisUsage();
 
   return NULL;
@@ -896,12 +900,20 @@ void Scope::Print(int n) {
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
-  if (scope_uses_super_) Indent(n1, "// scope uses 'super'\n");
+  if (scope_uses_super_property_)
+    Indent(n1, "// scope uses 'super' property\n");
+  if (scope_uses_super_constructor_call_) {
+    Indent(n1, "// scope uses 'super' constructor\n");
+  }
   if (scope_uses_this_) Indent(n1, "// scope uses 'this'\n");
   if (inner_scope_uses_arguments_) {
     Indent(n1, "// inner scope uses 'arguments'\n");
   }
-  if (inner_scope_uses_super_) Indent(n1, "// inner scope uses 'super'\n");
+  if (inner_scope_uses_super_property_)
+    Indent(n1, "// inner scope uses 'super' property\n");
+  if (inner_scope_uses_super_constructor_call_) {
+    Indent(n1, "// inner scope uses 'super' constructor\n");
+  }
   if (inner_scope_uses_this_) Indent(n1, "// inner scope uses 'this'\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
@@ -1174,8 +1186,13 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
       if (inner->scope_uses_arguments_ || inner->inner_scope_uses_arguments_) {
         inner_scope_uses_arguments_ = true;
       }
-      if (inner->scope_uses_super_ || inner->inner_scope_uses_super_) {
-        inner_scope_uses_super_ = true;
+      if (inner->scope_uses_super_property_ ||
+          inner->inner_scope_uses_super_property_) {
+        inner_scope_uses_super_property_ = true;
+      }
+      if (inner->uses_super_constructor_call() ||
+          inner->inner_scope_uses_super_constructor_call_) {
+        inner_scope_uses_super_constructor_call_ = true;
       }
       if (inner->scope_uses_this_ || inner->inner_scope_uses_this_) {
         inner_scope_uses_this_ = true;

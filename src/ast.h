@@ -2513,11 +2513,12 @@ class FunctionLiteral FINAL : public Expression {
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   StrictMode strict_mode() const;
-  bool uses_super() const;
+  bool uses_super_property() const;
+  bool uses_super_constructor_call() const;
 
   static bool NeedsHomeObject(Expression* literal) {
     return literal != NULL && literal->IsFunctionLiteral() &&
-           literal->AsFunctionLiteral()->uses_super();
+           literal->AsFunctionLiteral()->uses_super_property();
   }
 
   int materialized_literal_count() { return materialized_literal_count_; }
