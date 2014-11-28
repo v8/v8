@@ -62,12 +62,6 @@ class Graph : public GenericGraph<Node> {
   }
 
   template <class Visitor>
-  void VisitNodeUsesFrom(Node* node, Visitor* visitor);
-
-  template <class Visitor>
-  void VisitNodeUsesFromStart(Visitor* visitor);
-
-  template <class Visitor>
   void VisitNodeInputsFromEnd(Visitor* visitor);
 
   void Decorate(Node* node);
