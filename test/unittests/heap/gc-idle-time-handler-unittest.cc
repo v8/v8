@@ -198,7 +198,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
-  int idle_time_ms = 0;
+  double idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
@@ -210,7 +210,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate - 1;
   heap_state.incremental_marking_stopped = true;
-  int idle_time_ms = 0;
+  double idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_FULL_GC, action.type);
 }
@@ -223,8 +223,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeIdleTime) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms =
-      static_cast<int>((heap_state.size_of_objects + speed - 1) / speed);
+  double idle_time_ms =
+      static_cast<double>((heap_state.size_of_objects + speed - 1) / speed);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_FULL_GC, action.type);
 }
@@ -235,7 +235,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate = 1.0;
   heap_state.incremental_marking_stopped = true;
-  int idle_time_ms = 0;
+  double idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_FULL_GC, action.type);
 }
@@ -247,7 +247,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   heap_state.contexts_disposal_rate = 1.0;
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
+  double idle_time_ms =
+      static_cast<double>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }
@@ -258,7 +259,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate = 1.0;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
+  double idle_time_ms =
+      static_cast<double>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }
@@ -267,7 +269,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
-  int idle_time_ms = 10;
+  double idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
   EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
@@ -280,7 +282,7 @@ TEST_F(GCIdleTimeHandlerTest, IncrementalMarking2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
-  int idle_time_ms = 10;
+  double idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
   EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
@@ -294,7 +296,8 @@ TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
+  double idle_time_ms =
+      static_cast<double>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
@@ -305,7 +308,8 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed + 1);
+  double idle_time_ms =
+      static_cast<double>(heap_state.size_of_objects / speed + 1);
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
@@ -318,7 +322,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
 
 TEST_F(GCIdleTimeHandlerTest, StopEventually2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 10;
+  double idle_time_ms = 10;
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
@@ -337,7 +341,8 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop1) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed + 1);
+  double idle_time_ms =
+      static_cast<double>(heap_state.size_of_objects / speed + 1);
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
@@ -356,7 +361,7 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop1) {
 
 TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 10;
+  double idle_time_ms = 10;
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     if (action.type == DONE) break;
@@ -384,7 +389,8 @@ TEST_F(GCIdleTimeHandlerTest, Scavenge) {
   heap_state.used_new_space_size =
       heap_state.new_space_capacity -
       (kNewSpaceAllocationThroughput * idle_time_ms);
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  GCIdleTimeAction action =
+      handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
   EXPECT_EQ(DO_SCAVENGE, action.type);
 }
 
@@ -397,17 +403,18 @@ TEST_F(GCIdleTimeHandlerTest, ScavengeAndDone) {
   heap_state.used_new_space_size =
       heap_state.new_space_capacity -
       (kNewSpaceAllocationThroughput * idle_time_ms);
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  GCIdleTimeAction action =
+      handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
   EXPECT_EQ(DO_SCAVENGE, action.type);
   heap_state.used_new_space_size = 0;
-  action = handler()->Compute(idle_time_ms, heap_state);
+  action = handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 0;
+  double idle_time_ms = 0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
@@ -415,7 +422,7 @@ TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
 
 TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeDoNothingButStartIdleRound) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 10;
+  double idle_time_ms = 10;
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     if (action.type == DONE) break;

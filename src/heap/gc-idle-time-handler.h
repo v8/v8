@@ -148,7 +148,7 @@ class GCIdleTimeHandler {
       : mark_compacts_since_idle_round_started_(0),
         scavenges_since_last_idle_round_(0) {}
 
-  GCIdleTimeAction Compute(size_t idle_time_in_ms, HeapState heap_state);
+  GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
 
   void NotifyIdleMarkCompact() {
     if (mark_compacts_since_idle_round_started_ < kMaxMarkCompactsInIdleRound) {

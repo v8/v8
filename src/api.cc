@@ -6650,6 +6650,15 @@ bool Isolate::IdleNotification(int idle_time_in_ms) {
 }
 
 
+bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
+  // Returning true tells the caller that it need not
+  // continue to call IdleNotification.
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!i::FLAG_use_idle_notification) return true;
+  return isolate->heap()->IdleNotification(deadline_in_seconds);
+}
+
+
 void Isolate::LowMemoryNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   {

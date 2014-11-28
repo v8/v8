@@ -5063,17 +5063,23 @@ class V8_EXPORT Isolate {
 
   /**
    * Optional notification that the embedder is idle.
-   * V8 uses the notification to reduce memory footprint.
+   * V8 uses the notification to perform garbage collection.
    * This call can be used repeatedly if the embedder remains idle.
    * Returns true if the embedder should stop calling IdleNotification
    * until real work has been done.  This indicates that V8 has done
    * as much cleanup as it will be able to do.
    *
-   * The idle_time_in_ms argument specifies the time V8 has to do reduce
-   * the memory footprint. There is no guarantee that the actual work will be
+   * The idle_time_in_ms argument specifies the time V8 has to perform
+   * garbage collection. There is no guarantee that the actual work will be
    * done within the time limit.
+   * The deadline_in_seconds argument specifies the deadline V8 has to finish
+   * garbage collection work. deadline_in_seconds is compared with
+   * MonotonicallyIncreasingTime() and should be based on the same timebase as
+   * that function. There is no guarantee that the actual work will be done
+   * within the time limit.
    */
   bool IdleNotification(int idle_time_in_ms);
+  bool IdleNotificationDeadline(double deadline_in_seconds);
 
   /**
    * Optional notification that the system is running low on memory.
