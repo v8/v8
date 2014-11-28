@@ -1342,6 +1342,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     delegate->shared()->DontAdaptArguments();
   }
 
+#define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
+
+  HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
+#undef FEATURE_INITIALIZE_GLOBAL
+
   // Initialize the embedder data slot.
   Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);
@@ -1376,7 +1381,6 @@ void Genesis::InitializeExperimentalGlobal() {
 
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
-  HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
@@ -1556,6 +1560,10 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "NativeObjectNotifierPerformChange",
                  native_object_notifier_perform_change);
   INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
+
+#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
+  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
+#undef INSTALL_NATIVE_FUNCTIONS_FOR
 }
 
 
@@ -1570,7 +1578,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
 #define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
   HARMONY_INPROGRESS(INSTALL_NATIVE_FUNCTIONS_FOR)
   HARMONY_STAGED(INSTALL_NATIVE_FUNCTIONS_FOR)
-  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
 #undef INSTALL_NATIVE_FUNCTIONS_FOR
 }
 
@@ -2188,11 +2195,15 @@ bool Genesis::InstallExperimentalNatives() {
       }                                                              \
     }                                                                \
   }
+    // Iterate over flags that are not enabled by default.
     HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
-    HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
+
+#define USE_NATIVES_FOR_FEATURE(id, descr) USE(id##_natives);
+  HARMONY_SHIPPING(USE_NATIVES_FOR_FEATURE)
+#undef USE_NATIVES_FOR_FEATURE
 
   InstallExperimentalNativeFunctions();
   return true;
