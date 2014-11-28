@@ -20,7 +20,12 @@ namespace internal {
 namespace compiler {
 
 Graph::Graph(Zone* zone)
-    : GenericGraph<Node>(zone), mark_max_(0), decorators_(zone) {}
+    : zone_(zone),
+      start_(NULL),
+      end_(NULL),
+      mark_max_(0),
+      next_node_id_(0),
+      decorators_(zone) {}
 
 
 void Graph::Decorate(Node* node) {

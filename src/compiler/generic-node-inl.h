@@ -7,8 +7,8 @@
 
 #include "src/v8.h"
 
-#include "src/compiler/generic-graph.h"
 #include "src/compiler/generic-node.h"
+#include "src/compiler/graph.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -16,7 +16,7 @@ namespace internal {
 namespace compiler {
 
 template <class B, class S>
-GenericNode<B, S>::GenericNode(GenericGraphBase* graph, int input_count,
+GenericNode<B, S>::GenericNode(Graph* graph, int input_count,
                                int reserve_input_count)
     : BaseClass(graph->zone()),
       input_count_(input_count),
@@ -31,7 +31,7 @@ GenericNode<B, S>::GenericNode(GenericGraphBase* graph, int input_count,
 }
 
 template <class B, class S>
-inline void GenericNode<B, S>::AssignUniqueID(GenericGraphBase* graph) {
+inline void GenericNode<B, S>::AssignUniqueID(Graph* graph) {
   id_ = graph->NextNodeID();
 }
 
@@ -233,7 +233,7 @@ inline bool GenericNode<B, S>::OwnedBy(GenericNode* owner) const {
 }
 
 template <class B, class S>
-S* GenericNode<B, S>::New(GenericGraphBase* graph, int input_count, S** inputs,
+S* GenericNode<B, S>::New(Graph* graph, int input_count, S** inputs,
                           bool has_extensible_inputs) {
   size_t node_size = sizeof(GenericNode);
   int reserve_input_count = has_extensible_inputs ? kDefaultReservedInputs : 0;

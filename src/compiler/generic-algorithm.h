@@ -7,7 +7,6 @@
 
 #include <stack>
 
-#include "src/compiler/generic-graph.h"
 #include "src/compiler/generic-node.h"
 #include "src/zone-containers.h"
 
@@ -30,9 +29,8 @@ class GenericGraphVisit {
   //   void PostEdge(Traits::Node* from, int index, Traits::Node* to);
   // }
   template <class Visitor, class Traits, class RootIterator>
-  static void Visit(GenericGraphBase* graph, Zone* zone,
-                    RootIterator root_begin, RootIterator root_end,
-                    Visitor* visitor) {
+  static void Visit(Graph* graph, Zone* zone, RootIterator root_begin,
+                    RootIterator root_end, Visitor* visitor) {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
@@ -84,8 +82,8 @@ class GenericGraphVisit {
   }
 
   template <class Visitor, class Traits>
-  static void Visit(GenericGraphBase* graph, Zone* zone,
-                    typename Traits::Node* current, Visitor* visitor) {
+  static void Visit(Graph* graph, Zone* zone, typename Traits::Node* current,
+                    Visitor* visitor) {
     typename Traits::Node* array[] = {current};
     Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }

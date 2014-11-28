@@ -431,7 +431,6 @@
         '../../src/compiler/gap-resolver.h',
         '../../src/compiler/generic-algorithm-inl.h',
         '../../src/compiler/generic-algorithm.h',
-        '../../src/compiler/generic-graph.h',
         '../../src/compiler/generic-node-inl.h',
         '../../src/compiler/generic-node.h',
         '../../src/compiler/graph-builder.cc',

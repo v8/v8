@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class GenericGraphBase;
+class Graph;
 
 typedef int NodeId;
 
@@ -92,11 +92,11 @@ class GenericNode : public B {
 
   bool OwnedBy(GenericNode* owner) const;
 
-  static S* New(GenericGraphBase* graph, int input_count, S** inputs,
+  static S* New(Graph* graph, int input_count, S** inputs,
                 bool has_extensible_inputs);
 
  protected:
-  friend class GenericGraphBase;
+  friend class Graph;
 
   class Use : public ZoneObject {
    public:
@@ -129,11 +129,10 @@ class GenericNode : public B {
 
   void* operator new(size_t, void* location) { return location; }
 
-  GenericNode(GenericGraphBase* graph, int input_count,
-              int reserved_input_count);
+  GenericNode(Graph* graph, int input_count, int reserved_input_count);
 
  private:
-  void AssignUniqueID(GenericGraphBase* graph);
+  void AssignUniqueID(Graph* graph);
 
   typedef ZoneDeque<Input> InputDeque;
 

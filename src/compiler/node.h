@@ -61,7 +61,7 @@ class NodeData {
 // out-of-line indexed by the Node's id.
 class Node FINAL : public GenericNode<NodeData, Node> {
  public:
-  Node(GenericGraphBase* graph, int input_count, int reserve_input_count)
+  Node(Graph* graph, int input_count, int reserve_input_count)
       : GenericNode<NodeData, Node>(graph, input_count, reserve_input_count) {}
 
   void Initialize(const Operator* op) {

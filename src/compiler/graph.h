@@ -19,7 +19,7 @@ namespace compiler {
 
 class GraphDecorator;
 
-class Graph : public GenericGraph<Node> {
+class Graph : public ZoneObject {
  public:
   explicit Graph(Zone* zone);
 
@@ -63,6 +63,16 @@ class Graph : public GenericGraph<Node> {
   template <class Visitor>
   void VisitNodeInputsFromEnd(Visitor* visitor);
 
+  Zone* zone() const { return zone_; }
+  Node* start() const { return start_; }
+  Node* end() const { return end_; }
+
+  void SetStart(Node* start) { start_ = start; }
+  void SetEnd(Node* end) { end_ = end; }
+
+  NodeId NextNodeID() { return next_node_id_++; }
+  NodeId NodeCount() const { return next_node_id_; }
+
   void Decorate(Node* node);
 
   void AddDecorator(GraphDecorator* decorator) {
@@ -80,8 +90,14 @@ class Graph : public GenericGraph<Node> {
   template <typename State>
   friend class NodeMarker;
 
+  Zone* zone_;
+  Node* start_;
+  Node* end_;
   Mark mark_max_;
+  NodeId next_node_id_;
   ZoneVector<GraphDecorator*> decorators_;
+
+  DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 
 
