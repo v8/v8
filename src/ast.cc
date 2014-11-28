@@ -164,6 +164,8 @@ bool FunctionLiteral::uses_super_constructor_call() const {
 }
 
 
+// Helper to find an existing shared function info in the baseline code for the
+// given function literal. Used to canonicalize SharedFunctionInfo objects.
 void FunctionLiteral::InitializeSharedInfo(
     Handle<Code> unoptimized_code) {
   for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
