@@ -170,13 +170,13 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_object_literals, "harmony object literal extensions") \
   V(harmony_regexps, "harmony regular expression extensions")     \
   V(harmony_arrow_functions, "harmony arrow functions")           \
-  V(harmony_tostring, "harmony toString")                         \
   V(harmony_proxies, "harmony proxies")                           \
   V(harmony_templates, "harmony template literals")               \
   V(harmony_sloppy, "harmony features in sloppy mode")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                      \
+#define HARMONY_STAGED(V)                 \
+  V(harmony_tostring, "harmony toString") \
   V(harmony_scoping, "harmony block scoping")
 
 // Features that are shipping (turned on by default, but internal flag remains).
