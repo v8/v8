@@ -11,8 +11,7 @@ namespace internal {
 namespace compiler {
 
 Node::Node(Graph* graph, int input_count, int reserve_input_count)
-    : NodeData(graph->zone()),
-      input_count_(input_count),
+    : input_count_(input_count),
       reserve_input_count_(reserve_input_count),
       has_appendable_inputs_(false),
       use_count_(0),
