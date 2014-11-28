@@ -4389,7 +4389,7 @@ void Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (incremental_marking()->IsComplete() ||
-      (mark_compact_collector()->IsMarkingDequeEmpty() &&
+      (incremental_marking()->IsMarkingDequeEmpty() &&
        gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
            static_cast<size_t>(idle_time_in_ms), size_of_objects,
            final_incremental_mark_compact_speed_in_bytes_per_ms))) {
