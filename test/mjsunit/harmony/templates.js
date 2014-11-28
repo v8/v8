@@ -401,9 +401,21 @@ var obj = {
   assertEquals("안녕", callSites[0][0]);
   assertEquals("\\uc548\\ub155", callSites[0].raw[0]);
   assertEquals("안녕", callSites[1][0]);
-  // TODO(caitp, arv): blocked on correctly generating raw strings from
-  // multi-byte UTF8.
-  // assertEquals("안녕", callSites[1].raw[0]);
+  assertEquals("안녕", callSites[1].raw[0]);
+
+  // Extra-thorough UTF8 decoding test.
+  callSites = [];
+
+  tag`Iñtërnâtiônàlizætiøn\u2603\uD83D\uDCA9`;
+  tag`Iñtërnâtiônàlizætiøn☃💩`;
+
+  assertEquals(2, callSites.length);
+  assertTrue(callSites[0] !== callSites[1]);
+  assertEquals("Iñtërnâtiônàlizætiøn☃💩", callSites[0][0]);
+  assertEquals(
+      "Iñtërnâtiônàlizætiøn\\u2603\\uD83D\\uDCA9", callSites[0].raw[0]);
+  assertEquals("Iñtërnâtiônàlizætiøn☃💩", callSites[1][0]);
+  assertEquals("Iñtërnâtiônàlizætiøn☃💩", callSites[1].raw[0]);
 })();
 
 

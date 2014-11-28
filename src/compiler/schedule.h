@@ -151,6 +151,9 @@ class BasicBlock FINAL : public ZoneObject {
   BasicBlock* dominator() const { return dominator_; }
   void set_dominator(BasicBlock* dominator) { dominator_ = dominator; }
 
+  BasicBlock* rpo_next() const { return rpo_next_; }
+  void set_rpo_next(BasicBlock* rpo_next) { rpo_next_ = rpo_next; }
+
   BasicBlock* loop_header() const { return loop_header_; }
   void set_loop_header(BasicBlock* loop_header);
 
@@ -178,6 +181,7 @@ class BasicBlock FINAL : public ZoneObject {
   bool deferred_;            // true if the block contains deferred code.
   int32_t dominator_depth_;  // Depth within the dominator tree.
   BasicBlock* dominator_;    // Immediate dominator of the block.
+  BasicBlock* rpo_next_;     // Link to next block in special RPO order.
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
                              // NULL if none. For loop headers, this points to
                              // enclosing loop header.

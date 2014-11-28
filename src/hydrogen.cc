@@ -7931,6 +7931,11 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
+  if (target_info.scope()->HasIllegalRedeclaration()) {
+    TraceInline(target, caller, "target has illegal redeclaration");
+    return false;
+  }
+
   if (target_info.scope()->num_heap_slots() > 0) {
     TraceInline(target, caller, "target has context-allocated variables");
     return false;

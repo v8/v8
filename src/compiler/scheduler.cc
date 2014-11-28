@@ -536,8 +536,8 @@ class SpecialRPONumberer : public ZoneObject {
       : zone_(zone),
         schedule_(schedule),
         order_(NULL),
-        loops_(zone),
         beyond_end_(NULL),
+        loops_(zone),
         backedges_(1, zone),
         stack_(zone),
         previous_block_count_(0) {}
@@ -562,13 +562,13 @@ class SpecialRPONumberer : public ZoneObject {
   // code first, deferred code afterwards) into the final schedule.
   void SerializeAOIntoSchedule() {
     int32_t number = 0;
-    for (BlockList* l = order_; l != NULL; l = l->next) {
-      if (l->block->deferred()) continue;
-      l->block->set_ao_number(number++);
+    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
+      if (b->deferred()) continue;
+      b->set_ao_number(number++);
     }
-    for (BlockList* l = order_; l != NULL; l = l->next) {
-      if (!l->block->deferred()) continue;
-      l->block->set_ao_number(number++);
+    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
+      if (!b->deferred()) continue;
+      b->set_ao_number(number++);
     }
   }
 
@@ -576,9 +576,9 @@ class SpecialRPONumberer : public ZoneObject {
   // numbering for basic blocks into the final schedule.
   void SerializeRPOIntoSchedule() {
     int32_t number = 0;
-    for (BlockList* l = order_; l != NULL; l = l->next) {
-      l->block->set_rpo_number(number++);
-      schedule_->rpo_order()->push_back(l->block);
+    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
+      b->set_rpo_number(number++);
+      schedule_->rpo_order()->push_back(b);
     }
     BeyondEndSentinel()->set_rpo_number(number);
   }
@@ -594,9 +594,6 @@ class SpecialRPONumberer : public ZoneObject {
  private:
   typedef std::pair<BasicBlock*, size_t> Backedge;
 
-  // TODO(mstarzinger): Only for Scheduler::GenerateImmediateDominatorTree.
-  friend class Scheduler;
-
   // Numbering for BasicBlock::rpo_number for this block traversal:
   static const int kBlockOnStack = -2;
   static const int kBlockVisited1 = -3;
@@ -609,32 +606,13 @@ class SpecialRPONumberer : public ZoneObject {
     size_t index;
   };
 
-  struct BlockList {
-    BasicBlock* block;
-    BlockList* next;
-
-    BlockList* Add(Zone* zone, BasicBlock* b) {
-      BlockList* list = static_cast<BlockList*>(zone->New(sizeof(BlockList)));
-      list->block = b;
-      list->next = this;
-      return list;
-    }
-
-    BlockList* FindForBlock(BasicBlock* b) {
-      for (BlockList* l = this; l != NULL; l = l->next) {
-        if (l->block == b) return l;
-      }
-      return NULL;
-    }
-  };
-
   struct LoopInfo {
     BasicBlock* header;
     ZoneList<BasicBlock*>* outgoing;
     BitVector* members;
     LoopInfo* prev;
-    BlockList* end;
-    BlockList* start;
+    BasicBlock* end;
+    BasicBlock* start;
 
     void AddOutgoing(Zone* zone, BasicBlock* block) {
       if (outgoing == NULL) {
@@ -653,6 +631,11 @@ class SpecialRPONumberer : public ZoneObject {
       return depth + 1;
     }
     return depth;
+  }
+
+  BasicBlock* PushFront(BasicBlock* head, BasicBlock* block) {
+    block->set_rpo_next(head);
+    return block;
   }
 
   // We are hijacking the {ao_number} to enumerate loops temporarily. Note that
@@ -685,9 +668,8 @@ class SpecialRPONumberer : public ZoneObject {
     CHECK_EQ(0, static_cast<int>(schedule_->rpo_order()->size()));
 
     // Find correct insertion point within existing order.
-    BlockList* insert_before = order_->FindForBlock(entry);
-    BlockList* insert_after = insert_before ? insert_before->next : NULL;
-    BlockList* order = insert_after;
+    BasicBlock* insertion_point = entry->rpo_next();
+    BasicBlock* order = insertion_point;
 
     // Perform an iterative RPO traversal using an explicit stack,
     // recording backedges that form cycles. O(|B|).
@@ -720,7 +702,7 @@ class SpecialRPONumberer : public ZoneObject {
         }
       } else {
         // Finished with all successors; pop the stack and add the block.
-        order = order->Add(zone_, frame->block);
+        order = PushFront(order, frame->block);
         frame->block->set_rpo_number(kBlockVisited1);
         stack_depth--;
       }
@@ -735,7 +717,7 @@ class SpecialRPONumberer : public ZoneObject {
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
           HasLoopNumber(entry) ? &loops_[GetLoopNumber(entry)] : NULL;
-      order = insert_after;
+      order = insertion_point;
 
       // Perform an iterative post-order traversal, visiting loop bodies before
       // edges that lead out of loops. Visits each block once, but linking loop
@@ -756,7 +738,7 @@ class SpecialRPONumberer : public ZoneObject {
             // Finish the loop body the first time the header is left on the
             // stack.
             DCHECK(loop != NULL && loop->header == block);
-            loop->start = order->Add(zone_, block);
+            loop->start = PushFront(order, block);
             order = loop->end;
             block->set_rpo_number(kBlockVisited2);
             // Pop the loop stack and continue visiting outgoing edges within
@@ -804,9 +786,9 @@ class SpecialRPONumberer : public ZoneObject {
           if (HasLoopNumber(block)) {
             // If we are going to pop a loop header, then add its entire body.
             LoopInfo* info = &loops_[GetLoopNumber(block)];
-            for (BlockList* l = info->start; true; l = l->next) {
-              if (l->next == info->end) {
-                l->next = order;
+            for (BasicBlock* b = info->start; true; b = b->rpo_next()) {
+              if (b->rpo_next() == info->end) {
+                b->set_rpo_next(order);
                 info->end = order;
                 break;
               }
@@ -814,7 +796,7 @@ class SpecialRPONumberer : public ZoneObject {
             order = info->start;
           } else {
             // Pop a single node off the stack and add it to the order.
-            order = order->Add(zone_, block);
+            order = PushFront(order, block);
             block->set_rpo_number(kBlockVisited2);
           }
           stack_depth--;
@@ -822,23 +804,16 @@ class SpecialRPONumberer : public ZoneObject {
       }
     }
 
-    // Insert result into existing order.
-    if (insert_before == NULL) {
-      order_ = order;
-    } else {
-      // There already is a list element for the entry block in the list, hence
-      // we skip the first element of the sub-list to compensate duplication.
-      DCHECK_EQ(insert_before->block, order->block);
-      insert_before->next = order->next;
-    }
+    // Publish new order the first time.
+    if (order_ == NULL) order_ = order;
 
     // Compute the correct loop headers and set the correct loop ends.
     LoopInfo* current_loop = NULL;
     BasicBlock* current_header = entry->loop_header();
     int32_t loop_depth = entry->loop_depth();
     if (entry->IsLoopHeader()) --loop_depth;  // Entry might be a loop header.
-    for (BlockList* l = order; l != insert_after; l = l->next) {
-      BasicBlock* current = l->block;
+    for (BasicBlock* b = order; b != insertion_point; b = b->rpo_next()) {
+      BasicBlock* current = b;
 
       // Reset BasicBlock::rpo_number again.
       current->set_rpo_number(kBlockUnvisited1);
@@ -857,8 +832,8 @@ class SpecialRPONumberer : public ZoneObject {
       if (HasLoopNumber(current)) {
         ++loop_depth;
         current_loop = &loops_[GetLoopNumber(current)];
-        BlockList* end = current_loop->end;
-        current->set_loop_end(end == NULL ? BeyondEndSentinel() : end->block);
+        BasicBlock* end = current_loop->end;
+        current->set_loop_end(end == NULL ? BeyondEndSentinel() : end);
         current_header = current_loop->header;
         Trace("B%d is a loop header, increment loop depth to %d\n",
               current->id().ToInt(), loop_depth);
@@ -943,8 +918,7 @@ class SpecialRPONumberer : public ZoneObject {
     }
     os << ":\n";
 
-    for (BlockList* l = order_; l != NULL; l = l->next) {
-      BasicBlock* block = l->block;
+    for (BasicBlock* block = order_; block != NULL; block = block->rpo_next()) {
       BasicBlock::Id bid = block->id();
       // TODO(jarin,svenpanne): Add formatting here once we have support for
       // that in streams (we want an equivalent of PrintF("%5d:", x) here).
@@ -990,18 +964,18 @@ class SpecialRPONumberer : public ZoneObject {
 
       // Verify the start ... end list relationship.
       int links = 0;
-      BlockList* l = loop->start;
-      DCHECK(l != NULL && l->block == header);
+      BasicBlock* block = loop->start;
+      DCHECK_EQ(header, block);
       bool end_found;
       while (true) {
-        if (l == NULL || l == loop->end) {
-          end_found = (loop->end == l);
+        if (block == NULL || block == loop->end) {
+          end_found = (loop->end == block);
           break;
         }
         // The list should be in same order as the final result.
-        DCHECK(l->block->rpo_number() == links + header->rpo_number());
+        DCHECK(block->rpo_number() == links + header->rpo_number());
         links++;
-        l = l->next;
+        block = block->rpo_next();
         DCHECK(links < static_cast<int>(2 * order->size()));  // cycle?
       }
       DCHECK(links > 0);
@@ -1035,9 +1009,9 @@ class SpecialRPONumberer : public ZoneObject {
 
   Zone* zone_;
   Schedule* schedule_;
-  BlockList* order_;
-  ZoneVector<LoopInfo> loops_;
+  BasicBlock* order_;
   BasicBlock* beyond_end_;
+  ZoneVector<LoopInfo> loops_;
   ZoneList<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
@@ -1070,12 +1044,10 @@ void Scheduler::GenerateImmediateDominatorTree() {
 
   // Build the block dominator tree.
   schedule_->start()->set_dominator_depth(0);
-  typedef SpecialRPONumberer::BlockList BlockList;
-  DCHECK_EQ(schedule_->start(), special_rpo_->order_->block);
-  for (BlockList* l = special_rpo_->order_->next; l != NULL; l = l->next) {
-    BasicBlock* current = l->block;
-    BasicBlock::Predecessors::iterator pred = current->predecessors_begin();
-    BasicBlock::Predecessors::iterator end = current->predecessors_end();
+  BasicBlock* second = schedule_->start()->rpo_next();
+  for (BasicBlock* block = second; block != NULL; block = block->rpo_next()) {
+    BasicBlock::Predecessors::iterator pred = block->predecessors_begin();
+    BasicBlock::Predecessors::iterator end = block->predecessors_end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
     BasicBlock* dominator = *pred;
     // For multiple predecessors, walk up the dominator tree until a common
@@ -1086,12 +1058,12 @@ void Scheduler::GenerateImmediateDominatorTree() {
       if ((*pred)->dominator_depth() < 0) continue;
       dominator = GetCommonDominator(dominator, *pred);
     }
-    current->set_dominator(dominator);
-    current->set_dominator_depth(dominator->dominator_depth() + 1);
+    block->set_dominator(dominator);
+    block->set_dominator_depth(dominator->dominator_depth() + 1);
     // Propagate "deferredness" of the dominator.
-    if (dominator->deferred()) current->set_deferred(true);
-    Trace("Block B%d's idom is B%d, depth = %d\n", current->id().ToInt(),
-          dominator->id().ToInt(), current->dominator_depth());
+    if (dominator->deferred()) block->set_deferred(true);
+    Trace("Block B%d's idom is B%d, depth = %d\n", block->id().ToInt(),
+          dominator->id().ToInt(), block->dominator_depth());
   }
 }
 

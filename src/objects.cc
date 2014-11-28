@@ -2183,16 +2183,23 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
                                                   PropertyAttributes attributes,
                                                   const char* reason) {
   Isolate* isolate = map->GetIsolate();
-  Handle<Map> new_map = Copy(map, reason);
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> descriptors =
+      DescriptorArray::CopyUpTo(old_descriptors, number_of_own_descriptors);
 
-  DescriptorArray* descriptors = new_map->instance_descriptors();
-  int length = descriptors->number_of_descriptors();
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < number_of_own_descriptors; i++) {
     descriptors->SetRepresentation(i, Representation::Tagged());
     if (descriptors->GetDetails(i).type() == FIELD) {
       descriptors->SetValue(i, HeapType::Any());
     }
   }
+
+  Handle<LayoutDescriptor> new_layout_descriptor(
+      LayoutDescriptor::FastPointerLayout(), isolate);
+  Handle<Map> new_map =
+      CopyReplaceDescriptors(map, descriptors, new_layout_descriptor,
+                             OMIT_TRANSITION, MaybeHandle<Name>(), reason);
 
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);

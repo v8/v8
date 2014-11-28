@@ -5334,9 +5334,23 @@ ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
       raw_chars[to_index++] = ch;
     }
 
-    const AstRawString* raw_str = ast_value_factory()->GetOneByteString(
-        OneByteVector(raw_chars.get(), to_index));
-    Literal* raw_lit = factory()->NewStringLiteral(raw_str, span_start - 1);
+    Access<UnicodeCache::Utf8Decoder>
+        decoder(isolate()->unicode_cache()->utf8_decoder());
+    decoder->Reset(raw_chars.get(), to_index);
+    int utf16_length = decoder->Utf16Length();
+    Literal* raw_lit = NULL;
+    if (utf16_length > 0) {
+      uc16* utf16_buffer = zone()->NewArray<uc16>(utf16_length);
+      to_index = decoder->WriteUtf16(utf16_buffer, utf16_length);
+      const uint16_t* data = reinterpret_cast<const uint16_t*>(utf16_buffer);
+      const AstRawString* raw_str = ast_value_factory()->GetTwoByteString(
+          Vector<const uint16_t>(data, to_index));
+      raw_lit = factory()->NewStringLiteral(raw_str, span_start - 1);
+    } else {
+      raw_lit = factory()->NewStringLiteral(
+          ast_value_factory()->empty_string(), span_start - 1);
+    }
+    DCHECK_NOT_NULL(raw_lit);
     raw_strings->Add(raw_lit, zone());
   }
 

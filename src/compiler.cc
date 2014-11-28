@@ -344,9 +344,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->IsOptimizing());
   DCHECK(!info()->IsCompilingForDebugging());
 
-  // We should never arrive here if optimization has been disabled on the
-  // shared function info.
-  DCHECK(!info()->shared_info()->optimization_disabled());
+  // Optimization could have been disabled by the parser.
+  if (info()->shared_info()->optimization_disabled()) {
+    return AbortOptimization(
+        info()->shared_info()->disable_optimization_reason());
+  }
 
   // Do not use crankshaft if we need to be able to set break points.
   if (isolate()->DebuggerHasBreakPoints()) {
