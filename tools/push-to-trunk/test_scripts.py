@@ -956,7 +956,7 @@ def get_list():
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is throttled\"}"),
       Cmd("git fetch origin +refs/heads/candidate:refs/heads/candidate", ""),
-      Cmd("git show-ref -s refs/heads/candidate", "abc123"),
+      Cmd("git show-ref -s refs/heads/candidate", "abc123\n"),
       Cmd(("git log -1 --format=%H --grep=\""
            "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
            " origin/candidates"), "push_hash\n"),
