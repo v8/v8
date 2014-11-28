@@ -18,7 +18,7 @@ The suite json format is expected to be:
   "test_flags": [<flag to the test file>, ...],
   "run_count": <how often will this suite run (optional)>,
   "run_count_XXX": <how often will this suite run for arch XXX (optional)>,
-  "resources": [<js file to be loaded before main>, ...]
+  "resources": [<js file to be moved to android device>, ...]
   "main": <main js perf runner file>,
   "results_regexp": <optional regexp>,
   "results_processor": <optional python results processor script>,
@@ -293,7 +293,6 @@ class Runnable(Graph):
     return (
       [os.path.join(shell_dir, self.binary)] +
       self.flags +
-      self.resources +
       [self.main] +
       suffix
     )

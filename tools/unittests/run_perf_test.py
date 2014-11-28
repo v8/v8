@@ -254,10 +254,8 @@ class PerfTest(unittest.TestCase):
       ], self._LoadResults()["traces"])
     self._VerifyErrors([])
     self._VerifyMockMultiple(
-        (path.join("out", "x64.release", "d7"), "--flag", "file1.js",
-         "file2.js", "run.js"),
-        (path.join("out", "x64.release", "d7"), "--flag", "file1.js",
-         "file2.js", "run.js"),
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
