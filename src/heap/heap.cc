@@ -4386,12 +4386,12 @@ void Heap::IdleMarkCompact(const char* message) {
 
 
 void Heap::TryFinalizeIdleIncrementalMarking(
-    size_t idle_time_in_ms, size_t size_of_objects,
+    double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (incremental_marking()->IsComplete() ||
-      (mark_compact_collector()->IsMarkingDequeEmpty() &&
+      (incremental_marking()->IsMarkingDequeEmpty() &&
        gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
-           idle_time_in_ms, size_of_objects,
+           static_cast<size_t>(idle_time_in_ms), size_of_objects,
            final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
   }
@@ -4404,11 +4404,24 @@ bool Heap::WorthActivatingIncrementalMarking() {
 }
 
 
+static double MonotonicallyIncreasingTimeInMs() {
+  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+         static_cast<double>(base::Time::kMillisecondsPerSecond);
+}
+
+
 bool Heap::IdleNotification(int idle_time_in_ms) {
-  base::ElapsedTimer timer;
-  timer.Start();
-  isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
-      idle_time_in_ms);
+  return IdleNotification(
+      V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() +
+      (static_cast<double>(idle_time_in_ms) /
+       static_cast<double>(base::Time::kMillisecondsPerSecond)));
+}
+
+
+bool Heap::IdleNotification(double deadline_in_seconds) {
+  double deadline_in_ms =
+      deadline_in_seconds *
+      static_cast<double>(base::Time::kMillisecondsPerSecond);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
 
@@ -4438,11 +4451,13 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       static_cast<size_t>(
           tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
 
+  double idle_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
+  isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
+      static_cast<int>(idle_time_in_ms));
 
   bool result = false;
-  int actual_time_in_ms = 0;
   switch (action.type) {
     case DONE:
       result = true;
@@ -4455,9 +4470,9 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
                                   IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                                   IncrementalMarking::FORCE_MARKING,
                                   IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-      actual_time_in_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
-      int remaining_idle_time_in_ms = idle_time_in_ms - actual_time_in_ms;
-      if (remaining_idle_time_in_ms > 0) {
+      double remaining_idle_time_in_ms =
+          deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+      if (remaining_idle_time_in_ms > 0.0) {
         TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
             heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms);
@@ -4485,21 +4500,25 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       break;
   }
 
-  actual_time_in_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
-  if (actual_time_in_ms <= idle_time_in_ms) {
+  double current_time = MonotonicallyIncreasingTimeInMs();
+  double deadline_difference = deadline_in_ms - current_time;
+
+  if (deadline_difference >= 0) {
     if (action.type != DONE && action.type != DO_NOTHING) {
       isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
-          idle_time_in_ms - actual_time_in_ms);
+          static_cast<int>(deadline_difference));
     }
   } else {
     isolate()->counters()->gc_idle_time_limit_overshot()->AddSample(
-        actual_time_in_ms - idle_time_in_ms);
+        static_cast<int>(-deadline_difference));
   }
 
   if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
       FLAG_trace_idle_notification_verbose) {
-    PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
-           idle_time_in_ms, actual_time_in_ms);
+    PrintF(
+        "Idle notification: requested idle time %.2f ms, used idle time %.2f "
+        "ms, deadline usage %.2f ms [",
+        idle_time_in_ms, current_time, deadline_difference);
     action.Print();
     PrintF("]");
     if (FLAG_trace_idle_notification_verbose) {

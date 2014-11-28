@@ -179,6 +179,20 @@ class PerfTest(unittest.TestCase):
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
 
+  def testOneRunWithTestFlags(self):
+    test_input = dict(V8_JSON)
+    test_input["test_flags"] = ["2", "test_name"]
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["Richards: 1.234\nDeltaBlue: 10657567"])
+    self.assertEquals(0, self._CallMain())
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js",
+                     "--", "2", "test_name")
+
   def testTwoRuns_Units_SuiteName(self):
     test_input = dict(V8_JSON)
     test_input["run_count"] = 2
@@ -240,10 +254,8 @@ class PerfTest(unittest.TestCase):
       ], self._LoadResults()["traces"])
     self._VerifyErrors([])
     self._VerifyMockMultiple(
-        (path.join("out", "x64.release", "d7"), "--flag", "file1.js",
-         "file2.js", "run.js"),
-        (path.join("out", "x64.release", "d7"), "--flag", "file1.js",
-         "file2.js", "run.js"),
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),

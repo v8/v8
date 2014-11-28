@@ -1944,11 +1944,6 @@ void MarkCompactCollector::MarkAllocationSite(AllocationSite* site) {
 }
 
 
-bool MarkCompactCollector::IsMarkingDequeEmpty() {
-  return marking_deque_.IsEmpty();
-}
-
-
 void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.

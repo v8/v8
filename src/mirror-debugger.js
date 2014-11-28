@@ -931,20 +931,28 @@ ObjectMirror.GetInternalProperties = function(value) {
       case 2: kind = "values"; break;
       case 3: kind = "entries"; break;
     }
-    var result = [];
-    result.push(new InternalPropertyMirror("[[IteratorHasMore]]", details[0]));
-    result.push(new InternalPropertyMirror("[[IteratorIndex]]", details[1]));
+    var result = [
+      new InternalPropertyMirror("[[IteratorHasMore]]", details[0]),
+      new InternalPropertyMirror("[[IteratorIndex]]", details[1])
+    ];
     if (kind) {
       result.push(new InternalPropertyMirror("[[IteratorKind]]", kind));
     }
     return result;
+  } else if (IS_GENERATOR(value)) {
+    return [
+      new InternalPropertyMirror("[[GeneratorStatus]]",
+                                 GeneratorGetStatus_(value)),
+      new InternalPropertyMirror("[[GeneratorFunction]]",
+                                 %GeneratorGetFunction(value)),
+      new InternalPropertyMirror("[[GeneratorReceiver]]",
+                                 %GeneratorGetReceiver(value))
+    ];
   } else if (ObjectIsPromise(value)) {
-    var result = [];
-    result.push(new InternalPropertyMirror("[[PromiseStatus]]",
-                                           PromiseGetStatus_(value)));
-    result.push(new InternalPropertyMirror("[[PromiseValue]]",
-                                           PromiseGetValue_(value)));
-    return result;
+    return [
+      new InternalPropertyMirror("[[PromiseStatus]]", PromiseGetStatus_(value)),
+      new InternalPropertyMirror("[[PromiseValue]]", PromiseGetValue_(value))
+    ];
   }
   return [];
 }
@@ -1443,11 +1451,16 @@ function GeneratorMirror(value) {
 inherits(GeneratorMirror, ObjectMirror);
 
 
-GeneratorMirror.prototype.status = function() {
-  var continuation = %GeneratorGetContinuation(this.value_);
+function GeneratorGetStatus_(value) {
+  var continuation = %GeneratorGetContinuation(value);
   if (continuation < 0) return "running";
   if (continuation == 0) return "closed";
   return "suspended";
+}
+
+
+GeneratorMirror.prototype.status = function() {
+  return GeneratorGetStatus_(this.value_);
 };
 
 

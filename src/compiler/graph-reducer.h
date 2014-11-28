@@ -5,16 +5,12 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
+#include "src/compiler/graph.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-// Forward declarations.
-class Graph;
-class Node;
-
 
 // Represents the result of trying to reduce a node in the graph.
 class Reduction FINAL {
@@ -80,17 +76,17 @@ class GraphReducer FINAL {
 
   // Node stack operations.
   void Pop();
-  void Push(Node* const);
+  void Push(Node* node);
 
   // Revisit queue operations.
-  bool Recurse(Node* const);
-  void Revisit(Node* const);
+  bool Recurse(Node* node);
+  void Revisit(Node* node);
 
   Graph* graph_;
+  NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
   ZoneStack<Node*> revisit_;
   ZoneStack<NodeState> stack_;
-  ZoneDeque<State> state_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };

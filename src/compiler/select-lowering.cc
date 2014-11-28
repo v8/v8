@@ -6,8 +6,8 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {

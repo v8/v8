@@ -6828,9 +6828,8 @@ uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
   // Nothing to do.
   if (hasher.has_trivial_hash()) return hasher.GetHashField();
   ConsString* cons_string = String::VisitFlat(&hasher, string);
-  if (cons_string != nullptr) {
-    hasher.VisitConsString(cons_string);
-  }
+  if (cons_string == nullptr) return hasher.GetHashField();
+  hasher.VisitConsString(cons_string);
   return hasher.GetHashField();
 }
 

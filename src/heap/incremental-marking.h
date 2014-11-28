@@ -146,6 +146,8 @@ class IncrementalMarking {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
+  bool IsMarkingDequeEmpty() { return marking_deque_.IsEmpty(); }
+
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);

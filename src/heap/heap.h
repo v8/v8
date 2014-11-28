@@ -1104,6 +1104,7 @@ class Heap {
   void DisableInlineAllocation();
 
   // Implements the corresponding V8 API function.
+  bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
 
   // Declare all the root indices.  This defines the root list order.
@@ -2008,7 +2009,7 @@ class Heap {
   void IdleMarkCompact(const char* message);
 
   void TryFinalizeIdleIncrementalMarking(
-      size_t idle_time_in_ms, size_t size_of_objects,
+      double idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
 
   bool WorthActivatingIncrementalMarking();

@@ -2080,13 +2080,12 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case MFLO:
           *alu_out = get_register(LO);
           break;
-        case MULT:  // MULT == D_MUL_MUH.
-          // TODO(plind) - Unify MULT/DMULT with single set of 64-bit HI/Lo
-          // regs.
-          // TODO(plind) - make the 32-bit MULT ops conform to spec regarding
-          //   checking of 32-bit input values, and un-define operations of HW.
-          *i64hilo = rs * rt;
+        case MULT: {  // MULT == D_MUL_MUH.
+          int32_t rs_lo = static_cast<int32_t>(rs);
+          int32_t rt_lo = static_cast<int32_t>(rt);
+          *i64hilo = static_cast<int64_t>(rs_lo) * static_cast<int64_t>(rt_lo);
           break;
+        }
         case MULTU:
           *u64hilo = static_cast<uint64_t>(rs_u & 0xffffffff) *
                      static_cast<uint64_t>(rt_u & 0xffffffff);

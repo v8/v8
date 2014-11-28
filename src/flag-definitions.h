@@ -157,6 +157,7 @@ DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
+DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
@@ -169,13 +170,13 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_object_literals, "harmony object literal extensions") \
   V(harmony_regexps, "harmony regular expression extensions")     \
   V(harmony_arrow_functions, "harmony arrow functions")           \
-  V(harmony_tostring, "harmony toString")                         \
   V(harmony_proxies, "harmony proxies")                           \
   V(harmony_templates, "harmony template literals")               \
   V(harmony_sloppy, "harmony features in sloppy mode")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                      \
+#define HARMONY_STAGED(V)                 \
+  V(harmony_tostring, "harmony toString") \
   V(harmony_scoping, "harmony block scoping")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -200,8 +201,9 @@ HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
 HARMONY_STAGED(FLAG_STAGED_FEATURES)
 #undef FLAG_STAGED_FEATURES
 
-#define FLAG_SHIPPING_FEATURES(id, description) \
-  DEFINE_BOOL_READONLY(id, true, "enable " #description)
+#define FLAG_SHIPPING_FEATURES(id, description)  \
+  DEFINE_BOOL(id, false, "enable " #description) \
+  DEFINE_IMPLICATION(harmony_shipping, id)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 

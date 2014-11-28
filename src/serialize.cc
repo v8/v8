@@ -860,8 +860,8 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
 // to do is to bump up the pointer for each space in the reserved
 // space. This is also used for fixing back references.
 // We may have to split up the pre-allocation into several chunks
-// because it would not fit onto a single page, we have to keep track
-// of when to move to the next chunk.
+// because it would not fit onto a single page. We do not have to keep
+// track of when to move to the next chunk. An opcode will signal this.
 // Since multiple large objects cannot be folded into one large object
 // space allocation, we have to do an actual allocation when deserializing
 // each large object. Instead of tracking offset for back references, we
@@ -879,20 +879,13 @@ Address Deserializer::Allocate(int space_index, int size) {
     DCHECK(space_index < kNumberOfPreallocatedSpaces);
     Address address = high_water_[space_index];
     DCHECK_NE(NULL, address);
+    high_water_[space_index] += size;
+#ifdef DEBUG
+    // Assert that the current reserved chunk is still big enough.
     const Heap::Reservation& reservation = reservations_[space_index];
     int chunk_index = current_chunk_[space_index];
-    if (address + size > reservation[chunk_index].end) {
-      // The last chunk size matches exactly the already deserialized data.
-      DCHECK_EQ(address, reservation[chunk_index].end);
-      // Move to next reserved chunk.
-      chunk_index = ++current_chunk_[space_index];
-      DCHECK_LT(chunk_index, reservation.length());
-      // Prepare for next allocation in the next chunk.
-      address = reservation[chunk_index].start;
-    } else {
-      high_water_[space_index] = address + size;
-    }
-    high_water_[space_index] = address + size;
+    CHECK_LE(high_water_[space_index], reservation[chunk_index].end);
+#endif
     return address;
   }
 }
@@ -1254,6 +1247,20 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         break;
       }
 
+      case kNextChunk: {
+        int space = source_->Get();
+        DCHECK(space < kNumberOfPreallocatedSpaces);
+        int chunk_index = current_chunk_[space];
+        const Heap::Reservation& reservation = reservations_[space];
+        // Make sure the current chunk is indeed exhausted.
+        CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
+        // Move to next reserved chunk.
+        chunk_index = ++current_chunk_[space];
+        DCHECK_LT(chunk_index, reservation.length());
+        high_water_[space] = reservation[chunk_index].start;
+        break;
+      }
+
       case kSynchronize: {
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
@@ -1565,20 +1572,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                                      int size, Map* map) {
-  int reserved_size = size;
-
-  sink_->Put(kNewObject + reference_representation_ + space,
-             "ObjectSerialization");
-  // Objects on the large object space are always double-aligned.
-  if (space != LO_SPACE && object_->NeedsToEnsureDoubleAlignment()) {
-    sink_->PutInt(kDoubleAlignmentSentinel, "double align next object");
-    // Add wriggle room for double alignment padding.
-    reserved_size += kPointerSize;
-  }
-  int encoded_size = size >> kObjectAlignmentBits;
-  DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
-  sink_->PutInt(encoded_size, "Size in words");
-
   if (serializer_->code_address_map_) {
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
@@ -1588,9 +1581,11 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
         SnapshotPositionEvent(object_->address(), sink_->Position()));
   }
 
-  // Mark this object as already serialized.
   BackReference back_reference;
   if (space == LO_SPACE) {
+    sink_->Put(kNewObject + reference_representation_ + space,
+               "new large object");
+    sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
     if (object_->IsCode()) {
       sink_->Put(EXECUTABLE, "executable large object");
     } else {
@@ -1598,8 +1593,20 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     }
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
-    back_reference = serializer_->Allocate(space, reserved_size);
+    if (object_->NeedsToEnsureDoubleAlignment()) {
+      // Add wriggle room for double alignment padding.
+      back_reference = serializer_->Allocate(space, size + kPointerSize);
+      sink_->PutInt(kDoubleAlignmentSentinel, "double align");
+    } else {
+      back_reference = serializer_->Allocate(space, size);
+    }
+    sink_->Put(kNewObject + reference_representation_ + space, "new object");
+    int encoded_size = size >> kObjectAlignmentBits;
+    DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
+    sink_->PutInt(encoded_size, "Size in words");
   }
+
+  // Mark this object as already serialized.
   serializer_->back_reference_map()->Add(object_, back_reference);
 
   // Serialize the map (first word of the object).
@@ -1950,6 +1957,8 @@ BackReference Serializer::Allocate(AllocationSpace space, int size) {
   if (new_chunk_size > max_chunk_size(space)) {
     // The new chunk size would not fit onto a single page. Complete the
     // current chunk and start a new one.
+    sink_->Put(kNextChunk, "move to next chunk");
+    sink_->Put(space, "space of next chunk");
     completed_chunks_[space].Add(pending_chunk_[space]);
     pending_chunk_[space] = 0;
     new_chunk_size = size;

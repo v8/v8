@@ -15,9 +15,10 @@ The suite json format is expected to be:
   "archs": [<architecture name for which this suite is run>, ...],
   "binary": <name of binary to run, default "d8">,
   "flags": [<flag to d8>, ...],
+  "test_flags": [<flag to the test file>, ...],
   "run_count": <how often will this suite run (optional)>,
   "run_count_XXX": <how often will this suite run for arch XXX (optional)>,
-  "resources": [<js file to be loaded before main>, ...]
+  "resources": [<js file to be moved to android device>, ...]
   "main": <main js perf runner file>,
   "results_regexp": <optional regexp>,
   "results_processor": <optional python results processor script>,
@@ -54,6 +55,7 @@ Full example (suite with one runner):
 {
   "path": ["."],
   "flags": ["--expose-gc"],
+  "test_flags": ["5"],
   "archs": ["ia32", "x64"],
   "run_count": 5,
   "run_count_ia32": 3,
@@ -89,6 +91,8 @@ Full example (suite with several runners):
 }
 
 Path pieces are concatenated. D8 is always run with the suite's path as cwd.
+
+The test flags are passed to the js test file after '--'.
 """
 
 from collections import OrderedDict
@@ -171,6 +175,7 @@ class DefaultSentinel(Node):
     self.path = []
     self.graphs = []
     self.flags = []
+    self.test_flags = []
     self.resources = []
     self.results_regexp = None
     self.stddev_regexp = None
@@ -190,12 +195,14 @@ class Graph(Node):
     assert isinstance(suite.get("path", []), list)
     assert isinstance(suite["name"], basestring)
     assert isinstance(suite.get("flags", []), list)
+    assert isinstance(suite.get("test_flags", []), list)
     assert isinstance(suite.get("resources", []), list)
 
     # Accumulated values.
     self.path = parent.path[:] + suite.get("path", [])
     self.graphs = parent.graphs[:] + [suite["name"]]
     self.flags = parent.flags[:] + suite.get("flags", [])
+    self.test_flags = parent.test_flags[:] + suite.get("test_flags", [])
     self.resources = parent.resources[:] + suite.get("resources", [])
 
     # Descrete values (with parent defaults).
@@ -282,11 +289,12 @@ class Runnable(Graph):
 
   def GetCommand(self, shell_dir):
     # TODO(machenbach): This requires +.exe if run on windows.
+    suffix = ["--"] + self.test_flags if self.test_flags else []
     return (
       [os.path.join(shell_dir, self.binary)] +
       self.flags +
-      self.resources +
-      [self.main]
+      [self.main] +
+      suffix
     )
 
   def Run(self, runner):

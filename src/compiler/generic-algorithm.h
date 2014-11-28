@@ -7,13 +7,14 @@
 
 #include <stack>
 
-#include "src/compiler/generic-graph.h"
-#include "src/compiler/generic-node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+class Graph;
+class Node;
 
 // GenericGraphVisit allows visitation of graphs of nodes and edges in pre- and
 // post-order. Visitation uses an explicitly allocated stack rather than the
@@ -30,9 +31,8 @@ class GenericGraphVisit {
   //   void PostEdge(Traits::Node* from, int index, Traits::Node* to);
   // }
   template <class Visitor, class Traits, class RootIterator>
-  static void Visit(GenericGraphBase* graph, Zone* zone,
-                    RootIterator root_begin, RootIterator root_end,
-                    Visitor* visitor) {
+  static void Visit(Graph* graph, Zone* zone, RootIterator root_begin,
+                    RootIterator root_end, Visitor* visitor) {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
@@ -84,18 +84,17 @@ class GenericGraphVisit {
   }
 
   template <class Visitor, class Traits>
-  static void Visit(GenericGraphBase* graph, Zone* zone,
-                    typename Traits::Node* current, Visitor* visitor) {
+  static void Visit(Graph* graph, Zone* zone, typename Traits::Node* current,
+                    Visitor* visitor) {
     typename Traits::Node* array[] = {current};
     Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }
 
-  template <class B, class S>
   struct NullNodeVisitor {
-    void Pre(GenericNode<B, S>* node) {}
-    void Post(GenericNode<B, S>* node) {}
-    void PreEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
-    void PostEdge(GenericNode<B, S>* from, int index, GenericNode<B, S>* to) {}
+    void Pre(Node* node) {}
+    void Post(Node* node) {}
+    void PreEdge(Node* from, int index, Node* to) {}
+    void PostEdge(Node* from, int index, Node* to) {}
   };
 
  private:

@@ -148,26 +148,6 @@ static LhsKind DetermineLhsKind(Expression* expr) {
 }
 
 
-// Helper to find an existing shared function info in the baseline code for the
-// given function literal. Used to canonicalize SharedFunctionInfo objects.
-static Handle<SharedFunctionInfo> SearchSharedFunctionInfo(
-    Code* unoptimized_code, FunctionLiteral* expr) {
-  int start_position = expr->start_position();
-  for (RelocIterator it(unoptimized_code); !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
-    Object* obj = rinfo->target_object();
-    if (obj->IsSharedFunctionInfo()) {
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-      if (shared->start_position() == start_position) {
-        return Handle<SharedFunctionInfo>(shared);
-      }
-    }
-  }
-  return Handle<SharedFunctionInfo>();
-}
-
-
 StructuredGraphBuilder::Environment* AstGraphBuilder::CopyEnvironment(
     StructuredGraphBuilder::Environment* env) {
   return new (zone()) Environment(*reinterpret_cast<Environment*>(env));
@@ -835,8 +815,8 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build a new shared function info if we cannot find one in the baseline
   // code. We also have a stack overflow if the recursive compilation did.
-  Handle<SharedFunctionInfo> shared_info =
-      SearchSharedFunctionInfo(info()->shared_info()->code(), expr);
+  expr->InitializeSharedInfo(handle(info()->shared_info()->code()));
+  Handle<SharedFunctionInfo> shared_info = expr->shared_info();
   if (shared_info.is_null()) {
     shared_info = Compiler::BuildFunctionInfo(expr, info()->script(), info());
     CHECK(!shared_info.is_null());  // TODO(mstarzinger): Set stack overflow?
