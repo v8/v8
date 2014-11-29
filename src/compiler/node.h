@@ -30,34 +30,8 @@ class Graph;
 // {NodeMarker} has a range of values that indicate states of a node.
 typedef uint32_t Mark;
 
-class NodeData {
- public:
-  const Operator* op() const { return op_; }
-  void set_op(const Operator* op) { op_ = op; }
-
-  IrOpcode::Value opcode() const {
-    DCHECK(op_->opcode() <= IrOpcode::kLast);
-    return static_cast<IrOpcode::Value>(op_->opcode());
-  }
-
- protected:
-  const Operator* op_;
-  Bounds bounds_;
-  Mark mark_;
-  explicit NodeData(Zone* zone) {}
-
-  friend class NodeProperties;
-  template <typename State>
-  friend class NodeMarker;
-
-  Bounds bounds() { return bounds_; }
-  void set_bounds(Bounds b) { bounds_ = b; }
-
-  // Only NodeMarkers should manipulate the marks on nodes.
-  Mark mark() { return mark_; }
-  void set_mark(Mark mark) { mark_ = mark; }
-};
-
+// NodeIds are identifying numbers for nodes that can be used to index auxiliary
+// out-of-line data associated with each node.
 typedef int NodeId;
 
 // A Node is the basic primitive of graphs. Nodes are chained together by
@@ -69,7 +43,7 @@ typedef int NodeId;
 // compilation, e.g. during lowering passes. Other information that needs to be
 // associated with Nodes during compilation must be stored out-of-line indexed
 // by the Node's id.
-class Node FINAL : public NodeData {
+class Node FINAL {
  public:
   void Initialize(const Operator* op) {
     set_op(op);
@@ -82,7 +56,15 @@ class Node FINAL : public NodeData {
   void CollectProjections(ZoneVector<Node*>* projections);
   Node* FindProjection(size_t projection_index);
 
-  inline NodeId id() const { return id_; }
+  const Operator* op() const { return op_; }
+  void set_op(const Operator* op) { op_ = op; }
+
+  IrOpcode::Value opcode() const {
+    DCHECK(op_->opcode() <= IrOpcode::kLast);
+    return static_cast<IrOpcode::Value>(op_->opcode());
+  }
+
+  NodeId id() const { return id_; }
 
   int InputCount() const { return input_count_; }
   Node* InputAt(int index) const { return GetInputRecordPtr(index)->to; }
@@ -182,10 +164,25 @@ class Node FINAL : public NodeData {
 
   typedef ZoneDeque<Input> InputDeque;
 
+  friend class NodeProperties;
+  template <typename State>
+  friend class NodeMarker;
+
+  // Only NodeProperties should manipulate the bounds.
+  Bounds bounds() { return bounds_; }
+  void set_bounds(Bounds b) { bounds_ = b; }
+
+  // Only NodeMarkers should manipulate the marks on nodes.
+  Mark mark() { return mark_; }
+  void set_mark(Mark mark) { mark_ = mark; }
+
   static const int kReservedInputCountBits = 2;
   static const int kMaxReservedInputs = (1 << kReservedInputCountBits) - 1;
   static const int kDefaultReservedInputs = kMaxReservedInputs;
 
+  const Operator* op_;
+  Bounds bounds_;
+  Mark mark_;
   NodeId id_;
   int input_count_ : 29;
   unsigned int reserve_input_count_ : kReservedInputCountBits;
@@ -204,6 +201,7 @@ class Node FINAL : public NodeData {
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
+
 
 // An encapsulation for information associated with a single use of node as a
 // input from another node, allowing access to both the defining node and
@@ -226,6 +224,7 @@ class Node::Edge {
 
   Node::Input* input_;
 };
+
 
 // A forward iterator to visit the nodes which are depended upon by a node
 // in the order of input.
@@ -265,6 +264,7 @@ class Node::Inputs::iterator {
   Node* node_;
   int index_;
 };
+
 
 // A forward iterator to visit the uses of a node. The uses are returned in
 // the order in which they were added as inputs.
@@ -308,6 +308,7 @@ class Node::Uses::iterator {
   Node::Use* current_;
   int index_;
 };
+
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
 

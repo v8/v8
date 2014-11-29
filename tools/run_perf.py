@@ -432,9 +432,56 @@ def FlattenRunnables(node):
     raise Exception("Invalid suite configuration.")
 
 
+class Platform(object):
+  @staticmethod
+  def GetPlatform(options):
+    if options.arch.startswith("android"):
+      return AndroidPlatform(options)
+    else:
+      return DesktopPlatform(options)
+
+
+class DesktopPlatform(Platform):
+  def __init__(self, options):
+    workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    if options.buildbot:
+      self.shell_dir = os.path.join(workspace, options.outdir, "Release")
+    else:
+      self.shell_dir = os.path.join(workspace, options.outdir,
+                                    "%s.release" % options.arch)
+
+  def PrepareExecution(self):
+    pass
+
+  def PrepareTests(self, runnable, path):
+    runnable.ChangeCWD(path)
+
+  def Run(self, runnable, count):
+    output = commands.Execute(runnable.GetCommand(self.shell_dir),
+                              timeout=runnable.timeout)
+    print ">>> Stdout (#%d):" % (count + 1)
+    print output.stdout
+    if output.stderr:  # pragma: no cover
+      # Print stderr for debugging.
+      print ">>> Stderr (#%d):" % (count + 1)
+      print output.stderr
+    if output.timed_out:
+      print ">>> Test timed out after %ss." % runnable.timeout
+    return output.stdout
+
+
+# TODO(machenbach): Implement android platform.
+class AndroidPlatform(Platform):
+  def __init__(self, options):
+    pass
+
+
 # TODO: Implement results_processor.
 def Main(args):
   parser = optparse.OptionParser()
+  parser.add_option("--android-build-tools",
+                    help="Path to chromium's build/android.")
   parser.add_option("--arch",
                     help=("The architecture to run tests for, "
                           "'auto' or 'native' for auto-detect"),
@@ -442,6 +489,9 @@ def Main(args):
   parser.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
+  parser.add_option("--device",
+                    help="The device ID to run Android tests on. If not given "
+                         "it will be autodetected.")
   parser.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
   parser.add_option("--outdir", help="Base directory with compile output",
@@ -459,13 +509,19 @@ def Main(args):
     print "Unknown architecture %s" % options.arch
     return 1
 
-  workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+  if (bool(options.arch.startswith("android")) !=
+      bool(options.android_build_tools)):  # pragma: no cover
+    print ("Android architectures imply setting --android-build-tools and the "
+           "other way around.")
+    return 1
 
-  if options.buildbot:
-    shell_dir = os.path.join(workspace, options.outdir, "Release")
-  else:
-    shell_dir = os.path.join(workspace, options.outdir,
-                             "%s.release" % options.arch)
+  if (options.device and not
+      options.arch.startswith("android")):  # pragma: no cover
+    print "Specifying a device requires an Android architecture to be used."
+    return 1
+
+  platform = Platform.GetPlatform(options)
+  platform.PrepareExecution()
 
   results = Results()
   for path in args:
@@ -483,24 +539,14 @@ def Main(args):
 
     for runnable in FlattenRunnables(BuildGraphs(suite, options.arch)):
       print ">>> Running suite: %s" % "/".join(runnable.graphs)
-      runnable.ChangeCWD(path)
+      platform.PrepareTests(runnable, path)
 
       def Runner():
         """Output generator that reruns several times."""
         for i in xrange(0, max(1, runnable.run_count)):
           # TODO(machenbach): Allow timeout per arch like with run_count per
           # arch.
-          output = commands.Execute(runnable.GetCommand(shell_dir),
-                                    timeout=runnable.timeout)
-          print ">>> Stdout (#%d):" % (i + 1)
-          print output.stdout
-          if output.stderr:  # pragma: no cover
-            # Print stderr for debugging.
-            print ">>> Stderr (#%d):" % (i + 1)
-            print output.stderr
-          if output.timed_out:
-            print ">>> Test timed out after %ss." % runnable.timeout
-          yield output.stdout
+          yield platform.Run(runnable, i)
 
       # Let runnable iterate over all runs and handle output.
       results += runnable.Run(Runner)
