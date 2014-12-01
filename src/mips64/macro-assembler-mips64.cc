@@ -3988,6 +3988,22 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
+void MacroAssembler::CmpWeakValue(Register match, Register value,
+                                  Handle<WeakCell> cell) {
+  li(match, Operand(cell));
+  ld(match, FieldMemOperand(match, WeakCell::kValueOffset));
+  Dsubu(match, value, match);
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  li(value, Operand(cell));
+  ld(value, FieldMemOperand(value, WeakCell::kValueOffset));
+  JumpIfNotSmi(value, miss);
+}
+
+
 void MacroAssembler::MovFromFloatResult(const DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
     Move(dst, v0, v1);

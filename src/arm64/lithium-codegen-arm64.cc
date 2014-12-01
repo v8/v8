@@ -5019,7 +5019,6 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   Register scratch2 = x6;
   DCHECK(instr->IsMarkedAsCall());
 
-  ASM_UNIMPLEMENTED_BREAK("DoDeclareGlobals");
   // TODO(all): if Mov could handle object in new space then it could be used
   // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
