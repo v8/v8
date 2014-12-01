@@ -28,8 +28,6 @@ class IncrementalMarking {
 
   static void Initialize();
 
-  void TearDown();
-
   State state() {
     DCHECK(state_ == STOPPED || FLAG_incremental_marking);
     return state_;
@@ -144,10 +142,6 @@ class IncrementalMarking {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
-  MarkingDeque* marking_deque() { return &marking_deque_; }
-
-  bool IsMarkingDequeEmpty() { return marking_deque_.IsEmpty(); }
-
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);
@@ -169,8 +163,6 @@ class IncrementalMarking {
   void EnterNoMarkingScope() { no_marking_scope_depth_++; }
 
   void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
-
-  void UncommitMarkingDeque();
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -202,8 +194,6 @@ class IncrementalMarking {
 
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
-  void EnsureMarkingDequeIsCommitted();
-
   INLINE(void ProcessMarkingDeque());
 
   INLINE(intptr_t ProcessMarkingDeque(intptr_t bytes_to_process));
@@ -216,10 +206,6 @@ class IncrementalMarking {
 
   State state_;
   bool is_compacting_;
-
-  base::VirtualMemory* marking_deque_memory_;
-  bool marking_deque_memory_committed_;
-  MarkingDeque marking_deque_;
 
   int steps_count_;
   int64_t old_generation_space_available_at_start_of_incremental_;
