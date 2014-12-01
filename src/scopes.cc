@@ -902,9 +902,8 @@ void Scope::Print(int n) {
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
-  if (scope_uses_super_constructor_call_) {
+  if (scope_uses_super_constructor_call_)
     Indent(n1, "// scope uses 'super' constructor\n");
-  }
   if (scope_uses_this_) Indent(n1, "// scope uses 'this'\n");
   if (inner_scope_uses_arguments_) {
     Indent(n1, "// inner scope uses 'arguments'\n");

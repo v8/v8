@@ -805,6 +805,28 @@ function assertAccessorDescriptor(object, name) {
   assertThrows(function() {
     class C {
       constructor() {
+        super.method();
+        super(this);
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(super.method());
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
+        super(super());
+      }
+    }; new C();
+  }, TypeError);
+  assertThrows(function() {
+    class C {
+      constructor() {
         super(1, 2, Object.getPrototypeOf(this));
       }
     }; new C();
@@ -848,4 +870,10 @@ function assertAccessorDescriptor(object, name) {
     }
   };
   new C3();
+
+  class C4 extends Object {
+    constructor() {
+      super(new super());
+    }
+  }; new C4();
 }());
