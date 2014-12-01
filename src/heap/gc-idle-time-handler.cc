@@ -191,7 +191,7 @@ bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
                                             HeapState heap_state) {
-  if (static_cast<int>(idle_time_in_ms) <= 0) {
+  if (idle_time_in_ms <= 0.0) {
     if (heap_state.incremental_marking_stopped) {
       if (ShouldDoContextDisposalMarkCompact(
               heap_state.contexts_disposed,
