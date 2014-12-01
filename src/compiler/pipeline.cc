@@ -76,6 +76,7 @@ class PipelineData {
 
   // For main entry point.
   void Initialize(PipelineStatistics* pipeline_statistics) {
+    PhaseScope scope(pipeline_statistics, "init pipeline data");
     outer_zone_ = info()->zone();
     pipeline_statistics_ = pipeline_statistics;
     graph_zone_ = graph_zone_scope_.zone();
@@ -715,6 +716,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
+    pipeline_statistics->BeginPhaseKind("initializing");
   }
 
   PipelineData data(&zone_pool, info());
