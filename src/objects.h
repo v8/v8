@@ -5739,7 +5739,7 @@ class Map: public HeapObject {
   inline bool is_prototype_map();
 
   inline void set_elements_kind(ElementsKind elements_kind) {
-    DCHECK(elements_kind < kElementsKindCount);
+    DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
     DCHECK(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
     set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
     DCHECK(this->elements_kind() == elements_kind);
@@ -6189,6 +6189,8 @@ class Map: public HeapObject {
                              Handle<Code> stub);
 
   bool IsMapInArrayPrototypeChain();
+
+  static Handle<WeakCell> WeakCellForMap(Handle<Map> map);
 
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
@@ -8025,6 +8027,7 @@ class CodeCache: public Struct {
  public:
   DECL_ACCESSORS(default_cache, FixedArray)
   DECL_ACCESSORS(normal_type_cache, Object)
+  DECL_ACCESSORS(weak_cell_cache, Object)
 
   // Add the code object to the cache.
   static void Update(
@@ -8052,7 +8055,8 @@ class CodeCache: public Struct {
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
   static const int kNormalTypeCacheOffset =
       kDefaultCacheOffset + kPointerSize;
-  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
+  static const int kWeakCellCacheOffset = kNormalTypeCacheOffset + kPointerSize;
+  static const int kSize = kWeakCellCacheOffset + kPointerSize;
 
  private:
   static void UpdateDefaultCache(

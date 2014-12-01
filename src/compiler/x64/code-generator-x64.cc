@@ -590,10 +590,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kX64Lea32:
-      __ leal(i.OutputRegister(), i.MemoryOperand());
+    case kX64Lea32: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      // Shorten "leal" to "addl" or "subl" if the register allocation just
+      // happens to work out for operations with immediate operands where the
+      // non-constant input register is the same as output register. The
+      // "addl"/"subl" forms in these cases are faster based on empirical
+      // measurements.
+      if (mode == kMode_MRI && i.InputRegister(0).is(i.OutputRegister())) {
+        int32_t constant_summand = i.InputInt32(1);
+        if (constant_summand > 0) {
+          __ addl(i.OutputRegister(), Immediate(constant_summand));
+        } else if (constant_summand < 0) {
+          __ subl(i.OutputRegister(), Immediate(-constant_summand));
+        }
+      } else {
+        __ leal(i.OutputRegister(), i.MemoryOperand());
+      }
       __ AssertZeroExtended(i.OutputRegister());
       break;
+    }
     case kX64Lea:
       __ leaq(i.OutputRegister(), i.MemoryOperand());
       break;
