@@ -1285,6 +1285,33 @@ class Assembler : public AssemblerBase {
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  void vaddsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x58, dst, src1, src2);
+  }
+  void vaddsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x58, dst, src1, src2);
+  }
+  void vsubsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x5c, dst, src1, src2);
+  }
+  void vsubsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5c, dst, src1, src2);
+  }
+  void vmulsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x59, dst, src1, src2);
+  }
+  void vmulsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x59, dst, src1, src2);
+  }
+  void vdivsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x5e, dst, src1, src2);
+  }
+  void vdivsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5e, dst, src1, src2);
+  }
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
   // Debugging
   void Print();
 
@@ -1479,12 +1506,26 @@ class Assembler : public AssemblerBase {
   }
 
   // Emit vex prefix
+  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
+  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128 };
+  enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
+  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x2 };
+
   void emit_vex2_byte0() { emit(0xc5); }
-  void emit_vex2_byte1(XMMRegister reg, XMMRegister v, byte lpp);
+  inline void emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
+                              SIMDPrefix pp);
   void emit_vex3_byte0() { emit(0xc4); }
-  void emit_vex3_byte1(XMMRegister reg, XMMRegister rm, byte m);
-  void emit_vex3_byte1(XMMRegister reg, const Operand& rm, byte m);
-  void emit_vex3_byte2(byte w, XMMRegister v, byte lpp);
+  inline void emit_vex3_byte1(XMMRegister reg, XMMRegister rm, LeadingOpcode m);
+  inline void emit_vex3_byte1(XMMRegister reg, const Operand& rm,
+                              LeadingOpcode m);
+  inline void emit_vex3_byte2(VexW w, XMMRegister v, VectorLength l,
+                              SIMDPrefix pp);
+  inline void emit_vex_prefix(XMMRegister reg, XMMRegister v, XMMRegister rm,
+                              VectorLength l, SIMDPrefix pp, LeadingOpcode m,
+                              VexW w);
+  inline void emit_vex_prefix(XMMRegister reg, XMMRegister v, const Operand& rm,
+                              VectorLength l, SIMDPrefix pp, LeadingOpcode m,
+                              VexW w);
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes

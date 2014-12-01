@@ -207,6 +207,19 @@ static bool HasImmediateInput(Instruction* instr, int index) {
   } while (0)
 
 
+#define ASSEMBLE_AVX_DOUBLE_BINOP(asm_instr)                           \
+  do {                                                                 \
+    CpuFeatureScope avx_scope(masm(), AVX);                            \
+    if (instr->InputAt(1)->IsDoubleRegister()) {                       \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
+                   i.InputDoubleRegister(1));                          \
+    } else {                                                           \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
+                   i.InputOperand(1));                                 \
+    }                                                                  \
+  } while (0)
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X64OperandConverter i(this, instr);
@@ -481,6 +494,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movl(kScratchRegister, i.InputOperand(0));
       }
       __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
+      break;
+    case kAVXFloat64Add:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vaddsd);
+      break;
+    case kAVXFloat64Sub:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vsubsd);
+      break;
+    case kAVXFloat64Mul:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vmulsd);
+      break;
+    case kAVXFloat64Div:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
       break;
     case kX64Movsxbl:
       if (instr->addressing_mode() != kMode_None) {
