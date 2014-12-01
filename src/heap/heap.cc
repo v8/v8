@@ -1800,8 +1800,29 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // for pointers to from semispace instead of looking for pointers
         // to new space.
         DCHECK(!target->IsMap());
-        IterateAndMarkPointersToFromSpace(
-            target->address(), target->address() + size, &ScavengeObject);
+        Address start_address = target->address();
+        Address end_address = start_address + size;
+#if V8_DOUBLE_FIELDS_UNBOXING
+        InobjectPropertiesHelper helper(target->map());
+        bool has_only_tagged_fields = helper.all_fields_tagged();
+
+        if (!has_only_tagged_fields) {
+          for (Address slot = start_address; slot < end_address;
+               slot += kPointerSize) {
+            if (helper.IsTagged(static_cast<int>(slot - start_address))) {
+              // TODO(ishell): call this once for contiguous region
+              // of tagged fields.
+              IterateAndMarkPointersToFromSpace(slot, slot + kPointerSize,
+                                                &ScavengeObject);
+            }
+          }
+        } else {
+#endif
+          IterateAndMarkPointersToFromSpace(start_address, end_address,
+                                            &ScavengeObject);
+#if V8_DOUBLE_FIELDS_UNBOXING
+        }
+#endif
       }
     }
 
