@@ -215,8 +215,7 @@
               '-fno-stack-protector',
             ],
           }],
-          ['target_arch=="arm64" or target_arch=="x64"', {
-            # TODO(ulan): Enable PIE for other architectures (crbug.com/373219).
+          ['target_arch=="arm" or target_arch=="arm64" or target_arch=="x64"', {
             'cflags': [
               '-fPIE',
             ],
