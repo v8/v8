@@ -5739,7 +5739,7 @@ class Map: public HeapObject {
   inline bool is_prototype_map();
 
   inline void set_elements_kind(ElementsKind elements_kind) {
-    DCHECK(elements_kind < kElementsKindCount);
+    DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
     DCHECK(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
     set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
     DCHECK(this->elements_kind() == elements_kind);
