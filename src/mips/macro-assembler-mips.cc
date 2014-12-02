@@ -4033,7 +4033,7 @@ void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
                                    Label* miss) {
   li(value, Operand(cell));
   lw(value, FieldMemOperand(value, WeakCell::kValueOffset));
-  JumpIfSmi(value, miss);
+  JumpIfNotSmi(value, miss);
 }
 
 
