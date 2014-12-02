@@ -59,7 +59,7 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph) {
 
 
 Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
-  SchedulerData def = {schedule_->start(), 0, false, kUnknown};
+  SchedulerData def = {schedule_->start(), 0, kUnknown};
   return def;
 }
 
@@ -235,6 +235,7 @@ class CFGBuilder : public ZoneObject {
   CFGBuilder(Zone* zone, Scheduler* scheduler)
       : scheduler_(scheduler),
         schedule_(scheduler->schedule_),
+        queued_(scheduler->graph_, 2),
         queue_(zone),
         control_(zone),
         component_entry_(NULL),
@@ -309,11 +310,10 @@ class CFGBuilder : public ZoneObject {
 
   void Queue(Node* node) {
     // Mark the connected control nodes as they are queued.
-    Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    if (!data->is_connected_control_) {
-      data->is_connected_control_ = true;
+    if (!queued_.Get(node)) {
       BuildBlocks(node);
       queue_.push(node);
+      queued_.Set(node, true);
       control_.push_back(node);
     }
   }
@@ -500,11 +500,12 @@ class CFGBuilder : public ZoneObject {
 
   Scheduler* scheduler_;
   Schedule* schedule_;
-  ZoneQueue<Node*> queue_;
-  NodeVector control_;
-  Node* component_entry_;
-  BasicBlock* component_start_;
-  BasicBlock* component_end_;
+  NodeMarker<bool> queued_;      // Mark indicating whether node is queued.
+  ZoneQueue<Node*> queue_;       // Queue used for breadth-first traversal.
+  NodeVector control_;           // List of encountered control nodes.
+  Node* component_entry_;        // Component single-entry node.
+  BasicBlock* component_start_;  // Component single-entry block.
+  BasicBlock* component_end_;    // Component single-exit block.
 };
 
 
