@@ -158,10 +158,8 @@
   V(ChangeBoolToBit)          \
   V(ChangeBitToBool)          \
   V(LoadField)                \
-  V(LoadBuffer)               \
   V(LoadElement)              \
   V(StoreField)               \
-  V(StoreBuffer)              \
   V(StoreElement)             \
   V(ObjectIsSmi)              \
   V(ObjectIsNonNegativeSmi)
@@ -234,9 +232,7 @@
   V(Float64Ceil)              \
   V(Float64RoundTruncate)     \
   V(Float64RoundTiesAway)     \
-  V(LoadStackPointer)         \
-  V(CheckedLoad)              \
-  V(CheckedStore)
+  V(LoadStackPointer)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \

@@ -533,79 +533,72 @@ class IsLoadFieldMatcher FINAL : public NodeMatcher {
 };
 
 
-class IsLoadBufferMatcher FINAL : public NodeMatcher {
+class IsLoadElementMatcher FINAL : public NodeMatcher {
  public:
-  IsLoadBufferMatcher(const Matcher<BufferAccess>& access_matcher,
-                      const Matcher<Node*>& buffer_matcher,
-                      const Matcher<Node*>& offset_matcher,
-                      const Matcher<Node*>& length_matcher,
-                      const Matcher<Node*>& effect_matcher,
-                      const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kLoadBuffer),
+  IsLoadElementMatcher(const Matcher<ElementAccess>& access_matcher,
+                       const Matcher<Node*>& base_matcher,
+                       const Matcher<Node*>& index_matcher,
+                       const Matcher<Node*>& length_matcher,
+                       const Matcher<Node*>& effect_matcher)
+      : NodeMatcher(IrOpcode::kLoadElement),
         access_matcher_(access_matcher),
-        buffer_matcher_(buffer_matcher),
-        offset_matcher_(offset_matcher),
+        base_matcher_(base_matcher),
+        index_matcher_(index_matcher),
         length_matcher_(length_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
+        effect_matcher_(effect_matcher) {}
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose access (";
     access_matcher_.DescribeTo(os);
-    *os << "), buffer (";
-    buffer_matcher_.DescribeTo(os);
-    *os << "), offset (";
-    offset_matcher_.DescribeTo(os);
+    *os << "), base (";
+    base_matcher_.DescribeTo(os);
+    *os << "), index (";
+    index_matcher_.DescribeTo(os);
     *os << "), length (";
     length_matcher_.DescribeTo(os);
-    *os << "), effect (";
+    *os << ") and effect (";
     effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
     *os << ")";
   }
 
   virtual bool MatchAndExplain(Node* node,
                                MatchResultListener* listener) const OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(BufferAccessOf(node->op()), "access",
+            PrintMatchAndExplain(OpParameter<ElementAccess>(node), "access",
                                  access_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "buffer", buffer_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                 base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "offset", offset_matcher_, listener) &&
+                                 "index", index_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
                                  "length", length_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+                                 effect_matcher_, listener));
   }
 
  private:
-  const Matcher<BufferAccess> access_matcher_;
-  const Matcher<Node*> buffer_matcher_;
-  const Matcher<Node*> offset_matcher_;
+  const Matcher<ElementAccess> access_matcher_;
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> index_matcher_;
   const Matcher<Node*> length_matcher_;
   const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
 };
 
 
-class IsStoreBufferMatcher FINAL : public NodeMatcher {
+class IsStoreElementMatcher FINAL : public NodeMatcher {
  public:
-  IsStoreBufferMatcher(const Matcher<BufferAccess>& access_matcher,
-                       const Matcher<Node*>& buffer_matcher,
-                       const Matcher<Node*>& offset_matcher,
-                       const Matcher<Node*>& length_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& effect_matcher,
-                       const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kStoreBuffer),
+  IsStoreElementMatcher(const Matcher<ElementAccess>& access_matcher,
+                        const Matcher<Node*>& base_matcher,
+                        const Matcher<Node*>& index_matcher,
+                        const Matcher<Node*>& length_matcher,
+                        const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& effect_matcher,
+                        const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kStoreElement),
         access_matcher_(access_matcher),
-        buffer_matcher_(buffer_matcher),
-        offset_matcher_(offset_matcher),
+        base_matcher_(base_matcher),
+        index_matcher_(index_matcher),
         length_matcher_(length_matcher),
         value_matcher_(value_matcher),
         effect_matcher_(effect_matcher),
@@ -615,10 +608,10 @@ class IsStoreBufferMatcher FINAL : public NodeMatcher {
     NodeMatcher::DescribeTo(os);
     *os << " whose access (";
     access_matcher_.DescribeTo(os);
-    *os << "), buffer (";
-    buffer_matcher_.DescribeTo(os);
-    *os << "), offset (";
-    offset_matcher_.DescribeTo(os);
+    *os << "), base (";
+    base_matcher_.DescribeTo(os);
+    *os << "), index (";
+    index_matcher_.DescribeTo(os);
     *os << "), length (";
     length_matcher_.DescribeTo(os);
     *os << "), value (";
@@ -633,12 +626,12 @@ class IsStoreBufferMatcher FINAL : public NodeMatcher {
   virtual bool MatchAndExplain(Node* node,
                                MatchResultListener* listener) const OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(BufferAccessOf(node->op()), "access",
+            PrintMatchAndExplain(OpParameter<ElementAccess>(node), "access",
                                  access_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "buffer", buffer_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                 base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "offset", offset_matcher_, listener) &&
+                                 "index", index_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
                                  "length", length_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 3),
@@ -650,123 +643,10 @@ class IsStoreBufferMatcher FINAL : public NodeMatcher {
   }
 
  private:
-  const Matcher<BufferAccess> access_matcher_;
-  const Matcher<Node*> buffer_matcher_;
-  const Matcher<Node*> offset_matcher_;
+  const Matcher<ElementAccess> access_matcher_;
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> index_matcher_;
   const Matcher<Node*> length_matcher_;
-  const Matcher<Node*> value_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
-class IsLoadElementMatcher FINAL : public NodeMatcher {
- public:
-  IsLoadElementMatcher(const Matcher<ElementAccess>& access_matcher,
-                       const Matcher<Node*>& base_matcher,
-                       const Matcher<Node*>& index_matcher,
-                       const Matcher<Node*>& effect_matcher,
-                       const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kLoadElement),
-        access_matcher_(access_matcher),
-        base_matcher_(base_matcher),
-        index_matcher_(index_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose access (";
-    access_matcher_.DescribeTo(os);
-    *os << "), base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), index (";
-    index_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  virtual bool MatchAndExplain(Node* node,
-                               MatchResultListener* listener) const OVERRIDE {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<ElementAccess>(node), "access",
-                                 access_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "index", index_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<ElementAccess> access_matcher_;
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> index_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
-class IsStoreElementMatcher FINAL : public NodeMatcher {
- public:
-  IsStoreElementMatcher(const Matcher<ElementAccess>& access_matcher,
-                        const Matcher<Node*>& base_matcher,
-                        const Matcher<Node*>& index_matcher,
-                        const Matcher<Node*>& value_matcher,
-                        const Matcher<Node*>& effect_matcher,
-                        const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kStoreElement),
-        access_matcher_(access_matcher),
-        base_matcher_(base_matcher),
-        index_matcher_(index_matcher),
-        value_matcher_(value_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose access (";
-    access_matcher_.DescribeTo(os);
-    *os << "), base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), index (";
-    index_matcher_.DescribeTo(os);
-    *os << "), value (";
-    value_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  virtual bool MatchAndExplain(Node* node,
-                               MatchResultListener* listener) const OVERRIDE {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<ElementAccess>(node), "access",
-                                 access_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "index", index_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
-                                 "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<ElementAccess> access_matcher_;
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> index_matcher_;
   const Matcher<Node*> value_matcher_;
   const Matcher<Node*> effect_matcher_;
   const Matcher<Node*> control_matcher_;
@@ -1132,51 +1012,27 @@ Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
 }
 
 
-Matcher<Node*> IsLoadBuffer(const Matcher<BufferAccess>& access_matcher,
-                            const Matcher<Node*>& buffer_matcher,
-                            const Matcher<Node*>& offset_matcher,
-                            const Matcher<Node*>& length_matcher,
-                            const Matcher<Node*>& effect_matcher,
-                            const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsLoadBufferMatcher(access_matcher, buffer_matcher,
-                                             offset_matcher, length_matcher,
-                                             effect_matcher, control_matcher));
-}
-
-
-Matcher<Node*> IsStoreBuffer(const Matcher<BufferAccess>& access_matcher,
-                             const Matcher<Node*>& buffer_matcher,
-                             const Matcher<Node*>& offset_matcher,
-                             const Matcher<Node*>& length_matcher,
-                             const Matcher<Node*>& value_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsStoreBufferMatcher(
-      access_matcher, buffer_matcher, offset_matcher, length_matcher,
-      value_matcher, effect_matcher, control_matcher));
-}
-
-
 Matcher<Node*> IsLoadElement(const Matcher<ElementAccess>& access_matcher,
                              const Matcher<Node*>& base_matcher,
                              const Matcher<Node*>& index_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher) {
+                             const Matcher<Node*>& length_matcher,
+                             const Matcher<Node*>& effect_matcher) {
   return MakeMatcher(new IsLoadElementMatcher(access_matcher, base_matcher,
-                                              index_matcher, effect_matcher,
-                                              control_matcher));
+                                              index_matcher, length_matcher,
+                                              effect_matcher));
 }
 
 
 Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& base_matcher,
                               const Matcher<Node*>& index_matcher,
+                              const Matcher<Node*>& length_matcher,
                               const Matcher<Node*>& value_matcher,
                               const Matcher<Node*>& effect_matcher,
                               const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsStoreElementMatcher(
-      access_matcher, base_matcher, index_matcher, value_matcher,
-      effect_matcher, control_matcher));
+      access_matcher, base_matcher, index_matcher, length_matcher,
+      value_matcher, effect_matcher, control_matcher));
 }
 
 

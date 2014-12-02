@@ -3805,6 +3805,22 @@ void MacroAssembler::DispatchMap(Register obj,
 }
 
 
+void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
+                                  Register scratch) {
+  Mov(scratch, Operand(cell));
+  Ldr(scratch, FieldMemOperand(scratch, WeakCell::kValueOffset));
+  Cmp(value, scratch);
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  Mov(value, Operand(cell));
+  Ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));
+  JumpIfSmi(value, miss);
+}
+
+
 void MacroAssembler::TestMapBitfield(Register object, uint64_t mask) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();

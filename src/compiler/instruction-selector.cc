@@ -133,31 +133,6 @@ Instruction* InstructionSelector::Emit(
 
 
 Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, InstructionOperand* output, InstructionOperand* a,
-    InstructionOperand* b, InstructionOperand* c, InstructionOperand* d,
-    InstructionOperand* e, size_t temp_count, InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c, d, e};
-  size_t input_count = arraysize(inputs);
-  return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
-              temps);
-}
-
-
-Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, InstructionOperand* output, InstructionOperand* a,
-    InstructionOperand* b, InstructionOperand* c, InstructionOperand* d,
-    InstructionOperand* e, InstructionOperand* f, size_t temp_count,
-    InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c, d, e, f};
-  size_t input_count = arraysize(inputs);
-  return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
-              temps);
-}
-
-
-Instruction* InstructionSelector::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand** outputs,
     size_t input_count, InstructionOperand** inputs, size_t temp_count,
     InstructionOperand** temps) {
@@ -563,10 +538,6 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
       return OpParameter<LoadRepresentation>(node);
     case IrOpcode::kStore:
       return kMachNone;
-    case IrOpcode::kCheckedLoad:
-      return OpParameter<MachineType>(node);
-    case IrOpcode::kCheckedStore:
-      return kMachNone;
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
     case IrOpcode::kWord32Xor:
@@ -837,13 +808,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64RoundTiesAway(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
-    case IrOpcode::kCheckedLoad: {
-      MachineType rep = OpParameter<MachineType>(node);
-      MarkAsRepresentation(rep, node);
-      return VisitCheckedLoad(node);
-    }
-    case IrOpcode::kCheckedStore:
-      return VisitCheckedStore(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());

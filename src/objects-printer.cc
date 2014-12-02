@@ -847,6 +847,11 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
 
 void WeakCell::WeakCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WeakCell");
+  if (cleared()) {
+    os << "\n - cleared";
+  } else {
+    os << "\n - value: " << Brief(value());
+  }
 }
 
 

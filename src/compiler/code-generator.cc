@@ -27,8 +27,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
-      last_lazy_deopt_pc_(0),
-      ools_(nullptr) {
+      last_lazy_deopt_pc_(0) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -69,16 +68,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
       for (int i = block->code_start(); i < block->code_end(); ++i) {
         AssembleInstruction(code()->InstructionAt(i));
       }
-    }
-  }
-
-  // Assemble all out-of-line code.
-  if (ools_) {
-    masm()->RecordComment("-- Out of line code --");
-    for (OutOfLineCode* ool = ools_; ool; ool = ool->next()) {
-      masm()->bind(ool->entry());
-      ool->Generate();
-      masm()->jmp(ool->exit());
     }
   }
 
@@ -565,15 +554,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
 
 #endif  // !V8_TURBOFAN_BACKEND
-
-
-OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
-    : masm_(gen->masm()), next_(gen->ools_) {
-  gen->ools_ = this;
-}
-
-
-OutOfLineCode::~OutOfLineCode() {}
 
 }  // namespace compiler
 }  // namespace internal

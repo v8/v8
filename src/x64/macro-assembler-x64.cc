@@ -2852,6 +2852,21 @@ void MacroAssembler::LoadGlobalCell(Register dst, Handle<Cell> cell) {
 }
 
 
+void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
+                                  Register scratch) {
+  Move(scratch, cell, RelocInfo::EMBEDDED_OBJECT);
+  cmpp(value, FieldOperand(scratch, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  Move(value, cell, RelocInfo::EMBEDDED_OBJECT);
+  movp(value, FieldOperand(value, WeakCell::kValueOffset));
+  JumpIfSmi(value, miss);
+}
+
+
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     addp(rsp, Immediate(stack_elements * kPointerSize));

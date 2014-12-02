@@ -359,7 +359,7 @@ CPU::CPU()
     has_ssse3_ = (cpu_info[2] & 0x00000200) != 0;
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
-    has_avx_ = (cpu_info[2] & 0x10000000) != 0;
+    has_avx_ = (cpu_info[2] & 0x18000000) != 0;
     if (has_avx_) has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
   }
 

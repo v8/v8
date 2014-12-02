@@ -277,6 +277,9 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
+  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 

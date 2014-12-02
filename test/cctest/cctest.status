@@ -78,6 +78,9 @@
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
+  # BUG(3629). Known memory leak.
+  'test-heap/WeakMapInPolymorphicStoreIC': [SKIP],
+
   ##############################################################################
   # TurboFan compiler failures.
 

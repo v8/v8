@@ -69,12 +69,6 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   integer = Type::Range(minusinfinity, infinity, zone);
   weakint = Type::Union(integer, nan_or_minuszero, zone);
 
-  signed8_ = Type::Range(f->NewNumber(kMinInt8), f->NewNumber(kMaxInt8), zone);
-  unsigned8_ = Type::Range(zero, f->NewNumber(kMaxUInt8), zone);
-  signed16_ =
-      Type::Range(f->NewNumber(kMinInt16), f->NewNumber(kMaxInt16), zone);
-  unsigned16_ = Type::Range(zero, f->NewNumber(kMaxUInt16), zone);
-
   number_fun0_ = Type::Function(number, zone);
   number_fun1_ = Type::Function(number, number, zone);
   number_fun2_ = Type::Function(number, number, number, zone);
@@ -85,15 +79,25 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   random_fun_ = Type::Function(Type::Union(
       Type::UnsignedSmall(), Type::OtherNumber(), zone), zone);
 
-#define NATIVE_TYPE(sem, rep) Type::Intersect(sem, rep, zone)
-  Type* int8 = NATIVE_TYPE(signed8_, Type::UntaggedInt8());
-  Type* uint8 = NATIVE_TYPE(unsigned8_, Type::UntaggedInt8());
-  Type* int16 = NATIVE_TYPE(signed16_, Type::UntaggedInt16());
-  Type* uint16 = NATIVE_TYPE(unsigned16_, Type::UntaggedInt16());
-  Type* int32 = NATIVE_TYPE(Type::Signed32(), Type::UntaggedInt32());
-  Type* uint32 = NATIVE_TYPE(Type::Unsigned32(), Type::UntaggedInt32());
-  Type* float32 = NATIVE_TYPE(Type::Number(), Type::UntaggedFloat32());
-  Type* float64 = NATIVE_TYPE(Type::Number(), Type::UntaggedFloat64());
+  Type* int8 = Type::Intersect(
+      Type::Range(f->NewNumber(-0x7F), f->NewNumber(0x7F-1), zone),
+      Type::UntaggedInt8(), zone);
+  Type* int16 = Type::Intersect(
+      Type::Range(f->NewNumber(-0x7FFF), f->NewNumber(0x7FFF-1), zone),
+      Type::UntaggedInt16(), zone);
+  Type* uint8 = Type::Intersect(
+      Type::Range(zero, f->NewNumber(0xFF-1), zone),
+      Type::UntaggedInt8(), zone);
+  Type* uint16 = Type::Intersect(
+      Type::Range(zero, f->NewNumber(0xFFFF-1), zone),
+      Type::UntaggedInt16(), zone);
+
+#define NATIVE_TYPE(sem, rep) \
+    Type::Intersect(Type::sem(), Type::rep(), zone)
+  Type* int32 = NATIVE_TYPE(Signed32, UntaggedInt32);
+  Type* uint32 = NATIVE_TYPE(Unsigned32, UntaggedInt32);
+  Type* float32 = NATIVE_TYPE(Number, UntaggedFloat32);
+  Type* float64 = NATIVE_TYPE(Number, UntaggedFloat64);
 #undef NATIVE_TYPE
 
   Type* buffer = Type::Buffer(zone);
@@ -1516,43 +1520,12 @@ Bounds Typer::Visitor::TypeLoadField(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeLoadBuffer(Node* node) {
-  switch (BufferAccessOf(node->op()).external_array_type()) {
-    case kExternalInt8Array:
-      return Bounds(typer_->signed8_);
-    case kExternalUint8Array:
-      return Bounds(typer_->unsigned8_);
-    case kExternalInt16Array:
-      return Bounds(typer_->signed16_);
-    case kExternalUint16Array:
-      return Bounds(typer_->unsigned16_);
-    case kExternalInt32Array:
-      return Bounds(Type::Signed32());
-    case kExternalUint32Array:
-      return Bounds(Type::Unsigned32());
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
-      return Bounds(Type::Number());
-    case kExternalUint8ClampedArray:
-      break;
-  }
-  UNREACHABLE();
-  return Bounds();
-}
-
-
 Bounds Typer::Visitor::TypeLoadElement(Node* node) {
   return Bounds(ElementAccessOf(node->op()).type);
 }
 
 
 Bounds Typer::Visitor::TypeStoreField(Node* node) {
-  UNREACHABLE();
-  return Bounds();
-}
-
-
-Bounds Typer::Visitor::TypeStoreBuffer(Node* node) {
   UNREACHABLE();
   return Bounds();
 }
@@ -1924,17 +1897,6 @@ Bounds Typer::Visitor::TypeLoadStackPointer(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeCheckedLoad(Node* node) {
-  return Bounds::Unbounded(zone());
-}
-
-
-Bounds Typer::Visitor::TypeCheckedStore(Node* node) {
-  UNREACHABLE();
-  return Bounds();
-}
-
-
 // Heap constants.
 
 
@@ -2015,6 +1977,6 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
   return Type::Constant(value, zone());
 }
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}
+}
+}  // namespace v8::internal::compiler

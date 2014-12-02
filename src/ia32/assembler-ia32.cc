@@ -60,17 +60,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
-  if (cpu.has_avx() && FLAG_enable_avx) supported_ |= 1u << AVX;
-  if (cpu.has_fma3() && FLAG_enable_fma3) supported_ |= 1u << FMA3;
 }
 
 
 void CpuFeatures::PrintTarget() { }
-void CpuFeatures::PrintFeatures() {
-  printf("SSE3=%d SSE4_1=%d AVX=%d FMA3=%d\n", CpuFeatures::IsSupported(SSE3),
-         CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(AVX),
-         CpuFeatures::IsSupported(FMA3));
-}
+void CpuFeatures::PrintFeatures() { }
 
 
 // -----------------------------------------------------------------------------
@@ -463,11 +457,11 @@ void Assembler::mov_b(Register dst, const Operand& src) {
 }
 
 
-void Assembler::mov_b(const Operand& dst, const Immediate& src) {
+void Assembler::mov_b(const Operand& dst, int8_t imm8) {
   EnsureSpace ensure_space(this);
   EMIT(0xC6);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(src.x_));
+  EMIT(imm8);
 }
 
 
@@ -495,13 +489,13 @@ void Assembler::mov_w(const Operand& dst, Register src) {
 }
 
 
-void Assembler::mov_w(const Operand& dst, const Immediate& src) {
+void Assembler::mov_w(const Operand& dst, int16_t imm16) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0xC7);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(src.x_ & 0xff));
-  EMIT(static_cast<int8_t>(src.x_ >> 8));
+  EMIT(static_cast<int8_t>(imm16 & 0xff));
+  EMIT(static_cast<int8_t>(imm16 >> 8));
 }
 
 
@@ -2443,16 +2437,6 @@ void Assembler::pinsrd(XMMRegister dst, const Operand& src, int8_t offset) {
 }
 
 
-void Assembler::vsd(byte op, XMMRegister dst, XMMRegister src1,
-                    const Operand& src2) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(src1, kLIG, kF2, k0F, kWIG);
-  EMIT(op);
-  emit_sse_operand(dst, src2);
-}
-
-
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
   emit_operand(ireg, adr);
@@ -2471,19 +2455,6 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
   EMIT(0xC0 | (dst.code() << 3) | src.code());
-}
-
-
-void Assembler::emit_vex_prefix(XMMRegister vreg, VectorLength l, SIMDPrefix pp,
-                                LeadingOpcode mm, VexW w) {
-  if (mm != k0F || w != kW0) {
-    EMIT(0xc4);
-    EMIT(0xc0 | mm);
-    EMIT(w | ((~vreg.code() & 0xf) << 3) | l | pp);
-  } else {
-    EMIT(0xc5);
-    EMIT(((~vreg.code()) << 3) | l | pp);
-  }
 }
 
 

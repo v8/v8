@@ -512,9 +512,7 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithWord32AndWithConstant) {
           graph()->NewNode(machine()->Word32And(), p0, Int32Constant(k)),
           Int32Constant(l)));
       ASSERT_TRUE(r1.Changed());
-      EXPECT_THAT(r1.replacement(),
-                  (k & l) ? IsWord32And(p0, IsInt32Constant(k & l))
-                          : IsInt32Constant(0));
+      EXPECT_THAT(r1.replacement(), IsWord32And(p0, IsInt32Constant(k & l)));
 
       // (K & x) & L => x & (K & L)
       Reduction const r2 = Reduce(graph()->NewNode(
@@ -522,9 +520,7 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithWord32AndWithConstant) {
           graph()->NewNode(machine()->Word32And(), Int32Constant(k), p0),
           Int32Constant(l)));
       ASSERT_TRUE(r2.Changed());
-      EXPECT_THAT(r2.replacement(),
-                  (k & l) ? IsWord32And(p0, IsInt32Constant(k & l))
-                          : IsInt32Constant(0));
+      EXPECT_THAT(r2.replacement(), IsWord32And(p0, IsInt32Constant(k & l)));
     }
   }
 }
@@ -740,28 +736,6 @@ TEST_F(MachineOperatorReducerTest, Word32ShlWithWord32Sar) {
     ASSERT_TRUE(r.Changed());
     int32_t m = bit_cast<int32_t>(~((1U << x) - 1U));
     EXPECT_THAT(r.replacement(), IsWord32And(p0, IsInt32Constant(m)));
-  }
-}
-
-
-TEST_F(MachineOperatorReducerTest,
-       Word32ShlWithWord32SarAndInt32AddAndConstant) {
-  Node* const p0 = Parameter(0);
-  TRACED_FOREACH(int32_t, k, kInt32Values) {
-    TRACED_FORRANGE(int32_t, l, 1, 31) {
-      // (x + (K << L)) >> L << L => (x & (-1 << L)) + (K << L)
-      Reduction const r = Reduce(graph()->NewNode(
-          machine()->Word32Shl(),
-          graph()->NewNode(machine()->Word32Sar(),
-                           graph()->NewNode(machine()->Int32Add(), p0,
-                                            Int32Constant(k << l)),
-                           Int32Constant(l)),
-          Int32Constant(l)));
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsInt32Add(IsWord32And(p0, IsInt32Constant(-1 << l)),
-                             IsInt32Constant(k << l)));
-    }
   }
 }
 

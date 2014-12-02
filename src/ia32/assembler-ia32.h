@@ -619,14 +619,12 @@ class Assembler : public AssemblerBase {
   void mov_b(Register dst, Register src) { mov_b(dst, Operand(src)); }
   void mov_b(Register dst, const Operand& src);
   void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
-  void mov_b(const Operand& dst, int8_t src) { mov_b(dst, Immediate(src)); }
-  void mov_b(const Operand& dst, const Immediate& src);
+  void mov_b(const Operand& dst, int8_t imm8);
   void mov_b(const Operand& dst, Register src);
 
   void mov_w(Register dst, const Operand& src);
-  void mov_w(const Operand& dst, int16_t src) { mov_w(dst, Immediate(src)); }
-  void mov_w(const Operand& dst, const Immediate& src);
   void mov_w(const Operand& dst, Register src);
+  void mov_w(const Operand& dst, int16_t imm16);
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
@@ -1051,34 +1049,6 @@ class Assembler : public AssemblerBase {
   // Parallel XMM operations.
   void movntdqa(XMMRegister dst, const Operand& src);
   void movntdq(const Operand& dst, XMMRegister src);
-
-  // AVX instructions
-  void vaddsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vaddsd(dst, src1, Operand(src2));
-  }
-  void vaddsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
-    vsd(0x58, dst, src1, src2);
-  }
-  void vsubsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vsubsd(dst, src1, Operand(src2));
-  }
-  void vsubsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
-    vsd(0x5c, dst, src1, src2);
-  }
-  void vmulsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vmulsd(dst, src1, Operand(src2));
-  }
-  void vmulsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
-    vsd(0x59, dst, src1, src2);
-  }
-  void vdivsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vdivsd(dst, src1, Operand(src2));
-  }
-  void vdivsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
-    vsd(0x5e, dst, src1, src2);
-  }
-  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
-
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal
@@ -1181,14 +1151,6 @@ class Assembler : public AssemblerBase {
   void emit_operand(Register reg, const Operand& adr);
 
   void emit_farith(int b1, int b2, int i);
-
-  // Emit vex prefix
-  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
-  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128 };
-  enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
-  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x2 };
-  inline void emit_vex_prefix(XMMRegister v, VectorLength l, SIMDPrefix pp,
-                              LeadingOpcode m, VexW w);
 
   // labels
   void print(Label* L);

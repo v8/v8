@@ -1180,7 +1180,6 @@ class Assembler : public AssemblerBase {
             SwVfpRegister last,
             Condition cond = al);
 
-  void vmov(const SwVfpRegister dst, float imm);
   void vmov(const DwVfpRegister dst,
             double imm,
             const Register scratch = no_reg);

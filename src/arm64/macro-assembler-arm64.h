@@ -1487,6 +1487,13 @@ class MacroAssembler : public Assembler {
                    Handle<Code> success,
                    SmiCheckType smi_check_type);
 
+  // Compare the given value and the value of weak cell.
+  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
+
+  // Load the value of the weak cell in the value register. Branch to the given
+  // miss label if the weak cell was cleared.
+  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
+
   // Test the bitfield of the heap object map with mask and set the condition
   // flags. The object register is preserved.
   void TestMapBitfield(Register object, uint64_t mask);

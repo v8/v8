@@ -19,9 +19,9 @@ namespace compiler {
 class JSTypedLowering FINAL : public Reducer {
  public:
   explicit JSTypedLowering(JSGraph* jsgraph);
-  ~JSTypedLowering() {}
+  virtual ~JSTypedLowering();
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
@@ -51,8 +51,6 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceI32Shift(Node* node, bool left_signed,
                            const Operator* shift_op);
 
-  Node* Word32Shl(Node* const lhs, int32_t const rhs);
-
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
@@ -63,7 +61,6 @@ class JSTypedLowering FINAL : public Reducer {
   Type* zero_range_;
   Type* one_range_;
   Type* zero_thirtyone_range_;
-  Type* shifted_int32_ranges_[4];
 };
 
 }  // namespace compiler

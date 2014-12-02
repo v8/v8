@@ -21,7 +21,6 @@ class Unique;
 namespace compiler {
 
 // Forward declarations.
-class BufferAccess;
 class CallDescriptor;
 struct ElementAccess;
 struct FieldAccess;
@@ -88,27 +87,15 @@ Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsLoadBuffer(const Matcher<BufferAccess>& access_matcher,
-                            const Matcher<Node*>& buffer_matcher,
-                            const Matcher<Node*>& offset_matcher,
-                            const Matcher<Node*>& length_matcher,
-                            const Matcher<Node*>& effect_matcher,
-                            const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsStoreBuffer(const Matcher<BufferAccess>& access_matcher,
-                             const Matcher<Node*>& buffer_matcher,
-                             const Matcher<Node*>& offset_matcher,
-                             const Matcher<Node*>& length_matcher,
-                             const Matcher<Node*>& value_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsLoadElement(const Matcher<ElementAccess>& access_matcher,
                              const Matcher<Node*>& base_matcher,
                              const Matcher<Node*>& index_matcher,
-                             const Matcher<Node*>& control_matcher,
+                             const Matcher<Node*>& length_matcher,
                              const Matcher<Node*>& effect_matcher);
 Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& base_matcher,
                               const Matcher<Node*>& index_matcher,
+                              const Matcher<Node*>& length_matcher,
                               const Matcher<Node*>& value_matcher,
                               const Matcher<Node*>& effect_matcher,
                               const Matcher<Node*>& control_matcher);

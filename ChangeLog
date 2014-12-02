@@ -1,3 +1,8 @@
+2014-12-02: Version 3.31.37
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-02: Version 3.31.36
 
         Set V8_CC_GNU or V8_CC_MSVC for clang in gcc / cl mode (Chromium issue
