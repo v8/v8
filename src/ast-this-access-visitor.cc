@@ -22,6 +22,21 @@ void ATAV::VisitVariableProxy(VariableProxy* proxy) {
 }
 
 
+void ATAV::VisitSuperReference(SuperReference* leaf) {
+  // disallow super.method() and super(...).
+  uses_this_ = true;
+}
+
+
+void ATAV::VisitCallNew(CallNew* e) {
+  // new super(..) does not use 'this'.
+  if (!e->expression()->IsSuperReference()) {
+    Visit(e->expression());
+  }
+  VisitExpressions(e->arguments());
+}
+
+
 // ---------------------------------------------------------------------------
 // -- Leaf nodes -------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -43,8 +58,6 @@ void ATAV::VisitNativeFunctionLiteral(NativeFunctionLiteral* leaf) {}
 void ATAV::VisitLiteral(Literal* leaf) {}
 void ATAV::VisitRegExpLiteral(RegExpLiteral* leaf) {}
 void ATAV::VisitThisFunction(ThisFunction* leaf) {}
-void ATAV::VisitSuperReference(SuperReference* leaf) {}
-
 
 // ---------------------------------------------------------------------------
 // -- Pass-through nodes------------------------------------------------------
@@ -95,7 +108,7 @@ void ATAV::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 void ATAV::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->extends());
-  VisitIfNotNull(e->constructor());
+  Visit(e->constructor());
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
     Visit(properties->at(i)->value());
@@ -137,12 +150,6 @@ void ATAV::VisitProperty(Property* e) {
 
 
 void ATAV::VisitCall(Call* e) {
-  Visit(e->expression());
-  VisitExpressions(e->arguments());
-}
-
-
-void ATAV::VisitCallNew(CallNew* e) {
   Visit(e->expression());
   VisitExpressions(e->arguments());
 }

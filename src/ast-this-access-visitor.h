@@ -30,5 +30,5 @@ class AstThisAccessVisitor : public AstVisitor {
   DISALLOW_COPY_AND_ASSIGN(AstThisAccessVisitor);
 };
 }
-}  // namespace v8::intrenal
+}  // namespace v8::internal
 #endif  // V8_AST_THIS_ACCESS_VISITOR_H_
