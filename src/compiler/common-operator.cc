@@ -124,6 +124,19 @@ struct CommonOperatorGlobalCache FINAL {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <BranchHint kBranchHint>
+  struct BranchOperator FINAL : public Operator1<BranchHint> {
+    BranchOperator()
+        : Operator1<BranchHint>(                       // --
+              IrOpcode::kBranch, Operator::kFoldable,  // opcode
+              "Branch",                                // name
+              1, 0, 1, 0, 0, 2,                        // counts
+              kBranchHint) {}                          // parameter
+  };
+  BranchOperator<BranchHint::kNone> kBranchNoneOperator;
+  BranchOperator<BranchHint::kTrue> kBranchTrueOperator;
+  BranchOperator<BranchHint::kFalse> kBranchFalseOperator;
 };
 
 
@@ -145,8 +158,16 @@ CACHED_OP_LIST(CACHED)
 
 
 const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
-  return new (zone()) Operator1<BranchHint>(
-      IrOpcode::kBranch, Operator::kFoldable, "Branch", 1, 0, 1, 0, 0, 2, hint);
+  switch (hint) {
+    case BranchHint::kNone:
+      return &cache_.kBranchNoneOperator;
+    case BranchHint::kTrue:
+      return &cache_.kBranchTrueOperator;
+    case BranchHint::kFalse:
+      return &cache_.kBranchFalseOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 
