@@ -4541,7 +4541,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
     PrintF(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms [",
-        idle_time_in_ms, current_time, deadline_difference);
+        idle_time_in_ms, idle_time_in_ms - deadline_difference,
+        deadline_difference);
     action.Print();
     PrintF("]");
     if (FLAG_trace_idle_notification_verbose) {
