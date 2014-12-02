@@ -259,6 +259,16 @@ struct JSOperatorGlobalCache FINAL {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <StrictMode kStrictMode>
+  struct StorePropertyOperator FINAL : public Operator1<StrictMode> {
+    StorePropertyOperator()
+        : Operator1<StrictMode>(IrOpcode::kJSStoreProperty,
+                                Operator::kNoProperties, "JSStoreProperty", 3,
+                                1, 1, 0, 1, 0, kStrictMode) {}
+  };
+  StorePropertyOperator<SLOPPY> kStorePropertySloppyOperator;
+  StorePropertyOperator<STRICT> kStorePropertyStrictOperator;
 };
 
 
@@ -335,11 +345,14 @@ const Operator* JSOperatorBuilder::LoadProperty(
 
 
 const Operator* JSOperatorBuilder::StoreProperty(StrictMode strict_mode) {
-  return new (zone()) Operator1<StrictMode>(                // --
-      IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
-      "JSStoreProperty",                                    // name
-      3, 1, 1, 0, 1, 0,                                     // counts
-      strict_mode);                                         // parameter
+  switch (strict_mode) {
+    case SLOPPY:
+      return &cache_.kStorePropertySloppyOperator;
+    case STRICT:
+      return &cache_.kStorePropertyStrictOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 
