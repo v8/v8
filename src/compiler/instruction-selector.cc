@@ -47,9 +47,8 @@ void InstructionSelector::SelectInstructions() {
       if (phi->opcode() != IrOpcode::kPhi) continue;
 
       // Mark all inputs as used.
-      Node::Inputs inputs = phi->inputs();
-      for (InputIter k = inputs.begin(); k != inputs.end(); ++k) {
-        MarkAsUsed(*k);
+      for (Node* const k : phi->inputs()) {
+        MarkAsUsed(k);
       }
     }
   }
@@ -409,11 +408,10 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // arguments require an explicit push instruction before the call and do
   // not appear as arguments to the call. Everything else ends up
   // as an InstructionOperand argument to the call.
-  InputIter iter(call->inputs().begin());
+  auto iter(call->inputs().begin());
   int pushed_count = 0;
   for (size_t index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
-    DCHECK(index == static_cast<size_t>(iter.index()));
     DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
     if (index == 0) continue;  // The first argument (callee) is already done.
     InstructionOperand* op =

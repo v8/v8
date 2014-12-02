@@ -19,13 +19,13 @@ template <class N>
 class NodeInputIterationTraits {
  public:
   typedef N Node;
-  typedef typename N::Inputs::iterator Iterator;
+  typedef typename N::InputEdges::iterator Iterator;
 
-  static Iterator begin(Node* node) { return node->inputs().begin(); }
-  static Iterator end(Node* node) { return node->inputs().end(); }
+  static Iterator begin(Node* node) { return node->input_edges().begin(); }
+  static Iterator end(Node* node) { return node->input_edges().end(); }
   static int max_id(Graph* graph) { return graph->NodeCount(); }
-  static Node* to(Iterator iterator) { return *iterator; }
-  static Node* from(Iterator iterator) { return iterator.edge().from(); }
+  static Node* to(Iterator iterator) { return (*iterator).to(); }
+  static Node* from(Iterator iterator) { return (*iterator).from(); }
 };
 
 }  // namespace compiler

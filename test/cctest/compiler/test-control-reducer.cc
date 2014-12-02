@@ -130,11 +130,8 @@ class ControlReducerTester : HandleAndZoneScope {
   }
 
   Node* SetSelfReferences(Node* node) {
-    Node::Inputs inputs = node->inputs();
-    for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-         ++iter) {
-      Node* input = *iter;
-      if (input == self) node->ReplaceInput(iter.index(), node);
+    for (Edge edge : node->input_edges()) {
+      if (edge.to() == self) node->ReplaceInput(edge.index(), node);
     }
     return node;
   }

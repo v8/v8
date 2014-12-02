@@ -70,13 +70,13 @@ class GenericGraphVisit {
           post_order_node = Traits::from(stack.top().first);
           visit = true;
         } else {
-          visitor->PreEdge(Traits::from(top.first), top.first.edge().index(),
+          visitor->PreEdge(Traits::from(top.first), (*top.first).index(),
                            Traits::to(top.first));
           current = Traits::to(top.first);
           if (!GetVisited(&visited, current->id())) break;
         }
         top = stack.top();
-        visitor->PostEdge(Traits::from(top.first), top.first.edge().index(),
+        visitor->PostEdge(Traits::from(top.first), (*top.first).index(),
                           Traits::to(top.first));
         ++stack.top().first;
       }

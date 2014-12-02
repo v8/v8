@@ -23,6 +23,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Edge;
 class Graph;
 
 // Marks are used during traversal of the graph to distinguish states of nodes.
@@ -89,11 +90,25 @@ class Node FINAL {
 
   inline void TrimInputCount(int input_count);
 
+  class InputEdges {
+   public:
+    class iterator;
+    iterator begin() const;
+    iterator end() const;
+    bool empty() const;
+
+    explicit InputEdges(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
+
   class Inputs {
    public:
     class iterator;
-    iterator begin();
-    iterator end();
+    iterator begin() const;
+    iterator end() const;
+    bool empty() const;
 
     explicit Inputs(Node* node) : node_(node) {}
 
@@ -102,13 +117,27 @@ class Node FINAL {
   };
 
   Inputs inputs() { return Inputs(this); }
+  InputEdges input_edges() { return InputEdges(this); }
+
+  class UseEdges {
+   public:
+    class iterator;
+    iterator begin() const;
+    iterator end() const;
+    bool empty() const;
+
+    explicit UseEdges(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
 
   class Uses {
    public:
     class iterator;
-    iterator begin();
-    iterator end();
-    bool empty();
+    iterator begin() const;
+    iterator end() const;
+    bool empty() const;
 
     explicit Uses(Node* node) : node_(node) {}
 
@@ -117,8 +146,7 @@ class Node FINAL {
   };
 
   Uses uses() { return Uses(this); }
-
-  class Edge;
+  UseEdges use_edges() { return UseEdges(this); }
 
   bool OwnedBy(Node* owner) const;
 
@@ -127,6 +155,7 @@ class Node FINAL {
 
  protected:
   friend class Graph;
+  friend class Edge;
 
   class Use : public ZoneObject {
    public:
@@ -205,8 +234,8 @@ class Node FINAL {
 
 // An encapsulation for information associated with a single use of node as a
 // input from another node, allowing access to both the defining node and
-// the ndoe having the input.
-class Node::Edge {
+// the node having the input.
+class Edge {
  public:
   Node* from() const { return input_->use->from; }
   Node* to() const { return input_->to; }
@@ -216,9 +245,16 @@ class Node::Edge {
     return index;
   }
 
+  bool operator==(const Edge& other) { return input_ == other.input_; }
+  bool operator!=(const Edge& other) { return !(*this == other); }
+
+  void UpdateTo(Node* new_to) { input_->Update(new_to); }
+
  private:
   friend class Node::Uses::iterator;
   friend class Node::Inputs::iterator;
+  friend class Node::UseEdges::iterator;
+  friend class Node::InputEdges::iterator;
 
   explicit Edge(Node::Input* input) : input_(input) {}
 
@@ -226,43 +262,134 @@ class Node::Edge {
 };
 
 
-// A forward iterator to visit the nodes which are depended upon by a node
-// in the order of input.
-class Node::Inputs::iterator {
+// A forward iterator to visit the edges for the input dependencies of a node..
+class Node::InputEdges::iterator {
  public:
-  iterator(const Node::Inputs::iterator& other)  // NOLINT
-      : node_(other.node_),
-        index_(other.index_) {}
+  typedef std::forward_iterator_tag iterator_category;
+  typedef int difference_type;
+  typedef Edge value_type;
+  typedef Edge* pointer;
+  typedef Edge& reference;
+  iterator(const Node::InputEdges::iterator& other)  // NOLINT
+      : input_(other.input_) {}
+  iterator() : input_(NULL) {}
 
-  Node* operator*() { return GetInput()->to; }
-  Node::Edge edge() { return Node::Edge(GetInput()); }
-  bool operator==(const iterator& other) const {
-    return other.index_ == index_ && other.node_ == node_;
-  }
-  bool operator!=(const iterator& other) const { return !(other == *this); }
+  Edge operator*() const { return Edge(input_); }
+  bool operator==(const iterator& other) const { return Equals(other); }
+  bool operator!=(const iterator& other) const { return !Equals(other); }
   iterator& operator++() {
-    DCHECK(node_ != NULL);
-    DCHECK(index_ < node_->input_count_);
-    ++index_;
+    DCHECK(input_ != NULL);
+    Edge edge(input_);
+    Node* from = edge.from();
+    SetInput(from, input_->use->input_index + 1);
     return *this;
   }
-  iterator& UpdateToAndIncrement(Node* new_to) {
-    Node::Input* input = GetInput();
-    input->Update(new_to);
-    index_++;
-    return *this;
+  iterator operator++(int) {
+    iterator result(*this);
+    ++(*this);
+    return result;
   }
-  int index() { return index_; }
 
  private:
   friend class Node;
 
-  explicit iterator(Node* node, int index) : node_(node), index_(index) {}
+  explicit iterator(Node* from, int index = 0) : input_(NULL) {
+    SetInput(from, index);
+  }
 
-  Input* GetInput() const { return node_->GetInputRecordPtr(index_); }
+  bool Equals(const iterator& other) const { return other.input_ == input_; }
+  void SetInput(Node* from, int index) {
+    DCHECK(index >= 0 && index <= from->InputCount());
+    if (index < from->InputCount()) {
+      input_ = from->GetInputRecordPtr(index);
+    } else {
+      input_ = NULL;
+    }
+  }
 
-  Node* node_;
-  int index_;
+  Input* input_;
+};
+
+
+// A forward iterator to visit the inputs of a node.
+class Node::Inputs::iterator {
+ public:
+  typedef std::forward_iterator_tag iterator_category;
+  typedef int difference_type;
+  typedef Node* value_type;
+  typedef Node** pointer;
+  typedef Node*& reference;
+
+  iterator(const Node::Inputs::iterator& other)  // NOLINT
+      : iter_(other.iter_) {}
+
+  Node* operator*() const { return (*iter_).to(); }
+  bool operator==(const iterator& other) const { return Equals(other); }
+  bool operator!=(const iterator& other) const { return !Equals(other); }
+  iterator& operator++() {
+    ++iter_;
+    return *this;
+  }
+  iterator operator++(int) {
+    iterator result(*this);
+    ++(*this);
+    return result;
+  }
+
+
+ private:
+  friend class Node::Inputs;
+
+  explicit iterator(Node* node, int index) : iter_(node, index) {}
+
+  bool Equals(const iterator& other) const { return other.iter_ == iter_; }
+
+  Node::InputEdges::iterator iter_;
+};
+
+// A forward iterator to visit the uses edges of a node. The edges are returned
+// in
+// the order in which they were added as inputs.
+class Node::UseEdges::iterator {
+ public:
+  iterator(const Node::UseEdges::iterator& other)  // NOLINT
+      : current_(other.current_),
+        next_(other.next_) {}
+
+  Edge operator*() const { return Edge(CurrentInput()); }
+
+  bool operator==(const iterator& other) { return Equals(other); }
+  bool operator!=(const iterator& other) { return !Equals(other); }
+  iterator& operator++() {
+    DCHECK(current_ != NULL);
+    current_ = next_;
+    next_ = (current_ == NULL) ? NULL : current_->next;
+    return *this;
+  }
+  iterator operator++(int) {
+    iterator result(*this);
+    ++(*this);
+    return result;
+  }
+
+ private:
+  friend class Node::UseEdges;
+
+  iterator() : current_(NULL), next_(NULL) {}
+  explicit iterator(Node* node)
+      : current_(node->first_use_),
+        next_(current_ == NULL ? NULL : current_->next) {}
+
+  bool Equals(const iterator& other) const {
+    return other.current_ == current_;
+  }
+
+  Input* CurrentInput() const {
+    return current_->from->GetInputRecordPtr(current_->input_index);
+  }
+
+  Node::Use* current_;
+  Node::Use* next_;
 };
 
 
@@ -271,42 +398,29 @@ class Node::Inputs::iterator {
 class Node::Uses::iterator {
  public:
   iterator(const Node::Uses::iterator& other)  // NOLINT
-      : current_(other.current_),
-        index_(other.index_) {}
+      : current_(other.current_) {}
 
   Node* operator*() { return current_->from; }
-  Node::Edge edge() { return Node::Edge(CurrentInput()); }
 
   bool operator==(const iterator& other) { return other.current_ == current_; }
   bool operator!=(const iterator& other) { return other.current_ != current_; }
   iterator& operator++() {
     DCHECK(current_ != NULL);
-    index_++;
     current_ = current_->next;
     return *this;
   }
-  iterator& UpdateToAndIncrement(Node* new_to) {
-    DCHECK(current_ != NULL);
-    index_++;
-    Node::Input* input = CurrentInput();
-    current_ = current_->next;
-    input->Update(new_to);
-    return *this;
-  }
-  int index() const { return index_; }
 
  private:
   friend class Node::Uses;
 
-  iterator() : current_(NULL), index_(0) {}
-  explicit iterator(Node* node) : current_(node->first_use_), index_(0) {}
+  iterator() : current_(NULL) {}
+  explicit iterator(Node* node) : current_(node->first_use_) {}
 
   Input* CurrentInput() const {
     return current_->from->GetInputRecordPtr(current_->input_index);
   }
 
   Node::Use* current_;
-  int index_;
 };
 
 
@@ -338,21 +452,42 @@ static inline const T& OpParameter(const Node* node) {
   return OpParameter<T>(node->op());
 }
 
-inline Node::Inputs::iterator Node::Inputs::begin() {
+inline Node::InputEdges::iterator Node::InputEdges::begin() const {
+  return Node::InputEdges::iterator(this->node_, 0);
+}
+
+inline Node::InputEdges::iterator Node::InputEdges::end() const {
+  return Node::InputEdges::iterator(this->node_, this->node_->InputCount());
+}
+
+inline Node::Inputs::iterator Node::Inputs::begin() const {
   return Node::Inputs::iterator(this->node_, 0);
 }
 
-inline Node::Inputs::iterator Node::Inputs::end() {
+inline Node::Inputs::iterator Node::Inputs::end() const {
   return Node::Inputs::iterator(this->node_, this->node_->InputCount());
 }
 
-inline Node::Uses::iterator Node::Uses::begin() {
+inline Node::UseEdges::iterator Node::UseEdges::begin() const {
+  return Node::UseEdges::iterator(this->node_);
+}
+
+inline Node::UseEdges::iterator Node::UseEdges::end() const {
+  return Node::UseEdges::iterator();
+}
+
+inline Node::Uses::iterator Node::Uses::begin() const {
   return Node::Uses::iterator(this->node_);
 }
 
-inline Node::Uses::iterator Node::Uses::end() { return Node::Uses::iterator(); }
+inline Node::Uses::iterator Node::Uses::end() const {
+  return Node::Uses::iterator();
+}
 
-inline bool Node::Uses::empty() { return begin() == end(); }
+inline bool Node::InputEdges::empty() const { return begin() == end(); }
+inline bool Node::Uses::empty() const { return begin() == end(); }
+inline bool Node::UseEdges::empty() const { return begin() == end(); }
+inline bool Node::Inputs::empty() const { return begin() == end(); }
 
 inline void Node::ReplaceUses(Node* replace_to) {
   for (Use* use = first_use_; use != NULL; use = use->next) {
@@ -388,9 +523,8 @@ inline void Node::ReplaceUsesIf(UnaryPredicate pred, Node* replace_to) {
 }
 
 inline void Node::RemoveAllInputs() {
-  for (Inputs::iterator iter(inputs().begin()); iter != inputs().end();
-       ++iter) {
-    iter.GetInput()->Update(NULL);
+  for (Edge edge : input_edges()) {
+    edge.UpdateTo(NULL);
   }
 }
 

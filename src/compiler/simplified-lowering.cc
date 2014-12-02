@@ -237,19 +237,19 @@ class RepresentationSelector {
   // context, effect, and control inputs, assuming that value inputs should have
   // {kRepTagged} representation and can observe all output values {kTypeAny}.
   void VisitInputs(Node* node) {
-    InputIter i = node->inputs().begin();
+    auto i = node->input_edges().begin();
     for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-      ProcessInput(node, i.index(), kMachAnyTagged);  // Value inputs
+      ProcessInput(node, (*i).index(), kMachAnyTagged);  // Value inputs
     }
     for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
          ++i, j--) {
-      ProcessInput(node, i.index(), kMachAnyTagged);  // Context inputs
+      ProcessInput(node, (*i).index(), kMachAnyTagged);  // Context inputs
     }
     for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-      Enqueue(*i);  // Effect inputs: just visit
+      Enqueue((*i).to());  // Effect inputs: just visit
     }
     for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      Enqueue(*i);  // Control inputs: just visit
+      Enqueue((*i).to());  // Control inputs: just visit
     }
     SetOutput(node, kMachAnyTagged);
   }
@@ -379,21 +379,19 @@ class RepresentationSelector {
       }
 
       // Convert inputs to the output representation of this phi.
-      Node::Inputs inputs = node->inputs();
-      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-           ++iter, --values) {
+      for (Edge const edge : node->input_edges()) {
         // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, iter.index(), values > 0 ? output_type : 0);
+        ProcessInput(node, edge.index(), values > 0 ? output_type : 0);
+        values--;
       }
     } else {
       // Propagate {use} of the phi to value inputs, and 0 to control.
-      Node::Inputs inputs = node->inputs();
       MachineType use_type =
           static_cast<MachineType>((use & kTypeMask) | output);
-      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-           ++iter, --values) {
+      for (Edge const edge : node->input_edges()) {
         // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, iter.index(), values > 0 ? use_type : 0);
+        ProcessInput(node, edge.index(), values > 0 ? use_type : 0);
+        values--;
       }
     }
   }

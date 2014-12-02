@@ -147,8 +147,8 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
     // Reduce the use count of the node's inputs to potentially make them
     // schedulable. If all the uses of a node have been scheduled, then the node
     // itself can be scheduled.
-    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      DecrementUnscheduledUseCount(*i, i.index(), i.edge().from());
+    for (Edge const edge : node->input_edges()) {
+      DecrementUnscheduledUseCount(edge.to(), edge.index(), edge.from());
     }
   }
   data->placement_ = placement;
@@ -455,9 +455,8 @@ class CFGBuilder : public ZoneObject {
     DCHECK(block != NULL);
     // For all of the merge's control inputs, add a goto at the end to the
     // merge's basic block.
-    for (InputIter j = merge->inputs().begin(); j != merge->inputs().end();
-         ++j) {
-      BasicBlock* predecessor_block = schedule_->block(*j);
+    for (Node* const j : merge->inputs()) {
+      BasicBlock* predecessor_block = schedule_->block(j);
       TraceConnect(merge, predecessor_block, block);
       schedule_->AddGoto(predecessor_block, block);
     }
@@ -1250,9 +1249,7 @@ class ScheduleLateNodeVisitor {
  private:
   void ProcessQueue(Node* root) {
     ZoneQueue<Node*>* queue = &(scheduler_->schedule_queue_);
-    for (InputIter i = root->inputs().begin(); i != root->inputs().end(); ++i) {
-      Node* node = *i;
-
+    for (Node* node : root->inputs()) {
       // Don't schedule coupled nodes on their own.
       if (scheduler_->GetPlacement(node) == Scheduler::kCoupled) {
         node = NodeProperties::GetControlInput(node);
@@ -1325,9 +1322,8 @@ class ScheduleLateNodeVisitor {
 
   BasicBlock* GetCommonDominatorOfUses(Node* node) {
     BasicBlock* block = NULL;
-    Node::Uses uses = node->uses();
-    for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
-      BasicBlock* use_block = GetBlockForUse(i.edge());
+    for (Edge edge : node->use_edges()) {
+      BasicBlock* use_block = GetBlockForUse(edge);
       block = block == NULL ? use_block : use_block == NULL
                                               ? block
                                               : scheduler_->GetCommonDominator(
@@ -1336,7 +1332,7 @@ class ScheduleLateNodeVisitor {
     return block;
   }
 
-  BasicBlock* GetBlockForUse(Node::Edge edge) {
+  BasicBlock* GetBlockForUse(Edge edge) {
     Node* use = edge.from();
     IrOpcode::Value opcode = use->opcode();
     if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {

@@ -199,9 +199,9 @@ namespace {
 bool CanCover(Node* value, IrOpcode::Value opcode) {
   if (value->opcode() != opcode) return false;
   bool first = true;
-  for (auto i = value->uses().begin(); i != value->uses().end(); ++i) {
-    if (NodeProperties::IsEffectEdge(i.edge())) continue;
-    DCHECK(NodeProperties::IsValueEdge(i.edge()));
+  for (Edge const edge : value->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) continue;
+    DCHECK(NodeProperties::IsValueEdge(edge));
     if (!first) return false;
     first = false;
   }
@@ -236,11 +236,9 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* phi1 = d1.Phi(kMachFloat64, phi2, ChangeSmiToFloat64(object));
     Node* ephi1 = d1.EffectPhi(number, effect);
 
-    for (auto i = value->uses().begin(); i != value->uses().end();) {
-      if (NodeProperties::IsEffectEdge(i.edge())) {
-        i.UpdateToAndIncrement(ephi1);
-      } else {
-        ++i;
+    for (Edge edge : value->use_edges()) {
+      if (NodeProperties::IsEffectEdge(edge)) {
+        edge.UpdateTo(ephi1);
       }
     }
     return Replace(phi1);

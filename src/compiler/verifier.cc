@@ -176,11 +176,11 @@ void Verifier::Visitor::Pre(Node* node) {
 
   // Verify all successors are projections if multiple value outputs exist.
   if (node->op()->ValueOutputCount() > 1) {
-    Node::Uses uses = node->uses();
-    for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
-      CHECK(!NodeProperties::IsValueEdge(it.edge()) ||
-            (*it)->opcode() == IrOpcode::kProjection ||
-            (*it)->opcode() == IrOpcode::kParameter);
+    for (Edge edge : node->use_edges()) {
+      Node* use = edge.from();
+      CHECK(!NodeProperties::IsValueEdge(edge) ||
+            use->opcode() == IrOpcode::kProjection ||
+            use->opcode() == IrOpcode::kParameter);
     }
   }
 
