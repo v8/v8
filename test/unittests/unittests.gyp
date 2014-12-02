@@ -39,6 +39,7 @@
         'compiler/change-lowering-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
+        'compiler/control-equivalence-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-unittest.cc',
