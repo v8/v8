@@ -165,9 +165,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #define HARMONY_INPROGRESS(V)                                             \
   V(harmony_modules, "harmony modules (implies block scoping)")           \
   V(harmony_arrays, "harmony array methods")                              \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_arrow_functions, "harmony arrow functions")                   \
   V(harmony_proxies, "harmony proxies")                                   \
@@ -176,8 +173,11 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_unicode, "harmony unicode escapes")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                 \
-  V(harmony_tostring, "harmony toString") \
+#define HARMONY_STAGED(V)                                                 \
+  V(harmony_classes,                                                      \
+    "harmony classes (implies block scoping & object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")         \
+  V(harmony_tostring, "harmony toString")                                 \
   V(harmony_scoping, "harmony block scoping")
 
 // Features that are shipping (turned on by default, but internal flag remains).
