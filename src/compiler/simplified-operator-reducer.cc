@@ -98,38 +98,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
-    case IrOpcode::kLoadElement: {
-      ElementAccess access = ElementAccessOf(node->op());
-      if (access.bounds_check == kTypedArrayBoundsCheck) {
-        NumberMatcher mkey(node->InputAt(1));
-        NumberMatcher mlength(node->InputAt(2));
-        if (mkey.HasValue() && mlength.HasValue()) {
-          // Skip the typed array bounds check if key and length are constant.
-          if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {
-            access.bounds_check = kNoBoundsCheck;
-            node->set_op(simplified()->LoadElement(access));
-            return Changed(node);
-          }
-        }
-      }
-      break;
-    }
-    case IrOpcode::kStoreElement: {
-      ElementAccess access = ElementAccessOf(node->op());
-      if (access.bounds_check == kTypedArrayBoundsCheck) {
-        NumberMatcher mkey(node->InputAt(1));
-        NumberMatcher mlength(node->InputAt(2));
-        if (mkey.HasValue() && mlength.HasValue()) {
-          // Skip the typed array bounds check if key and length are constant.
-          if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {
-            access.bounds_check = kNoBoundsCheck;
-            node->set_op(simplified()->StoreElement(access));
-            return Changed(node);
-          }
-        }
-      }
-      break;
-    }
     default:
       break;
   }

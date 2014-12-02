@@ -39,6 +39,18 @@ namespace compiler {
   V(ArchRet)                \
   V(ArchStackPointer)       \
   V(ArchTruncateDoubleToI)  \
+  V(CheckedLoadInt8)        \
+  V(CheckedLoadUint8)       \
+  V(CheckedLoadInt16)       \
+  V(CheckedLoadUint16)      \
+  V(CheckedLoadWord32)      \
+  V(CheckedLoadFloat32)     \
+  V(CheckedLoadFloat64)     \
+  V(CheckedStoreWord8)      \
+  V(CheckedStoreWord16)     \
+  V(CheckedStoreWord32)     \
+  V(CheckedStoreFloat32)    \
+  V(CheckedStoreFloat64)    \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {

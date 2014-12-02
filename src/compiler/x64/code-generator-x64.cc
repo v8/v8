@@ -119,16 +119,43 @@ class X64OperandConverter : public InstructionOperandConverter {
     return Operand(no_reg, 0);
   }
 
-  Operand MemoryOperand() {
-    int first_input = 0;
+  Operand MemoryOperand(int first_input = 0) {
     return MemoryOperand(&first_input);
   }
 };
 
 
-static bool HasImmediateInput(Instruction* instr, int index) {
+namespace {
+
+bool HasImmediateInput(Instruction* instr, int index) {
   return instr->InputAt(index)->IsImmediate();
 }
+
+
+class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadInteger(CodeGenerator* gen, Register result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ xorl(result_, result_); }
+
+ private:
+  Register const result_;
+};
+
+
+class OutOfLineLoadFloat FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ pcmpeqd(result_, result_); }
+
+ private:
+  XMMRegister const result_;
+};
+
+}  // namespace
 
 
 #define ASSEMBLE_UNOP(asm_instr)         \
@@ -218,6 +245,72 @@ static bool HasImmediateInput(Instruction* instr, int index) {
                    i.InputOperand(1));                                 \
     }                                                                  \
   } while (0)
+
+
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                          \
+  do {                                                                  \
+    auto result = i.OutputDoubleRegister();                             \
+    auto offset = i.InputRegister(0);                                   \
+    if (instr->InputAt(1)->IsRegister()) {                              \
+      __ cmpl(offset, i.InputRegister(1));                              \
+    } else {                                                            \
+      __ cmpl(offset, i.InputImmediate(1));                             \
+    }                                                                   \
+    OutOfLineCode* ool = new (zone()) OutOfLineLoadFloat(this, result); \
+    __ j(above_equal, ool->entry());                                    \
+    __ asm_instr(result, i.MemoryOperand(2));                           \
+    __ bind(ool->exit());                                               \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                          \
+  do {                                                                    \
+    auto result = i.OutputRegister();                                     \
+    auto offset = i.InputRegister(0);                                     \
+    if (instr->InputAt(1)->IsRegister()) {                                \
+      __ cmpl(offset, i.InputRegister(1));                                \
+    } else {                                                              \
+      __ cmpl(offset, i.InputImmediate(1));                               \
+    }                                                                     \
+    OutOfLineCode* ool = new (zone()) OutOfLineLoadInteger(this, result); \
+    __ j(above_equal, ool->entry());                                      \
+    __ asm_instr(result, i.MemoryOperand(2));                             \
+    __ bind(ool->exit());                                                 \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_STORE_FLOAT(asm_instr)                 \
+  do {                                                          \
+    auto offset = i.InputRegister(0);                           \
+    if (instr->InputAt(1)->IsRegister()) {                      \
+      __ cmpl(offset, i.InputRegister(1));                      \
+    } else {                                                    \
+      __ cmpl(offset, i.InputImmediate(1));                     \
+    }                                                           \
+    Label done;                                                 \
+    __ j(above_equal, &done, Label::kNear);                     \
+    __ asm_instr(i.MemoryOperand(3), i.InputDoubleRegister(2)); \
+    __ bind(&done);                                             \
+  } while (false)
+
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)            \
+  do {                                                       \
+    auto offset = i.InputRegister(0);                        \
+    if (instr->InputAt(1)->IsRegister()) {                   \
+      __ cmpl(offset, i.InputRegister(1));                   \
+    } else {                                                 \
+      __ cmpl(offset, i.InputImmediate(1));                  \
+    }                                                        \
+    Label done;                                              \
+    __ j(above_equal, &done, Label::kNear);                  \
+    if (instr->InputAt(2)->IsRegister()) {                   \
+      __ asm_instr(i.MemoryOperand(3), i.InputRegister(2));  \
+    } else {                                                 \
+      __ asm_instr(i.MemoryOperand(3), i.InputImmediate(2)); \
+    }                                                        \
+    __ bind(&done);                                          \
+  } while (false)
 
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -667,6 +760,42 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ RecordWrite(object, index, value, mode);
       break;
     }
+    case kCheckedLoadInt8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movsxbl);
+      break;
+    case kCheckedLoadUint8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movzxbl);
+      break;
+    case kCheckedLoadInt16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movsxwl);
+      break;
+    case kCheckedLoadUint16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movzxwl);
+      break;
+    case kCheckedLoadWord32:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(movl);
+      break;
+    case kCheckedLoadFloat32:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(movss);
+      break;
+    case kCheckedLoadFloat64:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(movsd);
+      break;
+    case kCheckedStoreWord8:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movb);
+      break;
+    case kCheckedStoreWord16:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movw);
+      break;
+    case kCheckedStoreWord32:
+      ASSEMBLE_CHECKED_STORE_INTEGER(movl);
+      break;
+    case kCheckedStoreFloat32:
+      ASSEMBLE_CHECKED_STORE_FLOAT(movss);
+      break;
+    case kCheckedStoreFloat64:
+      ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
+      break;
   }
 }
 

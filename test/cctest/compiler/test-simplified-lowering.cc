@@ -232,10 +232,8 @@ TEST(RunLoadStoreMap) {
 TEST(RunLoadStoreFixedArrayIndex) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
   ElementAccess access = AccessBuilder::ForFixedArrayElement();
-  Node* load = t.LoadElement(access, t.Parameter(0), t.Int32Constant(0),
-                             t.Int32Constant(2));
-  t.StoreElement(access, t.Parameter(0), t.Int32Constant(1), t.Int32Constant(2),
-                 load);
+  Node* load = t.LoadElement(access, t.Parameter(0), t.Int32Constant(0));
+  t.StoreElement(access, t.Parameter(0), t.Int32Constant(1), load);
   t.Return(load);
 
   t.LowerAllNodes();
@@ -264,10 +262,9 @@ TEST(RunLoadStoreArrayBuffer) {
   Node* backing_store = t.LoadField(
       AccessBuilder::ForJSArrayBufferBackingStore(), t.Parameter(0));
   Node* load =
-      t.LoadElement(buffer_access, backing_store, t.Int32Constant(index),
-                    t.Int32Constant(array_length));
+      t.LoadElement(buffer_access, backing_store, t.Int32Constant(index));
   t.StoreElement(buffer_access, backing_store, t.Int32Constant(index + 1),
-                 t.Int32Constant(array_length), load);
+                 load);
   t.Return(t.jsgraph.TrueConstant());
 
   t.LowerAllNodes();
@@ -350,13 +347,12 @@ TEST(RunLoadElementFromUntaggedBase) {
   for (size_t i = 0; i < arraysize(smis); i++) {    // for header sizes
     for (size_t j = 0; (i + j) < arraysize(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
-      ElementAccess access = {kNoBoundsCheck, kUntaggedBase, offset,
-                              Type::Integral32(), kMachAnyTagged};
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachAnyTagged};
 
       SimplifiedLoweringTester<Object*> t;
-      Node* load = t.LoadElement(
-          access, t.PointerConstant(smis), t.Int32Constant(static_cast<int>(j)),
-          t.Int32Constant(static_cast<int>(arraysize(smis))));
+      Node* load = t.LoadElement(access, t.PointerConstant(smis),
+                                 t.Int32Constant(static_cast<int>(j)));
       t.Return(load);
       t.LowerAllNodes();
 
@@ -379,14 +375,13 @@ TEST(RunStoreElementFromUntaggedBase) {
   for (size_t i = 0; i < arraysize(smis); i++) {    // for header sizes
     for (size_t j = 0; (i + j) < arraysize(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
-      ElementAccess access = {kNoBoundsCheck, kUntaggedBase, offset,
-                              Type::Integral32(), kMachAnyTagged};
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachAnyTagged};
 
       SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
       Node* p0 = t.Parameter(0);
       t.StoreElement(access, t.PointerConstant(smis),
-                     t.Int32Constant(static_cast<int>(j)),
-                     t.Int32Constant(static_cast<int>(arraysize(smis))), p0);
+                     t.Int32Constant(static_cast<int>(j)), p0);
       t.Return(p0);
       t.LowerAllNodes();
 
@@ -452,10 +447,8 @@ class AccessTester : public HandleAndZoneScope {
 
     SimplifiedLoweringTester<Object*> t;
     Node* ptr = GetBaseNode(&t);
-    Node* load = t.LoadElement(access, ptr, t.Int32Constant(from_index),
-                               t.Int32Constant(static_cast<int>(num_elements)));
-    t.StoreElement(access, ptr, t.Int32Constant(to_index),
-                   t.Int32Constant(static_cast<int>(num_elements)), load);
+    Node* load = t.LoadElement(access, ptr, t.Int32Constant(from_index));
+    t.StoreElement(access, ptr, t.Int32Constant(to_index), load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
     t.GenerateCode();
@@ -542,9 +535,9 @@ class AccessTester : public HandleAndZoneScope {
 
  private:
   ElementAccess GetElementAccess() {
-    ElementAccess access = {
-        kNoBoundsCheck, tagged ? kTaggedBase : kUntaggedBase,
-        tagged ? FixedArrayBase::kHeaderSize : 0, Type::Any(), rep};
+    ElementAccess access = {tagged ? kTaggedBase : kUntaggedBase,
+                            tagged ? FixedArrayBase::kHeaderSize : 0,
+                            Type::Any(), rep};
     return access;
   }
 
@@ -1463,13 +1456,11 @@ TEST(LowerLoadElement_to_load) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
   for (size_t i = 0; i < arraysize(kMachineReps); i++) {
-    ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                            FixedArrayBase::kHeaderSize, Type::Any(),
-                            kMachineReps[i]};
+    ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                            Type::Any(), kMachineReps[i]};
 
-    Node* load =
-        t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0, t.p1,
-                           t.jsgraph.Int32Constant(1024), t.start, t.start);
+    Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
+                                    t.p1, t.start, t.start);
     Node* use = t.Use(load, kMachineReps[i]);
     t.Return(use);
     t.Lower();
@@ -1487,14 +1478,12 @@ TEST(LowerStoreElement_to_store) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
   for (size_t i = 0; i < arraysize(kMachineReps); i++) {
-    ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                            FixedArrayBase::kHeaderSize, Type::Any(),
-                            kMachineReps[i]};
+    ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                            Type::Any(), kMachineReps[i]};
 
     Node* val = t.ExampleWithOutput(kMachineReps[i]);
     Node* store = t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0,
-                                     t.p1, t.jsgraph.Int32Constant(1024), val,
-                                     t.start, t.start);
+                                     t.p1, val, t.start, t.start);
     t.Effect(store);
     t.Lower();
     CHECK_EQ(IrOpcode::kStore, store->opcode());
@@ -1513,13 +1502,12 @@ TEST(LowerStoreElement_to_store) {
 TEST(InsertChangeForLoadElementIndex) {
   // LoadElement(obj: Tagged, index: kTypeInt32 | kRepTagged, length) =>
   //   Load(obj, Int32Add(Int32Mul(ChangeTaggedToInt32(index), #k), #k))
-  TestingGraph t(Type::Any(), Type::Signed32(), Type::Any());
-  ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                          FixedArrayBase::kHeaderSize, Type::Any(),
+  TestingGraph t(Type::Any(), Type::Signed32());
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
                           kMachAnyTagged};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
-                                  t.p1, t.p2, t.start, t.start);
+                                  t.p1, t.start, t.start);
   t.Return(load);
   t.Lower();
   CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1533,13 +1521,12 @@ TEST(InsertChangeForLoadElementIndex) {
 TEST(InsertChangeForStoreElementIndex) {
   // StoreElement(obj: Tagged, index: kTypeInt32 | kRepTagged, length, val) =>
   //   Store(obj, Int32Add(Int32Mul(ChangeTaggedToInt32(index), #k), #k), val)
-  TestingGraph t(Type::Any(), Type::Signed32(), Type::Any());
-  ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                          FixedArrayBase::kHeaderSize, Type::Any(),
+  TestingGraph t(Type::Any(), Type::Signed32());
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
                           kMachAnyTagged};
 
   Node* store =
-      t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0, t.p1, t.p2,
+      t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0, t.p1,
                          t.jsgraph.TrueConstant(), t.start, t.start);
   t.Effect(store);
   t.Lower();
@@ -1554,12 +1541,11 @@ TEST(InsertChangeForStoreElementIndex) {
 TEST(InsertChangeForLoadElement) {
   // TODO(titzer): test all load/store representation change insertions.
   TestingGraph t(Type::Any(), Type::Signed32(), Type::Any());
-  ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                          FixedArrayBase::kHeaderSize, Type::Any(),
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
                           kMachFloat64};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
-                                  t.p1, t.p1, t.start, t.start);
+                                  t.p1, t.start, t.start);
   t.Return(load);
   t.Lower();
   CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1586,14 +1572,13 @@ TEST(InsertChangeForLoadField) {
 
 TEST(InsertChangeForStoreElement) {
   // TODO(titzer): test all load/store representation change insertions.
-  TestingGraph t(Type::Any(), Type::Signed32(), Type::Any());
-  ElementAccess access = {kNoBoundsCheck, kTaggedBase,
-                          FixedArrayBase::kHeaderSize, Type::Any(),
+  TestingGraph t(Type::Any(), Type::Signed32());
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
                           kMachFloat64};
 
-  Node* store = t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0,
-                                   t.jsgraph.Int32Constant(0), t.p2, t.p1,
-                                   t.start, t.start);
+  Node* store =
+      t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0,
+                         t.jsgraph.Int32Constant(0), t.p1, t.start, t.start);
   t.Effect(store);
   t.Lower();
 

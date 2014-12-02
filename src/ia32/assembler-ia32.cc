@@ -457,11 +457,11 @@ void Assembler::mov_b(Register dst, const Operand& src) {
 }
 
 
-void Assembler::mov_b(const Operand& dst, int8_t imm8) {
+void Assembler::mov_b(const Operand& dst, const Immediate& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xC6);
   emit_operand(eax, dst);
-  EMIT(imm8);
+  EMIT(static_cast<int8_t>(src.x_));
 }
 
 
@@ -489,13 +489,13 @@ void Assembler::mov_w(const Operand& dst, Register src) {
 }
 
 
-void Assembler::mov_w(const Operand& dst, int16_t imm16) {
+void Assembler::mov_w(const Operand& dst, const Immediate& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0xC7);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(imm16 & 0xff));
-  EMIT(static_cast<int8_t>(imm16 >> 8));
+  EMIT(static_cast<int8_t>(src.x_ & 0xff));
+  EMIT(static_cast<int8_t>(src.x_ >> 8));
 }
 
 

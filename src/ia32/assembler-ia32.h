@@ -619,12 +619,14 @@ class Assembler : public AssemblerBase {
   void mov_b(Register dst, Register src) { mov_b(dst, Operand(src)); }
   void mov_b(Register dst, const Operand& src);
   void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
-  void mov_b(const Operand& dst, int8_t imm8);
+  void mov_b(const Operand& dst, int8_t src) { mov_b(dst, Immediate(src)); }
+  void mov_b(const Operand& dst, const Immediate& src);
   void mov_b(const Operand& dst, Register src);
 
   void mov_w(Register dst, const Operand& src);
+  void mov_w(const Operand& dst, int16_t src) { mov_w(dst, Immediate(src)); }
+  void mov_w(const Operand& dst, const Immediate& src);
   void mov_w(const Operand& dst, Register src);
-  void mov_w(const Operand& dst, int16_t imm16);
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);

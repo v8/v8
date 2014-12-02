@@ -72,14 +72,14 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    // load [#base + %index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
-  } else if (g.CanBeImmediate(index)) {
+  if (g.CanBeImmediate(index)) {
     // load [%base + #index]
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else if (g.CanBeImmediate(base)) {
+    // load [#base + %index]
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
   } else {
     // load [%base + %index*1]
     Emit(opcode | AddressingModeField::encode(kMode_MR1),
@@ -136,19 +136,123 @@ void InstructionSelector::VisitStore(Node* node) {
   }
   InstructionOperand* value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  if (g.CanBeImmediate(base)) {
-    // store [#base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-         g.UseRegister(index), g.UseImmediate(base), value_operand);
-  } else if (g.CanBeImmediate(index)) {
+  if (g.CanBeImmediate(index)) {
     // store [%base + #index], %|#value
     Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
          g.UseRegister(base), g.UseImmediate(index), value_operand);
+  } else if (g.CanBeImmediate(base)) {
+    // store [#base + %index], %|#value
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
+         g.UseRegister(index), g.UseImmediate(base), value_operand);
   } else {
     // store [%base + %index*1], %|#value
     Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr,
          g.UseRegister(base), g.UseRegister(index), value_operand);
   }
+}
+
+
+void InstructionSelector::VisitCheckedLoad(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  X64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt8 : kCheckedLoadUint8;
+      break;
+    case kRepWord16:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt16 : kCheckedLoadUint16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedLoadWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedLoadFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedLoadFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() > moffset.right().Value()) {
+      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
+      InstructionOperand* length_operand =
+          g.TempImmediate(mlength.Value() - moffset.right().Value());
+      Emit(opcode | AddressingModeField::encode(kMode_MR1I),
+           g.DefineAsRegister(node), offset_operand, length_operand,
+           g.UseRegister(buffer), offset_operand,
+           g.UseImmediate(moffset.right().node()));
+      return;
+    }
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  Emit(opcode | AddressingModeField::encode(kMode_MR1),
+       g.DefineAsRegister(node), offset_operand, length_operand,
+       g.UseRegister(buffer), offset_operand);
+}
+
+
+void InstructionSelector::VisitCheckedStore(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  X64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  Node* const value = node->InputAt(3);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = kCheckedStoreWord8;
+      break;
+    case kRepWord16:
+      opcode = kCheckedStoreWord16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedStoreWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedStoreFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedStoreFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  InstructionOperand* value_operand =
+      g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() > moffset.right().Value()) {
+      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
+      InstructionOperand* length_operand =
+          g.TempImmediate(mlength.Value() - moffset.right().Value());
+      Emit(opcode | AddressingModeField::encode(kMode_MR1I), nullptr,
+           offset_operand, length_operand, value_operand, g.UseRegister(buffer),
+           offset_operand, g.UseImmediate(moffset.right().node()));
+      return;
+    }
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr, offset_operand,
+       length_operand, value_operand, g.UseRegister(buffer), offset_operand);
 }
 
 
