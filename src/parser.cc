@@ -835,7 +835,6 @@ FunctionLiteral* Parser::ParseProgram() {
   // Initialize parser state.
   CompleteParserRecorder recorder;
 
-  debug_saved_compile_options_ = compile_options();
   if (produce_cached_parse_data()) {
     log_ = &recorder;
   } else if (consume_cached_parse_data()) {
@@ -3828,13 +3827,6 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
                                   int* materialized_literal_count,
                                   int* expected_property_count,
                                   bool* ok) {
-  // Temporary debugging code for tracking down a mystery crash which should
-  // never happen. The crash happens on the line where we log the function in
-  // the preparse data: log_->LogFunction(...). TODO(marja): remove this once
-  // done.
-  CHECK(materialized_literal_count);
-  CHECK(expected_property_count);
-  CHECK(debug_saved_compile_options_ == compile_options());
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
@@ -5148,7 +5140,6 @@ void Parser::ParseOnBackground() {
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   CompleteParserRecorder recorder;
-  debug_saved_compile_options_ = compile_options();
   if (produce_cached_parse_data()) log_ = &recorder;
 
   DCHECK(info()->source_stream() != NULL);
