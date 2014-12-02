@@ -65,7 +65,7 @@ function SetHasJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.has', this]);
   }
-  return %SetHas(this, key);
+  return %_SetHas(this, key);
 }
 
 
@@ -83,7 +83,7 @@ function SetGetSizeJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.size', this]);
   }
-  return %SetGetSize(this);
+  return %_SetGetSize(this);
 }
 
 
@@ -193,7 +193,7 @@ function MapGetJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.get', this]);
   }
-  return %MapGet(this, key);
+  return %_MapGet(this, key);
 }
 
 
@@ -218,7 +218,7 @@ function MapHasJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.has', this]);
   }
-  return %MapHas(this, key);
+  return %_MapHas(this, key);
 }
 
 
@@ -236,7 +236,7 @@ function MapGetSizeJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.size', this]);
   }
-  return %MapGetSize(this);
+  return %_MapGetSize(this);
 }
 
 

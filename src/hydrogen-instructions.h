@@ -6339,6 +6339,23 @@ class HObjectAccess FINAL {
     return HObjectAccess(kInobject, GlobalObject::kNativeContextOffset);
   }
 
+  static HObjectAccess ForJSCollectionTable() {
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSCollection::kTableOffset);
+  }
+
+  template <typename CollectionType>
+  static HObjectAccess ForOrderedHashTableNumberOfBuckets() {
+    return HObjectAccess(kInobject, CollectionType::kNumberOfBucketsOffset,
+                         Representation::Smi());
+  }
+
+  template <typename CollectionType>
+  static HObjectAccess ForOrderedHashTableNumberOfElements() {
+    return HObjectAccess(kInobject, CollectionType::kNumberOfElementsOffset,
+                         Representation::Smi());
+  }
+
   inline bool Equals(HObjectAccess that) const {
     return value_ == that.value_;  // portion and offset must match
   }
