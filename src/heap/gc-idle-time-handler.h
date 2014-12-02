@@ -125,6 +125,9 @@ class GCIdleTimeHandler {
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 
+  // Incremental marking step time.
+  static const size_t kIncrementalMarkingStepTimeInMs = 1;
+
   class HeapState {
    public:
     void Print();

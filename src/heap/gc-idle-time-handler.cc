@@ -27,7 +27,8 @@ void GCIdleTimeAction::Print() {
       PrintF("no action");
       break;
     case DO_INCREMENTAL_MARKING:
-      PrintF("incremental marking with step %" V8_PTR_PREFIX "d", parameter);
+      PrintF("incremental marking with step %" V8_PTR_PREFIX "d / ms",
+             parameter);
       break;
     case DO_SCAVENGE:
       PrintF("scavenge");
@@ -250,7 +251,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     return GCIdleTimeAction::Nothing();
   }
   size_t step_size = EstimateMarkingStepSize(
-      static_cast<size_t>(idle_time_in_ms),
+      static_cast<size_t>(kIncrementalMarkingStepTimeInMs),
       heap_state.incremental_marking_speed_in_bytes_per_ms);
   return GCIdleTimeAction::IncrementalMarking(step_size);
 }
