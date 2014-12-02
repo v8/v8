@@ -802,7 +802,6 @@ Handle<CodeCache> Factory::NewCodeCache() {
       Handle<CodeCache>::cast(NewStruct(CODE_CACHE_TYPE));
   code_cache->set_default_cache(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code_cache->set_normal_type_cache(*undefined_value(), SKIP_WRITE_BARRIER);
-  code_cache->set_weak_cell_cache(*undefined_value(), SKIP_WRITE_BARRIER);
   return code_cache;
 }
 
