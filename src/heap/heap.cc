@@ -768,7 +768,6 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   mark_compact_collector()->SetFlags(kNoGCFlags);
   new_space_.Shrink();
   UncommitFromSpace();
-  incremental_marking()->UncommitMarkingDeque();
 }
 
 
@@ -1133,6 +1132,9 @@ bool Heap::PerformGarbageCollection(
         amount_of_external_allocated_memory_;
     old_generation_allocation_limit_ = OldGenerationAllocationLimit(
         PromotedSpaceSizeOfObjects(), freed_global_handles);
+    // We finished a marking cycle. We can uncommit the marking deque until
+    // we start marking again.
+    mark_compact_collector_.UncommitMarkingDeque();
   }
 
   {
@@ -1800,8 +1802,29 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // for pointers to from semispace instead of looking for pointers
         // to new space.
         DCHECK(!target->IsMap());
-        IterateAndMarkPointersToFromSpace(
-            target->address(), target->address() + size, &ScavengeObject);
+        Address start_address = target->address();
+        Address end_address = start_address + size;
+#if V8_DOUBLE_FIELDS_UNBOXING
+        InobjectPropertiesHelper helper(target->map());
+        bool has_only_tagged_fields = helper.all_fields_tagged();
+
+        if (!has_only_tagged_fields) {
+          for (Address slot = start_address; slot < end_address;
+               slot += kPointerSize) {
+            if (helper.IsTagged(static_cast<int>(slot - start_address))) {
+              // TODO(ishell): call this once for contiguous region
+              // of tagged fields.
+              IterateAndMarkPointersToFromSpace(slot, slot + kPointerSize,
+                                                &ScavengeObject);
+            }
+          }
+        } else {
+#endif
+          IterateAndMarkPointersToFromSpace(start_address, end_address,
+                                            &ScavengeObject);
+#if V8_DOUBLE_FIELDS_UNBOXING
+        }
+#endif
       }
     }
 
@@ -4389,7 +4412,7 @@ void Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (incremental_marking()->IsComplete() ||
-      (incremental_marking()->IsMarkingDequeEmpty() &&
+      (mark_compact_collector_.marking_deque()->IsEmpty() &&
        gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
            static_cast<size_t>(idle_time_in_ms), size_of_objects,
            final_incremental_mark_compact_speed_in_bytes_per_ms))) {
@@ -5486,7 +5509,6 @@ void Heap::TearDown() {
   }
 
   store_buffer()->TearDown();
-  incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
 }

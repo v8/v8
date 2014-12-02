@@ -50,6 +50,8 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       evacuation_(false),
       migration_slots_buffer_(NULL),
       heap_(heap),
+      marking_deque_memory_(NULL),
+      marking_deque_memory_committed_(false),
       code_flusher_(NULL),
       have_code_to_deoptimize_(false) {
 }
@@ -233,7 +235,10 @@ void MarkCompactCollector::SetUp() {
 }
 
 
-void MarkCompactCollector::TearDown() { AbortCompaction(); }
+void MarkCompactCollector::TearDown() {
+  AbortCompaction();
+  delete marking_deque_memory_;
+}
 
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
@@ -2009,13 +2014,18 @@ void MarkCompactCollector::MarkWeakObjectToCodeTable() {
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
+  Map* filler_map = heap_->one_pointer_filler_map();
   while (!marking_deque_.IsEmpty()) {
     HeapObject* object = marking_deque_.Pop();
+    // Explicitly skip one word fillers. Incremental markbit patterns are
+    // correct only for objects that occupy at least two words.
+    Map* map = object->map();
+    if (map == filler_map) continue;
+
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+    DCHECK(!Marking::IsWhite(Marking::MarkBitFrom(object)));
 
-    Map* map = object->map();
     MarkBit map_mark = Marking::MarkBitFrom(map);
     MarkObject(map, map_mark);
 
@@ -2110,6 +2120,43 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 
+void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize() {
+  if (marking_deque_memory_ == NULL) {
+    marking_deque_memory_ = new base::VirtualMemory(4 * MB);
+  }
+  if (!marking_deque_memory_committed_) {
+    bool success = marking_deque_memory_->Commit(
+        reinterpret_cast<Address>(marking_deque_memory_->address()),
+        marking_deque_memory_->size(),
+        false);  // Not executable.
+    CHECK(success);
+    marking_deque_memory_committed_ = true;
+    InitializeMarkingDeque();
+  }
+}
+
+
+void MarkCompactCollector::InitializeMarkingDeque() {
+  if (marking_deque_memory_committed_) {
+    Address addr = static_cast<Address>(marking_deque_memory_->address());
+    size_t size = marking_deque_memory_->size();
+    if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
+    marking_deque_.Initialize(addr, addr + size);
+  }
+}
+
+
+void MarkCompactCollector::UncommitMarkingDeque() {
+  if (marking_deque_memory_committed_) {
+    bool success = marking_deque_memory_->Uncommit(
+        reinterpret_cast<Address>(marking_deque_memory_->address()),
+        marking_deque_memory_->size());
+    CHECK(success);
+    marking_deque_memory_committed_ = false;
+  }
+}
+
+
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;
@@ -2121,42 +2168,21 @@ void MarkCompactCollector::MarkLiveObjects() {
   // with the C stack limit check.
   PostponeInterruptsScope postpone(isolate());
 
-  bool incremental_marking_overflowed = false;
   IncrementalMarking* incremental_marking = heap_->incremental_marking();
   if (was_marked_incrementally_) {
-    // Finalize the incremental marking and check whether we had an overflow.
-    // Both markers use grey color to mark overflowed objects so
-    // non-incremental marker can deal with them as if overflow
-    // occured during normal marking.
-    // But incremental marker uses a separate marking deque
-    // so we have to explicitly copy its overflow state.
     incremental_marking->Finalize();
-    incremental_marking_overflowed =
-        incremental_marking->marking_deque()->overflowed();
-    incremental_marking->marking_deque()->ClearOverflowed();
   } else {
     // Abort any pending incremental activities e.g. incremental sweeping.
     incremental_marking->Abort();
+    InitializeMarkingDeque();
   }
 
 #ifdef DEBUG
   DCHECK(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;
 #endif
-  // The to space contains live objects, a page in from space is used as a
-  // marking stack.
-  Address marking_deque_start = heap()->new_space()->FromSpacePageLow();
-  Address marking_deque_end = heap()->new_space()->FromSpacePageHigh();
-  if (FLAG_force_marking_deque_overflows) {
-    marking_deque_end = marking_deque_start + 64 * kPointerSize;
-  }
-  marking_deque_.Initialize(marking_deque_start, marking_deque_end);
-  DCHECK(!marking_deque_.overflowed());
 
-  if (incremental_marking_overflowed) {
-    // There are overflowed objects left in the heap after incremental marking.
-    marking_deque_.SetOverflowed();
-  }
+  EnsureMarkingDequeIsCommittedAndInitialize();
 
   PrepareForCodeFlushing();
 

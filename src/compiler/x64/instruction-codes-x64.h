@@ -62,6 +62,10 @@ namespace compiler {
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
+  V(AVXFloat64Add)                 \
+  V(AVXFloat64Sub)                 \
+  V(AVXFloat64Mul)                 \
+  V(AVXFloat64Div)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
   V(X64Movb)                       \

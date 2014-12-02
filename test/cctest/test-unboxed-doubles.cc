@@ -648,6 +648,66 @@ TEST(Regress436816) {
 }
 
 
+TEST(DoScavenge) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function A() {"
+      "  this.x = 42.5;"
+      "  this.o = {};"
+      "};"
+      "var o = new A();");
+
+  Handle<String> obj_name = factory->InternalizeUtf8String("o");
+
+  Handle<Object> obj_value =
+      Object::GetProperty(isolate->global_object(), obj_name).ToHandleChecked();
+  CHECK(obj_value->IsJSObject());
+  Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
+
+  {
+    // Ensure the object is properly set up.
+    Map* map = obj->map();
+    DescriptorArray* descriptors = map->instance_descriptors();
+    CHECK(map->NumberOfOwnDescriptors() == 2);
+    CHECK(descriptors->GetDetails(0).representation().IsDouble());
+    CHECK(descriptors->GetDetails(1).representation().IsHeapObject());
+    FieldIndex field_index = FieldIndex::ForDescriptor(map, 0);
+    CHECK(field_index.is_inobject() && field_index.is_double());
+    CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
+    CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
+  }
+  CHECK(isolate->heap()->new_space()->Contains(*obj));
+
+  // Trigger GCs so that the newly allocated object moves to old gen.
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+
+  // Create temp object in the new space.
+  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
+  CHECK(isolate->heap()->new_space()->Contains(*temp));
+
+  // Construct a double value that looks like a pointer to the new space object
+  // and store it into the obj.
+  Address fake_object = reinterpret_cast<Address>(*temp) + kPointerSize;
+  double boom_value = bit_cast<double>(fake_object);
+
+  FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
+  Handle<HeapNumber> boom_number = factory->NewHeapNumber(boom_value, MUTABLE);
+  obj->FastPropertyAtPut(field_index, *boom_number);
+
+  // Now the object moves to old gen and it has a double field that looks like
+  // a pointer to a from semi-space.
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+
+  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
+
+  CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
+}
+
+
 TEST(StoreBufferScanOnScavenge) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

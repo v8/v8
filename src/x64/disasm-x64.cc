@@ -383,12 +383,12 @@ class DisassemblerX64 {
   }
 
   bool vex_0f38() {
-    DCHECK(vex_byte0_ == VEX3_PREFIX);
+    if (vex_byte0_ == VEX2_PREFIX) return false;
     return (vex_byte1_ & 3) == 2;
   }
 
   bool vex_0f3a() {
-    DCHECK(vex_byte0_ == VEX3_PREFIX);
+    if (vex_byte0_ == VEX2_PREFIX) return false;
     return (vex_byte1_ & 3) == 3;
   }
 
@@ -870,83 +870,102 @@ int DisassemblerX64::SetCC(byte* data) {
 int DisassemblerX64::AVXInstruction(byte* data) {
   byte opcode = *data;
   byte* current = data + 1;
-  if (vex_byte0_ == VEX3_PREFIX) {
-    if (vex_128()) {
-      if (vex_66() && vex_0f38()) {
-        int mod, regop, rm, vvvv = vex_vreg();
-        get_modrm(*current, &mod, &regop, &rm);
-        switch (opcode) {
-          case 0x99:
-            AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xa9:
-            AppendToBuffer("vfmadd213s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xb9:
-            AppendToBuffer("vfmadd231s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0x9b:
-            AppendToBuffer("vfmsub132s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xab:
-            AppendToBuffer("vfmsub213s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xbb:
-            AppendToBuffer("vfmsub231s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0x9d:
-            AppendToBuffer("vfnmadd132s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xad:
-            AppendToBuffer("vfnmadd213s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xbd:
-            AppendToBuffer("vfnmadd231s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0x9f:
-            AppendToBuffer("vfnmsub132s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xaf:
-            AppendToBuffer("vfnmsub213s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          case 0xbf:
-            AppendToBuffer("vfnmsub231s%c %s,%s,", float_size_code(),
-                           NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-            current += PrintRightXMMOperand(current);
-            break;
-          default:
-            UnimplementedInstruction();
-        }
-      }
-    } else {
-      UnimplementedInstruction();
+  if (vex_66() && vex_0f38()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x99:
+        AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xa9:
+        AppendToBuffer("vfmadd213s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xb9:
+        AppendToBuffer("vfmadd231s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x9b:
+        AppendToBuffer("vfmsub132s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xab:
+        AppendToBuffer("vfmsub213s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xbb:
+        AppendToBuffer("vfmsub231s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x9d:
+        AppendToBuffer("vfnmadd132s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xad:
+        AppendToBuffer("vfnmadd213s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xbd:
+        AppendToBuffer("vfnmadd231s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x9f:
+        AppendToBuffer("vfnmsub132s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xaf:
+        AppendToBuffer("vfnmsub213s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xbf:
+        AppendToBuffer("vfnmsub231s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
     }
-  } else if (vex_byte0_ == VEX2_PREFIX) {
-    UnimplementedInstruction();
+  } else if (vex_f2() && vex_0f()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x58:
+        AppendToBuffer("vaddsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x59:
+        AppendToBuffer("vmulsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5c:
+        AppendToBuffer("vsubsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5e:
+        AppendToBuffer("vdivsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
   } else {
-    UNREACHABLE();
+    UnimplementedInstruction();
   }
 
   return static_cast<int>(current - data);

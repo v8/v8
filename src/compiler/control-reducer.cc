@@ -15,8 +15,31 @@ namespace internal {
 namespace compiler {
 
 enum VisitState { kUnvisited = 0, kOnStack = 1, kRevisit = 2, kVisited = 3 };
-enum Reachability { kFromStart = 8 };
 enum Decision { kFalse, kUnknown, kTrue };
+
+class ReachabilityMarker : public NodeMarker<uint8_t> {
+ public:
+  explicit ReachabilityMarker(Graph* graph) : NodeMarker<uint8_t>(graph, 8) {}
+  bool SetReachableFromEnd(Node* node) {
+    uint8_t before = Get(node);
+    Set(node, before | kFromEnd);
+    return before & kFromEnd;
+  }
+  bool IsReachableFromEnd(Node* node) { return Get(node) & kFromEnd; }
+  bool SetReachableFromStart(Node* node) {
+    uint8_t before = Get(node);
+    Set(node, before | kFromStart);
+    return before & kFromStart;
+  }
+  bool IsReachableFromStart(Node* node) { return Get(node) & kFromStart; }
+  void Push(Node* node) { Set(node, Get(node) | kFwStack); }
+  void Pop(Node* node) { Set(node, Get(node) & ~kFwStack); }
+  bool IsOnStack(Node* node) { return Get(node) & kFwStack; }
+
+ private:
+  enum Bit { kFromEnd = 1, kFromStart = 2, kFwStack = 4 };
+};
+
 
 #define TRACE(x) \
   if (FLAG_trace_turbo_reduction) PrintF x
@@ -72,15 +95,15 @@ class ControlReducerImpl {
     // we have to be careful about proper loop detection during reduction.
 
     // Gather all nodes backwards-reachable from end (through inputs).
-    state_.assign(graph()->NodeCount(), kUnvisited);
+    ReachabilityMarker marked(graph());
     NodeVector nodes(zone_);
-    AddNodesReachableFromEnd(nodes);
+    AddNodesReachableFromEnd(marked, nodes);
 
     // Walk forward through control nodes, looking for back edges to nodes
     // that are not connected to end. Those are non-terminating loops (NTLs).
     Node* start = graph()->start();
-    ZoneVector<byte> fw_reachability(graph()->NodeCount(), 0, zone_);
-    fw_reachability[start->id()] = kFromStart | kOnStack;
+    marked.Push(start);
+    marked.SetReachableFromStart(start);
 
     // We use a stack of (Node, UseIter) pairs to avoid O(n^2) traversal.
     typedef std::pair<Node*, UseIter> FwIter;
@@ -93,20 +116,23 @@ class ControlReducerImpl {
       bool pop = true;
       while (fw_stack.back().second != node->uses().end()) {
         Node* succ = *(fw_stack.back().second);
-        byte reach = fw_reachability[succ->id()];
-        if ((reach & kOnStack) != 0 && state_[succ->id()] != kVisited) {
+        if (marked.IsOnStack(succ) && !marked.IsReachableFromEnd(succ)) {
           // {succ} is on stack and not reachable from end.
-          ConnectNTL(nodes, succ);
-          fw_reachability.resize(graph()->NodeCount(), 0);
+          Node* added = ConnectNTL(succ);
+          nodes.push_back(added);
+          marked.SetReachableFromEnd(added);
+          AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
+
           // The use list of {succ} might have changed.
           fw_stack[fw_stack.size() - 1] = FwIter(succ, succ->uses().begin());
           pop = false;  // restart traversing successors of this node.
           break;
         }
-        if ((reach & kFromStart) == 0 &&
-            IrOpcode::IsControlOpcode(succ->opcode())) {
+        if (IrOpcode::IsControlOpcode(succ->opcode()) &&
+            !marked.IsReachableFromStart(succ)) {
           // {succ} is a control node and not yet reached from start.
-          fw_reachability[succ->id()] |= kFromStart | kOnStack;
+          marked.Push(succ);
+          marked.SetReachableFromStart(succ);
           fw_stack.push_back(FwIter(succ, succ->uses().begin()));
           pop = false;  // "recurse" into successor control node.
           break;
@@ -114,21 +140,20 @@ class ControlReducerImpl {
         ++fw_stack.back().second;
       }
       if (pop) {
-        fw_reachability[node->id()] &= ~kOnStack;
+        marked.Pop(node);
         fw_stack.pop_back();
       }
     }
 
     // Trim references from dead nodes to live nodes first.
     jsgraph_->GetCachedNodes(&nodes);
-    TrimNodes(nodes);
+    TrimNodes(marked, nodes);
 
     // Any control nodes not reachable from start are dead, even loops.
     for (size_t i = 0; i < nodes.size(); i++) {
       Node* node = nodes[i];
-      byte reach = fw_reachability[node->id()];
-      if ((reach & kFromStart) == 0 &&
-          IrOpcode::IsControlOpcode(node->opcode())) {
+      if (IrOpcode::IsControlOpcode(node->opcode()) &&
+          !marked.IsReachableFromStart(node)) {
         ReplaceNode(node, dead());  // uses will be added to revisit queue.
       }
     }
@@ -136,7 +161,7 @@ class ControlReducerImpl {
   }
 
   // Connect {loop}, the header of a non-terminating loop, to the end node.
-  void ConnectNTL(NodeVector& nodes, Node* loop) {
+  Node* ConnectNTL(Node* loop) {
     TRACE(("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic()));
 
     if (loop->opcode() != IrOpcode::kTerminate) {
@@ -173,27 +198,24 @@ class ControlReducerImpl {
       merge->AppendInput(graph()->zone(), loop);
       merge->set_op(common_->Merge(merge->InputCount()));
     }
-    nodes.push_back(to_add);
-    state_.resize(graph()->NodeCount(), kUnvisited);
-    state_[to_add->id()] = kVisited;
-    AddBackwardsReachableNodes(nodes, nodes.size() - 1);
+    return to_add;
   }
 
-  void AddNodesReachableFromEnd(NodeVector& nodes) {
+  void AddNodesReachableFromEnd(ReachabilityMarker& marked, NodeVector& nodes) {
     Node* end = graph()->end();
-    state_[end->id()] = kVisited;
+    marked.SetReachableFromEnd(end);
     if (!end->IsDead()) {
       nodes.push_back(end);
-      AddBackwardsReachableNodes(nodes, nodes.size() - 1);
+      AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
     }
   }
 
-  void AddBackwardsReachableNodes(NodeVector& nodes, size_t cursor) {
+  void AddBackwardsReachableNodes(ReachabilityMarker& marked, NodeVector& nodes,
+                                  size_t cursor) {
     while (cursor < nodes.size()) {
       Node* node = nodes[cursor++];
       for (Node* const input : node->inputs()) {
-        if (state_[input->id()] != kVisited) {
-          state_[input->id()] = kVisited;
+        if (!marked.SetReachableFromEnd(input)) {
           nodes.push_back(input);
         }
       }
@@ -202,22 +224,21 @@ class ControlReducerImpl {
 
   void Trim() {
     // Gather all nodes backwards-reachable from end through inputs.
-    state_.assign(graph()->NodeCount(), kUnvisited);
+    ReachabilityMarker marked(graph());
     NodeVector nodes(zone_);
-    AddNodesReachableFromEnd(nodes);
+    AddNodesReachableFromEnd(marked, nodes);
 
     // Process cached nodes in the JSGraph too.
     jsgraph_->GetCachedNodes(&nodes);
-    TrimNodes(nodes);
+    TrimNodes(marked, nodes);
   }
 
-  void TrimNodes(NodeVector& nodes) {
+  void TrimNodes(ReachabilityMarker& marked, NodeVector& nodes) {
     // Remove dead->live edges.
     for (size_t j = 0; j < nodes.size(); j++) {
       Node* node = nodes[j];
       for (UseIter i = node->uses().begin(); i != node->uses().end();) {
-        size_t id = static_cast<size_t>((*i)->id());
-        if (state_[id] != kVisited) {
+        if (!marked.IsReachableFromEnd(*i)) {
           TRACE(("DeadLink: #%d:%s(%d) -> #%d:%s\n", (*i)->id(),
                  (*i)->op()->mnemonic(), i.index(), node->id(),
                  node->op()->mnemonic()));
@@ -235,8 +256,7 @@ class ControlReducerImpl {
         CHECK_NE(NULL, input);
       }
       for (Node* const use : node->uses()) {
-        size_t id = static_cast<size_t>(use->id());
-        CHECK_EQ(kVisited, state_[id]);
+        CHECK(marked.IsReachableFromEnd(use));
       }
     }
 #endif
@@ -519,7 +539,6 @@ void ControlReducer::ReduceGraph(Zone* zone, JSGraph* jsgraph,
                                  CommonOperatorBuilder* common) {
   ControlReducerImpl impl(zone, jsgraph, common);
   impl.Reduce();
-  impl.Trim();
 }
 
 
