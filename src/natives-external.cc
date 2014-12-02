@@ -23,20 +23,26 @@ namespace internal {
  */
 class NativesStore {
  public:
-  ~NativesStore() {}
+  ~NativesStore() {
+    for (int i = 0; i < native_names_.length(); i++) {
+      native_names_[i].Dispose();
+    }
+  }
 
-  int GetBuiltinsCount() { return native_names_.length(); }
+  int GetBuiltinsCount() { return native_ids_.length(); }
   int GetDebuggerCount() { return debugger_count_; }
+
   Vector<const char> GetScriptName(int index) { return native_names_[index]; }
+
   Vector<const char> GetRawScriptSource(int index) {
     return native_source_[index];
   }
 
-  int GetIndex(const char* name) {
-    for (int i = 0; i < native_names_.length(); ++i) {
-      int native_name_length = native_names_[i].length();
-      if ((static_cast<int>(strlen(name)) == native_name_length) &&
-          (strncmp(name, native_names_[i].start(), native_name_length) == 0)) {
+  int GetIndex(const char* id) {
+    for (int i = 0; i < native_ids_.length(); ++i) {
+      int native_id_length = native_ids_[i].length();
+      if ((static_cast<int>(strlen(id)) == native_id_length) &&
+          (strncmp(id, native_ids_[i].start(), native_id_length) == 0)) {
         return i;
       }
     }
@@ -75,24 +81,35 @@ class NativesStore {
  private:
   NativesStore() : debugger_count_(0) {}
 
+  Vector<const char> NameFromId(const byte* id, int id_length) {
+    Vector<char> name(Vector<char>::New(id_length + 11));
+    SimpleStringBuilder builder(name.start(), name.length());
+    builder.AddString("native ");
+    builder.AddSubstring(reinterpret_cast<const char*>(id), id_length);
+    builder.AddString(".js");
+    return Vector<const char>::cast(name);
+  }
+
   bool ReadNameAndContentPair(SnapshotByteSource* bytes) {
-    const byte* name;
-    int name_length;
+    const byte* id;
+    int id_length;
     const byte* source;
     int source_length;
-    bool success = bytes->GetBlob(&name, &name_length) &&
+    bool success = bytes->GetBlob(&id, &id_length) &&
                    bytes->GetBlob(&source, &source_length);
     if (success) {
-      Vector<const char> name_vector(
-          reinterpret_cast<const char*>(name), name_length);
+      Vector<const char> id_vector(reinterpret_cast<const char*>(id),
+                                   id_length);
       Vector<const char> source_vector(
           reinterpret_cast<const char*>(source), source_length);
-      native_names_.Add(name_vector);
+      native_ids_.Add(id_vector);
       native_source_.Add(source_vector);
+      native_names_.Add(NameFromId(id, id_length));
     }
     return success;
   }
 
+  List<Vector<const char> > native_ids_;
   List<Vector<const char> > native_names_;
   List<Vector<const char> > native_source_;
   int debugger_count_;

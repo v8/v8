@@ -2151,14 +2151,6 @@ bool Genesis::InstallNatives() {
 }
 
 
-#define INSTALL_EXPERIMENTAL_NATIVE(i, flag, file)                             \
-  if (FLAG_##flag &&                                                           \
-      strcmp(ExperimentalNatives::GetScriptName(i).start(), "native " file) == \
-          0) {                                                                 \
-    if (!CompileExperimentalBuiltin(isolate(), i)) return false;               \
-  }
-
-
 bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_arrays_natives[] = {
       "native harmony-array.js", "native harmony-typedarray.js", NULL};
@@ -2182,14 +2174,15 @@ bool Genesis::InstallExperimentalNatives() {
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
-#define INSTALL_EXPERIMENTAL_NATIVES(id, desc)                       \
-  if (FLAG_##id) {                                                   \
-    for (size_t j = 0; id##_natives[j] != NULL; j++) {               \
-      if (strcmp(ExperimentalNatives::GetScriptName(i).start(),      \
-                 id##_natives[j]) == 0) {                            \
-        if (!CompileExperimentalBuiltin(isolate(), i)) return false; \
-      }                                                              \
-    }                                                                \
+#define INSTALL_EXPERIMENTAL_NATIVES(id, desc)                                \
+  if (FLAG_##id) {                                                            \
+    for (size_t j = 0; id##_natives[j] != NULL; j++) {                        \
+      Vector<const char> script_name = ExperimentalNatives::GetScriptName(i); \
+      if (strncmp(script_name.start(), id##_natives[j],                       \
+                  script_name.length()) == 0) {                               \
+        if (!CompileExperimentalBuiltin(isolate(), i)) return false;          \
+      }                                                                       \
+    }                                                                         \
   }
     HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
