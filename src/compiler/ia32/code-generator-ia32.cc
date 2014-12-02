@@ -492,6 +492,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEUint32ToFloat64:
       __ LoadUint32(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kAVXFloat64Add: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vaddsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Sub: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vsubsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Mul: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmulsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Div: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vdivsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
     case kIA32Movsxbl:
       __ movsx_b(i.OutputRegister(), i.MemoryOperand());
       break;

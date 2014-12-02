@@ -873,29 +873,49 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Add, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Sub, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Mul, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Div, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 

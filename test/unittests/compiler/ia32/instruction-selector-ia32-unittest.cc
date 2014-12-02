@@ -601,6 +601,38 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
   EXPECT_TRUE(s.IsFixed(s[0]->OutputAt(0), edx));
 }
 
+
+TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
+    Node* mul = m.Float64Mul(add, m.Parameter(1));
+    Node* sub = m.Float64Sub(mul, add);
+    Node* ret = m.Float64Div(mul, sub);
+    m.Return(ret);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(4U, s.size());
+    EXPECT_EQ(kAVXFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kAVXFloat64Div, s[3]->arch_opcode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
+    Node* mul = m.Float64Mul(add, m.Parameter(1));
+    Node* sub = m.Float64Sub(mul, add);
+    Node* ret = m.Float64Div(mul, sub);
+    m.Return(ret);
+    Stream s = m.Build();
+    ASSERT_EQ(4U, s.size());
+    EXPECT_EQ(kSSEFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kSSEFloat64Div, s[3]->arch_opcode());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
