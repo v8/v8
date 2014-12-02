@@ -391,7 +391,7 @@ struct TypedLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    ValueNumberingReducer vn_reducer(data->graph_zone());
+    ValueNumberingReducer vn_reducer(temp_zone);
     JSTypedLowering lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
@@ -411,7 +411,7 @@ struct SimplifiedLoweringPhase {
                                    SourcePosition::Unknown());
     SimplifiedLowering lowering(data->jsgraph());
     lowering.LowerAllNodes();
-    ValueNumberingReducer vn_reducer(data->graph_zone());
+    ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
@@ -428,7 +428,7 @@ struct ChangeLoweringPhase {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
     Linkage linkage(data->graph_zone(), data->info());
-    ValueNumberingReducer vn_reducer(data->graph_zone());
+    ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ChangeLowering lowering(data->jsgraph(), &linkage);
     MachineOperatorReducer mach_reducer(data->jsgraph());
