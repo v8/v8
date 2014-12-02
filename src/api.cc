@@ -4231,6 +4231,16 @@ Local<v8::Value> Function::GetBoundFunction() const {
 }
 
 
+int Name::GetIdentityHash() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Name::GetIdentityHash()", return 0);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Name> self = Utils::OpenHandle(this);
+  return static_cast<int>(self->Hash());
+}
+
+
 int String::Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return str->length();

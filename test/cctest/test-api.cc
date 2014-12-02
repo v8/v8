@@ -3033,6 +3033,53 @@ THREADED_TEST(GlobalProxyIdentityHash) {
 }
 
 
+TEST(SymbolIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  {
+    Local<v8::Symbol> symbol = v8::Symbol::New(isolate);
+    int hash = symbol->GetIdentityHash();
+    int hash1 = symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash1);
+    CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+    int hash3 = symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash3);
+  }
+
+  {
+    v8::Handle<v8::Symbol> js_symbol =
+        CompileRun("Symbol('foo')").As<v8::Symbol>();
+    int hash = js_symbol->GetIdentityHash();
+    int hash1 = js_symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash1);
+    CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+    int hash3 = js_symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash3);
+  }
+}
+
+
+TEST(StringIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::String> str = v8::String::NewFromUtf8(isolate, "str1");
+  int hash = str->GetIdentityHash();
+  int hash1 = str->GetIdentityHash();
+  CHECK_EQ(hash, hash1);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  int hash3 = str->GetIdentityHash();
+  CHECK_EQ(hash, hash3);
+
+  Local<v8::String> str2 = v8::String::NewFromUtf8(isolate, "str1");
+  int hash4 = str2->GetIdentityHash();
+  CHECK_EQ(hash, hash4);
+}
+
+
 THREADED_TEST(SymbolProperties) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
