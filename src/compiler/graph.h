@@ -8,7 +8,6 @@
 #include <map>
 #include <set>
 
-#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/source-position.h"

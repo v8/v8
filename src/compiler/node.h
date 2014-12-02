@@ -11,7 +11,6 @@
 
 #include "src/v8.h"
 
-#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/types.h"
@@ -425,8 +424,6 @@ class Node::Uses::iterator {
 
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
-
-typedef GenericGraphVisit::NullNodeVisitor NullNodeVisitor;
 
 typedef std::set<Node*, std::less<Node*>, zone_allocator<Node*> > NodeSet;
 typedef NodeSet::iterator NodeSetIter;

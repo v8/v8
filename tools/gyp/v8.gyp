@@ -429,7 +429,6 @@
         '../../src/compiler/frame.h',
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
-        '../../src/compiler/generic-algorithm-inl.h',
         '../../src/compiler/generic-algorithm.h',
         '../../src/compiler/graph-builder.cc',
         '../../src/compiler/graph-builder.h',
