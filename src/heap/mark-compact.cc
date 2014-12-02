@@ -2222,29 +2222,33 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   ProcessTopOptimizedFrame(&root_visitor);
 
-  // The objects reachable from the roots are marked, yet unreachable
-  // objects are unmarked.  Mark objects reachable due to host
-  // application specific logic or through Harmony weak maps.
-  ProcessEphemeralMarking(&root_visitor, false);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCLOSURE);
 
-  // The objects reachable from the roots, weak maps or object groups
-  // are marked. Objects pointed to only by weak global handles cannot be
-  // immediately reclaimed. Instead, we have to mark them as pending and mark
-  // objects reachable from them.
-  //
-  // First we identify nonlive weak handles and mark them as pending
-  // destruction.
-  heap()->isolate()->global_handles()->IdentifyWeakHandles(
-      &IsUnmarkedHeapObject);
-  // Then we mark the objects.
-  heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
+    // The objects reachable from the roots are marked, yet unreachable
+    // objects are unmarked.  Mark objects reachable due to host
+    // application specific logic or through Harmony weak maps.
+    ProcessEphemeralMarking(&root_visitor, false);
 
-  // Repeat Harmony weak maps marking to mark unmarked objects reachable from
-  // the weak roots we just marked as pending destruction.
-  //
-  // We only process harmony collections, as all object groups have been fully
-  // processed and no weakly reachable node can discover new objects groups.
-  ProcessEphemeralMarking(&root_visitor, true);
+    // The objects reachable from the roots, weak maps or object groups
+    // are marked. Objects pointed to only by weak global handles cannot be
+    // immediately reclaimed. Instead, we have to mark them as pending and mark
+    // objects reachable from them.
+    //
+    // First we identify nonlive weak handles and mark them as pending
+    // destruction.
+    heap()->isolate()->global_handles()->IdentifyWeakHandles(
+        &IsUnmarkedHeapObject);
+    // Then we mark the objects.
+    heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
+
+    // Repeat Harmony weak maps marking to mark unmarked objects reachable from
+    // the weak roots we just marked as pending destruction.
+    //
+    // We only process harmony collections, as all object groups have been fully
+    // processed and no weakly reachable node can discover new objects groups.
+    ProcessEphemeralMarking(&root_visitor, true);
+  }
 
   AfterMarking();
 
