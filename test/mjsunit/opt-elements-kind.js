@@ -142,16 +142,10 @@ function test1() {
   assertTrue(%HaveSameMap(smis, doubles));
 }
 
-function clear_ic_state() {
-  %ClearFunctionTypeFeedback(construct_smis);
-  %ClearFunctionTypeFeedback(construct_doubles);
-  %ClearFunctionTypeFeedback(convert_mixed);
-}
-
 test1();
-clear_ic_state();
+gc(); // clear IC state
 test1();
-clear_ic_state();
+gc(); // clear IC state
 %OptimizeFunctionOnNextCall(test1);
 test1();
-clear_ic_state();
+gc(); // clear IC state

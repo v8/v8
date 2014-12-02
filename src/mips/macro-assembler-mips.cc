@@ -4021,22 +4021,6 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::CmpWeakValue(Register match, Register value,
-                                  Handle<WeakCell> cell) {
-  li(match, Operand(cell));
-  lw(match, FieldMemOperand(match, WeakCell::kValueOffset));
-  Subu(match, value, match);
-}
-
-
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
-  li(value, Operand(cell));
-  lw(value, FieldMemOperand(value, WeakCell::kValueOffset));
-  JumpIfSmi(value, miss);
-}
-
-
 void MacroAssembler::MovFromFloatResult(DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
     if (kArchEndian == kLittle) {

@@ -52,6 +52,10 @@ class Typer {
   Type* falsish;
   Type* integer;
   Type* weakint;
+  Type* signed8_;
+  Type* unsigned8_;
+  Type* signed16_;
+  Type* unsigned16_;
   Type* number_fun0_;
   Type* number_fun1_;
   Type* number_fun2_;
@@ -73,8 +77,9 @@ class Typer {
   ZoneVector<Handle<Object> > weaken_max_limits_;
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_TYPER_H_

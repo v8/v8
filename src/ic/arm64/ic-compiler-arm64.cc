@@ -71,9 +71,8 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
-      Handle<WeakCell> cell = Map::WeakCellForMap(map);
-      __ CmpWeakValue(map_reg, cell, scratch2());
       Label try_next;
+      __ Cmp(map_reg, Operand(map));
       __ B(ne, &try_next);
       if (type->Is(HeapType::Number())) {
         DCHECK(!number_case.is_unused());
@@ -105,18 +104,16 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
   __ JumpIfSmi(receiver(), &miss);
 
   int receiver_count = receiver_maps->length();
-  Register map_reg = scratch1();
-  __ Ldr(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
+  __ Ldr(scratch1(), FieldMemOperand(receiver(), HeapObject::kMapOffset));
   for (int i = 0; i < receiver_count; i++) {
-    Handle<WeakCell> cell = Map::WeakCellForMap(receiver_maps->at(i));
-    __ CmpWeakValue(map_reg, cell, scratch2());
+    __ Cmp(scratch1(), Operand(receiver_maps->at(i)));
+
     Label skip;
     __ B(&skip, ne);
     if (!transitioned_maps->at(i).is_null()) {
       // This argument is used by the handler stub. For example, see
       // ElementsTransitionGenerator::GenerateMapChangeElementsTransition.
-      Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      __ LoadWeakValue(transition_map(), cell, &miss);
+      __ Mov(transition_map(), Operand(transitioned_maps->at(i)));
     }
     __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
     __ Bind(&skip);

@@ -24,6 +24,18 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
   Arm64OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
+  DoubleRegister InputFloat32Register(int index) {
+    return InputDoubleRegister(index).S();
+  }
+
+  DoubleRegister InputFloat64Register(int index) {
+    return InputDoubleRegister(index);
+  }
+
+  DoubleRegister OutputFloat32Register() { return OutputDoubleRegister().S(); }
+
+  DoubleRegister OutputFloat64Register() { return OutputDoubleRegister(); }
+
   Register InputRegister32(int index) {
     return ToRegister(instr_->InputAt(index)).W();
   }
@@ -106,9 +118,8 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(no_reg);
   }
 
-  MemOperand MemoryOperand() {
-    int index = 0;
-    return MemoryOperand(&index);
+  MemOperand MemoryOperand(int first_index = 0) {
+    return MemoryOperand(&first_index);
   }
 
   Operand ToOperand(InstructionOperand* op) {
@@ -161,6 +172,100 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
                       offset.offset());
   }
 };
+
+
+namespace {
+
+class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadFloat32(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL {
+    __ Fmov(result_, std::numeric_limits<float>::quiet_NaN());
+  }
+
+ private:
+  DoubleRegister const result_;
+};
+
+
+class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadFloat64(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL {
+    __ Fmov(result_, std::numeric_limits<double>::quiet_NaN());
+  }
+
+ private:
+  DoubleRegister const result_;
+};
+
+
+class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadInteger(CodeGenerator* gen, Register result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ Mov(result_, 0); }
+
+ private:
+  Register const result_;
+};
+
+}  // namespace
+
+
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                           \
+  do {                                                               \
+    auto result = i.OutputFloat##width##Register();                  \
+    auto offset = i.InputRegister32(0);                              \
+    auto length = i.InputOperand32(1);                               \
+    __ Cmp(offset, length);                                          \
+    auto ool = new (zone()) OutOfLineLoadFloat##width(this, result); \
+    __ B(hs, ool->entry());                                          \
+    __ Ldr(result, i.MemoryOperand(2));                              \
+    __ Bind(ool->exit());                                            \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                \
+  do {                                                          \
+    auto result = i.OutputRegister32();                         \
+    auto offset = i.InputRegister32(0);                         \
+    auto length = i.InputOperand32(1);                          \
+    __ Cmp(offset, length);                                     \
+    auto ool = new (zone()) OutOfLineLoadInteger(this, result); \
+    __ B(hs, ool->entry());                                     \
+    __ asm_instr(result, i.MemoryOperand(2));                   \
+    __ Bind(ool->exit());                                       \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width)                       \
+  do {                                                            \
+    auto offset = i.InputRegister32(0);                           \
+    auto length = i.InputOperand32(1);                            \
+    __ Cmp(offset, length);                                       \
+    Label done;                                                   \
+    __ B(hs, &done);                                              \
+    __ Str(i.InputFloat##width##Register(2), i.MemoryOperand(3)); \
+    __ Bind(&done);                                               \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)           \
+  do {                                                      \
+    auto offset = i.InputRegister32(0);                     \
+    auto length = i.InputOperand32(1);                      \
+    __ Cmp(offset, length);                                 \
+    Label done;                                             \
+    __ B(hs, &done);                                        \
+    __ asm_instr(i.InputRegister32(2), i.MemoryOperand(3)); \
+    __ Bind(&done);                                         \
+  } while (0)
 
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                       \
@@ -616,6 +721,42 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kCheckedLoadInt8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsb);
+      break;
+    case kCheckedLoadUint8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrb);
+      break;
+    case kCheckedLoadInt16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsh);
+      break;
+    case kCheckedLoadUint16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrh);
+      break;
+    case kCheckedLoadWord32:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldr);
+      break;
+    case kCheckedLoadFloat32:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(32);
+      break;
+    case kCheckedLoadFloat64:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(64);
+      break;
+    case kCheckedStoreWord8:
+      ASSEMBLE_CHECKED_STORE_INTEGER(Strb);
+      break;
+    case kCheckedStoreWord16:
+      ASSEMBLE_CHECKED_STORE_INTEGER(Strh);
+      break;
+    case kCheckedStoreWord32:
+      ASSEMBLE_CHECKED_STORE_INTEGER(Str);
+      break;
+    case kCheckedStoreFloat32:
+      ASSEMBLE_CHECKED_STORE_FLOAT(32);
+      break;
+    case kCheckedStoreFloat64:
+      ASSEMBLE_CHECKED_STORE_FLOAT(64);
+      break;
   }
 }
 
@@ -770,7 +911,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       cc = vc;
       break;
   }
-  __ bind(&check);
+  __ Bind(&check);
   __ Cset(reg, cc);
   __ Bind(&done);
 }

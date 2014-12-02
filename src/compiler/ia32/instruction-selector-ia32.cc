@@ -426,6 +426,142 @@ void InstructionSelector::VisitStore(Node* node) {
 }
 
 
+void InstructionSelector::VisitCheckedLoad(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  IA32OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt8 : kCheckedLoadUint8;
+      break;
+    case kRepWord16:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt16 : kCheckedLoadUint16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedLoadWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedLoadFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedLoadFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() > moffset.right().Value()) {
+      Int32Matcher mbuffer(buffer);
+      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
+      InstructionOperand* length_operand =
+          g.TempImmediate(mlength.Value() - moffset.right().Value());
+      if (mbuffer.HasValue()) {
+        Emit(opcode | AddressingModeField::encode(kMode_MRI),
+             g.DefineAsRegister(node), offset_operand, length_operand,
+             offset_operand,
+             g.TempImmediate(mbuffer.Value() + moffset.right().Value()));
+      } else {
+        Emit(opcode | AddressingModeField::encode(kMode_MR1I),
+             g.DefineAsRegister(node), offset_operand, length_operand,
+             g.UseRegister(buffer), offset_operand,
+             g.UseImmediate(moffset.right().node()));
+      }
+      return;
+    }
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  if (g.CanBeImmediate(buffer)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), offset_operand, length_operand,
+         offset_operand, g.UseImmediate(buffer));
+  } else {
+    Emit(opcode | AddressingModeField::encode(kMode_MR1),
+         g.DefineAsRegister(node), offset_operand, length_operand,
+         g.UseRegister(buffer), offset_operand);
+  }
+}
+
+
+void InstructionSelector::VisitCheckedStore(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  IA32OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  Node* const value = node->InputAt(3);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = kCheckedStoreWord8;
+      break;
+    case kRepWord16:
+      opcode = kCheckedStoreWord16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedStoreWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedStoreFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedStoreFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  InstructionOperand* value_operand =
+      g.CanBeImmediate(value)
+          ? g.UseImmediate(value)
+          : ((rep == kRepWord8 || rep == kRepBit) ? g.UseByteRegister(value)
+                                                  : g.UseRegister(value));
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mbuffer(buffer);
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() > moffset.right().Value()) {
+      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
+      InstructionOperand* length_operand =
+          g.TempImmediate(mlength.Value() - moffset.right().Value());
+      if (mbuffer.HasValue()) {
+        Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
+             offset_operand, length_operand, value_operand, offset_operand,
+             g.TempImmediate(mbuffer.Value() + moffset.right().Value()));
+      } else {
+        Emit(opcode | AddressingModeField::encode(kMode_MR1I), nullptr,
+             offset_operand, length_operand, value_operand,
+             g.UseRegister(buffer), offset_operand,
+             g.UseImmediate(moffset.right().node()));
+      }
+      return;
+    }
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* length_operand =
+      g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
+  if (g.CanBeImmediate(buffer)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
+         offset_operand, length_operand, value_operand, offset_operand,
+         g.UseImmediate(buffer));
+  } else {
+    Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr,
+         offset_operand, length_operand, value_operand, g.UseRegister(buffer),
+         offset_operand);
+  }
+}
+
+
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode, FlagsContinuation* cont) {
@@ -737,29 +873,49 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Add, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Sub, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Mul, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Div, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
 }
 
 

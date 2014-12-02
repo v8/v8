@@ -57,8 +57,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
       number_of_handled_maps++;
       // Check map and tail call if there's a match.
       // Separate compare from branch, to provide path for above JumpIfSmi().
-      Handle<WeakCell> cell = Map::WeakCellForMap(map);
-      __ CmpWeakValue(match, map_reg, cell);
+      __ Subu(match, map_reg, Operand(map));
       if (type->Is(HeapType::Number())) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
@@ -86,20 +85,15 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
   __ JumpIfSmi(receiver(), &miss);
 
   int receiver_count = receiver_maps->length();
-  Register map_reg = scratch1();
-  Register match = scratch2();
-  __ lw(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
+  __ lw(scratch1(), FieldMemOperand(receiver(), HeapObject::kMapOffset));
   for (int i = 0; i < receiver_count; ++i) {
-    Handle<WeakCell> cell = Map::WeakCellForMap(receiver_maps->at(i));
-    __ CmpWeakValue(match, map_reg, cell);
     if (transitioned_maps->at(i).is_null()) {
-      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, eq, match,
-              Operand(zero_reg));
+      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, eq, scratch1(),
+              Operand(receiver_maps->at(i)));
     } else {
       Label next_map;
-      __ Branch(&next_map, ne, match, Operand(zero_reg));
-      Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      __ LoadWeakValue(transition_map(), cell, &miss);
+      __ Branch(&next_map, ne, scratch1(), Operand(receiver_maps->at(i)));
+      __ li(transition_map(), Operand(transitioned_maps->at(i)));
       __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }

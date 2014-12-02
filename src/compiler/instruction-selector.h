@@ -59,6 +59,16 @@ class InstructionSelector FINAL {
                     InstructionOperand* a, InstructionOperand* b,
                     InstructionOperand* c, InstructionOperand* d,
                     size_t temp_count = 0, InstructionOperand* *temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
+                    InstructionOperand* a, InstructionOperand* b,
+                    InstructionOperand* c, InstructionOperand* d,
+                    InstructionOperand* e, size_t temp_count = 0,
+                    InstructionOperand* *temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
+                    InstructionOperand* a, InstructionOperand* b,
+                    InstructionOperand* c, InstructionOperand* d,
+                    InstructionOperand* e, InstructionOperand* f,
+                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
                     InstructionOperand** outputs, size_t input_count,
                     InstructionOperand** inputs, size_t temp_count = 0,

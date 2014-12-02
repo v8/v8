@@ -633,6 +633,8 @@ void Verifier::Visitor::Pre(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckUpperIs(node, Field(node).type));
       break;
+    case IrOpcode::kLoadBuffer:
+      break;
     case IrOpcode::kLoadElement:
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
@@ -645,6 +647,8 @@ void Verifier::Visitor::Pre(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckValueInputIs(node, 1, Field(node).type));
       CheckNotTyped(node);
+      break;
+    case IrOpcode::kStoreBuffer:
       break;
     case IrOpcode::kStoreElement:
       // (Object, elementtype) -> _|_
@@ -723,6 +727,8 @@ void Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
     case IrOpcode::kLoadStackPointer:
+    case IrOpcode::kCheckedLoad:
+    case IrOpcode::kCheckedStore:
       // TODO(rossberg): Check.
       break;
   }

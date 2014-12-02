@@ -7,6 +7,7 @@
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/types.h"
 
@@ -38,10 +39,24 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph)
   one_range_ = Type::Range(one, one, zone());
   Handle<Object> thirtyone = factory->NewNumber(31.0);
   zero_thirtyone_range_ = Type::Range(zero, thirtyone, zone());
+  // TODO(jarin): Can we have a correctification of the stupid type system?
+  // These stupid work-arounds are just stupid!
+  shifted_int32_ranges_[0] = Type::Signed32();
+  if (SmiValuesAre31Bits()) {
+    shifted_int32_ranges_[1] = Type::SignedSmall();
+    for (size_t k = 2; k < arraysize(shifted_int32_ranges_); ++k) {
+      Handle<Object> min = factory->NewNumber(kMinInt / (1 << k));
+      Handle<Object> max = factory->NewNumber(kMaxInt / (1 << k));
+      shifted_int32_ranges_[k] = Type::Range(min, max, zone());
+    }
+  } else {
+    for (size_t k = 1; k < arraysize(shifted_int32_ranges_); ++k) {
+      Handle<Object> min = factory->NewNumber(kMinInt / (1 << k));
+      Handle<Object> max = factory->NewNumber(kMaxInt / (1 << k));
+      shifted_int32_ranges_[k] = Type::Range(min, max, zone());
+    }
+  }
 }
-
-
-JSTypedLowering::~JSTypedLowering() {}
 
 
 Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
@@ -674,27 +689,37 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Type* base_type = NodeProperties::GetBounds(base).upper;
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array or it's buffer is neutered.
-  if (base_type->IsConstant() && key_type->Is(Type::Integral32()) &&
+  if (base_type->IsConstant() &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
-    // JSLoadProperty(typed-array, int32)
-    Handle<JSTypedArray> array =
+    Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
-    if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
-      ExternalArrayType type = array->type();
-      double byte_length = array->byte_length()->Number();
-      if (byte_length <= kMaxInt) {
-        Handle<ExternalArray> elements =
-            Handle<ExternalArray>::cast(handle(array->elements()));
-        Node* pointer = jsgraph()->IntPtrConstant(
-            bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Constant(array->length()->Number());
-        Node* effect = NodeProperties::GetEffectInput(node);
+    BufferAccess const access(array->type());
+    size_t const k = ElementSizeLog2Of(access.machine_type());
+    double const byte_length = array->byte_length()->Number();
+    CHECK_LT(k, arraysize(shifted_int32_ranges_));
+    if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
+        access.external_array_type() != kExternalUint8ClampedArray &&
+        key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
+      // JSLoadProperty(typed-array, int32)
+      Handle<ExternalArray> elements =
+          Handle<ExternalArray>::cast(handle(array->elements()));
+      Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
+      Node* length = jsgraph()->Constant(byte_length);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      // Check if we can avoid the bounds check.
+      if (key_type->Min() >= 0 && key_type->Max() < array->length()->Number()) {
         Node* load = graph()->NewNode(
             simplified()->LoadElement(
-                AccessBuilder::ForTypedArrayElement(type, true)),
-            pointer, key, length, effect);
+                AccessBuilder::ForTypedArrayElement(array->type(), true)),
+            buffer, key, effect, control);
         return ReplaceEagerly(node, load);
       }
+      // Compute byte offset.
+      Node* offset = Word32Shl(key, static_cast<int>(k));
+      Node* load = graph()->NewNode(simplified()->LoadBuffer(access), buffer,
+                                    offset, length, effect, control);
+      return ReplaceEagerly(node, load);
     }
   }
   return NoChange();
@@ -707,56 +732,70 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 2);
   Type* key_type = NodeProperties::GetBounds(key).upper;
   Type* base_type = NodeProperties::GetBounds(base).upper;
+  Type* value_type = NodeProperties::GetBounds(value).upper;
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array or its buffer is neutered.
-  if (key_type->Is(Type::Integral32()) && base_type->IsConstant() &&
+  if (base_type->IsConstant() &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
-    // JSStoreProperty(typed-array, int32, value)
-    Handle<JSTypedArray> array =
+    Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
-    if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
-      ExternalArrayType type = array->type();
-      double byte_length = array->byte_length()->Number();
-      if (byte_length <= kMaxInt) {
-        Handle<ExternalArray> elements =
-            Handle<ExternalArray>::cast(handle(array->elements()));
-        Node* pointer = jsgraph()->IntPtrConstant(
-            bit_cast<intptr_t>(elements->external_pointer()));
-        Node* length = jsgraph()->Constant(array->length()->Number());
-        Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
-
-        ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
-        Type* value_type = NodeProperties::GetBounds(value).upper;
-        // If the value input does not have the required type, insert the
-        // appropriate conversion.
-
-        // Convert to a number first.
-        if (!value_type->Is(Type::Number())) {
-          Reduction number_reduction = ReduceJSToNumberInput(value);
-          if (number_reduction.Changed()) {
-            value = number_reduction.replacement();
-          } else {
-            Node* context = NodeProperties::GetContextInput(node);
-            value = graph()->NewNode(javascript()->ToNumber(), value, context,
-                                     effect, control);
-            effect = value;
-          }
+    BufferAccess const access(array->type());
+    size_t const k = ElementSizeLog2Of(access.machine_type());
+    double const byte_length = array->byte_length()->Number();
+    CHECK_LT(k, arraysize(shifted_int32_ranges_));
+    if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
+        access.external_array_type() != kExternalUint8ClampedArray &&
+        key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
+      // JSLoadProperty(typed-array, int32)
+      Handle<ExternalArray> elements =
+          Handle<ExternalArray>::cast(handle(array->elements()));
+      Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
+      Node* length = jsgraph()->Constant(byte_length);
+      Node* context = NodeProperties::GetContextInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      // Convert to a number first.
+      if (!value_type->Is(Type::Number())) {
+        Reduction number_reduction = ReduceJSToNumberInput(value);
+        if (number_reduction.Changed()) {
+          value = number_reduction.replacement();
+        } else {
+          value = effect = graph()->NewNode(javascript()->ToNumber(), value,
+                                            context, effect, control);
         }
-        // For integer-typed arrays, convert to the integer type.
-        if (access.type->Is(Type::Signed32()) &&
-            !value_type->Is(Type::Signed32())) {
-          value = graph()->NewNode(simplified()->NumberToInt32(), value);
-        } else if (access.type->Is(Type::Unsigned32()) &&
-                   !value_type->Is(Type::Unsigned32())) {
-          value = graph()->NewNode(simplified()->NumberToUint32(), value);
-        }
-
-        Node* store =
-            graph()->NewNode(simplified()->StoreElement(access), pointer, key,
-                             length, value, effect, control);
-        return ReplaceEagerly(node, store);
       }
+      // For integer-typed arrays, convert to the integer type.
+      if (TypeOf(access.machine_type()) == kTypeInt32 &&
+          !value_type->Is(Type::Signed32())) {
+        value = graph()->NewNode(simplified()->NumberToInt32(), value);
+      } else if (TypeOf(access.machine_type()) == kTypeUint32 &&
+                 !value_type->Is(Type::Unsigned32())) {
+        value = graph()->NewNode(simplified()->NumberToUint32(), value);
+      }
+      // Check if we can avoid the bounds check.
+      if (key_type->Min() >= 0 && key_type->Max() < array->length()->Number()) {
+        node->set_op(simplified()->StoreElement(
+            AccessBuilder::ForTypedArrayElement(array->type(), true)));
+        node->ReplaceInput(0, buffer);
+        DCHECK_EQ(key, node->InputAt(1));
+        node->ReplaceInput(2, value);
+        node->ReplaceInput(3, effect);
+        node->ReplaceInput(4, control);
+        node->TrimInputCount(5);
+        return Changed(node);
+      }
+      // Compute byte offset.
+      Node* offset = Word32Shl(key, static_cast<int>(k));
+      // Turn into a StoreBuffer operation.
+      node->set_op(simplified()->StoreBuffer(access));
+      node->ReplaceInput(0, buffer);
+      node->ReplaceInput(1, offset);
+      node->ReplaceInput(2, length);
+      node->ReplaceInput(3, value);
+      node->ReplaceInput(4, effect);
+      DCHECK_EQ(control, node->InputAt(5));
+      DCHECK_EQ(6, node->InputCount());
+      return Changed(node);
     }
   }
   return NoChange();
@@ -855,6 +894,13 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+
+Node* JSTypedLowering::Word32Shl(Node* const lhs, int32_t const rhs) {
+  if (rhs == 0) return lhs;
+  return graph()->NewNode(machine()->Word32Shl(), lhs,
+                          jsgraph()->Int32Constant(rhs));
 }
 
 }  // namespace compiler

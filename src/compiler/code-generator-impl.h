@@ -118,6 +118,27 @@ class InstructionOperandConverter {
 };
 
 
+// Generator for out-of-line code that is emitted after the main code is done.
+class OutOfLineCode : public ZoneObject {
+ public:
+  explicit OutOfLineCode(CodeGenerator* gen);
+  virtual ~OutOfLineCode();
+
+  virtual void Generate() = 0;
+
+  Label* entry() { return &entry_; }
+  Label* exit() { return &exit_; }
+  MacroAssembler* masm() const { return masm_; }
+  OutOfLineCode* next() const { return next_; }
+
+ private:
+  Label entry_;
+  Label exit_;
+  MacroAssembler* const masm_;
+  OutOfLineCode* const next_;
+};
+
+
 // TODO(dcarney): generify this on bleeding_edge and replace this call
 // when merged.
 static inline void FinishCode(MacroAssembler* masm) {
