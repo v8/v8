@@ -39,10 +39,22 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph)
   one_range_ = Type::Range(one, one, zone());
   Handle<Object> thirtyone = factory->NewNumber(31.0);
   zero_thirtyone_range_ = Type::Range(zero, thirtyone, zone());
-  for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
-    Handle<Object> min = factory->NewNumber(kMinInt / (1 << k));
-    Handle<Object> max = factory->NewNumber(kMaxInt / (1 << k));
-    shifted_int32_ranges_[k] = Type::Range(min, max, zone());
+  // TODO(jarin): Can we have a correctification of the stupid type system?
+  // These stupid work-arounds are just stupid!
+  shifted_int32_ranges_[0] = Type::Signed32();
+  if (SmiValuesAre31Bits()) {
+    shifted_int32_ranges_[1] = Type::SignedSmall();
+    for (size_t k = 2; k < arraysize(shifted_int32_ranges_); ++k) {
+      Handle<Object> min = factory->NewNumber(kMinInt / (1 << k));
+      Handle<Object> max = factory->NewNumber(kMaxInt / (1 << k));
+      shifted_int32_ranges_[k] = Type::Range(min, max, zone());
+    }
+  } else {
+    for (size_t k = 1; k < arraysize(shifted_int32_ranges_); ++k) {
+      Handle<Object> min = factory->NewNumber(kMinInt / (1 << k));
+      Handle<Object> max = factory->NewNumber(kMaxInt / (1 << k));
+      shifted_int32_ranges_[k] = Type::Range(min, max, zone());
+    }
   }
 }
 
