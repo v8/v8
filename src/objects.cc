@@ -1577,14 +1577,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << accumulator.ToCString().get();
       break;
     }
-    case WEAK_CELL_TYPE: {
-      os << "WeakCell for ";
-      HeapStringAllocator allocator;
-      StringStream accumulator(&allocator);
-      WeakCell::cast(this)->value()->ShortPrint(&accumulator);
-      os << accumulator.ToCString().get();
-      break;
-    }
     default:
       os << "<Other heap object (" << map()->instance_type() << ")>";
       break;
@@ -3430,21 +3422,6 @@ bool Map::IsMapInArrayPrototypeChain() {
   }
 
   return false;
-}
-
-
-Handle<WeakCell> Map::WeakCellForMap(Handle<Map> map) {
-  Isolate* isolate = map->GetIsolate();
-  if (map->code_cache()->IsFixedArray()) {
-    return isolate->factory()->NewWeakCell(map);
-  }
-  Handle<CodeCache> code_cache(CodeCache::cast(map->code_cache()), isolate);
-  if (code_cache->weak_cell_cache()->IsWeakCell()) {
-    return Handle<WeakCell>(WeakCell::cast(code_cache->weak_cell_cache()));
-  }
-  Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(map);
-  code_cache->set_weak_cell_cache(*weak_cell);
-  return weak_cell;
 }
 
 
@@ -10590,7 +10567,6 @@ Object* Code::FindNthObject(int n, Map* match_map) {
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
     if (object->IsHeapObject()) {
       if (HeapObject::cast(object)->map() == match_map) {
         if (--n == 0) return object;
@@ -10623,7 +10599,6 @@ void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsHeapObject()) {
-      DCHECK(!object->IsWeakCell());
       Map* map = HeapObject::cast(object)->map();
       if (map == *pattern.find_[current_pattern]) {
         info->set_target_object(*pattern.replace_[current_pattern]);
@@ -10642,7 +10617,6 @@ void Code::FindAllMaps(MapHandleList* maps) {
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
     if (object->IsMap()) maps->Add(handle(Map::cast(object)));
   }
 }
@@ -10651,21 +10625,11 @@ void Code::FindAllMaps(MapHandleList* maps) {
 Code* Code::FindFirstHandler() {
   DCHECK(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool skip_next_handler = false;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
-      Object* obj = info->target_object();
-      skip_next_handler |= obj->IsWeakCell() && WeakCell::cast(obj)->cleared();
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-      if (code->kind() == Code::HANDLER) {
-        if (!skip_next_handler) return code;
-        skip_next_handler = false;
-      }
-    }
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    if (code->kind() == Code::HANDLER) return code;
   }
   return NULL;
 }
@@ -10674,27 +10638,17 @@ Code* Code::FindFirstHandler() {
 bool Code::FindHandlers(CodeHandleList* code_list, int length) {
   DCHECK(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool skip_next_handler = false;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   int i = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     if (i == length) return true;
     RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
-      Object* obj = info->target_object();
-      skip_next_handler |= obj->IsWeakCell() && WeakCell::cast(obj)->cleared();
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-      // IC stubs with handlers never contain non-handler code objects before
-      // handler targets.
-      if (code->kind() != Code::HANDLER) break;
-      if (!skip_next_handler) {
-        code_list->Add(Handle<Code>(code));
-        i++;
-      }
-      skip_next_handler = false;
-    }
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    // IC stubs with handlers never contain non-handler code objects before
+    // handler targets.
+    if (code->kind() != Code::HANDLER) break;
+    code_list->Add(Handle<Code>(code));
+    i++;
   }
   return i == length;
 }
@@ -10709,7 +10663,6 @@ MaybeHandle<Code> Code::FindHandlerForMap(Map* map) {
     RelocInfo* info = it.rinfo();
     if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
       Object* object = info->target_object();
-      if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
       if (object == map) return_next = true;
     } else if (return_next) {
       Code* code = Code::GetCodeFromTargetAddress(info->target_address());

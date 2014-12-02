@@ -6190,8 +6190,6 @@ class Map: public HeapObject {
 
   bool IsMapInArrayPrototypeChain();
 
-  static Handle<WeakCell> WeakCellForMap(Handle<Map> map);
-
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
   DECLARE_VERIFIER(Map)
@@ -8027,7 +8025,6 @@ class CodeCache: public Struct {
  public:
   DECL_ACCESSORS(default_cache, FixedArray)
   DECL_ACCESSORS(normal_type_cache, Object)
-  DECL_ACCESSORS(weak_cell_cache, Object)
 
   // Add the code object to the cache.
   static void Update(
@@ -8055,8 +8052,7 @@ class CodeCache: public Struct {
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
   static const int kNormalTypeCacheOffset =
       kDefaultCacheOffset + kPointerSize;
-  static const int kWeakCellCacheOffset = kNormalTypeCacheOffset + kPointerSize;
-  static const int kSize = kWeakCellCacheOffset + kPointerSize;
+  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
 
  private:
   static void UpdateDefaultCache(

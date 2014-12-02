@@ -42,22 +42,20 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     MapHandleList* receiver_maps, CodeHandleList* handler_stubs,
     MapHandleList* transitioned_maps) {
   Label miss;
-  __ JumpIfSmi(receiver(), &miss);
+  __ JumpIfSmi(receiver(), &miss, Label::kNear);
 
-  Register map_reg = scratch1();
-  __ movp(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
+  __ movp(scratch1(), FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
   for (int i = 0; i < receiver_count; ++i) {
-    Handle<WeakCell> cell = Map::WeakCellForMap(receiver_maps->at(i));
     // Check map and tail call if there's a match
-    __ CmpWeakValue(map_reg, cell, scratch2());
+    __ Cmp(scratch1(), receiver_maps->at(i));
     if (transitioned_maps->at(i).is_null()) {
       __ j(equal, handler_stubs->at(i), RelocInfo::CODE_TARGET);
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      __ LoadWeakValue(transition_map(), cell, &miss);
+      __ Move(transition_map(), transitioned_maps->at(i),
+              RelocInfo::EMBEDDED_OBJECT);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }
@@ -111,9 +109,8 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
-      Handle<WeakCell> cell = Map::WeakCellForMap(map);
       // Check map and tail call if there's a match
-      __ CmpWeakValue(map_reg, cell, scratch2());
+      __ Cmp(map_reg, map);
       if (type->Is(HeapType::Number())) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
