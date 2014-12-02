@@ -162,17 +162,18 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                     \
-  V(harmony_modules, "harmony modules (implies block scoping)")   \
-  V(harmony_arrays, "harmony array methods")                      \
-  V(harmony_classes,                                              \
+#define HARMONY_INPROGRESS(V)                                             \
+  V(harmony_modules, "harmony modules (implies block scoping)")           \
+  V(harmony_arrays, "harmony array methods")                              \
+  V(harmony_classes,                                                      \
     "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions") \
-  V(harmony_regexps, "harmony regular expression extensions")     \
-  V(harmony_arrow_functions, "harmony arrow functions")           \
-  V(harmony_proxies, "harmony proxies")                           \
-  V(harmony_templates, "harmony template literals")               \
-  V(harmony_sloppy, "harmony features in sloppy mode")
+  V(harmony_object_literals, "harmony object literal extensions")         \
+  V(harmony_regexps, "harmony regular expression extensions")             \
+  V(harmony_arrow_functions, "harmony arrow functions")                   \
+  V(harmony_proxies, "harmony proxies")                                   \
+  V(harmony_templates, "harmony template literals")                       \
+  V(harmony_sloppy, "harmony features in sloppy mode")                    \
+  V(harmony_unicode, "harmony unicode escapes")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                 \
