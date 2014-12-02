@@ -1397,8 +1397,16 @@ LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
   LOperand* divisor = UseRegister(instr->right());
   LOperand* temp =
       CpuFeatures::IsSupported(SUDIV) ? NULL : TempDoubleRegister();
-  LFlooringDivI* div = new(zone()) LFlooringDivI(dividend, divisor, temp);
-  return AssignEnvironment(DefineAsRegister(div));
+  LInstruction* result =
+      DefineAsRegister(new (zone()) LFlooringDivI(dividend, divisor, temp));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+      (instr->CheckFlag(HValue::kCanOverflow) &&
+       (!CpuFeatures::IsSupported(SUDIV) ||
+        !instr->CheckFlag(HValue::kAllUsesTruncatingToInt32)))) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
