@@ -352,14 +352,16 @@ struct GraphBuilderPhase {
 
 
 struct ContextSpecializerPhase {
-  static const char* phase_name() { return nullptr; }
+  static const char* phase_name() { return "context specializing"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
     JSContextSpecializer spec(data->info(), data->jsgraph(),
                               data->context_node());
-    spec.SpecializeToContext();
+    GraphReducer graph_reducer(data->graph(), temp_zone);
+    graph_reducer.AddReducer(&spec);
+    graph_reducer.ReduceGraph();
   }
 };
 
