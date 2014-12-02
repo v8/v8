@@ -4430,6 +4430,45 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 }
 
 
+THREADED_TEST(WeakRootsSurviveTwoRoundsOfGC) {
+  LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
+  HandleScope scope(iso);
+
+  WeakCallCounter counter(1234);
+
+  WeakCallCounterAndPersistent<Value> weak_obj(&counter);
+
+  // Create a weak object that references a internalized string.
+  {
+    HandleScope scope(iso);
+    weak_obj.handle.Reset(iso, Object::New(iso));
+    weak_obj.handle.SetWeak(&weak_obj, &WeakPointerCallback);
+    CHECK(weak_obj.handle.IsWeak());
+    Local<Object>::New(iso, weak_obj.handle.As<Object>())->Set(
+        v8_str("x"),
+        String::NewFromUtf8(iso, "magic cookie", String::kInternalizedString));
+  }
+  // Do a single full GC
+  i::Isolate* i_iso = reinterpret_cast<v8::internal::Isolate*>(iso);
+  i::Heap* heap = i_iso->heap();
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+
+  // We should have received the weak callback.
+  CHECK_EQ(1, counter.NumberOfWeakCalls());
+
+  // Check that the string is still alive.
+  {
+    HandleScope scope(iso);
+    i::MaybeHandle<i::String> magic_string =
+        i::StringTable::LookupStringIfExists(
+            i_iso,
+            v8::Utils::OpenHandle(*String::NewFromUtf8(iso, "magic cookie")));
+    magic_string.Check();
+  }
+}
+
+
 // TODO(mstarzinger): This should be a THREADED_TEST but causes failures
 // on the buildbots, so was made non-threaded for the time being.
 TEST(ApiObjectGroupsCycleForScavenger) {
