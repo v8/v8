@@ -1521,9 +1521,7 @@ void TestParserSync(const char* source,
 }
 
 
-// TODO(marja) This needs to be turned into a fuzzing test, trying all those
-// combinations below takes at least 2 orders of magnitude too long.
-DISABLED_TEST(ParserSync) {
+TEST(ParserSync) {
   const char* context_data[][2] = {
     { "", "" },
     { "{", "}" },
@@ -1552,7 +1550,7 @@ DISABLED_TEST(ParserSync) {
     "if (false) {} else ;",
     "if (false) {} else {}",
     "if (false) {} else 12",
-    "if (false) ;"
+    "if (false) ;",
     "if (false) {}",
     "if (false) 12",
     "do {} while (false)",
@@ -1572,8 +1570,8 @@ DISABLED_TEST(ParserSync) {
     "with ({}) ;",
     "with ({}) {}",
     "with ({}) 12",
-    "switch ({}) { default: }"
-    "label3: "
+    "switch ({}) { default: }",
+    "label3: ",
     "throw",
     "throw  12",
     "throw\n12",
@@ -1600,17 +1598,6 @@ DISABLED_TEST(ParserSync) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  static const ParserFlag flags1[] = {
-    kAllowHarmonyArrowFunctions,
-    kAllowHarmonyClasses,
-    kAllowHarmonyNumericLiterals,
-    kAllowHarmonyObjectLiterals,
-    kAllowHarmonyScoping,
-    kAllowHarmonyModules,
-    kAllowHarmonySloppy,
-    kAllowLazy,
-  };
-
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       for (int k = 0; termination_data[k] != NULL; ++k) {
@@ -1630,7 +1617,7 @@ DISABLED_TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK(length == kProgramSize);
-        TestParserSync(program.start(), flags1, arraysize(flags1));
+        TestParserSync(program.start(), NULL, 0);
       }
     }
   }
