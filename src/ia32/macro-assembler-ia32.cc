@@ -2580,6 +2580,21 @@ void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
 }
 
 
+void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
+                                  Register scratch) {
+  mov(scratch, cell);
+  cmp(value, FieldOperand(scratch, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  mov(value, cell);
+  mov(value, FieldOperand(value, WeakCell::kValueOffset));
+  JumpIfSmi(value, miss);
+}
+
+
 void MacroAssembler::Ret() {
   ret(0);
 }
