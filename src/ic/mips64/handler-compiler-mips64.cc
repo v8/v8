@@ -412,11 +412,11 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       __ ld(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
       Register map_reg = scratch1;
+      __ ld(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
       if (depth != 1 || check == CHECK_ALL_MAPS) {
-        // CheckMap implicitly loads the map of |reg| into |map_reg|.
-        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK);
-      } else {
-        __ ld(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+        __ CmpWeakValue(scratch2, map_reg, cell);
+        __ Branch(miss, ne, scratch2, Operand(zero_reg));
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -447,7 +447,10 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
   if (depth != 0 || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, scratch1, current_map, miss, DONT_DO_SMI_CHECK);
+    __ ld(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+    Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+    __ CmpWeakValue(scratch2, scratch1, cell);
+    __ Branch(miss, ne, scratch2, Operand(zero_reg));
   }
 
   // Perform security check for access to the global object.
