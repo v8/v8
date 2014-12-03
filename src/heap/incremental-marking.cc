@@ -880,6 +880,12 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     return 0;
   }
 
+  // If an idle notification happened recently, we delay marking steps.
+  if (marking == DO_NOT_FORCE_MARKING &&
+      heap_->RecentIdleNotifcationHappened()) {
+    return 0;
+  }
+
   if (state_ == MARKING && no_marking_scope_depth_ > 0) return 0;
 
   intptr_t bytes_processed = 0;
