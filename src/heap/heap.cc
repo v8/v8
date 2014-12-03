@@ -120,6 +120,7 @@ Heap::Heap()
       min_in_mutator_(kMaxInt),
       marking_time_(0.0),
       sweeping_time_(0.0),
+      last_idle_notification_time_(0.0),
       mark_compact_collector_(this),
       store_buffer_(this),
       marking_(this),
@@ -4530,6 +4531,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   }
 
   double current_time = MonotonicallyIncreasingTimeInMs();
+  last_idle_notification_time_ = current_time;
   double deadline_difference = deadline_in_ms - current_time;
 
   if (deadline_difference >= 0) {
@@ -4561,6 +4563,13 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
 
   contexts_disposed_ = 0;
   return result;
+}
+
+
+bool Heap::RecentIdleNotifcationHappened() {
+  return (last_idle_notification_time_ +
+          GCIdleTimeHandler::kMaxFrameRenderingIdleTime) >
+         MonotonicallyIncreasingTimeInMs();
 }
 
 

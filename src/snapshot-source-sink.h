@@ -24,7 +24,7 @@ class SnapshotByteSource FINAL {
 
   bool HasMore() { return position_ < length_; }
 
-  int Get() {
+  byte Get() {
     DCHECK(position_ < length_);
     return data_[position_++];
   }

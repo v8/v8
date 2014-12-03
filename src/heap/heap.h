@@ -1295,6 +1295,8 @@ class Heap {
 
   int gc_count() const { return gc_count_; }
 
+  bool RecentIdleNotifcationHappened();
+
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
   inline void CompletelyClearInstanceofCache();
@@ -2056,6 +2058,9 @@ class Heap {
 
   // Cumulative GC time spent in sweeping
   double sweeping_time_;
+
+  // Last time an idle notification happened
+  double last_idle_notification_time_;
 
   MarkCompactCollector mark_compact_collector_;
 

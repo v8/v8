@@ -1,3 +1,8 @@
+2014-12-03: Version 3.31.39
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-03: Version 3.31.38
 
         Stage ES6 classes and object literal extensions (issue 3330).
