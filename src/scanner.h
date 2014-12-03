@@ -252,6 +252,10 @@ class LiteralBuffer {
     return is_one_byte_ ? position_ : (position_ >> 1);
   }
 
+  void ReduceLength(int delta) {
+    position_ -= delta * (is_one_byte_ ? kOneByteSize : kUC16Size);
+  }
+
   void Reset() {
     position_ = 0;
     is_one_byte_ = true;
@@ -318,9 +322,10 @@ class Scanner {
   // if aborting the scanning before it's complete.
   class LiteralScope {
    public:
-    explicit LiteralScope(Scanner* self)
+    explicit LiteralScope(Scanner* self, bool capture_raw = false)
         : scanner_(self), complete_(false) {
       scanner_->StartLiteral();
+      if (capture_raw) scanner_->StartRawLiteral();
     }
      ~LiteralScope() {
        if (!complete_) scanner_->DropLiteral();
@@ -392,6 +397,7 @@ class Scanner {
 
   const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory);
   const AstRawString* NextSymbol(AstValueFactory* ast_value_factory);
+  const AstRawString* CurrentRawSymbol(AstValueFactory* ast_value_factory);
 
   double DoubleValue();
   bool LiteralMatches(const char* data, int length, bool allow_escapes = true) {
@@ -493,6 +499,7 @@ class Scanner {
     Token::Value token;
     Location location;
     LiteralBuffer* literal_chars;
+    LiteralBuffer* raw_literal_chars;
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
@@ -507,6 +514,7 @@ class Scanner {
     Advance();
     // Initialize current_ to not refer to a literal.
     current_.literal_chars = NULL;
+    current_.raw_literal_chars = NULL;
   }
 
   // Literal buffer support
@@ -517,20 +525,38 @@ class Scanner {
     next_.literal_chars = free_buffer;
   }
 
+  inline void StartRawLiteral() {
+    raw_literal_buffer_.Reset();
+    next_.raw_literal_chars = &raw_literal_buffer_;
+    capturing_raw_literal_ = true;
+  }
+
   INLINE(void AddLiteralChar(uc32 c)) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
 
-  // Complete scanning of a literal.
-  inline void TerminateLiteral() {
-    // Does nothing in the current implementation.
+  INLINE(void AddRawLiteralChar(uc32 c)) {
+    DCHECK(capturing_raw_literal_);
+    DCHECK_NOT_NULL(next_.raw_literal_chars);
+    next_.raw_literal_chars->AddChar(c);
   }
+
+  INLINE(void ReduceRawLiteralLength(int delta)) {
+    DCHECK(capturing_raw_literal_);
+    DCHECK_NOT_NULL(next_.raw_literal_chars);
+    next_.raw_literal_chars->ReduceLength(delta);
+  }
+
+  // Complete scanning of a literal.
+  inline void TerminateLiteral() { capturing_raw_literal_ = false; }
 
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
     next_.literal_chars = NULL;
+    next_.raw_literal_chars = NULL;
+    capturing_raw_literal_ = false;
   }
 
   inline void AddLiteralCharAdvance() {
@@ -540,6 +566,9 @@ class Scanner {
 
   // Low-level scanning support.
   void Advance() {
+    if (capturing_raw_literal_) {
+      AddRawLiteralChar(c0_);
+    }
     c0_ = source_->Advance();
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
@@ -555,8 +584,10 @@ class Scanner {
     if (ch > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
       source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
+      if (capturing_raw_literal_) ReduceRawLiteralLength(2);
     } else {
       source_->PushBack(c0_);
+      if (capturing_raw_literal_) ReduceRawLiteralLength(1);
     }
     c0_ = ch;
   }
@@ -578,8 +609,9 @@ class Scanner {
 
   // Returns the literal string, if any, for the current token (the
   // token last returned by Next()). The string is 0-terminated.
-  // Literal strings are collected for identifiers, strings, and
-  // numbers.
+  // Literal strings are collected for identifiers, strings, numbers as well
+  // as for template literals. For template literals we also collect the raw
+  // form.
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
   Vector<const uint8_t> literal_one_byte_string() {
@@ -612,10 +644,19 @@ class Scanner {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_one_byte();
   }
-  int next_literal_length() const {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->length();
+  Vector<const uint8_t> raw_literal_one_byte_string() {
+    DCHECK_NOT_NULL(current_.raw_literal_chars);
+    return current_.raw_literal_chars->one_byte_literal();
   }
+  Vector<const uint16_t> raw_literal_two_byte_string() {
+    DCHECK_NOT_NULL(current_.raw_literal_chars);
+    return current_.raw_literal_chars->two_byte_literal();
+  }
+  bool is_raw_literal_one_byte() {
+    DCHECK_NOT_NULL(current_.raw_literal_chars);
+    return current_.raw_literal_chars->is_one_byte();
+  }
+
 
   uc32 ScanHexNumber(int expected_length);
   // Scan a number of any length but not bigger than max_value. For example, the
@@ -665,6 +706,13 @@ class Scanner {
   // Values parsed from magic comments.
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
+
+  // Buffer to store raw string values
+  LiteralBuffer raw_literal_buffer_;
+
+  // We only need to capture the raw literal when we are scanning template
+  // literal spans.
+  bool capturing_raw_literal_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)

@@ -5186,8 +5186,10 @@ void Parser::AddTemplateSpan(TemplateLiteralState* state, bool tail) {
   int pos = scanner()->location().beg_pos;
   int end = scanner()->location().end_pos - (tail ? 1 : 2);
   const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
+  const AstRawString* trv = scanner()->CurrentRawSymbol(ast_value_factory());
   Literal* cooked = factory()->NewStringLiteral(tv, pos);
-  (*state)->AddTemplateSpan(cooked, end, zone());
+  Literal* raw = factory()->NewStringLiteral(trv, pos);
+  (*state)->AddTemplateSpan(cooked, raw, end, zone());
 }
 
 
@@ -5202,8 +5204,10 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   TemplateLiteral* lit = *state;
   int pos = lit->position();
   const ZoneList<Expression*>* cooked_strings = lit->cooked();
+  const ZoneList<Expression*>* raw_strings = lit->raw();
   const ZoneList<Expression*>* expressions = lit->expressions();
-  CHECK(cooked_strings->length() == (expressions->length() + 1));
+  DCHECK_EQ(cooked_strings->length(), raw_strings->length());
+  DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
 
   if (!tag) {
     // Build tree of BinaryOps to simplify code-generation
@@ -5231,9 +5235,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     }
     return expr;
   } else {
-    uint32_t hash;
-    ZoneList<Expression*>* raw_strings = TemplateRawStrings(lit, &hash);
-    Handle<String> source(String::cast(script()->source()));
+    uint32_t hash = ComputeTemplateLiteralHash(lit);
 
     int cooked_idx = function_state_->NextMaterializedLiteralIndex();
     int raw_idx = function_state_->NextMaterializedLiteralIndex();
@@ -5249,7 +5251,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
             const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
         zone());
 
-    // Ensure hash is suitable as an Smi value
+    // Ensure hash is suitable as a Smi value
     Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
     args->Add(factory()->NewSmiLiteral(hash_obj->value(), pos), zone());
 
@@ -5267,84 +5269,32 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
 }
 
 
-ZoneList<Expression*>* Parser::TemplateRawStrings(const TemplateLiteral* lit,
-                                                  uint32_t* hash) {
-  const ZoneList<int>* lengths = lit->lengths();
-  const ZoneList<Expression*>* cooked_strings = lit->cooked();
-  int total = lengths->length();
-  ZoneList<Expression*>* raw_strings;
-
-  // Given a TemplateLiteral, produce a list of raw strings, used for generating
-  // a CallSite object for a tagged template invocations.
-  //
-  // A raw string will consist of the unescaped characters of a template span,
-  // with end-of-line sequences normalized to U+000A LINE FEEDs, and without
-  // leading or trailing template delimiters.
-  //
-
+uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
+  const ZoneList<Expression*>* raw_strings = lit->raw();
+  int total = raw_strings->length();
   DCHECK(total);
-
-  Handle<String> source(String::cast(script()->source()));
-
-  raw_strings = new (zone()) ZoneList<Expression*>(total, zone());
 
   uint32_t running_hash = 0;
 
   for (int index = 0; index < total; ++index) {
-    int span_start = cooked_strings->at(index)->position() + 1;
-    int span_end = lengths->at(index) - 1;
-    int length;
-    int to_index = 0;
-
     if (index) {
       running_hash = StringHasher::ComputeRunningHashOneByte(
           running_hash, "${}", 3);
     }
 
-    SmartArrayPointer<char> raw_chars =
-        source->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL, span_start,
-                          span_end, &length);
-
-    // Normalize raw line-feeds. [U+000D U+000A] (CRLF) and [U+000D] (CR) must
-    // be translated into U+000A (LF).
-    for (int from_index = 0; from_index < length; ++from_index) {
-      char ch = raw_chars[from_index];
-      if (ch == '\r') {
-        ch = '\n';
-        if (from_index + 1 < length && raw_chars[from_index + 1] == '\n') {
-          ++from_index;
-        }
-      }
-      raw_chars[to_index++] = ch;
-    }
-
-    Access<UnicodeCache::Utf8Decoder>
-        decoder(isolate()->unicode_cache()->utf8_decoder());
-    decoder->Reset(raw_chars.get(), to_index);
-    int utf16_length = decoder->Utf16Length();
-    Literal* raw_lit = NULL;
-    if (utf16_length > 0) {
-      uc16* utf16_buffer = zone()->NewArray<uc16>(utf16_length);
-      to_index = decoder->WriteUtf16(utf16_buffer, utf16_length);
-      running_hash = StringHasher::ComputeRunningHash(
-          running_hash, utf16_buffer, to_index);
-      const uint16_t* data = reinterpret_cast<const uint16_t*>(utf16_buffer);
-      const AstRawString* raw_str = ast_value_factory()->GetTwoByteString(
-          Vector<const uint16_t>(data, to_index));
-      raw_lit = factory()->NewStringLiteral(raw_str, span_start - 1);
+    const AstRawString* raw_string =
+        raw_strings->at(index)->AsLiteral()->raw_value()->AsString();
+    if (raw_string->is_one_byte()) {
+      const char* data = reinterpret_cast<const char*>(raw_string->raw_data());
+      running_hash = StringHasher::ComputeRunningHashOneByte(
+          running_hash, data, raw_string->length());
     } else {
-      raw_lit = factory()->NewStringLiteral(
-          ast_value_factory()->empty_string(), span_start - 1);
+      const uc16* data = reinterpret_cast<const uc16*>(raw_string->raw_data());
+      running_hash = StringHasher::ComputeRunningHash(running_hash, data,
+                                                      raw_string->length());
     }
-    DCHECK_NOT_NULL(raw_lit);
-    raw_strings->Add(raw_lit, zone());
   }
 
-  // Hash key is used exclusively by template call site caching. There are no
-  // real security implications for unseeded hashes, and no issues with changing
-  // the hashing algorithm to improve performance or entropy.
-  *hash = running_hash;
-
-  return raw_strings;
+  return running_hash;
 }
 } }  // namespace v8::internal
