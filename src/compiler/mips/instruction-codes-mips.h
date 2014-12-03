@@ -59,6 +59,8 @@ namespace compiler {
   V(MipsLdc1)                      \
   V(MipsSdc1)                      \
   V(MipsPush)                      \
+  V(MipsStoreToStackSlot)          \
+  V(MipsStackClaim)                \
   V(MipsStoreWriteBarrier)
 
 

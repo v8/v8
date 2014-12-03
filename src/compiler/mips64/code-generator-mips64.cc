@@ -459,6 +459,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Push:
       __ Push(i.InputRegister(0));
       break;
+    case kMips64StackClaim: {
+      int words = MiscField::decode(instr->opcode());
+      __ Dsubu(sp, sp, Operand(words << kPointerSizeLog2));
+      break;
+    }
+    case kMips64StoreToStackSlot: {
+      int slot = MiscField::decode(instr->opcode());
+      __ sd(i.InputRegister(0), MemOperand(sp, slot << kPointerSizeLog2));
+      break;
+    }
     case kMips64StoreWriteBarrier:
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

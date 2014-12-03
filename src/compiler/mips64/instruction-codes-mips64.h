@@ -77,6 +77,8 @@ namespace compiler {
   V(Mips64Ldc1)                    \
   V(Mips64Sdc1)                    \
   V(Mips64Push)                    \
+  V(Mips64StoreToStackSlot)        \
+  V(Mips64StackClaim)              \
   V(Mips64StoreWriteBarrier)
 
 
