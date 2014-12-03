@@ -1673,16 +1673,9 @@ void RunParserSyncTest(const char* context_data[][2],
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
+  // Experimental feature flags should not go here; pass the flags as
+  // always_true_flags if the test needs them.
   static const ParserFlag default_flags[] = {
-    kAllowHarmonyArrowFunctions,
-    kAllowHarmonyClasses,
-    kAllowHarmonyNumericLiterals,
-    kAllowHarmonyObjectLiterals,
-    kAllowHarmonyScoping,
-    kAllowHarmonyModules,
-    kAllowHarmonyTemplates,
-    kAllowHarmonySloppy,
-    kAllowHarmonyUnicode,
     kAllowLazy,
     kAllowNatives,
   };
@@ -1691,13 +1684,10 @@ void RunParserSyncTest(const char* context_data[][2],
     flags = default_flags;
     flags_len = arraysize(default_flags);
     if (always_true_flags != NULL || always_false_flags != NULL) {
-      // Remove always_true/false_flags from default_flags.
+      // Remove always_true/false_flags from default_flags (if present).
       CHECK((always_true_flags != NULL) == (always_true_len > 0));
       CHECK((always_false_flags != NULL) == (always_false_len > 0));
-      CHECK(always_true_flags == NULL || always_true_len < flags_len);
-      CHECK(always_false_flags == NULL || always_false_len < flags_len);
-      generated_flags =
-          new ParserFlag[flags_len - always_true_len - always_false_len];
+      generated_flags = new ParserFlag[flags_len + always_true_len];
       int flag_index = 0;
       for (int i = 0; i < flags_len; ++i) {
         bool use_flag = true;
@@ -1709,7 +1699,6 @@ void RunParserSyncTest(const char* context_data[][2],
         }
         if (use_flag) generated_flags[flag_index++] = flags[i];
       }
-      CHECK(flag_index == flags_len - always_true_len - always_false_len);
       flags_len = flag_index;
       flags = generated_flags;
     }
@@ -1899,14 +1888,8 @@ TEST(ErrorsFutureStrictReservedWords) {
     NULL
   };
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyArrowFunctions};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-
-  static const ParserFlag classes_flags[] = {
-      kAllowHarmonyArrowFunctions, kAllowHarmonyClasses, kAllowHarmonyScoping};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
-                    classes_flags, arraysize(classes_flags));
+  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
