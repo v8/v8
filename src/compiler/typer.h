@@ -31,8 +31,6 @@ class Typer {
 
  private:
   class Visitor;
-  class RunVisitor;
-  class WidenVisitor;
   class Decorator;
 
   Graph* graph_;
