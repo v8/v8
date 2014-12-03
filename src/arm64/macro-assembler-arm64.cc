@@ -4650,17 +4650,6 @@ void MacroAssembler::HasColor(Register object,
 }
 
 
-void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
-                                        Register scratch,
-                                        Label* if_deprecated) {
-  if (map->CanBeDeprecated()) {
-    Mov(scratch, Operand(map));
-    Ldrsw(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
-    TestAndBranchIfAnySet(scratch, Map::Deprecated::kMask, if_deprecated);
-  }
-}
-
-
 void MacroAssembler::JumpIfBlack(Register object,
                                  Register scratch0,
                                  Register scratch1,
