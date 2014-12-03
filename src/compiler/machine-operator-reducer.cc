@@ -779,12 +779,36 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue() &&
         (mleft.right().Value() & m.right().Value()) == mleft.right().Value()) {
-      // (x + K) & K => (x & K) + K
+      // (x + (K << L)) & (-1 << L) => (x & (-1 << L)) + (K << L)
       return Replace(graph()->NewNode(
           machine()->Int32Add(),
           graph()->NewNode(machine()->Word32And(), mleft.left().node(),
                            m.right().node()),
           mleft.right().node()));
+    }
+    if (mleft.left().IsWord32Shl()) {
+      Int32BinopMatcher mleftleft(mleft.left().node());
+      if (mleftleft.right().Is(
+              base::bits::CountTrailingZeros32(m.right().Value()))) {
+        // (y << L + x) & (-1 << L) => (x & (-1 << L)) + y << L
+        return Replace(graph()->NewNode(
+            machine()->Int32Add(),
+            graph()->NewNode(machine()->Word32And(), mleft.right().node(),
+                             m.right().node()),
+            mleftleft.node()));
+      }
+    }
+    if (mleft.right().IsWord32Shl()) {
+      Int32BinopMatcher mleftright(mleft.right().node());
+      if (mleftright.right().Is(
+              base::bits::CountTrailingZeros32(m.right().Value()))) {
+        // (x + y << L) & (-1 << L) => (x & (-1 << L)) + y << L
+        return Replace(graph()->NewNode(
+            machine()->Int32Add(),
+            graph()->NewNode(machine()->Word32And(), mleft.left().node(),
+                             m.right().node()),
+            mleftright.node()));
+      }
     }
   }
   return NoChange();
