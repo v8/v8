@@ -43,6 +43,7 @@ class NodeProperties {
   static inline bool IsTyped(Node* node);
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
+  static inline void RemoveBounds(Node* node);
   static inline bool AllValueInputsAreTyped(Node* node);
 
   static inline int FirstValueIndex(Node* node);

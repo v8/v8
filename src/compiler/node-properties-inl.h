@@ -201,6 +201,11 @@ inline Bounds NodeProperties::GetBounds(Node* node) {
   return node->bounds();
 }
 
+inline void NodeProperties::RemoveBounds(Node* node) {
+  Bounds empty;
+  node->set_bounds(empty);
+}
+
 inline void NodeProperties::SetBounds(Node* node, Bounds b) {
   DCHECK(b.lower != NULL && b.upper != NULL);
   node->set_bounds(b);

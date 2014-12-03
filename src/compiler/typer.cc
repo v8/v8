@@ -4,6 +4,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties-inl.h"
@@ -217,9 +218,41 @@ Typer::~Typer() {
 }
 
 
-class Typer::Visitor : public NullNodeVisitor {
+class Typer::Visitor : public Reducer {
  public:
   explicit Visitor(Typer* typer) : typer_(typer) {}
+
+  virtual Reduction Reduce(Node* node) OVERRIDE {
+    if (node->op()->ValueOutputCount() == 0) return NoChange();
+    switch (node->opcode()) {
+#define DECLARE_CASE(x) \
+  case IrOpcode::k##x:  \
+    return UpdateBounds(node, TypeBinaryOp(node, x##Typer));
+      JS_SIMPLE_BINOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
+
+#define DECLARE_CASE(x) \
+  case IrOpcode::k##x:  \
+    return UpdateBounds(node, Type##x(node));
+      DECLARE_CASE(Start)
+      // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
+      COMMON_OP_LIST(DECLARE_CASE)
+      SIMPLIFIED_OP_LIST(DECLARE_CASE)
+      MACHINE_OP_LIST(DECLARE_CASE)
+      JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
+      JS_OBJECT_OP_LIST(DECLARE_CASE)
+      JS_CONTEXT_OP_LIST(DECLARE_CASE)
+      JS_OTHER_OP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
+
+#define DECLARE_CASE(x) case IrOpcode::k##x:
+      DECLARE_CASE(End)
+      INNER_CONTROL_OP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
+      break;
+    }
+    return NoChange();
+  }
 
   Bounds TypeNode(Node* node) {
     switch (node->opcode()) {
@@ -252,7 +285,10 @@ class Typer::Visitor : public NullNodeVisitor {
 
   Type* TypeConstant(Handle<Object> value);
 
- protected:
+ private:
+  Typer* typer_;
+  MaybeHandle<Context> context_;
+
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
   DECLARE_METHOD(Start)
   VALUE_OP_LIST(DECLARE_METHOD)
@@ -282,10 +318,6 @@ class Typer::Visitor : public NullNodeVisitor {
   Isolate* isolate() { return typer_->isolate(); }
   Graph* graph() { return typer_->graph(); }
   MaybeHandle<Context> context() { return typer_->context(); }
-
- private:
-  Typer* typer_;
-  MaybeHandle<Context> context_;
 
   typedef Type* (*UnaryTyperFun)(Type*, Typer* t);
   typedef Type* (*BinaryTyperFun)(Type*, Type*, Typer* t);
@@ -319,97 +351,60 @@ class Typer::Visitor : public NullNodeVisitor {
   static Type* JSUnaryNotTyper(Type*, Typer*);
   static Type* JSLoadPropertyTyper(Type*, Type*, Typer*);
   static Type* JSCallFunctionTyper(Type*, Typer*);
-};
 
+  Reduction UpdateBounds(Node* node, Bounds current) {
+    if (NodeProperties::IsTyped(node)) {
+      // Widen the bounds of a previously typed node.
+      Bounds previous = NodeProperties::GetBounds(node);
+      // Speed up termination in the presence of range types:
+      current.upper = Weaken(current.upper, previous.upper);
+      current.lower = Weaken(current.lower, previous.lower);
 
-class Typer::RunVisitor : public Typer::Visitor {
- public:
-  explicit RunVisitor(Typer* typer)
-      : Visitor(typer),
-        redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
+      // Types should not get less precise.
+      DCHECK(previous.lower->Is(current.lower));
+      DCHECK(previous.upper->Is(current.upper));
 
-  void Post(Node* node) {
-    if (node->op()->ValueOutputCount() > 0) {
-      Bounds bounds = TypeNode(node);
-      NodeProperties::SetBounds(node, bounds);
-      // Remember incompletely typed nodes for least fixpoint iteration.
-      if (!NodeProperties::AllValueInputsAreTyped(node)) redo.insert(node);
-    }
-  }
-
-  NodeSet redo;
-};
-
-
-class Typer::WidenVisitor : public Typer::Visitor {
- public:
-  explicit WidenVisitor(Typer* typer)
-      : Visitor(typer),
-        local_zone_(zone()->isolate()),
-        enabled_(graph()->NodeCount(), true, &local_zone_),
-        queue_(&local_zone_) {}
-
-  void Run(NodeSet* nodes) {
-    // Queue all the roots.
-    for (Node* node : *nodes) {
-      Queue(node);
-    }
-
-    while (!queue_.empty()) {
-      Node* node = queue_.front();
-      queue_.pop();
-
-      if (node->op()->ValueOutputCount() > 0) {
-        // Enable future queuing (and thus re-typing) of this node.
-        enabled_[node->id()] = true;
-
-        // Compute the new type.
-        Bounds previous = BoundsOrNone(node);
-        Bounds current = TypeNode(node);
-
-        // Speed up termination in the presence of range types:
-        current.upper = Weaken(current.upper, previous.upper);
-        current.lower = Weaken(current.lower, previous.lower);
-
-        // Types should not get less precise.
-        DCHECK(previous.lower->Is(current.lower));
-        DCHECK(previous.upper->Is(current.upper));
-
-        NodeProperties::SetBounds(node, current);
-        // If something changed, push all uses into the queue.
-        if (!(previous.Narrows(current) && current.Narrows(previous))) {
-          for (Node* use : node->uses()) {
-            Queue(use);
-          }
-        }
+      NodeProperties::SetBounds(node, current);
+      if (!(previous.Narrows(current) && current.Narrows(previous))) {
+        // If something changed, revisit all uses.
+        return Changed(node);
       }
-      // If there is no value output, we deliberately leave the node disabled
-      // for queuing - there is no need to type it.
+      return NoChange();
+    } else {
+      // No previous type, simply update the bounds.
+      NodeProperties::SetBounds(node, current);
+      return Changed(node);
     }
   }
-
-  void Queue(Node* node) {
-    // If the node is enabled for queuing, push it to the queue and disable it
-    // (to avoid queuing it multiple times).
-    if (enabled_[node->id()]) {
-      queue_.push(node);
-      enabled_[node->id()] = false;
-    }
-  }
-
- private:
-  Zone local_zone_;
-  BoolVector enabled_;
-  ZoneQueue<Node*> queue_;
 };
 
 
 void Typer::Run() {
-  RunVisitor typing(this);
-  graph_->VisitNodeInputsFromEnd(&typing);
-  // Find least fixpoint.
-  WidenVisitor widen(this);
-  widen.Run(&typing.redo);
+  {
+    // TODO(titzer): this is a hack. Reset types for interior nodes first.
+    NodeDeque deque(zone());
+    NodeMarker<bool> marked(graph(), 2);
+    deque.push_front(graph()->end());
+    marked.Set(graph()->end(), true);
+    while (!deque.empty()) {
+      Node* node = deque.front();
+      deque.pop_front();
+      // TODO(titzer): there shouldn't be a need to retype constants.
+      if (node->op()->ValueOutputCount() > 0)
+        NodeProperties::RemoveBounds(node);
+      for (Node* input : node->inputs()) {
+        if (!marked.Get(input)) {
+          marked.Set(input, true);
+          deque.push_back(input);
+        }
+      }
+    }
+  }
+
+  Visitor visitor(this);
+  GraphReducer graph_reducer(graph(), zone());
+  graph_reducer.AddReducer(&visitor);
+  graph_reducer.ReduceGraph();
 }
 
 
@@ -1302,12 +1297,17 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   Bounds outer = Operand(node, 0);
-  DCHECK(outer.upper->Maybe(Type::Internal()));
+  Type* context_type = outer.upper;
+  if (context_type->Is(Type::None())) {
+    // Upper bound of context is not yet known.
+    return Bounds(Type::None(), Type::Any());
+  }
+
+  DCHECK(context_type->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
   // back-propagate the constraint that it has to be a subtype of Internal.
 
   ContextAccess access = OpParameter<ContextAccess>(node);
-  Type* context_type = outer.upper;
   MaybeHandle<Context> context;
   if (context_type->IsConstant()) {
     context = Handle<Context>::cast(context_type->AsConstant()->Value());
