@@ -29,6 +29,9 @@ void GCIdleTimeAction::Print() {
     case DO_INCREMENTAL_MARKING:
       PrintF("incremental marking with step %" V8_PTR_PREFIX "d / ms",
              parameter);
+      if (additional_work) {
+        PrintF("; finalized marking");
+      }
       break;
     case DO_SCAVENGE:
       PrintF("scavenge");
