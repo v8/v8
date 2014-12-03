@@ -413,11 +413,13 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
     } else {
-      // Save the map in scratch1 for later.
-      __ movp(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+      Register map_reg = scratch1;
+      __ movp(map_reg, FieldOperand(reg, HeapObject::kMapOffset));
 
       if (depth != 1 || check == CHECK_ALL_MAPS) {
-        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
+        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+        __ CmpWeakValue(map_reg, cell, scratch2);
+        __ j(not_equal, miss);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -434,7 +436,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       }
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
+      __ movp(reg, FieldOperand(map_reg, Map::kPrototypeOffset));
     }
 
     // Go to the next object in the prototype chain.
@@ -446,8 +448,10 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
   if (depth != 0 || check == CHECK_ALL_MAPS) {
-    // Check the holder map.
-    __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
+    __ movp(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+    Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+    __ CmpWeakValue(scratch1, cell, scratch2);
+    __ j(not_equal, miss);
   }
 
   // Perform security check for access to the global object.
