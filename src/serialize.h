@@ -285,6 +285,43 @@ class BackReferenceMap : public AddressMapBase {
 };
 
 
+class HotObjectsList {
+ public:
+  HotObjectsList() : index_(0) {
+    for (int i = 0; i < kSize; i++) circular_queue_[i] = NULL;
+  }
+
+  void Add(HeapObject* object) {
+    circular_queue_[index_] = object;
+    index_ = (index_ + 1) & kSizeMask;
+  }
+
+  HeapObject* Get(int index) {
+    DCHECK_NE(NULL, circular_queue_[index]);
+    return circular_queue_[index];
+  }
+
+  static const int kNotFound = -1;
+
+  int Find(HeapObject* object) {
+    for (int i = 0; i < kSize; i++) {
+      if (circular_queue_[i] == object) return i;
+    }
+    return kNotFound;
+  }
+
+  static const int kSize = 8;
+
+ private:
+  STATIC_ASSERT(IS_POWER_OF_TWO(kSize));
+  static const int kSizeMask = kSize - 1;
+  HeapObject* circular_queue_[kSize];
+  int index_;
+
+  DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
+};
+
+
 // The Serializer/Deserializer class is a common superclass for Serializer and
 // Deserializer which is used to store common constants and methods used by
 // both.
@@ -303,6 +340,7 @@ class SerializerDeserializer: public ObjectVisitor {
   enum Where {
     kNewObject = 0,  //              Object is next in snapshot.
     // 1-7                           One per space.
+    // 0x8                           Unused.
     kRootArray = 0x9,             // Object is found in root array.
     kPartialSnapshotCache = 0xa,  // Object is in the cache.
     kExternalReference = 0xb,     // Pointer to an external reference.
@@ -346,38 +384,58 @@ class SerializerDeserializer: public ObjectVisitor {
   // entire code in one memcpy, then fix up stuff with kSkip and other byte
   // codes that overwrite data.
   static const int kRawData = 0x20;
-  // Some common raw lengths: 0x21-0x3f.  These autoadvance the current pointer.
-  // A tag emitted at strategic points in the snapshot to delineate sections.
-  // If the deserializer does not find these at the expected moments then it
-  // is an indication that the snapshot and the VM do not fit together.
-  // Examine the build process for architecture, version or configuration
-  // mismatches.
-  static const int kSynchronize = 0x70;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x71;
-  static const int kRepeat = 0x72;
-  static const int kConstantRepeat = 0x73;
-  // 0x73-0x7f            Repeat last word (subtract 0x72 to get the count).
-  static const int kMaxRepeats = 0x7f - 0x72;
+  // Some common raw lengths: 0x21-0x3f.
+  // These autoadvance the current pointer.
+  static const int kOnePointerRawData = 0x21;
+
+  static const int kVariableRepeat = 0x60;
+  // 0x61-0x6f   Repeat last word
+  static const int kFixedRepeat = 0x61;
+  static const int kFixedRepeatBase = kFixedRepeat - 1;
+  static const int kLastFixedRepeat = 0x6f;
+  static const int kMaxFixedRepeats = kLastFixedRepeat - kFixedRepeatBase;
   static int CodeForRepeats(int repeats) {
-    DCHECK(repeats >= 1 && repeats <= kMaxRepeats);
-    return 0x72 + repeats;
+    DCHECK(repeats >= 1 && repeats <= kMaxFixedRepeats);
+    return kFixedRepeatBase + repeats;
   }
   static int RepeatsForCode(int byte_code) {
-    DCHECK(byte_code >= kConstantRepeat && byte_code <= 0x7f);
-    return byte_code - 0x72;
+    DCHECK(byte_code > kFixedRepeatBase && byte_code <= kLastFixedRepeat);
+    return byte_code - kFixedRepeatBase;
   }
+
+  // Hot objects are a small set of recently seen or back-referenced objects.
+  // They are represented by a single opcode to save space.
+  // We use 0x70..0x77 for 8 hot objects, and 0x78..0x7f to add skip.
+  static const int kHotObject = 0x70;
+  static const int kMaxHotObjectIndex = 0x77 - kHotObject;
+  static const int kHotObjectWithSkip = 0x78;
+  STATIC_ASSERT(HotObjectsList::kSize == kMaxHotObjectIndex + 1);
+  STATIC_ASSERT(0x7f - kHotObjectWithSkip == kMaxHotObjectIndex);
+  static const int kHotObjectIndexMask = 0x7;
+
   static const int kRootArrayConstants = 0xa0;
-  // 0xa0-0xbf            Things from the first 32 elements of the root array.
+  // 0xa0-0xbf  Things from the first 32 elements of the root array.
   static const int kRootArrayNumberOfConstantEncodings = 0x20;
   static int RootArrayConstantFromByteCode(int byte_code) {
     return byte_code & 0x1f;
   }
 
-  static const int kNop = 0xf;  // Do nothing, used for padding.
+  // Do nothing, used for padding.
+  static const int kNop = 0xf;
 
-  static const int kNextChunk = 0x4f;  // Move to next reserved chunk.
+  // Move to next reserved chunk.
+  static const int kNextChunk = 0x4f;
+
+  // A tag emitted at strategic points in the snapshot to delineate sections.
+  // If the deserializer does not find these at the expected moments then it
+  // is an indication that the snapshot and the VM do not fit together.
+  // Examine the build process for architecture, version or configuration
+  // mismatches.
+  static const int kSynchronize = 0x8f;
+
+  // Used for the source code of the natives, which is in the executable, but
+  // is referred to from external strings in the snapshot.
+  static const int kNativesStringResource = 0xcf;
 
   static const int kAnyOldSpace = -1;
 
@@ -387,6 +445,11 @@ class SerializerDeserializer: public ObjectVisitor {
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
+
+  // Used as index for the attached reference representing the source object.
+  static const int kSourceObjectReference = 0;
+
+  HotObjectsList hot_objects_;
 };
 
 
@@ -449,24 +512,10 @@ class Deserializer: public SerializerDeserializer {
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* ProcessNewObjectFromSerializedCode(HeapObject* obj);
-  Object* ProcessBackRefInSerializedCode(Object* obj);
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
-  HeapObject* GetBackReferencedObject(int space) {
-    if (space == LO_SPACE) {
-      uint32_t index = source_->GetInt();
-      return deserialized_large_objects_[index];
-    } else {
-      BackReference back_reference(source_->GetInt());
-      DCHECK(space < kNumberOfPreallocatedSpaces);
-      uint32_t chunk_index = back_reference.chunk_index();
-      DCHECK_LE(chunk_index, current_chunk_[space]);
-      uint32_t chunk_offset = back_reference.chunk_offset();
-      return HeapObject::FromAddress(reservations_[space][chunk_index].start +
-                                     chunk_offset);
-    }
-  }
+  HeapObject* GetBackReferencedObject(int space);
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -576,9 +625,17 @@ class Serializer : public SerializerDeserializer {
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
 
-  void SerializeBackReference(BackReference back_reference,
-                              HowToCode how_to_code,
-                              WhereToPoint where_to_point, int skip);
+  // Returns true if the object was successfully serialized.
+  bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
+                            WhereToPoint where_to_point, int skip);
+
+  inline void FlushSkip(int skip) {
+    if (skip != 0) {
+      sink_->Put(kSkip, "SkipFromSerializeObject");
+      sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
+    }
+  }
+
   void InitializeAllocators();
   // This will return the space for an object.
   static AllocationSpace SpaceOfObject(HeapObject* object);
@@ -716,6 +773,8 @@ class CodeSerializer : public Serializer {
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
   static const int kSourceObjectIndex = 0;
+  STATIC_ASSERT(kSourceObjectReference == kSourceObjectIndex);
+
   static const int kCodeStubsBaseIndex = 1;
 
   String* source() const {
