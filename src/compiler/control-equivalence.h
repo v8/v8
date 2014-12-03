@@ -87,6 +87,7 @@ class ControlEquivalence : public ZoneObject {
   struct NodeData {
     size_t class_number;  // Equivalence class number assigned to node.
     size_t dfs_number;    // Pre-order DFS number assigned to node.
+    bool visited;         // Indicates node has already been visited.
     bool on_stack;        // Indicates node is on DFS stack during walk.
     bool participates;    // Indicates node participates in DFS walk.
     BracketList blist;    // List of brackets per node.
@@ -114,9 +115,8 @@ class ControlEquivalence : public ZoneObject {
 
     // Potentially introduce artificial dependency from start to end.
     if (blist.empty()) {
-      DCHECK_EQ(graph_->start(), node);
       DCHECK_EQ(kInputDirection, direction);
-      VisitBackedge(graph_->start(), graph_->end(), kInputDirection);
+      VisitBackedge(node, graph_->end(), kInputDirection);
     }
 
     // Potentially start a new equivalence class [line:37].
@@ -189,6 +189,7 @@ class ControlEquivalence : public ZoneObject {
               NodeProperties::IsControl(input)) {
             // Visit next control input.
             if (!GetData(input)->participates) continue;
+            if (GetData(input)->visited) continue;
             if (GetData(input)->on_stack) {
               // Found backedge if input is on stack.
               if (input != entry.parent_node) {
@@ -219,6 +220,7 @@ class ControlEquivalence : public ZoneObject {
               NodeProperties::IsControl(use)) {
             // Visit next control use.
             if (!GetData(use)->participates) continue;
+            if (GetData(use)->visited) continue;
             if (GetData(use)->on_stack) {
               // Found backedge if use is on stack.
               if (use != entry.parent_node) {
@@ -275,7 +277,7 @@ class ControlEquivalence : public ZoneObject {
 
   // Template used to initialize per-node data.
   NodeData EmptyData() {
-    return {kInvalidClass, 0, false, false, BracketList(zone_)};
+    return {kInvalidClass, 0, false, false, false, BracketList(zone_)};
   }
 
   // Accessors for the DFS number stored within the per-node data.
@@ -299,6 +301,7 @@ class ControlEquivalence : public ZoneObject {
   // Mutates the DFS stack by pushing an entry.
   void DFSPush(DFSStack& stack, Node* node, Node* from, DFSDirection dir) {
     DCHECK(GetData(node)->participates);
+    DCHECK(!GetData(node)->visited);
     GetData(node)->on_stack = true;
     Node::InputEdges::iterator input = node->input_edges().begin();
     Node::UseEdges::iterator use = node->use_edges().begin();
@@ -309,7 +312,7 @@ class ControlEquivalence : public ZoneObject {
   void DFSPop(DFSStack& stack, Node* node) {
     DCHECK_EQ(stack.top().node, node);
     GetData(node)->on_stack = false;
-    GetData(node)->participates = false;
+    GetData(node)->visited = true;
     stack.pop();
   }
 
