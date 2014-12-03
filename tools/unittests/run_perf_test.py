@@ -391,3 +391,22 @@ class PerfTest(unittest.TestCase):
     ])
     self._VerifyMock(
         path.join("out", "x64.release", "d7"), "--flag", "run.js", timeout=70)
+
+  # Simple test that mocks out the android platform. Testing the platform would
+  # require lots of complicated mocks for the android tools.
+  def testAndroid(self):
+    self._WriteTestInput(V8_JSON)
+    platform = run_perf.Platform
+    platform.PreExecution = MagicMock(return_value=None)
+    platform.PostExecution = MagicMock(return_value=None)
+    platform.PreTests = MagicMock(return_value=None)
+    platform.Run = MagicMock(
+        return_value="Richards: 1.234\nDeltaBlue: 10657567\n")
+    run_perf.AndroidPlatform = MagicMock(return_value=platform)
+    self.assertEquals(
+        0, self._CallMain("--android-build-tools", "/some/dir",
+                          "--arch", "android_arm"))
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
+    ])

@@ -20,10 +20,9 @@ namespace compiler {
 namespace {
 
 const ExternalArrayType kExternalArrayTypes[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) kExternal##Type##Array,
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-};
+    kExternalUint8Array,   kExternalInt8Array,   kExternalUint16Array,
+    kExternalInt16Array,   kExternalUint32Array, kExternalInt32Array,
+    kExternalFloat32Array, kExternalFloat64Array};
 
 
 Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
@@ -244,8 +243,58 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);
+    int const element_size = static_cast<int>(array->element_size());
 
-    Node* key = Parameter(Type::Integral32());
+    Node* key = Parameter(
+        Type::Range(factory()->NewNumber(kMinInt / element_size),
+                    factory()->NewNumber(kMaxInt / element_size), zone()));
+    Node* base = HeapConstant(array);
+    Node* context = UndefinedConstant();
+    Node* effect = graph()->start();
+    Node* control = graph()->start();
+    Node* node = graph()->NewNode(javascript()->LoadProperty(feedback), base,
+                                  key, context);
+    if (FLAG_turbo_deoptimization) {
+      node->AppendInput(zone(), UndefinedConstant());
+    }
+    node->AppendInput(zone(), effect);
+    node->AppendInput(zone(), control);
+    Reduction r = Reduce(node);
+
+    Matcher<Node*> offset_matcher =
+        element_size == 1
+            ? key
+            : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsLoadBuffer(BufferAccess(type),
+                     IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                     offset_matcher,
+                     IsNumberConstant(array->byte_length()->Number()), effect,
+                     control));
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
+  const size_t kLength = 17;
+  double backing_store[kLength];
+  Handle<JSArrayBuffer> buffer =
+      NewArrayBuffer(backing_store, sizeof(backing_store));
+  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
+                          FeedbackVectorICSlot::Invalid());
+  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
+    Handle<JSTypedArray> array =
+        factory()->NewJSTypedArray(type, buffer, 0, kLength);
+    ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
+
+    int min = random_number_generator()->NextInt(static_cast<int>(kLength));
+    int max = random_number_generator()->NextInt(static_cast<int>(kLength));
+    if (min > max) std::swap(min, max);
+    Node* key = Parameter(Type::Range(factory()->NewNumber(min),
+                                      factory()->NewNumber(max), zone()));
     Node* base = HeapConstant(array);
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
@@ -260,11 +309,11 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Reduction r = Reduce(node);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadElement(
-                    AccessBuilder::ForTypedArrayElement(type, true),
-                    IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                    key, IsNumberConstant(array->length()->Number()), effect));
+    EXPECT_THAT(
+        r.replacement(),
+        IsLoadElement(access,
+                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      key, effect, control));
   }
 }
 
@@ -282,8 +331,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
     TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
       Handle<JSTypedArray> array =
           factory()->NewJSTypedArray(type, buffer, 0, kLength);
+      int const element_size = static_cast<int>(array->element_size());
 
-      Node* key = Parameter(Type::Integral32());
+      Node* key = Parameter(
+          Type::Range(factory()->NewNumber(kMinInt / element_size),
+                      factory()->NewNumber(kMaxInt / element_size), zone()));
       Node* base = HeapConstant(array);
       Node* value =
           Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
@@ -299,13 +351,19 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
+      Matcher<Node*> offset_matcher =
+          element_size == 1
+              ? key
+              : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsStoreElement(
-                      AccessBuilder::ForTypedArrayElement(type, true),
-                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsNumberConstant(array->length()->Number()), value,
-                      effect, control));
+      EXPECT_THAT(
+          r.replacement(),
+          IsStoreBuffer(BufferAccess(type),
+                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                        offset_matcher,
+                        IsNumberConstant(array->byte_length()->Number()), value,
+                        effect, control));
     }
   }
 }
@@ -320,8 +378,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
     TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
       Handle<JSTypedArray> array =
           factory()->NewJSTypedArray(type, buffer, 0, kLength);
+      int const element_size = static_cast<int>(array->element_size());
 
-      Node* key = Parameter(Type::Integral32());
+      Node* key = Parameter(
+          Type::Range(factory()->NewNumber(kMinInt / element_size),
+                      factory()->NewNumber(kMaxInt / element_size), zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(Type::Any());
       Node* context = UndefinedConstant();
@@ -336,6 +397,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
+      Matcher<Node*> offset_matcher =
+          element_size == 1
+              ? key
+              : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+
       Matcher<Node*> value_matcher =
           IsToNumber(value, context, effect, control);
       Matcher<Node*> effect_matcher = value_matcher;
@@ -348,12 +414,54 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       }
 
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsStoreElement(
-                      AccessBuilder::ForTypedArrayElement(type, true),
-                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, IsNumberConstant(array->length()->Number()),
-                      value_matcher, effect_matcher, control));
+      EXPECT_THAT(
+          r.replacement(),
+          IsStoreBuffer(BufferAccess(type),
+                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                        offset_matcher,
+                        IsNumberConstant(array->byte_length()->Number()),
+                        value_matcher, effect_matcher, control));
+    }
+  }
+}
+
+
+TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
+  const size_t kLength = 17;
+  double backing_store[kLength];
+  Handle<JSArrayBuffer> buffer =
+      NewArrayBuffer(backing_store, sizeof(backing_store));
+  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
+    TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
+      Handle<JSTypedArray> array =
+          factory()->NewJSTypedArray(type, buffer, 0, kLength);
+      ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
+
+      int min = random_number_generator()->NextInt(static_cast<int>(kLength));
+      int max = random_number_generator()->NextInt(static_cast<int>(kLength));
+      if (min > max) std::swap(min, max);
+      Node* key = Parameter(Type::Range(factory()->NewNumber(min),
+                                        factory()->NewNumber(max), zone()));
+      Node* base = HeapConstant(array);
+      Node* value = Parameter(access.type);
+      Node* context = UndefinedConstant();
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+      Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
+                                    base, key, value, context);
+      if (FLAG_turbo_deoptimization) {
+        node->AppendInput(zone(), UndefinedConstant());
+      }
+      node->AppendInput(zone(), effect);
+      node->AppendInput(zone(), control);
+      Reduction r = Reduce(node);
+
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(
+          r.replacement(),
+          IsStoreElement(
+              access, IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+              key, value, effect, control));
     }
   }
 }

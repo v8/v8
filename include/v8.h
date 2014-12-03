@@ -1822,6 +1822,15 @@ class V8_EXPORT Boolean : public Primitive {
  */
 class V8_EXPORT Name : public Primitive {
  public:
+  /**
+   * Returns the identity hash for this object. The current implementation
+   * uses an inline property on the object to store the identity hash.
+   *
+   * The return value will never be 0. Also, it is not guaranteed to be
+   * unique.
+   */
+  int GetIdentityHash();
+
   V8_INLINE static Name* Cast(v8::Value* obj);
  private:
   static void CheckCast(v8::Value* obj);

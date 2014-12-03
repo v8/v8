@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+struct LazyTypeCache;
+
 class Typer {
  public:
   explicit Typer(Graph* graph, MaybeHandle<Context> context);
@@ -52,29 +54,24 @@ class Typer {
   Type* falsish;
   Type* integer;
   Type* weakint;
+  Type* signed8_;
+  Type* unsigned8_;
+  Type* signed16_;
+  Type* unsigned16_;
   Type* number_fun0_;
   Type* number_fun1_;
   Type* number_fun2_;
   Type* weakint_fun1_;
-  Type* imul_fun_;
-  Type* clz32_fun_;
   Type* random_fun_;
-  Type* array_buffer_fun_;
-  Type* int8_array_fun_;
-  Type* int16_array_fun_;
-  Type* int32_array_fun_;
-  Type* uint8_array_fun_;
-  Type* uint16_array_fun_;
-  Type* uint32_array_fun_;
-  Type* float32_array_fun_;
-  Type* float64_array_fun_;
+  LazyTypeCache* cache_;
 
   ZoneVector<Handle<Object> > weaken_min_limits_;
   ZoneVector<Handle<Object> > weaken_max_limits_;
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_TYPER_H_

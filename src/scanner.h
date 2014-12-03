@@ -460,6 +460,8 @@ class Scanner {
   }
   bool HarmonyTemplates() const { return harmony_templates_; }
   void SetHarmonyTemplates(bool templates) { harmony_templates_ = templates; }
+  bool HarmonyUnicode() const { return harmony_unicode_; }
+  void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
@@ -616,6 +618,10 @@ class Scanner {
   }
 
   uc32 ScanHexNumber(int expected_length);
+  // Scan a number of any length but not bigger than max_value. For example, the
+  // number can be 000000001, so it's very long in characters but its value is
+  // small.
+  uc32 ScanUnlimitedLengthHexNumber(int max_value);
 
   // Scans a single JavaScript token.
   void Scan();
@@ -642,6 +648,8 @@ class Scanner {
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
+  // Helper for the above functions.
+  uc32 ScanUnicodeEscape();
 
   // Return the current source position.
   int source_pos() {
@@ -688,6 +696,8 @@ class Scanner {
   bool harmony_classes_;
   // Whether we scan TEMPLATE_SPAN and TEMPLATE_TAIL
   bool harmony_templates_;
+  // Whether we allow \u{xxxxx}.
+  bool harmony_unicode_;
 };
 
 } }  // namespace v8::internal

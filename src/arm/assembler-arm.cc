@@ -2485,6 +2485,12 @@ void  Assembler::vstm(BlockAddrMode am,
 }
 
 
+void Assembler::vmov(const SwVfpRegister dst, float imm) {
+  mov(ip, Operand(bit_cast<int32_t>(imm)));
+  vmov(dst, ip);
+}
+
+
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
   memcpy(&i, &d, 8);

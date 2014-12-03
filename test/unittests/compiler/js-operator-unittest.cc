@@ -13,6 +13,7 @@ namespace compiler {
 // -----------------------------------------------------------------------------
 // Shared operators.
 
+
 namespace {
 
 struct SharedOperator {
@@ -141,6 +142,73 @@ TEST_P(JSSharedOperatorTest, Properties) {
 
 INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
                         ::testing::ValuesIn(kSharedOperators));
+
+
+// -----------------------------------------------------------------------------
+// JSStoreProperty.
+
+
+class JSStorePropertyOperatorTest
+    : public TestWithZone,
+      public ::testing::WithParamInterface<StrictMode> {};
+
+
+TEST_P(JSStorePropertyOperatorTest, InstancesAreGloballyShared) {
+  const StrictMode mode = GetParam();
+  JSOperatorBuilder javascript1(zone());
+  JSOperatorBuilder javascript2(zone());
+  EXPECT_EQ(javascript1.StoreProperty(mode), javascript2.StoreProperty(mode));
+}
+
+
+TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
+  JSOperatorBuilder javascript(zone());
+  const StrictMode mode = GetParam();
+  const Operator* op = javascript.StoreProperty(mode);
+
+  // TODO(jarin): Get rid of this hack.
+  const int frame_state_input_count = FLAG_turbo_deoptimization ? 1 : 0;
+  EXPECT_EQ(3, op->ValueInputCount());
+  EXPECT_EQ(1, OperatorProperties::GetContextInputCount(op));
+  EXPECT_EQ(frame_state_input_count,
+            OperatorProperties::GetFrameStateInputCount(op));
+  EXPECT_EQ(1, op->EffectInputCount());
+  EXPECT_EQ(1, op->ControlInputCount());
+  EXPECT_EQ(6 + frame_state_input_count,
+            OperatorProperties::GetTotalInputCount(op));
+
+  EXPECT_EQ(0, op->ValueOutputCount());
+  EXPECT_EQ(1, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ControlOutputCount());
+}
+
+
+TEST_P(JSStorePropertyOperatorTest, OpcodeIsCorrect) {
+  JSOperatorBuilder javascript(zone());
+  const StrictMode mode = GetParam();
+  const Operator* op = javascript.StoreProperty(mode);
+  EXPECT_EQ(IrOpcode::kJSStoreProperty, op->opcode());
+}
+
+
+TEST_P(JSStorePropertyOperatorTest, OpParameter) {
+  JSOperatorBuilder javascript(zone());
+  const StrictMode mode = GetParam();
+  const Operator* op = javascript.StoreProperty(mode);
+  EXPECT_EQ(mode, OpParameter<StrictMode>(op));
+}
+
+
+TEST_P(JSStorePropertyOperatorTest, Properties) {
+  JSOperatorBuilder javascript(zone());
+  const StrictMode mode = GetParam();
+  const Operator* op = javascript.StoreProperty(mode);
+  EXPECT_EQ(Operator::kNoProperties, op->properties());
+}
+
+
+INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSStorePropertyOperatorTest,
+                        ::testing::Values(SLOPPY, STRICT));
 
 }  // namespace compiler
 }  // namespace internal

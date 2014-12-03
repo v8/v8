@@ -927,6 +927,12 @@ class MacroAssembler: public Assembler {
                    Handle<Code> success,
                    SmiCheckType smi_check_type);
 
+  // Compare the given value and the value of weak cell.
+  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
+
+  // Load the value of the weak cell in the value register. Branch to the given
+  // miss label if the weak cell was cleared.
+  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.

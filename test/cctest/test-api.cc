@@ -3033,6 +3033,53 @@ THREADED_TEST(GlobalProxyIdentityHash) {
 }
 
 
+TEST(SymbolIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  {
+    Local<v8::Symbol> symbol = v8::Symbol::New(isolate);
+    int hash = symbol->GetIdentityHash();
+    int hash1 = symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash1);
+    CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+    int hash3 = symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash3);
+  }
+
+  {
+    v8::Handle<v8::Symbol> js_symbol =
+        CompileRun("Symbol('foo')").As<v8::Symbol>();
+    int hash = js_symbol->GetIdentityHash();
+    int hash1 = js_symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash1);
+    CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+    int hash3 = js_symbol->GetIdentityHash();
+    CHECK_EQ(hash, hash3);
+  }
+}
+
+
+TEST(StringIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::String> str = v8::String::NewFromUtf8(isolate, "str1");
+  int hash = str->GetIdentityHash();
+  int hash1 = str->GetIdentityHash();
+  CHECK_EQ(hash, hash1);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  int hash3 = str->GetIdentityHash();
+  CHECK_EQ(hash, hash3);
+
+  Local<v8::String> str2 = v8::String::NewFromUtf8(isolate, "str1");
+  int hash4 = str2->GetIdentityHash();
+  CHECK_EQ(hash, hash4);
+}
+
+
 THREADED_TEST(SymbolProperties) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4380,6 +4427,45 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 
   // All objects should be gone. 9 global handles in total.
   CHECK_EQ(9, counter.NumberOfWeakCalls());
+}
+
+
+THREADED_TEST(WeakRootsSurviveTwoRoundsOfGC) {
+  LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
+  HandleScope scope(iso);
+
+  WeakCallCounter counter(1234);
+
+  WeakCallCounterAndPersistent<Value> weak_obj(&counter);
+
+  // Create a weak object that references a internalized string.
+  {
+    HandleScope scope(iso);
+    weak_obj.handle.Reset(iso, Object::New(iso));
+    weak_obj.handle.SetWeak(&weak_obj, &WeakPointerCallback);
+    CHECK(weak_obj.handle.IsWeak());
+    Local<Object>::New(iso, weak_obj.handle.As<Object>())->Set(
+        v8_str("x"),
+        String::NewFromUtf8(iso, "magic cookie", String::kInternalizedString));
+  }
+  // Do a single full GC
+  i::Isolate* i_iso = reinterpret_cast<v8::internal::Isolate*>(iso);
+  i::Heap* heap = i_iso->heap();
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+
+  // We should have received the weak callback.
+  CHECK_EQ(1, counter.NumberOfWeakCalls());
+
+  // Check that the string is still alive.
+  {
+    HandleScope scope(iso);
+    i::MaybeHandle<i::String> magic_string =
+        i::StringTable::LookupStringIfExists(
+            i_iso,
+            v8::Utils::OpenHandle(*String::NewFromUtf8(iso, "magic cookie")));
+    magic_string.Check();
+  }
 }
 
 
@@ -7705,7 +7791,8 @@ static void ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc) {
-      CcTest::heap()->CollectAllAvailableGarbage();
+      CcTest::heap()->CollectAllGarbage(
+          TestHeap::Heap::kAbortIncrementalMarkingMask);
     } else {
       CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     }
@@ -7721,7 +7808,8 @@ static void ResetWeakHandle(bool global_gc) {
     CHECK(object_b.handle.IsIndependent());
   }
   if (global_gc) {
-    CcTest::heap()->CollectAllAvailableGarbage();
+    CcTest::heap()->CollectAllGarbage(
+        TestHeap::Heap::kAbortIncrementalMarkingMask);
   } else {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }

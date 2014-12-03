@@ -89,22 +89,6 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
-// Support for alternative bool type. This is only enabled if the code is
-// compiled with USE_MYBOOL defined. This catches some nasty type bugs.
-// For instance, 'bool b = "false";' results in b == true! This is a hidden
-// source of bugs.
-// However, redefining the bool type does have some negative impact on some
-// platforms. It gives rise to compiler warnings (i.e. with
-// MSVC) in the API header files when mixing code that uses the standard
-// bool with code that uses the redefined version.
-// This does not actually belong in the platform code, but needs to be
-// defined here because the platform code uses bool, and platform.h is
-// include very early in the main include file.
-
-#ifdef USE_MYBOOL
-typedef unsigned int __my_bool__;
-#define bool __my_bool__  // use 'indirection' to avoid name clashes
-#endif
 
 typedef uint8_t byte;
 typedef byte* Address;

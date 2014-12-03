@@ -237,14 +237,13 @@ class ControlReducerImpl {
     // Remove dead->live edges.
     for (size_t j = 0; j < nodes.size(); j++) {
       Node* node = nodes[j];
-      for (UseIter i = node->uses().begin(); i != node->uses().end();) {
-        if (!marked.IsReachableFromEnd(*i)) {
-          TRACE(("DeadLink: #%d:%s(%d) -> #%d:%s\n", (*i)->id(),
-                 (*i)->op()->mnemonic(), i.index(), node->id(),
+      for (Edge edge : node->use_edges()) {
+        Node* use = edge.from();
+        if (!marked.IsReachableFromEnd(use)) {
+          TRACE(("DeadLink: #%d:%s(%d) -> #%d:%s\n", use->id(),
+                 use->op()->mnemonic(), edge.index(), node->id(),
                  node->op()->mnemonic()));
-          i.UpdateToAndIncrement(NULL);
-        } else {
-          ++i;
+          edge.UpdateTo(NULL);
         }
       }
     }
@@ -473,18 +472,16 @@ class ControlReducerImpl {
 
     // Replace IfTrue and IfFalse projections from this branch.
     Node* control = NodeProperties::GetControlInput(node);
-    for (UseIter i = node->uses().begin(); i != node->uses().end();) {
-      Node* to = *i;
-      if (to->opcode() == IrOpcode::kIfTrue) {
-        TRACE(("  IfTrue: #%d:%s\n", to->id(), to->op()->mnemonic()));
-        i.UpdateToAndIncrement(NULL);
-        ReplaceNode(to, (result == kTrue) ? control : dead());
-      } else if (to->opcode() == IrOpcode::kIfFalse) {
-        TRACE(("  IfFalse: #%d:%s\n", to->id(), to->op()->mnemonic()));
-        i.UpdateToAndIncrement(NULL);
-        ReplaceNode(to, (result == kTrue) ? dead() : control);
-      } else {
-        ++i;
+    for (Edge edge : node->use_edges()) {
+      Node* use = edge.from();
+      if (use->opcode() == IrOpcode::kIfTrue) {
+        TRACE(("  IfTrue: #%d:%s\n", use->id(), use->op()->mnemonic()));
+        edge.UpdateTo(NULL);
+        ReplaceNode(use, (result == kTrue) ? control : dead());
+      } else if (use->opcode() == IrOpcode::kIfFalse) {
+        TRACE(("  IfFalse: #%d:%s\n", use->id(), use->op()->mnemonic()));
+        edge.UpdateTo(NULL);
+        ReplaceNode(use, (result == kTrue) ? dead() : control);
       }
     }
     return control;

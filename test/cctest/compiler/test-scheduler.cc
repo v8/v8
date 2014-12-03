@@ -1804,6 +1804,52 @@ TEST(NestedFloatingDiamonds) {
 }
 
 
+TEST(NestedFloatingDiamondWithChain) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* c = graph.NewNode(common.Int32Constant(7));
+
+  Node* brA1 = graph.NewNode(common.Branch(), p0, graph.start());
+  Node* tA1 = graph.NewNode(common.IfTrue(), brA1);
+  Node* fA1 = graph.NewNode(common.IfFalse(), brA1);
+  Node* mA1 = graph.NewNode(common.Merge(2), tA1, fA1);
+  Node* phiA1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p1, mA1);
+
+  Node* brB1 = graph.NewNode(common.Branch(), p1, graph.start());
+  Node* tB1 = graph.NewNode(common.IfTrue(), brB1);
+  Node* fB1 = graph.NewNode(common.IfFalse(), brB1);
+  Node* mB1 = graph.NewNode(common.Merge(2), tB1, fB1);
+  Node* phiB1 = graph.NewNode(common.Phi(kMachAnyTagged, 2), p0, p1, mB1);
+
+  Node* brA2 = graph.NewNode(common.Branch(), phiB1, mA1);
+  Node* tA2 = graph.NewNode(common.IfTrue(), brA2);
+  Node* fA2 = graph.NewNode(common.IfFalse(), brA2);
+  Node* mA2 = graph.NewNode(common.Merge(2), tA2, fA2);
+  Node* phiA2 = graph.NewNode(common.Phi(kMachAnyTagged, 2), phiB1, c, mA2);
+
+  Node* brB2 = graph.NewNode(common.Branch(), phiA1, mB1);
+  Node* tB2 = graph.NewNode(common.IfTrue(), brB2);
+  Node* fB2 = graph.NewNode(common.IfFalse(), brB2);
+  Node* mB2 = graph.NewNode(common.Merge(2), tB2, fB2);
+  Node* phiB2 = graph.NewNode(common.Phi(kMachAnyTagged, 2), phiA1, c, mB2);
+
+  Node* add = graph.NewNode(&kIntAdd, phiA2, phiB2);
+  Node* ret = graph.NewNode(common.Return(), add, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(35, &graph);
+}
+
+
 TEST(NestedFloatingDiamondWithLoop) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());

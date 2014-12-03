@@ -142,9 +142,8 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(r0);
   }
 
-  MemOperand InputOffset() {
-    int index = 0;
-    return InputOffset(&index);
+  MemOperand InputOffset(int first_index = 0) {
+    return InputOffset(&first_index);
   }
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
@@ -157,6 +156,112 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
+
+
+namespace {
+
+class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadFloat32(CodeGenerator* gen, SwVfpRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL {
+    __ vmov(result_, std::numeric_limits<float>::quiet_NaN());
+  }
+
+ private:
+  SwVfpRegister const result_;
+};
+
+
+class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadFloat64(CodeGenerator* gen, DwVfpRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL {
+    __ vmov(result_, std::numeric_limits<double>::quiet_NaN(), kScratchReg);
+  }
+
+ private:
+  DwVfpRegister const result_;
+};
+
+
+class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+ public:
+  OutOfLineLoadInteger(CodeGenerator* gen, Register result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL { __ mov(result_, Operand::Zero()); }
+
+ private:
+  Register const result_;
+};
+
+}  // namespace
+
+
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                           \
+  do {                                                               \
+    auto result = i.OutputFloat##width##Register();                  \
+    auto offset = i.InputRegister(0);                                \
+    if (instr->InputAt(1)->IsRegister()) {                           \
+      __ cmp(offset, i.InputRegister(1));                            \
+    } else {                                                         \
+      __ cmp(offset, i.InputImmediate(1));                           \
+    }                                                                \
+    auto ool = new (zone()) OutOfLineLoadFloat##width(this, result); \
+    __ b(hs, ool->entry());                                          \
+    __ vldr(result, i.InputOffset(2));                               \
+    __ bind(ool->exit());                                            \
+    DCHECK_EQ(LeaveCC, i.OutputSBit());                              \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                \
+  do {                                                          \
+    auto result = i.OutputRegister();                           \
+    auto offset = i.InputRegister(0);                           \
+    if (instr->InputAt(1)->IsRegister()) {                      \
+      __ cmp(offset, i.InputRegister(1));                       \
+    } else {                                                    \
+      __ cmp(offset, i.InputImmediate(1));                      \
+    }                                                           \
+    auto ool = new (zone()) OutOfLineLoadInteger(this, result); \
+    __ b(hs, ool->entry());                                     \
+    __ asm_instr(result, i.InputOffset(2));                     \
+    __ bind(ool->exit());                                       \
+    DCHECK_EQ(LeaveCC, i.OutputSBit());                         \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width)        \
+  do {                                             \
+    auto offset = i.InputRegister(0);              \
+    if (instr->InputAt(1)->IsRegister()) {         \
+      __ cmp(offset, i.InputRegister(1));          \
+    } else {                                       \
+      __ cmp(offset, i.InputImmediate(1));         \
+    }                                              \
+    auto value = i.InputFloat##width##Register(2); \
+    __ vstr(value, i.InputOffset(3), lo);          \
+    DCHECK_EQ(LeaveCC, i.OutputSBit());            \
+  } while (0)
+
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr) \
+  do {                                            \
+    auto offset = i.InputRegister(0);             \
+    if (instr->InputAt(1)->IsRegister()) {        \
+      __ cmp(offset, i.InputRegister(1));         \
+    } else {                                      \
+      __ cmp(offset, i.InputImmediate(1));        \
+    }                                             \
+    auto value = i.InputRegister(2);              \
+    __ asm_instr(value, i.InputOffset(3), lo);    \
+    DCHECK_EQ(LeaveCC, i.OutputSBit());           \
+  } while (0)
 
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -535,6 +640,42 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kCheckedLoadInt8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsb);
+      break;
+    case kCheckedLoadUint8:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrb);
+      break;
+    case kCheckedLoadInt16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsh);
+      break;
+    case kCheckedLoadUint16:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrh);
+      break;
+    case kCheckedLoadWord32:
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ldr);
+      break;
+    case kCheckedLoadFloat32:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(32);
+      break;
+    case kCheckedLoadFloat64:
+      ASSEMBLE_CHECKED_LOAD_FLOAT(64);
+      break;
+    case kCheckedStoreWord8:
+      ASSEMBLE_CHECKED_STORE_INTEGER(strb);
+      break;
+    case kCheckedStoreWord16:
+      ASSEMBLE_CHECKED_STORE_INTEGER(strh);
+      break;
+    case kCheckedStoreWord32:
+      ASSEMBLE_CHECKED_STORE_INTEGER(str);
+      break;
+    case kCheckedStoreFloat32:
+      ASSEMBLE_CHECKED_STORE_FLOAT(32);
+      break;
+    case kCheckedStoreFloat64:
+      ASSEMBLE_CHECKED_STORE_FLOAT(64);
+      break;
   }
 }
 
@@ -828,21 +969,20 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
       if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {
-      SwVfpRegister dst = destination->IsDoubleRegister()
-                              ? g.ToFloat32Register(destination)
-                              : kScratchDoubleReg.low();
-      // TODO(turbofan): Can we do better here?
-      __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
-      __ vmov(dst, ip);
       if (destination->IsDoubleStackSlot()) {
-        __ vstr(dst, g.ToMemOperand(destination));
+        MemOperand dst = g.ToMemOperand(destination);
+        __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
+        __ str(ip, dst);
+      } else {
+        SwVfpRegister dst = g.ToFloat32Register(destination);
+        __ vmov(dst, src.ToFloat32());
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
       DwVfpRegister dst = destination->IsDoubleRegister()
                               ? g.ToFloat64Register(destination)
                               : kScratchDoubleReg;
-      __ vmov(dst, src.ToFloat64());
+      __ vmov(dst, src.ToFloat64(), kScratchReg);
       if (destination->IsDoubleStackSlot()) {
         __ vstr(dst, g.ToMemOperand(destination));
       }

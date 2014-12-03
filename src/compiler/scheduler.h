@@ -17,6 +17,7 @@ namespace internal {
 namespace compiler {
 
 class CFGBuilder;
+class ControlEquivalence;
 class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
@@ -48,9 +49,6 @@ class Scheduler {
   struct SchedulerData {
     BasicBlock* minimum_block_;  // Minimum legal RPO placement.
     int unscheduled_count_;      // Number of unscheduled uses of this node.
-    bool is_connected_control_;  // {true} if control-connected to the end node.
-    bool is_floating_control_;   // {true} if control, but not control-connected
-                                 // to the end node.
     Placement placement_;        // Whether the node is fixed, schedulable,
                                  // coupled to another node, or not yet known.
   };
@@ -64,6 +62,7 @@ class Scheduler {
   ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
   CFGBuilder* control_flow_builder_;     // Builds basic blocks for controls.
   SpecialRPONumberer* special_rpo_;      // Special RPO numbering of blocks.
+  ControlEquivalence* equivalence_;      // Control dependence equivalence.
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 

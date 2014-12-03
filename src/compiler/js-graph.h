@@ -86,6 +86,10 @@ class JSGraph : public ZoneObject {
     return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
                              : Int64Constant(static_cast<int64_t>(value));
   }
+  template <typename T>
+  Node* PointerConstant(T* value) {
+    return IntPtrConstant(bit_cast<intptr_t>(value));
+  }
 
   // Creates a Float32Constant node, usually canonicalized.
   Node* Float32Constant(float value);

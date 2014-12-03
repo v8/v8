@@ -3906,6 +3906,19 @@ class OrderedHashTable: public FixedArray {
   static const int kNotFound = -1;
   static const int kMinCapacity = 4;
 
+  static const int kNumberOfBucketsIndex = 0;
+  static const int kNumberOfElementsIndex = kNumberOfBucketsIndex + 1;
+  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
+  static const int kHashTableStartIndex = kNumberOfDeletedElementsIndex + 1;
+
+  static const int kNumberOfBucketsOffset =
+      kHeaderSize + kNumberOfBucketsIndex * kPointerSize;
+  static const int kNumberOfElementsOffset =
+      kHeaderSize + kNumberOfElementsIndex * kPointerSize;
+
+  static const int kEntrySize = entrysize + 1;
+  static const int kChainOffset = entrysize;
+
  private:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
 
@@ -3947,16 +3960,8 @@ class OrderedHashTable: public FixedArray {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
 
-  static const int kNumberOfBucketsIndex = 0;
-  static const int kNumberOfElementsIndex = kNumberOfBucketsIndex + 1;
-  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
-  static const int kHashTableStartIndex = kNumberOfDeletedElementsIndex + 1;
-
   static const int kNextTableIndex = kNumberOfElementsIndex;
   static const int kRemovedHolesIndex = kHashTableStartIndex;
-
-  static const int kEntrySize = entrysize + 1;
-  static const int kChainOffset = entrysize;
 
   static const int kLoadFactor = 2;
   static const int kMaxCapacity =
@@ -3997,7 +4002,6 @@ class OrderedHashMap:public OrderedHashTable<
     return get(EntryToIndex(entry) + kValueOffset);
   }
 
- private:
   static const int kValueOffset = 1;
 };
 
@@ -6190,6 +6194,8 @@ class Map: public HeapObject {
 
   bool IsMapInArrayPrototypeChain();
 
+  static Handle<WeakCell> WeakCellForMap(Handle<Map> map);
+
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
   DECLARE_VERIFIER(Map)
@@ -8025,6 +8031,7 @@ class CodeCache: public Struct {
  public:
   DECL_ACCESSORS(default_cache, FixedArray)
   DECL_ACCESSORS(normal_type_cache, Object)
+  DECL_ACCESSORS(weak_cell_cache, Object)
 
   // Add the code object to the cache.
   static void Update(
@@ -8052,7 +8059,8 @@ class CodeCache: public Struct {
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
   static const int kNormalTypeCacheOffset =
       kDefaultCacheOffset + kPointerSize;
-  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
+  static const int kWeakCellCacheOffset = kNormalTypeCacheOffset + kPointerSize;
+  static const int kSize = kWeakCellCacheOffset + kPointerSize;
 
  private:
   static void UpdateDefaultCache(

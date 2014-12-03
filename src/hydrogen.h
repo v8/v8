@@ -2417,6 +2417,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       ElementsKind fixed_elements_kind,
       HValue* byte_length, HValue* length);
 
+  template <typename CollectionType>
+  HValue* BuildOrderedHashTableFindEntry(HValue* table, HValue* key,
+                                         HValue* hash);
+
+  template <typename CollectionType>
+  void BuildJSCollectionHas(CallRuntime* call,
+                            const Runtime::Function* c_function);
+
+  HValue* BuildStringHashLoadIfIsStringAndHashComputed(
+      HValue* object, HIfContinuation* continuation);
+
   Handle<JSFunction> array_function() {
     return handle(isolate()->native_context()->array_function());
   }

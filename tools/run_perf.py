@@ -97,6 +97,7 @@ The test flags are passed to the js test file after '--'.
 
 from collections import OrderedDict
 import json
+import logging
 import math
 import optparse
 import os
@@ -123,6 +124,21 @@ GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
 RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
 RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
 
+
+def LoadAndroidBuildTools(path):  # pragma: no cover
+  assert os.path.exists(path)
+  sys.path.insert(0, path)
+
+  from pylib.device import device_utils  # pylint: disable=F0401
+  from pylib.device import device_errors  # pylint: disable=F0401
+  from pylib.perf import cache_control  # pylint: disable=F0401
+  from pylib.perf import perf_control  # pylint: disable=F0401
+  import pylib.android_commands  # pylint: disable=F0401
+  global cache_control
+  global device_errors
+  global device_utils
+  global perf_control
+  global pylib
 
 
 def GeometricMean(values):
@@ -210,6 +226,7 @@ class Graph(Node):
     self.run_count = suite.get("run_count", parent.run_count)
     self.run_count = suite.get("run_count_%s" % arch, self.run_count)
     self.timeout = suite.get("timeout", parent.timeout)
+    self.timeout = suite.get("timeout_%s" % arch, self.timeout)
     self.units = suite.get("units", parent.units)
     self.total = suite.get("total", parent.total)
 
@@ -287,15 +304,13 @@ class Runnable(Graph):
     bench_dir = os.path.normpath(os.path.join(*self.path))
     os.chdir(os.path.join(suite_dir, bench_dir))
 
+  def GetCommandFlags(self):
+    suffix = ["--"] + self.test_flags if self.test_flags else []
+    return self.flags + [self.main] + suffix
+
   def GetCommand(self, shell_dir):
     # TODO(machenbach): This requires +.exe if run on windows.
-    suffix = ["--"] + self.test_flags if self.test_flags else []
-    return (
-      [os.path.join(shell_dir, self.binary)] +
-      self.flags +
-      [self.main] +
-      suffix
-    )
+    return [os.path.join(shell_dir, self.binary)] + self.GetCommandFlags()
 
   def Run(self, runner):
     """Iterates over several runs and handles the output for all traces."""
@@ -408,7 +423,7 @@ def BuildGraphs(suite, arch, parent=None):
   parent = parent or DefaultSentinel()
 
   # TODO(machenbach): Implement notion of cpu type?
-  if arch not in suite.get("archs", ["ia32", "x64"]):
+  if arch not in suite.get("archs", SUPPORTED_ARCHS):
     return None
 
   graph = MakeGraph(suite, arch, parent)
@@ -443,18 +458,15 @@ class Platform(object):
 
 class DesktopPlatform(Platform):
   def __init__(self, options):
-    workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    self.shell_dir = options.shell_dir
 
-    if options.buildbot:
-      self.shell_dir = os.path.join(workspace, options.outdir, "Release")
-    else:
-      self.shell_dir = os.path.join(workspace, options.outdir,
-                                    "%s.release" % options.arch)
-
-  def PrepareExecution(self):
+  def PreExecution(self):
     pass
 
-  def PrepareTests(self, runnable, path):
+  def PostExecution(self):
+    pass
+
+  def PreTests(self, runnable, path):
     runnable.ChangeCWD(path)
 
   def Run(self, runnable, count):
@@ -471,14 +483,77 @@ class DesktopPlatform(Platform):
     return output.stdout
 
 
-# TODO(machenbach): Implement android platform.
-class AndroidPlatform(Platform):
+class AndroidPlatform(Platform):  # pragma: no cover
+  DEVICE_DIR = "/data/local/tmp/v8/"
+
   def __init__(self, options):
-    pass
+    self.shell_dir = options.shell_dir
+    LoadAndroidBuildTools(options.android_build_tools)
+
+    if not options.device:
+      # Detect attached device if not specified.
+      devices = pylib.android_commands.GetAttachedDevices(
+          hardware=True, emulator=False, offline=False)
+      assert devices and len(devices) == 1, (
+          "None or multiple devices detected. Please specify the device on "
+          "the command-line with --device")
+      options.device = devices[0]
+    adb_wrapper = pylib.android_commands.AndroidCommands(options.device)
+    self.device = device_utils.DeviceUtils(adb_wrapper)
+    self.adb = adb_wrapper.Adb()
+
+  def PreExecution(self):
+    perf = perf_control.PerfControl(self.device)
+    perf.SetHighPerfMode()
+
+  def PostExecution(self):
+    perf = perf_control.PerfControl(self.device)
+    perf.SetDefaultPerfMode()
+    self.device.RunShellCommand(
+        ["rm", "-rf", "*"],
+        cwd=AndroidPlatform.DEVICE_DIR,
+    )
+
+  def _PushFile(self, host_dir, file_name):
+    file_on_host = os.path.join(host_dir, file_name)
+    file_on_device = AndroidPlatform.DEVICE_DIR + file_name
+    logging.info("adb push %s %s" % (file_on_host, file_on_device))
+    self.adb.Push(file_on_host, file_on_device)
+
+  def PreTests(self, runnable, path):
+    suite_dir = os.path.abspath(os.path.dirname(path))
+    bench_dir = os.path.join(suite_dir,
+                             os.path.normpath(os.path.join(*runnable.path)))
+
+    self._PushFile(self.shell_dir, runnable.binary)
+    self._PushFile(bench_dir, runnable.main)
+    for resource in runnable.resources:
+      self._PushFile(bench_dir, resource)
+
+  def Run(self, runnable, count):
+    cache = cache_control.CacheControl(self.device)
+    cache.DropRamCaches()
+    binary_on_device = AndroidPlatform.DEVICE_DIR + runnable.binary
+    cmd = [binary_on_device] + runnable.GetCommandFlags()
+    try:
+      output = self.device.RunShellCommand(
+          cmd,
+          cwd=AndroidPlatform.DEVICE_DIR,
+          timeout=runnable.timeout,
+          retries=0,
+      )
+      stdout = "\n".join(output)
+      print ">>> Stdout (#%d):" % (count + 1)
+      print stdout
+    except device_errors.CommandTimeoutError:
+      print ">>> Test timed out after %ss." % runnable.timeout
+      stdout = ""
+    return stdout
 
 
 # TODO: Implement results_processor.
 def Main(args):
+  logging.getLogger().setLevel(logging.INFO)
   parser = optparse.OptionParser()
   parser.add_option("--android-build-tools",
                     help="Path to chromium's build/android.")
@@ -520,8 +595,16 @@ def Main(args):
     print "Specifying a device requires an Android architecture to be used."
     return 1
 
+  workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+  if options.buildbot:
+    options.shell_dir = os.path.join(workspace, options.outdir, "Release")
+  else:
+    options.shell_dir = os.path.join(workspace, options.outdir,
+                                     "%s.release" % options.arch)
+
   platform = Platform.GetPlatform(options)
-  platform.PrepareExecution()
+  platform.PreExecution()
 
   results = Results()
   for path in args:
@@ -539,7 +622,7 @@ def Main(args):
 
     for runnable in FlattenRunnables(BuildGraphs(suite, options.arch)):
       print ">>> Running suite: %s" % "/".join(runnable.graphs)
-      platform.PrepareTests(runnable, path)
+      platform.PreTests(runnable, path)
 
       def Runner():
         """Output generator that reruns several times."""
@@ -550,6 +633,8 @@ def Main(args):
 
       # Let runnable iterate over all runs and handle output.
       results += runnable.Run(Runner)
+
+  platform.PostExecution()
 
   if options.json_test_results:
     results.WriteToFile(options.json_test_results)

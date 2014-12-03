@@ -53,6 +53,18 @@ std::ostream& operator<<(std::ostream&, StoreRepresentation);
 StoreRepresentation const& StoreRepresentationOf(Operator const*);
 
 
+// A CheckedLoad needs a MachineType.
+typedef MachineType CheckedLoadRepresentation;
+
+CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const*);
+
+
+// A CheckedStore needs a MachineType.
+typedef MachineType CheckedStoreRepresentation;
+
+CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
+
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -173,6 +185,11 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();
+
+  // checked-load heap, index, length
+  const Operator* CheckedLoad(CheckedLoadRepresentation);
+  // checked-store heap, index, length, value
+  const Operator* CheckedStore(CheckedStoreRepresentation);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == kRepWord32; }

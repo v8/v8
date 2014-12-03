@@ -3423,6 +3423,44 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
 }
 
 
+TEST(IncrementalMarkingPreservesPolymorphicIC) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Value> obj1, obj2;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
+    obj1 = env->Global()->Get(v8_str("obj"));
+  }
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
+    obj2 = env->Global()->Get(v8_str("obj"));
+  }
+
+  // Prepare function f that contains a polymorphic IC for objects
+  // originating from two different native contexts.
+  CcTest::global()->Set(v8_str("obj1"), obj1);
+  CcTest::global()->Set(v8_str("obj2"), obj2);
+  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == POLYMORPHIC);
+
+  // Fire context dispose notification.
+  SimulateIncrementalMarking(CcTest::heap());
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == POLYMORPHIC);
+}
+
+
 TEST(IncrementalMarkingClearsPolymorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
@@ -4380,6 +4418,25 @@ TEST(WeakMapInMonomorphicLoadIC) {
 }
 
 
+TEST(WeakMapInPolymorphicLoadIC) {
+  CheckWeakness(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   loadIC(obj);"
+      "   loadIC(obj);"
+      "   loadIC(obj);"
+      "   var poly = Object.create(proto);"
+      "   poly.x = true;"
+      "   loadIC(poly);"
+      "   return proto;"
+      " })();");
+}
+
+
 TEST(WeakMapInMonomorphicKeyedLoadIC) {
   // TODO(mvstanton): vector ics need weak support!
   if (FLAG_vector_ics) return;
@@ -4394,6 +4451,25 @@ TEST(WeakMapInMonomorphicKeyedLoadIC) {
                 "   keyedLoadIC(obj, 'name');"
                 "   return proto;"
                 " })();");
+}
+
+
+TEST(WeakMapInPolymorphicKeyedLoadIC) {
+  CheckWeakness(
+      "function keyedLoadIC(obj, field) {"
+      "  return obj[field];"
+      "}"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   keyedLoadIC(obj, 'name');"
+      "   keyedLoadIC(obj, 'name');"
+      "   keyedLoadIC(obj, 'name');"
+      "   var poly = Object.create(proto);"
+      "   poly.x = true;"
+      "   keyedLoadIC(poly, 'name');"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4412,6 +4488,25 @@ TEST(WeakMapInMonomorphicStoreIC) {
 }
 
 
+TEST(WeakMapInPolymorphicStoreIC) {
+  CheckWeakness(
+      "function storeIC(obj, value) {"
+      "  obj.name = value;"
+      "}"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   storeIC(obj, 'x');"
+      "   storeIC(obj, 'x');"
+      "   storeIC(obj, 'x');"
+      "   var poly = Object.create(proto);"
+      "   poly.x = true;"
+      "   storeIC(poly, 'x');"
+      "   return proto;"
+      " })();");
+}
+
+
 TEST(WeakMapInMonomorphicKeyedStoreIC) {
   CheckWeakness("function keyedStoreIC(obj, field, value) {"
                 "  obj[field] = value;"
@@ -4424,6 +4519,25 @@ TEST(WeakMapInMonomorphicKeyedStoreIC) {
                 "   keyedStoreIC(obj, 'x');"
                 "   return proto;"
                 " })();");
+}
+
+
+TEST(WeakMapInPolymorphicKeyedStoreIC) {
+  CheckWeakness(
+      "function keyedStoreIC(obj, field, value) {"
+      "  obj[field] = value;"
+      "}"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   keyedStoreIC(obj, 'x');"
+      "   keyedStoreIC(obj, 'x');"
+      "   keyedStoreIC(obj, 'x');"
+      "   var poly = Object.create(proto);"
+      "   poly.x = true;"
+      "   keyedStoreIC(poly, 'x');"
+      "   return proto;"
+      " })();");
 }
 
 

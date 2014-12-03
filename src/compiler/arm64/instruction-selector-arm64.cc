@@ -362,6 +362,76 @@ void InstructionSelector::VisitStore(Node* node) {
 }
 
 
+void InstructionSelector::VisitCheckedLoad(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  Arm64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt8 : kCheckedLoadUint8;
+      break;
+    case kRepWord16:
+      opcode = typ == kTypeInt32 ? kCheckedLoadInt16 : kCheckedLoadUint16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedLoadWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedLoadFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedLoadFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  Emit(opcode | AddressingModeField::encode(kMode_MRR),
+       g.DefineAsRegister(node), offset_operand, g.UseRegister(length),
+       g.UseRegister(buffer), offset_operand);
+}
+
+
+void InstructionSelector::VisitCheckedStore(Node* node) {
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  Arm64OperandGenerator g(this);
+  Node* const buffer = node->InputAt(0);
+  Node* const offset = node->InputAt(1);
+  Node* const length = node->InputAt(2);
+  Node* const value = node->InputAt(3);
+  ArchOpcode opcode;
+  switch (rep) {
+    case kRepWord8:
+      opcode = kCheckedStoreWord8;
+      break;
+    case kRepWord16:
+      opcode = kCheckedStoreWord16;
+      break;
+    case kRepWord32:
+      opcode = kCheckedStoreWord32;
+      break;
+    case kRepFloat32:
+      opcode = kCheckedStoreFloat32;
+      break;
+    case kRepFloat64:
+      opcode = kCheckedStoreFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  InstructionOperand* offset_operand = g.UseRegister(offset);
+  Emit(opcode | AddressingModeField::encode(kMode_MRR), nullptr, offset_operand,
+       g.UseRegister(length), g.UseRegister(value), g.UseRegister(buffer),
+       offset_operand);
+}
+
+
 template <typename Matcher>
 static void VisitLogical(InstructionSelector* selector, Node* node, Matcher* m,
                          ArchOpcode opcode, bool left_can_cover,
@@ -1458,7 +1528,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64Ceil |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
-         MachineOperatorBuilder::kWord32ShiftIsSafe;
+         MachineOperatorBuilder::kWord32ShiftIsSafe |
+         MachineOperatorBuilder::kInt32DivIsSafe |
+         MachineOperatorBuilder::kUint32DivIsSafe;
 }
 }  // namespace compiler
 }  // namespace internal

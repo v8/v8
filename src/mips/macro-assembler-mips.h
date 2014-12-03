@@ -250,8 +250,10 @@ class MacroAssembler: public Assembler {
     Mthc1(src_high, dst);
   }
 
-  // Conditional move.
+  void Move(FPURegister dst, float imm);
   void Move(FPURegister dst, double imm);
+
+  // Conditional move.
   void Movz(Register rd, Register rs, Register rt);
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);
@@ -1091,6 +1093,13 @@ class MacroAssembler: public Assembler {
                    Handle<Code> success,
                    SmiCheckType smi_check_type);
 
+  // Compare the given value and the value of the weak cell. Write the result
+  // to the match register.
+  void CmpWeakValue(Register match, Register value, Handle<WeakCell> cell);
+
+  // Load the value of the weak cell in the value register. Branch to the
+  // given miss label is the weak cell was cleared.
+  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.

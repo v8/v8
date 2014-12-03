@@ -39,7 +39,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       harmony_modules_(false),
       harmony_numeric_literals_(false),
       harmony_classes_(false),
-      harmony_templates_(false) {}
+      harmony_templates_(false),
+      harmony_unicode_(false) {}
 
 
 void Scanner::Initialize(Utf16CharacterStream* source) {
@@ -68,6 +69,22 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
     Advance();
   }
 
+  return x;
+}
+
+
+uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value) {
+  uc32 x = 0;
+  int d = HexValue(c0_);
+  if (d < 0) {
+    return -1;
+  }
+  while (d >= 0) {
+    x = x * 16 + d;
+    if (x > max_value) return -1;
+    Advance();
+    d = HexValue(c0_);
+  }
   return x;
 }
 
@@ -700,7 +717,7 @@ bool Scanner::ScanEscape() {
     case 'r' : c = '\r'; break;
     case 't' : c = '\t'; break;
     case 'u' : {
-      c = ScanHexNumber(4);
+      c = ScanUnicodeEscape();
       if (c < 0) return false;
       break;
     }
@@ -964,6 +981,26 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return -1;
   Advance();
+  return ScanUnicodeEscape();
+}
+
+
+uc32 Scanner::ScanUnicodeEscape() {
+  // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
+  // allowed). In the latter case, the number of hex digits between { } is
+  // arbitrary. \ and u have already been read.
+  if (c0_ == '{' && HarmonyUnicode()) {
+    Advance();
+    uc32 cp = ScanUnlimitedLengthHexNumber(0x10ffff);
+    if (cp < 0) {
+      return -1;
+    }
+    if (c0_ != '}') {
+      return -1;
+    }
+    Advance();
+    return cp;
+  }
   return ScanHexNumber(4);
 }
 

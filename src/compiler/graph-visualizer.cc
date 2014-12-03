@@ -228,7 +228,7 @@ class GraphVisualizer {
   void PrintNode(Node* node, bool gray);
 
  private:
-  void PrintEdge(Node::Edge edge);
+  void PrintEdge(Edge edge);
 
   AllNodes all_;
   std::ostream& os_;
@@ -285,26 +285,26 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
   label << *node->op();
   os_ << "    label=\"{{#" << SafeId(node) << ":" << Escaped(label);
 
-  InputIter i = node->inputs().begin();
+  auto i = node->input_edges().begin();
   for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">#" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">#" << SafeId((*i).to());
   }
   for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">X #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">X #" << SafeId((*i).to());
   }
   for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">F #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">F #" << SafeId((*i).to());
   }
   for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << i.index() << ">E #" << SafeId(*i);
+    os_ << "|<I" << (*i).index() << ">E #" << SafeId((*i).to());
   }
 
   if (OperatorProperties::IsBasicBlockBegin(node->op()) ||
       GetControlCluster(node) == NULL) {
     for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      os_ << "|<I" << i.index() << ">C #" << SafeId(*i);
+      os_ << "|<I" << (*i).index() << ">C #" << SafeId((*i).to());
     }
   }
   os_ << "}";
@@ -338,7 +338,7 @@ static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
 }
 
 
-void GraphVisualizer::PrintEdge(Node::Edge edge) {
+void GraphVisualizer::PrintEdge(Edge edge) {
   Node* from = edge.from();
   int index = edge.index();
   Node* to = edge.to();
@@ -382,8 +382,8 @@ void GraphVisualizer::Print() {
 
   // With all the nodes written, add the edges.
   for (Node* const node : all_.live) {
-    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-      PrintEdge(i.edge());
+    for (Edge edge : node->use_edges()) {
+      PrintEdge(edge);
     }
   }
   os_ << "}\n";
@@ -531,7 +531,7 @@ void GraphC1Visualizer::PrintInputs(InputIter* i, int count,
 
 
 void GraphC1Visualizer::PrintInputs(Node* node) {
-  InputIter i = node->inputs().begin();
+  auto i = node->inputs().begin();
   PrintInputs(&i, node->op()->ValueInputCount(), " ");
   PrintInputs(&i, OperatorProperties::GetContextInputCount(node->op()),
               " Ctx:");

@@ -805,6 +805,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_harmony_object_literals(FLAG_harmony_object_literals);
   set_allow_harmony_templates(FLAG_harmony_templates);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
+  set_allow_harmony_unicode(FLAG_harmony_unicode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -835,7 +836,6 @@ FunctionLiteral* Parser::ParseProgram() {
   // Initialize parser state.
   CompleteParserRecorder recorder;
 
-  debug_saved_compile_options_ = compile_options();
   if (produce_cached_parse_data()) {
     log_ = &recorder;
   } else if (consume_cached_parse_data()) {
@@ -3828,13 +3828,6 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
                                   int* materialized_literal_count,
                                   int* expected_property_count,
                                   bool* ok) {
-  // Temporary debugging code for tracking down a mystery crash which should
-  // never happen. The crash happens on the line where we log the function in
-  // the preparse data: log_->LogFunction(...). TODO(marja): remove this once
-  // done.
-  CHECK(materialized_literal_count);
-  CHECK(expected_property_count);
-  CHECK(debug_saved_compile_options_ == compile_options());
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
@@ -3982,6 +3975,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
         allow_harmony_object_literals());
     reusable_preparser_->set_allow_harmony_templates(allow_harmony_templates());
     reusable_preparser_->set_allow_harmony_sloppy(allow_harmony_sloppy());
+    reusable_preparser_->set_allow_harmony_unicode(allow_harmony_unicode());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),
@@ -5148,7 +5142,6 @@ void Parser::ParseOnBackground() {
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   CompleteParserRecorder recorder;
-  debug_saved_compile_options_ = compile_options();
   if (produce_cached_parse_data()) log_ = &recorder;
 
   DCHECK(info()->source_stream() != NULL);

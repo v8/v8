@@ -772,7 +772,8 @@ class MarkCompactCollector {
   //    - Processing of objects reachable through Harmony WeakMaps.
   //    - Objects reachable due to host application logic like object groups
   //      or implicit references' groups.
-  void ProcessEphemeralMarking(ObjectVisitor* visitor);
+  void ProcessEphemeralMarking(ObjectVisitor* visitor,
+                               bool only_process_harmony_weak_collections);
 
   // If the call-site of the top optimized code was not prepared for
   // deoptimization, then treat the maps in the code as strong pointers,

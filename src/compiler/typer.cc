@@ -15,6 +15,118 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum LazyCachedType {
+  kNumberFunc0,
+  kNumberFunc1,
+  kNumberFunc2,
+  kImulFunc,
+  kClz32Func,
+  kArrayBufferFunc,
+  kInt8ArrayFunc,
+  kInt16ArrayFunc,
+  kInt32ArrayFunc,
+  kUint8ArrayFunc,
+  kUint16ArrayFunc,
+  kUint32ArrayFunc,
+  kFloat32ArrayFunc,
+  kFloat64ArrayFunc,
+  kNumLazyCachedTypes
+};
+
+
+// Constructs and caches types lazily.
+// TODO(turbofan): these types could be globally cached or cached per isolate.
+struct LazyTypeCache : public ZoneObject {
+  Zone* zone;
+  Type* cache_[kNumLazyCachedTypes];
+
+  explicit LazyTypeCache(Zone* z) : zone(z) {
+    memset(cache_, 0, sizeof(cache_));
+  }
+
+  inline Type* Get(LazyCachedType type) {
+    int index = static_cast<int>(type);
+    DCHECK(index < kNumLazyCachedTypes);
+    if (cache_[index] == NULL) cache_[index] = Create(type);
+    return cache_[index];
+  }
+
+  Type* Create(LazyCachedType type) {
+    Factory* f = zone->isolate()->factory();
+    Handle<Smi> zero(Smi::FromInt(0), zone->isolate());
+
+#define NATIVE_TYPE(sem, rep) Type::Intersect(Type::sem(), Type::rep(), zone)
+    switch (type) {
+      case kNumberFunc0: {
+        return Type::Function(Type::Number(), zone);
+      }
+      case kNumberFunc1: {
+        return Type::Function(Type::Number(), Type::Number(), zone);
+      }
+      case kNumberFunc2: {
+        return Type::Function(Type::Number(), Type::Number(), Type::Number(),
+                              zone);
+      }
+      case kImulFunc: {
+        return Type::Function(Type::Signed32(), Type::Integral32(),
+                              Type::Integral32(), zone);
+      }
+      case kClz32Func: {
+        return Type::Function(Type::Range(zero, f->NewNumber(32), zone),
+                              Type::Number(), zone);
+      }
+      case kArrayBufferFunc: {
+        return Type::Function(Type::Buffer(zone), Type::Unsigned32(), zone);
+      }
+      case kInt8ArrayFunc: {
+        return GetArrayFunc(Type::Intersect(
+            Type::Range(f->NewNumber(kMinInt8), f->NewNumber(kMaxInt8), zone),
+            Type::UntaggedInt8(), zone));
+      }
+      case kInt16ArrayFunc: {
+        return GetArrayFunc(Type::Intersect(
+            Type::Range(f->NewNumber(kMinInt16), f->NewNumber(kMaxInt16), zone),
+            Type::UntaggedInt16(), zone));
+      }
+      case kInt32ArrayFunc: {
+        return GetArrayFunc(NATIVE_TYPE(Signed32, UntaggedInt32));
+      }
+      case kUint8ArrayFunc: {
+        return GetArrayFunc(
+            Type::Intersect(Type::Range(zero, f->NewNumber(kMaxUInt8), zone),
+                            Type::UntaggedInt8(), zone));
+      }
+      case kUint16ArrayFunc: {
+        return GetArrayFunc(
+            Type::Intersect(Type::Range(zero, f->NewNumber(kMaxUInt16), zone),
+                            Type::UntaggedInt16(), zone));
+      }
+      case kUint32ArrayFunc: {
+        return GetArrayFunc(NATIVE_TYPE(Unsigned32, UntaggedInt32));
+      }
+      case kFloat32ArrayFunc: {
+        return GetArrayFunc(NATIVE_TYPE(Number, UntaggedFloat32));
+      }
+      case kFloat64ArrayFunc: {
+        return GetArrayFunc(NATIVE_TYPE(Number, UntaggedFloat64));
+      }
+      default:
+        break;
+    }
+#undef NATIVE_TYPE
+
+    UNREACHABLE();
+    return NULL;
+  }
+
+  Type* GetArrayFunc(Type* element) {
+    Type* arg1 = Type::Union(Type::Unsigned32(), Type::Object(), zone);
+    Type* arg2 = Type::Union(Type::Unsigned32(), Type::Undefined(), zone);
+    Type* arg3 = arg2;
+    return Type::Function(Type::Array(element, zone), arg1, arg2, arg3, zone);
+  }
+};
+
 class Typer::Decorator : public GraphDecorator {
  public:
   explicit Decorator(Typer* typer) : typer_(typer) {}
@@ -29,6 +141,7 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
     : graph_(graph),
       context_(context),
       decorator_(NULL),
+      cache_(new (graph->zone()) LazyTypeCache(graph->zone())),
       weaken_min_limits_(graph->zone()),
       weaken_max_limits_(graph->zone()) {
   Zone* zone = this->zone();
@@ -42,9 +155,6 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   Type* number = Type::Number();
   Type* signed32 = Type::Signed32();
   Type* unsigned32 = Type::Unsigned32();
-  Type* integral32 = Type::Integral32();
-  Type* object = Type::Object();
-  Type* undefined = Type::Undefined();
   Type* nan_or_minuszero = Type::Union(Type::NaN(), Type::MinusZero(), zone);
   Type* truncating_to_zero =
       Type::Union(Type::Union(Type::Constant(infinity, zone),
@@ -69,58 +179,19 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   integer = Type::Range(minusinfinity, infinity, zone);
   weakint = Type::Union(integer, nan_or_minuszero, zone);
 
+  signed8_ = Type::Range(f->NewNumber(kMinInt8), f->NewNumber(kMaxInt8), zone);
+  unsigned8_ = Type::Range(zero, f->NewNumber(kMaxUInt8), zone);
+  signed16_ =
+      Type::Range(f->NewNumber(kMinInt16), f->NewNumber(kMaxInt16), zone);
+  unsigned16_ = Type::Range(zero, f->NewNumber(kMaxUInt16), zone);
+
   number_fun0_ = Type::Function(number, zone);
   number_fun1_ = Type::Function(number, number, zone);
   number_fun2_ = Type::Function(number, number, number, zone);
+
   weakint_fun1_ = Type::Function(weakint, number, zone);
-  imul_fun_ = Type::Function(signed32, integral32, integral32, zone);
-  clz32_fun_ = Type::Function(
-      Type::Range(zero, f->NewNumber(32), zone), number, zone);
   random_fun_ = Type::Function(Type::Union(
       Type::UnsignedSmall(), Type::OtherNumber(), zone), zone);
-
-  Type* int8 = Type::Intersect(
-      Type::Range(f->NewNumber(-0x7F), f->NewNumber(0x7F-1), zone),
-      Type::UntaggedInt8(), zone);
-  Type* int16 = Type::Intersect(
-      Type::Range(f->NewNumber(-0x7FFF), f->NewNumber(0x7FFF-1), zone),
-      Type::UntaggedInt16(), zone);
-  Type* uint8 = Type::Intersect(
-      Type::Range(zero, f->NewNumber(0xFF-1), zone),
-      Type::UntaggedInt8(), zone);
-  Type* uint16 = Type::Intersect(
-      Type::Range(zero, f->NewNumber(0xFFFF-1), zone),
-      Type::UntaggedInt16(), zone);
-
-#define NATIVE_TYPE(sem, rep) \
-    Type::Intersect(Type::sem(), Type::rep(), zone)
-  Type* int32 = NATIVE_TYPE(Signed32, UntaggedInt32);
-  Type* uint32 = NATIVE_TYPE(Unsigned32, UntaggedInt32);
-  Type* float32 = NATIVE_TYPE(Number, UntaggedFloat32);
-  Type* float64 = NATIVE_TYPE(Number, UntaggedFloat64);
-#undef NATIVE_TYPE
-
-  Type* buffer = Type::Buffer(zone);
-  Type* int8_array = Type::Array(int8, zone);
-  Type* int16_array = Type::Array(int16, zone);
-  Type* int32_array = Type::Array(int32, zone);
-  Type* uint8_array = Type::Array(uint8, zone);
-  Type* uint16_array = Type::Array(uint16, zone);
-  Type* uint32_array = Type::Array(uint32, zone);
-  Type* float32_array = Type::Array(float32, zone);
-  Type* float64_array = Type::Array(float64, zone);
-  Type* arg1 = Type::Union(unsigned32, object, zone);
-  Type* arg2 = Type::Union(unsigned32, undefined, zone);
-  Type* arg3 = arg2;
-  array_buffer_fun_ = Type::Function(buffer, unsigned32, zone);
-  int8_array_fun_ = Type::Function(int8_array, arg1, arg2, arg3, zone);
-  int16_array_fun_ = Type::Function(int16_array, arg1, arg2, arg3, zone);
-  int32_array_fun_ = Type::Function(int32_array, arg1, arg2, arg3, zone);
-  uint8_array_fun_ = Type::Function(uint8_array, arg1, arg2, arg3, zone);
-  uint16_array_fun_ = Type::Function(uint16_array, arg1, arg2, arg3, zone);
-  uint32_array_fun_ = Type::Function(uint32_array, arg1, arg2, arg3, zone);
-  float32_array_fun_ = Type::Function(float32_array, arg1, arg2, arg3, zone);
-  float64_array_fun_ = Type::Function(float64_array, arg1, arg2, arg3, zone);
 
   const int limits_count = 20;
 
@@ -1520,12 +1591,43 @@ Bounds Typer::Visitor::TypeLoadField(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeLoadBuffer(Node* node) {
+  switch (BufferAccessOf(node->op()).external_array_type()) {
+    case kExternalInt8Array:
+      return Bounds(typer_->signed8_);
+    case kExternalUint8Array:
+      return Bounds(typer_->unsigned8_);
+    case kExternalInt16Array:
+      return Bounds(typer_->signed16_);
+    case kExternalUint16Array:
+      return Bounds(typer_->unsigned16_);
+    case kExternalInt32Array:
+      return Bounds(Type::Signed32());
+    case kExternalUint32Array:
+      return Bounds(Type::Unsigned32());
+    case kExternalFloat32Array:
+    case kExternalFloat64Array:
+      return Bounds(Type::Number());
+    case kExternalUint8ClampedArray:
+      break;
+  }
+  UNREACHABLE();
+  return Bounds();
+}
+
+
 Bounds Typer::Visitor::TypeLoadElement(Node* node) {
   return Bounds(ElementAccessOf(node->op()).type);
 }
 
 
 Bounds Typer::Visitor::TypeStoreField(Node* node) {
+  UNREACHABLE();
+  return Bounds();
+}
+
+
+Bounds Typer::Visitor::TypeStoreBuffer(Node* node) {
   UNREACHABLE();
   return Bounds();
 }
@@ -1897,6 +1999,17 @@ Bounds Typer::Visitor::TypeLoadStackPointer(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeCheckedLoad(Node* node) {
+  return Bounds::Unbounded(zone());
+}
+
+
+Bounds Typer::Visitor::TypeCheckedStore(Node* node) {
+  UNREACHABLE();
+  return Bounds();
+}
+
+
 // Heap constants.
 
 
@@ -1912,41 +2025,29 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
           return typer_->weakint_fun1_;
         case kMathCeil:
           return typer_->weakint_fun1_;
-        case kMathAbs:
-          // TODO(rossberg): can't express overloading
-          return typer_->number_fun1_;
+        // Unary math functions.
+        case kMathAbs:  // TODO(rossberg): can't express overloading
         case kMathLog:
-          return typer_->number_fun1_;
         case kMathExp:
-          return typer_->number_fun1_;
         case kMathSqrt:
-          return typer_->number_fun1_;
-        case kMathPow:
-          return typer_->number_fun2_;
-        case kMathMax:
-          return typer_->number_fun2_;
-        case kMathMin:
-          return typer_->number_fun2_;
         case kMathCos:
-          return typer_->number_fun1_;
         case kMathSin:
-          return typer_->number_fun1_;
         case kMathTan:
-          return typer_->number_fun1_;
         case kMathAcos:
-          return typer_->number_fun1_;
         case kMathAsin:
-          return typer_->number_fun1_;
         case kMathAtan:
-          return typer_->number_fun1_;
-        case kMathAtan2:
-          return typer_->number_fun2_;
-        case kMathImul:
-          return typer_->imul_fun_;
-        case kMathClz32:
-          return typer_->clz32_fun_;
         case kMathFround:
-          return typer_->number_fun1_;
+          return typer_->cache_->Get(kNumberFunc1);
+        // Binary math functions.
+        case kMathAtan2:
+        case kMathPow:
+        case kMathMax:
+        case kMathMin:
+          return typer_->cache_->Get(kNumberFunc2);
+        case kMathImul:
+          return typer_->cache_->Get(kImulFunc);
+        case kMathClz32:
+          return typer_->cache_->Get(kClz32Func);
         default:
           break;
       }
@@ -1954,29 +2055,29 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
       Handle<Context> native =
           handle(context().ToHandleChecked()->native_context(), isolate());
       if (*value == native->array_buffer_fun()) {
-        return typer_->array_buffer_fun_;
+        return typer_->cache_->Get(kArrayBufferFunc);
       } else if (*value == native->int8_array_fun()) {
-        return typer_->int8_array_fun_;
+        return typer_->cache_->Get(kInt8ArrayFunc);
       } else if (*value == native->int16_array_fun()) {
-        return typer_->int16_array_fun_;
+        return typer_->cache_->Get(kInt16ArrayFunc);
       } else if (*value == native->int32_array_fun()) {
-        return typer_->int32_array_fun_;
+        return typer_->cache_->Get(kInt32ArrayFunc);
       } else if (*value == native->uint8_array_fun()) {
-        return typer_->uint8_array_fun_;
+        return typer_->cache_->Get(kUint8ArrayFunc);
       } else if (*value == native->uint16_array_fun()) {
-        return typer_->uint16_array_fun_;
+        return typer_->cache_->Get(kUint16ArrayFunc);
       } else if (*value == native->uint32_array_fun()) {
-        return typer_->uint32_array_fun_;
+        return typer_->cache_->Get(kUint32ArrayFunc);
       } else if (*value == native->float32_array_fun()) {
-        return typer_->float32_array_fun_;
+        return typer_->cache_->Get(kFloat32ArrayFunc);
       } else if (*value == native->float64_array_fun()) {
-        return typer_->float64_array_fun_;
+        return typer_->cache_->Get(kFloat64ArrayFunc);
       }
     }
   }
   return Type::Constant(value, zone());
 }
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

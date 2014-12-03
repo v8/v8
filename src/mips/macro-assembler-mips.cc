@@ -1549,6 +1549,12 @@ void MacroAssembler::BranchF(Label* target,
 }
 
 
+void MacroAssembler::Move(FPURegister dst, float imm) {
+  li(at, Operand(bit_cast<int32_t>(imm)));
+  mtc1(at, dst);
+}
+
+
 void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
@@ -4018,6 +4024,22 @@ void MacroAssembler::CheckMap(Register obj,
   lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   LoadRoot(at, index);
   Branch(fail, ne, scratch, Operand(at));
+}
+
+
+void MacroAssembler::CmpWeakValue(Register match, Register value,
+                                  Handle<WeakCell> cell) {
+  li(match, Operand(cell));
+  lw(match, FieldMemOperand(match, WeakCell::kValueOffset));
+  Subu(match, value, match);
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  li(value, Operand(cell));
+  lw(value, FieldMemOperand(value, WeakCell::kValueOffset));
+  JumpIfSmi(value, miss);
 }
 
 

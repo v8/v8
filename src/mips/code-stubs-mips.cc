@@ -882,7 +882,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
       // Add +0 to convert -0 to +0.
       __ add_d(double_scratch, double_base, kDoubleRegZero);
-      __ Move(double_result, 1);
+      __ Move(double_result, 1.);
       __ sqrt_d(double_scratch, double_scratch);
       __ div_d(double_result, double_result, double_scratch);
       __ jmp(&done);

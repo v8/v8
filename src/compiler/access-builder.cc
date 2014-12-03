@@ -74,8 +74,7 @@ FieldAccess AccessBuilder::ForValue() {
 
 // static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
-  return {kNoBoundsCheck, kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
-          kMachAnyTagged};
+  return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
 }
 
 
@@ -86,33 +85,25 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
   int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
   switch (type) {
     case kExternalInt8Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Signed32(),
-              kMachInt8};
+      return {taggedness, header_size, Type::Signed32(), kMachInt8};
     case kExternalUint8Array:
     case kExternalUint8ClampedArray:
-      return {kTypedArrayBoundsCheck, taggedness, header_size,
-              Type::Unsigned32(), kMachUint8};
+      return {taggedness, header_size, Type::Unsigned32(), kMachUint8};
     case kExternalInt16Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Signed32(),
-              kMachInt16};
+      return {taggedness, header_size, Type::Signed32(), kMachInt16};
     case kExternalUint16Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size,
-              Type::Unsigned32(), kMachUint16};
+      return {taggedness, header_size, Type::Unsigned32(), kMachUint16};
     case kExternalInt32Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Signed32(),
-              kMachInt32};
+      return {taggedness, header_size, Type::Signed32(), kMachInt32};
     case kExternalUint32Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size,
-              Type::Unsigned32(), kMachUint32};
+      return {taggedness, header_size, Type::Unsigned32(), kMachUint32};
     case kExternalFloat32Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Number(),
-              kMachFloat32};
+      return {taggedness, header_size, Type::Number(), kMachFloat32};
     case kExternalFloat64Array:
-      return {kTypedArrayBoundsCheck, taggedness, header_size, Type::Number(),
-              kMachFloat64};
+      return {taggedness, header_size, Type::Number(), kMachFloat64};
   }
   UNREACHABLE();
-  return {kTypedArrayBoundsCheck, kUntaggedBase, 0, Type::None(), kMachNone};
+  return {kUntaggedBase, 0, Type::None(), kMachNone};
 }
 
 }  // namespace compiler

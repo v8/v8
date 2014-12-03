@@ -203,7 +203,7 @@ TEST(SpecializeToContext) {
   JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
 
   {
-    // Check that SpecializeToContext() replaces values and forwards effects
+    // Check that specialization replaces values and forwards effects
     // correctly, and folds values from constant and non-constant contexts
     Node* effect_in = start;
     Node* load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
@@ -229,8 +229,10 @@ TEST(SpecializeToContext) {
     CheckEffectInput(effect_in, load);
     CheckEffectInput(load, effect_use);
 
-    // Perform the substitution on the entire graph.
-    spec.SpecializeToContext();
+    // Perform the reduction on the entire graph.
+    GraphReducer graph_reducer(t.graph(), t.main_zone());
+    graph_reducer.AddReducer(&spec);
+    graph_reducer.ReduceGraph();
 
     // Effects should have been forwarded (not replaced with a value).
     CheckEffectInput(effect_in, effect_use);

@@ -4489,12 +4489,18 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       if (incremental_marking()->IsStopped()) {
         incremental_marking()->Start();
       }
-      incremental_marking()->Step(action.parameter,
-                                  IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                                  IncrementalMarking::FORCE_MARKING,
-                                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-      double remaining_idle_time_in_ms =
-          deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+      double remaining_idle_time_in_ms = 0.0;
+      do {
+        incremental_marking()->Step(
+            action.parameter, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+            IncrementalMarking::FORCE_MARKING,
+            IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+        remaining_idle_time_in_ms =
+            deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+      } while (remaining_idle_time_in_ms >=
+                   2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
+               !incremental_marking()->IsComplete() &&
+               !mark_compact_collector_.marking_deque()->IsEmpty());
       if (remaining_idle_time_in_ms > 0.0) {
         TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
@@ -4541,7 +4547,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
     PrintF(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms [",
-        idle_time_in_ms, current_time, deadline_difference);
+        idle_time_in_ms, idle_time_in_ms - deadline_difference,
+        deadline_difference);
     action.Print();
     PrintF("]");
     if (FLAG_trace_idle_notification_verbose) {
