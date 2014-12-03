@@ -22,8 +22,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class Edge;
 class Graph;
+
 
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a
@@ -66,22 +68,15 @@ class Node FINAL {
 
   NodeId id() const { return id_; }
 
-  int InputCount() const { return input_count_; }
+  int InputCount() const { return input_count(); }
   Node* InputAt(int index) const { return GetInputRecordPtr(index)->to; }
   inline void ReplaceInput(int index, Node* new_input);
   inline void AppendInput(Zone* zone, Node* new_input);
   inline void InsertInput(Zone* zone, int index, Node* new_input);
   inline void RemoveInput(int index);
 
-  int UseCount() { return use_count_; }
-  Node* UseAt(int index) {
-    DCHECK(index < use_count_);
-    Use* current = first_use_;
-    while (index-- != 0) {
-      current = current->next;
-    }
-    return current->from;
-  }
+  int UseCount() const;
+  Node* UseAt(int index) const;
   inline void ReplaceUses(Node* replace_to);
   template <class UnaryPredicate>
   inline void ReplaceUsesIf(UnaryPredicate pred, Node* replace_to);
@@ -175,10 +170,10 @@ class Node FINAL {
   void EnsureAppendableInputs(Zone* zone);
 
   Input* GetInputRecordPtr(int index) const {
-    if (has_appendable_inputs_) {
+    if (has_appendable_inputs()) {
       return &((*inputs_.appendable_)[index]);
     } else {
-      return inputs_.static_ + index;
+      return &inputs_.static_[index];
     }
   }
 
@@ -188,7 +183,7 @@ class Node FINAL {
   void* operator new(size_t, void* location) { return location; }
 
  private:
-  Node(Graph* graph, int input_count, int reserve_input_count);
+  inline Node(NodeId id, int input_count, int reserve_input_count);
 
   typedef ZoneDeque<Input> InputDeque;
 
@@ -204,17 +199,39 @@ class Node FINAL {
   Mark mark() { return mark_; }
   void set_mark(Mark mark) { mark_ = mark; }
 
-  static const int kReservedInputCountBits = 2;
-  static const int kMaxReservedInputs = (1 << kReservedInputCountBits) - 1;
-  static const int kDefaultReservedInputs = kMaxReservedInputs;
+  int input_count() const { return InputCountField::decode(bit_field_); }
+  void set_input_count(int input_count) {
+    DCHECK_LE(0, input_count);
+    bit_field_ = InputCountField::update(bit_field_, input_count);
+  }
+
+  int reserved_input_count() const {
+    return ReservedInputCountField::decode(bit_field_);
+  }
+  void set_reserved_input_count(int reserved_input_count) {
+    DCHECK_LE(0, reserved_input_count);
+    bit_field_ =
+        ReservedInputCountField::update(bit_field_, reserved_input_count);
+  }
+
+  bool has_appendable_inputs() const {
+    return HasAppendableInputsField::decode(bit_field_);
+  }
+  void set_has_appendable_inputs(bool has_appendable_inputs) {
+    bit_field_ =
+        HasAppendableInputsField::update(bit_field_, has_appendable_inputs);
+  }
+
+  typedef BitField<unsigned, 0, 29> InputCountField;
+  typedef BitField<unsigned, 29, 2> ReservedInputCountField;
+  typedef BitField<unsigned, 31, 1> HasAppendableInputsField;
+  static const int kDefaultReservedInputs = ReservedInputCountField::kMax;
 
   const Operator* op_;
   Bounds bounds_;
   Mark mark_;
   NodeId id_;
-  int input_count_ : 29;
-  unsigned int reserve_input_count_ : kReservedInputCountBits;
-  bool has_appendable_inputs_ : 1;
+  unsigned bit_field_;
   union {
     // When a node is initially allocated, it uses a static buffer to hold its
     // inputs under the assumption that the number of outputs will not increase.
@@ -223,7 +240,6 @@ class Node FINAL {
     Input* static_;
     InputDeque* appendable_;
   } inputs_;
-  int use_count_;
   Use* first_use_;
   Use* last_use_;
 
@@ -240,7 +256,7 @@ class Edge {
   Node* to() const { return input_->to; }
   int index() const {
     int index = input_->use->input_index;
-    DCHECK(index < input_->use->from->input_count_);
+    DCHECK(index < input_->use->from->input_count());
     return index;
   }
 
@@ -500,8 +516,6 @@ inline void Node::ReplaceUses(Node* replace_to) {
     first_use_->prev = replace_to->last_use_;
     replace_to->last_use_ = last_use_;
   }
-  replace_to->use_count_ += use_count_;
-  use_count_ = 0;
   first_use_ = NULL;
   last_use_ = NULL;
 }
@@ -526,16 +540,16 @@ inline void Node::RemoveAllInputs() {
 }
 
 inline void Node::TrimInputCount(int new_input_count) {
-  if (new_input_count == input_count_) return;  // Nothing to do.
+  if (new_input_count == input_count()) return;  // Nothing to do.
 
-  DCHECK(new_input_count < input_count_);
+  DCHECK(new_input_count < input_count());
 
   // Update inline inputs.
-  for (int i = new_input_count; i < input_count_; i++) {
+  for (int i = new_input_count; i < input_count(); i++) {
     Node::Input* input = GetInputRecordPtr(i);
     input->Update(NULL);
   }
-  input_count_ = new_input_count;
+  set_input_count(new_input_count);
 }
 
 inline void Node::ReplaceInput(int index, Node* new_to) {
@@ -561,14 +575,14 @@ inline void Node::Input::Update(Node* new_to) {
 }
 
 inline void Node::EnsureAppendableInputs(Zone* zone) {
-  if (!has_appendable_inputs_) {
+  if (!has_appendable_inputs()) {
     void* deque_buffer = zone->New(sizeof(InputDeque));
     InputDeque* deque = new (deque_buffer) InputDeque(zone);
-    for (int i = 0; i < input_count_; ++i) {
+    for (int i = 0; i < input_count(); ++i) {
       deque->push_back(inputs_.static_[i]);
     }
     inputs_.appendable_ = deque;
-    has_appendable_inputs_ = true;
+    set_has_appendable_inputs(true);
   }
 }
 
@@ -577,18 +591,18 @@ inline void Node::AppendInput(Zone* zone, Node* to_append) {
   Input new_input;
   new_input.to = to_append;
   new_input.use = new_use;
-  if (reserve_input_count_ > 0) {
-    DCHECK(!has_appendable_inputs_);
-    reserve_input_count_--;
-    inputs_.static_[input_count_] = new_input;
+  if (reserved_input_count() > 0) {
+    DCHECK(!has_appendable_inputs());
+    set_reserved_input_count(reserved_input_count() - 1);
+    inputs_.static_[input_count()] = new_input;
   } else {
     EnsureAppendableInputs(zone);
     inputs_.appendable_->push_back(new_input);
   }
-  new_use->input_index = input_count_;
+  new_use->input_index = input_count();
   new_use->from = this;
   to_append->AppendUse(new_use);
-  input_count_++;
+  set_input_count(input_count() + 1);
 }
 
 inline void Node::InsertInput(Zone* zone, int index, Node* to_insert) {
@@ -619,7 +633,6 @@ inline void Node::AppendUse(Use* use) {
     last_use_->next = use;
   }
   last_use_ = use;
-  ++use_count_;
 }
 
 inline void Node::RemoveUse(Use* use) {
@@ -634,7 +647,6 @@ inline void Node::RemoveUse(Use* use) {
   if (use->next != NULL) {
     use->next->prev = use->prev;
   }
-  --use_count_;
 }
 
 inline bool Node::OwnedBy(Node* owner) const {
