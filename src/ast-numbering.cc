@@ -23,13 +23,15 @@ class AstNumberingVisitor FINAL : public AstVisitor {
     InitializeAstVisitor(zone);
   }
 
-  void Renumber(FunctionLiteral* node);
+  bool Renumber(FunctionLiteral* node);
 
  private:
 // AST node visitor interface.
 #define DEFINE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
+
+  bool Finish(FunctionLiteral* node);
 
   void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
   void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
@@ -537,14 +539,26 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstNumberingVisitor::Renumber(FunctionLiteral* node) {
-  if (node->scope()->HasIllegalRedeclaration()) {
-    node->scope()->VisitIllegalRedeclaration(this);
-    node->set_ast_properties(&properties_);
-    return;
+bool AstNumberingVisitor::Finish(FunctionLiteral* node) {
+  node->set_ast_properties(&properties_);
+  node->set_dont_optimize_reason(dont_optimize_reason());
+  return !HasStackOverflow();
+}
+
+
+bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
+  Scope* scope = node->scope();
+
+  if (scope->HasIllegalRedeclaration()) {
+    scope->VisitIllegalRedeclaration(this);
+    DisableCrankshaft(kFunctionWithIllegalRedeclaration);
+    return Finish(node);
+  }
+  if (scope->calls_eval()) DisableCrankshaft(kFunctionCallsEval);
+  if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
+    DisableCrankshaft(kContextAllocatedArguments);
   }
 
-  Scope* scope = node->scope();
   VisitDeclarations(scope->declarations());
   if (scope->is_function_scope() && scope->function() != NULL) {
     // Visit the name of the named function expression.
@@ -552,15 +566,13 @@ void AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
   VisitStatements(node->body());
 
-  node->set_ast_properties(&properties_);
-  node->set_dont_optimize_reason(dont_optimize_reason());
+  return Finish(node);
 }
 
 
 bool AstNumbering::Renumber(FunctionLiteral* function, Zone* zone) {
   AstNumberingVisitor visitor(zone);
-  visitor.Renumber(function);
-  return !visitor.HasStackOverflow();
+  return visitor.Renumber(function);
 }
 }
 }  // namespace v8::internal
