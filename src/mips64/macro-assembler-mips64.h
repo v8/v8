@@ -271,8 +271,10 @@ class MacroAssembler: public Assembler {
     mthc1(src_high, dst);
   }
 
-  // Conditional move.
+  void Move(FPURegister dst, float imm);
   void Move(FPURegister dst, double imm);
+
+  // Conditional move.
   void Movz(Register rd, Register rs, Register rt);
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);

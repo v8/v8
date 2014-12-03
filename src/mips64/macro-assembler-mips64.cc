@@ -1717,6 +1717,12 @@ void MacroAssembler::BranchF(Label* target,
 }
 
 
+void MacroAssembler::Move(FPURegister dst, float imm) {
+  li(at, Operand(bit_cast<int32_t>(imm)));
+  mtc1(at, dst);
+}
+
+
 void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
