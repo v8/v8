@@ -844,7 +844,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // compile time and uses DoMathPowHalf instead.  We then skip this check
       // for non-constant cases of +/-0.5 as these hardly occur.
       Label not_plus_half;
-
       // Test for 0.5.
       __ Move(double_scratch, 0.5);
       __ BranchF(USE_DELAY_SLOT,
@@ -856,7 +855,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // double_scratch can be overwritten in the delay slot.
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, -V8_INFINITY);
+      __ Move(double_scratch, static_cast<double>(-V8_INFINITY));
       __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
       __ neg_d(double_result, double_scratch);
 
@@ -876,7 +875,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // double_scratch can be overwritten in the delay slot.
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, -V8_INFINITY);
+      __ Move(double_scratch, static_cast<double>(-V8_INFINITY));
       __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
       __ Move(double_result, kDoubleRegZero);
 
