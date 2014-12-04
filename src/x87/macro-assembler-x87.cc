@@ -3087,18 +3087,6 @@ void MacroAssembler::CheckPageFlagForMap(
 }
 
 
-void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
-                                        Register scratch,
-                                        Label* if_deprecated) {
-  if (map->CanBeDeprecated()) {
-    mov(scratch, map);
-    mov(scratch, FieldOperand(scratch, Map::kBitField3Offset));
-    and_(scratch, Immediate(Map::Deprecated::kMask));
-    j(not_zero, if_deprecated);
-  }
-}
-
-
 void MacroAssembler::JumpIfBlack(Register object,
                                  Register scratch0,
                                  Register scratch1,

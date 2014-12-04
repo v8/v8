@@ -74,7 +74,8 @@ var lastMicrotaskId = 0;
 
   function PromiseDone(promise, status, value, promiseQueue) {
     if (GET_PRIVATE(promise, promiseStatus) === 0) {
-      PromiseEnqueue(value, GET_PRIVATE(promise, promiseQueue), status);
+      var tasks = GET_PRIVATE(promise, promiseQueue);
+      if (tasks.length) PromiseEnqueue(value, tasks, status);
       PromiseSet(promise, status, value);
     }
   }

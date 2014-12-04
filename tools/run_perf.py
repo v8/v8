@@ -534,8 +534,11 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
   def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))
-    bench_dir = os.path.join(suite_dir,
-                             os.path.normpath(os.path.join(*node.path)))
+    if node.path:
+      bench_dir = os.path.join(suite_dir,
+                               os.path.normpath(os.path.join(*node.path)))
+    else:
+      bench_dir = suite_dir
 
     self._PushFile(self.shell_dir, node.binary)
     if isinstance(node, Runnable):
