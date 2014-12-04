@@ -11665,6 +11665,35 @@ void HOptimizedGraphBuilder::GenerateIsJSProxy(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateHasFastPackedElements(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* object = Pop();
+  HIfContinuation continuation(graph()->CreateBasicBlock(),
+                               graph()->CreateBasicBlock());
+  IfBuilder if_not_smi(this);
+  if_not_smi.IfNot<HIsSmiAndBranch>(object);
+  if_not_smi.Then();
+  {
+    NoObservableSideEffectsScope no_effects(this);
+
+    IfBuilder if_fast_packed(this);
+    HValue* elements_kind = BuildGetElementsKind(object);
+    if_fast_packed.If<HCompareNumericAndBranch>(
+        elements_kind, Add<HConstant>(FAST_SMI_ELEMENTS), Token::EQ);
+    if_fast_packed.Or();
+    if_fast_packed.If<HCompareNumericAndBranch>(
+        elements_kind, Add<HConstant>(FAST_ELEMENTS), Token::EQ);
+    if_fast_packed.Or();
+    if_fast_packed.If<HCompareNumericAndBranch>(
+        elements_kind, Add<HConstant>(FAST_DOUBLE_ELEMENTS), Token::EQ);
+    if_fast_packed.JoinContinuation(&continuation);
+  }
+  if_not_smi.JoinContinuation(&continuation);
+  return ast_context()->ReturnContinuation(&continuation, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsNonNegativeSmi(CallRuntime* call) {
   return Bailout(kInlinedRuntimeFunctionIsNonNegativeSmi);
 }

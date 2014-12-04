@@ -732,7 +732,9 @@ namespace internal {
   F(MapGetSize, 1, 1)                     \
   F(MapHas, 2, 1)                         \
   F(SetGetSize, 1, 1)                     \
-  F(SetHas, 2, 1)
+  F(SetHas, 2, 1)                         \
+  /* Arrays */                            \
+  F(HasFastPackedElements, 1, 1)
 
 
 //---------------------------------------------------------------------------
