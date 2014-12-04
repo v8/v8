@@ -502,7 +502,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fprem();
       // The following 2 instruction implicitly use rax.
       __ fnstsw_ax();
-      if (CpuFeatures::IsSupported(SAHF) && masm()->IsEnabled(SAHF)) {
+      if (CpuFeatures::IsSupported(SAHF)) {
+        CpuFeatureScope sahf_scope(masm(), SAHF);
         __ sahf();
       } else {
         __ shrl(rax, Immediate(8));
