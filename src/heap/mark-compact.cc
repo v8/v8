@@ -2241,6 +2241,7 @@ void MarkCompactCollector::MarkLiveObjects() {
         &IsUnmarkedHeapObject);
     // Then we mark the objects.
     heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
+    ProcessMarkingDeque();
 
     // Repeat Harmony weak maps marking to mark unmarked objects reachable from
     // the weak roots we just marked as pending destruction.
