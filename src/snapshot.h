@@ -23,9 +23,31 @@ class Snapshot {
 
  private:
   static const byte data_[];
-  static const int size_;
+  static const byte* raw_data_;
   static const byte context_data_[];
+  static const byte* context_raw_data_;
+  static const int new_space_used_;
+  static const int pointer_space_used_;
+  static const int data_space_used_;
+  static const int code_space_used_;
+  static const int map_space_used_;
+  static const int cell_space_used_;
+  static const int property_cell_space_used_;
+  static const int lo_space_used_;
+  static const int context_new_space_used_;
+  static const int context_pointer_space_used_;
+  static const int context_data_space_used_;
+  static const int context_code_space_used_;
+  static const int context_map_space_used_;
+  static const int context_cell_space_used_;
+  static const int context_property_cell_space_used_;
+  static const int context_lo_space_used_;
+  static const int size_;
+  static const int raw_size_;
   static const int context_size_;
+  static const int context_raw_size_;
+
+  static void ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };

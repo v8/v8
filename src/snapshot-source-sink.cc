@@ -13,6 +13,15 @@
 namespace v8 {
 namespace internal {
 
+
+SnapshotByteSource::SnapshotByteSource(const byte* array, int length)
+    : data_(array), length_(length), position_(0) {
+}
+
+
+SnapshotByteSource::~SnapshotByteSource() { }
+
+
 int32_t SnapshotByteSource::GetUnalignedInt() {
   DCHECK(position_ < length_);  // Require at least one byte left.
   int32_t answer = data_[position_];
@@ -43,17 +52,15 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   if (bytes > 3) Put(static_cast<int>((integer >> 24) & 0xff), "IntPart4");
 }
 
-
-void SnapshotByteSink::PutRaw(const byte* data, int number_of_bytes,
+void SnapshotByteSink::PutRaw(byte* data, int number_of_bytes,
                               const char* description) {
-  data_.AddAll(Vector<byte>(const_cast<byte*>(data), number_of_bytes));
+  data_.AddAll(Vector<byte>(data, number_of_bytes));
 }
 
-
-void SnapshotByteSink::PutBlob(Vector<const byte> blob,
+void SnapshotByteSink::PutBlob(byte* data, int number_of_bytes,
                                const char* description) {
-  PutInt(blob.length(), description);
-  PutRaw(blob.start(), blob.length(), description);
+  PutInt(number_of_bytes, description);
+  PutRaw(data, number_of_bytes, description);
 }
 
 

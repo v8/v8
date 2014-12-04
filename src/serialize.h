@@ -453,63 +453,11 @@ class SerializerDeserializer: public ObjectVisitor {
 };
 
 
-class SerializedData {
- public:
-  class Reservation {
-   public:
-    explicit Reservation(uint32_t size)
-        : reservation_(ChunkSizeBits::encode(size)) {}
-
-    uint32_t chunk_size() const { return ChunkSizeBits::decode(reservation_); }
-    bool is_last() const { return IsLastChunkBits::decode(reservation_); }
-
-    void mark_as_last() { reservation_ |= IsLastChunkBits::encode(true); }
-
-   private:
-    uint32_t reservation_;
-  };
-
-  SerializedData(byte* data, int size)
-      : data_(data), size_(size), owns_data_(false) {}
-  SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
-
-  ~SerializedData() {
-    if (owns_data_) DeleteArray<byte>(data_);
-  }
-
-  class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
-  class IsLastChunkBits : public BitField<bool, 31, 1> {};
-
- protected:
-  void SetHeaderValue(int offset, int value) {
-    reinterpret_cast<int*>(data_)[offset] = value;
-  }
-
-  int GetHeaderValue(int offset) const {
-    return reinterpret_cast<const int*>(data_)[offset];
-  }
-
-  void AllocateData(int size);
-
-  byte* data_;
-  int size_;
-  bool owns_data_;
-};
-
-
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 class Deserializer: public SerializerDeserializer {
  public:
   // Create a deserializer from a snapshot byte source.
-  template <class Data>
-  explicit Deserializer(Data* data)
-      : isolate_(NULL),
-        attached_objects_(NULL),
-        source_(data->Payload()),
-        external_reference_decoder_(NULL),
-        deserialized_large_objects_(0) {
-    DecodeReservation(data->Reservations());
-  }
+  explicit Deserializer(SnapshotByteSource* source);
 
   virtual ~Deserializer();
 
@@ -522,6 +470,12 @@ class Deserializer: public SerializerDeserializer {
   // We may want to abort gracefully even if deserialization fails.
   void DeserializePartial(Isolate* isolate, Object** root,
                           OnOOM on_oom = FATAL_ON_OOM);
+
+  void AddReservation(int space, uint32_t chunk) {
+    DCHECK(space >= 0);
+    DCHECK(space < kNumberOfSpaces);
+    reservations_[space].Add({chunk, NULL, NULL});
+  }
 
   void FlushICacheForNewCodeObjects();
 
@@ -539,8 +493,6 @@ class Deserializer: public SerializerDeserializer {
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
     UNREACHABLE();
   }
-
-  void DecodeReservation(Vector<const SerializedData::Reservation> res);
 
   bool ReserveSpace();
 
@@ -571,7 +523,7 @@ class Deserializer: public SerializerDeserializer {
   // Objects from the attached object descriptions in the serialized user code.
   Vector<Handle<Object> >* attached_objects_;
 
-  SnapshotByteSource source_;
+  SnapshotByteSource* source_;
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk
   // fitting into a page. Deserialized objects are allocated into the
@@ -597,7 +549,16 @@ class Serializer : public SerializerDeserializer {
   ~Serializer();
   virtual void VisitPointers(Object** start, Object** end) OVERRIDE;
 
-  void EncodeReservations(List<SerializedData::Reservation>* out) const;
+  void FinalizeAllocation();
+
+  Vector<const uint32_t> FinalAllocationChunks(int space) const {
+    if (space == LO_SPACE) {
+      return Vector<const uint32_t>(&large_objects_total_size_, 1);
+    } else {
+      DCHECK_EQ(0, pending_chunk_[space]);  // No pending chunks.
+      return completed_chunks_[space].ToConstVector();
+    }
+  }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -821,7 +782,7 @@ class CodeSerializer : public Serializer {
     return source_;
   }
 
-  const List<uint32_t>* stub_keys() const { return &stub_keys_; }
+  List<uint32_t>* stub_keys() { return &stub_keys_; }
   int num_internalized_strings() const { return num_internalized_strings_; }
 
  private:
@@ -858,42 +819,10 @@ class CodeSerializer : public Serializer {
 };
 
 
-// Wrapper around reservation sizes and the serialization payload.
-class SnapshotData : public SerializedData {
- public:
-  // Used when producing.
-  SnapshotData(const SnapshotByteSink& sink, const Serializer& ser);
-
-  // Used when consuming.
-  explicit SnapshotData(const byte* data, int size)
-      : SerializedData(const_cast<byte*>(data), size) {
-    CHECK(IsSane());
-  }
-
-  Vector<const Reservation> Reservations() const;
-  Vector<const byte> Payload() const;
-
-  Vector<const byte> RawData() const {
-    return Vector<const byte>(data_, size_);
-  }
-
- private:
-  bool IsSane();
-  // The data header consists of int-sized entries:
-  // [0] version hash
-  // [1] number of reservation size entries
-  // [2] payload length
-  static const int kCheckSumOffset = 0;
-  static const int kReservationsOffset = 1;
-  static const int kPayloadLengthOffset = 2;
-  static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
-};
-
-
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
-class SerializedCodeData : public SerializedData {
+class SerializedCodeData {
  public:
-  // Used when consuming.
+  // Used by when consuming.
   static SerializedCodeData* FromCachedData(ScriptData* cached_data,
                                             String* source) {
     DisallowHeapAllocation no_gc;
@@ -905,20 +834,75 @@ class SerializedCodeData : public SerializedData {
   }
 
   // Used when producing.
-  SerializedCodeData(const List<byte>& payload, const CodeSerializer& cs);
+  SerializedCodeData(const List<byte>& payload, CodeSerializer* cs);
+
+  ~SerializedCodeData() {
+    if (owns_script_data_) delete script_data_;
+  }
 
   // Return ScriptData object and relinquish ownership over it to the caller.
-  ScriptData* GetScriptData();
+  ScriptData* GetScriptData() {
+    ScriptData* result = script_data_;
+    script_data_ = NULL;
+    DCHECK(owns_script_data_);
+    owns_script_data_ = false;
+    return result;
+  }
 
-  Vector<const Reservation> Reservations() const;
-  Vector<const byte> Payload() const;
+  class Reservation {
+   public:
+    uint32_t chunk_size() const { return ChunkSizeBits::decode(reservation); }
+    bool is_last_chunk() const { return IsLastChunkBits::decode(reservation); }
 
-  int NumInternalizedStrings() const;
-  Vector<const uint32_t> CodeStubKeys() const;
+   private:
+    uint32_t reservation;
+
+    DISALLOW_COPY_AND_ASSIGN(Reservation);
+  };
+
+  int NumInternalizedStrings() const {
+    return GetHeaderValue(kNumInternalizedStringsOffset);
+  }
+
+  Vector<const Reservation> Reservations() const {
+    return Vector<const Reservation>(reinterpret_cast<const Reservation*>(
+                                         script_data_->data() + kHeaderSize),
+                                     GetHeaderValue(kReservationsOffset));
+  }
+
+  Vector<const uint32_t> CodeStubKeys() const {
+    int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+    const byte* start = script_data_->data() + kHeaderSize + reservations_size;
+    return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
+                                  GetHeaderValue(kNumCodeStubKeysOffset));
+  }
+
+  const byte* Payload() const {
+    int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+    int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
+    return script_data_->data() + kHeaderSize + reservations_size +
+           code_stubs_size;
+  }
+
+  int PayloadLength() const {
+    int payload_length = GetHeaderValue(kPayloadLengthOffset);
+    DCHECK_EQ(script_data_->data() + script_data_->length(),
+              Payload() + payload_length);
+    return payload_length;
+  }
 
  private:
   explicit SerializedCodeData(ScriptData* data)
-      : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
+      : script_data_(data), owns_script_data_(false) {}
+
+  void SetHeaderValue(int offset, int value) {
+    reinterpret_cast<int*>(const_cast<byte*>(script_data_->data()))[offset] =
+        value;
+  }
+
+  int GetHeaderValue(int offset) const {
+    return reinterpret_cast<const int*>(script_data_->data())[offset];
+  }
 
   bool IsSane(String* source);
 
@@ -928,14 +912,24 @@ class SerializedCodeData : public SerializedData {
   // [0] version hash
   // [1] number of internalized strings
   // [2] number of code stub keys
-  // [3] number of reservation size entries
-  // [4] payload length
+  // [3] payload length
+  // [4..10] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
   static const int kCheckSumOffset = 0;
   static const int kNumInternalizedStringsOffset = 1;
   static const int kReservationsOffset = 2;
   static const int kNumCodeStubKeysOffset = 3;
   static const int kPayloadLengthOffset = 4;
   static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
+
+  class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
+  class IsLastChunkBits : public BitField<bool, 31, 1> {};
+
+  // Following the header, we store, in sequential order
+  // - code stub keys
+  // - serialization payload
+
+  ScriptData* script_data_;
+  bool owns_script_data_;
 };
 } }  // namespace v8::internal
 
