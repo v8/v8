@@ -88,22 +88,16 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype, Label* miss) {
-  // Get the global function with the given index.
-  Handle<JSFunction> function(
-      JSFunction::cast(masm->isolate()->native_context()->get(index)));
-  // Check we're still in the same context.
-  Register scratch = prototype;
+    MacroAssembler* masm, int index, Register result, Label* miss) {
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
-  __ mov(scratch, Operand(esi, offset));
-  __ mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
-  __ cmp(Operand(scratch, Context::SlotOffset(index)), function);
-  __ j(not_equal, miss);
-
+  __ mov(result, Operand(esi, offset));
+  __ mov(result, FieldOperand(result, GlobalObject::kNativeContextOffset));
+  __ mov(result, Operand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
-  __ Move(prototype, Immediate(Handle<Map>(function->initial_map())));
+  __ mov(result,
+         FieldOperand(result, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
-  __ mov(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+  __ mov(result, FieldOperand(result, Map::kPrototypeOffset));
 }
 
 
