@@ -185,7 +185,7 @@ class GCIdleTimeHandler {
                                   size_t size_of_objects,
                                   size_t mark_compact_speed_in_bytes_per_ms);
 
-  static bool ShouldDoContextDisposalMarkCompact(bool context_disposed,
+  static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
                                                  double contexts_disposal_rate);
 
   static bool ShouldDoFinalIncrementalMarkCompact(

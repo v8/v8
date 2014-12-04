@@ -34,6 +34,7 @@ Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
+      capturing_raw_literal_(false),
       octal_pos_(Location::invalid()),
       harmony_scoping_(false),
       harmony_modules_(false),
@@ -420,6 +421,7 @@ Token::Value Scanner::ScanHtmlComment() {
 
 void Scanner::Scan() {
   next_.literal_chars = NULL;
+  next_.raw_literal_chars = NULL;
   Token::Value token;
   do {
     // Remember the position of the next token
@@ -819,15 +821,18 @@ Token::Value Scanner::ScanTemplateSpan() {
   DCHECK(c0_ == '`' || c0_ == '}');
   Advance();  // Consume ` or }
 
-  LiteralScope literal(this);
+  LiteralScope literal(this, true);
+
   while (true) {
     uc32 c = c0_;
     Advance();
     if (c == '`') {
       result = Token::TEMPLATE_TAIL;
+      ReduceRawLiteralLength(1);
       break;
     } else if (c == '$' && c0_ == '{') {
       Advance();  // Consume '{'
+      ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -835,7 +840,14 @@ Token::Value Scanner::ScanTemplateSpan() {
         // code unit sequence.
         uc32 lastChar = c0_;
         Advance();
-        if (lastChar == '\r' && c0_ == '\n') Advance();
+        if (lastChar == '\r') {
+          ReduceRawLiteralLength(1);  // Remove \r
+          if (c0_ == '\n') {
+            Advance();  // Adds \n
+          } else {
+            AddRawLiteralChar('\n');
+          }
+        }
       } else if (c0_ == '0') {
         Advance();
         AddLiteralChar('0');
@@ -851,7 +863,12 @@ Token::Value Scanner::ScanTemplateSpan() {
       // The TRV of LineTerminatorSequence :: <CR><LF> is the sequence
       // consisting of the CV 0x000A.
       if (c == '\r') {
-        if (c0_ == '\n') Advance();
+        ReduceRawLiteralLength(1);  // Remove \r
+        if (c0_ == '\n') {
+          Advance();  // Adds \n
+        } else {
+          AddRawLiteralChar('\n');
+        }
         c = '\n';
       }
       AddLiteralChar(c);
@@ -1282,6 +1299,15 @@ const AstRawString* Scanner::NextSymbol(AstValueFactory* ast_value_factory) {
     return ast_value_factory->GetOneByteString(next_literal_one_byte_string());
   }
   return ast_value_factory->GetTwoByteString(next_literal_two_byte_string());
+}
+
+
+const AstRawString* Scanner::CurrentRawSymbol(
+    AstValueFactory* ast_value_factory) {
+  if (is_raw_literal_one_byte()) {
+    return ast_value_factory->GetOneByteString(raw_literal_one_byte_string());
+  }
+  return ast_value_factory->GetTwoByteString(raw_literal_two_byte_string());
 }
 
 

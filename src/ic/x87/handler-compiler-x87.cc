@@ -415,8 +415,12 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ mov(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
     } else {
+      Register map_reg = scratch1;
+      __ mov(map_reg, FieldOperand(reg, HeapObject::kMapOffset));
       if (depth != 1 || check == CHECK_ALL_MAPS) {
-        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
+        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+        __ CmpWeakValue(map_reg, cell, scratch2);
+        __ j(not_equal, miss);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -426,17 +430,15 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       // global proxy (as opposed to using slow ICs). See corresponding code
       // in LookupForRead().
       if (current_map->IsJSGlobalProxyMap()) {
-        __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
+        __ CheckAccessGlobalProxy(reg, map_reg, scratch2, miss);
+        // Restore map_reg.
+        __ mov(map_reg, FieldOperand(reg, HeapObject::kMapOffset));
       } else if (current_map->IsJSGlobalObjectMap()) {
         GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
                                   name, scratch2, miss);
       }
-
-      __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
-
       reg = holder_reg;  // From now on the object will be in holder_reg.
-
-      __ mov(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
+      __ mov(reg, FieldOperand(map_reg, Map::kPrototypeOffset));
     }
 
     // Go to the next object in the prototype chain.
@@ -449,7 +451,10 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
   if (depth != 0 || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
+    __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+    Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+    __ CmpWeakValue(scratch1, cell, scratch2);
+    __ j(not_equal, miss);
   }
 
   // Perform security check for access to the global object.

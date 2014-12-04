@@ -271,8 +271,10 @@ class MacroAssembler: public Assembler {
     mthc1(src_high, dst);
   }
 
-  // Conditional move.
+  void Move(FPURegister dst, float imm);
   void Move(FPURegister dst, double imm);
+
+  // Conditional move.
   void Movz(Register rd, Register rs, Register rt);
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);
@@ -333,10 +335,6 @@ class MacroAssembler: public Assembler {
                      int mask,
                      Condition cc,
                      Label* condition_met);
-
-  void CheckMapDeprecated(Handle<Map> map,
-                          Register scratch,
-                          Label* if_deprecated);
 
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but it will be clobbered.

@@ -433,15 +433,16 @@ def BuildGraphs(suite, arch, parent=None):
   return graph
 
 
-def FlattenRunnables(node):
+def FlattenRunnables(node, node_cb):
   """Generator that traverses the tree structure and iterates over all
   runnables.
   """
+  node_cb(node)
   if isinstance(node, Runnable):
     yield node
   elif isinstance(node, Node):
     for child in node._children:
-      for result in FlattenRunnables(child):
+      for result in FlattenRunnables(child, node_cb):
         yield result
   else:  # pragma: no cover
     raise Exception("Invalid suite configuration.")
@@ -466,8 +467,9 @@ class DesktopPlatform(Platform):
   def PostExecution(self):
     pass
 
-  def PreTests(self, runnable, path):
-    runnable.ChangeCWD(path)
+  def PreTests(self, node, path):
+    if isinstance(node, Runnable):
+      node.ChangeCWD(path)
 
   def Run(self, runnable, count):
     output = commands.Execute(runnable.GetCommand(self.shell_dir),
@@ -506,6 +508,9 @@ class AndroidPlatform(Platform):  # pragma: no cover
     perf = perf_control.PerfControl(self.device)
     perf.SetHighPerfMode()
 
+    # Remember what we have already pushed to the device.
+    self.pushed = set()
+
   def PostExecution(self):
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
@@ -517,17 +522,25 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def _PushFile(self, host_dir, file_name):
     file_on_host = os.path.join(host_dir, file_name)
     file_on_device = AndroidPlatform.DEVICE_DIR + file_name
+
+    # Only push files not yet pushed in one execution.
+    if file_on_host in self.pushed:
+      return
+    else:
+      self.pushed.add(file_on_host)
+
     logging.info("adb push %s %s" % (file_on_host, file_on_device))
     self.adb.Push(file_on_host, file_on_device)
 
-  def PreTests(self, runnable, path):
+  def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))
     bench_dir = os.path.join(suite_dir,
-                             os.path.normpath(os.path.join(*runnable.path)))
+                             os.path.normpath(os.path.join(*node.path)))
 
-    self._PushFile(self.shell_dir, runnable.binary)
-    self._PushFile(bench_dir, runnable.main)
-    for resource in runnable.resources:
+    self._PushFile(self.shell_dir, node.binary)
+    if isinstance(node, Runnable):
+      self._PushFile(bench_dir, node.main)
+    for resource in node.resources:
       self._PushFile(bench_dir, resource)
 
   def Run(self, runnable, count):
@@ -604,7 +617,6 @@ def Main(args):
                                      "%s.release" % options.arch)
 
   platform = Platform.GetPlatform(options)
-  platform.PreExecution()
 
   results = Results()
   for path in args:
@@ -620,9 +632,19 @@ def Main(args):
     # If no name is given, default to the file name without .json.
     suite.setdefault("name", os.path.splitext(os.path.basename(path))[0])
 
-    for runnable in FlattenRunnables(BuildGraphs(suite, options.arch)):
+    # Setup things common to one test suite.
+    platform.PreExecution()
+
+    # Build the graph/trace tree structure.
+    root = BuildGraphs(suite, options.arch)
+
+    # Callback to be called on each node on traversal.
+    def NodeCB(node):
+      platform.PreTests(node, path)
+
+    # Traverse graph/trace tree and interate over all runnables.
+    for runnable in FlattenRunnables(root, NodeCB):
       print ">>> Running suite: %s" % "/".join(runnable.graphs)
-      platform.PreTests(runnable, path)
 
       def Runner():
         """Output generator that reruns several times."""
@@ -634,7 +656,7 @@ def Main(args):
       # Let runnable iterate over all runs and handle output.
       results += runnable.Run(Runner)
 
-  platform.PostExecution()
+    platform.PostExecution()
 
   if options.json_test_results:
     results.WriteToFile(options.json_test_results)

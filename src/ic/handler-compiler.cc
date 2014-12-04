@@ -312,9 +312,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
-  // Ensure no transitions to deprecated maps are followed.
-  __ CheckMapDeprecated(transition, scratch1(), &miss);
-
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
   if (is_nonexistent) {
@@ -345,7 +342,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   if (details.type() == CONSTANT) {
     GenerateConstantCheck(descriptors->GetValue(descriptor), value(), &miss);
 
-    GenerateRestoreNameAndMap(name, transition);
+    GenerateRestoreMap(transition, scratch2(), &miss);
+    GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
 
@@ -359,7 +357,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
 
-    GenerateRestoreNameAndMap(name, transition);
+    GenerateRestoreMap(transition, scratch2(), &miss);
+    GenerateRestoreName(name);
     StoreTransitionStub stub(isolate(),
                              FieldIndex::ForDescriptor(*transition, descriptor),
                              representation, store_mode);

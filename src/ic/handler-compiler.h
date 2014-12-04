@@ -230,7 +230,9 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateRestoreNameAndMap(Handle<Name> name, Handle<Map> transition);
+  void GenerateRestoreName(Handle<Name> name);
+  void GenerateRestoreMap(Handle<Map> transition, Register scratch,
+                          Label* miss);
 
   void GenerateConstantCheck(Object* constant, Register value_reg,
                              Label* miss_label);

@@ -324,12 +324,24 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 }
 
 
-void NamedStoreHandlerCompiler::GenerateRestoreNameAndMap(
-    Handle<Name> name, Handle<Map> transition) {
+void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ Move(this->name(), name);
-  __ Move(StoreTransitionDescriptor::MapRegister(), transition);
 }
 
+
+void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
+                                                   Register scratch,
+                                                   Label* miss) {
+  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
+  Register map_reg = StoreTransitionDescriptor::MapRegister();
+  DCHECK(!map_reg.is(scratch));
+  __ LoadWeakValue(map_reg, cell, miss);
+  if (transition->CanBeDeprecated()) {
+    __ movl(scratch, FieldOperand(map_reg, Map::kBitField3Offset));
+    __ andl(scratch, Immediate(Map::Deprecated::kMask));
+    __ j(not_zero, miss);
+  }
+}
 
 void NamedStoreHandlerCompiler::GenerateConstantCheck(Object* constant,
                                                       Register value_reg,

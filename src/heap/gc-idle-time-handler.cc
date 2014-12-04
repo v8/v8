@@ -160,8 +160,8 @@ bool GCIdleTimeHandler::ShouldDoMarkCompact(
 
 
 bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
-    bool context_disposed, double contexts_disposal_rate) {
-  return context_disposed && contexts_disposal_rate > 0 &&
+    int contexts_disposed, double contexts_disposal_rate) {
+  return contexts_disposed > 0 && contexts_disposal_rate > 0 &&
          contexts_disposal_rate < kHighContextDisposalRate;
 }
 
@@ -196,6 +196,9 @@ bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
                                             HeapState heap_state) {
   if (static_cast<int>(idle_time_in_ms) <= 0) {
+    if (heap_state.contexts_disposed > 0) {
+      StartIdleRound();
+    }
     if (heap_state.incremental_marking_stopped) {
       if (ShouldDoContextDisposalMarkCompact(
               heap_state.contexts_disposed,

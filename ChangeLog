@@ -1,3 +1,10 @@
+2014-12-04: Version 3.31.41
+
+        Simplify template literal raw string creation (issue 3710).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-03: Version 3.31.40
 
         Performance and stability improvements on all platforms.

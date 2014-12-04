@@ -1782,10 +1782,6 @@ class MacroAssembler : public Assembler {
                           int mask,
                           Label* if_all_clear);
 
-  void CheckMapDeprecated(Handle<Map> map,
-                          Register scratch,
-                          Label* if_deprecated);
-
   // Check if object is in new space and jump accordingly.
   // Register 'object' is preserved.
   void JumpIfNotInNewSpace(Register object,

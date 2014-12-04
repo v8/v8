@@ -4290,19 +4290,7 @@ void HOptimizedGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs,
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
-  if (current_info()->function()->is_generator()) {
-    Bailout(kFunctionIsAGenerator);
-    return false;
-  }
   Scope* scope = current_info()->scope();
-  if (scope->HasIllegalRedeclaration()) {
-    Bailout(kFunctionWithIllegalRedeclaration);
-    return false;
-  }
-  if (scope->calls_eval()) {
-    Bailout(kFunctionCallsEval);
-    return false;
-  }
   SetUpScope(scope);
 
   // Add an edge to the body entry.  This is warty: the graph's start
@@ -4538,10 +4526,6 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   // Handle the arguments and arguments shadow variables specially (they do
   // not have declarations).
   if (scope->arguments() != NULL) {
-    if (!scope->arguments()->IsStackAllocated()) {
-      return Bailout(kContextAllocatedArguments);
-    }
-
     environment()->Bind(scope->arguments(),
                         graph()->GetArgumentsObject());
   }
@@ -7931,11 +7915,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_info.scope()->HasIllegalRedeclaration()) {
-    TraceInline(target, caller, "target has illegal redeclaration");
-    return false;
-  }
-
   if (target_info.scope()->num_heap_slots() > 0) {
     TraceInline(target, caller, "target has context-allocated variables");
     return false;
@@ -7960,13 +7939,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   if (function->scope()->arguments() != NULL) {
     if (!FLAG_inline_arguments) {
       TraceInline(target, caller, "target uses arguments object");
-      return false;
-    }
-
-    if (!function->scope()->arguments()->IsStackAllocated()) {
-      TraceInline(target,
-                  caller,
-                  "target uses non-stackallocated arguments object");
       return false;
     }
   }
