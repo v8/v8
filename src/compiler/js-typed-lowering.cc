@@ -802,6 +802,47 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = graph()->start();
+  for (size_t i = 0; i < access.depth(); ++i) {
+    node->ReplaceInput(
+        0, graph()->NewNode(
+               simplified()->LoadField(
+                   AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+               NodeProperties::GetValueInput(node, 0), effect, control));
+  }
+  node->set_op(
+      simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
+  node->ReplaceInput(1, effect);
+  node->ReplaceInput(2, control);
+  DCHECK_EQ(3, node->InputCount());
+  return Changed(node);
+}
+
+
+Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = graph()->start();
+  for (size_t i = 0; i < access.depth(); ++i) {
+    node->ReplaceInput(
+        0, graph()->NewNode(
+               simplified()->LoadField(
+                   AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+               NodeProperties::GetValueInput(node, 0), effect, control));
+  }
+  node->set_op(
+      simplified()->StoreField(AccessBuilder::ForContextSlot(access.index())));
+  node->RemoveInput(2);
+  DCHECK_EQ(4, node->InputCount());
+  return Changed(node);
+}
+
+
 static Reduction ReplaceWithReduction(Node* node, Reduction reduction) {
   if (reduction.Changed()) {
     NodeProperties::ReplaceWithValue(node, reduction.replacement());
@@ -888,6 +929,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSLoadContext:
+      return ReduceJSLoadContext(node);
+    case IrOpcode::kJSStoreContext:
+      return ReduceJSStoreContext(node);
     case IrOpcode::kJSCallFunction:
       return JSBuiltinReducer(jsgraph()).Reduce(node);
     default:

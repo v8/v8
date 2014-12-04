@@ -73,6 +73,15 @@ FieldAccess AccessBuilder::ForValue() {
 
 
 // static
+FieldAccess AccessBuilder::ForContextSlot(size_t index) {
+  int offset = Context::kHeaderSize + static_cast<int>(index) * kPointerSize;
+  DCHECK_EQ(offset,
+            Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
+  return {kTaggedBase, offset, Handle<Name>(), Type::Any(), kMachAnyTagged};
+}
+
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
 }

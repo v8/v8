@@ -533,6 +533,59 @@ class IsLoadFieldMatcher FINAL : public NodeMatcher {
 };
 
 
+class IsStoreFieldMatcher FINAL : public NodeMatcher {
+ public:
+  IsStoreFieldMatcher(const Matcher<FieldAccess>& access_matcher,
+                      const Matcher<Node*>& base_matcher,
+                      const Matcher<Node*>& value_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kStoreField),
+        access_matcher_(access_matcher),
+        base_matcher_(base_matcher),
+        value_matcher_(value_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose access (";
+    access_matcher_.DescribeTo(os);
+    *os << "), base (";
+    base_matcher_.DescribeTo(os);
+    *os << "), value (";
+    value_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node,
+                               MatchResultListener* listener) const OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<FieldAccess>(node), "access",
+                                 access_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                 base_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<FieldAccess> access_matcher_;
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsLoadBufferMatcher FINAL : public NodeMatcher {
  public:
   IsLoadBufferMatcher(const Matcher<BufferAccess>& access_matcher,
@@ -1129,6 +1182,17 @@ Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
                            const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsLoadFieldMatcher(access_matcher, base_matcher,
                                             effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsStoreField(const Matcher<FieldAccess>& access_matcher,
+                            const Matcher<Node*>& base_matcher,
+                            const Matcher<Node*>& value_matcher,
+                            const Matcher<Node*>& effect_matcher,
+                            const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsStoreFieldMatcher(access_matcher, base_matcher,
+                                             value_matcher, effect_matcher,
+                                             control_matcher));
 }
 
 

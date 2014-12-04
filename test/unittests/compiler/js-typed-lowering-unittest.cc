@@ -25,6 +25,9 @@ const ExternalArrayType kExternalArrayTypes[] = {
     kExternalFloat32Array, kExternalFloat64Array};
 
 
+const size_t kIndices[] = {0, 1, 42, 100, 1024};
+
+
 Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
                           Type::Number(),    Type::String(), Type::Object()};
 
@@ -226,6 +229,74 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsWord32Shr(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSLoadContext
+
+
+TEST_F(JSTypedLoweringTest, JSLoadContext) {
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  static bool kBooleans[] = {false, true};
+  TRACED_FOREACH(size_t, index, kIndices) {
+    TRACED_FOREACH(bool, immutable, kBooleans) {
+      Reduction const r1 = Reduce(
+          graph()->NewNode(javascript()->LoadContext(0, index, immutable),
+                           context, context, effect));
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_THAT(r1.replacement(),
+                  IsLoadField(AccessBuilder::ForContextSlot(index), context,
+                              effect, graph()->start()));
+
+      Reduction const r2 = Reduce(
+          graph()->NewNode(javascript()->LoadContext(1, index, immutable),
+                           context, context, effect));
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_THAT(r2.replacement(),
+                  IsLoadField(AccessBuilder::ForContextSlot(index),
+                              IsLoadField(AccessBuilder::ForContextSlot(
+                                              Context::PREVIOUS_INDEX),
+                                          context, effect, graph()->start()),
+                              effect, graph()->start()));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// JSStoreContext
+
+
+TEST_F(JSTypedLoweringTest, JSStoreContext) {
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(size_t, index, kIndices) {
+    TRACED_FOREACH(Type*, type, kJSTypes) {
+      Node* const value = Parameter(type);
+
+      Reduction const r1 =
+          Reduce(graph()->NewNode(javascript()->StoreContext(0, index), context,
+                                  value, context, effect, control));
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_THAT(r1.replacement(),
+                  IsStoreField(AccessBuilder::ForContextSlot(index), context,
+                               value, effect, control));
+
+      Reduction const r2 =
+          Reduce(graph()->NewNode(javascript()->StoreContext(1, index), context,
+                                  value, context, effect, control));
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_THAT(r2.replacement(),
+                  IsStoreField(AccessBuilder::ForContextSlot(index),
+                               IsLoadField(AccessBuilder::ForContextSlot(
+                                               Context::PREVIOUS_INDEX),
+                                           context, effect, graph()->start()),
+                               value, effect, control));
+    }
+  }
 }
 
 
