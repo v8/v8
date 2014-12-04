@@ -168,7 +168,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_arrow_functions, "harmony arrow functions")                   \
   V(harmony_proxies, "harmony proxies")                                   \
-  V(harmony_templates, "harmony template literals")                       \
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
   V(harmony_unicode, "harmony unicode escapes")
 
@@ -178,7 +177,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
     "harmony classes (implies block scoping & object literal extension)") \
   V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_tostring, "harmony toString")                                 \
-  V(harmony_scoping, "harmony block scoping")
+  V(harmony_scoping, "harmony block scoping")                             \
+  V(harmony_templates, "harmony template literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                               \
