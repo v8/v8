@@ -42,6 +42,10 @@ class MipsOperandGenerator FINAL : public OperandGenerator {
         return is_uint16(value);
       case kMipsLdc1:
       case kMipsSdc1:
+      case kCheckedLoadFloat32:
+      case kCheckedLoadFloat64:
+      case kCheckedStoreFloat32:
+      case kCheckedStoreFloat64:
         return is_int16(value + kIntSize);
       default:
         return is_int16(value);
@@ -513,9 +517,18 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* offset_operand = g.CanBeImmediate(offset, opcode)
+                                           ? g.UseImmediate(offset)
+                                           : g.UseRegister(offset);
+
+  InstructionOperand* length_operand =
+      (!g.CanBeImmediate(offset, opcode)) ? g.CanBeImmediate(length, opcode)
+      ? g.UseImmediate(length)
+      : g.UseRegister(length)
+      : g.UseRegister(length);
+
   Emit(opcode | AddressingModeField::encode(kMode_MRI),
-       g.DefineAsRegister(node), offset_operand, g.UseRegister(length),
+       g.DefineAsRegister(node), offset_operand, length_operand,
        g.UseRegister(buffer));
 }
 
@@ -548,9 +561,18 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
+  InstructionOperand* offset_operand = g.CanBeImmediate(offset, opcode)
+                                           ? g.UseImmediate(offset)
+                                           : g.UseRegister(offset);
+
+  InstructionOperand* length_operand =
+      (!g.CanBeImmediate(offset, opcode)) ? g.CanBeImmediate(length, opcode)
+      ? g.UseImmediate(length)
+      : g.UseRegister(length)
+      : g.UseRegister(length);
+
   Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr, offset_operand,
-       g.UseRegister(length), g.UseRegister(value), g.UseRegister(buffer));
+       length_operand, g.UseRegister(value), g.UseRegister(buffer));
 }
 
 
