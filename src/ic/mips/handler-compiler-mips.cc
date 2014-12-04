@@ -419,8 +419,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       __ lw(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
       if (depth != 1 || check == CHECK_ALL_MAPS) {
         Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
-        __ CmpWeakValue(scratch2, map_reg, cell);
-        __ Branch(miss, ne, scratch2, Operand(zero_reg));
+        __ GetWeakValue(scratch2, cell);
+        __ Branch(miss, ne, scratch2, Operand(map_reg));
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -453,8 +453,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     // Check the holder map.
     __ lw(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
     Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
-    __ CmpWeakValue(scratch2, scratch1, cell);
-    __ Branch(miss, ne, scratch2, Operand(zero_reg));
+    __ GetWeakValue(scratch2, cell);
+    __ Branch(miss, ne, scratch2, Operand(scratch1));
   }
 
   // Perform security check for access to the global object.
