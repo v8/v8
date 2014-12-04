@@ -3915,13 +3915,9 @@ class OrderedHashTable: public FixedArray {
       kHeaderSize + kNumberOfBucketsIndex * kPointerSize;
   static const int kNumberOfElementsOffset =
       kHeaderSize + kNumberOfElementsIndex * kPointerSize;
-  static const int kNumberOfDeletedElementsOffset =
-      kHeaderSize + kNumberOfDeletedElementsIndex * kPointerSize;
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
-
-  static const int kLoadFactor = 2;
 
  private:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
@@ -3967,6 +3963,7 @@ class OrderedHashTable: public FixedArray {
   static const int kNextTableIndex = kNumberOfElementsIndex;
   static const int kRemovedHolesIndex = kHashTableStartIndex;
 
+  static const int kLoadFactor = 2;
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kHashTableStartIndex)
       / (1 + (kEntrySize * kLoadFactor));

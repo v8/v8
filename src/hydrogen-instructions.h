@@ -6356,13 +6356,6 @@ class HObjectAccess FINAL {
                          Representation::Smi());
   }
 
-  template <typename CollectionType>
-  static HObjectAccess ForOrderedHashTableNumberOfDeletedElements() {
-    return HObjectAccess(kInobject,
-                         CollectionType::kNumberOfDeletedElementsOffset,
-                         Representation::Smi());
-  }
-
   inline bool Equals(HObjectAccess that) const {
     return value_ == that.value_;  // portion and offset must match
   }

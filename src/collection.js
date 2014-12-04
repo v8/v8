@@ -56,7 +56,7 @@ function SetAddJS(key) {
   if (key === 0) {
     key = 0;
   }
-  return %_SetAdd(this, key);
+  return %SetAdd(this, key);
 }
 
 
@@ -74,7 +74,7 @@ function SetDeleteJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.delete', this]);
   }
-  return %_SetDelete(this, key);
+  return %SetDelete(this, key);
 }
 
 
@@ -209,7 +209,7 @@ function MapSetJS(key, value) {
   if (key === 0) {
     key = 0;
   }
-  return %_MapSet(this, key, value);
+  return %MapSet(this, key, value);
 }
 
 
@@ -227,7 +227,7 @@ function MapDeleteJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.delete', this]);
   }
-  return %_MapDelete(this, key);
+  return %MapDelete(this, key);
 }
 
 
