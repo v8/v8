@@ -48,6 +48,8 @@ class IncrementalMarking {
 
   bool ShouldActivate();
 
+  bool WasActivated();
+
   enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
 
   void Start(CompactionFlag flag = ALLOW_COMPACTION);
@@ -65,6 +67,8 @@ class IncrementalMarking {
   void Abort();
 
   void MarkingComplete(CompletionAction action);
+
+  void Epilogue();
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -221,6 +225,8 @@ class IncrementalMarking {
   int no_marking_scope_depth_;
 
   int unscanned_bytes_of_large_object_;
+
+  bool was_activated_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };
