@@ -322,16 +322,13 @@ class Scanner {
   // if aborting the scanning before it's complete.
   class LiteralScope {
    public:
-    explicit LiteralScope(Scanner* self, bool capture_raw = false)
-        : scanner_(self), complete_(false) {
+    explicit LiteralScope(Scanner* self) : scanner_(self), complete_(false) {
       scanner_->StartLiteral();
-      if (capture_raw) scanner_->StartRawLiteral();
     }
      ~LiteralScope() {
        if (!complete_) scanner_->DropLiteral();
      }
     void Complete() {
-      scanner_->TerminateLiteral();
       complete_ = true;
     }
 
@@ -506,6 +503,7 @@ class Scanner {
   static const int kCharacterLookaheadBufferSize = 1;
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  template <bool capture_raw>
   uc32 ScanOctalEscape(uc32 c, int length);
 
   // Call this after setting source_ to the input.
@@ -529,7 +527,6 @@ class Scanner {
   inline void StartRawLiteral() {
     raw_literal_buffer_.Reset();
     next_.raw_literal_chars = &raw_literal_buffer_;
-    capturing_raw_literal_ = true;
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
@@ -538,26 +535,20 @@ class Scanner {
   }
 
   INLINE(void AddRawLiteralChar(uc32 c)) {
-    DCHECK(capturing_raw_literal_);
     DCHECK_NOT_NULL(next_.raw_literal_chars);
     next_.raw_literal_chars->AddChar(c);
   }
 
   INLINE(void ReduceRawLiteralLength(int delta)) {
-    DCHECK(capturing_raw_literal_);
     DCHECK_NOT_NULL(next_.raw_literal_chars);
     next_.raw_literal_chars->ReduceLength(delta);
   }
-
-  // Complete scanning of a literal.
-  inline void TerminateLiteral() { capturing_raw_literal_ = false; }
 
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
     next_.literal_chars = NULL;
     next_.raw_literal_chars = NULL;
-    capturing_raw_literal_ = false;
   }
 
   inline void AddLiteralCharAdvance() {
@@ -566,8 +557,9 @@ class Scanner {
   }
 
   // Low-level scanning support.
+  template <bool capture_raw = false>
   void Advance() {
-    if (capturing_raw_literal_) {
+    if (capture_raw) {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
@@ -585,10 +577,8 @@ class Scanner {
     if (ch > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
       source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
-      if (capturing_raw_literal_) ReduceRawLiteralLength(2);
     } else {
       source_->PushBack(c0_);
-      if (capturing_raw_literal_) ReduceRawLiteralLength(1);
     }
     c0_ = ch;
   }
@@ -613,8 +603,8 @@ class Scanner {
   // Literal strings are collected for identifiers, strings, numbers as well
   // as for template literals. For template literals we also collect the raw
   // form.
-  // These functions only give the correct result if the literal
-  // was scanned between calls to StartLiteral() and TerminateLiteral().
+  // These functions only give the correct result if the literal was scanned
+  // when a LiteralScope object is alive.
   Vector<const uint8_t> literal_one_byte_string() {
     DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->one_byte_literal();
@@ -658,11 +648,12 @@ class Scanner {
     return current_.raw_literal_chars->is_one_byte();
   }
 
-
+  template <bool capture_raw>
   uc32 ScanHexNumber(int expected_length);
   // Scan a number of any length but not bigger than max_value. For example, the
   // number can be 000000001, so it's very long in characters but its value is
   // small.
+  template <bool capture_raw>
   uc32 ScanUnlimitedLengthHexNumber(int max_value);
 
   // Scans a single JavaScript token.
@@ -686,11 +677,13 @@ class Scanner {
   // Scans an escape-sequence which is part of a string and adds the
   // decoded character to the current literal. Returns true if a pattern
   // is scanned.
+  template <bool capture_raw>
   bool ScanEscape();
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
   // Helper for the above functions.
+  template <bool capture_raw>
   uc32 ScanUnicodeEscape();
 
   Token::Value ScanTemplateSpan();
@@ -712,10 +705,6 @@ class Scanner {
 
   // Buffer to store raw string values
   LiteralBuffer raw_literal_buffer_;
-
-  // We only need to capture the raw literal when we are scanning template
-  // literal spans.
-  bool capturing_raw_literal_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
