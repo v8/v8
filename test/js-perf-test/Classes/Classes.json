@@ -8,6 +8,7 @@
   "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
   "total": true,
   "tests": [
-    {"name": "Super"}
+    {"name": "Super"},
+    {"name": "DefaultConstructor"}
   ]
 }
