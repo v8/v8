@@ -303,8 +303,6 @@ namespace internal {
                                                        \
   /* Harmony sets */                                   \
   F(SetInitialize, 1, 1)                               \
-  F(SetAdd, 2, 1)                                      \
-  F(SetDelete, 2, 1)                                   \
   F(SetClear, 1, 1)                                    \
                                                        \
   F(SetIteratorInitialize, 3, 1)                       \
@@ -314,9 +312,7 @@ namespace internal {
                                                        \
   /* Harmony maps */                                   \
   F(MapInitialize, 1, 1)                               \
-  F(MapDelete, 2, 1)                                   \
   F(MapClear, 1, 1)                                    \
-  F(MapSet, 3, 1)                                      \
                                                        \
   F(MapIteratorInitialize, 3, 1)                       \
   F(MapIteratorClone, 1, 1)                            \
@@ -728,9 +724,13 @@ namespace internal {
   F(MathSqrtRT, 1, 1)                     \
   F(MathLogRT, 1, 1)                      \
   /* ES6 Collections */                   \
+  F(MapDelete, 2, 1)                      \
   F(MapGet, 2, 1)                         \
   F(MapGetSize, 1, 1)                     \
   F(MapHas, 2, 1)                         \
+  F(MapSet, 3, 1)                         \
+  F(SetAdd, 2, 1)                         \
+  F(SetDelete, 2, 1)                      \
   F(SetGetSize, 1, 1)                     \
   F(SetHas, 2, 1)                         \
   /* Arrays */                            \

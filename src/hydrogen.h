@@ -2417,14 +2417,26 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       ElementsKind fixed_elements_kind,
       HValue* byte_length, HValue* length);
 
+  // TODO(adamk): Move all OrderedHashTable functions to their own class.
+  HValue* BuildOrderedHashTableHashToBucket(HValue* hash, HValue* num_buckets);
+  template <typename CollectionType>
+  HValue* BuildOrderedHashTableHashToEntry(HValue* table, HValue* hash,
+                                           HValue* num_buckets);
+  template <typename CollectionType>
+  HValue* BuildOrderedHashTableEntryToIndex(HValue* entry, HValue* num_buckets);
   template <typename CollectionType>
   HValue* BuildOrderedHashTableFindEntry(HValue* table, HValue* key,
                                          HValue* hash);
-
+  template <typename CollectionType>
+  HValue* BuildOrderedHashTableAddEntry(HValue* table, HValue* key,
+                                        HValue* hash,
+                                        HIfContinuation* join_continuation);
+  template <typename CollectionType>
+  void BuildJSCollectionDelete(CallRuntime* call,
+                               const Runtime::Function* c_function);
   template <typename CollectionType>
   void BuildJSCollectionHas(CallRuntime* call,
                             const Runtime::Function* c_function);
-
   HValue* BuildStringHashLoadIfIsStringAndHashComputed(
       HValue* object, HIfContinuation* continuation);
 
