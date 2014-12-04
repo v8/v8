@@ -20,34 +20,19 @@
 
 using namespace v8;
 
-
-class Compressor {
- public:
-  virtual ~Compressor() {}
-  virtual bool Compress(i::Vector<i::byte> input) = 0;
-  virtual i::Vector<i::byte>* output() = 0;
-};
-
-
 class SnapshotWriter {
  public:
   explicit SnapshotWriter(const char* snapshot_file)
-      : fp_(GetFileDescriptorOrDie(snapshot_file))
-      , raw_file_(NULL)
-      , raw_context_file_(NULL)
-      , startup_blob_file_(NULL)
-      , compressor_(NULL) {
-  }
+      : fp_(GetFileDescriptorOrDie(snapshot_file)),
+        raw_file_(NULL),
+        raw_context_file_(NULL),
+        startup_blob_file_(NULL) {}
 
   ~SnapshotWriter() {
     fclose(fp_);
     if (raw_file_) fclose(raw_file_);
     if (raw_context_file_) fclose(raw_context_file_);
     if (startup_blob_file_) fclose(startup_blob_file_);
-  }
-
-  void SetCompressor(Compressor* compressor) {
-    compressor_ = compressor;
   }
 
   void SetRawFiles(const char* raw_file, const char* raw_context_file) {
@@ -60,51 +45,21 @@ class SnapshotWriter {
       startup_blob_file_ = GetFileDescriptorOrDie(startup_blob_file);
   }
 
-  void WriteSnapshot(const i::List<i::byte>& snapshot_data,
-                     const i::Serializer& serializer,
-                     const i::List<i::byte>& context_snapshot_data,
-                     const i::Serializer& context_serializer) const {
-    WriteSnapshotFile(snapshot_data, serializer,
-                      context_snapshot_data, context_serializer);
-    MaybeWriteStartupBlob(snapshot_data, serializer,
-                          context_snapshot_data, context_serializer);
+  void WriteSnapshot(const i::SnapshotData& sd,
+                     const i::SnapshotData& csd) const {
+    WriteSnapshotFile(sd, csd);
+    MaybeWriteStartupBlob(sd, csd);
   }
 
  private:
-  void MaybeWriteStartupBlob(const i::List<i::byte>& snapshot_data,
-                             const i::Serializer& serializer,
-                             const i::List<i::byte>& context_snapshot_data,
-                             const i::Serializer& context_serializer) const {
+  void MaybeWriteStartupBlob(const i::SnapshotData& sd,
+                             const i::SnapshotData& csd) const {
     if (!startup_blob_file_) return;
 
     i::SnapshotByteSink sink;
 
-    int spaces[] = {i::NEW_SPACE,           i::OLD_POINTER_SPACE,
-                    i::OLD_DATA_SPACE,      i::CODE_SPACE,
-                    i::MAP_SPACE,           i::CELL_SPACE,
-                    i::PROPERTY_CELL_SPACE, i::LO_SPACE};
-
-    i::byte* snapshot_bytes = snapshot_data.begin();
-    sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
-    for (size_t i = 0; i < arraysize(spaces); ++i) {
-      i::Vector<const uint32_t> chunks =
-          serializer.FinalAllocationChunks(spaces[i]);
-      // For the start-up snapshot, none of the reservations has more than
-      // one chunk (reservation for each space fits onto a single page).
-      CHECK_EQ(1, chunks.length());
-      sink.PutInt(chunks[0], "spaces");
-    }
-
-    i::byte* context_bytes = context_snapshot_data.begin();
-    sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
-    for (size_t i = 0; i < arraysize(spaces); ++i) {
-      i::Vector<const uint32_t> chunks =
-          context_serializer.FinalAllocationChunks(spaces[i]);
-      // For the context snapshot, none of the reservations has more than
-      // one chunk (reservation for each space fits onto a single page).
-      CHECK_EQ(1, chunks.length());
-      sink.PutInt(chunks[0], "spaces");
-    }
+    sink.PutBlob(sd.RawData(), "snapshot");
+    sink.PutBlob(csd.RawData(), "context");
 
     const i::List<i::byte>& startup_blob = sink.data();
     size_t written = fwrite(startup_blob.begin(), 1, startup_blob.length(),
@@ -115,15 +70,11 @@ class SnapshotWriter {
     }
   }
 
-  void WriteSnapshotFile(const i::List<i::byte>& snapshot_data,
-                         const i::Serializer& serializer,
-                         const i::List<i::byte>& context_snapshot_data,
-                         const i::Serializer& context_serializer) const {
+  void WriteSnapshotFile(const i::SnapshotData& snapshot_data,
+                         const i::SnapshotData& context_snapshot_data) const {
     WriteFilePrefix();
-    WriteData("", snapshot_data, raw_file_);
-    WriteData("context_", context_snapshot_data, raw_context_file_);
-    WriteMeta("context_", context_serializer);
-    WriteMeta("", serializer);
+    WriteData("", snapshot_data.RawData(), raw_file_);
+    WriteData("context_", context_snapshot_data.RawData(), raw_context_file_);
     WriteFileSuffix();
   }
 
@@ -141,90 +92,43 @@ class SnapshotWriter {
     fprintf(fp_, "}  // namespace v8\n");
   }
 
-  void WriteData(const char* prefix, const i::List<i::byte>& source_data,
+  void WriteData(const char* prefix,
+                 const i::Vector<const i::byte>& source_data,
                  FILE* raw_file) const {
-    const i::List<i::byte>* data_to_be_written = NULL;
-    i::List<i::byte> compressed_data;
-    if (!compressor_) {
-      data_to_be_written = &source_data;
-    } else if (compressor_->Compress(source_data.ToVector())) {
-      compressed_data.AddAll(*compressor_->output());
-      data_to_be_written = &compressed_data;
-    } else {
-      i::PrintF("Compression failed. Aborting.\n");
-      exit(1);
-    }
-
-    DCHECK(data_to_be_written);
-    MaybeWriteRawFile(data_to_be_written, raw_file);
-    WriteData(prefix, source_data, data_to_be_written);
+    MaybeWriteRawFile(&source_data, raw_file);
+    WriteData(prefix, source_data);
   }
 
-  void MaybeWriteRawFile(const i::List<i::byte>* data, FILE* raw_file) const {
-    if (!data || !raw_file)
-      return;
+  void MaybeWriteRawFile(const i::Vector<const i::byte>* data,
+                         FILE* raw_file) const {
+    if (!data || !raw_file) return;
 
     // Sanity check, whether i::List iterators truly return pointers to an
     // internal array.
     DCHECK(data->end() - data->begin() == data->length());
 
     size_t written = fwrite(data->begin(), 1, data->length(), raw_file);
-    if (written != (size_t)data->length()) {
+    if (written != static_cast<size_t>(data->length())) {
       i::PrintF("Writing raw file failed.. Aborting.\n");
       exit(1);
     }
   }
 
-  void WriteData(const char* prefix, const i::List<i::byte>& source_data,
-                 const i::List<i::byte>* data_to_be_written) const {
+  void WriteData(const char* prefix,
+                 const i::Vector<const i::byte>& source_data) const {
     fprintf(fp_, "const byte Snapshot::%sdata_[] = {\n", prefix);
-    WriteSnapshotData(data_to_be_written);
+    WriteSnapshotData(source_data);
     fprintf(fp_, "};\n");
     fprintf(fp_, "const int Snapshot::%ssize_ = %d;\n", prefix,
-            data_to_be_written->length());
-
-    if (data_to_be_written == &source_data) {
-      fprintf(fp_, "const byte* Snapshot::%sraw_data_ = Snapshot::%sdata_;\n",
-              prefix, prefix);
-      fprintf(fp_, "const int Snapshot::%sraw_size_ = Snapshot::%ssize_;\n",
-              prefix, prefix);
-    } else {
-      fprintf(fp_, "const byte* Snapshot::%sraw_data_ = NULL;\n", prefix);
-      fprintf(fp_, "const int Snapshot::%sraw_size_ = %d;\n",
-              prefix, source_data.length());
-    }
+            source_data.length());
     fprintf(fp_, "\n");
   }
 
-  void WriteMeta(const char* prefix, const i::Serializer& ser) const {
-    WriteSizeVar(ser, prefix, "new", i::NEW_SPACE);
-    WriteSizeVar(ser, prefix, "pointer", i::OLD_POINTER_SPACE);
-    WriteSizeVar(ser, prefix, "data", i::OLD_DATA_SPACE);
-    WriteSizeVar(ser, prefix, "code", i::CODE_SPACE);
-    WriteSizeVar(ser, prefix, "map", i::MAP_SPACE);
-    WriteSizeVar(ser, prefix, "cell", i::CELL_SPACE);
-    WriteSizeVar(ser, prefix, "property_cell", i::PROPERTY_CELL_SPACE);
-    WriteSizeVar(ser, prefix, "lo", i::LO_SPACE);
-    fprintf(fp_, "\n");
-  }
-
-  void WriteSizeVar(const i::Serializer& ser, const char* prefix,
-                    const char* name, int space) const {
-    i::Vector<const uint32_t> chunks = ser.FinalAllocationChunks(space);
-    // For the start-up snapshot, none of the reservations has more than
-    // one chunk (total reservation fits into a single page).
-    CHECK_EQ(1, chunks.length());
-    fprintf(fp_, "const int Snapshot::%s%s_space_used_ = %d;\n", prefix, name,
-            chunks[0]);
-  }
-
-  void WriteSnapshotData(const i::List<i::byte>* data) const {
-    for (int i = 0; i < data->length(); i++) {
-      if ((i & 0x1f) == 0x1f)
-        fprintf(fp_, "\n");
-      if (i > 0)
-        fprintf(fp_, ",");
-      fprintf(fp_, "%u", static_cast<unsigned char>(data->at(i)));
+  void WriteSnapshotData(const i::Vector<const i::byte>& data) const {
+    for (int i = 0; i < data.length(); i++) {
+      if ((i & 0x1f) == 0x1f) fprintf(fp_, "\n");
+      if (i > 0) fprintf(fp_, ",");
+      fprintf(fp_, "%u", static_cast<unsigned char>(data.at(i)));
     }
     fprintf(fp_, "\n");
   }
@@ -242,7 +146,6 @@ class SnapshotWriter {
   FILE* raw_file_;
   FILE* raw_context_file_;
   FILE* startup_blob_file_;
-  Compressor* compressor_;
 };
 
 
@@ -365,17 +268,15 @@ int main(int argc, char** argv) {
     context_ser.Serialize(&raw_context);
     ser.SerializeWeakReferences();
 
-    context_ser.FinalizeAllocation();
-    ser.FinalizeAllocation();
-
     {
       SnapshotWriter writer(argv[1]);
       if (i::FLAG_raw_file && i::FLAG_raw_context_file)
         writer.SetRawFiles(i::FLAG_raw_file, i::FLAG_raw_context_file);
       if (i::FLAG_startup_blob)
         writer.SetStartupBlobFile(i::FLAG_startup_blob);
-      writer.WriteSnapshot(snapshot_sink.data(), ser, context_sink.data(),
-                           context_ser);
+      i::SnapshotData sd(snapshot_sink, ser);
+      i::SnapshotData csd(context_sink, context_ser);
+      writer.WriteSnapshot(sd, csd);
     }
   }
 

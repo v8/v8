@@ -147,9 +147,8 @@ void SetNativesFromFile(StartupData* natives_blob) {
   DCHECK(natives_blob->data);
   DCHECK(natives_blob->raw_size > 0);
 
-  SnapshotByteSource bytes(
-      reinterpret_cast<const byte*>(natives_blob->data),
-      natives_blob->raw_size);
+  SnapshotByteSource bytes(reinterpret_cast<const byte*>(natives_blob->data),
+                           natives_blob->raw_size);
   NativesHolder<CORE>::set(NativesStore::MakeFromScriptsSource(&bytes));
   NativesHolder<EXPERIMENTAL>::set(NativesStore::MakeFromScriptsSource(&bytes));
   DCHECK(!bytes.HasMore());
