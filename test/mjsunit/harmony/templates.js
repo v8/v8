@@ -453,3 +453,21 @@ var obj = {
   assertEquals(`a\u{62}c`, "abc");
   assertEquals(`a\u{000062}c`, "abc");
 })();
+
+
+(function testLiteralAfterRightBrace() {
+  // Regression test for https://code.google.com/p/v8/issues/detail?id=3734
+  function f() {}
+  `abc`;
+
+  function g() {}`def`;
+
+  {
+    // block
+  }
+  `ghi`;
+
+  {
+    // block
+  }`jkl`;
+})();

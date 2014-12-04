@@ -2851,7 +2851,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
 
     // If we didn't die parsing that expression, our next token should be a
     // TEMPLATE_SPAN or TEMPLATE_TAIL.
-    next = scanner()->ScanTemplateSpan();
+    next = scanner()->ScanTemplateContinuation();
     Next();
 
     if (!next) {
