@@ -32,11 +32,11 @@ class NativesStore {
   int GetBuiltinsCount() { return native_ids_.length(); }
   int GetDebuggerCount() { return debugger_count_; }
 
-  Vector<const char> GetScriptName(int index) { return native_names_[index]; }
-
-  Vector<const char> GetRawScriptSource(int index) {
+  Vector<const char> GetScriptSource(int index) {
     return native_source_[index];
   }
+
+  Vector<const char> GetScriptName(int index) { return native_names_[index]; }
 
   int GetIndex(const char* id) {
     for (int i = 0; i < native_ids_.length(); ++i) {
@@ -50,14 +50,9 @@ class NativesStore {
     return -1;
   }
 
-  int GetRawScriptsSize() {
-    DCHECK(false);  // Used for compression. Doesn't really make sense here.
-    return 0;
-  }
-
-  Vector<const byte> GetScriptsSource() {
-    DCHECK(false);  // Used for compression. Doesn't really make sense here.
-    return Vector<const byte>();
+  Vector<const char> GetScriptsSource() {
+    DCHECK(false);  // Not implemented.
+    return Vector<const char>();
   }
 
   static NativesStore* MakeFromScriptsSource(SnapshotByteSource* source) {
@@ -177,14 +172,9 @@ int NativesCollection<type>::GetIndex(const char* name) {
   return NativesHolder<type>::get()->GetIndex(name);
 }
 
-template<NativeType type>
-int NativesCollection<type>::GetRawScriptsSize() {
-  return NativesHolder<type>::get()->GetRawScriptsSize();
-}
-
-template<NativeType type>
-Vector<const char> NativesCollection<type>::GetRawScriptSource(int index) {
-  return NativesHolder<type>::get()->GetRawScriptSource(index);
+template <NativeType type>
+Vector<const char> NativesCollection<type>::GetScriptSource(int index) {
+  return NativesHolder<type>::get()->GetScriptSource(index);
 }
 
 template<NativeType type>
@@ -192,15 +182,9 @@ Vector<const char> NativesCollection<type>::GetScriptName(int index) {
   return NativesHolder<type>::get()->GetScriptName(index);
 }
 
-template<NativeType type>
-Vector<const byte> NativesCollection<type>::GetScriptsSource() {
+template <NativeType type>
+Vector<const char> NativesCollection<type>::GetScriptsSource() {
   return NativesHolder<type>::get()->GetScriptsSource();
-}
-
-template<NativeType type>
-void NativesCollection<type>::SetRawScriptsSource(
-    Vector<const char> raw_source) {
-  CHECK(false);  // Use SetNativesFromFile for this implementation.
 }
 
 

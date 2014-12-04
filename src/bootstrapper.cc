@@ -48,7 +48,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   Heap* heap = isolate_->heap();
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
     // We can use external strings for the natives.
-    Vector<const char> source = Natives::GetRawScriptSource(index);
+    Vector<const char> source = Natives::GetScriptSource(index);
     NativesExternalStringResource* resource =
         new NativesExternalStringResource(this,
                                           source.start(),
@@ -1394,8 +1394,8 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Factory* factory = isolate->factory();
   Handle<String> source_code;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, source_code, factory->NewStringFromAscii(
-                                ExperimentalNatives::GetRawScriptSource(index)),
+      isolate, source_code,
+      factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index)),
       false);
   return CompileNative(isolate, name, source_code);
 }

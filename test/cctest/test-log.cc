@@ -477,10 +477,9 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         isolate, log.start(), v8::String::kNormalString, log.length());
     initialize_logger.env()->Global()->Set(v8_str("_log"), log_str);
 
-    i::Vector<const unsigned char> source = TestSources::GetScriptsSource();
+    i::Vector<const char> source = TestSources::GetScriptsSource();
     v8::Handle<v8::String> source_str = v8::String::NewFromUtf8(
-        isolate, reinterpret_cast<const char*>(source.start()),
-        v8::String::kNormalString, source.length());
+        isolate, source.start(), v8::String::kNormalString, source.length());
     v8::TryCatch try_catch;
     v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
