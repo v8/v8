@@ -114,7 +114,8 @@ class JSBinopReduction {
 
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
-  Reduction ChangeToPureOperator(const Operator* op, bool invert = false) {
+  Reduction ChangeToPureOperator(const Operator* op, bool invert = false,
+                                 Type* type = Type::Any()) {
     DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, op->ControlInputCount());
@@ -129,6 +130,11 @@ class JSBinopReduction {
     // Finally, update the operator to the new one.
     node_->set_op(op);
 
+    // TODO(jarin): Replace the explicit typing hack with a call to some method
+    // that encapsulates changing the operator and re-typing.
+    Bounds const bounds = NodeProperties::GetBounds(node_);
+    NodeProperties::SetBounds(node_, Bounds::NarrowUpper(bounds, type, zone()));
+
     if (invert) {
       // Insert an boolean not to invert the value.
       Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
@@ -138,6 +144,10 @@ class JSBinopReduction {
       return lowering_->ReplaceWith(value);
     }
     return lowering_->Changed(node_);
+  }
+
+  Reduction ChangeToPureOperator(const Operator* op, Type* type) {
+    return ChangeToPureOperator(op, false, type);
   }
 
   bool OneInputIs(Type* t) { return left_type_->Is(t) || right_type_->Is(t); }
@@ -163,10 +173,11 @@ class JSBinopReduction {
   Type* right_type() { return right_type_; }
 
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
-  Graph* graph() { return lowering_->graph(); }
+  Graph* graph() const { return lowering_->graph(); }
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
   MachineOperatorBuilder* machine() { return lowering_->machine(); }
+  Zone* zone() const { return graph()->zone(); }
 
  private:
   JSTypedLowering* lowering_;  // The containing lowering instance.
@@ -218,13 +229,13 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
-    return r.ChangeToPureOperator(simplified()->NumberAdd());
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
   if (r.BothInputsAre(Type::Primitive()) && r.NeitherInputCanBe(maybe_string)) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberAdd());
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
 #if 0
   // TODO(turbofan): General ToNumber disabled for now because:
@@ -263,7 +274,7 @@ Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
     // on some platforms.
     // TODO(turbofan): make this heuristic configurable for code size.
     r.ConvertInputsToInt32(true, true);
-    return r.ChangeToPureOperator(machine()->Word32Or());
+    return r.ChangeToPureOperator(machine()->Word32Or(), Type::Integral32());
   }
   return NoChange();
 }
@@ -275,7 +286,8 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
     // TODO(jarin): Propagate frame state input from non-primitive input node to
     // JSToNumber node.
     r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberMultiply());
+    return r.ChangeToPureOperator(simplified()->NumberMultiply(),
+                                  Type::Number());
   }
   // TODO(turbofan): relax/remove the effects of this operator in other cases.
   return NoChange();
@@ -287,7 +299,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Primitive())) {
     r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(numberOp);
+    return r.ChangeToPureOperator(numberOp, Type::Number());
   }
 #if 0
   // TODO(turbofan): General ToNumber disabled for now because:
@@ -317,7 +329,7 @@ Reduction JSTypedLowering::ReduceI32Binop(Node* node, bool left_signed,
     // on some platforms.
     // TODO(turbofan): make this heuristic configurable for code size.
     r.ConvertInputsToInt32(left_signed, right_signed);
-    return r.ChangeToPureOperator(intOp);
+    return r.ChangeToPureOperator(intOp, Type::Integral32());
   }
   return NoChange();
 }
@@ -328,7 +340,7 @@ Reduction JSTypedLowering::ReduceI32Shift(Node* node, bool left_signed,
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Primitive())) {
     r.ConvertInputsForShift(left_signed);
-    return r.ChangeToPureOperator(shift_op);
+    return r.ChangeToPureOperator(shift_op, Type::Integral32());
   }
   return NoChange();
 }
