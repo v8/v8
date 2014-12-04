@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/node.h"
+
 #include "src/compiler/graph.h"
 #include "src/zone.h"
 
@@ -10,16 +11,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node::Node(Graph* graph, int input_count, int reserve_input_count)
-    : input_count_(input_count),
-      reserve_input_count_(reserve_input_count),
-      has_appendable_inputs_(false),
-      use_count_(0),
-      first_use_(NULL),
-      last_use_(NULL) {
-  DCHECK(reserve_input_count <= kMaxReservedInputs);
+Node::Node(NodeId id, int input_count, int reserved_input_count)
+    : id_(id),
+      bit_field_(InputCountField::encode(input_count) |
+                 ReservedInputCountField::encode(reserved_input_count) |
+                 HasAppendableInputsField::encode(false)),
+      first_use_(nullptr),
+      last_use_(nullptr) {
   inputs_.static_ = reinterpret_cast<Input*>(this + 1);
-  id_ = graph->NextNodeID();
 }
 
 
@@ -32,7 +31,8 @@ Node* Node::New(Graph* graph, int input_count, Node** inputs,
   int size = static_cast<int>(node_size + inputs_size + uses_size);
   Zone* zone = graph->zone();
   void* buffer = zone->New(size);
-  Node* result = new (buffer) Node(graph, input_count, reserve_input_count);
+  Node* result =
+      new (buffer) Node(graph->NextNodeID(), input_count, reserve_input_count);
   Input* input =
       reinterpret_cast<Input*>(reinterpret_cast<char*>(buffer) + node_size);
   Use* use =
@@ -81,6 +81,26 @@ Node* Node::FindProjection(size_t projection_index) {
     }
   }
   return NULL;
+}
+
+
+int Node::UseCount() const {
+  int use_count = 0;
+  for (const Use* use = first_use_; use; use = use->next) {
+    ++use_count;
+  }
+  return use_count;
+}
+
+
+Node* Node::UseAt(int index) const {
+  DCHECK_LE(0, index);
+  DCHECK_LT(index, UseCount());
+  Use* current = first_use_;
+  while (index-- != 0) {
+    current = current->next;
+  }
+  return current->from;
 }
 
 

@@ -462,6 +462,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMipsPush:
       __ Push(i.InputRegister(0));
       break;
+    case kMipsStackClaim: {
+      int words = MiscField::decode(instr->opcode());
+      __ Subu(sp, sp, Operand(words << kPointerSizeLog2));
+      break;
+    }
+    case kMipsStoreToStackSlot: {
+      int slot = MiscField::decode(instr->opcode());
+      __ sw(i.InputRegister(0), MemOperand(sp, slot << kPointerSizeLog2));
+      break;
+    }
     case kMipsStoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

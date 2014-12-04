@@ -643,14 +643,16 @@ void InstructionSelector::VisitCall(Node* node) {
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(node, &buffer, true, false);
 
-  // TODO(dcarney): might be possible to use claim/poke instead
-  // Push any stack arguments.
+  int push_count = buffer.pushed_nodes.size();
+  if (push_count > 0) {
+    Emit(kMips64StackClaim | MiscField::encode(push_count), NULL);
+  }
+  int slot = buffer.pushed_nodes.size() - 1;
   for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();
        input != buffer.pushed_nodes.rend(); input++) {
-    // TODO(plind): inefficient for MIPS, use MultiPush here.
-    //    - Also need to align the stack. See arm64.
-    //    - Maybe combine with arg slot stuff in DirectCEntry stub.
-    Emit(kMips64Push, NULL, g.UseRegister(*input));
+    Emit(kMips64StoreToStackSlot | MiscField::encode(slot), NULL,
+         g.UseRegister(*input));
+    slot--;
   }
 
   // Select the appropriate opcode based on the call type.

@@ -4409,7 +4409,7 @@ void Heap::IdleMarkCompact(const char* message) {
 }
 
 
-void Heap::TryFinalizeIdleIncrementalMarking(
+bool Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (incremental_marking()->IsComplete() ||
@@ -4418,7 +4418,9 @@ void Heap::TryFinalizeIdleIncrementalMarking(
            static_cast<size_t>(idle_time_in_ms), size_of_objects,
            final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    return true;
   }
+  return false;
 }
 
 
@@ -4503,7 +4505,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
                !incremental_marking()->IsComplete() &&
                !mark_compact_collector_.marking_deque()->IsEmpty());
       if (remaining_idle_time_in_ms > 0.0) {
-        TryFinalizeIdleIncrementalMarking(
+        action.additional_work = TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
             heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms);
       }

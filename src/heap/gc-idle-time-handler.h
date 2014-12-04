@@ -26,6 +26,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DONE;
     result.parameter = 0;
+    result.additional_work = false;
     return result;
   }
 
@@ -33,6 +34,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DO_NOTHING;
     result.parameter = 0;
+    result.additional_work = false;
     return result;
   }
 
@@ -40,6 +42,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DO_INCREMENTAL_MARKING;
     result.parameter = step_size;
+    result.additional_work = false;
     return result;
   }
 
@@ -47,6 +50,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DO_SCAVENGE;
     result.parameter = 0;
+    result.additional_work = false;
     return result;
   }
 
@@ -54,6 +58,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DO_FULL_GC;
     result.parameter = 0;
+    result.additional_work = false;
     return result;
   }
 
@@ -61,6 +66,7 @@ class GCIdleTimeAction {
     GCIdleTimeAction result;
     result.type = DO_FINALIZE_SWEEPING;
     result.parameter = 0;
+    result.additional_work = false;
     return result;
   }
 
@@ -68,6 +74,7 @@ class GCIdleTimeAction {
 
   GCIdleTimeActionType type;
   intptr_t parameter;
+  bool additional_work;
 };
 
 

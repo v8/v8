@@ -2010,7 +2010,7 @@ class Heap {
 
   void IdleMarkCompact(const char* message);
 
-  void TryFinalizeIdleIncrementalMarking(
+  bool TryFinalizeIdleIncrementalMarking(
       double idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
 
