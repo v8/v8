@@ -4573,11 +4573,11 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
       HInstruction* inner_context = Add<HAllocateBlockContext>(
           outer_context, function, scope->GetScopeInfo());
       HInstruction* instr = Add<HStoreFrameContext>(inner_context);
+      set_scope(scope);
+      environment()->BindContext(inner_context);
       if (instr->HasObservableSideEffects()) {
         AddSimulate(stmt->EntryId(), REMOVABLE_SIMULATE);
       }
-      set_scope(scope);
-      environment()->BindContext(inner_context);
       VisitDeclarations(scope->declarations());
       AddSimulate(stmt->DeclsId(), REMOVABLE_SIMULATE);
     }
@@ -4591,10 +4591,10 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
         HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
 
     HInstruction* instr = Add<HStoreFrameContext>(outer_context);
+    environment()->BindContext(outer_context);
     if (instr->HasObservableSideEffects()) {
       AddSimulate(stmt->ExitId(), REMOVABLE_SIMULATE);
     }
-    environment()->BindContext(outer_context);
   }
   HBasicBlock* break_block = break_info.break_block();
   if (break_block != NULL) {
