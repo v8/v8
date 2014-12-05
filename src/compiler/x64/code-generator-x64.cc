@@ -754,9 +754,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           } else if (constant_summand < 0) {
             __ subl(i.OutputRegister(), Immediate(-constant_summand));
           }
-        } else if (mode == kMode_MR1 || mode == kMode_M2) {
-          // Using "addl %r1, %r1" is generally faster than "shll %r1, 1"
-          __ addl(i.OutputRegister(), i.InputRegister(1));
+        } else if (mode == kMode_MR1) {
+          if (i.InputRegister(1).is(i.OutputRegister())) {
+            __ shll(i.OutputRegister(), Immediate(1));
+          } else {
+            __ leal(i.OutputRegister(), i.MemoryOperand());
+          }
+        } else if (mode == kMode_M2) {
+          __ shll(i.OutputRegister(), Immediate(1));
         } else if (mode == kMode_M4) {
           __ shll(i.OutputRegister(), Immediate(2));
         } else if (mode == kMode_M8) {
