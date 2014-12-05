@@ -4394,11 +4394,8 @@ TEST(InterceptorPropertyMirror) {
 
   // Create object with indexed interceptor.
   v8::Handle<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New(isolate);
-  indexed->SetIndexedPropertyHandler(IndexedGetter,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     IndexedEnum);
+  indexed->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      IndexedGetter, NULL, NULL, NULL, IndexedEnum));
   env->Global()->Set(
       v8::String::NewFromUtf8(isolate, "intercepted_indexed"),
       indexed->NewInstance());
@@ -4407,7 +4404,8 @@ TEST(InterceptorPropertyMirror) {
   v8::Handle<v8::ObjectTemplate> both = v8::ObjectTemplate::New(isolate);
   both->SetHandler(v8::NamedPropertyHandlerConfiguration(
       NamedGetter, NULL, NULL, NULL, NamedEnum));
-  both->SetIndexedPropertyHandler(IndexedGetter, NULL, NULL, NULL, IndexedEnum);
+  both->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      IndexedGetter, NULL, NULL, NULL, IndexedEnum));
   env->Global()->Set(
       v8::String::NewFromUtf8(isolate, "intercepted_both"),
       both->NewInstance());

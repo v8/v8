@@ -2530,9 +2530,8 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->InstanceTemplate()->SetIndexedPropertyHandler(EchoIndexedProperty,
-                                                       0, 0, 0, 0,
-                                                       v8_num(637));
+  templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      EchoIndexedProperty, 0, 0, 0, 0, v8_num(637)));
   LocalContext env;
   env->Global()->Set(v8_str("obj"),
                      templ->GetFunction()->NewInstance());
@@ -2633,12 +2632,10 @@ THREADED_PROFILED_TEST(PropertyHandlerInPrototype) {
 
   // Set up a prototype chain with three interceptors.
   v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->InstanceTemplate()->SetIndexedPropertyHandler(
-      CheckThisIndexedPropertyHandler,
-      CheckThisIndexedPropertySetter,
-      CheckThisIndexedPropertyQuery,
-      CheckThisIndexedPropertyDeleter,
-      CheckThisIndexedPropertyEnumerator);
+  templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      CheckThisIndexedPropertyHandler, CheckThisIndexedPropertySetter,
+      CheckThisIndexedPropertyQuery, CheckThisIndexedPropertyDeleter,
+      CheckThisIndexedPropertyEnumerator));
 
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       CheckThisNamedPropertyHandler, CheckThisNamedPropertySetter,
@@ -6458,8 +6455,8 @@ THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IndexedPropertyGetter,
-                                   IndexedPropertySetter);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetter, IndexedPropertySetter));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> getter_script = v8_compile(
@@ -6524,11 +6521,9 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(UnboxedDoubleIndexedPropertyGetter,
-                                   UnboxedDoubleIndexedPropertySetter,
-                                   0,
-                                   0,
-                                   UnboxedDoubleIndexedPropertyEnumerator);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      UnboxedDoubleIndexedPropertyGetter, UnboxedDoubleIndexedPropertySetter, 0,
+      0, UnboxedDoubleIndexedPropertyEnumerator));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   // When obj is created, force it to be Stored in a FastDoubleArray.
@@ -6580,11 +6575,9 @@ THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(SloppyIndexedPropertyGetter,
-                                   0,
-                                   0,
-                                   0,
-                                   SloppyArgsIndexedPropertyEnumerator);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      SloppyIndexedPropertyGetter, 0, 0, 0,
+      SloppyArgsIndexedPropertyEnumerator));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   Local<Script> create_args_script = v8_compile(
@@ -6606,7 +6599,8 @@ THREADED_TEST(IndexedInterceptorWithGetOwnPropertyDescriptor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -6628,7 +6622,8 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
@@ -6652,7 +6647,8 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6680,7 +6676,8 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6718,7 +6715,8 @@ THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6742,7 +6740,8 @@ THREADED_TEST(IndexedInterceptorWithNegativeIndices) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6782,7 +6781,8 @@ THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6812,7 +6812,8 @@ THREADED_TEST(IndexedInterceptorGoingMegamorphic) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6843,7 +6844,8 @@ THREADED_TEST(IndexedInterceptorReceiverTurningSmi) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -6874,7 +6876,8 @@ THREADED_TEST(IndexedInterceptorOnProto) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+  templ->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -7986,7 +7989,8 @@ THREADED_TEST(Deleter) {
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX, NULL,
                                                         NULL, PDeleter, NULL));
-  obj->SetIndexedPropertyHandler(NoBlockGetterI, NULL, NULL, IDeleter, NULL);
+  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      NoBlockGetterI, NULL, NULL, IDeleter, NULL));
   LocalContext context;
   context->Global()->Set(v8_str("k"), obj->NewInstance());
   CompileRun(
@@ -8051,7 +8055,8 @@ THREADED_TEST(Enumerators) {
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(
       v8::NamedPropertyHandlerConfiguration(GetK, NULL, NULL, NULL, NamedEnum));
-  obj->SetIndexedPropertyHandler(IndexedGetK, NULL, NULL, NULL, IndexedEnum);
+  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      IndexedGetK, NULL, NULL, NULL, IndexedEnum));
   LocalContext context;
   context->Global()->Set(v8_str("k"), obj->NewInstance());
   v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
@@ -10201,8 +10206,8 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
 
   obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
-  obj_template->SetIndexedPropertyHandler(NULL, NULL, NULL, NULL,
-                                          IndexedPropertyEnumerator);
+  obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      NULL, NULL, NULL, NULL, IndexedPropertyEnumerator));
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       NULL, NULL, NULL, NULL, NamedPropertyEnumerator));
 
@@ -10554,8 +10559,8 @@ THREADED_TEST(AccessControlInterceptorIC) {
                                            IndexedAccessCounter);
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       AccessControlNamedGetter, AccessControlNamedSetter));
-  object_template->SetIndexedPropertyHandler(AccessControlIndexedGetter,
-                                             AccessControlIndexedSetter);
+  object_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      AccessControlIndexedGetter, AccessControlIndexedSetter));
   Local<v8::Object> object = object_template->NewInstance();
 
   v8::HandleScope scope1(isolate);
@@ -10789,7 +10794,8 @@ THREADED_TEST(ShadowObject) {
   Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate);
   t->InstanceTemplate()->SetHandler(
       v8::NamedPropertyHandlerConfiguration(ShadowNamedGet));
-  t->InstanceTemplate()->SetIndexedPropertyHandler(ShadowIndexedGet);
+  t->InstanceTemplate()->SetHandler(
+      v8::IndexedPropertyHandlerConfiguration(ShadowIndexedGet));
   Local<ObjectTemplate> proto = t->PrototypeTemplate();
   Local<ObjectTemplate> instance = t->InstanceTemplate();
 
@@ -13607,8 +13613,8 @@ THREADED_TEST(NullIndexedInterceptor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(
-      static_cast<v8::IndexedPropertyGetterCallback>(0));
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      static_cast<v8::IndexedPropertyGetterCallback>(0)));
   LocalContext context;
   templ->Set(CcTest::isolate(), "42", v8_num(42));
   v8::Handle<v8::Object> obj = templ->NewInstance();
@@ -16887,8 +16893,8 @@ THREADED_TEST(PixelArrayWithInterceptor) {
   }
   v8::Handle<v8::ObjectTemplate> templ =
       v8::ObjectTemplate::New(context->GetIsolate());
-  templ->SetIndexedPropertyHandler(NotHandledIndexedPropertyGetter,
-                                   NotHandledIndexedPropertySetter);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      NotHandledIndexedPropertyGetter, NotHandledIndexedPropertySetter));
   v8::Handle<v8::Object> obj = templ->NewInstance();
   obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
   context->Global()->Set(v8_str("pixels"), obj);
@@ -21255,7 +21261,8 @@ TEST(HasOwnProperty) {
   }
   { // Check indexed getter interceptors.
     Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-    templ->SetIndexedPropertyHandler(HasOwnPropertyIndexedPropertyGetter);
+    templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+        HasOwnPropertyIndexedPropertyGetter));
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("42")));
     CHECK(!instance->HasOwnProperty(v8_str("43")));
@@ -21271,7 +21278,8 @@ TEST(HasOwnProperty) {
   }
   { // Check indexed query interceptors.
     Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-    templ->SetIndexedPropertyHandler(0, 0, HasOwnPropertyIndexedPropertyQuery);
+    templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+        0, 0, HasOwnPropertyIndexedPropertyQuery));
     Handle<Object> instance = templ->NewInstance();
     CHECK(instance->HasOwnProperty(v8_str("42")));
     CHECK(!instance->HasOwnProperty(v8_str("41")));
@@ -21299,9 +21307,8 @@ TEST(IndexedInterceptorWithStringProto) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Handle<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetIndexedPropertyHandler(NULL,
-                                   NULL,
-                                   HasOwnPropertyIndexedPropertyQuery);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      NULL, NULL, HasOwnPropertyIndexedPropertyQuery));
   LocalContext context;
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
   CompileRun("var s = new String('foobar'); obj.__proto__ = s;");
