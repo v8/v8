@@ -298,9 +298,10 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
 // because the receiver is not an array (so we have no choice) or because we
 // know we are not deleting or moving a lot of elements.
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
+  var is_array = IS_ARRAY(array);
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    if (index in array) {
+    if (HAS_INDEX(array, index, is_array)) {
       var current = array[index];
       // The spec requires [[DefineOwnProperty]] here, %AddElement is close
       // enough (in that it ignores the prototype).
@@ -311,6 +312,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
 
 
 function SimpleMove(array, start_i, del_count, len, num_additional_args) {
+  var is_array = IS_ARRAY(array);
   if (num_additional_args !== del_count) {
     // Move the existing elements after the elements to be deleted
     // to the right position in the resulting array.
@@ -318,7 +320,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = len - del_count; i > start_i; i--) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
-        if (from_index in array) {
+        if (HAS_INDEX(array, from_index, is_array)) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -328,7 +330,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = start_i; i < len - del_count; i++) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
-        if (from_index in array) {
+        if (HAS_INDEX(array, from_index, is_array)) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -1153,9 +1155,10 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1188,9 +1191,10 @@ function ArrayForEach(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1221,9 +1225,10 @@ function ArraySome(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1253,9 +1258,10 @@ function ArrayEvery(f, receiver) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1286,9 +1292,10 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
+  var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
@@ -1423,10 +1430,11 @@ function ArrayReduce(callback, current) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
+  var is_array = IS_ARRAY(array);
   var i = 0;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
-      if (i in array) {
+      if (HAS_INDEX(array, i, is_array)) {
         current = array[i++];
         break find_initial;
       }
@@ -1437,7 +1445,7 @@ function ArrayReduce(callback, current) {
   var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i < length; i++) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
@@ -1459,10 +1467,11 @@ function ArrayReduceRight(callback, current) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
+  var is_array = IS_ARRAY(array);
   var i = length - 1;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
-      if (i in array) {
+      if (HAS_INDEX(array, i, is_array)) {
         current = array[i--];
         break find_initial;
       }
@@ -1473,7 +1482,7 @@ function ArrayReduceRight(callback, current) {
   var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i >= 0; i--) {
-    if (i in array) {
+    if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);

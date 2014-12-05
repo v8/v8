@@ -324,8 +324,13 @@ function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsNonNegativeSmi(this) ?
-    %HasElement(x, this) : %HasProperty(x, %ToName(this));
+  if (%_IsNonNegativeSmi(this)) {
+    if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
+      return this < x.length;
+    }
+    return %HasElement(x, this);
+  }
+  return %HasProperty(x, %ToName(this));
 }
 
 

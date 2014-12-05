@@ -1,3 +1,8 @@
+2014-12-05: Version 3.31.44
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-04: Version 3.31.43
 
         ES6 template literals: Fix issue with template after rbrace (issue

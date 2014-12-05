@@ -1402,8 +1402,14 @@ LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
   DCHECK(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LFlooringDivI* div = new(zone()) LFlooringDivI(dividend, divisor);
-  return AssignEnvironment(DefineAsRegister(div));
+  LInstruction* result =
+      DefineAsRegister(new (zone()) LFlooringDivI(dividend, divisor));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+      (instr->CheckFlag(HValue::kCanOverflow))) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 

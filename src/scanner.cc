@@ -34,7 +34,6 @@ Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
-      capturing_raw_literal_(false),
       octal_pos_(Location::invalid()),
       harmony_scoping_(false),
       harmony_modules_(false),
@@ -57,6 +56,7 @@ void Scanner::Initialize(Utf16CharacterStream* source) {
 }
 
 
+template <bool capture_raw>
 uc32 Scanner::ScanHexNumber(int expected_length) {
   DCHECK(expected_length <= 4);  // prevent overflow
 
@@ -67,13 +67,14 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
       return -1;
     }
     x = x * 16 + d;
-    Advance();
+    Advance<capture_raw>();
   }
 
   return x;
 }
 
 
+template <bool capture_raw>
 uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value) {
   uc32 x = 0;
   int d = HexValue(c0_);
@@ -83,7 +84,7 @@ uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value) {
   while (d >= 0) {
     x = x * 16 + d;
     if (x > max_value) return -1;
-    Advance();
+    Advance<capture_raw>();
     d = HexValue(c0_);
   }
   return x;
@@ -696,16 +697,17 @@ void Scanner::SeekForward(int pos) {
 }
 
 
+template <bool capture_raw>
 bool Scanner::ScanEscape() {
   uc32 c = c0_;
-  Advance();
+  Advance<capture_raw>();
 
   // Skip escaped newlines.
   if (c0_ >= 0 && unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
-    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
+    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
     // Allow LF+CR newlines in multiline string literals.
-    if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance();
+    if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance<capture_raw>();
     return true;
   }
 
@@ -719,13 +721,13 @@ bool Scanner::ScanEscape() {
     case 'r' : c = '\r'; break;
     case 't' : c = '\t'; break;
     case 'u' : {
-      c = ScanUnicodeEscape();
+      c = ScanUnicodeEscape<capture_raw>();
       if (c < 0) return false;
       break;
     }
     case 'v' : c = '\v'; break;
     case 'x' : {
-      c = ScanHexNumber(2);
+      c = ScanHexNumber<capture_raw>(2);
       if (c < 0) return false;
       break;
     }
@@ -736,7 +738,9 @@ bool Scanner::ScanEscape() {
     case '4' :  // fall through
     case '5' :  // fall through
     case '6' :  // fall through
-    case '7' : c = ScanOctalEscape(c, 2); break;
+    case '7':
+      c = ScanOctalEscape<capture_raw>(c, 2);
+      break;
   }
 
   // According to ECMA-262, section 7.8.4, characters not covered by the
@@ -749,6 +753,7 @@ bool Scanner::ScanEscape() {
 
 // Octal escapes of the forms '\0xx' and '\xxx' are not a part of
 // ECMA-262. Other JS VMs support them.
+template <bool capture_raw>
 uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   uc32 x = c - '0';
   int i = 0;
@@ -758,7 +763,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
     int nx = x * 8 + d;
     if (nx >= 256) break;
     x = nx;
-    Advance();
+    Advance<capture_raw>();
   }
   // Anything except '\0' is an octal escape sequence, illegal in strict mode.
   // Remember the position of octal escape sequences so that an error
@@ -782,7 +787,7 @@ Token::Value Scanner::ScanString() {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
-      if (c0_ < 0 || !ScanEscape()) return Token::ILLEGAL;
+      if (c0_ < 0 || !ScanEscape<false>()) return Token::ILLEGAL;
     } else {
       AddLiteralChar(c);
     }
@@ -810,17 +815,19 @@ Token::Value Scanner::ScanTemplateSpan() {
   // followed by an Expression.
 
   Token::Value result = Token::TEMPLATE_SPAN;
-  LiteralScope literal(this, true);
+  LiteralScope literal(this);
+  StartRawLiteral();
+  const bool capture_raw = true;
 
   while (true) {
     uc32 c = c0_;
-    Advance();
+    Advance<capture_raw>();
     if (c == '`') {
       result = Token::TEMPLATE_TAIL;
       ReduceRawLiteralLength(1);
       break;
     } else if (c == '$' && c0_ == '{') {
-      Advance();  // Consume '{'
+      Advance<capture_raw>();  // Consume '{'
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
@@ -828,20 +835,20 @@ Token::Value Scanner::ScanTemplateSpan() {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
-        Advance();
+        Advance<capture_raw>();
         if (lastChar == '\r') {
           ReduceRawLiteralLength(1);  // Remove \r
           if (c0_ == '\n') {
-            Advance();  // Adds \n
+            Advance<capture_raw>();  // Adds \n
           } else {
             AddRawLiteralChar('\n');
           }
         }
       } else if (c0_ == '0') {
-        Advance();
+        Advance<capture_raw>();
         AddLiteralChar('0');
       } else {
-        ScanEscape();
+        ScanEscape<true>();
       }
     } else if (c < 0) {
       // Unterminated template literal
@@ -854,7 +861,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       if (c == '\r') {
         ReduceRawLiteralLength(1);  // Remove \r
         if (c0_ == '\n') {
-          Advance();  // Adds \n
+          Advance<capture_raw>();  // Adds \n
         } else {
           AddRawLiteralChar('\n');
         }
@@ -1002,27 +1009,28 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return -1;
   Advance();
-  return ScanUnicodeEscape();
+  return ScanUnicodeEscape<false>();
 }
 
 
+template <bool capture_raw>
 uc32 Scanner::ScanUnicodeEscape() {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
   if (c0_ == '{' && HarmonyUnicode()) {
-    Advance();
-    uc32 cp = ScanUnlimitedLengthHexNumber(0x10ffff);
+    Advance<capture_raw>();
+    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff);
     if (cp < 0) {
       return -1;
     }
     if (c0_ != '}') {
       return -1;
     }
-    Advance();
+    Advance<capture_raw>();
     return cp;
   }
-  return ScanHexNumber(4);
+  return ScanHexNumber<capture_raw>(4);
 }
 
 

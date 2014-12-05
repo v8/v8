@@ -1524,6 +1524,15 @@ RUNTIME_FUNCTION(Runtime_GetDataProperty) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
+  return isolate->heap()->ToBoolean(
+      IsFastPackedElementsKind(obj->map()->elements_kind()));
+}
+
+
 RUNTIME_FUNCTION(RuntimeReference_ValueOf) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

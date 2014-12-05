@@ -1248,7 +1248,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       case kNativesStringResource: {
         int index = source_->Get();
-        Vector<const char> source_vector = Natives::GetRawScriptSource(index);
+        Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
             new NativesExternalStringResource(isolate->bootstrapper(),
                                               source_vector.start(),
