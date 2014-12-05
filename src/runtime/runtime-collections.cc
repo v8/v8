@@ -394,6 +394,10 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
     max_values = table->NumberOfElements();
   }
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(max_values);
+  // Recompute max_values because GC could have removed elements from the table.
+  if (max_values > table->NumberOfElements()) {
+    max_values = table->NumberOfElements();
+  }
   {
     DisallowHeapAllocation no_gc;
     int count = 0;
