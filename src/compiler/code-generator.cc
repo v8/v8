@@ -107,6 +107,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   PopulateDeoptimizationData(result);
 
+  EnsureRelocSpaceForLazyDeopt(result);
+
   // Emit a code line info recording stop event.
   void* line_info = recorder->DetachJITHandlerData();
   LOG_CODE_EVENT(isolate(), CodeEndLinePosInfoRecordEvent(*result, line_info));
