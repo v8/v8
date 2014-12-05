@@ -93,8 +93,14 @@ class X64OperandConverter : public InstructionOperandConverter {
         int32_t disp = InputInt32(NextOffset(offset));
         return Operand(base, index, scale, disp);
       }
-      case kMode_M1:
+      case kMode_M1: {
+        Register base = InputRegister(NextOffset(offset));
+        int32_t disp = 0;
+        return Operand(base, disp);
+      }
       case kMode_M2:
+        UNREACHABLE();  // Should use kModeMR with more compact encoding instead
+        return Operand(no_reg, 0);
       case kMode_M4:
       case kMode_M8: {
         Register index = InputRegister(NextOffset(offset));
@@ -737,17 +743,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX64Lea32: {
       AddressingMode mode = AddressingModeField::decode(instr->opcode());
-      // Shorten "leal" to "addl" or "subl" if the register allocation just
-      // happens to work out for operations with immediate operands where the
-      // non-constant input register is the same as output register. The
-      // "addl"/"subl" forms in these cases are faster based on empirical
-      // measurements.
-      if (mode == kMode_MRI && i.InputRegister(0).is(i.OutputRegister())) {
-        int32_t constant_summand = i.InputInt32(1);
-        if (constant_summand > 0) {
-          __ addl(i.OutputRegister(), Immediate(constant_summand));
-        } else if (constant_summand < 0) {
-          __ subl(i.OutputRegister(), Immediate(-constant_summand));
+      // Shorten "leal" to "addl", "subl" or "shll" if the register allocation
+      // and addressing mode just happens to work out. The "addl"/"subl" forms
+      // in these cases are faster based on measurements.
+      if (i.InputRegister(0).is(i.OutputRegister())) {
+        if (mode == kMode_MRI) {
+          int32_t constant_summand = i.InputInt32(1);
+          if (constant_summand > 0) {
+            __ addl(i.OutputRegister(), Immediate(constant_summand));
+          } else if (constant_summand < 0) {
+            __ subl(i.OutputRegister(), Immediate(-constant_summand));
+          }
+        } else if (mode == kMode_MR1 || mode == kMode_M2) {
+          // Using "addl %r1, %r1" is generally faster than "shll %r1, 1"
+          __ addl(i.OutputRegister(), i.InputRegister(1));
+        } else if (mode == kMode_M4) {
+          __ shll(i.OutputRegister(), Immediate(2));
+        } else if (mode == kMode_M8) {
+          __ shll(i.OutputRegister(), Immediate(3));
+        } else {
+          __ leal(i.OutputRegister(), i.MemoryOperand());
         }
       } else {
         __ leal(i.OutputRegister(), i.MemoryOperand());
