@@ -5665,12 +5665,18 @@ class Map: public HeapObject {
   class IsFrozen : public BitField<bool, 24, 1> {};
   class IsUnstable : public BitField<bool, 25, 1> {};
   class IsMigrationTarget : public BitField<bool, 26, 1> {};
-  class DoneInobjectSlackTracking : public BitField<bool, 27, 1> {};
-  // Bit 28 is free.
+  // Bit 27 is free.
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
-  class ConstructionCount:          public BitField<int, 29, 3> {};
+  // This counter is used for in-object slack tracking and for map aging.
+  // The in-object slack tracking is considered enabled when the counter is
+  // in the range [kSlackTrackingCounterStart, kSlackTrackingCounterEnd].
+  class Counter : public BitField<bool, 28, 4> {};
+  static const int kSlackTrackingCounterStart = 14;
+  static const int kSlackTrackingCounterEnd = 8;
+  static const int kRetainingCounterStart = kSlackTrackingCounterEnd - 1;
+  static const int kRetainingCounterEnd = 0;
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -6012,10 +6018,8 @@ class Map: public HeapObject {
   inline bool is_stable();
   inline void set_migration_target(bool value);
   inline bool is_migration_target();
-  inline void set_done_inobject_slack_tracking(bool value);
-  inline bool done_inobject_slack_tracking();
-  inline void set_construction_count(int value);
-  inline int construction_count();
+  inline void set_counter(int value);
+  inline int counter();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();
@@ -7366,13 +7370,12 @@ class JSFunction: public JSObject {
   // Here is the algorithm to reclaim the unused inobject space:
   // - Detect the first constructor call for this JSFunction.
   //   When it happens enter the "in progress" state: initialize construction
-  //   counter in the initial_map and set the |done_inobject_slack_tracking|
-  //   flag.
+  //   counter in the initial_map.
   // - While the tracking is in progress create objects filled with
   //   one_pointer_filler_map instead of undefined_value. This way they can be
   //   resized quickly and safely.
-  // - Once enough (kGenerousAllocationCount) objects have been created
-  //   compute the 'slack' (traverse the map transition tree starting from the
+  // - Once enough objects have been created  compute the 'slack'
+  //   (traverse the map transition tree starting from the
   //   initial_map and find the lowest value of unused_property_fields).
   // - Traverse the transition tree again and decrease the instance size
   //   of every map. Existing objects will resize automatically (they are
@@ -7385,23 +7388,17 @@ class JSFunction: public JSObject {
   //  Important: inobject slack tracking is not attempted during the snapshot
   //  creation.
 
-  static const int kGenerousAllocationCount = Map::ConstructionCount::kMax;
-  static const int kFinishSlackTracking     = 1;
-  static const int kNoSlackTracking         = 0;
-
   // True if the initial_map is set and the object constructions countdown
   // counter is not zero.
+  static const int kGenerousAllocationCount =
+      Map::kSlackTrackingCounterStart - Map::kSlackTrackingCounterEnd + 1;
   inline bool IsInobjectSlackTrackingInProgress();
 
   // Starts the tracking.
   // Initializes object constructions countdown counter in the initial map.
-  // IsInobjectSlackTrackingInProgress is normally true after this call,
-  // except when tracking have not been started (e.g. the map has no unused
-  // properties or the snapshot is being built).
   void StartInobjectSlackTracking();
 
   // Completes the tracking.
-  // IsInobjectSlackTrackingInProgress is false after this call.
   void CompleteInobjectSlackTracking();
 
   // [literals_or_bindings]: Fixed array holding either
