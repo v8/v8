@@ -12114,44 +12114,6 @@ void HOptimizedGraphBuilder::GenerateMathSqrtRT(CallRuntime* call) {
 }
 
 
-HValue* HOptimizedGraphBuilder::BuildOrderedHashTableHashToBucket(
-    HValue* hash, HValue* num_buckets) {
-  HValue* mask = AddUncasted<HSub>(num_buckets, graph()->GetConstant1());
-  mask->ChangeRepresentation(Representation::Integer32());
-  mask->ClearFlag(HValue::kCanOverflow);
-  return AddUncasted<HBitwise>(Token::BIT_AND, hash, mask);
-}
-
-
-template <typename CollectionType>
-HValue* HOptimizedGraphBuilder::BuildOrderedHashTableHashToEntry(
-    HValue* table, HValue* hash, HValue* num_buckets) {
-  HValue* bucket = BuildOrderedHashTableHashToBucket(hash, num_buckets);
-  HValue* entry_index = AddUncasted<HAdd>(
-      bucket, Add<HConstant>(CollectionType::kHashTableStartIndex));
-  entry_index->ClearFlag(HValue::kCanOverflow);
-  HValue* entry = Add<HLoadKeyed>(table, entry_index,
-                                  static_cast<HValue*>(NULL), FAST_ELEMENTS);
-  entry->set_type(HType::Smi());
-  return entry;
-}
-
-
-template <typename CollectionType>
-HValue* HOptimizedGraphBuilder::BuildOrderedHashTableEntryToIndex(
-    HValue* entry, HValue* num_buckets) {
-  HValue* index =
-      AddUncasted<HMul>(entry, Add<HConstant>(CollectionType::kEntrySize));
-  index->ClearFlag(HValue::kCanOverflow);
-  index = AddUncasted<HAdd>(index, num_buckets);
-  index->ClearFlag(HValue::kCanOverflow);
-  index = AddUncasted<HAdd>(
-      index, Add<HConstant>(CollectionType::kHashTableStartIndex));
-  index->ClearFlag(HValue::kCanOverflow);
-  return index;
-}
-
-
 template <typename CollectionType>
 HValue* HOptimizedGraphBuilder::BuildOrderedHashTableFindEntry(HValue* table,
                                                                HValue* key,
@@ -12160,8 +12122,28 @@ HValue* HOptimizedGraphBuilder::BuildOrderedHashTableFindEntry(HValue* table,
       table, static_cast<HValue*>(NULL),
       HObjectAccess::ForOrderedHashTableNumberOfBuckets<CollectionType>());
 
-  HValue* entry = BuildOrderedHashTableHashToEntry<CollectionType>(table, hash,
-                                                                   num_buckets);
+  // Some things that won't change inside the loop
+  HValue* not_found = Add<HConstant>(CollectionType::kNotFound);
+  HValue* start_index = Add<HConstant>(CollectionType::kHashTableStartIndex);
+  HValue* entry_size = Add<HConstant>(CollectionType::kEntrySize);
+  HValue* chain_offset = Add<HConstant>(CollectionType::kChainOffset);
+  HValue* key_start = AddUncasted<HAdd>(start_index, num_buckets);
+  key_start->ClearFlag(HValue::kCanOverflow);
+
+  // BuildHashToBucket
+  HValue* mask = AddUncasted<HSub>(num_buckets, graph()->GetConstant1());
+  mask->ChangeRepresentation(Representation::Integer32());
+  mask->ClearFlag(HValue::kCanOverflow);
+
+  HValue* bucket = AddUncasted<HBitwise>(Token::BIT_AND, hash, mask);
+
+  // BuildHashToEntry
+  HValue* entry_index = AddUncasted<HAdd>(start_index, bucket);
+  entry_index->ClearFlag(HValue::kCanOverflow);
+  HValue* entry =
+      Add<HLoadKeyed>(table, entry_index, static_cast<HValue*>(NULL),
+                      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+  entry->set_type(HType::Smi());
 
   Push(entry);
 
@@ -12172,17 +12154,21 @@ HValue* HOptimizedGraphBuilder::BuildOrderedHashTableFindEntry(HValue* table,
 
   {
     IfBuilder if_not_found(this);
-    if_not_found.If<HCompareNumericAndBranch>(
-        entry, Add<HConstant>(CollectionType::kNotFound), Token::EQ);
+    if_not_found.If<HCompareNumericAndBranch>(entry, not_found, Token::EQ);
     if_not_found.Then();
     Push(entry);
     loop.Break();
   }
 
-  HValue* key_index =
-      BuildOrderedHashTableEntryToIndex<CollectionType>(entry, num_buckets);
-  HValue* candidate_key = Add<HLoadKeyed>(
-      table, key_index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+  // BuildEntryToIndex
+  HValue* key_index = AddUncasted<HMul>(entry, entry_size);
+  key_index->ClearFlag(HValue::kCanOverflow);
+  key_index = AddUncasted<HAdd>(key_index, key_start);
+  key_index->ClearFlag(HValue::kCanOverflow);
+  // BuildKeyAt
+  HValue* candidate_key =
+      Add<HLoadKeyed>(table, key_index, static_cast<HValue*>(NULL),
+                      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
   {
     IfBuilder if_keys_equal(this);
@@ -12195,11 +12181,14 @@ HValue* HOptimizedGraphBuilder::BuildOrderedHashTableFindEntry(HValue* table,
   }
 
   // BuildChainAt
-  HValue* chain_index = AddUncasted<HAdd>(
-      key_index, Add<HConstant>(CollectionType::kChainOffset));
+  HValue* chain_index = AddUncasted<HMul>(entry, entry_size);
+  chain_index->ClearFlag(HValue::kCanOverflow);
+  chain_index = AddUncasted<HAdd>(chain_index, key_start);
+  chain_index->ClearFlag(HValue::kCanOverflow);
+  chain_index = AddUncasted<HAdd>(chain_index, chain_offset);
   chain_index->ClearFlag(HValue::kCanOverflow);
   entry = Add<HLoadKeyed>(table, chain_index, static_cast<HValue*>(NULL),
-                          FAST_ELEMENTS);
+                          FAST_ELEMENTS, ALLOW_RETURN_HOLE);
   entry->set_type(HType::Smi());
   Push(entry);
 
@@ -12330,291 +12319,6 @@ void HOptimizedGraphBuilder::GenerateMapHas(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateSetHas(CallRuntime* call) {
   BuildJSCollectionHas<OrderedHashSet>(
       call, Runtime::FunctionForId(Runtime::kSetHas));
-}
-
-
-template <typename CollectionType>
-HValue* HOptimizedGraphBuilder::BuildOrderedHashTableAddEntry(
-    HValue* table, HValue* key, HValue* hash,
-    HIfContinuation* join_continuation) {
-  HValue* num_buckets = Add<HLoadNamedField>(
-      table, static_cast<HValue*>(NULL),
-      HObjectAccess::ForOrderedHashTableNumberOfBuckets<CollectionType>());
-  HValue* capacity = AddUncasted<HMul>(
-      num_buckets, Add<HConstant>(CollectionType::kLoadFactor));
-  capacity->ClearFlag(HValue::kCanOverflow);
-  HValue* num_elements = Add<HLoadNamedField>(
-      table, static_cast<HValue*>(NULL),
-      HObjectAccess::ForOrderedHashTableNumberOfElements<CollectionType>());
-  HValue* num_deleted = Add<HLoadNamedField>(
-      table, static_cast<HValue*>(NULL),
-      HObjectAccess::ForOrderedHashTableNumberOfDeletedElements<
-          CollectionType>());
-  HValue* used = AddUncasted<HAdd>(num_elements, num_deleted);
-  used->ClearFlag(HValue::kCanOverflow);
-  IfBuilder if_space_available(this);
-  if_space_available.If<HCompareNumericAndBranch>(capacity, used, Token::GT);
-  if_space_available.Then();
-  HValue* bucket = BuildOrderedHashTableHashToBucket(hash, num_buckets);
-  HValue* entry = used;
-  HValue* key_index =
-      BuildOrderedHashTableEntryToIndex<CollectionType>(entry, num_buckets);
-
-  HValue* bucket_index = AddUncasted<HAdd>(
-      bucket, Add<HConstant>(CollectionType::kHashTableStartIndex));
-  bucket_index->ClearFlag(HValue::kCanOverflow);
-  HValue* chain_entry = Add<HLoadKeyed>(
-      table, bucket_index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
-  chain_entry->set_type(HType::Smi());
-
-  HValue* chain_index = AddUncasted<HAdd>(
-      key_index, Add<HConstant>(CollectionType::kChainOffset));
-
-  Add<HStoreKeyed>(table, bucket_index, entry, FAST_ELEMENTS);
-  Add<HStoreKeyed>(table, chain_index, chain_entry, FAST_ELEMENTS);
-  Add<HStoreKeyed>(table, key_index, key, FAST_ELEMENTS);
-
-  HValue* new_num_elements =
-      AddUncasted<HAdd>(num_elements, graph()->GetConstant1());
-  new_num_elements->ClearFlag(HValue::kCanOverflow);
-  Add<HStoreNamedField>(
-      table,
-      HObjectAccess::ForOrderedHashTableNumberOfElements<CollectionType>(),
-      new_num_elements);
-  if_space_available.JoinContinuation(join_continuation);
-  return key_index;
-}
-
-
-void HOptimizedGraphBuilder::GenerateMapSet(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 3);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
-  HValue* value = Pop();
-  HValue* key = Pop();
-  HValue* receiver = Pop();
-
-  NoObservableSideEffectsScope no_effects(this);
-
-  HIfContinuation return_or_call_runtime_continuation(
-      graph()->CreateBasicBlock(), graph()->CreateBasicBlock());
-  HIfContinuation got_string_hash;
-  HValue* hash =
-      BuildStringHashLoadIfIsStringAndHashComputed(key, &got_string_hash);
-  IfBuilder string_checker(this, &got_string_hash);
-  string_checker.Then();
-  {
-    HValue* table = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
-                                         HObjectAccess::ForJSCollectionTable());
-    HValue* key_index =
-        BuildOrderedHashTableFindEntry<OrderedHashMap>(table, key, hash);
-    {
-      IfBuilder if_found(this);
-      if_found.If<HCompareNumericAndBranch>(
-          key_index, Add<HConstant>(OrderedHashMap::kNotFound), Token::NE);
-      if_found.Then();
-      {
-        HValue* value_index = AddUncasted<HAdd>(
-            key_index, Add<HConstant>(OrderedHashMap::kValueOffset));
-        value_index->ClearFlag(HValue::kCanOverflow);
-        Add<HStoreKeyed>(table, value_index, value, FAST_ELEMENTS);
-      }
-      if_found.Else();
-      {
-        HIfContinuation did_add(graph()->CreateBasicBlock(),
-                                graph()->CreateBasicBlock());
-        HValue* key_index = BuildOrderedHashTableAddEntry<OrderedHashMap>(
-            table, key, hash, &did_add);
-        IfBuilder if_did_add(this, &did_add);
-        if_did_add.Then();
-        {
-          HValue* value_index = AddUncasted<HAdd>(
-              key_index, Add<HConstant>(OrderedHashMap::kValueOffset));
-          value_index->ClearFlag(HValue::kCanOverflow);
-          Add<HStoreKeyed>(table, value_index, value, FAST_ELEMENTS);
-        }
-        if_did_add.JoinContinuation(&return_or_call_runtime_continuation);
-      }
-    }
-  }
-  string_checker.JoinContinuation(&return_or_call_runtime_continuation);
-
-  {
-    IfBuilder return_or_call_runtime(this,
-                                     &return_or_call_runtime_continuation);
-    return_or_call_runtime.Then();
-    Push(receiver);
-    return_or_call_runtime.Else();
-    Add<HPushArguments>(receiver, key, value);
-    Push(Add<HCallRuntime>(call->name(),
-                           Runtime::FunctionForId(Runtime::kMapSet), 3));
-  }
-
-  return ast_context()->ReturnValue(Pop());
-}
-
-
-void HOptimizedGraphBuilder::GenerateSetAdd(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 2);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* key = Pop();
-  HValue* receiver = Pop();
-
-  NoObservableSideEffectsScope no_effects(this);
-
-  HIfContinuation return_or_call_runtime_continuation(
-      graph()->CreateBasicBlock(), graph()->CreateBasicBlock());
-  HIfContinuation got_string_hash;
-  HValue* hash =
-      BuildStringHashLoadIfIsStringAndHashComputed(key, &got_string_hash);
-  IfBuilder string_checker(this, &got_string_hash);
-  string_checker.Then();
-  {
-    HValue* table = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
-                                         HObjectAccess::ForJSCollectionTable());
-    HValue* key_index =
-        BuildOrderedHashTableFindEntry<OrderedHashSet>(table, key, hash);
-    {
-      IfBuilder if_not_found(this);
-      if_not_found.If<HCompareNumericAndBranch>(
-          key_index, Add<HConstant>(OrderedHashSet::kNotFound), Token::EQ);
-      if_not_found.Then();
-      BuildOrderedHashTableAddEntry<OrderedHashSet>(
-          table, key, hash, &return_or_call_runtime_continuation);
-    }
-  }
-  string_checker.JoinContinuation(&return_or_call_runtime_continuation);
-
-  {
-    IfBuilder return_or_call_runtime(this,
-                                     &return_or_call_runtime_continuation);
-    return_or_call_runtime.Then();
-    Push(receiver);
-    return_or_call_runtime.Else();
-    Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(call->name(),
-                           Runtime::FunctionForId(Runtime::kSetAdd), 2));
-  }
-
-  return ast_context()->ReturnValue(Pop());
-}
-
-
-template <typename CollectionType>
-void HOptimizedGraphBuilder::BuildJSCollectionDelete(
-    CallRuntime* call, const Runtime::Function* c_function) {
-  DCHECK(call->arguments()->length() == 2);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* key = Pop();
-  HValue* receiver = Pop();
-
-  NoObservableSideEffectsScope no_effects(this);
-
-  HIfContinuation return_or_call_runtime_continuation(
-      graph()->CreateBasicBlock(), graph()->CreateBasicBlock());
-  HIfContinuation got_string_hash;
-  HValue* hash =
-      BuildStringHashLoadIfIsStringAndHashComputed(key, &got_string_hash);
-  IfBuilder string_checker(this, &got_string_hash);
-  string_checker.Then();
-  {
-    HValue* table = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
-                                         HObjectAccess::ForJSCollectionTable());
-    HValue* key_index =
-        BuildOrderedHashTableFindEntry<CollectionType>(table, key, hash);
-    {
-      IfBuilder if_found(this);
-      if_found.If<HCompareNumericAndBranch>(
-          key_index, Add<HConstant>(CollectionType::kNotFound), Token::NE);
-      if_found.Then();
-      {
-        // If we're removing an element, we might need to shrink.
-        // If we do need to shrink, we'll be bailing out to the runtime.
-        HValue* num_elements = Add<HLoadNamedField>(
-            table, static_cast<HValue*>(NULL),
-            HObjectAccess::ForOrderedHashTableNumberOfElements<
-                CollectionType>());
-        num_elements = AddUncasted<HSub>(num_elements, graph()->GetConstant1());
-
-        HValue* num_buckets = Add<HLoadNamedField>(
-            table, static_cast<HValue*>(NULL),
-            HObjectAccess::ForOrderedHashTableNumberOfBuckets<
-                CollectionType>());
-        // threshold is capacity >> 2; we simplify this to num_buckets >> 1
-        // since kLoadFactor is 2.
-        STATIC_ASSERT(CollectionType::kLoadFactor == 2);
-        HValue* threshold =
-            AddUncasted<HShr>(num_buckets, graph()->GetConstant1());
-
-        IfBuilder if_need_not_shrink(this);
-        if_need_not_shrink.If<HCompareNumericAndBranch>(num_elements, threshold,
-                                                        Token::GTE);
-        if_need_not_shrink.Then();
-        {
-          Add<HStoreKeyed>(table, key_index, graph()->GetConstantHole(),
-                           FAST_ELEMENTS);
-
-          // For maps, also need to clear the value.
-          if (CollectionType::kChainOffset > 1) {
-            HValue* value_index =
-                AddUncasted<HAdd>(key_index, graph()->GetConstant1());
-            Add<HStoreKeyed>(table, value_index, graph()->GetConstantHole(),
-                             FAST_ELEMENTS);
-          }
-          STATIC_ASSERT(CollectionType::kChainOffset <= 2);
-
-          HValue* num_deleted = Add<HLoadNamedField>(
-              table, static_cast<HValue*>(NULL),
-              HObjectAccess::ForOrderedHashTableNumberOfDeletedElements<
-                  CollectionType>());
-          num_deleted = AddUncasted<HAdd>(num_deleted, graph()->GetConstant1());
-          Add<HStoreNamedField>(
-              table, HObjectAccess::ForOrderedHashTableNumberOfElements<
-                         CollectionType>(),
-              num_elements);
-          Add<HStoreNamedField>(
-              table, HObjectAccess::ForOrderedHashTableNumberOfDeletedElements<
-                         CollectionType>(),
-              num_deleted);
-          Push(graph()->GetConstantTrue());
-        }
-        if_need_not_shrink.JoinContinuation(
-            &return_or_call_runtime_continuation);
-      }
-      if_found.Else();
-      {
-        // Not found, so we're done.
-        Push(graph()->GetConstantFalse());
-      }
-    }
-  }
-  string_checker.JoinContinuation(&return_or_call_runtime_continuation);
-
-  {
-    IfBuilder return_or_call_runtime(this,
-                                     &return_or_call_runtime_continuation);
-    return_or_call_runtime.Then();
-    return_or_call_runtime.Else();
-    Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(call->name(), c_function, 2));
-  }
-
-  return ast_context()->ReturnValue(Pop());
-}
-
-
-void HOptimizedGraphBuilder::GenerateMapDelete(CallRuntime* call) {
-  BuildJSCollectionDelete<OrderedHashMap>(
-      call, Runtime::FunctionForId(Runtime::kMapDelete));
-}
-
-
-void HOptimizedGraphBuilder::GenerateSetDelete(CallRuntime* call) {
-  BuildJSCollectionDelete<OrderedHashSet>(
-      call, Runtime::FunctionForId(Runtime::kSetDelete));
 }
 
 
