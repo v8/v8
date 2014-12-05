@@ -984,7 +984,7 @@ function ArraySort(comparefn) {
   // of a prototype property.
   var CopyFromPrototype = function CopyFromPrototype(obj, length) {
     var max = 0;
-    for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
+    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, length);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -1013,7 +1013,7 @@ function ArraySort(comparefn) {
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
   var ShadowPrototypeElements = function(obj, from, to) {
-    for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
+    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, to);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -1081,7 +1081,7 @@ function ArraySort(comparefn) {
     }
     for (i = length - num_holes; i < length; i++) {
       // For compatability with Webkit, do not expose elements in the prototype.
-      if (i in %GetPrototype(obj)) {
+      if (i in %_GetPrototype(obj)) {
         obj[i] = UNDEFINED;
       } else {
         delete obj[i];

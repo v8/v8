@@ -6179,6 +6179,10 @@ class HObjectAccess FINAL {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
 
+  static HObjectAccess ForPrototype() {
+    return HObjectAccess(kMaps, Map::kPrototypeOffset);
+  }
+
   static HObjectAccess ForMapAsInteger32() {
     return HObjectAccess(kMaps, JSObject::kMapOffset,
                          Representation::Integer32());

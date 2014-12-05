@@ -973,7 +973,7 @@ function ObjectGetPrototypeOf(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.getPrototypeOf"]);
   }
-  return %GetPrototype(obj);
+  return %_GetPrototype(obj);
 }
 
 // ES6 section 19.1.2.19.
@@ -1361,7 +1361,7 @@ function ObjectIs(obj1, obj2) {
 
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %GetPrototype(ToObject(this));
+  return %_GetPrototype(ToObject(this));
 }
 
 

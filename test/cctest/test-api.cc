@@ -24518,3 +24518,56 @@ TEST(TurboAsmDisablesNeuter) {
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK_EQ(should_be_neuterable, result->IsNeuterable());
 }
+
+
+TEST(GetPrototypeAccessControl) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+  obj_template->SetAccessCheckCallbacks(BlockEverythingNamed,
+                                        BlockEverythingIndexed);
+
+  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { %_GetPrototype(prohibited); }"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK(try_catch.HasCaught());
+  }
+}
+
+
+TEST(GetPrototypeHidden) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  Handle<FunctionTemplate> t = FunctionTemplate::New(isolate);
+  t->SetHiddenPrototype(true);
+  Handle<Object> proto = t->GetFunction()->NewInstance();
+  Handle<Object> object = Object::New(isolate);
+  Handle<Object> proto2 = Object::New(isolate);
+  object->SetPrototype(proto);
+  proto->SetPrototype(proto2);
+
+  env->Global()->Set(v8_str("object"), object);
+  env->Global()->Set(v8_str("proto"), proto);
+  env->Global()->Set(v8_str("proto2"), proto2);
+
+  v8::Handle<v8::Value> result = CompileRun("%_GetPrototype(object)");
+  CHECK(result->Equals(proto2));
+
+  result = CompileRun(
+      "function f() { return %_GetPrototype(object); }"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f()");
+  CHECK(result->Equals(proto2));
+}
