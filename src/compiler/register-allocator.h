@@ -357,7 +357,7 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   bool AllocationOk() { return allocation_ok_; }
 
-  const ZoneList<LiveRange*>& live_ranges() const { return live_ranges_; }
+  const ZoneVector<LiveRange*>& live_ranges() const { return live_ranges_; }
   const ZoneVector<LiveRange*>& fixed_live_ranges() const {
     return fixed_live_ranges_;
   }
@@ -555,10 +555,10 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.
-  ZoneList<BitVector*> live_in_sets_;
+  ZoneVector<BitVector*> live_in_sets_;
 
   // Liveness analysis results.
-  ZoneList<LiveRange*> live_ranges_;
+  ZoneVector<LiveRange*> live_ranges_;
 
   // Lists of live ranges
   ZoneVector<LiveRange*> fixed_live_ranges_;

@@ -567,9 +567,7 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
 
 void RegisterAllocator::InitializeLivenessAnalysis() {
   // Initialize the live_in sets for each block to NULL.
-  int block_count = code()->InstructionBlockCount();
-  live_in_sets_.Initialize(block_count, local_zone());
-  live_in_sets_.AddBlock(NULL, block_count, local_zone());
+  std::fill(live_in_sets_.begin(), live_in_sets_.end(), nullptr);
 }
 
 
@@ -583,7 +581,7 @@ BitVector* RegisterAllocator::ComputeLiveOut(const InstructionBlock* block) {
   for (auto succ : block->successors()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
-    BitVector* live_in = live_in_sets_[static_cast<int>(succ.ToSize())];
+    BitVector* live_in = live_in_sets_[succ.ToSize()];
     if (live_in != NULL) live_out->Union(*live_in);
 
     // All phi input operands corresponding to this successor edge are live
@@ -683,9 +681,8 @@ LiveRange* RegisterAllocator::FixedDoubleLiveRangeFor(int index) {
 
 
 LiveRange* RegisterAllocator::LiveRangeFor(int index) {
-  if (index >= live_ranges_.length()) {
-    live_ranges_.AddBlock(NULL, index - live_ranges_.length() + 1,
-                          local_zone());
+  if (index >= static_cast<int>(live_ranges_.size())) {
+    live_ranges_.resize(index + 1, NULL);
   }
   LiveRange* result = live_ranges_[index];
   if (result == NULL) {
@@ -1328,7 +1325,7 @@ const InstructionBlock* RegisterAllocator::GetInstructionBlock(
 
 
 void RegisterAllocator::ConnectRanges() {
-  for (int i = 0; i < live_ranges().length(); ++i) {
+  for (size_t i = 0; i < live_ranges().size(); ++i) {
     LiveRange* first_range = live_ranges().at(i);
     if (first_range == NULL || first_range->parent() != NULL) continue;
 
@@ -1474,7 +1471,7 @@ class LiveRangeFinder {
  public:
   explicit LiveRangeFinder(const RegisterAllocator& allocator)
       : allocator_(allocator),
-        bounds_length_(allocator.live_ranges().length()),
+        bounds_length_(static_cast<int>(allocator.live_ranges().size())),
         bounds_(allocator.local_zone()->NewArray<LiveRangeBoundArray>(
             bounds_length_)) {
     for (int i = 0; i < bounds_length_; ++i) {
@@ -1645,7 +1642,7 @@ void RegisterAllocator::BuildLiveRanges() {
     }
   }
 
-  for (int i = 0; i < live_ranges_.length(); ++i) {
+  for (size_t i = 0; i < live_ranges_.size(); ++i) {
     if (live_ranges_[i] != NULL) {
       live_ranges_[i]->kind_ = RequiredRegisterKind(live_ranges_[i]->id());
 
@@ -1715,7 +1712,7 @@ void RegisterAllocator::PopulatePointerMaps() {
   int last_range_start = 0;
   const PointerMapDeque* pointer_maps = code()->pointer_maps();
   PointerMapDeque::const_iterator first_it = pointer_maps->begin();
-  for (int range_idx = 0; range_idx < live_ranges().length(); ++range_idx) {
+  for (size_t range_idx = 0; range_idx < live_ranges().size(); ++range_idx) {
     LiveRange* range = live_ranges().at(range_idx);
     if (range == NULL) continue;
     // Iterate over the first parts of multi-part live ranges.
@@ -1806,7 +1803,7 @@ void RegisterAllocator::AllocateDoubleRegisters() {
 void RegisterAllocator::AllocateRegisters() {
   DCHECK(unhandled_live_ranges_.is_empty());
 
-  for (int i = 0; i < live_ranges_.length(); ++i) {
+  for (size_t i = 0; i < live_ranges_.size(); ++i) {
     if (live_ranges_[i] != NULL) {
       if (live_ranges_[i]->Kind() == mode_) {
         AddToUnhandledUnsorted(live_ranges_[i]);
