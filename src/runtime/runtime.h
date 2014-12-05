@@ -254,7 +254,6 @@ namespace internal {
                                                        \
   /* Eval */                                           \
   F(GlobalProxy, 1, 1)                                 \
-  F(IsAttachedGlobal, 1, 1)                            \
                                                        \
   F(AddNamedProperty, 4, 1)                            \
   F(AddPropertyForTemplate, 4, 1)                      \

@@ -11549,8 +11549,7 @@ THREADED_TEST(CrossEval) {
 
 
 // Test that calling eval in a context which has been detached from
-// its global throws an exception.  This behavior is consistent with
-// other JavaScript implementations.
+// its global proxy works.
 THREADED_TEST(EvalInDetachedGlobal) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -11578,8 +11577,7 @@ THREADED_TEST(EvalInDetachedGlobal) {
   context0->DetachGlobal();
   v8::TryCatch catcher;
   x_value = CompileRun("fun('x')");
-  CHECK(x_value.IsEmpty());
-  CHECK(catcher.HasCaught());
+  CHECK_EQ(42, x_value->Int32Value());
   context1->Exit();
 }
 
