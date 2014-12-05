@@ -1936,6 +1936,7 @@ class Heap {
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
+  void MarkCompactEpilogue();
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessArrayBuffers(WeakObjectRetainer* retainer);

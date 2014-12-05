@@ -647,7 +647,7 @@ void Scanner::Scan() {
 
       case '`':
         if (HarmonyTemplates()) {
-          token = ScanTemplateSpan();
+          token = ScanTemplateStart();
           break;
         }
 
@@ -808,19 +808,8 @@ Token::Value Scanner::ScanTemplateSpan() {
   // A TEMPLATE_SPAN should always be followed by an Expression, while a
   // TEMPLATE_TAIL terminates a TemplateLiteral and does not need to be
   // followed by an Expression.
-  //
 
-  if (next_.token == Token::RBRACE) {
-    // After parsing an Expression, the source position is incorrect due to
-    // having scanned the brace. Push the RBRACE back into the stream.
-    PushBack('}');
-  }
-
-  next_.location.beg_pos = source_pos();
   Token::Value result = Token::TEMPLATE_SPAN;
-  DCHECK(c0_ == '`' || c0_ == '}');
-  Advance();  // Consume ` or }
-
   LiteralScope literal(this, true);
 
   while (true) {
@@ -878,6 +867,21 @@ Token::Value Scanner::ScanTemplateSpan() {
   next_.location.end_pos = source_pos();
   next_.token = result;
   return result;
+}
+
+
+Token::Value Scanner::ScanTemplateStart() {
+  DCHECK(c0_ == '`');
+  next_.location.beg_pos = source_pos();
+  Advance();  // Consume `
+  return ScanTemplateSpan();
+}
+
+
+Token::Value Scanner::ScanTemplateContinuation() {
+  DCHECK_EQ(next_.token, Token::RBRACE);
+  next_.location.beg_pos = source_pos() - 1;  // We already consumed }
+  return ScanTemplateSpan();
 }
 
 

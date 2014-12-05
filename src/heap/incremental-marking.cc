@@ -27,7 +27,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       allocated_(0),
       idle_marking_delay_counter_(0),
       no_marking_scope_depth_(0),
-      unscanned_bytes_of_large_object_(0) {}
+      unscanned_bytes_of_large_object_(0),
+      was_activated_(false) {}
 
 
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
@@ -423,6 +424,9 @@ bool IncrementalMarking::ShouldActivate() {
 }
 
 
+bool IncrementalMarking::WasActivated() { return was_activated_; }
+
+
 bool IncrementalMarking::WorthActivating() {
 #ifndef DEBUG
   static const intptr_t kActivationThreshold = 8 * MB;
@@ -489,6 +493,8 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   DCHECK(!heap_->isolate()->serializer_enabled());
 
   ResetStepCounters();
+
+  was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
     StartMarking(flag);
@@ -783,6 +789,9 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
+
+
+void IncrementalMarking::Epilogue() { was_activated_ = false; }
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {

@@ -1119,9 +1119,8 @@ class MacroAssembler: public Assembler {
                    Handle<Code> success,
                    SmiCheckType smi_check_type);
 
-  // Compare the given value and the value of the weak cell. Write the result
-  // to the match register.
-  void CmpWeakValue(Register match, Register value, Handle<WeakCell> cell);
+  // Get value of the weak cell.
+  void GetWeakValue(Register value, Handle<WeakCell> cell);
 
   // Load the value of the weak cell in the value register. Branch to the
   // given miss label is the weak cell was cleared.

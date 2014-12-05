@@ -219,7 +219,9 @@ class Graph(Node):
     self.graphs = parent.graphs[:] + [suite["name"]]
     self.flags = parent.flags[:] + suite.get("flags", [])
     self.test_flags = parent.test_flags[:] + suite.get("test_flags", [])
-    self.resources = parent.resources[:] + suite.get("resources", [])
+
+    # Values independent of parent node.
+    self.resources = suite.get("resources", [])
 
     # Descrete values (with parent defaults).
     self.binary = suite.get("binary", parent.binary)
@@ -519,9 +521,10 @@ class AndroidPlatform(Platform):  # pragma: no cover
         cwd=AndroidPlatform.DEVICE_DIR,
     )
 
-  def _PushFile(self, host_dir, file_name):
+  def _PushFile(self, host_dir, file_name, target_rel="."):
     file_on_host = os.path.join(host_dir, file_name)
-    file_on_device = AndroidPlatform.DEVICE_DIR + file_name
+    file_on_device = os.path.join(
+        AndroidPlatform.DEVICE_DIR, target_rel, file_name)
 
     # Only push files not yet pushed in one execution.
     if file_on_host in self.pushed:
@@ -535,26 +538,34 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))
     if node.path:
-      bench_dir = os.path.join(suite_dir,
-                               os.path.normpath(os.path.join(*node.path)))
+      bench_rel = os.path.normpath(os.path.join(*node.path))
+      bench_abs = os.path.join(suite_dir, bench_rel)
     else:
-      bench_dir = suite_dir
+      bench_rel = "."
+      bench_abs = suite_dir
 
     self._PushFile(self.shell_dir, node.binary)
     if isinstance(node, Runnable):
-      self._PushFile(bench_dir, node.main)
+      self._PushFile(bench_abs, node.main, bench_rel)
     for resource in node.resources:
-      self._PushFile(bench_dir, resource)
+      self._PushFile(bench_abs, resource, bench_rel)
 
   def Run(self, runnable, count):
     cache = cache_control.CacheControl(self.device)
     cache.DropRamCaches()
     binary_on_device = AndroidPlatform.DEVICE_DIR + runnable.binary
     cmd = [binary_on_device] + runnable.GetCommandFlags()
+
+    # Relative path to benchmark directory.
+    if runnable.path:
+      bench_rel = os.path.normpath(os.path.join(*runnable.path))
+    else:
+      bench_rel = "."
+
     try:
       output = self.device.RunShellCommand(
           cmd,
-          cwd=AndroidPlatform.DEVICE_DIR,
+          cwd=os.path.join(AndroidPlatform.DEVICE_DIR, bench_rel),
           timeout=runnable.timeout,
           retries=0,
       )

@@ -484,7 +484,8 @@ class Scanner {
   bool ScanRegExpFlags();
 
   // Scans the input as a template literal
-  Token::Value ScanTemplateSpan();
+  Token::Value ScanTemplateStart();
+  Token::Value ScanTemplateContinuation();
 
   const LiteralBuffer* source_url() const { return &source_url_; }
   const LiteralBuffer* source_mapping_url() const {
@@ -691,6 +692,8 @@ class Scanner {
   uc32 ScanIdentifierUnicodeEscape();
   // Helper for the above functions.
   uc32 ScanUnicodeEscape();
+
+  Token::Value ScanTemplateSpan();
 
   // Return the current source position.
   int source_pos() {

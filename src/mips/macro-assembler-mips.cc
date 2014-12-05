@@ -4027,18 +4027,15 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::CmpWeakValue(Register match, Register value,
-                                  Handle<WeakCell> cell) {
-  li(match, Operand(cell));
-  lw(match, FieldMemOperand(match, WeakCell::kValueOffset));
-  Subu(match, value, match);
+void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
+  li(value, Operand(cell));
+  lw(value, FieldMemOperand(value, WeakCell::kValueOffset));
 }
 
 
 void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
                                    Label* miss) {
-  li(value, Operand(cell));
-  lw(value, FieldMemOperand(value, WeakCell::kValueOffset));
+  GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
 }
 

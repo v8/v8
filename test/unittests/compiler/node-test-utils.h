@@ -88,6 +88,11 @@ Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsStoreField(const Matcher<FieldAccess>& access_matcher,
+                            const Matcher<Node*>& base_matcher,
+                            const Matcher<Node*>& value_matcher,
+                            const Matcher<Node*>& effect_matcher,
+                            const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsLoadBuffer(const Matcher<BufferAccess>& access_matcher,
                             const Matcher<Node*>& buffer_matcher,
                             const Matcher<Node*>& offset_matcher,

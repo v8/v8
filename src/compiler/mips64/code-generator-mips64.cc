@@ -166,51 +166,77 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
 }  // namespace
 
 
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                 \
-  do {                                                                \
-    auto result = i.Output##width##Register();                        \
-    auto offset = i.InputRegister(0);                                 \
-    auto ool = new (zone()) OutOfLineLoad##width(this, result);       \
-    __ Branch(ool->entry(), hs, offset, Operand(i.InputRegister(1))); \
-    __ Daddu(at, i.InputRegister(2), offset);                         \
-    __ asm_instr(result, MemOperand(at, 0));                          \
-    __ bind(ool->exit());                                             \
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                         \
+  do {                                                                        \
+    auto result = i.Output##width##Register();                                \
+    auto ool = new (zone()) OutOfLineLoad##width(this, result);               \
+    if (instr->InputAt(0)->IsRegister()) {                                    \
+      auto offset = i.InputRegister(0);                                       \
+      __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
+      __ Daddu(at, i.InputRegister(2), offset);                               \
+      __ asm_instr(result, MemOperand(at, 0));                                \
+    } else {                                                                  \
+      auto offset = i.InputOperand(0).immediate();                            \
+      __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
+      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
+    }                                                                         \
+    __ bind(ool->exit());                                                     \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                      \
-  do {                                                                \
-    auto result = i.OutputRegister();                                 \
-    auto offset = i.InputRegister(0);                                 \
-    auto ool = new (zone()) OutOfLineLoadInteger(this, result);       \
-    __ Branch(ool->entry(), hs, offset, Operand(i.InputRegister(1))); \
-    __ Daddu(at, i.InputRegister(2), offset);                         \
-    __ asm_instr(result, MemOperand(at, 0));                          \
-    __ bind(ool->exit());                                             \
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                              \
+  do {                                                                        \
+    auto result = i.OutputRegister();                                         \
+    auto ool = new (zone()) OutOfLineLoadInteger(this, result);               \
+    if (instr->InputAt(0)->IsRegister()) {                                    \
+      auto offset = i.InputRegister(0);                                       \
+      __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
+      __ Daddu(at, i.InputRegister(2), offset);                               \
+      __ asm_instr(result, MemOperand(at, 0));                                \
+    } else {                                                                  \
+      auto offset = i.InputOperand(0).immediate();                            \
+      __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
+      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
+    }                                                                         \
+    __ bind(ool->exit());                                                     \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width, asm_instr)         \
-  do {                                                         \
-    auto offset = i.InputRegister(0);                          \
-    Label done;                                                \
-    __ Branch(&done, hs, offset, Operand(i.InputRegister(1))); \
-    auto value = i.Input##width##Register(2);                  \
-    __ Daddu(at, i.InputRegister(3), offset);                  \
-    __ asm_instr(value, MemOperand(at, 0));                    \
-    __ bind(&done);                                            \
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width, asm_instr)                 \
+  do {                                                                 \
+    Label done;                                                        \
+    if (instr->InputAt(0)->IsRegister()) {                             \
+      auto offset = i.InputRegister(0);                                \
+      auto value = i.Input##width##Register(2);                        \
+      __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
+      __ Daddu(at, i.InputRegister(3), offset);                        \
+      __ asm_instr(value, MemOperand(at, 0));                          \
+    } else {                                                           \
+      auto offset = i.InputOperand(0).immediate();                     \
+      auto value = i.Input##width##Register(2);                        \
+      __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
+      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
+    }                                                                  \
+    __ bind(&done);                                                    \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)              \
-  do {                                                         \
-    auto offset = i.InputRegister(0);                          \
-    Label done;                                                \
-    __ Branch(&done, hs, offset, Operand(i.InputRegister(1))); \
-    auto value = i.InputRegister(2);                           \
-    __ Daddu(at, i.InputRegister(3), offset);                  \
-    __ asm_instr(value, MemOperand(at, 0));                    \
-    __ bind(&done);                                            \
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                      \
+  do {                                                                 \
+    Label done;                                                        \
+    if (instr->InputAt(0)->IsRegister()) {                             \
+      auto offset = i.InputRegister(0);                                \
+      auto value = i.InputRegister(2);                                 \
+      __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
+      __ Daddu(at, i.InputRegister(3), offset);                        \
+      __ asm_instr(value, MemOperand(at, 0));                          \
+    } else {                                                           \
+      auto offset = i.InputOperand(0).immediate();                     \
+      auto value = i.InputRegister(2);                                 \
+      __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
+      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
+    }                                                                  \
+    __ bind(&done);                                                    \
   } while (0)
 
 
