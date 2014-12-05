@@ -705,6 +705,7 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+    array->GetBuffer()->set_is_neuterable(false);
     BufferAccess const access(array->type());
     size_t const k = ElementSizeLog2Of(access.machine_type());
     double const byte_length = array->byte_length()->Number();
@@ -751,6 +752,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+    array->GetBuffer()->set_is_neuterable(false);
     BufferAccess const access(array->type());
     size_t const k = ElementSizeLog2Of(access.machine_type());
     double const byte_length = array->byte_length()->Number();

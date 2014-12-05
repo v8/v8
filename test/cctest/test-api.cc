@@ -24477,3 +24477,39 @@ TEST(StringConcatOverflow) {
   CHECK(result.IsEmpty());
   CHECK(!try_catch.HasCaught());
 }
+
+
+TEST(TurboAsmDisablesNeuter) {
+  v8::V8::Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  bool should_be_neuterable = !i::FLAG_turbo_asm;
+
+  const char* load =
+      "function Module(stdlib, foreign, heap) {"
+      "  'use asm';"
+      "  var MEM32 = new stdlib.Int32Array(heap);"
+      "  function load() { return MEM32[0]; }"
+      "  return { load: load };"
+      "}"
+      "var buffer = new ArrayBuffer(4);"
+      "Module(this, {}, buffer).load();"
+      "buffer";
+
+  v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
+  CHECK_EQ(should_be_neuterable, result->IsNeuterable());
+
+  const char* store =
+      "function Module(stdlib, foreign, heap) {"
+      "  'use asm';"
+      "  var MEM32 = new stdlib.Int32Array(heap);"
+      "  function store() { MEM32[0] = 0; }"
+      "  return { store: store };"
+      "}"
+      "var buffer = new ArrayBuffer(4);"
+      "Module(this, {}, buffer).store();"
+      "buffer";
+
+  result = CompileRun(store).As<v8::ArrayBuffer>();
+  CHECK_EQ(should_be_neuterable, result->IsNeuterable());
+}
