@@ -611,12 +611,16 @@ class CodeAddressMap: public CodeEventLogger {
 };
 
 
-Deserializer::Deserializer(SnapshotByteSource* source)
-    : isolate_(NULL),
-      attached_objects_(NULL),
-      source_(source),
-      external_reference_decoder_(NULL),
-      deserialized_large_objects_(0) {
+void Deserializer::DecodeReservation(
+    Vector<const SerializedData::Reservation> res) {
+  DCHECK_EQ(0, reservations_[NEW_SPACE].length());
+  STATIC_ASSERT(NEW_SPACE == 0);
+  int current_space = NEW_SPACE;
+  for (const auto& r : res) {
+    reservations_[current_space].Add({r.chunk_size(), NULL, NULL});
+    if (r.is_last()) current_space++;
+  }
+  DCHECK_EQ(kNumberOfSpaces, current_space);
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) current_chunk_[i] = 0;
 }
 
@@ -716,7 +720,7 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root,
 
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
-  // DCHECK(source_->AtEOF());
+  // DCHECK(source_.AtEOF());
   if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
@@ -797,10 +801,10 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
   if (space == LO_SPACE) {
-    uint32_t index = source_->GetInt();
+    uint32_t index = source_.GetInt();
     obj = deserialized_large_objects_[index];
   } else {
-    BackReference back_reference(source_->GetInt());
+    BackReference back_reference(source_.GetInt());
     DCHECK(space < kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
@@ -824,12 +828,12 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
 void Deserializer::ReadObject(int space_number, Object** write_back) {
   Address address;
   HeapObject* obj;
-  int next_int = source_->GetInt();
+  int next_int = source_.GetInt();
 
   bool double_align = false;
 #ifndef V8_HOST_ARCH_64_BIT
   double_align = next_int == kDoubleAlignmentSentinel;
-  if (double_align) next_int = source_->GetInt();
+  if (double_align) next_int = source_.GetInt();
 #endif
 
   DCHECK_NE(kDoubleAlignmentSentinel, next_int);
@@ -846,7 +850,7 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
   if (FLAG_log_snapshot_positions) {
-    LOG(isolate_, SnapshotPositionEvent(address, source_->position()));
+    LOG(isolate_, SnapshotPositionEvent(address, source_.position()));
   }
   ReadData(current, limit, space_number, address);
 
@@ -884,7 +888,7 @@ Address Deserializer::Allocate(int space_index, int size) {
   if (space_index == LO_SPACE) {
     AlwaysAllocateScope scope(isolate_);
     LargeObjectSpace* lo_space = isolate_->heap()->lo_space();
-    Executability exec = static_cast<Executability>(source_->Get());
+    Executability exec = static_cast<Executability>(source_.Get());
     AllocationResult result = lo_space->AllocateRaw(size, exec);
     HeapObject* obj = HeapObject::cast(result.ToObjectChecked());
     deserialized_large_objects_.Add(obj);
@@ -918,7 +922,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
                                source_space != CODE_SPACE &&
                                source_space != OLD_DATA_SPACE);
   while (current < limit) {
-    byte data = source_->Get();
+    byte data = source_.Get();
     switch (data) {
 #define CASE_STATEMENT(where, how, within, space_number) \
   case where + how + within + space_number:              \
@@ -942,18 +946,18 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       if (where == kNewObject) {                                               \
         ReadObject(space_number, &new_object);                                 \
       } else if (where == kRootArray) {                                        \
-        int root_id = source_->GetInt();                                       \
+        int root_id = source_.GetInt();                                        \
         new_object = isolate->heap()->roots_array_start()[root_id];            \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else if (where == kPartialSnapshotCache) {                             \
-        int cache_index = source_->GetInt();                                   \
+        int cache_index = source_.GetInt();                                    \
         new_object = isolate->serialize_partial_snapshot_cache()[cache_index]; \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else if (where == kExternalReference) {                                \
-        int skip = source_->GetInt();                                          \
+        int skip = source_.GetInt();                                           \
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
-        int reference_id = source_->GetInt();                                  \
+        int reference_id = source_.GetInt();                                   \
         Address address = external_reference_decoder_->Decode(reference_id);   \
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kBackref) {                                          \
@@ -961,7 +965,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         new_object = GetBackReferencedObject(data & kSpaceMask);               \
       } else if (where == kBuiltin) {                                          \
         DCHECK(deserializing_user_code());                                     \
-        int builtin_id = source_->GetInt();                                    \
+        int builtin_id = source_.GetInt();                                     \
         DCHECK_LE(0, builtin_id);                                              \
         DCHECK_LT(builtin_id, Builtins::builtin_count);                        \
         Builtins::Name name = static_cast<Builtins::Name>(builtin_id);         \
@@ -969,12 +973,12 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         emit_write_barrier = false;                                            \
       } else if (where == kAttachedReference) {                                \
         DCHECK(deserializing_user_code());                                     \
-        int index = source_->GetInt();                                         \
+        int index = source_.GetInt();                                          \
         new_object = *attached_objects_->at(index);                            \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \
         DCHECK(where == kBackrefWithSkip);                                     \
-        int skip = source_->GetInt();                                          \
+        int skip = source_.GetInt();                                           \
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
         emit_write_barrier = (space_number == NEW_SPACE);                      \
@@ -1078,23 +1082,22 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       // We generate 15 cases and bodies that process special tags that combine
       // the raw data tag and the length into one byte.
-#define RAW_CASE(index)                                                      \
-      case kRawData + index: {                                               \
-        byte* raw_data_out = reinterpret_cast<byte*>(current);               \
-        source_->CopyRaw(raw_data_out, index * kPointerSize);                \
-        current =                                                            \
-            reinterpret_cast<Object**>(raw_data_out + index * kPointerSize); \
-        break;                                                               \
-      }
+#define RAW_CASE(index)                                                        \
+  case kRawData + index: {                                                     \
+    byte* raw_data_out = reinterpret_cast<byte*>(current);                     \
+    source_.CopyRaw(raw_data_out, index* kPointerSize);                        \
+    current = reinterpret_cast<Object**>(raw_data_out + index * kPointerSize); \
+    break;                                                                     \
+  }
       COMMON_RAW_LENGTHS(RAW_CASE)
 #undef RAW_CASE
 
       // Deserialize a chunk of raw data that doesn't have one of the popular
       // lengths.
       case kRawData: {
-        int size = source_->GetInt();
+        int size = source_.GetInt();
         byte* raw_data_out = reinterpret_cast<byte*>(current);
-        source_->CopyRaw(raw_data_out, size);
+        source_.CopyRaw(raw_data_out, size);
         break;
       }
 
@@ -1110,7 +1113,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       SIXTEEN_CASES(kRootArrayConstants + kHasSkipDistance)
       SIXTEEN_CASES(kRootArrayConstants + kHasSkipDistance + 16) {
         int root_id = RootArrayConstantFromByteCode(data);
-        int skip = source_->GetInt();
+        int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + skip);
         Object* object = isolate->heap()->roots_array_start()[root_id];
@@ -1120,7 +1123,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       }
 
       case kVariableRepeat: {
-        int repeats = source_->GetInt();
+        int repeats = source_.GetInt();
         Object* object = current[-1];
         DCHECK(!isolate->heap()->InNewSpace(object));
         for (int i = 0; i < repeats; i++) current[i] = object;
@@ -1240,14 +1243,14 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 #undef ALL_SPACES
 
       case kSkip: {
-        int size = source_->GetInt();
+        int size = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + size);
         break;
       }
 
       case kNativesStringResource: {
-        int index = source_->Get();
+        int index = source_.Get();
         Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
             new NativesExternalStringResource(isolate->bootstrapper(),
@@ -1258,7 +1261,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       }
 
       case kNextChunk: {
-        int space = source_->Get();
+        int space = source_.Get();
         DCHECK(space < kNumberOfPreallocatedSpaces);
         int chunk_index = current_chunk_[space];
         const Heap::Reservation& reservation = reservations_[space];
@@ -1273,7 +1276,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       FOUR_CASES(kHotObjectWithSkip)
       FOUR_CASES(kHotObjectWithSkip + 4) {
-        int skip = source_->GetInt();
+        int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<Address>(current) + skip);
         // Fall through.
@@ -1394,15 +1397,21 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-void Serializer::FinalizeAllocation() {
+void Serializer::EncodeReservations(
+    List<SerializedData::Reservation>* out) const {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    // Complete the last pending chunk and if there are no completed chunks,
-    // make sure there is at least one empty chunk.
-    if (pending_chunk_[i] > 0 || completed_chunks_[i].length() == 0) {
-      completed_chunks_[i].Add(pending_chunk_[i]);
-      pending_chunk_[i] = 0;
+    for (int j = 0; j < completed_chunks_[i].length(); j++) {
+      out->Add(SerializedData::Reservation(completed_chunks_[i][j]));
     }
+
+    if (pending_chunk_[i] > 0 || completed_chunks_[i].length() == 0) {
+      out->Add(SerializedData::Reservation(pending_chunk_[i]));
+    }
+    out->last().mark_as_last();
   }
+
+  out->Add(SerializedData::Reservation(large_objects_total_size_));
+  out->last().mark_as_last();
 }
 
 
@@ -1718,7 +1727,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   }
 
   // Serialize string content.
-  sink_->PutRaw(const_cast<byte*>(resource), content_size, "StringContent");
+  sink_->PutRaw(resource, content_size, "StringContent");
 
   // Since the allocation size is rounded up to object alignment, there
   // maybe left-over bytes that need to be padded.
@@ -2021,6 +2030,7 @@ BackReference Serializer::Allocate(AllocationSpace space, int size) {
     sink_->Put(kNextChunk, "NextChunk");
     sink_->Put(space, "NextChunkSpace");
     completed_chunks_[space].Add(pending_chunk_[space]);
+    DCHECK_LE(completed_chunks_[space].length(), BackReference::kMaxChunkIndex);
     pending_chunk_[space] = 0;
     new_chunk_size = size;
   }
@@ -2065,16 +2075,8 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
   cs.Pad();
-  cs.FinalizeAllocation();
 
-  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    // Fail if any chunk index exceeds the limit.
-    if (cs.FinalAllocationChunks(i).length() > BackReference::kMaxChunkIndex) {
-      return NULL;
-    }
-  }
-
-  SerializedCodeData data(sink.data(), &cs);
+  SerializedCodeData data(sink.data(), cs);
   ScriptData* script_data = data.GetScriptData();
 
   if (FLAG_profile_deserialization) {
@@ -2275,22 +2277,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       DCHECK(cached_data->rejected());
       return MaybeHandle<SharedFunctionInfo>();
     }
-    SnapshotByteSource payload(scd->Payload(), scd->PayloadLength());
-    Deserializer deserializer(&payload);
 
     // Eagerly expand string table to avoid allocations during deserialization.
     StringTable::EnsureCapacityForDeserialization(
         isolate, scd->NumInternalizedStrings());
-
-    // Set reservations.
-    STATIC_ASSERT(NEW_SPACE == 0);
-    int current_space = NEW_SPACE;
-    Vector<const SerializedCodeData::Reservation> res = scd->Reservations();
-    for (const auto& r : res) {
-      deserializer.AddReservation(current_space, r.chunk_size());
-      if (r.is_last_chunk()) current_space++;
-    }
-    DCHECK_EQ(kNumberOfSpaces, current_space);
 
     // Prepare and register list of attached objects.
     Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
@@ -2301,6 +2291,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       attached_objects[i + kCodeStubsBaseIndex] =
           CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
     }
+
+    Deserializer deserializer(scd.get());
     deserializer.SetAttachedObjects(&attached_objects);
 
     // Deserialize.
@@ -2336,65 +2328,152 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 }
 
 
-SerializedCodeData::SerializedCodeData(const List<byte>& payload,
-                                       CodeSerializer* cs)
-    : script_data_(NULL), owns_script_data_(true) {
-  DisallowHeapAllocation no_gc;
-  List<uint32_t>* stub_keys = cs->stub_keys();
+void SerializedData::AllocateData(int size) {
+  DCHECK(!owns_data_);
+  data_ = NewArray<byte>(size);
+  size_ = size;
+  owns_data_ = true;
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
+}
 
-  // Gather reservation chunk sizes.
-  List<uint32_t> reservations(SerializerDeserializer::kNumberOfSpaces);
-  STATIC_ASSERT(NEW_SPACE == 0);
-  for (int i = 0; i < SerializerDeserializer::kNumberOfSpaces; i++) {
-    Vector<const uint32_t> chunks = cs->FinalAllocationChunks(i);
-    for (int j = 0; j < chunks.length(); j++) {
-      uint32_t chunk = ChunkSizeBits::encode(chunks[j]) |
-                       IsLastChunkBits::encode(j == chunks.length() - 1);
-      reservations.Add(chunk);
-    }
-  }
+
+SnapshotData::SnapshotData(const SnapshotByteSink& sink,
+                           const Serializer& ser) {
+  DisallowHeapAllocation no_gc;
+  List<Reservation> reservations;
+  ser.EncodeReservations(&reservations);
+  const List<byte>& payload = sink.data();
+
+  // Calculate sizes.
+  int reservation_size = reservations.length() * kInt32Size;
+  int size = kHeaderSize + reservation_size + payload.length();
+
+  // Allocate backing store and create result data.
+  AllocateData(size);
+
+  // Set header values.
+  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kReservationsOffset, reservations.length());
+  SetHeaderValue(kPayloadLengthOffset, payload.length());
+
+  // Copy reservation chunk sizes.
+  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+            reservation_size);
+
+  // Copy serialized data.
+  CopyBytes(data_ + kHeaderSize + reservation_size, payload.begin(),
+            static_cast<size_t>(payload.length()));
+}
+
+
+bool SnapshotData::IsSane() {
+  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+}
+
+
+Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
+  return Vector<const Reservation>(
+      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
+      GetHeaderValue(kReservationsOffset));
+}
+
+
+Vector<const byte> SnapshotData::Payload() const {
+  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  const byte* payload = data_ + kHeaderSize + reservations_size;
+  int length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + length);
+  return Vector<const byte>(payload, length);
+}
+
+
+SerializedCodeData::SerializedCodeData(const List<byte>& payload,
+                                       const CodeSerializer& cs) {
+  DisallowHeapAllocation no_gc;
+  const List<uint32_t>* stub_keys = cs.stub_keys();
+
+  List<Reservation> reservations;
+  cs.EncodeReservations(&reservations);
 
   // Calculate sizes.
   int reservation_size = reservations.length() * kInt32Size;
   int num_stub_keys = stub_keys->length();
   int stub_keys_size = stub_keys->length() * kInt32Size;
-  int data_length =
-      kHeaderSize + reservation_size + stub_keys_size + payload.length();
+  int size = kHeaderSize + reservation_size + stub_keys_size + payload.length();
 
   // Allocate backing store and create result data.
-  byte* data = NewArray<byte>(data_length);
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
-  script_data_ = new ScriptData(data, data_length);
-  script_data_->AcquireDataOwnership();
+  AllocateData(size);
 
   // Set header values.
-  SetHeaderValue(kCheckSumOffset, CheckSum(cs->source()));
-  SetHeaderValue(kNumInternalizedStringsOffset, cs->num_internalized_strings());
+  SetHeaderValue(kCheckSumOffset, CheckSum(cs.source()));
+  SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
   SetHeaderValue(kReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
   // Copy reservation chunk sizes.
-  CopyBytes(data + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
             reservation_size);
 
   // Copy code stub keys.
-  CopyBytes(data + kHeaderSize + reservation_size,
+  CopyBytes(data_ + kHeaderSize + reservation_size,
             reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
 
   // Copy serialized data.
-  CopyBytes(data + kHeaderSize + reservation_size + stub_keys_size,
+  CopyBytes(data_ + kHeaderSize + reservation_size + stub_keys_size,
             payload.begin(), static_cast<size_t>(payload.length()));
 }
 
 
 bool SerializedCodeData::IsSane(String* source) {
   return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
-         PayloadLength() >= SharedFunctionInfo::kSize;
+         Payload().length() >= SharedFunctionInfo::kSize;
 }
 
 
 int SerializedCodeData::CheckSum(String* string) {
   return Version::Hash() ^ string->length();
+}
+
+
+// Return ScriptData object and relinquish ownership over it to the caller.
+ScriptData* SerializedCodeData::GetScriptData() {
+  DCHECK(owns_data_);
+  ScriptData* result = new ScriptData(data_, size_);
+  result->AcquireDataOwnership();
+  owns_data_ = false;
+  data_ = NULL;
+  return result;
+}
+
+
+Vector<const SerializedData::Reservation> SerializedCodeData::Reservations()
+    const {
+  return Vector<const Reservation>(
+      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
+      GetHeaderValue(kReservationsOffset));
+}
+
+
+Vector<const byte> SerializedCodeData::Payload() const {
+  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
+  const byte* payload =
+      data_ + kHeaderSize + reservations_size + code_stubs_size;
+  int length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + length);
+  return Vector<const byte>(payload, length);
+}
+
+
+int SerializedCodeData::NumInternalizedStrings() const {
+  return GetHeaderValue(kNumInternalizedStringsOffset);
+}
+
+Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
+  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  const byte* start = data_ + kHeaderSize + reservations_size;
+  return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
+                                GetHeaderValue(kNumCodeStubKeysOffset));
 }
 } }  // namespace v8::internal
