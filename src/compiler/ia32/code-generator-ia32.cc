@@ -191,6 +191,25 @@ class OutOfLineLoadFloat FINAL : public OutOfLineCode {
   XMMRegister const result_;
 };
 
+
+class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
+ public:
+  OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
+                             XMMRegister input)
+      : OutOfLineCode(gen), result_(result), input_(input) {}
+
+  void Generate() FINAL {
+    __ sub(esp, Immediate(kDoubleSize));
+    __ movsd(MemOperand(esp, 0), input_);
+    __ SlowTruncateToI(result_, esp, 0);
+    __ add(esp, Immediate(kDoubleSize));
+  }
+
+ private:
+  Register const result_;
+  XMMRegister const input_;
+};
+
 }  // namespace
 
 
@@ -301,9 +320,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchStackPointer:
       __ mov(i.OutputRegister(), esp);
       break;
-    case kArchTruncateDoubleToI:
-      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+    case kArchTruncateDoubleToI: {
+      auto result = i.OutputRegister();
+      auto input = i.InputDoubleRegister(0);
+      auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
+      __ cvttsd2si(result, Operand(input));
+      __ cmp(result, 1);
+      __ j(overflow, ool->entry());
+      __ bind(ool->exit());
       break;
+    }
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));
