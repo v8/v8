@@ -84,7 +84,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   FinishCode(masm());
 
-  // Ensure there is space for lazy deopt.
+  // Ensure there is space for lazy deoptimization in the code.
   if (!info->IsStub()) {
     int target_offset = masm()->pc_offset() + Deoptimizer::patch_size();
     while (masm()->pc_offset() < target_offset) {
@@ -107,7 +107,10 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   PopulateDeoptimizationData(result);
 
-  EnsureRelocSpaceForLazyDeopt(result);
+  // Ensure there is space for lazy deoptimization in the relocation info.
+  if (!info->IsStub()) {
+    Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
+  }
 
   // Emit a code line info recording stop event.
   void* line_info = recorder->DetachJITHandlerData();

@@ -109,7 +109,6 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
                                 InstructionOperand* op, MachineType type);
   void AddNopForSmiCodeInlining();
   void EnsureSpaceForLazyDeopt();
-  void EnsureRelocSpaceForLazyDeopt(Handle<Code> code);
   void MarkLazyDeoptSite();
 
   // ===========================================================================

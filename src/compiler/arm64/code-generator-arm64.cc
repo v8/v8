@@ -1159,9 +1159,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
   MarkLazyDeoptSite();
 }
 
-
-void CodeGenerator::EnsureRelocSpaceForLazyDeopt(Handle<Code> code) {}
-
 #undef __
 
 }  // namespace compiler
