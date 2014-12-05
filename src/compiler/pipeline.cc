@@ -22,6 +22,7 @@
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
+#include "src/compiler/load-elimination.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -392,11 +393,13 @@ struct TypedLoweringPhase {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
     ValueNumberingReducer vn_reducer(temp_zone);
+    LoadElimination load_elimination;
     JSTypedLowering lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&lowering);
+    graph_reducer.AddReducer(&load_elimination);
     graph_reducer.AddReducer(&simple_reducer);
     graph_reducer.ReduceGraph();
   }
