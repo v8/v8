@@ -162,11 +162,13 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
                               Type::Constant(minusinfinity, zone), zone),
                   nan_or_minuszero, zone);
 
+  boolean_or_number = Type::Union(Type::Boolean(), Type::Number(), zone);
+  undefined_or_null = Type::Union(Type::Undefined(), Type::Null(), zone);
+  undefined_or_number = Type::Union(Type::Undefined(), Type::Number(), zone);
   negative_signed32 = Type::Union(
       Type::SignedSmall(), Type::OtherSigned32(), zone);
   non_negative_signed32 = Type::Union(
       Type::UnsignedSmall(), Type::OtherUnsigned31(), zone);
-  undefined_or_null = Type::Union(Type::Undefined(), Type::Null(), zone);
   singleton_false = Type::Constant(f->false_value(), zone);
   singleton_true = Type::Constant(f->true_value(), zone);
   singleton_zero = Type::Range(zero, zero, zone);
@@ -520,10 +522,22 @@ Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
 
 Type* Typer::Visitor::ToNumber(Type* type, Typer* t) {
   if (type->Is(Type::Number())) return type;
+  if (type->Is(Type::Null())) return t->singleton_zero;
   if (type->Is(Type::Undefined())) return Type::NaN();
+  if (type->Is(t->undefined_or_null)) {
+    return Type::Union(Type::NaN(), t->singleton_zero, t->zone());
+  }
+  if (type->Is(t->undefined_or_number)) {
+    return Type::Union(Type::Intersect(type, Type::Number(), t->zone()),
+                       Type::NaN(), t->zone());
+  }
   if (type->Is(t->singleton_false)) return t->singleton_zero;
   if (type->Is(t->singleton_true)) return t->singleton_one;
   if (type->Is(Type::Boolean())) return t->zero_or_one;
+  if (type->Is(t->boolean_or_number)) {
+    return Type::Union(Type::Intersect(type, Type::Number(), t->zone()),
+                       t->zero_or_one, t->zone());
+  }
   return Type::Number();
 }
 
@@ -1172,7 +1186,7 @@ Bounds Typer::Visitor::TypeJSToBoolean(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSToNumber(Node* node) {
-  return Bounds(Type::None(zone()), Type::Number(zone()));
+  return TypeUnaryOp(node, ToNumber);
 }
 
 
