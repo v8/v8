@@ -1104,12 +1104,14 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   heap->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = NULL;
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code) {
     CodeTracer::Scope trace_scope(heap->isolate()->GetCodeTracer());
     OFStream os(trace_scope.file());
     Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
   }
+#endif
+#ifdef DEBUG
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
   }

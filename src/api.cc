@@ -339,18 +339,18 @@ void SetResourceConstraints(i::Isolate* isolate,
 i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   (*obj)->ObjectVerify();
-#endif  // DEBUG
+#endif  // VERIFY_HEAP
   return result.location();
 }
 
 
 i::Object** V8::CopyPersistent(i::Object** obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   (*obj)->ObjectVerify();
-#endif  // DEBUG
+#endif  // VERIFY_HEAP
   return result.location();
 }
 
@@ -1335,13 +1335,8 @@ void ObjectTemplate::SetAccessCheckCallbacks(
 }
 
 
-void ObjectTemplate::SetIndexedPropertyHandler(
-    IndexedPropertyGetterCallback getter,
-    IndexedPropertySetterCallback setter,
-    IndexedPropertyQueryCallback query,
-    IndexedPropertyDeleterCallback remover,
-    IndexedPropertyEnumeratorCallback enumerator,
-    Handle<Value> data) {
+void ObjectTemplate::SetHandler(
+    const IndexedPropertyHandlerConfiguration& config) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -1354,13 +1349,16 @@ void ObjectTemplate::SetIndexedPropertyHandler(
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
-  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
-  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
-  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
-  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
-  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+  if (config.getter != 0) SET_FIELD_WRAPPED(obj, set_getter, config.getter);
+  if (config.setter != 0) SET_FIELD_WRAPPED(obj, set_setter, config.setter);
+  if (config.query != 0) SET_FIELD_WRAPPED(obj, set_query, config.query);
+  if (config.deleter != 0) SET_FIELD_WRAPPED(obj, set_deleter, config.deleter);
+  if (config.enumerator != 0) {
+    SET_FIELD_WRAPPED(obj, set_enumerator, config.enumerator);
+  }
   obj->set_flags(0);
 
+  v8::Local<v8::Value> data = config.data;
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }

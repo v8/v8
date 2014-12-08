@@ -3356,7 +3356,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
-  function_state_= &initial_function_state_;
+  function_state_ = &initial_function_state_;
   InitializeAstVisitor(info->zone());
   if (FLAG_hydrogen_track_positions) {
     SetSourcePosition(info->shared_info()->start_position());
@@ -4573,11 +4573,11 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
       HInstruction* inner_context = Add<HAllocateBlockContext>(
           outer_context, function, scope->GetScopeInfo());
       HInstruction* instr = Add<HStoreFrameContext>(inner_context);
+      set_scope(scope);
+      environment()->BindContext(inner_context);
       if (instr->HasObservableSideEffects()) {
         AddSimulate(stmt->EntryId(), REMOVABLE_SIMULATE);
       }
-      set_scope(scope);
-      environment()->BindContext(inner_context);
       VisitDeclarations(scope->declarations());
       AddSimulate(stmt->DeclsId(), REMOVABLE_SIMULATE);
     }
@@ -4591,10 +4591,10 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
         HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
 
     HInstruction* instr = Add<HStoreFrameContext>(outer_context);
+    environment()->BindContext(outer_context);
     if (instr->HasObservableSideEffects()) {
       AddSimulate(stmt->ExitId(), REMOVABLE_SIMULATE);
     }
-    environment()->BindContext(outer_context);
   }
   HBasicBlock* break_block = break_info.break_block();
   if (break_block != NULL) {
@@ -10345,7 +10345,7 @@ bool HGraphBuilder::MatchRotateRight(HValue* left,
       !ShiftAmountsAllowReplaceByRotate(shr->right(), shl->right())) {
     return false;
   }
-  *operand= shr->left();
+  *operand = shr->left();
   *shift_amount = shr->right();
   return true;
 }
@@ -12387,6 +12387,54 @@ void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
   HValue* value = Add<HLoadNamedField>(
       ref, static_cast<HValue*>(NULL), HObjectAccess::ForExternalUInteger8());
   return ast_context()->ReturnValue(value);
+}
+
+
+void HOptimizedGraphBuilder::GenerateGetPrototype(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* object = Pop();
+
+  NoObservableSideEffectsScope no_effects(this);
+
+  HValue* map = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                     HObjectAccess::ForMap());
+  HValue* bit_field = Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
+                                           HObjectAccess::ForMapBitField());
+  HValue* is_access_check_needed_mask =
+      Add<HConstant>(1 << Map::kIsAccessCheckNeeded);
+  HValue* is_access_check_needed_test = AddUncasted<HBitwise>(
+      Token::BIT_AND, bit_field, is_access_check_needed_mask);
+
+  HValue* proto = Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
+                                       HObjectAccess::ForPrototype());
+  HValue* proto_map = Add<HLoadNamedField>(proto, static_cast<HValue*>(NULL),
+                                           HObjectAccess::ForMap());
+  HValue* proto_bit_field = Add<HLoadNamedField>(
+      proto_map, static_cast<HValue*>(NULL), HObjectAccess::ForMapBitField());
+  HValue* is_hidden_prototype_mask =
+      Add<HConstant>(1 << Map::kIsHiddenPrototype);
+  HValue* is_hidden_prototype_test = AddUncasted<HBitwise>(
+      Token::BIT_AND, proto_bit_field, is_hidden_prototype_mask);
+
+  {
+    IfBuilder needs_runtime(this);
+    needs_runtime.If<HCompareNumericAndBranch>(
+        is_access_check_needed_test, graph()->GetConstant0(), Token::NE);
+    needs_runtime.OrIf<HCompareNumericAndBranch>(
+        is_hidden_prototype_test, graph()->GetConstant0(), Token::NE);
+
+    needs_runtime.Then();
+    {
+      Add<HPushArguments>(object);
+      Push(Add<HCallRuntime>(
+          call->name(), Runtime::FunctionForId(Runtime::kGetPrototype), 1));
+    }
+
+    needs_runtime.Else();
+    Push(proto);
+  }
+  return ast_context()->ReturnValue(Pop());
 }
 
 

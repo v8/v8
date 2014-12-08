@@ -38,9 +38,11 @@ class Typer {
   Decorator* decorator_;
 
   Zone* zone_;
+  Type* boolean_or_number;
+  Type* undefined_or_null;
+  Type* undefined_or_number;
   Type* negative_signed32;
   Type* non_negative_signed32;
-  Type* undefined_or_null;
   Type* singleton_false;
   Type* singleton_true;
   Type* singleton_zero;

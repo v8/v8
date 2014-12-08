@@ -983,6 +983,9 @@ void Object::ShortPrint(StringStream* accumulator) {
 }
 
 
+void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
+
+
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   if (v.value->IsSmi()) {
     Smi::cast(v.value)->SmiPrint(os);
@@ -6622,8 +6625,7 @@ Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
   if (!map->is_dictionary_map()) {
     new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   }
-  new_bit_field3 = ConstructionCount::update(new_bit_field3,
-                                             JSFunction::kNoSlackTracking);
+  new_bit_field3 = Counter::update(new_bit_field3, kRetainingCounterStart);
   result->set_bit_field3(new_bit_field3);
   return result;
 }
@@ -10262,17 +10264,13 @@ void JSFunction::StartInobjectSlackTracking() {
 
   Map* map = initial_map();
 
-  // Only initiate the tracking the first time.
-  if (map->done_inobject_slack_tracking()) return;
-  map->set_done_inobject_slack_tracking(true);
-
   // No tracking during the snapshot construction phase.
   Isolate* isolate = GetIsolate();
   if (isolate->serializer_enabled()) return;
 
   if (map->unused_property_fields() == 0) return;
 
-  map->set_construction_count(kGenerousAllocationCount);
+  map->set_counter(Map::kSlackTrackingCounterStart);
 }
 
 
@@ -10319,8 +10317,8 @@ void JSFunction::CompleteInobjectSlackTracking() {
   DCHECK(has_initial_map());
   Map* map = initial_map();
 
-  DCHECK(map->done_inobject_slack_tracking());
-  map->set_construction_count(kNoSlackTracking);
+  DCHECK(map->counter() >= Map::kSlackTrackingCounterEnd - 1);
+  map->set_counter(Map::kRetainingCounterStart);
 
   int slack = map->unused_property_fields();
   map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);

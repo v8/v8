@@ -45,7 +45,6 @@ namespace internal {
   F(IsSloppyModeFunction, 1, 1)                            \
   F(GetDefaultReceiver, 1, 1)                              \
                                                            \
-  F(GetPrototype, 1, 1)                                    \
   F(SetPrototype, 2, 1)                                    \
   F(InternalSetPrototype, 2, 1)                            \
   F(IsInPrototypeChain, 2, 1)                              \
@@ -254,7 +253,6 @@ namespace internal {
                                                        \
   /* Eval */                                           \
   F(GlobalProxy, 1, 1)                                 \
-  F(IsAttachedGlobal, 1, 1)                            \
                                                        \
   F(AddNamedProperty, 4, 1)                            \
   F(AddPropertyForTemplate, 4, 1)                      \
@@ -734,7 +732,8 @@ namespace internal {
   F(SetGetSize, 1, 1)                     \
   F(SetHas, 2, 1)                         \
   /* Arrays */                            \
-  F(HasFastPackedElements, 1, 1)
+  F(HasFastPackedElements, 1, 1)          \
+  F(GetPrototype, 1, 1)
 
 
 //---------------------------------------------------------------------------

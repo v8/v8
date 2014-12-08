@@ -78,6 +78,10 @@ class ParseData {
     return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
   }
 
+  void Reject() { script_data_->Reject(); }
+
+  bool rejected() const { return script_data_->rejected(); }
+
  private:
   explicit ParseData(ScriptData* script_data) : script_data_(script_data) {}
 

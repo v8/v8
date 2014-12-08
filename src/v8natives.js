@@ -163,16 +163,6 @@ function GlobalParseFloat(string) {
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
-  // For consistency with JSC we require the global object passed to
-  // eval to be the global object from which 'eval' originated. This
-  // is not mandated by the spec.
-  // We only throw if the global has been detached, since we need the
-  // receiver as this-value for the call.
-  if (!%IsAttachedGlobal(global)) {
-    throw new $EvalError('The "this" value passed to eval must ' +
-                         'be the global object from which eval originated');
-  }
-
   var global_proxy = %GlobalProxy(global);
 
   var f = %CompileString(x, false, 0);
@@ -983,7 +973,7 @@ function ObjectGetPrototypeOf(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.getPrototypeOf"]);
   }
-  return %GetPrototype(obj);
+  return %_GetPrototype(obj);
 }
 
 // ES6 section 19.1.2.19.
@@ -1371,7 +1361,7 @@ function ObjectIs(obj1, obj2) {
 
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %GetPrototype(ToObject(this));
+  return %_GetPrototype(ToObject(this));
 }
 
 

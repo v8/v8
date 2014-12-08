@@ -4627,24 +4627,12 @@ bool Map::is_migration_target() {
 }
 
 
-void Map::set_done_inobject_slack_tracking(bool value) {
-  set_bit_field3(DoneInobjectSlackTracking::update(bit_field3(), value));
+void Map::set_counter(int value) {
+  set_bit_field3(Counter::update(bit_field3(), value));
 }
 
 
-bool Map::done_inobject_slack_tracking() {
-  return DoneInobjectSlackTracking::decode(bit_field3());
-}
-
-
-void Map::set_construction_count(int value) {
-  set_bit_field3(ConstructionCount::update(bit_field3(), value));
-}
-
-
-int Map::construction_count() {
-  return ConstructionCount::decode(bit_field3());
-}
+int Map::counter() { return Counter::decode(bit_field3()); }
 
 
 void Map::freeze() {
@@ -6052,7 +6040,7 @@ bool JSFunction::IsInOptimizationQueue() {
 
 bool JSFunction::IsInobjectSlackTrackingInProgress() {
   return has_initial_map() &&
-      initial_map()->construction_count() != JSFunction::kNoSlackTracking;
+         initial_map()->counter() >= Map::kSlackTrackingCounterEnd;
 }
 
 
@@ -6528,7 +6516,7 @@ JSRegExp::Flags JSRegExp::GetFlags() {
 String* JSRegExp::Pattern() {
   DCHECK(this->data()->IsFixedArray());
   Object* data = this->data();
-  String* pattern= String::cast(FixedArray::cast(data)->get(kSourceIndex));
+  String* pattern = String::cast(FixedArray::cast(data)->get(kSourceIndex));
   return pattern;
 }
 
@@ -6548,7 +6536,7 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
-#if DEBUG
+#if VERIFY_HEAP && DEBUG
   FixedArrayBase* fixed_array =
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
 

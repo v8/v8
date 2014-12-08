@@ -357,7 +357,7 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   bool AllocationOk() { return allocation_ok_; }
 
-  const ZoneList<LiveRange*>& live_ranges() const { return live_ranges_; }
+  const ZoneVector<LiveRange*>& live_ranges() const { return live_ranges_; }
   const ZoneVector<LiveRange*>& fixed_live_ranges() const {
     return fixed_live_ranges_;
   }
@@ -466,6 +466,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   void InactiveToActive(LiveRange* range);
 
   // Helper methods for allocating registers.
+  bool TryReuseSpillForPhi(LiveRange* range);
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
@@ -546,6 +547,15 @@ class RegisterAllocator FINAL : public ZoneObject {
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
 
+  struct PhiMapValue {
+    PhiMapValue(PhiInstruction* phi, const InstructionBlock* block)
+        : phi(phi), block(block) {}
+    PhiInstruction* const phi;
+    const InstructionBlock* const block;
+  };
+  typedef std::map<int, PhiMapValue, std::less<int>,
+                   zone_allocator<std::pair<int, PhiMapValue>>> PhiMap;
+
   Zone* const local_zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
@@ -553,12 +563,14 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   const RegisterConfiguration* config_;
 
+  PhiMap phi_map_;
+
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.
-  ZoneList<BitVector*> live_in_sets_;
+  ZoneVector<BitVector*> live_in_sets_;
 
   // Liveness analysis results.
-  ZoneList<LiveRange*> live_ranges_;
+  ZoneVector<LiveRange*> live_ranges_;
 
   // Lists of live ranges
   ZoneVector<LiveRange*> fixed_live_ranges_;

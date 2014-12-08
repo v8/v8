@@ -95,6 +95,8 @@
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
+  # BUG(3742).
+  'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'test-api/Regress385349': [PASS, NO_VARIANTS],

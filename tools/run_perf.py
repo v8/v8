@@ -516,10 +516,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def PostExecution(self):
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
-    self.device.RunShellCommand(
-        ["rm", "-rf", "*"],
-        cwd=AndroidPlatform.DEVICE_DIR,
-    )
+    self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
 
   def _PushFile(self, host_dir, file_name, target_rel="."):
     file_on_host = os.path.join(host_dir, file_name)

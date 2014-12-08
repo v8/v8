@@ -16,6 +16,9 @@
 #define DEFINE_NEG_IMPLICATION(whenflag, thenflag)          \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
 
+#define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
+  DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
+
 // We want to declare the names of the variables for the header file.  Normally
 // this will just be an extern declaration, but for a readonly flag we let the
 // compiler make better optimizations by giving it the value.
@@ -54,6 +57,9 @@
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (FLAG_##whenflag) FLAG_##thenflag = value;
 
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
+  if (!FLAG_##whenflag) FLAG_##thenflag = value;
+
 #else
 #error No mode supplied when including flags.defs
 #endif
@@ -73,6 +79,10 @@
 
 #ifndef DEFINE_VALUE_IMPLICATION
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)
+#endif
+
+#ifndef DEFINE_NEG_VALUE_IMPLICATION
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
 #define COMMA ,
@@ -202,9 +212,9 @@ HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
 HARMONY_STAGED(FLAG_STAGED_FEATURES)
 #undef FLAG_STAGED_FEATURES
 
-#define FLAG_SHIPPING_FEATURES(id, description)  \
-  DEFINE_BOOL(id, false, "enable " #description) \
-  DEFINE_IMPLICATION(harmony_shipping, id)
+#define FLAG_SHIPPING_FEATURES(id, description) \
+  DEFINE_BOOL(id, true, "enable " #description) \
+  DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, id)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
@@ -985,6 +995,7 @@ DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
 #undef DEFINE_ARGS
 #undef DEFINE_IMPLICATION
 #undef DEFINE_NEG_IMPLICATION
+#undef DEFINE_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT

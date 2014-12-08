@@ -1151,7 +1151,7 @@ var StackTraceGetter = function() {
       if (IS_UNDEFINED(stack_trace)) {
         // Neither formatted nor structured stack trace available.
         // Look further up the prototype chain.
-        holder = %GetPrototype(holder);
+        holder = %_GetPrototype(holder);
         continue;
       }
       formatted_stack_trace = FormatStackTrace(holder, stack_trace);
@@ -1255,7 +1255,7 @@ function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
   var current = error;
   // Climb the prototype chain until we find the holder.
   while (current && !%HasOwnProperty(current, name)) {
-    current = %GetPrototype(current);
+    current = %_GetPrototype(current);
   }
   if (IS_NULL(current)) return UNDEFINED;
   if (!IS_OBJECT(current)) return error[name];

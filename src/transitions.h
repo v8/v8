@@ -155,15 +155,13 @@ class TransitionArray: public FixedArray {
   static const int kTransitionTarget = 1;
   static const int kTransitionSize = 2;
 
-#ifdef OBJECT_PRINT
+#ifdef DEBUG
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
 
   // Print all the transitions.
   void PrintTransitions(std::ostream& os, bool print_header = true);  // NOLINT
-#endif
 
-#ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
   bool IsConsistentWithBackPointers(Map* current_map);
   bool IsEqualTo(TransitionArray* other);

@@ -1368,16 +1368,6 @@ RUNTIME_FUNCTION(Runtime_GlobalProxy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsAttachedGlobal) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, global, 0);
-  if (!global->IsJSGlobalObject()) return isolate->heap()->false_value();
-  return isolate->heap()->ToBoolean(
-      !JSGlobalObject::cast(global)->IsDetached());
-}
-
-
 RUNTIME_FUNCTION(Runtime_LookupAccessor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);

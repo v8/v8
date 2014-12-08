@@ -534,6 +534,7 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       code_(code),
       debug_name_(debug_name),
       config_(config),
+      phi_map_(PhiMap::key_compare(), PhiMap::allocator_type(local_zone())),
       live_in_sets_(code->InstructionBlockCount(), local_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, local_zone()),
       fixed_live_ranges_(this->config()->num_general_registers(), NULL,
@@ -567,9 +568,7 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
 
 void RegisterAllocator::InitializeLivenessAnalysis() {
   // Initialize the live_in sets for each block to NULL.
-  int block_count = code()->InstructionBlockCount();
-  live_in_sets_.Initialize(block_count, local_zone());
-  live_in_sets_.AddBlock(NULL, block_count, local_zone());
+  std::fill(live_in_sets_.begin(), live_in_sets_.end(), nullptr);
 }
 
 
@@ -583,7 +582,7 @@ BitVector* RegisterAllocator::ComputeLiveOut(const InstructionBlock* block) {
   for (auto succ : block->successors()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
-    BitVector* live_in = live_in_sets_[static_cast<int>(succ.ToSize())];
+    BitVector* live_in = live_in_sets_[succ.ToSize()];
     if (live_in != NULL) live_out->Union(*live_in);
 
     // All phi input operands corresponding to this successor edge are live
@@ -683,9 +682,8 @@ LiveRange* RegisterAllocator::FixedDoubleLiveRangeFor(int index) {
 
 
 LiveRange* RegisterAllocator::LiveRangeFor(int index) {
-  if (index >= live_ranges_.length()) {
-    live_ranges_.AddBlock(NULL, index - live_ranges_.length() + 1,
-                          local_zone());
+  if (index >= static_cast<int>(live_ranges_.size())) {
+    live_ranges_.resize(index + 1, NULL);
   }
   LiveRange* result = live_ranges_[index];
   if (result == NULL) {
@@ -925,6 +923,90 @@ SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
       new (local_zone()) SpillRange(range, spill_id, local_zone());
   spill_ranges_.Add(spill_range, local_zone());
   return spill_range;
+}
+
+
+bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
+  DCHECK(FLAG_turbo_reuse_spill_slots);
+  DCHECK(!range->HasAllocatedSpillOperand());
+  if (range->IsChild() || !range->is_phi()) return false;
+
+  auto lookup = phi_map_.find(range->id());
+  DCHECK(lookup != phi_map_.end());
+  auto phi = lookup->second.phi;
+  auto block = lookup->second.block;
+  // Count the number of spilled operands.
+  size_t spilled_count = 0;
+  LiveRange* first_op = nullptr;
+  for (size_t i = 0; i < phi->operands().size(); i++) {
+    int op = phi->operands()[i];
+    LiveRange* op_range = LiveRangeFor(op);
+    if (op_range->GetSpillRange() == nullptr) continue;
+    auto pred = code()->InstructionBlockAt(block->predecessors()[i]);
+    LifetimePosition pred_end =
+        LifetimePosition::FromInstructionIndex(pred->last_instruction_index());
+    while (op_range != nullptr && !op_range->CanCover(pred_end)) {
+      op_range = op_range->next();
+    }
+    if (op_range != nullptr && op_range->IsSpilled()) {
+      spilled_count++;
+      if (first_op == nullptr) {
+        first_op = op_range->TopLevel();
+      }
+    }
+  }
+
+  // Only continue if more than half of the operands are spilled.
+  if (spilled_count * 2 <= phi->operands().size()) {
+    return false;
+  }
+
+  // Try to merge the spilled operands and count the number of merged spilled
+  // operands.
+  DCHECK(first_op != NULL);
+  SpillRange* first_op_spill = first_op->GetSpillRange();
+  size_t num_merged = 1;
+  for (size_t i = 1; i < phi->operands().size(); i++) {
+    int op = phi->operands()[i];
+    LiveRange* op_range = LiveRangeFor(op);
+    SpillRange* op_spill = op_range->GetSpillRange();
+    if (op_spill != NULL) {
+      if (op_spill->id() == first_op_spill->id() ||
+          first_op_spill->TryMerge(op_spill, local_zone())) {
+        num_merged++;
+      }
+    }
+  }
+
+  // Only continue if enough operands could be merged to the
+  // same spill slot.
+  if (num_merged * 2 <= phi->operands().size() ||
+      AreUseIntervalsIntersecting(first_op_spill->interval(),
+                                  range->first_interval())) {
+    return false;
+  }
+
+  // If the range does not need register soon, spill it to the merged
+  // spill range.
+  LifetimePosition next_pos = range->Start();
+  if (code()->IsGapAt(next_pos.InstructionIndex())) {
+    next_pos = next_pos.NextInstruction();
+  }
+  UsePosition* pos = range->NextUsePositionRegisterIsBeneficial(next_pos);
+  if (pos == NULL) {
+    SpillRange* spill_range = AssignSpillRangeToLiveRange(range->TopLevel());
+    CHECK(first_op_spill->TryMerge(spill_range, local_zone()));
+    Spill(range);
+    return true;
+  } else if (pos->pos().Value() > range->Start().NextInstruction().Value()) {
+    SpillRange* spill_range = AssignSpillRangeToLiveRange(range->TopLevel());
+    CHECK(first_op_spill->TryMerge(spill_range, local_zone()));
+    SpillBetween(range, range->Start(), pos->pos());
+    if (!AllocationOk()) return false;
+    DCHECK(UnhandledIsSorted());
+    return true;
+  }
+  return false;
 }
 
 
@@ -1260,6 +1342,12 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
 
 void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
   for (auto phi : block->phis()) {
+    if (FLAG_turbo_reuse_spill_slots) {
+      auto res = phi_map_.insert(
+          std::make_pair(phi->virtual_register(), PhiMapValue(phi, block)));
+      DCHECK(res.second);
+      USE(res);
+    }
     auto output = phi->output();
     int phi_vreg = phi->virtual_register();
     if (!FLAG_turbo_delay_ssa_decon) {
@@ -1328,7 +1416,7 @@ const InstructionBlock* RegisterAllocator::GetInstructionBlock(
 
 
 void RegisterAllocator::ConnectRanges() {
-  for (int i = 0; i < live_ranges().length(); ++i) {
+  for (size_t i = 0; i < live_ranges().size(); ++i) {
     LiveRange* first_range = live_ranges().at(i);
     if (first_range == NULL || first_range->parent() != NULL) continue;
 
@@ -1474,7 +1562,7 @@ class LiveRangeFinder {
  public:
   explicit LiveRangeFinder(const RegisterAllocator& allocator)
       : allocator_(allocator),
-        bounds_length_(allocator.live_ranges().length()),
+        bounds_length_(static_cast<int>(allocator.live_ranges().size())),
         bounds_(allocator.local_zone()->NewArray<LiveRangeBoundArray>(
             bounds_length_)) {
     for (int i = 0; i < bounds_length_; ++i) {
@@ -1645,7 +1733,7 @@ void RegisterAllocator::BuildLiveRanges() {
     }
   }
 
-  for (int i = 0; i < live_ranges_.length(); ++i) {
+  for (size_t i = 0; i < live_ranges_.size(); ++i) {
     if (live_ranges_[i] != NULL) {
       live_ranges_[i]->kind_ = RequiredRegisterKind(live_ranges_[i]->id());
 
@@ -1715,7 +1803,7 @@ void RegisterAllocator::PopulatePointerMaps() {
   int last_range_start = 0;
   const PointerMapDeque* pointer_maps = code()->pointer_maps();
   PointerMapDeque::const_iterator first_it = pointer_maps->begin();
-  for (int range_idx = 0; range_idx < live_ranges().length(); ++range_idx) {
+  for (size_t range_idx = 0; range_idx < live_ranges().size(); ++range_idx) {
     LiveRange* range = live_ranges().at(range_idx);
     if (range == NULL) continue;
     // Iterate over the first parts of multi-part live ranges.
@@ -1806,7 +1894,7 @@ void RegisterAllocator::AllocateDoubleRegisters() {
 void RegisterAllocator::AllocateRegisters() {
   DCHECK(unhandled_live_ranges_.is_empty());
 
-  for (int i = 0; i < live_ranges_.length(); ++i) {
+  for (size_t i = 0; i < live_ranges_.size(); ++i) {
     if (live_ranges_[i] != NULL) {
       if (live_ranges_[i]->Kind() == mode_) {
         AddToUnhandledUnsorted(live_ranges_[i]);
@@ -1868,6 +1956,13 @@ void RegisterAllocator::AllocateRegisters() {
         DCHECK(UnhandledIsSorted());
         continue;
       }
+    }
+
+    if (FLAG_turbo_reuse_spill_slots) {
+      if (TryReuseSpillForPhi(current)) {
+        continue;
+      }
+      if (!AllocationOk()) return;
     }
 
     for (int i = 0; i < active_live_ranges_.length(); ++i) {
