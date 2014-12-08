@@ -466,6 +466,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   void InactiveToActive(LiveRange* range);
 
   // Helper methods for allocating registers.
+  bool TryReuseSpillForPhi(LiveRange* range);
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
@@ -546,12 +547,23 @@ class RegisterAllocator FINAL : public ZoneObject {
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
 
+  struct PhiMapValue {
+    PhiMapValue(PhiInstruction* phi, const InstructionBlock* block)
+        : phi(phi), block(block) {}
+    PhiInstruction* const phi;
+    const InstructionBlock* const block;
+  };
+  typedef std::map<int, PhiMapValue, std::less<int>,
+                   zone_allocator<std::pair<int, PhiMapValue>>> PhiMap;
+
   Zone* const local_zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
   const char* const debug_name_;
 
   const RegisterConfiguration* config_;
+
+  PhiMap phi_map_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.
