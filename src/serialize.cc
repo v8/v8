@@ -1747,6 +1747,12 @@ void Serializer::ObjectSerializer::Serialize() {
     PrintF("\n");
   }
 
+  if (object_->IsScript()) {
+    // Clear cached line ends.
+    Object* undefined = serializer_->isolate()->heap()->undefined_value();
+    Script::cast(object_)->set_line_ends(undefined);
+  }
+
   if (object_->IsExternalString()) {
     Heap* heap = serializer_->isolate()->heap();
     if (object_->map() != heap->native_source_string_map()) {
