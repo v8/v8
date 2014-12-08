@@ -339,18 +339,18 @@ void SetResourceConstraints(i::Isolate* isolate,
 i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   (*obj)->ObjectVerify();
-#endif  // DEBUG
+#endif  // VERIFY_HEAP
   return result.location();
 }
 
 
 i::Object** V8::CopyPersistent(i::Object** obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   (*obj)->ObjectVerify();
-#endif  // DEBUG
+#endif  // VERIFY_HEAP
   return result.location();
 }
 

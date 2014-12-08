@@ -346,12 +346,6 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 }
 
 
-void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
-  if (!map()->HasTransitionArray()) return;
-  map()->transitions()->PrintTransitions(os, false);
-}
-
-
 void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSObject");
   // Don't call GetElementsKind, its validation code can cause the printer to
@@ -589,21 +583,6 @@ void Name::NamePrint(std::ostream& os) {  // NOLINT
   } else {
     os << Brief(this);
   }
-}
-
-
-// This method is only meant to be called from gdb for debugging purposes.
-// Since the string can also be in two-byte encoding, non-Latin1 characters
-// will be ignored in the output.
-char* String::ToAsciiArray() {
-  // Static so that subsequent calls frees previously allocated space.
-  // This also means that previous results will be overwritten.
-  static char* buffer = NULL;
-  if (buffer != NULL) delete[] buffer;
-  buffer = new char[length()+1];
-  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
-  buffer[length()] = 0;
-  return buffer;
 }
 
 
@@ -1067,25 +1046,6 @@ void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void DescriptorArray::Print() {
-  OFStream os(stdout);
-  this->PrintDescriptors(os);
-  os << std::flush;
-}
-
-
-void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
-  HandleScope scope(GetIsolate());
-  os << "Descriptor array " << number_of_descriptors() << "\n";
-  for (int i = 0; i < number_of_descriptors(); i++) {
-    Descriptor desc;
-    Get(i, &desc);
-    os << " " << i << ": " << desc << "\n";
-  }
-  os << "\n";
-}
-
-
 static void PrintBitMask(std::ostream& os, uint32_t value) {  // NOLINT
   for (int i = 0; i < 32; i++) {
     if ((i & 7) == 0) os << " ";
@@ -1120,51 +1080,6 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
     }
   }
   os << "\n";
-}
-
-
-void TransitionArray::Print() {
-  OFStream os(stdout);
-  this->PrintTransitions(os);
-  os << std::flush;
-}
-
-
-void TransitionArray::PrintTransitions(std::ostream& os,
-                                       bool print_header) {  // NOLINT
-  if (print_header) {
-    os << "Transition array " << number_of_transitions() << "\n";
-  }
-  for (int i = 0; i < number_of_transitions(); i++) {
-    Name* key = GetKey(i);
-    os << "   ";
-    key->NamePrint(os);
-    os << ": ";
-    if (key == GetHeap()->frozen_symbol()) {
-      os << " (transition to frozen)";
-    } else if (key == GetHeap()->elements_transition_symbol()) {
-      os << " (transition to "
-         << ElementsKindToString(GetTarget(i)->elements_kind()) << ")";
-    } else if (key == GetHeap()->observed_symbol()) {
-      os << " (transition to Object.observe)";
-    } else {
-      PropertyDetails details = GetTargetDetails(i);
-      switch (details.type()) {
-        case FIELD: {
-          os << " (transition to field)";
-          break;
-        }
-        case CONSTANT:
-          os << " (transition to constant " << Brief(GetTargetValue(i)) << ")";
-          break;
-        case CALLBACKS:
-          os << " (transition to callback " << Brief(GetTargetValue(i)) << ")";
-          break;
-      }
-      os << ", attrs: " << details.attributes();
-    }
-    os << " -> " << Brief(GetTarget(i)) << "\n";
-  }
 }
 
 
@@ -1205,4 +1120,95 @@ int Name::NameShortPrint(Vector<char> str) {
 
 
 #endif  // TRACE_MAPS
+
+
+#ifdef DEBUG
+// This method is only meant to be called from gdb for debugging purposes.
+// Since the string can also be in two-byte encoding, non-Latin1 characters
+// will be ignored in the output.
+char* String::ToAsciiArray() {
+  // Static so that subsequent calls frees previously allocated space.
+  // This also means that previous results will be overwritten.
+  static char* buffer = NULL;
+  if (buffer != NULL) delete[] buffer;
+  buffer = new char[length() + 1];
+  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
+  buffer[length()] = 0;
+  return buffer;
+}
+
+
+void DescriptorArray::Print() {
+  OFStream os(stdout);
+  this->PrintDescriptors(os);
+  os << std::flush;
+}
+
+
+void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
+  HandleScope scope(GetIsolate());
+  os << "Descriptor array " << number_of_descriptors() << "\n";
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    Descriptor desc;
+    Get(i, &desc);
+    os << " " << i << ": " << desc << "\n";
+  }
+  os << "\n";
+}
+
+
+void TransitionArray::Print() {
+  OFStream os(stdout);
+  this->PrintTransitions(os);
+  os << std::flush;
+}
+
+
+void TransitionArray::PrintTransitions(std::ostream& os,
+                                       bool print_header) {  // NOLINT
+  if (print_header) {
+    os << "Transition array " << number_of_transitions() << "\n";
+  }
+  for (int i = 0; i < number_of_transitions(); i++) {
+    Name* key = GetKey(i);
+    os << "   ";
+#ifdef OBJECT_PRINT
+    key->NamePrint(os);
+#else
+    key->ShortPrint(os);
+#endif
+    os << ": ";
+    if (key == GetHeap()->frozen_symbol()) {
+      os << " (transition to frozen)";
+    } else if (key == GetHeap()->elements_transition_symbol()) {
+      os << " (transition to "
+         << ElementsKindToString(GetTarget(i)->elements_kind()) << ")";
+    } else if (key == GetHeap()->observed_symbol()) {
+      os << " (transition to Object.observe)";
+    } else {
+      PropertyDetails details = GetTargetDetails(i);
+      switch (details.type()) {
+        case FIELD: {
+          os << " (transition to field)";
+          break;
+        }
+        case CONSTANT:
+          os << " (transition to constant " << Brief(GetTargetValue(i)) << ")";
+          break;
+        case CALLBACKS:
+          os << " (transition to callback " << Brief(GetTargetValue(i)) << ")";
+          break;
+      }
+      os << ", attrs: " << details.attributes();
+    }
+    os << " -> " << Brief(GetTarget(i)) << "\n";
+  }
+}
+
+
+void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
+  if (!map()->HasTransitionArray()) return;
+  map()->transitions()->PrintTransitions(os, false);
+}
+#endif  // DEBUG
 } }  // namespace v8::internal

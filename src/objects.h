@@ -1230,6 +1230,8 @@ class Object {
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
 
+  void ShortPrint(std::ostream& os);  // NOLINT
+
   DECLARE_CAST(Object)
 
   // Layout description.
@@ -1241,6 +1243,9 @@ class Object {
 
   // Prints this object with details.
   void Print(std::ostream& os);  // NOLINT
+#else
+  void Print() { ShortPrint(); }
+  void Print(std::ostream& os) { ShortPrint(os); }  // NOLINT
 #endif
 
  private:
@@ -2137,6 +2142,8 @@ class JSObject: public JSReceiver {
 #ifdef OBJECT_PRINT
   void PrintProperties(std::ostream& os);   // NOLINT
   void PrintElements(std::ostream& os);     // NOLINT
+#endif
+#ifdef DEBUG
   void PrintTransitions(std::ostream& os);  // NOLINT
 #endif
 
@@ -3063,15 +3070,13 @@ class DescriptorArray: public FixedArray {
   static const int kDescriptorValue = 2;
   static const int kDescriptorSize = 3;
 
-#ifdef OBJECT_PRINT
+#ifdef DEBUG
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
 
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);  // NOLINT
-#endif
 
-#ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates(int valid_descriptors = -1);
 
@@ -8953,7 +8958,7 @@ class String: public Name {
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
   void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
-#ifdef OBJECT_PRINT
+#ifdef DEBUG
   char* ToAsciiArray();
 #endif
   DECLARE_PRINTER(String)

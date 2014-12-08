@@ -6536,7 +6536,7 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
-#if DEBUG
+#if VERIFY_HEAP
   FixedArrayBase* fixed_array =
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
 

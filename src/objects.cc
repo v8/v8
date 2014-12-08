@@ -983,6 +983,9 @@ void Object::ShortPrint(StringStream* accumulator) {
 }
 
 
+void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
+
+
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   if (v.value->IsSmi()) {
     Smi::cast(v.value)->SmiPrint(os);

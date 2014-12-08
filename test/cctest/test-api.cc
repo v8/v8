@@ -22040,7 +22040,7 @@ TEST(Regress385349) {
 }
 
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;
@@ -22074,7 +22074,7 @@ static const char* kMegamorphicTestProgram =
 
 
 static void StubCacheHelper(bool primary) {
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   i::FLAG_native_code_counters = true;
   if (primary) {
     i::FLAG_test_primary_stub_cache = true;
