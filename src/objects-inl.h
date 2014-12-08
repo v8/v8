@@ -6516,7 +6516,7 @@ JSRegExp::Flags JSRegExp::GetFlags() {
 String* JSRegExp::Pattern() {
   DCHECK(this->data()->IsFixedArray());
   Object* data = this->data();
-  String* pattern= String::cast(FixedArray::cast(data)->get(kSourceIndex));
+  String* pattern = String::cast(FixedArray::cast(data)->get(kSourceIndex));
   return pattern;
 }
 

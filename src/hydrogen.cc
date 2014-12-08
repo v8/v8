@@ -3356,7 +3356,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
-  function_state_= &initial_function_state_;
+  function_state_ = &initial_function_state_;
   InitializeAstVisitor(info->zone());
   if (FLAG_hydrogen_track_positions) {
     SetSourcePosition(info->shared_info()->start_position());
@@ -10345,7 +10345,7 @@ bool HGraphBuilder::MatchRotateRight(HValue* left,
       !ShiftAmountsAllowReplaceByRotate(shr->right(), shl->right())) {
     return false;
   }
-  *operand= shr->left();
+  *operand = shr->left();
   *shift_amount = shr->right();
   return true;
 }
