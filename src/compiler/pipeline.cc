@@ -251,7 +251,7 @@ struct TurboCfgFile : public std::ofstream {
 
 
 static void TraceSchedule(Schedule* schedule) {
-  if (!FLAG_trace_turbo) return;
+  if (!FLAG_trace_turbo_graph && !FLAG_trace_turbo_scheduler) return;
   OFStream os(stdout);
   os << "-- Schedule --------------------------------------\n" << *schedule;
 }
@@ -646,6 +646,7 @@ struct PrintGraphPhase {
       Vector<char> dot_filename(dot_buffer, sizeof(dot_buffer));
       SNPrintF(dot_filename, "%s.dot", filename.start());
       FILE* dot_file = base::OS::FOpen(dot_filename.start(), "w+");
+      if (dot_file == nullptr) return;
       OFStream dot_of(dot_file);
       dot_of << AsDOT(*graph);
       fclose(dot_file);
@@ -656,6 +657,7 @@ struct PrintGraphPhase {
       Vector<char> json_filename(json_buffer, sizeof(json_buffer));
       SNPrintF(json_filename, "%s.json", filename.start());
       FILE* json_file = base::OS::FOpen(json_filename.start(), "w+");
+      if (json_file == nullptr) return;
       OFStream json_of(json_file);
       json_of << AsJSON(*graph);
       fclose(json_file);
@@ -818,7 +820,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
-    os << "--------------------------------------------------\n"
+    os << "---------------------------------------------------\n"
        << "Finished compiling method " << GetDebugName(info()).get()
        << " using Turbofan" << std::endl;
   }
@@ -982,7 +984,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();
   Run<BuildLiveRangesPhase>();
-  if (FLAG_trace_turbo) {
+  if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);
     PrintableInstructionSequence printable = {config, data->sequence()};
     os << "----- Instruction sequence before register allocation -----\n"
@@ -1007,7 +1009,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<ResolveControlFlowPhase>();
   Run<OptimizeMovesPhase>();
 
-  if (FLAG_trace_turbo) {
+  if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);
     PrintableInstructionSequence printable = {config, data->sequence()};
     os << "----- Instruction sequence after register allocation -----\n"
