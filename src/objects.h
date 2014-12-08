@@ -5677,7 +5677,7 @@ class Map: public HeapObject {
   // This counter is used for in-object slack tracking and for map aging.
   // The in-object slack tracking is considered enabled when the counter is
   // in the range [kSlackTrackingCounterStart, kSlackTrackingCounterEnd].
-  class Counter : public BitField<bool, 28, 4> {};
+  class Counter : public BitField<int, 28, 4> {};
   static const int kSlackTrackingCounterStart = 14;
   static const int kSlackTrackingCounterEnd = 8;
   static const int kRetainingCounterStart = kSlackTrackingCounterEnd - 1;
