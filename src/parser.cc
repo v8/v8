@@ -3831,63 +3831,63 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
-  if (consume_cached_parse_data()) {
+  if (consume_cached_parse_data() && !cached_parse_data_->rejected()) {
     // If we have cached data, we use it to skip parsing the function body. The
     // data contains the information we need to construct the lazy function.
     FunctionEntry entry =
         cached_parse_data_->GetFunctionEntry(function_block_pos);
-    // Check that cached data is valid.
-    CHECK(entry.is_valid());
-    // End position greater than end of stream is safe, and hard to check.
-    CHECK(entry.end_pos() > function_block_pos);
-    scanner()->SeekForward(entry.end_pos() - 1);
+    // Check that cached data is valid. If not, mark it as invalid (the embedder
+    // handles it). Note that end position greater than end of stream is safe,
+    // and hard to check.
+    if (entry.is_valid() && entry.end_pos() > function_block_pos) {
+      scanner()->SeekForward(entry.end_pos() - 1);
 
-    scope_->set_end_position(entry.end_pos());
-    Expect(Token::RBRACE, ok);
-    if (!*ok) {
+      scope_->set_end_position(entry.end_pos());
+      Expect(Token::RBRACE, ok);
+      if (!*ok) {
+        return;
+      }
+      total_preparse_skipped_ += scope_->end_position() - function_block_pos;
+      *materialized_literal_count = entry.literal_count();
+      *expected_property_count = entry.property_count();
+      scope_->SetStrictMode(entry.strict_mode());
       return;
     }
-    total_preparse_skipped_ += scope_->end_position() - function_block_pos;
-    *materialized_literal_count = entry.literal_count();
-    *expected_property_count = entry.property_count();
-    scope_->SetStrictMode(entry.strict_mode());
-  } else {
-    // With no cached data, we partially parse the function, without building an
-    // AST. This gathers the data needed to build a lazy function.
-    SingletonLogger logger;
-    PreParser::PreParseResult result =
-        ParseLazyFunctionBodyWithPreParser(&logger);
-    if (result == PreParser::kPreParseStackOverflow) {
-      // Propagate stack overflow.
-      set_stack_overflow();
-      *ok = false;
-      return;
-    }
-    if (logger.has_error()) {
-      ParserTraits::ReportMessageAt(
-          Scanner::Location(logger.start(), logger.end()),
-          logger.message(), logger.argument_opt(), logger.is_reference_error());
-      *ok = false;
-      return;
-    }
-    scope_->set_end_position(logger.end());
-    Expect(Token::RBRACE, ok);
-    if (!*ok) {
-      return;
-    }
-    total_preparse_skipped_ += scope_->end_position() - function_block_pos;
-    *materialized_literal_count = logger.literals();
-    *expected_property_count = logger.properties();
-    scope_->SetStrictMode(logger.strict_mode());
-    if (produce_cached_parse_data()) {
-      DCHECK(log_);
-      // Position right after terminal '}'.
-      int body_end = scanner()->location().end_pos;
-      log_->LogFunction(function_block_pos, body_end,
-                        *materialized_literal_count,
-                        *expected_property_count,
-                        scope_->strict_mode());
-    }
+    cached_parse_data_->Reject();
+  }
+  // With no cached data, we partially parse the function, without building an
+  // AST. This gathers the data needed to build a lazy function.
+  SingletonLogger logger;
+  PreParser::PreParseResult result =
+      ParseLazyFunctionBodyWithPreParser(&logger);
+  if (result == PreParser::kPreParseStackOverflow) {
+    // Propagate stack overflow.
+    set_stack_overflow();
+    *ok = false;
+    return;
+  }
+  if (logger.has_error()) {
+    ParserTraits::ReportMessageAt(
+        Scanner::Location(logger.start(), logger.end()), logger.message(),
+        logger.argument_opt(), logger.is_reference_error());
+    *ok = false;
+    return;
+  }
+  scope_->set_end_position(logger.end());
+  Expect(Token::RBRACE, ok);
+  if (!*ok) {
+    return;
+  }
+  total_preparse_skipped_ += scope_->end_position() - function_block_pos;
+  *materialized_literal_count = logger.literals();
+  *expected_property_count = logger.properties();
+  scope_->SetStrictMode(logger.strict_mode());
+  if (produce_cached_parse_data()) {
+    DCHECK(log_);
+    // Position right after terminal '}'.
+    int body_end = scanner()->location().end_pos;
+    log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
+                      *expected_property_count, scope_->strict_mode());
   }
 }
 

@@ -24379,6 +24379,7 @@ TEST(StreamingProducesParserCache) {
   const v8::ScriptCompiler::CachedData* cached_data = source.GetCachedData();
   CHECK(cached_data != NULL);
   CHECK(cached_data->data != NULL);
+  CHECK(!cached_data->rejected);
   CHECK_GT(cached_data->length, 0);
 }
 
@@ -24467,6 +24468,61 @@ TEST(InvalidCacheData) {
   LocalContext context;
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
+}
+
+
+TEST(ParserCacheRejectedGracefully) {
+  i::FLAG_min_preparse_length = 0;
+  v8::V8::Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  // Produce valid cached data.
+  v8::ScriptOrigin origin(v8_str("origin"));
+  v8::Local<v8::String> source_str = v8_str("function foo() {}");
+  v8::ScriptCompiler::Source source(source_str, origin);
+  v8::Handle<v8::Script> script = v8::ScriptCompiler::Compile(
+      CcTest::isolate(), &source, v8::ScriptCompiler::kProduceParserCache);
+  CHECK(!script.IsEmpty());
+  const v8::ScriptCompiler::CachedData* original_cached_data =
+      source.GetCachedData();
+  CHECK(original_cached_data != NULL);
+  CHECK(original_cached_data->data != NULL);
+  CHECK(!original_cached_data->rejected);
+  CHECK_GT(original_cached_data->length, 0);
+  // Recompiling the same script with it won't reject the data.
+  {
+    v8::ScriptCompiler::Source source_with_cached_data(
+        source_str, origin,
+        new v8::ScriptCompiler::CachedData(original_cached_data->data,
+                                           original_cached_data->length));
+    v8::Handle<v8::Script> script =
+        v8::ScriptCompiler::Compile(CcTest::isolate(), &source_with_cached_data,
+                                    v8::ScriptCompiler::kConsumeParserCache);
+    CHECK(!script.IsEmpty());
+    const v8::ScriptCompiler::CachedData* new_cached_data =
+        source_with_cached_data.GetCachedData();
+    CHECK(new_cached_data != NULL);
+    CHECK(!new_cached_data->rejected);
+  }
+  // Compile an incompatible script with the cached data. The new script doesn't
+  // have the same starting position for the function as the old one, so the old
+  // cached data will be incompatible with it and will be rejected.
+  {
+    v8::Local<v8::String> incompatible_source_str =
+        v8_str("   function foo() {}");
+    v8::ScriptCompiler::Source source_with_cached_data(
+        incompatible_source_str, origin,
+        new v8::ScriptCompiler::CachedData(original_cached_data->data,
+                                           original_cached_data->length));
+    v8::Handle<v8::Script> script =
+        v8::ScriptCompiler::Compile(CcTest::isolate(), &source_with_cached_data,
+                                    v8::ScriptCompiler::kConsumeParserCache);
+    CHECK(!script.IsEmpty());
+    const v8::ScriptCompiler::CachedData* new_cached_data =
+        source_with_cached_data.GetCachedData();
+    CHECK(new_cached_data != NULL);
+    CHECK(new_cached_data->rejected);
+  }
 }
 
 
