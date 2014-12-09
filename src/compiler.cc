@@ -944,11 +944,8 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
     VMState<COMPILER> state(isolate);
     PostponeInterruptsScope postpone(isolate);
 
-    info.SetOptimizing(BailoutId::None(),
-                       Handle<Code>(function->shared()->code()));
-
+    info.SetOptimizing(BailoutId::None(), handle(function->shared()->code()));
     info.MarkAsContextSpecializing();
-    info.MarkAsTypingEnabled();
 
     if (GetOptimizedCodeNow(&info)) {
       DCHECK(function->shared()->is_compiled());
