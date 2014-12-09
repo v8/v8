@@ -2143,7 +2143,7 @@ class JSObject: public JSReceiver {
   void PrintProperties(std::ostream& os);   // NOLINT
   void PrintElements(std::ostream& os);     // NOLINT
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(OBJECT_PRINT)
   void PrintTransitions(std::ostream& os);  // NOLINT
 #endif
 
@@ -3070,13 +3070,15 @@ class DescriptorArray: public FixedArray {
   static const int kDescriptorValue = 2;
   static const int kDescriptorSize = 3;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
 
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);  // NOLINT
+#endif
 
+#ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates(int valid_descriptors = -1);
 
@@ -8961,7 +8963,7 @@ class String: public Name {
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
   void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
-#ifdef DEBUG
+#if defined(DEBUG) || defined(OBJECT_PRINT)
   char* ToAsciiArray();
 #endif
   DECLARE_PRINTER(String)

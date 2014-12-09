@@ -87,7 +87,8 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
                                              CallFunctionFlags flags) {
   Callable callable = CodeFactory::CallFunction(isolate(), 0, flags);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      callable.descriptor(), 1, CallDescriptor::kNeedsFrameState, zone());
+      callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
+      Operator::kNoProperties, zone());
   Node* stub_code = HeapConstant(callable.code());
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
                                 receiver, context, frame_state);

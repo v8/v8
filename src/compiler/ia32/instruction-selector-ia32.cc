@@ -454,29 +454,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        mlength.Value() > moffset.right().Value()) {
-      Int32Matcher mbuffer(buffer);
-      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
-      InstructionOperand* length_operand =
-          g.TempImmediate(mlength.Value() - moffset.right().Value());
-      if (mbuffer.HasValue()) {
-        Emit(opcode | AddressingModeField::encode(kMode_MRI),
-             g.DefineAsRegister(node), offset_operand, length_operand,
-             offset_operand,
-             g.TempImmediate(mbuffer.Value() + moffset.right().Value()));
-      } else {
-        Emit(opcode | AddressingModeField::encode(kMode_MR1I),
-             g.DefineAsRegister(node), offset_operand, length_operand,
-             g.UseRegister(buffer), offset_operand,
-             g.UseImmediate(moffset.right().node()));
-      }
-      return;
-    }
-  }
   InstructionOperand* offset_operand = g.UseRegister(offset);
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
@@ -525,28 +502,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
           ? g.UseImmediate(value)
           : ((rep == kRepWord8 || rep == kRepBit) ? g.UseByteRegister(value)
                                                   : g.UseRegister(value));
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mbuffer(buffer);
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        mlength.Value() > moffset.right().Value()) {
-      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
-      InstructionOperand* length_operand =
-          g.TempImmediate(mlength.Value() - moffset.right().Value());
-      if (mbuffer.HasValue()) {
-        Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-             offset_operand, length_operand, value_operand, offset_operand,
-             g.TempImmediate(mbuffer.Value() + moffset.right().Value()));
-      } else {
-        Emit(opcode | AddressingModeField::encode(kMode_MR1I), nullptr,
-             offset_operand, length_operand, value_operand,
-             g.UseRegister(buffer), offset_operand,
-             g.UseImmediate(moffset.right().node()));
-      }
-      return;
-    }
-  }
   InstructionOperand* offset_operand = g.UseRegister(offset);
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);

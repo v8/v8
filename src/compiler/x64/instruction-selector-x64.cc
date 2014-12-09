@@ -230,21 +230,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        mlength.Value() > moffset.right().Value()) {
-      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
-      InstructionOperand* length_operand =
-          g.TempImmediate(mlength.Value() - moffset.right().Value());
-      Emit(opcode | AddressingModeField::encode(kMode_MR1I),
-           g.DefineAsRegister(node), offset_operand, length_operand,
-           g.UseRegister(buffer), offset_operand,
-           g.UseImmediate(moffset.right().node()));
-      return;
-    }
-  }
   InstructionOperand* offset_operand = g.UseRegister(offset);
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
@@ -284,20 +269,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
   }
   InstructionOperand* value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
-    Int32Matcher mlength(length);
-    Int32BinopMatcher moffset(offset);
-    if (mlength.HasValue() && moffset.right().HasValue() &&
-        mlength.Value() > moffset.right().Value()) {
-      InstructionOperand* offset_operand = g.UseRegister(moffset.left().node());
-      InstructionOperand* length_operand =
-          g.TempImmediate(mlength.Value() - moffset.right().Value());
-      Emit(opcode | AddressingModeField::encode(kMode_MR1I), nullptr,
-           offset_operand, length_operand, value_operand, g.UseRegister(buffer),
-           offset_operand, g.UseImmediate(moffset.right().node()));
-      return;
-    }
-  }
   InstructionOperand* offset_operand = g.UseRegister(offset);
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
