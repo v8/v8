@@ -105,10 +105,6 @@ class JSGraph : public ZoneObject {
     return Constant(immediate);
   }
 
-  // Creates a dummy Constant node, used to satisfy calling conventions of
-  // stubs and runtime functions that do not require a context.
-  Node* NoContextConstant() { return ZeroConstant(); }
-
   JSOperatorBuilder* javascript() { return javascript_; }
   CommonOperatorBuilder* common() { return common_; }
   MachineOperatorBuilder* machine() { return machine_; }

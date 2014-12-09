@@ -56,8 +56,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
     // Use the code stub interface descriptor.
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(descriptor, 0, CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties, zone);
+    return GetStubCallDescriptor(descriptor, 0, CallDescriptor::kNoFlags, zone);
   }
   return NULL;  // TODO(titzer): ?
 }
@@ -106,9 +105,8 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, Operator::Properties properties) const {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
-                               properties, zone_);
+    CallDescriptor::Flags flags) const {
+  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags, zone_);
 }
 
 
@@ -240,8 +238,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, OperatorProperties::Properties properties,
-    Zone* zone) {
+    CallDescriptor::Flags flags, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
 }
