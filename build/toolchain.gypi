@@ -1042,6 +1042,7 @@
                 # TODO(2304): pass DISABLE_DEBUG_ASSERT instead of hiding DEBUG.
                 'defines!': [
                   'DEBUG',
+                  'ENABLE_SLOW_DCHECKS',
                 ],
               }],
             ],
