@@ -762,15 +762,14 @@ static bool Renumber(CompilationInfo* info) {
 }
 
 
-static void ThrowSuperConstructorCheckError(CompilationInfo* info) {
+static void ThrowSuperConstructorCheckError(CompilationInfo* info,
+                                            Statement* stmt) {
   MaybeHandle<Object> obj = info->isolate()->factory()->NewTypeError(
       "super_constructor_call", HandleVector<Object>(nullptr, 0));
   Handle<Object> exception;
   if (!obj.ToHandle(&exception)) return;
 
-  FunctionLiteral* lit = info->function();
-  MessageLocation location(info->script(), lit->start_position(),
-                           lit->end_position());
+  MessageLocation location(info->script(), stmt->position(), stmt->position());
   USE(info->isolate()->Throw(*exception, &location));
 }
 
@@ -801,20 +800,20 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
     break;
   }
 
-  ExpressionStatement* exprStm =
-      body->at(super_call_index)->AsExpressionStatement();
+  Statement* stmt = body->at(super_call_index);
+  ExpressionStatement* exprStm = stmt->AsExpressionStatement();
   if (exprStm == nullptr) {
-    ThrowSuperConstructorCheckError(info);
+    ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
   Call* callExpr = exprStm->expression()->AsCall();
   if (callExpr == nullptr) {
-    ThrowSuperConstructorCheckError(info);
+    ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
 
   if (!callExpr->expression()->IsSuperReference()) {
-    ThrowSuperConstructorCheckError(info);
+    ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
 
@@ -825,7 +824,7 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
 
   if (this_access_visitor.HasStackOverflow()) return false;
   if (this_access_visitor.UsesThis()) {
-    ThrowSuperConstructorCheckError(info);
+    ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
 

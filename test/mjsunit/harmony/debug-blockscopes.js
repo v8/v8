@@ -481,3 +481,24 @@ listener_delegate = function(exec_state) {
 };
 for_loop_5();
 EndTest();
+
+
+// Uninitialized variables
+BeginTest("Uninitialized 1");
+
+function uninitialized_1() {
+  {
+    debugger;
+    let x = 1;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({}, 0, exec_state);
+};
+uninitialized_1();
+EndTest();
