@@ -24,11 +24,20 @@ class SnapshotWriter {
  public:
   explicit SnapshotWriter(const char* snapshot_file)
       : fp_(GetFileDescriptorOrDie(snapshot_file)),
+        raw_file_(NULL),
+        raw_context_file_(NULL),
         startup_blob_file_(NULL) {}
 
   ~SnapshotWriter() {
     fclose(fp_);
+    if (raw_file_) fclose(raw_file_);
+    if (raw_context_file_) fclose(raw_context_file_);
     if (startup_blob_file_) fclose(startup_blob_file_);
+  }
+
+  void SetRawFiles(const char* raw_file, const char* raw_context_file) {
+    raw_file_ = GetFileDescriptorOrDie(raw_file);
+    raw_context_file_ = GetFileDescriptorOrDie(raw_context_file);
   }
 
   void SetStartupBlobFile(const char* startup_blob_file) {
@@ -38,29 +47,34 @@ class SnapshotWriter {
 
   void WriteSnapshot(const i::SnapshotData& sd,
                      const i::SnapshotData& csd) const {
-    i::SnapshotByteSink sink;
-    sink.PutBlob(sd.RawData(), "startup");
-    sink.PutBlob(csd.RawData(), "context");
-    const i::Vector<const i::byte>& blob = sink.data().ToConstVector();
-
-    WriteSnapshotFile(blob);
-    MaybeWriteStartupBlob(blob);
+    WriteSnapshotFile(sd, csd);
+    MaybeWriteStartupBlob(sd, csd);
   }
 
  private:
-  void MaybeWriteStartupBlob(const i::Vector<const i::byte>& blob) const {
+  void MaybeWriteStartupBlob(const i::SnapshotData& sd,
+                             const i::SnapshotData& csd) const {
     if (!startup_blob_file_) return;
 
-    size_t written = fwrite(blob.begin(), 1, blob.length(), startup_blob_file_);
-    if (written != static_cast<size_t>(blob.length())) {
+    i::SnapshotByteSink sink;
+
+    sink.PutBlob(sd.RawData(), "snapshot");
+    sink.PutBlob(csd.RawData(), "context");
+
+    const i::List<i::byte>& startup_blob = sink.data();
+    size_t written = fwrite(startup_blob.begin(), 1, startup_blob.length(),
+                            startup_blob_file_);
+    if (written != static_cast<size_t>(startup_blob.length())) {
       i::PrintF("Writing snapshot file failed.. Aborting.\n");
       exit(1);
     }
   }
 
-  void WriteSnapshotFile(const i::Vector<const i::byte>& blob) const {
+  void WriteSnapshotFile(const i::SnapshotData& snapshot_data,
+                         const i::SnapshotData& context_snapshot_data) const {
     WriteFilePrefix();
-    WriteData(blob);
+    WriteData("", snapshot_data.RawData(), raw_file_);
+    WriteData("context_", context_snapshot_data.RawData(), raw_context_file_);
     WriteFileSuffix();
   }
 
@@ -74,29 +88,47 @@ class SnapshotWriter {
   }
 
   void WriteFileSuffix() const {
-    fprintf(fp_, "const v8::StartupData Snapshot::SnapshotBlob() {\n");
-    fprintf(fp_, "  v8::StartupData blob;\n");
-    fprintf(fp_, "  blob.data = reinterpret_cast<const char*>(blob_data);\n");
-    fprintf(fp_, "  blob.raw_size = blob_size;\n");
-    fprintf(fp_, "  return blob;\n");
-    fprintf(fp_, "}\n\n");
     fprintf(fp_, "}  // namespace internal\n");
     fprintf(fp_, "}  // namespace v8\n");
   }
 
-  void WriteData(const i::Vector<const i::byte>& blob) const {
-    fprintf(fp_, "static const byte blob_data[] = {\n");
-    WriteSnapshotData(blob);
+  void WriteData(const char* prefix,
+                 const i::Vector<const i::byte>& source_data,
+                 FILE* raw_file) const {
+    MaybeWriteRawFile(&source_data, raw_file);
+    WriteData(prefix, source_data);
+  }
+
+  void MaybeWriteRawFile(const i::Vector<const i::byte>* data,
+                         FILE* raw_file) const {
+    if (!data || !raw_file) return;
+
+    // Sanity check, whether i::List iterators truly return pointers to an
+    // internal array.
+    DCHECK(data->end() - data->begin() == data->length());
+
+    size_t written = fwrite(data->begin(), 1, data->length(), raw_file);
+    if (written != static_cast<size_t>(data->length())) {
+      i::PrintF("Writing raw file failed.. Aborting.\n");
+      exit(1);
+    }
+  }
+
+  void WriteData(const char* prefix,
+                 const i::Vector<const i::byte>& source_data) const {
+    fprintf(fp_, "const byte Snapshot::%sdata_[] = {\n", prefix);
+    WriteSnapshotData(source_data);
     fprintf(fp_, "};\n");
-    fprintf(fp_, "static const int blob_size = %d;\n", blob.length());
+    fprintf(fp_, "const int Snapshot::%ssize_ = %d;\n", prefix,
+            source_data.length());
     fprintf(fp_, "\n");
   }
 
-  void WriteSnapshotData(const i::Vector<const i::byte>& blob) const {
-    for (int i = 0; i < blob.length(); i++) {
+  void WriteSnapshotData(const i::Vector<const i::byte>& data) const {
+    for (int i = 0; i < data.length(); i++) {
       if ((i & 0x1f) == 0x1f) fprintf(fp_, "\n");
       if (i > 0) fprintf(fp_, ",");
-      fprintf(fp_, "%u", static_cast<unsigned char>(blob.at(i)));
+      fprintf(fp_, "%u", static_cast<unsigned char>(data.at(i)));
     }
     fprintf(fp_, "\n");
   }
@@ -111,6 +143,8 @@ class SnapshotWriter {
   }
 
   FILE* fp_;
+  FILE* raw_file_;
+  FILE* raw_context_file_;
   FILE* startup_blob_file_;
 };
 
@@ -236,6 +270,8 @@ int main(int argc, char** argv) {
 
     {
       SnapshotWriter writer(argv[1]);
+      if (i::FLAG_raw_file && i::FLAG_raw_context_file)
+        writer.SetRawFiles(i::FLAG_raw_file, i::FLAG_raw_context_file);
       if (i::FLAG_startup_blob)
         writer.SetStartupBlobFile(i::FLAG_startup_blob);
       i::SnapshotData sd(snapshot_sink, ser);

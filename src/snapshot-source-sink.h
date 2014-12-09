@@ -19,10 +19,8 @@ namespace internal {
  */
 class SnapshotByteSource FINAL {
  public:
-  SnapshotByteSource(const char* data, int length)
-      : data_(reinterpret_cast<const byte*>(data)),
-        length_(length),
-        position_(0) {}
+  SnapshotByteSource(const byte* data, int length)
+      : data_(data), length_(length), position_(0) {}
 
   explicit SnapshotByteSource(Vector<const byte> payload)
       : data_(payload.start()), length_(payload.length()), position_(0) {}

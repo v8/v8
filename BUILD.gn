@@ -357,6 +357,7 @@ source_set("v8_nosnapshot") {
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "src/snapshot-empty.cc",
+    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -378,6 +379,7 @@ source_set("v8_snapshot") {
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/snapshot.cc",
+    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -892,7 +894,6 @@ source_set("v8_base") {
     "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
-    "src/snapshot-common.cc",
     "src/snapshot-source-sink.cc",
     "src/snapshot-source-sink.h",
     "src/snapshot.h",

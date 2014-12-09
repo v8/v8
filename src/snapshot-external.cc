@@ -10,32 +10,70 @@
 #include "src/snapshot-source-sink.h"
 #include "src/v8.h"  // for V8::Initialize
 
-
-#ifndef V8_USE_EXTERNAL_STARTUP_DATA
-#error snapshot-external.cc is used only for the external snapshot build.
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
-
-
 namespace v8 {
 namespace internal {
 
-static v8::StartupData* external_startup_blob = NULL;
+
+struct SnapshotImpl {
+ public:
+  const byte* data;
+  int size;
+  const byte* context_data;
+  int context_size;
+};
+
+
+static SnapshotImpl* snapshot_impl_ = NULL;
+
+
+bool Snapshot::HaveASnapshotToStartFrom() {
+  return snapshot_impl_ != NULL;
+}
+
+
+bool Snapshot::Initialize(Isolate* isolate) {
+  if (!HaveASnapshotToStartFrom()) return false;
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization) timer.Start();
+
+  SnapshotData snapshot_data(snapshot_impl_->data, snapshot_impl_->size);
+  Deserializer deserializer(&snapshot_data);
+  bool success = isolate->Init(&deserializer);
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
+  }
+  return success;
+}
+
+
+Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
+  if (!HaveASnapshotToStartFrom()) return Handle<Context>();
+
+  SnapshotData snapshot_data(snapshot_impl_->context_data,
+                             snapshot_impl_->context_size);
+  Deserializer deserializer(&snapshot_data);
+  Object* root;
+  deserializer.DeserializePartial(isolate, &root);
+  CHECK(root->IsContext());
+  return Handle<Context>(Context::cast(root));
+}
+
 
 void SetSnapshotFromFile(StartupData* snapshot_blob) {
   DCHECK(snapshot_blob);
   DCHECK(snapshot_blob->data);
   DCHECK(snapshot_blob->raw_size > 0);
-  DCHECK(!external_startup_blob);
-  external_startup_blob = snapshot_blob;
+  DCHECK(!snapshot_impl_);
 
-  // Validate snapshot blob.
-  DCHECK(!Snapshot::StartupSnapshot().is_empty());
-  DCHECK(!Snapshot::ContextSnapshot().is_empty());
-}
-
-
-const v8::StartupData Snapshot::SnapshotBlob() {
-  return *external_startup_blob;
+  snapshot_impl_ = new SnapshotImpl;
+  SnapshotByteSource source(reinterpret_cast<const byte*>(snapshot_blob->data),
+                            snapshot_blob->raw_size);
+  bool success = source.GetBlob(&snapshot_impl_->data,
+                                &snapshot_impl_->size);
+  success &= source.GetBlob(&snapshot_impl_->context_data,
+                            &snapshot_impl_->context_size);
+  DCHECK(success);
 }
 
 } }  // namespace v8::internal

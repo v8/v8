@@ -15,16 +15,18 @@ class Snapshot {
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
+
+  static bool HaveASnapshotToStartFrom();
+
   // Create a new context using the internal partial snapshot.
   static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
 
-  static const Vector<const byte> StartupSnapshot();
-  static const Vector<const byte> ContextSnapshot();
-  static bool HaveASnapshotToStartFrom();
-
-  static const v8::StartupData SnapshotBlob();
-
  private:
+  static const byte data_[];
+  static const int size_;
+  static const byte context_data_[];
+  static const int context_size_;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
 
