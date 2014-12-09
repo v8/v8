@@ -107,7 +107,7 @@ class ControlReducerImpl {
 
     // We use a stack of (Node, UseIter) pairs to avoid O(n^2) traversal.
     typedef std::pair<Node*, UseIter> FwIter;
-    ZoneDeque<FwIter> fw_stack(zone_);
+    ZoneVector<FwIter> fw_stack(zone_);
     fw_stack.push_back(FwIter(start, start->uses().begin()));
 
     while (!fw_stack.empty()) {
@@ -123,8 +123,11 @@ class ControlReducerImpl {
           marked.SetReachableFromEnd(added);
           AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
 
-          // The use list of {succ} might have changed.
-          fw_stack[fw_stack.size() - 1] = FwIter(succ, succ->uses().begin());
+          // Reset the use iterators for the entire stack.
+          for (size_t i = 0; i < fw_stack.size(); i++) {
+            FwIter& iter = fw_stack[i];
+            fw_stack[i] = FwIter(iter.first, iter.first->uses().begin());
+          }
           pop = false;  // restart traversing successors of this node.
           break;
         }
