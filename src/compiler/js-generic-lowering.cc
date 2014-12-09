@@ -170,8 +170,9 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags) {
+  Operator::Properties properties = node->op()->properties();
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      callable.descriptor(), 0, flags | FlagsForNode(node));
+      callable.descriptor(), 0, flags | FlagsForNode(node), properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -181,10 +182,11 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                Builtins::JavaScript id,
                                                int nargs) {
+  Operator::Properties properties = node->op()->properties();
   Callable callable =
       CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      callable.descriptor(), nargs, FlagsForNode(node));
+      callable.descriptor(), nargs, FlagsForNode(node), properties);
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
   Handle<JSFunction> function(

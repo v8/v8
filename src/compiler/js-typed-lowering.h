@@ -31,7 +31,6 @@ class JSTypedLowering FINAL : public Reducer {
   friend class JSBinopReduction;
 
   Reduction ReplaceEagerly(Node* old, Node* node);
-  Reduction ReplaceWith(Node* node) { return Reducer::Replace(node); }
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSBitwiseOr(Node* node);
   Reduction ReduceJSMultiply(Node* node);

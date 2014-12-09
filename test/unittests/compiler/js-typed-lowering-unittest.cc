@@ -78,14 +78,79 @@ class JSTypedLoweringTest : public TypedGraphTest {
 // JSToBoolean
 
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
+  Node* input = Parameter(Type::Boolean());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithUndefined) {
+  Node* input = Parameter(Type::Undefined());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFalseConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithNull) {
+  Node* input = Parameter(Type::Null());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFalseConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiver) {
+  Node* input = Parameter(Type::DetectableReceiver());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsTrueConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithUndetectable) {
+  Node* input = Parameter(Type::Undetectable());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFalseConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
+  Node* input = Parameter(Type::OrderedNumber());
+  Node* context = UndefinedConstant();
+
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0))));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   Node* input = Parameter(Type::String());
   Node* context = UndefinedConstant();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
 
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsNumberEqual(
@@ -95,22 +160,39 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumberAndBoolean) {
+TEST_F(JSTypedLoweringTest, JSToBooleanWithPhi) {
   Node* p0 = Parameter(Type::OrderedNumber(), 0);
   Node* p1 = Parameter(Type::Boolean(), 1);
   Node* context = UndefinedConstant();
-  Node* effect = graph()->start();
   Node* control = graph()->start();
 
   Reduction r = Reduce(graph()->NewNode(
       javascript()->ToBoolean(),
       graph()->NewNode(common()->Phi(kMachAnyTagged, 2), p0, p1, control),
-      context, effect, control));
+      context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsPhi(kMachAnyTagged,
             IsBooleanNot(IsNumberEqual(p0, IsNumberConstant(0))), p1, control));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithSelect) {
+  Node* p0 = Parameter(Type::Boolean(), 0);
+  Node* p1 = Parameter(Type::DetectableReceiver(), 1);
+  Node* p2 = Parameter(Type::OrderedNumber(), 2);
+  Node* context = UndefinedConstant();
+
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(),
+      graph()->NewNode(common()->Select(kMachAnyTagged, BranchHint::kTrue), p0,
+                       p1, p2),
+      context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsSelect(kMachAnyTagged, p0, IsTrueConstant(),
+                       IsBooleanNot(IsNumberEqual(p2, IsNumberConstant(0)))));
 }
 
 

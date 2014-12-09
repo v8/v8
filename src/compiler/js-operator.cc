@@ -228,8 +228,8 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(Multiply, Operator::kNoProperties, 2, 1)              \
   V(Divide, Operator::kNoProperties, 2, 1)                \
   V(Modulus, Operator::kNoProperties, 2, 1)               \
-  V(UnaryNot, Operator::kNoProperties, 1, 1)              \
-  V(ToBoolean, Operator::kNoProperties, 1, 1)             \
+  V(UnaryNot, Operator::kPure, 1, 1)                      \
+  V(ToBoolean, Operator::kPure, 1, 1)                     \
   V(ToNumber, Operator::kNoProperties, 1, 1)              \
   V(ToString, Operator::kNoProperties, 1, 1)              \
   V(ToName, Operator::kNoProperties, 1, 1)                \
