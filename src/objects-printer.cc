@@ -1122,7 +1122,7 @@ int Name::NameShortPrint(Vector<char> str) {
 #endif  // TRACE_MAPS
 
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(OBJECT_PRINT)
 // This method is only meant to be called from gdb for debugging purposes.
 // Since the string can also be in two-byte encoding, non-Latin1 characters
 // will be ignored in the output.
@@ -1210,5 +1210,5 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
   if (!map()->HasTransitionArray()) return;
   map()->transitions()->PrintTransitions(os, false);
 }
-#endif  // DEBUG
+#endif  // defined(DEBUG) || defined(OBJECT_PRINT)
 } }  // namespace v8::internal
