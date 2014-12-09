@@ -9,8 +9,8 @@
 #ifndef V8_V8_H_
 #define V8_V8_H_
 
-#if defined(GOOGLE3)
-// Google3 special flag handling.
+#if defined(GOOGLE3) || defined(DCHECK_ALWAYS_ON)
+// Google3 and Chromium special flag handling.
 #if defined(DEBUG) && defined(NDEBUG)
 // V8 only uses DEBUG and whenever it is set we are building a debug
 // version of V8. We do not use NDEBUG and simply undef it here for
