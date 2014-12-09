@@ -1193,11 +1193,12 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
+  Operator::Properties properties = node->op()->properties();
   Callable callable = CodeFactory::StringAdd(
       zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(callable.descriptor(), 0, flags, zone());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      callable.descriptor(), 0, flags, properties, zone());
   node->set_op(common()->Call(desc));
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));

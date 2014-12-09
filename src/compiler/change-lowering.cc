@@ -75,7 +75,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   CallDescriptor* descriptor = linkage()->GetStubCallDescriptor(
       callable.descriptor(), 0, CallDescriptor::kNoFlags);
   Node* target = jsgraph()->HeapConstant(callable.code());
-  Node* context = jsgraph()->ZeroConstant();
+  Node* context = jsgraph()->NoContextConstant();
   Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
   Node* heap_number = graph()->NewNode(common()->Call(descriptor), target,
                                        context, effect, control);
