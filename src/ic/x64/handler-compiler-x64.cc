@@ -335,19 +335,10 @@ void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
   }
 }
 
-
-void NamedStoreHandlerCompiler::GenerateConstantCheck(Register map_reg,
-                                                      int descriptor,
+void NamedStoreHandlerCompiler::GenerateConstantCheck(Object* constant,
                                                       Register value_reg,
-                                                      Register scratch,
                                                       Label* miss_label) {
-  DCHECK(!map_reg.is(scratch));
-  DCHECK(!map_reg.is(value_reg));
-  DCHECK(!value_reg.is(scratch));
-  __ LoadInstanceDescriptors(map_reg, scratch);
-  __ movp(scratch,
-          FieldOperand(scratch, DescriptorArray::GetValueOffset(descriptor)));
-  __ cmpp(value_reg, scratch);
+  __ Cmp(value_reg, handle(constant, isolate()));
   __ j(not_equal, miss_label);
 }
 

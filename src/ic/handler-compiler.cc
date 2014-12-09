@@ -340,10 +340,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
 
   // Call to respective StoreTransitionStub.
   if (details.type() == CONSTANT) {
+    GenerateConstantCheck(descriptors->GetValue(descriptor), value(), &miss);
+
     GenerateRestoreMap(transition, scratch2(), &miss);
-    DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register map_reg = StoreTransitionDescriptor::MapRegister();
-    GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
