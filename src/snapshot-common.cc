@@ -14,50 +14,61 @@
 namespace v8 {
 namespace internal {
 
-
-bool Snapshot::Initialize(Isolate* isolate) {
-  if (size_ > 0) {
-    base::ElapsedTimer timer;
-    if (FLAG_profile_deserialization) timer.Start();
-
-    SnapshotData snapshot_data(data_, size_);
-    Deserializer deserializer(&snapshot_data);
-    bool success = isolate->Init(&deserializer);
-    if (FLAG_profile_deserialization) {
-      double ms = timer.Elapsed().InMillisecondsF();
-      PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
-    }
-    return success;
-  }
-  return false;
+bool Snapshot::HaveASnapshotToStartFrom() {
+  return SnapshotBlob().data != NULL;
 }
 
 
-bool Snapshot::HaveASnapshotToStartFrom() {
-  return size_ != 0;
+const Vector<const byte> Snapshot::StartupSnapshot() {
+  DCHECK(HaveASnapshotToStartFrom());
+  const v8::StartupData blob = SnapshotBlob();
+  SnapshotByteSource source(blob.data, blob.raw_size);
+  const byte* data;
+  int length;
+  bool success = source.GetBlob(&data, &length);
+  CHECK(success);
+  return Vector<const byte>(data, length);
+}
+
+
+const Vector<const byte> Snapshot::ContextSnapshot() {
+  DCHECK(HaveASnapshotToStartFrom());
+  const v8::StartupData blob = SnapshotBlob();
+  SnapshotByteSource source(blob.data, blob.raw_size);
+  const byte* data;
+  int length;
+  bool success = source.GetBlob(&data, &length);
+  success &= source.GetBlob(&data, &length);
+  CHECK(success);
+  return Vector<const byte>(data, length);
+}
+
+
+bool Snapshot::Initialize(Isolate* isolate) {
+  if (!HaveASnapshotToStartFrom()) return false;
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization) timer.Start();
+
+  SnapshotData snapshot_data(StartupSnapshot());
+  Deserializer deserializer(&snapshot_data);
+  bool success = isolate->Init(&deserializer);
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
+  }
+  return success;
 }
 
 
 Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
-  if (context_size_ == 0) return Handle<Context>();
+  if (!HaveASnapshotToStartFrom()) return Handle<Context>();
 
-  SnapshotData snapshot_data(context_data_, context_size_);
+  SnapshotData snapshot_data(ContextSnapshot());
   Deserializer deserializer(&snapshot_data);
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
   return Handle<Context>(Context::cast(root));
 }
-
-
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-// Dummy implementations of Set*FromFile(..) APIs.
-//
-// These are meant for use with snapshot-external.cc. Should this file
-// be compiled with those options we just supply these dummy implementations
-// below. This happens when compiling the mksnapshot utility.
-void SetNativesFromFile(StartupData* data) { CHECK(false); }
-void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 } }  // namespace v8::internal

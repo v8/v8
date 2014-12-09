@@ -11,9 +11,18 @@
 namespace v8 {
 namespace internal {
 
-const byte Snapshot::data_[] = { 0 };
-const int Snapshot::size_ = 0;
-const byte Snapshot::context_data_[] = { 0 };
-const int Snapshot::context_size_ = 0;
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+// Dummy implementations of Set*FromFile(..) APIs.
+//
+// These are meant for use with snapshot-external.cc. Should this file
+// be compiled with those options we just supply these dummy implementations
+// below. This happens when compiling the mksnapshot utility.
+void SetNativesFromFile(StartupData* data) { CHECK(false); }
+void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
+
+const v8::StartupData Snapshot::SnapshotBlob() {
+  return {NULL, 0};
+}
 } }  // namespace v8::internal

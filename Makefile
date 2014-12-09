@@ -82,6 +82,9 @@ endif
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
 endif
+ifeq ($(snapshot), external)
+  GYPFLAGS += -Dv8_use_external_startup_data=1
+endif
 # extrachecks=on/off
 ifeq ($(extrachecks), on)
   GYPFLAGS += -Dv8_enable_extra_checks=1 -Dv8_enable_handle_zapping=1
