@@ -283,30 +283,28 @@ TypeImpl<Config>::BitsetType::Lub(double value) {
 
 
 // Minimum values of regular numeric bitsets when SmiValuesAre31Bits.
-template<class Config>
+template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
-TypeImpl<Config>::BitsetType::BitsetMins31[] = {
-    {kOtherNumber, -V8_INFINITY},
-    {kOtherSigned32, kMinInt},
-    {kOtherSignedSmall, -0x40000000},
-    {kUnsignedSmall, 0},
-    {kOtherUnsigned31, 0x40000000},
-    {kOtherUnsigned32, 0x80000000},
-    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
-};
+    TypeImpl<Config>::BitsetType::BitsetMins31[] = {
+        {kOtherNumber, -V8_INFINITY},
+        {kOtherSigned32, kMinInt},
+        {kNegativeSignedSmall, -0x40000000},
+        {kUnsignedSmall, 0},
+        {kOtherUnsigned31, 0x40000000},
+        {kOtherUnsigned32, 0x80000000},
+        {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}};
 
 
 // Minimum values of regular numeric bitsets when SmiValuesAre32Bits.
 // OtherSigned32 and OtherUnsigned31 are empty (see the diagrams in types.h).
-template<class Config>
+template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
-TypeImpl<Config>::BitsetType::BitsetMins32[] = {
-    {kOtherNumber, -V8_INFINITY},
-    {kOtherSignedSmall, kMinInt},
-    {kUnsignedSmall, 0},
-    {kOtherUnsigned32, 0x80000000},
-    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
-};
+    TypeImpl<Config>::BitsetType::BitsetMins32[] = {
+        {kOtherNumber, -V8_INFINITY},
+        {kNegativeSignedSmall, kMinInt},
+        {kUnsignedSmall, 0},
+        {kOtherUnsigned32, 0x80000000},
+        {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}};
 
 
 template<class Config>
@@ -315,6 +313,11 @@ TypeImpl<Config>::BitsetType::Lub(double min, double max) {
   DisallowHeapAllocation no_allocation;
   int lub = kNone;
   const BitsetMin* mins = BitsetMins();
+
+  // Make sure the min-max range touches 0, so we are guaranteed no holes
+  // in unions of valid bitsets.
+  if (max < -1) max = -1;
+  if (min > 0) min = 0;
 
   for (size_t i = 1; i < BitsetMinsSize(); ++i) {
     if (min < mins[i].min) {
@@ -986,6 +989,7 @@ void TypeImpl<Config>::BitsetType::Print(std::ostream& os,  // NOLINT
 #undef BITSET_CONSTANT
 
 #define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
+      INTERNAL_BITSET_TYPE_LIST(BITSET_CONSTANT)
       SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
 #undef BITSET_CONSTANT
   };
