@@ -34,6 +34,10 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 
+FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+INVALID_FLAGS = ["--enable-slow-asserts"]
+
+
 class PreparserTestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
     super(PreparserTestSuite, self).__init__(name, root)
@@ -104,6 +108,15 @@ class PreparserTestSuite(testsuite.TestSuite):
     first = testcase.flags[0]
     if first != "-e":
       testcase.flags[0] = os.path.join(self.root, first)
+      source = self.GetSourceForTest(testcase)
+      result = []
+      flags_match = re.findall(FLAGS_PATTERN, source)
+      for match in flags_match:
+        result += match.strip().split()
+      result += context.mode_flags
+      result = [x for x in result if x not in INVALID_FLAGS]
+      result.append(os.path.join(self.root, testcase.path + ".js"))
+      return testcase.flags + result
     return testcase.flags
 
   def GetSourceForTest(self, testcase):
