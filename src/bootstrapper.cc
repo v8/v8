@@ -2166,7 +2166,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_modules_natives[] = {NULL};
   static const char* harmony_scoping_natives[] = {NULL};
   static const char* harmony_object_literals_natives[] = {NULL};
-  static const char* harmony_regexps_natives[] = {NULL};
+  static const char* harmony_regexps_natives[] = {
+      "native harmony-regexp.js", NULL};
   static const char* harmony_arrow_functions_natives[] = {NULL};
   static const char* harmony_numeric_literals_natives[] = {NULL};
   static const char* harmony_tostring_natives[] = {"native harmony-tostring.js",
