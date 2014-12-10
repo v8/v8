@@ -5,4 +5,4 @@
     super(this.x);
      
 TypeError: A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported.
-    at *%(basename)s:14:1
+    at *%(basename)s:14:9
