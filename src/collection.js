@@ -30,7 +30,7 @@ function SetConstructor(iterable) {
     }
   }
 
-  %SetInitialize(this);
+  %_SetInitialize(this);
 
   if (IS_UNDEFINED(iter)) return;
 
@@ -170,7 +170,7 @@ function MapConstructor(iterable) {
     }
   }
 
-  %MapInitialize(this);
+  %_MapInitialize(this);
 
   if (IS_UNDEFINED(iter)) return;
 

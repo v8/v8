@@ -12648,6 +12648,85 @@ void HOptimizedGraphBuilder::GenerateMapGetSize(CallRuntime* call) {
 }
 
 
+template <typename CollectionType>
+HValue* HOptimizedGraphBuilder::BuildAllocateOrderedHashTable() {
+  static const int kCapacity = CollectionType::kMinCapacity;
+  static const int kBucketCount = kCapacity / CollectionType::kLoadFactor;
+  static const int kFixedArrayLength = CollectionType::kHashTableStartIndex +
+                                       kBucketCount +
+                                       (kCapacity * CollectionType::kEntrySize);
+  static const int kSizeInBytes =
+      FixedArray::kHeaderSize + (kFixedArrayLength * kPointerSize);
+
+  // Allocate the table and add the proper map.
+  HValue* table =
+      Add<HAllocate>(Add<HConstant>(kSizeInBytes), HType::HeapObject(),
+                     NOT_TENURED, FIXED_ARRAY_TYPE);
+  AddStoreMapConstant(table, isolate()->factory()->ordered_hash_table_map());
+
+  // Initialize the FixedArray...
+  HValue* length = Add<HConstant>(kFixedArrayLength);
+  Add<HStoreNamedField>(table, HObjectAccess::ForFixedArrayLength(), length);
+
+  // ...and the OrderedHashTable fields.
+  Add<HStoreNamedField>(
+      table,
+      HObjectAccess::ForOrderedHashTableNumberOfBuckets<CollectionType>(),
+      Add<HConstant>(kBucketCount));
+  Add<HStoreNamedField>(
+      table,
+      HObjectAccess::ForOrderedHashTableNumberOfElements<CollectionType>(),
+      graph()->GetConstant0());
+  Add<HStoreNamedField>(
+      table, HObjectAccess::ForOrderedHashTableNumberOfDeletedElements<
+                 CollectionType>(),
+      graph()->GetConstant0());
+
+  // Fill the buckets with kNotFound.
+  HValue* not_found = Add<HConstant>(CollectionType::kNotFound);
+  for (int i = 0; i < kBucketCount; ++i) {
+    Add<HStoreNamedField>(
+        table, HObjectAccess::ForOrderedHashTableBucket<CollectionType>(i),
+        not_found);
+  }
+
+  // Fill the data table with undefined.
+  HValue* undefined = graph()->GetConstantUndefined();
+  for (int i = 0; i < (kCapacity * CollectionType::kEntrySize); ++i) {
+    Add<HStoreNamedField>(table,
+                          HObjectAccess::ForOrderedHashTableDataTableIndex<
+                              CollectionType, kBucketCount>(i),
+                          undefined);
+  }
+
+  return table;
+}
+
+
+void HOptimizedGraphBuilder::GenerateSetInitialize(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* receiver = Pop();
+
+  NoObservableSideEffectsScope no_effects(this);
+  HValue* table = BuildAllocateOrderedHashTable<OrderedHashSet>();
+  Add<HStoreNamedField>(receiver, HObjectAccess::ForJSCollectionTable(), table);
+  return ast_context()->ReturnValue(receiver);
+}
+
+
+void HOptimizedGraphBuilder::GenerateMapInitialize(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* receiver = Pop();
+
+  NoObservableSideEffectsScope no_effects(this);
+  HValue* table = BuildAllocateOrderedHashTable<OrderedHashMap>();
+  Add<HStoreNamedField>(receiver, HObjectAccess::ForJSCollectionTable(), table);
+  return ast_context()->ReturnValue(receiver);
+}
+
+
 void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

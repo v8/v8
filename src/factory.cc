@@ -139,12 +139,12 @@ Handle<ConstantPoolArray> Factory::NewExtendedConstantPoolArray(
 
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
-  return OrderedHashSet::Allocate(isolate(), 4);
+  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
 }
 
 
 Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
-  return OrderedHashMap::Allocate(isolate(), 4);
+  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity);
 }
 
 

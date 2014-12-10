@@ -3928,6 +3928,8 @@ class OrderedHashTable: public FixedArray {
       kHeaderSize + kNumberOfElementsIndex * kPointerSize;
   static const int kNumberOfDeletedElementsOffset =
       kHeaderSize + kNumberOfDeletedElementsIndex * kPointerSize;
+  static const int kHashTableStartOffset =
+      kHeaderSize + kHashTableStartIndex * kPointerSize;
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;

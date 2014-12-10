@@ -6367,6 +6367,22 @@ class HObjectAccess FINAL {
                          Representation::Smi());
   }
 
+  template <typename CollectionType>
+  static HObjectAccess ForOrderedHashTableBucket(int bucket) {
+    return HObjectAccess(kInobject, CollectionType::kHashTableStartOffset +
+                                        (bucket * kPointerSize),
+                         Representation::Smi());
+  }
+
+  // Access into the data table of an OrderedHashTable with a
+  // known-at-compile-time bucket count.
+  template <typename CollectionType, int kBucketCount>
+  static HObjectAccess ForOrderedHashTableDataTableIndex(int index) {
+    return HObjectAccess(kInobject, CollectionType::kHashTableStartOffset +
+                                        (kBucketCount * kPointerSize) +
+                                        (index * kPointerSize));
+  }
+
   inline bool Equals(HObjectAccess that) const {
     return value_ == that.value_;  // portion and offset must match
   }
