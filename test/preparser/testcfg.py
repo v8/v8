@@ -63,12 +63,13 @@ class PreparserTestSuite(testsuite.TestSuite):
 
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
-    def Test(name, source, expectation):
+    def Test(name, source, expectation, extra_flags=[]):
       source = source.replace("\n", " ")
       testname = os.path.join(filename, name)
       flags = ["-e", source]
       if expectation:
         flags += ["--throws"]
+      flags += extra_flags
       test = testcase.TestCase(self, testname, flags=flags)
       result.append(test)
     def Template(name, source):
