@@ -196,8 +196,8 @@ class LiveRange FINAL : public ZoneObject {
   InstructionOperand* CreateAssignedOperand(Zone* zone) const;
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
-  void set_assigned_register(int reg, Zone* zone);
-  void MakeSpilled(Zone* zone);
+  void set_assigned_register(int reg);
+  void MakeSpilled();
   bool is_phi() const { return is_phi_; }
   void set_is_phi(bool is_phi) { is_phi_ = is_phi; }
   bool is_non_loop_phi() const { return is_non_loop_phi_; }
@@ -260,13 +260,27 @@ class LiveRange FINAL : public ZoneObject {
     return last_interval_->end();
   }
 
-  bool HasAllocatedSpillOperand() const;
-  InstructionOperand* GetSpillOperand() const { return spill_operand_; }
-  void SetSpillOperand(InstructionOperand* operand);
+  enum class SpillType { kNoSpillType, kSpillOperand, kSpillRange };
+  SpillType spill_type() const { return spill_type_; }
+  InstructionOperand* GetSpillOperand() const {
+    return spill_type_ == SpillType::kSpillOperand ? spill_operand_ : nullptr;
+  }
+  SpillRange* GetSpillRange() const {
+    return spill_type_ == SpillType::kSpillRange ? spill_range_ : nullptr;
+  }
+  bool HasNoSpillType() const { return spill_type_ == SpillType::kNoSpillType; }
+  bool HasSpillOperand() const {
+    return spill_type_ == SpillType::kSpillOperand;
+  }
+  bool HasSpillRange() const { return spill_type_ == SpillType::kSpillRange; }
 
-  void SetSpillRange(SpillRange* spill_range) { spill_range_ = spill_range; }
-  SpillRange* GetSpillRange() const { return spill_range_; }
+  void SpillAtDefinition(Zone* zone, int gap_index,
+                         InstructionOperand* operand);
+  void SetSpillOperand(InstructionOperand* operand);
+  void SetSpillRange(SpillRange* spill_range);
   void CommitSpillOperand(InstructionOperand* operand);
+  void CommitSpillsAtDefinition(InstructionSequence* sequence,
+                                InstructionOperand* operand);
 
   void SetSpillStartIndex(int start) {
     spill_start_index_ = Min(start, spill_start_index_);
@@ -293,12 +307,14 @@ class LiveRange FINAL : public ZoneObject {
 #endif
 
  private:
-  void ConvertOperands(Zone* zone);
+  struct SpillAtDefinitionList;
+
   void ConvertUsesToOperand(InstructionOperand* op);
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
 
+  // TODO(dcarney): pack this structure better.
   int id_;
   bool spilled_;
   bool is_phi_;
@@ -315,9 +331,13 @@ class LiveRange FINAL : public ZoneObject {
   UsePosition* last_processed_use_;
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
   InstructionOperand* current_hint_operand_;
-  InstructionOperand* spill_operand_;
   int spill_start_index_;
-  SpillRange* spill_range_;
+  SpillType spill_type_;
+  union {
+    InstructionOperand* spill_operand_;
+    SpillRange* spill_range_;
+  };
+  SpillAtDefinitionList* spills_at_definition_;
 
   friend class RegisterAllocator;  // Assigns to kind_.
 
@@ -386,13 +406,16 @@ class RegisterAllocator FINAL : public ZoneObject {
   // Phase 5: reassign spill splots for maximal reuse.
   void ReuseSpillSlots();
 
-  // Phase 6: compute values for pointer maps.
+  // Phase 6: commit assignment.
+  void CommitAssignment();
+
+  // Phase 7: compute values for pointer maps.
   void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
 
-  // Phase 7: reconnect split ranges with moves.
+  // Phase 8: reconnect split ranges with moves.
   void ConnectRanges();
 
-  // Phase 8: insert moves to connect ranges across basic blocks.
+  // Phase 9: insert moves to connect ranges across basic blocks.
   void ResolveControlFlow();
 
  private:
