@@ -715,12 +715,6 @@ DEFINE_STRING(testing_serialization_file, "/tmp/serdes",
 DEFINE_STRING(extra_code, NULL,
               "A filename with extra code to be included in"
               " the snapshot (mksnapshot only)")
-DEFINE_STRING(raw_file, NULL,
-              "A file to write the raw snapshot bytes to. "
-              "(mksnapshot only)")
-DEFINE_STRING(raw_context_file, NULL,
-              "A file to write the raw context "
-              "snapshot bytes to. (mksnapshot only)")
 DEFINE_STRING(startup_blob, NULL,
               "Write V8 startup blob file. "
               "(mksnapshot only)")

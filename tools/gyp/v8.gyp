@@ -164,7 +164,6 @@
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
-        '../../src/snapshot-common.cc',
       ],
       'actions': [
         {
@@ -206,7 +205,6 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '../../src/snapshot-common.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
@@ -824,6 +822,7 @@
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
         '../../src/snapshot.h',
+        '../../src/snapshot-common.cc',
         '../../src/snapshot-source-sink.cc',
         '../../src/snapshot-source-sink.h',
         '../../src/string-builder.cc',
