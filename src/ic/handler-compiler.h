@@ -234,7 +234,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreMap(Handle<Map> transition, Register scratch,
                           Label* miss);
 
-  void GenerateConstantCheck(Object* constant, Register value_reg,
+  void GenerateConstantCheck(Register map_reg, int descriptor,
+                             Register value_reg, Register scratch,
                              Label* miss_label);
 
   void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
