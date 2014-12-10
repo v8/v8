@@ -91,7 +91,6 @@ class SnapshotByteSink {
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
-  void PutBlob(Vector<const byte> blob, const char* description);
   int Position() { return data_.length(); }
 
   const List<byte>& data() const { return data_; }

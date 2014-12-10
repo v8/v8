@@ -712,12 +712,8 @@ DEFINE_STRING(testing_serialization_file, "/tmp/serdes",
 #endif
 
 // mksnapshot.cc
-DEFINE_STRING(extra_code, NULL,
-              "A filename with extra code to be included in"
-              " the snapshot (mksnapshot only)")
 DEFINE_STRING(startup_blob, NULL,
-              "Write V8 startup blob file. "
-              "(mksnapshot only)")
+              "Write V8 startup blob file. (mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,

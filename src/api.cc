@@ -206,6 +206,53 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
+StartupData V8::CreateSnapshotDataBlob() {
+  Isolate::CreateParams params;
+  params.enable_serializer = true;
+  Isolate* isolate = v8::Isolate::New(params);
+  StartupData result = {NULL, 0};
+  {
+    Isolate::Scope isolate_scope(isolate);
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    Persistent<Context> context;
+    {
+      HandleScope handle_scope(isolate);
+      context.Reset(isolate, Context::New(isolate));
+    }
+    if (!context.IsEmpty()) {
+      // Make sure all builtin scripts are cached.
+      {
+        HandleScope scope(isolate);
+        for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
+          internal_isolate->bootstrapper()->NativesSourceLookup(i);
+        }
+      }
+      // If we don't do this then we end up with a stray root pointing at the
+      // context even after we have disposed of the context.
+      internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+      i::Object* raw_context = *v8::Utils::OpenPersistent(context);
+      context.Reset();
+
+      i::SnapshotByteSink snapshot_sink;
+      i::StartupSerializer ser(internal_isolate, &snapshot_sink);
+      ser.SerializeStrongReferences();
+
+      i::SnapshotByteSink context_sink;
+      i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
+      context_ser.Serialize(&raw_context);
+      ser.SerializeWeakReferences();
+
+      i::SnapshotData sd(snapshot_sink, ser);
+      i::SnapshotData csd(context_sink, context_ser);
+
+      result = i::Snapshot::CreateSnapshotBlob(sd.RawData(), csd.RawData());
+    }
+  }
+  isolate->Dispose();
+  return result;
+}
+
+
 void V8::SetFlagsFromString(const char* str, int length) {
   i::FlagList::SetFlagsFromString(str, length);
 }

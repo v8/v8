@@ -26,11 +26,10 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
   DCHECK(snapshot_blob->data);
   DCHECK(snapshot_blob->raw_size > 0);
   DCHECK(!external_startup_blob.data);
-  external_startup_blob = *snapshot_blob;
-
   // Validate snapshot blob.
-  DCHECK(!Snapshot::StartupSnapshot().is_empty());
-  DCHECK(!Snapshot::ContextSnapshot().is_empty());
+  DCHECK(!Snapshot::ExtractStartupData(snapshot_blob).is_empty());
+  DCHECK(!Snapshot::ExtractContextData(snapshot_blob).is_empty());
+  external_startup_blob = *snapshot_blob;
 }
 
 

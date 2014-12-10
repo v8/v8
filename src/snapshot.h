@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-class Snapshot {
+class Snapshot : public AllStatic {
  public:
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
@@ -18,11 +18,17 @@ class Snapshot {
   // Create a new context using the internal partial snapshot.
   static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
 
-  static const Vector<const byte> StartupSnapshot();
-  static const Vector<const byte> ContextSnapshot();
   static bool HaveASnapshotToStartFrom();
 
+  // To be implemented by the snapshot source.
   static const v8::StartupData SnapshotBlob();
+
+  static v8::StartupData CreateSnapshotBlob(
+      const Vector<const byte> startup_data,
+      const Vector<const byte> context_data);
+
+  static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+  static Vector<const byte> ExtractContextData(const v8::StartupData* data);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);

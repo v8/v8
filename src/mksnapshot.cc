@@ -36,15 +36,11 @@ class SnapshotWriter {
       startup_blob_file_ = GetFileDescriptorOrDie(startup_blob_file);
   }
 
-  void WriteSnapshot(const i::SnapshotData& sd,
-                     const i::SnapshotData& csd) const {
-    i::SnapshotByteSink sink;
-    sink.PutBlob(sd.RawData(), "startup");
-    sink.PutBlob(csd.RawData(), "context");
-    const i::Vector<const i::byte>& blob = sink.data().ToConstVector();
-
-    WriteSnapshotFile(blob);
-    MaybeWriteStartupBlob(blob);
+  void WriteSnapshot(v8::StartupData blob) const {
+    i::Vector<const i::byte> blob_vector(
+        reinterpret_cast<const i::byte*>(blob.data), blob.raw_size);
+    WriteSnapshotFile(blob_vector);
+    MaybeWriteStartupBlob(blob_vector);
   }
 
  private:
@@ -115,18 +111,6 @@ class SnapshotWriter {
 };
 
 
-void DumpException(Handle<Message> message) {
-  String::Utf8Value message_string(message->Get());
-  String::Utf8Value message_line(message->GetSourceLine());
-  fprintf(stderr, "%s at line %d\n", *message_string, message->GetLineNumber());
-  fprintf(stderr, "%s\n", *message_line);
-  for (int i = 0; i <= message->GetEndColumn(); ++i) {
-    fprintf(stderr, "%c", i < message->GetStartColumn() ? ' ' : '^');
-  }
-  fprintf(stderr, "\n");
-}
-
-
 int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
@@ -134,6 +118,8 @@ int main(int argc, char** argv) {
   // Omit from the snapshot natives for features that can be turned off
   // at runtime.
   i::FLAG_harmony_shipping = false;
+
+  i::FLAG_logfile_per_isolate = false;
 
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
@@ -150,101 +136,15 @@ int main(int argc, char** argv) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 
-  i::FLAG_logfile_per_isolate = false;
-
-  Isolate::CreateParams params;
-  params.enable_serializer = true;
-  Isolate* isolate = v8::Isolate::New(params);
-  { Isolate::Scope isolate_scope(isolate);
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-    Persistent<Context> context;
-    {
-      HandleScope handle_scope(isolate);
-      context.Reset(isolate, Context::New(isolate));
-    }
-
-    if (context.IsEmpty()) {
-      fprintf(stderr,
-              "\nException thrown while compiling natives - see above.\n\n");
-      exit(1);
-    }
-    if (i::FLAG_extra_code != NULL) {
-      // Capture 100 frames if anything happens.
-      V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
-      HandleScope scope(isolate);
-      v8::Context::Scope cscope(v8::Local<v8::Context>::New(isolate, context));
-      const char* name = i::FLAG_extra_code;
-      FILE* file = base::OS::FOpen(name, "rb");
-      if (file == NULL) {
-        fprintf(stderr, "Failed to open '%s': errno %d\n", name, errno);
-        exit(1);
-      }
-
-      fseek(file, 0, SEEK_END);
-      int size = ftell(file);
-      rewind(file);
-
-      char* chars = new char[size + 1];
-      chars[size] = '\0';
-      for (int i = 0; i < size;) {
-        int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-        if (read < 0) {
-          fprintf(stderr, "Failed to read '%s': errno %d\n", name, errno);
-          exit(1);
-        }
-        i += read;
-      }
-      fclose(file);
-      Local<String> source = String::NewFromUtf8(isolate, chars);
-      TryCatch try_catch;
-      Local<Script> script = Script::Compile(source);
-      if (try_catch.HasCaught()) {
-        fprintf(stderr, "Failure compiling '%s'\n", name);
-        DumpException(try_catch.Message());
-        exit(1);
-      }
-      script->Run();
-      if (try_catch.HasCaught()) {
-        fprintf(stderr, "Failure running '%s'\n", name);
-        DumpException(try_catch.Message());
-        exit(1);
-      }
-    }
-    // Make sure all builtin scripts are cached.
-    { HandleScope scope(isolate);
-      for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-        internal_isolate->bootstrapper()->NativesSourceLookup(i);
-      }
-    }
-    // If we don't do this then we end up with a stray root pointing at the
-    // context even after we have disposed of the context.
-    internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
-    i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-    context.Reset();
-
-    // This results in a somewhat smaller snapshot, probably because it gets
-    // rid of some things that are cached between garbage collections.
-    i::SnapshotByteSink snapshot_sink;
-    i::StartupSerializer ser(internal_isolate, &snapshot_sink);
-    ser.SerializeStrongReferences();
-
-    i::SnapshotByteSink context_sink;
-    i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
-    context_ser.Serialize(&raw_context);
-    ser.SerializeWeakReferences();
-
-    {
-      SnapshotWriter writer(argv[1]);
-      if (i::FLAG_startup_blob)
-        writer.SetStartupBlobFile(i::FLAG_startup_blob);
-      i::SnapshotData sd(snapshot_sink, ser);
-      i::SnapshotData csd(context_sink, context_ser);
-      writer.WriteSnapshot(sd, csd);
-    }
+  {
+    SnapshotWriter writer(argv[1]);
+    if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
+    StartupData blob = v8::V8::CreateSnapshotDataBlob();
+    CHECK(blob.data);
+    writer.WriteSnapshot(blob);
+    delete[] blob.data;
   }
 
-  isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
   delete platform;

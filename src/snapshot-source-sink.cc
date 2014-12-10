@@ -50,13 +50,6 @@ void SnapshotByteSink::PutRaw(const byte* data, int number_of_bytes,
 }
 
 
-void SnapshotByteSink::PutBlob(Vector<const byte> blob,
-                               const char* description) {
-  PutInt(blob.length(), description);
-  PutRaw(blob.start(), blob.length(), description);
-}
-
-
 bool SnapshotByteSource::AtEOF() {
   if (0u + length_ - position_ > 2 * sizeof(uint32_t)) return false;
   for (int x = position_; x < length_; x++) {
