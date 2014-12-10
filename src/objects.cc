@@ -5369,9 +5369,13 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
-
   if (!object->map()->is_extensible()) return object;
+
+  if (!object->HasSloppyArgumentsElements() && !object->map()->is_observed()) {
+    return PreventExtensionsWithTransition<NONE>(object);
+  }
+
+  Isolate* isolate = object->GetIsolate();
 
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(
@@ -5426,22 +5430,45 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 }
 
 
-template<typename Dictionary>
-static void FreezeDictionary(Dictionary* dictionary) {
+Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
+    Handle<JSObject> object) {
+  DCHECK(!object->elements()->IsDictionary());
+  Isolate* isolate = object->GetIsolate();
+  int length = object->IsJSArray()
+                   ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
+                   : object->elements()->length();
+  if (length > 0) {
+    int capacity = 0;
+    int used = 0;
+    object->GetElementsCapacityAndUsage(&capacity, &used);
+    Handle<SeededNumberDictionary> new_element_dictionary =
+        SeededNumberDictionary::New(isolate, used);
+
+    // Move elements to a dictionary; avoid calling NormalizeElements to avoid
+    // unnecessary transitions.
+    return CopyFastElementsToDictionary(handle(object->elements()), length,
+                                        new_element_dictionary);
+  }
+  // No existing elements, use a pre-allocated empty backing store
+  return isolate->factory()->empty_slow_element_dictionary();
+}
+
+
+template <typename Dictionary>
+static void ApplyAttributesToDictionary(Dictionary* dictionary,
+                                        const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
     if (dictionary->IsKey(k) &&
         !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
       PropertyDetails details = dictionary->DetailsAt(i);
-      int attrs = DONT_DELETE;
+      int attrs = attributes;
       // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() == CALLBACKS) {
+      if ((attributes & READ_ONLY) && details.type() == CALLBACKS) {
         Object* v = dictionary->ValueAt(i);
         if (v->IsPropertyCell()) v = PropertyCell::cast(v)->value();
-        if (!v->IsAccessorPair()) attrs |= READ_ONLY;
-      } else {
-        attrs |= READ_ONLY;
+        if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attrs));
@@ -5451,12 +5478,14 @@ static void FreezeDictionary(Dictionary* dictionary) {
 }
 
 
-MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  // Freezing sloppy arguments should be handled elsewhere.
+template <PropertyAttributes attrs>
+MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
+    Handle<JSObject> object) {
+  STATIC_ASSERT(attrs == NONE || attrs == SEALED || attrs == FROZEN);
+
+  // Sealing/freezing sloppy arguments should be handled elsewhere.
   DCHECK(!object->HasSloppyArgumentsElements());
   DCHECK(!object->map()->is_observed());
-
-  if (object->map()->is_frozen()) return object;
 
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
@@ -5471,10 +5500,11 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     PrototypeIterator iter(isolate, object);
     if (iter.IsAtEnd()) return object;
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return Freeze(Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    return PreventExtensionsWithTransition<attrs>(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
   }
 
-  // It's not possible to freeze objects with external array elements
+  // It's not possible to seal or freeze objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
     THROW_NEW_ERROR(isolate,
@@ -5485,54 +5515,48 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
   Handle<SeededNumberDictionary> new_element_dictionary;
   if (!object->elements()->IsDictionary()) {
-    int length = object->IsJSArray()
-        ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-        : object->elements()->length();
-    if (length > 0) {
-      int capacity = 0;
-      int used = 0;
-      object->GetElementsCapacityAndUsage(&capacity, &used);
-      new_element_dictionary = SeededNumberDictionary::New(isolate, used);
+    new_element_dictionary = GetNormalizedElementDictionary(object);
+  }
 
-      // Move elements to a dictionary; avoid calling NormalizeElements to avoid
-      // unnecessary transitions.
-      new_element_dictionary = CopyFastElementsToDictionary(
-          handle(object->elements()), length, new_element_dictionary);
-    } else {
-      // No existing elements, use a pre-allocated empty backing store
-      new_element_dictionary =
-          isolate->factory()->empty_slow_element_dictionary();
-    }
+  Handle<Symbol> transition_marker;
+  if (attrs == NONE) {
+    transition_marker = isolate->factory()->nonextensible_symbol();
+  } else if (attrs == SEALED) {
+    transition_marker = isolate->factory()->sealed_symbol();
+  } else {
+    DCHECK(attrs == FROZEN);
+    transition_marker = isolate->factory()->frozen_symbol();
   }
 
   Handle<Map> old_map(object->map(), isolate);
-  int transition_index =
-      old_map->SearchSpecialTransition(isolate->heap()->frozen_symbol());
+  int transition_index = old_map->SearchSpecialTransition(*transition_marker);
   if (transition_index != TransitionArray::kNotFound) {
     Handle<Map> transition_map(old_map->GetTransition(transition_index));
     DCHECK(transition_map->has_dictionary_elements());
-    DCHECK(transition_map->is_frozen());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
-    // Create a new descriptor array with fully-frozen properties
-    Handle<Map> new_map = Map::CopyForFreeze(old_map);
+    // Create a new descriptor array with the appropriate property attributes
+    Handle<Map> new_map = Map::CopyForPreventExtensions(
+        old_map, attrs, transition_marker, "CopyForPreventExtensions");
     JSObject::MigrateToMap(object, new_map);
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
     // Slow path: need to normalize properties for safety
-    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "SlowFreeze");
+    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0,
+                        "SlowPreventExtensions");
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    Handle<Map> new_map = Map::Copy(handle(object->map()), "SlowCopyForFreeze");
-    new_map->freeze();
+    Handle<Map> new_map =
+        Map::Copy(handle(object->map()), "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(object, new_map);
 
-    // Freeze dictionary-mode properties
-    FreezeDictionary(object->property_dictionary());
+    if (attrs != NONE) {
+      ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+    }
   }
 
   DCHECK(object->map()->has_dictionary_elements());
@@ -5544,11 +5568,22 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     SeededNumberDictionary* dictionary = object->element_dictionary();
     // Make sure we never go back to the fast case
     dictionary->set_requires_slow_elements();
-    // Freeze all elements in the dictionary
-    FreezeDictionary(dictionary);
+    if (attrs != NONE) {
+      ApplyAttributesToDictionary(dictionary, attrs);
+    }
   }
 
   return object;
+}
+
+
+MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
+  return PreventExtensionsWithTransition<FROZEN>(object);
+}
+
+
+MaybeHandle<Object> JSObject::Seal(Handle<JSObject> object) {
+  return PreventExtensionsWithTransition<SEALED>(object);
 }
 
 
@@ -7026,17 +7061,20 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
 }
 
 
-Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
+Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
+                                          PropertyAttributes attrs_to_add,
+                                          Handle<Symbol> transition_marker,
+                                          const char* reason) {
   int num_descriptors = map->NumberOfOwnDescriptors();
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
-      handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
+      handle(map->instance_descriptors(), isolate), num_descriptors,
+      attrs_to_add);
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                  isolate);
   Handle<Map> new_map = CopyReplaceDescriptors(
       map, new_desc, new_layout_descriptor, INSERT_TRANSITION,
-      isolate->factory()->frozen_symbol(), "CopyForFreeze", SPECIAL_TRANSITION);
-  new_map->freeze();
+      transition_marker, reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
   new_map->set_elements_kind(DICTIONARY_ELEMENTS);
   return new_map;
@@ -9391,7 +9429,6 @@ static bool CheckEquivalent(Map* first, Map* second) {
     first->instance_type() == second->instance_type() &&
     first->bit_field() == second->bit_field() &&
     first->bit_field2() == second->bit_field2() &&
-    first->is_frozen() == second->is_frozen() &&
     first->has_instance_call_handler() == second->has_instance_call_handler();
 }
 

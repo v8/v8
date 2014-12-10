@@ -4637,16 +4637,6 @@ void Map::set_counter(int value) {
 int Map::counter() { return Counter::decode(bit_field3()); }
 
 
-void Map::freeze() {
-  set_bit_field3(IsFrozen::update(bit_field3(), true));
-}
-
-
-bool Map::is_frozen() {
-  return IsFrozen::decode(bit_field3());
-}
-
-
 void Map::mark_unstable() {
   set_bit_field3(IsUnstable::update(bit_field3(), true));
 }

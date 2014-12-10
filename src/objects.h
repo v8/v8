@@ -2115,6 +2115,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
       Handle<JSObject> object);
 
+  // ES5 Object.seal
+  MUST_USE_RESULT static MaybeHandle<Object> Seal(Handle<JSObject> object);
+
   // ES5 Object.freeze
   MUST_USE_RESULT static MaybeHandle<Object> Freeze(Handle<JSObject> object);
 
@@ -2403,6 +2406,15 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT Object* GetIdentityHash();
 
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSObject> object);
+
+  static Handle<SeededNumberDictionary> GetNormalizedElementDictionary(
+      Handle<JSObject> object);
+
+  // Helper for fast versions of preventExtensions, seal, and freeze.
+  // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
+  template <PropertyAttributes attrs>
+  MUST_USE_RESULT static MaybeHandle<Object> PreventExtensionsWithTransition(
+      Handle<JSObject> object);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -5678,10 +5690,9 @@ class Map: public HeapObject {
   class OwnsDescriptors : public BitField<bool, 21, 1> {};
   class HasInstanceCallHandler : public BitField<bool, 22, 1> {};
   class Deprecated : public BitField<bool, 23, 1> {};
-  class IsFrozen : public BitField<bool, 24, 1> {};
-  class IsUnstable : public BitField<bool, 25, 1> {};
-  class IsMigrationTarget : public BitField<bool, 26, 1> {};
-  // Bit 27 is free.
+  class IsUnstable : public BitField<bool, 24, 1> {};
+  class IsMigrationTarget : public BitField<bool, 25, 1> {};
+  // Bits 26 and 27 are free.
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
@@ -6031,8 +6042,6 @@ class Map: public HeapObject {
   inline void set_owns_descriptors(bool owns_descriptors);
   inline bool has_instance_call_handler();
   inline void set_has_instance_call_handler();
-  inline void freeze();
-  inline bool is_frozen();
   inline void mark_unstable();
   inline bool is_stable();
   inline void set_migration_target(bool value);
@@ -6090,7 +6099,10 @@ class Map: public HeapObject {
 
   static Handle<Map> CopyForObserved(Handle<Map> map);
 
-  static Handle<Map> CopyForFreeze(Handle<Map> map);
+  static Handle<Map> CopyForPreventExtensions(Handle<Map> map,
+                                              PropertyAttributes attrs_to_add,
+                                              Handle<Symbol> transition_marker,
+                                              const char* reason);
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.

@@ -1232,23 +1232,30 @@ function ProxyFix(obj) {
 
 
 // ES5 section 15.2.3.8.
-function ObjectSeal(obj) {
+function ObjectSealJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.seal"]);
   }
-  if (%_IsJSProxy(obj)) {
-    ProxyFix(obj);
-  }
-  var names = ObjectGetOwnPropertyNames(obj);
-  for (var i = 0; i < names.length; i++) {
-    var name = names[i];
-    var desc = GetOwnPropertyJS(obj, name);
-    if (desc.isConfigurable()) {
-      desc.setConfigurable(false);
-      DefineOwnProperty(obj, name, desc, true);
+  var isProxy = %_IsJSProxy(obj);
+  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
+    if (isProxy) {
+      ProxyFix(obj);
     }
+    var names = ObjectGetOwnPropertyNames(obj);
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      var desc = GetOwnPropertyJS(obj, name);
+      if (desc.isConfigurable()) {
+        desc.setConfigurable(false);
+        DefineOwnProperty(obj, name, desc, true);
+      }
+    }
+    %PreventExtensions(obj);
+  } else {
+    // TODO(adamk): Is it worth going to this fast path if the
+    // object's properties are already in dictionary mode?
+    %ObjectSeal(obj);
   }
-  %PreventExtensions(obj);
   return obj;
 }
 
@@ -1430,7 +1437,7 @@ function SetUpObject() {
     "isFrozen", ObjectIsFrozen,
     "isSealed", ObjectIsSealed,
     "preventExtensions", ObjectPreventExtension,
-    "seal", ObjectSeal
+    "seal", ObjectSealJS
     // deliverChangeRecords, getNotifier, observe and unobserve are added
     // in object-observe.js.
   ));

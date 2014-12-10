@@ -344,6 +344,7 @@ class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
     class SplayTree;
 class String;
+class Symbol;
 class Name;
 class Struct;
 class Symbol;

@@ -275,6 +275,7 @@ namespace internal {
   F(LookupAccessor, 3, 1)                              \
                                                        \
   /* ES5 */                                            \
+  F(ObjectSeal, 1, 1)                                  \
   F(ObjectFreeze, 1, 1)                                \
                                                        \
   /* Harmony modules */                                \

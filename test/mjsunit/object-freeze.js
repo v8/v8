@@ -339,3 +339,12 @@ obj.__proto__[1] = 1;
 assertEquals(1, obj[1]);
 Object.freeze(obj);
 assertThrows(function() { obj.unshift(); }, TypeError);
+
+// Sealing and then Freezing should do the right thing.
+var obj = { foo: 'bar', 0: 'element' };
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+assertTrue(Object.isFrozen(obj));

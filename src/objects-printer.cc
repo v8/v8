@@ -416,11 +416,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_undetectable()) os << " - undetectable\n";
   if (has_instance_call_handler()) os << " - instance_call_handler\n";
   if (is_access_check_needed()) os << " - access_check_needed\n";
-  if (is_frozen()) {
-    os << " - frozen\n";
-  } else if (!is_extensible()) {
-    os << " - sealed\n";
-  }
+  if (!is_extensible()) os << " - non-extensible\n";
   os << " - back pointer: " << Brief(GetBackPointer());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
@@ -1179,7 +1175,11 @@ void TransitionArray::PrintTransitions(std::ostream& os,
     key->ShortPrint(os);
 #endif
     os << ": ";
-    if (key == GetHeap()->frozen_symbol()) {
+    if (key == GetHeap()->nonextensible_symbol()) {
+      os << " (transition to non-extensible)";
+    } else if (key == GetHeap()->sealed_symbol()) {
+      os << " (transition to sealed)";
+    } else if (key == GetHeap()->frozen_symbol()) {
       os << " (transition to frozen)";
     } else if (key == GetHeap()->elements_transition_symbol()) {
       os << " (transition to " << ElementsKindToString(target->elements_kind())

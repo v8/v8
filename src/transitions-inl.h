@@ -157,7 +157,8 @@ int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
 bool TransitionArray::IsSpecialTransition(Name* name) {
   if (!name->IsSymbol()) return false;
   Heap* heap = name->GetHeap();
-  return name == heap->frozen_symbol() ||
+  return name == heap->nonextensible_symbol() ||
+         name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
          name == heap->observed_symbol();
 }

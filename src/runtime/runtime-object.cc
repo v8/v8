@@ -530,6 +530,21 @@ RUNTIME_FUNCTION(Runtime_ObjectFreeze) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ObjectSeal) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  // %ObjectSeal is a fast path and these cases are handled elsewhere.
+  RUNTIME_ASSERT(!object->HasSloppyArgumentsElements() &&
+                 !object->map()->is_observed() && !object->IsJSProxy());
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, JSObject::Seal(object));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
