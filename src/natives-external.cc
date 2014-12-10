@@ -87,6 +87,10 @@ class NativesStore {
     builder.AddString("native ");
     builder.AddSubstring(reinterpret_cast<const char*>(id), id_length);
     builder.AddString(".js");
+    builder.Finalize();
+    // SimpleStringBuilder wants zero-byte; the caller does not.
+    DCHECK(name[name.length() - 1] == '\0');
+    name.Truncate(name.length() - 1);
     return Vector<const char>::cast(name);
   }
 
