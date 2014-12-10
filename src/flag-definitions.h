@@ -175,6 +175,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #define HARMONY_INPROGRESS(V)                                             \
   V(harmony_modules, "harmony modules (implies block scoping)")           \
   V(harmony_arrays, "harmony array methods")                              \
+  V(harmony_array_includes, "harmony Array.prototype.includes")           \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_arrow_functions, "harmony arrow functions")                   \
   V(harmony_proxies, "harmony proxies")                                   \

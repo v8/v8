@@ -1634,6 +1634,7 @@
           '../../src/generator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/harmony-array-includes.js',
           '../../src/harmony-tostring.js',
           '../../src/harmony-typedarray.js',
           '../../src/harmony-classes.js',
