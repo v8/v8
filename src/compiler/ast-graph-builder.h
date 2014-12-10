@@ -26,7 +26,8 @@ class LoopBuilder;
 // of function inlining.
 class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
  public:
-  AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph);
+  AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
+                  LoopAssignmentAnalysis* loop_assignment = NULL);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph();
