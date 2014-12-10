@@ -1554,10 +1554,19 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 class StartupDataHandler {
  public:
-  StartupDataHandler(const char* natives_blob,
+  StartupDataHandler(const char* exec_path, const char* natives_blob,
                      const char* snapshot_blob) {
-    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
-    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
+    // If we have (at least one) explicitly given blob, use those.
+    // If not, use the default blob locations next to the d8 binary.
+    if (natives_blob || snapshot_blob) {
+      LoadFromFiles(natives_blob, snapshot_blob);
+    } else {
+      char natives[100], snapshot[100];
+      LoadFromFiles(
+          RelativePath(natives, exec_path, "natives_blob.bin", sizeof(natives)),
+          RelativePath(snapshot, exec_path, "snapshot_blob.bin",
+                       sizeof(snapshot)));
+    }
   }
 
   ~StartupDataHandler() {
@@ -1566,6 +1575,26 @@ class StartupDataHandler {
   }
 
  private:
+  static char* RelativePath(char* buffer, const char* exec_path,
+                            const char* name, int buffer_length) {
+    DCHECK(exec_path);
+    const char* last_slash = strrchr(exec_path, '/');
+    if (last_slash) {
+      int after_slash = last_slash - exec_path + 1;
+      DCHECK(buffer_length > after_slash);
+      strncpy(buffer, exec_path, after_slash);
+      buffer[after_slash] = '\0';
+      return strncat(buffer, name, buffer_length);
+    } else {
+      return strncpy(buffer, name, buffer_length);
+    }
+  }
+
+  void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
+    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
+    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
+  }
+
   void Load(const char* blob_file,
             v8::StartupData* startup_data,
             void (*setter_fn)(v8::StartupData*)) {
@@ -1624,7 +1653,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  StartupDataHandler startup_data(options.natives_blob, options.snapshot_blob);
+  StartupDataHandler startup_data(argv[0], options.natives_blob,
+                                  options.snapshot_blob);
 #endif
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
