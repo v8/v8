@@ -3933,6 +3933,7 @@ class OrderedHashTable: public FixedArray {
   static const int kNumberOfElementsIndex = kNumberOfBucketsIndex + 1;
   static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
   static const int kHashTableStartIndex = kNumberOfDeletedElementsIndex + 1;
+  static const int kNextTableIndex = kNumberOfElementsIndex;
 
   static const int kNumberOfBucketsOffset =
       kHeaderSize + kNumberOfBucketsIndex * kPointerSize;
@@ -3942,11 +3943,18 @@ class OrderedHashTable: public FixedArray {
       kHeaderSize + kNumberOfDeletedElementsIndex * kPointerSize;
   static const int kHashTableStartOffset =
       kHeaderSize + kHashTableStartIndex * kPointerSize;
+  static const int kNextTableOffset =
+      kHeaderSize + kNextTableIndex * kPointerSize;
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
 
   static const int kLoadFactor = 2;
+
+  // NumberOfDeletedElements is set to kClearedTableSentinel when
+  // the table is cleared, which allows iterator transitions to
+  // optimize that case.
+  static const int kClearedTableSentinel = -1;
 
  private:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
@@ -3989,7 +3997,6 @@ class OrderedHashTable: public FixedArray {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
 
-  static const int kNextTableIndex = kNumberOfElementsIndex;
   static const int kRemovedHolesIndex = kHashTableStartIndex;
 
   static const int kMaxCapacity =

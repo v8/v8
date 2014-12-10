@@ -92,7 +92,7 @@ function SetClearJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.clear', this]);
   }
-  %SetClear(this);
+  %_SetClear(this);
 }
 
 
@@ -245,7 +245,7 @@ function MapClearJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.clear', this]);
   }
-  %MapClear(this);
+  %_MapClear(this);
 }
 
 

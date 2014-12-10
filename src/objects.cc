@@ -16025,7 +16025,7 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
                table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
 
   table->SetNextTable(*new_table);
-  table->SetNumberOfDeletedElements(-1);
+  table->SetNumberOfDeletedElements(kClearedTableSentinel);
 
   return new_table;
 }
@@ -16270,8 +16270,7 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
     if (index > 0) {
       int nod = table->NumberOfDeletedElements();
 
-      // When we clear the table we set the number of deleted elements to -1.
-      if (nod == -1) {
+      if (nod == TableType::kClearedTableSentinel) {
         index = 0;
       } else {
         int old_index = index;

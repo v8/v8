@@ -12727,6 +12727,46 @@ void HOptimizedGraphBuilder::GenerateMapInitialize(CallRuntime* call) {
 }
 
 
+template <typename CollectionType>
+void HOptimizedGraphBuilder::BuildOrderedHashTableClear(HValue* receiver) {
+  HValue* old_table =
+      Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForJSCollectionTable());
+  HValue* new_table = BuildAllocateOrderedHashTable<CollectionType>();
+  Add<HStoreNamedField>(
+      old_table, HObjectAccess::ForOrderedHashTableNextTable<CollectionType>(),
+      new_table);
+  Add<HStoreNamedField>(
+      old_table, HObjectAccess::ForOrderedHashTableNumberOfDeletedElements<
+                     CollectionType>(),
+      Add<HConstant>(CollectionType::kClearedTableSentinel));
+  Add<HStoreNamedField>(receiver, HObjectAccess::ForJSCollectionTable(),
+                        new_table);
+}
+
+
+void HOptimizedGraphBuilder::GenerateSetClear(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* receiver = Pop();
+
+  NoObservableSideEffectsScope no_effects(this);
+  BuildOrderedHashTableClear<OrderedHashSet>(receiver);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+}
+
+
+void HOptimizedGraphBuilder::GenerateMapClear(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* receiver = Pop();
+
+  NoObservableSideEffectsScope no_effects(this);
+  BuildOrderedHashTableClear<OrderedHashMap>(receiver);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+}
+
+
 void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

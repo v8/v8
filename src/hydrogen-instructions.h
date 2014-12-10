@@ -6368,6 +6368,11 @@ class HObjectAccess FINAL {
   }
 
   template <typename CollectionType>
+  static HObjectAccess ForOrderedHashTableNextTable() {
+    return HObjectAccess(kInobject, CollectionType::kNextTableOffset);
+  }
+
+  template <typename CollectionType>
   static HObjectAccess ForOrderedHashTableBucket(int bucket) {
     return HObjectAccess(kInobject, CollectionType::kHashTableStartOffset +
                                         (bucket * kPointerSize),
