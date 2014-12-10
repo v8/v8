@@ -452,7 +452,6 @@ class RegisterAllocator FINAL : public ZoneObject {
   bool SafePointsAreInOrder() const;
 
   // Liveness analysis support.
-  void InitializeLivenessAnalysis();
   BitVector* ComputeLiveOut(const InstructionBlock* block);
   void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);
   bool IsOutputRegisterOf(Instruction* instr, int index);
@@ -569,6 +568,20 @@ class RegisterAllocator FINAL : public ZoneObject {
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
+  ZoneVector<LiveRange*>& live_ranges() { return live_ranges_; }
+  ZoneVector<LiveRange*>& fixed_live_ranges() { return fixed_live_ranges_; }
+  ZoneVector<LiveRange*>& fixed_double_live_ranges() {
+    return fixed_double_live_ranges_;
+  }
+  ZoneVector<LiveRange*>& unhandled_live_ranges() {
+    return unhandled_live_ranges_;
+  }
+  ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
+  ZoneVector<LiveRange*>& inactive_live_ranges() {
+    return inactive_live_ranges_;
+  }
+  ZoneVector<LiveRange*>& reusable_slots() { return reusable_slots_; }
+  ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
 
   struct PhiMapValue {
     PhiMapValue(PhiInstruction* phi, const InstructionBlock* block)
@@ -598,11 +611,11 @@ class RegisterAllocator FINAL : public ZoneObject {
   // Lists of live ranges
   ZoneVector<LiveRange*> fixed_live_ranges_;
   ZoneVector<LiveRange*> fixed_double_live_ranges_;
-  ZoneList<LiveRange*> unhandled_live_ranges_;
-  ZoneList<LiveRange*> active_live_ranges_;
-  ZoneList<LiveRange*> inactive_live_ranges_;
-  ZoneList<LiveRange*> reusable_slots_;
-  ZoneList<SpillRange*> spill_ranges_;
+  ZoneVector<LiveRange*> unhandled_live_ranges_;
+  ZoneVector<LiveRange*> active_live_ranges_;
+  ZoneVector<LiveRange*> inactive_live_ranges_;
+  ZoneVector<LiveRange*> reusable_slots_;
+  ZoneVector<SpillRange*> spill_ranges_;
 
   RegisterKind mode_;
   int num_registers_;
