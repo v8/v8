@@ -7022,7 +7022,9 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
 
 
 void ExecutableAccessorInfo::clear_setter() {
-  set_setter(GetIsolate()->heap()->undefined_value(), SKIP_WRITE_BARRIER);
+  set_setter(*GetIsolate()->factory()->NewForeign(
+      reinterpret_cast<v8::internal::Address>(
+          reinterpret_cast<intptr_t>(nullptr))));
 }
 
 
