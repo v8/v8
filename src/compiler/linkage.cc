@@ -240,7 +240,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, OperatorProperties::Properties properties,
+    CallDescriptor::Flags flags, Operator::Properties properties,
     Zone* zone) {
   UNIMPLEMENTED();
   return NULL;

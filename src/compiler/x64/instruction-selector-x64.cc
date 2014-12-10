@@ -230,12 +230,21 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+           g.UseRegister(moffset.left().node()),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length));
+      return;
+    }
+  }
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
-  Emit(opcode | AddressingModeField::encode(kMode_MR1),
-       g.DefineAsRegister(node), offset_operand, length_operand,
-       g.UseRegister(buffer), offset_operand);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+       g.UseRegister(offset), g.TempImmediate(0), length_operand);
 }
 
 
@@ -269,11 +278,22 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
   }
   InstructionOperand* value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  InstructionOperand* offset_operand = g.UseRegister(offset);
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32Matcher mlength(length);
+    Int32BinopMatcher moffset(offset);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, nullptr, g.UseRegister(buffer),
+           g.UseRegister(moffset.left().node()),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           value_operand);
+      return;
+    }
+  }
   InstructionOperand* length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
-  Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr, offset_operand,
-       length_operand, value_operand, g.UseRegister(buffer), offset_operand);
+  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+       g.TempImmediate(0), length_operand, value_operand);
 }
 
 
