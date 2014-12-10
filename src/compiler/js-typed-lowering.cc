@@ -528,40 +528,43 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
     return reduction;
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
-  if (input->opcode() == IrOpcode::kPhi && input_type->Is(Type::Primitive())) {
-    Node* const context = node->InputAt(1);
-    // JSToNumber(phi(x1,...,xn,control):primitive)
-    //   => phi(JSToNumber(x1),...,JSToNumber(xn),control):number
+  if (input_type->Is(Type::PlainPrimitive())) {
+    // Converting a plain primitive to a number has no observable side effects.
     RelaxEffects(node);
-    int const input_count = input->InputCount() - 1;
-    Node* const control = input->InputAt(input_count);
-    DCHECK_LE(0, input_count);
-    DCHECK(NodeProperties::IsControl(control));
-    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
-    DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
-    node->set_op(common()->Phi(kMachAnyTagged, input_count));
-    for (int i = 0; i < input_count; ++i) {
-      Node* value = input->InputAt(i);
-      // Recursively try to reduce the value first.
-      Reduction reduction = ReduceJSToNumberInput(value);
-      if (reduction.Changed()) {
-        value = reduction.replacement();
-      } else {
-        value = graph()->NewNode(javascript()->ToNumber(), value, context,
-                                 graph()->start(), graph()->start());
+    // JSToNumber(phi(x1,...,xn,control):plain-primitive,context)
+    //   => phi(JSToNumber(x1,no-context),...,JSToNumber(xn,no-context),control)
+    if (input->opcode() == IrOpcode::kPhi) {
+      int const input_count = input->InputCount() - 1;
+      Node* const control = input->InputAt(input_count);
+      DCHECK_LE(0, input_count);
+      DCHECK(NodeProperties::IsControl(control));
+      DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
+      DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+      node->set_op(common()->Phi(kMachAnyTagged, input_count));
+      for (int i = 0; i < input_count; ++i) {
+        Node* value = input->InputAt(i);
+        // Recursively try to reduce the value first.
+        Reduction reduction = ReduceJSToNumberInput(value);
+        if (reduction.Changed()) {
+          value = reduction.replacement();
+        } else {
+          value = graph()->NewNode(javascript()->ToNumber(), value,
+                                   jsgraph()->NoContextConstant(),
+                                   graph()->start(), graph()->start());
+        }
+        if (i < node->InputCount()) {
+          node->ReplaceInput(i, value);
+        } else {
+          node->AppendInput(graph()->zone(), value);
+        }
       }
-      if (i < node->InputCount()) {
-        node->ReplaceInput(i, value);
+      if (input_count < node->InputCount()) {
+        node->ReplaceInput(input_count, control);
       } else {
-        node->AppendInput(graph()->zone(), value);
+        node->AppendInput(graph()->zone(), control);
       }
+      node->TrimInputCount(input_count + 1);
     }
-    if (input_count < node->InputCount()) {
-      node->ReplaceInput(input_count, control);
-    } else {
-      node->AppendInput(graph()->zone(), control);
-    }
-    node->TrimInputCount(input_count + 1);
     return Changed(node);
   }
   return NoChange();

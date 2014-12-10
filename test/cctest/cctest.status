@@ -114,10 +114,6 @@
   'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
   'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Investigate these failures.
-  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
-
   # TODO(titzer): Triggers bug in late control reduction.
   'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
 
