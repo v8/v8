@@ -394,7 +394,8 @@ void AstTyper::VisitLiteral(Literal* expr) {
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  NarrowType(expr, Bounds(Type::RegExp(zone())));
+  // TODO(rossberg): Reintroduce RegExp type.
+  NarrowType(expr, Bounds(Type::Object(zone())));
 }
 
 

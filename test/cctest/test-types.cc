@@ -934,10 +934,8 @@ struct Tests : Rep {
 
     CheckSub(T.Object, T.Receiver);
     CheckSub(T.Array, T.Object);
-    CheckSub(T.Function, T.Object);
     CheckSub(T.Proxy, T.Receiver);
     CheckUnordered(T.Object, T.Proxy);
-    CheckUnordered(T.Array, T.Function);
 
 
     // Subtyping between concrete structural types
@@ -973,7 +971,7 @@ struct Tests : Rep {
     CheckSub(T.NumberArray, T.Object);
     CheckUnordered(T.StringArray, T.AnyArray);
 
-    CheckSub(T.MethodFunction, T.Function);
+    CheckSub(T.MethodFunction, T.Object);
     CheckSub(T.NumberFunction1, T.Object);
     CheckUnordered(T.SignedFunction1, T.NumberFunction1);
     CheckUnordered(T.NumberFunction1, T.NumberFunction2);
@@ -1259,10 +1257,8 @@ struct Tests : Rep {
     CheckDisjoint(T.InternalizedString, T.Symbol);
     CheckOverlap(T.Object, T.Receiver);
     CheckOverlap(T.Array, T.Object);
-    CheckOverlap(T.Function, T.Object);
     CheckOverlap(T.Proxy, T.Receiver);
     CheckDisjoint(T.Object, T.Proxy);
-    CheckDisjoint(T.Array, T.Function);
 
     // Structural types
     CheckOverlap(T.ObjectClass, T.Object);
@@ -1286,7 +1282,7 @@ struct Tests : Rep {
     CheckOverlap(T.NumberArray, T.Array);
     CheckDisjoint(T.NumberArray, T.AnyArray);
     CheckDisjoint(T.NumberArray, T.StringArray);
-    CheckOverlap(T.MethodFunction, T.Function);
+    CheckOverlap(T.MethodFunction, T.Object);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction1);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction2);
     CheckDisjoint(T.NumberFunction1, T.NumberFunction2);
@@ -1456,11 +1452,11 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.NumberArray, T.String), T.Number);
 
     // Bitset-function
-    CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Function)));
+    CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Object)));
     CHECK(this->IsUnion(T.Union(T.NumberFunction1, T.Number)));
 
-    CheckEqual(T.Union(T.MethodFunction, T.Function), T.Function);
-    CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Function);
+    CheckEqual(T.Union(T.MethodFunction, T.Object), T.Object);
+    CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Object);
     CheckOverlap(T.Union(T.NumberFunction2, T.String), T.Object);
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number);
 
@@ -1528,7 +1524,7 @@ struct Tests : Rep {
     CheckEqual(
         T.Union(T.NumberFunction1, T.NumberFunction2),
         T.Union(T.NumberFunction2, T.NumberFunction1));
-    CheckSub(T.Union(T.SignedFunction1, T.MethodFunction), T.Function);
+    CheckSub(T.Union(T.SignedFunction1, T.MethodFunction), T.Object);
 
     // Union-union
     CheckEqual(
@@ -1689,11 +1685,11 @@ struct Tests : Rep {
 
     // Bitset-array
     CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
-    CheckEqual(T.Intersect(T.AnyArray, T.Function), T.None);
+    CheckEqual(T.Intersect(T.AnyArray, T.Proxy), T.None);
 
     // Bitset-function
     CheckEqual(T.Intersect(T.MethodFunction, T.Object), T.MethodFunction);
-    CheckEqual(T.Intersect(T.NumberFunction1, T.Array), T.None);
+    CheckEqual(T.Intersect(T.NumberFunction1, T.Proxy), T.None);
 
     // Bitset-union
     CheckEqual(

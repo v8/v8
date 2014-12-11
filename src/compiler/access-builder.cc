@@ -40,21 +40,21 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
   return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, MaybeHandle<Name>(),
-          Type::UntaggedPtr(), kMachPtr};
+          Type::UntaggedPointer(), kMachPtr};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForExternalArrayPointer() {
   return {kTaggedBase, ExternalArray::kExternalPointerOffset,
-          MaybeHandle<Name>(), Type::UntaggedPtr(), kMachPtr};
+          MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForMapInstanceType() {
   return {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
-          Type::UntaggedInt8(), kMachUint8};
+          Type::UntaggedUnsigned8(), kMachUint8};
 }
 
 

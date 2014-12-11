@@ -153,9 +153,9 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   }
   if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
   if (type->IsRange()) return type->AsRange()->BitsetLub();
-  if (type->IsContext()) return kInternal & kTaggedPtr;
+  if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kArray;
-  if (type->IsFunction()) return kFunction;
+  if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
   UNREACHABLE();
   return kNone;
 }
@@ -200,10 +200,10 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map());
-      return kInternal & kTaggedPtr;
+      return kInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:
-      return kNumber & kTaggedPtr;
+      return kNumber & kTaggedPointer;
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
@@ -227,9 +227,9 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_ARRAY_TYPE:
       return kArray;
     case JS_FUNCTION_TYPE:
-      return kFunction;
+      return kOtherObject;  // TODO(rossberg): there should be a Function type.
     case JS_REGEXP_TYPE:
-      return kRegExp;
+      return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return kProxy;
@@ -252,7 +252,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case BYTE_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case CODE_TYPE:
-      return kInternal & kTaggedPtr;
+      return kInternal & kTaggedPointer;
     default:
       UNREACHABLE();
       return kNone;
@@ -265,7 +265,8 @@ typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::Lub(i::Object* value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
-    return Lub(value->Number()) & (value->IsSmi() ? kTaggedInt : kTaggedPtr);
+    return Lub(value->Number()) &
+        (value->IsSmi() ? kTaggedSigned : kTaggedPointer);
   }
   return Lub(i::HeapObject::cast(value)->map());
 }

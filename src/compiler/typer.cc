@@ -59,17 +59,18 @@ class LazyTypeCache FINAL : public ZoneObject {
   Type* Create(LazyCachedType type) {
     switch (type) {
       case kInt8:
-        return CreateNative(CreateRange<int8_t>(), Type::UntaggedInt8());
+        return CreateNative(CreateRange<int8_t>(), Type::UntaggedSigned8());
       case kUint8:
-        return CreateNative(CreateRange<uint8_t>(), Type::UntaggedInt8());
+        return CreateNative(CreateRange<uint8_t>(), Type::UntaggedUnsigned8());
       case kInt16:
-        return CreateNative(CreateRange<int16_t>(), Type::UntaggedInt16());
+        return CreateNative(CreateRange<int16_t>(), Type::UntaggedSigned16());
       case kUint16:
-        return CreateNative(CreateRange<uint16_t>(), Type::UntaggedInt16());
+        return CreateNative(CreateRange<uint16_t>(),
+                            Type::UntaggedUnsigned16());
       case kInt32:
-        return CreateNative(Type::Signed32(), Type::UntaggedInt32());
+        return CreateNative(Type::Signed32(), Type::UntaggedSigned32());
       case kUint32:
-        return CreateNative(Type::Unsigned32(), Type::UntaggedInt32());
+        return CreateNative(Type::Unsigned32(), Type::UntaggedUnsigned32());
       case kFloat32:
         return CreateNative(Type::Number(), Type::UntaggedFloat32());
       case kFloat64:
@@ -87,7 +88,7 @@ class LazyTypeCache FINAL : public ZoneObject {
       case kClz32Func:
         return Type::Function(CreateRange(0, 32), Type::Number(), zone());
       case kArrayBufferFunc:
-        return Type::Function(Type::Buffer(zone()), Type::Unsigned32(), zone());
+        return Type::Function(Type::Object(zone()), Type::Unsigned32(), zone());
 #define NATIVE_TYPE_CASE(Type)        \
   case k##Type##Array:                \
     return CreateArray(Get(k##Type)); \
@@ -598,11 +599,12 @@ Bounds Typer::Visitor::TypeInt32Constant(Node* node) {
   Factory* f = isolate()->factory();
   Handle<Object> number = f->NewNumber(OpParameter<int32_t>(node));
   return Bounds(Type::Intersect(
-      Type::Range(number, number, zone()), Type::UntaggedInt32(), zone()));
+      Type::Range(number, number, zone()), Type::UntaggedSigned32(), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeInt64Constant(Node* node) {
+  // TODO(rossberg): This actually seems to be a PointerConstant so far...
   return Bounds(Type::Internal());  // TODO(rossberg): Add int64 bitset type?
 }
 
@@ -1535,8 +1537,8 @@ Bounds Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Signed32()));
   return Bounds(
-      ChangeRepresentation(arg.lower, Type::UntaggedInt32(), zone()),
-      ChangeRepresentation(arg.upper, Type::UntaggedInt32(), zone()));
+      ChangeRepresentation(arg.lower, Type::UntaggedSigned32(), zone()),
+      ChangeRepresentation(arg.upper, Type::UntaggedSigned32(), zone()));
 }
 
 
@@ -1544,8 +1546,8 @@ Bounds Typer::Visitor::TypeChangeTaggedToUint32(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Unsigned32()));
   return Bounds(
-      ChangeRepresentation(arg.lower, Type::UntaggedInt32(), zone()),
-      ChangeRepresentation(arg.upper, Type::UntaggedInt32(), zone()));
+      ChangeRepresentation(arg.lower, Type::UntaggedUnsigned32(), zone()),
+      ChangeRepresentation(arg.upper, Type::UntaggedUnsigned32(), zone()));
 }
 
 
@@ -1589,8 +1591,8 @@ Bounds Typer::Visitor::TypeChangeBoolToBit(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return Bounds(
-      ChangeRepresentation(arg.lower, Type::UntaggedInt1(), zone()),
-      ChangeRepresentation(arg.upper, Type::UntaggedInt1(), zone()));
+      ChangeRepresentation(arg.lower, Type::UntaggedBit(), zone()),
+      ChangeRepresentation(arg.upper, Type::UntaggedBit(), zone()));
 }
 
 
@@ -1598,8 +1600,8 @@ Bounds Typer::Visitor::TypeChangeBitToBool(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return Bounds(
-      ChangeRepresentation(arg.lower, Type::TaggedPtr(), zone()),
-      ChangeRepresentation(arg.upper, Type::TaggedPtr(), zone()));
+      ChangeRepresentation(arg.lower, Type::TaggedPointer(), zone()),
+      ChangeRepresentation(arg.upper, Type::TaggedPointer(), zone()));
 }
 
 
@@ -1884,13 +1886,13 @@ Bounds Typer::Visitor::TypeChangeFloat32ToFloat64(Node* node) {
 
 Bounds Typer::Visitor::TypeChangeFloat64ToInt32(Node* node) {
   return Bounds(Type::Intersect(
-      Type::Signed32(), Type::UntaggedInt32(), zone()));
+      Type::Signed32(), Type::UntaggedSigned32(), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
   return Bounds(Type::Intersect(
-      Type::Unsigned32(), Type::UntaggedInt32(), zone()));
+      Type::Unsigned32(), Type::UntaggedUnsigned32(), zone()));
 }
 
 
@@ -1924,13 +1926,13 @@ Bounds Typer::Visitor::TypeTruncateFloat64ToFloat32(Node* node) {
 
 Bounds Typer::Visitor::TypeTruncateFloat64ToInt32(Node* node) {
   return Bounds(Type::Intersect(
-      Type::Signed32(), Type::UntaggedInt32(), zone()));
+      Type::Signed32(), Type::UntaggedSigned32(), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
   return Bounds(Type::Intersect(
-      Type::Signed32(), Type::UntaggedInt32(), zone()));
+      Type::Signed32(), Type::UntaggedSigned32(), zone()));
 }
 
 

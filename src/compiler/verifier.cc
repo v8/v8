@@ -289,7 +289,7 @@ void Verifier::Visitor::Pre(Node* node) {
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
       // Type can be anything represented as a heap pointer.
-      CheckUpperIs(node, Type::TaggedPtr());
+      CheckUpperIs(node, Type::TaggedPointer());
       break;
     case IrOpcode::kExternalConstant:
       // Constants have no inputs.
