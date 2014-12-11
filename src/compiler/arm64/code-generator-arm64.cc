@@ -781,8 +781,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   } else {
     switch (condition) {
       case kUnorderedEqual:
-        __ B(vs, flabel);
-      // Fall through.
+        // The "eq" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
       case kEqual:
         __ B(eq, tlabel);
         break;
@@ -805,8 +806,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         __ B(gt, tlabel);
         break;
       case kUnorderedLessThan:
-        __ B(vs, flabel);
-      // Fall through.
+        // The "lo" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
       case kUnsignedLessThan:
         __ B(lo, tlabel);
         break;
@@ -817,8 +819,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         __ B(hs, tlabel);
         break;
       case kUnorderedLessThanOrEqual:
-        __ B(vs, flabel);
-      // Fall through.
+        // The "ls" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
       case kUnsignedLessThanOrEqual:
         __ B(ls, tlabel);
         break;
