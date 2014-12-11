@@ -632,6 +632,9 @@ class ParserTraits {
   V8_INLINE Expression* CloseTemplateLiteral(TemplateLiteralState* state,
                                              int start, Expression* tag);
   V8_INLINE Expression* NoTemplateTag() { return NULL; }
+  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
+    return tag != NULL;
+  }
 
  private:
   Parser* parser_;
