@@ -731,13 +731,12 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
   Type* key_type = NodeProperties::GetBounds(key).upper;
-  Type* base_type = NodeProperties::GetBounds(base).upper;
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array or it's buffer is neutered.
-  if (base_type->IsConstant() &&
-      base_type->AsConstant()->Value()->IsJSTypedArray()) {
+  HeapObjectMatcher<Object> mbase(base);
+  if (mbase.HasValue() && mbase.Value().handle()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+        Handle<JSTypedArray>::cast(mbase.Value().handle());
     array->GetBuffer()->set_is_neuterable(false);
     BufferAccess const access(array->type());
     size_t const k = ElementSizeLog2Of(access.machine_type());
@@ -777,14 +776,13 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   Node* base = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 2);
   Type* key_type = NodeProperties::GetBounds(key).upper;
-  Type* base_type = NodeProperties::GetBounds(base).upper;
   Type* value_type = NodeProperties::GetBounds(value).upper;
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array or its buffer is neutered.
-  if (base_type->IsConstant() &&
-      base_type->AsConstant()->Value()->IsJSTypedArray()) {
+  HeapObjectMatcher<Object> mbase(base);
+  if (mbase.HasValue() && mbase.Value().handle()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+        Handle<JSTypedArray>::cast(mbase.Value().handle());
     array->GetBuffer()->set_is_neuterable(false);
     BufferAccess const access(array->type());
     size_t const k = ElementSizeLog2Of(access.machine_type());

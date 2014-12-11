@@ -15,7 +15,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct LazyTypeCache;
+// Forward declarations.
+class LazyTypeCache;
+
 
 class Typer {
  public:
@@ -54,10 +56,6 @@ class Typer {
   Type* falsish;
   Type* integer;
   Type* weakint;
-  Type* signed8_;
-  Type* unsigned8_;
-  Type* signed16_;
-  Type* unsigned16_;
   Type* number_fun0_;
   Type* number_fun1_;
   Type* number_fun2_;
