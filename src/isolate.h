@@ -1232,6 +1232,7 @@ class Isolate {
   Counters* counters_;
   CodeRange* code_range_;
   base::RecursiveMutex break_access_;
+  base::Atomic32 debugger_initialized_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;

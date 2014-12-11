@@ -1257,20 +1257,19 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     int column_offset, bool is_shared_cross_origin, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
-  Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
              compile_options == ScriptCompiler::kProduceCodeCache) {
     DCHECK(cached_data && !*cached_data);
     DCHECK(extension == NULL);
-    DCHECK(!isolate->debug()->is_loaded());
   } else {
     DCHECK(compile_options == ScriptCompiler::kConsumeParserCache ||
            compile_options == ScriptCompiler::kConsumeCodeCache);
     DCHECK(cached_data && *cached_data);
     DCHECK(extension == NULL);
   }
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);

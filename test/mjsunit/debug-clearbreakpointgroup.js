@@ -36,17 +36,13 @@ var exception = false;
 
 var base_request = '"seq":0,"type":"request","command":"clearbreakpointgroup"';
 var scriptId = null;
-var muteListener = false;
 
 function safeEval(code) {
   try {
-    muteListener = true;
     return eval('(' + code + ')');
   } catch (e) {
     assertEquals(void 0, e);
     return undefined;
-  } finally {
-    muteListener = false;
   }
 }
 
@@ -62,7 +58,6 @@ function testArguments(dcp, arguments, success) {
 }
 
 function listener(event, exec_state, event_data, data) {
-  if (muteListener) return;
   try {
     if (event == Debug.DebugEvent.Break) {
       // Get the debug command processor.

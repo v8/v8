@@ -2630,12 +2630,8 @@ void Debug::OnException(Handle<Object> exception, bool uncaught,
 
 
 void Debug::OnCompileError(Handle<Script> script) {
-  if (ignore_events()) return;
-
-  if (in_debug_scope()) {
-    ProcessCompileEventInDebugScope(v8::CompileError, script);
-    return;
-  }
+  // No more to do if not debugging.
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
@@ -2696,12 +2692,8 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   // Add the newly compiled script to the script cache.
   if (script_cache_ != NULL) script_cache_->Add(script);
 
-  if (ignore_events()) return;
-
-  if (in_debug_scope()) {
-    ProcessCompileEventInDebugScope(v8::AfterCompile, script);
-    return;
-  }
+  // No more to do if not debugging.
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
@@ -2853,27 +2845,6 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                        global, arraysize(argv), argv);
   }
   in_debug_event_listener_ = previous;
-}
-
-
-void Debug::ProcessCompileEventInDebugScope(v8::DebugEvent event,
-                                            Handle<Script> script) {
-  if (event_listener_.is_null()) return;
-
-  SuppressDebug while_processing(this);
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
-
-  Handle<Object> event_data;
-  // Bail out and don't call debugger if exception.
-  if (!MakeCompileEvent(script, event).ToHandle(&event_data)) return;
-
-  // Create the execution state.
-  Handle<Object> exec_state;
-  // Bail out and don't call debugger if exception.
-  if (!MakeExecutionState().ToHandle(&exec_state)) return;
-
-  CallEventCallback(event, exec_state, event_data, NULL);
 }
 
 

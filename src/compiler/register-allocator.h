@@ -196,7 +196,7 @@ class LiveRange FINAL : public ZoneObject {
   InstructionOperand* CreateAssignedOperand(Zone* zone) const;
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
-  void set_assigned_register(int reg, Zone* zone);
+  void set_assigned_register(int reg);
   void MakeSpilled();
   bool is_phi() const { return is_phi_; }
   void set_is_phi(bool is_phi) { is_phi_ = is_phi; }

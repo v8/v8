@@ -1,3 +1,8 @@
+2014-12-11: Version 3.31.53
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-11: Version 3.31.52
 
         Ship ES6 block scoping (issue 2198).

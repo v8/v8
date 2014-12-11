@@ -32,7 +32,6 @@ Debug = debug.Debug
 var evaluate_callback;
 
 function listener(event, exec_state, event_data, data) {
-  if (event !== Debug.DebugEvent.Break) return;
   try {
     var context = { what_is_capybara: "a fish" };
     var context2 = { what_is_capybara: "a fish", what_is_parrot: "a beard" };

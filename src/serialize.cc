@@ -491,9 +491,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
       if (LookupEntry(map_, heap_object, false) != NULL) {
         // Some root values are initialized to the empty FixedArray();
         // Do not add them to the map.
-        // TODO(yangguo): This assert is not true. Some roots like
-        // instanceof_cache_answer can be e.g. null.
-        // DCHECK_EQ(isolate->heap()->empty_fixed_array(), heap_object);
+        DCHECK_EQ(isolate->heap()->empty_fixed_array(), heap_object);
       } else {
         SetValue(LookupEntry(map_, heap_object, true), i);
       }

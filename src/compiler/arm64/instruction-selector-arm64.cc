@@ -1347,8 +1347,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          Emit(cont.Encode(kArm64TestAndBranch32), NULL,
-               g.UseRegister(m.left().node()),
+          ArchOpcode opcode =
+              (cont.condition() == kEqual) ? kArm64Tbz32 : kArm64Tbnz32;
+          Emit(opcode, NULL, g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros32(m.right().Value())),
                g.Label(cont.true_block()),
@@ -1365,8 +1366,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          Emit(cont.Encode(kArm64TestAndBranch), NULL,
-               g.UseRegister(m.left().node()),
+          ArchOpcode opcode =
+              (cont.condition() == kEqual) ? kArm64Tbz : kArm64Tbnz;
+          Emit(opcode, NULL, g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros64(m.right().Value())),
                g.Label(cont.true_block()),
@@ -1382,8 +1384,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   }
 
   // Branch could not be combined with a compare, compare against 0 and branch.
-  Emit(cont.Encode(kArm64CompareAndBranch32), NULL, g.UseRegister(value),
-       g.Label(cont.true_block()),
+  DCHECK((cont.condition() == kEqual) || (cont.condition() == kNotEqual));
+  ArchOpcode opcode = (cont.condition() == kEqual) ? kArm64Cbz32 : kArm64Cbnz32;
+  Emit(opcode, NULL, g.UseRegister(value), g.Label(cont.true_block()),
        g.Label(cont.false_block()))->MarkAsControl();
 }
 
