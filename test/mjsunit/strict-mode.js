@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --turbo-deoptimization --noharmony-scoping
+// Flags: --noharmony-classes --noharmony-object-literals
 
 function CheckStrictMode(code, exception) {
   assertDoesNotThrow(code);
