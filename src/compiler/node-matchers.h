@@ -133,6 +133,10 @@ struct BinopMatcher : public NodeMatcher {
       : NodeMatcher(node), left_(InputAt(0)), right_(InputAt(1)) {
     if (HasProperty(Operator::kCommutative)) PutConstantOnRight();
   }
+  BinopMatcher(Node* node, bool allow_input_swap)
+      : NodeMatcher(node), left_(InputAt(0)), right_(InputAt(1)) {
+    if (allow_input_swap) PutConstantOnRight();
+  }
 
   typedef Left LeftMatcher;
   typedef Right RightMatcher;
@@ -235,8 +239,32 @@ struct AddMatcher : public BinopMatcher {
   static const IrOpcode::Value kOpcode = kAddOpcode;
   typedef ScaleMatcher<BinopMatcher, kMulOpcode, kShiftOpcode> Matcher;
 
+  AddMatcher(Node* node, bool allow_input_swap)
+      : BinopMatcher(node, allow_input_swap),
+        scale_(-1),
+        power_of_two_plus_one_(false) {
+    Initialize(node, allow_input_swap);
+  }
   explicit AddMatcher(Node* node)
-      : BinopMatcher(node), scale_(-1), power_of_two_plus_one_(false) {
+      : BinopMatcher(node, node->op()->HasProperty(Operator::kCommutative)),
+        scale_(-1),
+        power_of_two_plus_one_(false) {
+    Initialize(node, node->op()->HasProperty(Operator::kCommutative));
+  }
+
+  bool HasIndexInput() const { return scale_ != -1; }
+  Node* IndexInput() const {
+    DCHECK(HasIndexInput());
+    return this->left().node()->InputAt(0);
+  }
+  int scale() const {
+    DCHECK(HasIndexInput());
+    return scale_;
+  }
+  bool power_of_two_plus_one() const { return power_of_two_plus_one_; }
+
+ private:
+  void Initialize(Node* node, bool allow_input_swap) {
     Matcher left_matcher(this->left().node(), true);
     if (left_matcher.matches()) {
       scale_ = left_matcher.scale();
@@ -244,7 +272,7 @@ struct AddMatcher : public BinopMatcher {
       return;
     }
 
-    if (!this->HasProperty(Operator::kCommutative)) {
+    if (!allow_input_swap) {
       return;
     }
 
@@ -262,18 +290,6 @@ struct AddMatcher : public BinopMatcher {
     }
   }
 
-  bool HasIndexInput() const { return scale_ != -1; }
-  Node* IndexInput() const {
-    DCHECK(HasIndexInput());
-    return this->left().node()->InputAt(0);
-  }
-  int scale() const {
-    DCHECK(HasIndexInput());
-    return scale_;
-  }
-  bool power_of_two_plus_one() const { return power_of_two_plus_one_; }
-
- private:
   int scale_;
   bool power_of_two_plus_one_;
 };
@@ -286,12 +302,38 @@ typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Mul,
 
 template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {
+  BaseWithIndexAndDisplacementMatcher(Node* node, bool allow_input_swap)
+      : matches_(false),
+        index_(NULL),
+        scale_(0),
+        base_(NULL),
+        displacement_(NULL) {
+    Initialize(node, allow_input_swap);
+  }
+
   explicit BaseWithIndexAndDisplacementMatcher(Node* node)
       : matches_(false),
         index_(NULL),
         scale_(0),
         base_(NULL),
         displacement_(NULL) {
+    Initialize(node, node->op()->HasProperty(Operator::kCommutative));
+  }
+
+  bool matches() const { return matches_; }
+  Node* index() const { return index_; }
+  int scale() const { return scale_; }
+  Node* base() const { return base_; }
+  Node* displacement() const { return displacement_; }
+
+ private:
+  bool matches_;
+  Node* index_;
+  int scale_;
+  Node* base_;
+  Node* displacement_;
+
+  void Initialize(Node* node, bool allow_input_swap) {
     // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
     // displacements and scale factors that are used as inputs, so instead of
     // enumerating all possible patterns by brute force, checking for node
@@ -309,7 +351,7 @@ struct BaseWithIndexAndDisplacementMatcher {
     // (B + D)
     // (B + B)
     if (node->InputCount() < 2) return;
-    AddMatcher m(node);
+    AddMatcher m(node, allow_input_swap);
     Node* left = m.left().node();
     Node* right = m.right().node();
     Node* displacement = NULL;
@@ -433,21 +475,6 @@ struct BaseWithIndexAndDisplacementMatcher {
     scale_ = scale;
     matches_ = true;
   }
-
-  bool matches() const { return matches_; }
-  Node* index() const { return index_; }
-  int scale() const { return scale_; }
-  Node* base() const { return base_; }
-  Node* displacement() const { return displacement_; }
-
- private:
-  bool matches_;
-
- protected:
-  Node* index_;
-  int scale_;
-  Node* base_;
-  Node* displacement_;
 };
 
 typedef BaseWithIndexAndDisplacementMatcher<Int32AddMatcher>

@@ -67,11 +67,11 @@ class X64OperandGenerator FINAL : public OperandGenerator {
       inputs[(*input_count)++] = UseRegister(index);
       if (displacement != NULL) {
         inputs[(*input_count)++] = UseImmediate(displacement);
-        static const AddressingMode kMnI_modes[] = {kMode_M1I, kMode_M2I,
+        static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
                                                     kMode_M4I, kMode_M8I};
         mode = kMnI_modes[scale_exponent];
       } else {
-        static const AddressingMode kMn_modes[] = {kMode_M1, kMode_MR1,
+        static const AddressingMode kMn_modes[] = {kMode_MR, kMode_MR1,
                                                    kMode_M4, kMode_M8};
         mode = kMn_modes[scale_exponent];
         if (mode == kMode_MR1) {
@@ -81,6 +81,21 @@ class X64OperandGenerator FINAL : public OperandGenerator {
       }
     }
     return mode;
+  }
+
+  AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
+                                                  InstructionOperand* inputs[],
+                                                  size_t* input_count) {
+    BaseWithIndexAndDisplacement64Matcher m(operand, true);
+    DCHECK(m.matches());
+    if ((m.displacement() == NULL || CanBeImmediate(m.displacement()))) {
+      return GenerateMemoryOperandInputs(m.index(), m.scale(), m.base(),
+                                         m.displacement(), inputs, input_count);
+    } else {
+      inputs[(*input_count)++] = UseRegister(operand->InputAt(0));
+      inputs[(*input_count)++] = UseRegister(operand->InputAt(1));
+      return kMode_MR1;
+    }
   }
 
   bool CanBeBetterLeftOperand(Node* node) const {
@@ -93,8 +108,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
   X64OperandGenerator g(this);
-  Node* const base = node->InputAt(0);
-  Node* const index = node->InputAt(1);
 
   ArchOpcode opcode;
   switch (rep) {
@@ -122,19 +135,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(index)) {
-    // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else if (g.CanBeImmediate(base)) {
-    // load [#base + %index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
-  } else {
-    // load [%base + %index*1]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
-  }
+
+  InstructionOperand* outputs[1];
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand* inputs[3];
+  size_t input_count = 0;
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
+  Emit(code, 1, outputs, input_count, inputs);
 }
 
 
@@ -184,21 +193,15 @@ void InstructionSelector::VisitStore(Node* node) {
       UNREACHABLE();
       return;
   }
+  InstructionOperand* inputs[4];
+  size_t input_count = 0;
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
   InstructionOperand* value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  if (g.CanBeImmediate(index)) {
-    // store [%base + #index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-         g.UseRegister(base), g.UseImmediate(index), value_operand);
-  } else if (g.CanBeImmediate(base)) {
-    // store [#base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
-         g.UseRegister(index), g.UseImmediate(base), value_operand);
-  } else {
-    // store [%base + %index*1], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr,
-         g.UseRegister(base), g.UseRegister(index), value_operand);
-  }
+  inputs[input_count++] = value_operand;
+  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
 }
 
 
