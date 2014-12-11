@@ -135,9 +135,11 @@ LiveRange::LiveRange(int id, Zone* zone)
       spills_at_definition_(nullptr) {}
 
 
-void LiveRange::set_assigned_register(int reg) {
+void LiveRange::set_assigned_register(int reg, Zone* zone) {
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
+  // TODO(dcarney): stop aliasing hint operands.
+  ConvertUsesToOperand(CreateAssignedOperand(zone));
 }
 
 
@@ -941,6 +943,8 @@ void RegisterAllocator::ReuseSpillSlots() {
 void RegisterAllocator::CommitAssignment() {
   for (auto range : live_ranges()) {
     if (range == nullptr || range->IsEmpty()) continue;
+    // Register assignments were committed in set_assigned_register.
+    if (range->HasRegisterAssigned()) continue;
     auto assigned = range->CreateAssignedOperand(code_zone());
     range->ConvertUsesToOperand(assigned);
     if (range->IsSpilled()) {
@@ -2547,7 +2551,7 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
     DCHECK(range->Kind() == GENERAL_REGISTERS);
     assigned_registers_->Add(reg);
   }
-  range->set_assigned_register(reg);
+  range->set_assigned_register(reg, code_zone());
 }
 
 }  // namespace compiler
