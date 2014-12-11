@@ -787,8 +787,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         __ B(eq, tlabel);
         break;
       case kUnorderedNotEqual:
-        __ B(vs, tlabel);
-      // Fall through.
+        // Unordered or not equal can be tested with "ne" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
       case kNotEqual:
         __ B(ne, tlabel);
         break;
@@ -811,8 +811,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         __ B(lo, tlabel);
         break;
       case kUnorderedGreaterThanOrEqual:
-        __ B(vs, tlabel);
-      // Fall through.
+        // Unordered, greater than or equal can be tested with "hs" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
       case kUnsignedGreaterThanOrEqual:
         __ B(hs, tlabel);
         break;
@@ -823,8 +823,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         __ B(ls, tlabel);
         break;
       case kUnorderedGreaterThan:
-        __ B(vs, tlabel);
-      // Fall through.
+        // Unordered or greater than can be tested with "hi" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
       case kUnsignedGreaterThan:
         __ B(hi, tlabel);
         break;
