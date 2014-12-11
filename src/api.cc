@@ -1637,6 +1637,12 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     options = kConsumeParserCache;
   }
 
+  // Don't try to produce any kind of cache when the debugger is loaded.
+  if (isolate->debug()->is_loaded() &&
+      (options == kProduceParserCache || options == kProduceCodeCache)) {
+    options = kNoCompileOptions;
+  }
+
   i::ScriptData* script_data = NULL;
   if (options == kConsumeParserCache || options == kConsumeCodeCache) {
     DCHECK(source->cached_data);
