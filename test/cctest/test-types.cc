@@ -294,39 +294,55 @@ struct Tests : Rep {
     CHECK(T.Constant(fac->NewNumber(0))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(1))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.OtherSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.OtherSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.NegativeSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.NegativeSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.NegativeSignedSmall));
     if (SmiValuesAre31Bits()) {
-      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
+      CHECK(
+          !T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 1))
+                 ->Is(T.NegativeSignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
       CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
       CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
-      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
-      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSignedSmall));
-      CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
-      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
-      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 1))
+                ->Is(T.NegativeSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
+      CHECK(
+          T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.NegativeSigned32));
     }
-    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.OtherUnsigned32));
-    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.OtherUnsigned32));
-    CHECK(T.Constant(fac->NewNumber(0xffffffffu+1.0))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-0x7fffffff-2.0))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0x80000000u))->Is(T.NonNegativeSigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0xffffffffu))->Is(T.NonNegativeSigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0.1))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-10.1))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(10e60))->Is(T.Integral32));
     CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
     CHECK(T.Constant(fac->NewNumber(v8::base::OS::nan_value()))->Is(T.NaN));
-    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.OtherNumber));
-    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.Integral32));
   }
 
   void Range() {
@@ -904,7 +920,7 @@ struct Tests : Rep {
       if (type->IsRange()) {
         TypeHandle lub = Rep::BitsetType::New(
             Rep::BitsetType::Lub(type), T.region());
-        CHECK(lub->Is(T.Union(T.Integral32, T.OtherNumber)));
+        CHECK(lub->Is(T.PlainNumber));
       }
     }
 

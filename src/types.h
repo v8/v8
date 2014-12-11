@@ -188,18 +188,20 @@ namespace internal {
   V(Untagged,           kUntaggedNumber | kUntaggedPointer)                 \
   V(Tagged,             kTaggedSigned | kTaggedPointer)
 
+#define INTERNAL_BITSET_TYPE_LIST(V)                                      \
+  V(OtherUnsigned31, 1u << 1 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned32, 1u << 2 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,   1u << 3 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherNumber,     1u << 4 | REPRESENTATION(kTagged | kUntaggedNumber))
+
 #define SEMANTIC_BITSET_TYPE_LIST(V) \
-  V(Null,                1u << 1  | REPRESENTATION(kTaggedPointer)) \
-  V(Undefined,           1u << 2  | REPRESENTATION(kTaggedPointer)) \
-  V(Boolean,             1u << 3  | REPRESENTATION(kTaggedPointer)) \
-  V(UnsignedSmall,       1u << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSignedSmall,    1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned31,     1u << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned32,     1u << 7  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,       1u << 8  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(MinusZero,           1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(NaN,                 1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherNumber,         1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NegativeSignedSmall, 1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Null,                1u << 6  | REPRESENTATION(kTaggedPointer)) \
+  V(Undefined,           1u << 7  | REPRESENTATION(kTaggedPointer)) \
+  V(Boolean,             1u << 8  | REPRESENTATION(kTaggedPointer)) \
+  V(UnsignedSmall,       1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(MinusZero,           1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NaN,                 1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
   V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPointer)) \
   V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
   V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
@@ -209,11 +211,14 @@ namespace internal {
   V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
   V(Internal,            1u << 19 | REPRESENTATION(kTagged | kUntagged)) \
   \
-  V(SignedSmall,         kUnsignedSmall | kOtherSignedSmall) \
+  V(SignedSmall,         kUnsignedSmall | kNegativeSignedSmall) \
   V(Signed32,            kSignedSmall | kOtherUnsigned31 | kOtherSigned32) \
+  V(NegativeSigned32,    kNegativeSignedSmall | kOtherSigned32) \
+  V(NonNegativeSigned32, kUnsignedSmall | kOtherUnsigned31) \
   V(Unsigned32,          kUnsignedSmall | kOtherUnsigned31 | kOtherUnsigned32) \
   V(Integral32,          kSigned32 | kUnsigned32) \
-  V(OrderedNumber,       kIntegral32 | kMinusZero | kOtherNumber) \
+  V(PlainNumber,         kIntegral32 | kOtherNumber) \
+  V(OrderedNumber,       kPlainNumber | kMinusZero) \
   V(Number,              kOrderedNumber | kNaN) \
   V(String,              kInternalizedString | kOtherString) \
   V(UniqueName,          kSymbol | kInternalizedString) \
@@ -230,6 +235,7 @@ namespace internal {
                          kReceiver) \
   V(NonNumber,           kUnique | kString | kInternal) \
   V(Any,                 0xfffffffeu)
+
 
 /*
  * The following diagrams show how integers (in the mathematical sense) are
@@ -259,9 +265,11 @@ namespace internal {
   REPRESENTATION_BITSET_TYPE_LIST(V) \
   SEMANTIC_BITSET_TYPE_LIST(V)
 
-#define BITSET_TYPE_LIST(V) \
-  MASK_BITSET_TYPE_LIST(V) \
-  PROPER_BITSET_TYPE_LIST(V)
+#define BITSET_TYPE_LIST(V)          \
+  MASK_BITSET_TYPE_LIST(V)           \
+  REPRESENTATION_BITSET_TYPE_LIST(V) \
+  INTERNAL_BITSET_TYPE_LIST(V)       \
+  SEMANTIC_BITSET_TYPE_LIST(V)
 
 
 // -----------------------------------------------------------------------------
@@ -598,6 +606,20 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   static TypeImpl* New(bitset bits) {
     DCHECK(bits == kNone || IsInhabited(bits));
+
+    if (FLAG_enable_slow_asserts) {
+      // Check that the bitset does not contain any holes in number ranges.
+      bitset mask = kSemantic;
+      if (!i::SmiValuesAre31Bits()) {
+        mask &= ~(kOtherUnsigned31 | kOtherSigned32);
+      }
+      bitset number_bits = bits & kPlainNumber & mask;
+      if (number_bits != 0) {
+        bitset lub = Lub(Min(number_bits), Max(number_bits)) & mask;
+        CHECK(lub == number_bits);
+      }
+    }
+
     return Config::from_bitset(bits);
   }
   static TypeHandle New(bitset bits, Region* region) {
