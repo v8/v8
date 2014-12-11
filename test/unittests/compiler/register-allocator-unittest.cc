@@ -152,7 +152,7 @@ TEST_F(RegisterAllocatorTest, DoubleDiamondManyRedundantPhis) {
   StartBlock();
   VReg vals[kPhis];
   for (int i = 0; i < kPhis; ++i) {
-    vals[i] = Parameter(Slot(i));
+    vals[i] = Parameter(Slot(-1 - i));
   }
   EndBlock(Branch(Reg(DefineConstant()), 1, 2));
 

@@ -213,7 +213,8 @@ namespace internal {
   V(UniqueName,          kSymbol | kInternalizedString) \
   V(Name,                kSymbol | kString) \
   V(NumberOrString,      kNumber | kString) \
-  V(Primitive,           kNumber | kName | kBoolean | kNull | kUndefined) \
+  V(PlainPrimitive,      kNumberOrString | kBoolean | kNull | kUndefined) \
+  V(Primitive,           kSymbol | kPlainPrimitive) \
   V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject) \
   V(DetectableReceiver,  kDetectableObject | kProxy) \
   V(Detectable,          kDetectableReceiver | kNumber | kName) \

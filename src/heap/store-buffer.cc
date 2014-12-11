@@ -109,7 +109,9 @@ void StoreBuffer::Uniq() {
   for (Address* read = old_start_; read < old_top_; read++) {
     Address current = *read;
     if (current != previous) {
-      if (heap_->InNewSpace(*reinterpret_cast<Object**>(current))) {
+      Object* object = reinterpret_cast<Object*>(
+          base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(current)));
+      if (heap_->InNewSpace(object)) {
         *write++ = current;
       }
     }

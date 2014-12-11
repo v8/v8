@@ -1950,7 +1950,7 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 void Map::ConnectElementsTransition(Handle<Map> parent, Handle<Map> child) {
   Isolate* isolate = parent->GetIsolate();
   Handle<Name> name = isolate->factory()->elements_transition_symbol();
-  ConnectTransition(parent, child, name, FULL_TRANSITION);
+  ConnectTransition(parent, child, name, SPECIAL_TRANSITION);
 }
 
 
@@ -2208,9 +2208,9 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
 
   Handle<LayoutDescriptor> new_layout_descriptor(
       LayoutDescriptor::FastPointerLayout(), isolate);
-  Handle<Map> new_map =
-      CopyReplaceDescriptors(map, descriptors, new_layout_descriptor,
-                             OMIT_TRANSITION, MaybeHandle<Name>(), reason);
+  Handle<Map> new_map = CopyReplaceDescriptors(
+      map, descriptors, new_layout_descriptor, OMIT_TRANSITION,
+      MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
 
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);
@@ -2278,12 +2278,14 @@ void Map::DeprecateTransitionTree() {
 // the current instance_descriptors to ensure proper sharing of descriptor
 // arrays.
 // Returns true if the transition target at given key was deprecated.
-bool Map::DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
+bool Map::DeprecateTarget(PropertyType type, Name* key,
+                          PropertyAttributes attributes,
+                          DescriptorArray* new_descriptors,
                           LayoutDescriptor* new_layout_descriptor) {
   bool transition_target_deprecated = false;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
-    int transition = transitions->Search(key);
+    int transition = transitions->Search(type, key, attributes);
     if (transition != TransitionArray::kNotFound) {
       transitions->GetTarget(transition)->DeprecateTransitionTree();
       transition_target_deprecated = true;
@@ -2332,14 +2334,15 @@ Map* Map::FindLastMatchMap(int verbatim,
   for (int i = verbatim; i < length; i++) {
     if (!current->HasTransitionArray()) break;
     Name* name = descriptors->GetKey(i);
+    PropertyDetails details = descriptors->GetDetails(i);
     TransitionArray* transitions = current->transitions();
-    int transition = transitions->Search(name);
+    int transition =
+        transitions->Search(details.type(), name, details.attributes());
     if (transition == TransitionArray::kNotFound) break;
 
     Map* next = transitions->GetTarget(transition);
     DescriptorArray* next_descriptors = next->instance_descriptors();
 
-    PropertyDetails details = descriptors->GetDetails(i);
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     if (details.type() != next_details.type()) break;
     if (details.attributes() != next_details.attributes()) break;
@@ -2543,21 +2546,23 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   Handle<Map> target_map = root_map;
   for (int i = root_nof; i < old_nof; ++i) {
-    int j = target_map->SearchTransition(old_descriptors->GetKey(i));
+    PropertyDetails old_details = old_descriptors->GetDetails(i);
+    int j = target_map->SearchTransition(old_details.type(),
+                                         old_descriptors->GetKey(i),
+                                         old_details.attributes());
     if (j == TransitionArray::kNotFound) break;
     Handle<Map> tmp_map(target_map->GetTransition(j), isolate);
     Handle<DescriptorArray> tmp_descriptors = handle(
         tmp_map->instance_descriptors(), isolate);
 
     // Check if target map is incompatible.
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
     PropertyType old_type = old_details.type();
     PropertyType tmp_type = tmp_details.type();
-    if (tmp_details.attributes() != old_details.attributes() ||
-        ((tmp_type == CALLBACKS || old_type == CALLBACKS) &&
-         (tmp_type != old_type ||
-          tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
+    DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
+    if ((tmp_type == CALLBACKS || old_type == CALLBACKS) &&
+        (tmp_type != old_type ||
+         tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i))) {
       return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
                                               "GenAll_Incompatible");
     }
@@ -2609,19 +2614,21 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   // Find the last compatible target map in the transition tree.
   for (int i = target_nof; i < old_nof; ++i) {
-    int j = target_map->SearchTransition(old_descriptors->GetKey(i));
+    PropertyDetails old_details = old_descriptors->GetDetails(i);
+    int j = target_map->SearchTransition(old_details.type(),
+                                         old_descriptors->GetKey(i),
+                                         old_details.attributes());
     if (j == TransitionArray::kNotFound) break;
     Handle<Map> tmp_map(target_map->GetTransition(j), isolate);
     Handle<DescriptorArray> tmp_descriptors(
         tmp_map->instance_descriptors(), isolate);
 
     // Check if target map is compatible.
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    if (tmp_details.attributes() != old_details.attributes() ||
-        ((tmp_details.type() == CALLBACKS || old_details.type() == CALLBACKS) &&
-         (tmp_details.type() != old_details.type() ||
-          tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
+    DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
+    if ((tmp_details.type() == CALLBACKS || old_details.type() == CALLBACKS) &&
+        (tmp_details.type() != old_details.type() ||
+         tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i))) {
       return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
                                               "GenAll_Incompatible");
     }
@@ -2753,9 +2760,11 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   Handle<LayoutDescriptor> new_layout_descriptor =
       LayoutDescriptor::New(split_map, new_descriptors, old_nof);
-  bool transition_target_deprecated =
-      split_map->DeprecateTarget(old_descriptors->GetKey(split_nof),
-                                 *new_descriptors, *new_layout_descriptor);
+  PropertyDetails split_prop_details = old_descriptors->GetDetails(split_nof);
+  bool transition_target_deprecated = split_map->DeprecateTarget(
+      split_prop_details.type(), old_descriptors->GetKey(split_nof),
+      split_prop_details.attributes(), *new_descriptors,
+      *new_layout_descriptor);
 
   // If |transition_target_deprecated| is true then the transition array
   // already contains entry for given descriptor. This means that the transition
@@ -2849,13 +2858,15 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
 
   Map* new_map = root_map;
   for (int i = root_nof; i < old_nof; ++i) {
-    int j = new_map->SearchTransition(old_descriptors->GetKey(i));
+    PropertyDetails old_details = old_descriptors->GetDetails(i);
+    int j = new_map->SearchTransition(old_details.type(),
+                                      old_descriptors->GetKey(i),
+                                      old_details.attributes());
     if (j == TransitionArray::kNotFound) return MaybeHandle<Map>();
     new_map = new_map->GetTransition(j);
     DescriptorArray* new_descriptors = new_map->instance_descriptors();
 
     PropertyDetails new_details = new_descriptors->GetDetails(i);
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
     if (old_details.attributes() != new_details.attributes() ||
         !old_details.representation().fits_into(new_details.representation())) {
       return MaybeHandle<Map>();
@@ -5358,9 +5369,13 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
-
   if (!object->map()->is_extensible()) return object;
+
+  if (!object->HasSloppyArgumentsElements() && !object->map()->is_observed()) {
+    return PreventExtensionsWithTransition<NONE>(object);
+  }
+
+  Isolate* isolate = object->GetIsolate();
 
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(
@@ -5415,22 +5430,45 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 }
 
 
-template<typename Dictionary>
-static void FreezeDictionary(Dictionary* dictionary) {
+Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
+    Handle<JSObject> object) {
+  DCHECK(!object->elements()->IsDictionary());
+  Isolate* isolate = object->GetIsolate();
+  int length = object->IsJSArray()
+                   ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
+                   : object->elements()->length();
+  if (length > 0) {
+    int capacity = 0;
+    int used = 0;
+    object->GetElementsCapacityAndUsage(&capacity, &used);
+    Handle<SeededNumberDictionary> new_element_dictionary =
+        SeededNumberDictionary::New(isolate, used);
+
+    // Move elements to a dictionary; avoid calling NormalizeElements to avoid
+    // unnecessary transitions.
+    return CopyFastElementsToDictionary(handle(object->elements()), length,
+                                        new_element_dictionary);
+  }
+  // No existing elements, use a pre-allocated empty backing store
+  return isolate->factory()->empty_slow_element_dictionary();
+}
+
+
+template <typename Dictionary>
+static void ApplyAttributesToDictionary(Dictionary* dictionary,
+                                        const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
     if (dictionary->IsKey(k) &&
         !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
       PropertyDetails details = dictionary->DetailsAt(i);
-      int attrs = DONT_DELETE;
+      int attrs = attributes;
       // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() == CALLBACKS) {
+      if ((attributes & READ_ONLY) && details.type() == CALLBACKS) {
         Object* v = dictionary->ValueAt(i);
         if (v->IsPropertyCell()) v = PropertyCell::cast(v)->value();
-        if (!v->IsAccessorPair()) attrs |= READ_ONLY;
-      } else {
-        attrs |= READ_ONLY;
+        if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attrs));
@@ -5440,12 +5478,14 @@ static void FreezeDictionary(Dictionary* dictionary) {
 }
 
 
-MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  // Freezing sloppy arguments should be handled elsewhere.
+template <PropertyAttributes attrs>
+MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
+    Handle<JSObject> object) {
+  STATIC_ASSERT(attrs == NONE || attrs == SEALED || attrs == FROZEN);
+
+  // Sealing/freezing sloppy arguments should be handled elsewhere.
   DCHECK(!object->HasSloppyArgumentsElements());
   DCHECK(!object->map()->is_observed());
-
-  if (object->map()->is_frozen()) return object;
 
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
@@ -5460,10 +5500,11 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     PrototypeIterator iter(isolate, object);
     if (iter.IsAtEnd()) return object;
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return Freeze(Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    return PreventExtensionsWithTransition<attrs>(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
   }
 
-  // It's not possible to freeze objects with external array elements
+  // It's not possible to seal or freeze objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
     THROW_NEW_ERROR(isolate,
@@ -5474,54 +5515,48 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
   Handle<SeededNumberDictionary> new_element_dictionary;
   if (!object->elements()->IsDictionary()) {
-    int length = object->IsJSArray()
-        ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-        : object->elements()->length();
-    if (length > 0) {
-      int capacity = 0;
-      int used = 0;
-      object->GetElementsCapacityAndUsage(&capacity, &used);
-      new_element_dictionary = SeededNumberDictionary::New(isolate, used);
+    new_element_dictionary = GetNormalizedElementDictionary(object);
+  }
 
-      // Move elements to a dictionary; avoid calling NormalizeElements to avoid
-      // unnecessary transitions.
-      new_element_dictionary = CopyFastElementsToDictionary(
-          handle(object->elements()), length, new_element_dictionary);
-    } else {
-      // No existing elements, use a pre-allocated empty backing store
-      new_element_dictionary =
-          isolate->factory()->empty_slow_element_dictionary();
-    }
+  Handle<Symbol> transition_marker;
+  if (attrs == NONE) {
+    transition_marker = isolate->factory()->nonextensible_symbol();
+  } else if (attrs == SEALED) {
+    transition_marker = isolate->factory()->sealed_symbol();
+  } else {
+    DCHECK(attrs == FROZEN);
+    transition_marker = isolate->factory()->frozen_symbol();
   }
 
   Handle<Map> old_map(object->map(), isolate);
-  int transition_index =
-      old_map->SearchTransition(isolate->heap()->frozen_symbol());
+  int transition_index = old_map->SearchSpecialTransition(*transition_marker);
   if (transition_index != TransitionArray::kNotFound) {
     Handle<Map> transition_map(old_map->GetTransition(transition_index));
     DCHECK(transition_map->has_dictionary_elements());
-    DCHECK(transition_map->is_frozen());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
-    // Create a new descriptor array with fully-frozen properties
-    Handle<Map> new_map = Map::CopyForFreeze(old_map);
+    // Create a new descriptor array with the appropriate property attributes
+    Handle<Map> new_map = Map::CopyForPreventExtensions(
+        old_map, attrs, transition_marker, "CopyForPreventExtensions");
     JSObject::MigrateToMap(object, new_map);
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
     // Slow path: need to normalize properties for safety
-    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "SlowFreeze");
+    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0,
+                        "SlowPreventExtensions");
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    Handle<Map> new_map = Map::Copy(handle(object->map()), "SlowCopyForFreeze");
-    new_map->freeze();
+    Handle<Map> new_map =
+        Map::Copy(handle(object->map()), "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(object, new_map);
 
-    // Freeze dictionary-mode properties
-    FreezeDictionary(object->property_dictionary());
+    if (attrs != NONE) {
+      ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+    }
   }
 
   DCHECK(object->map()->has_dictionary_elements());
@@ -5533,11 +5568,22 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     SeededNumberDictionary* dictionary = object->element_dictionary();
     // Make sure we never go back to the fast case
     dictionary->set_requires_slow_elements();
-    // Freeze all elements in the dictionary
-    FreezeDictionary(dictionary);
+    if (attrs != NONE) {
+      ApplyAttributesToDictionary(dictionary, attrs);
+    }
   }
 
   return object;
+}
+
+
+MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
+  return PreventExtensionsWithTransition<FROZEN>(object);
+}
+
+
+MaybeHandle<Object> JSObject::Seal(Handle<JSObject> object) {
+  return PreventExtensionsWithTransition<SEALED>(object);
 }
 
 
@@ -5549,7 +5595,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   DCHECK(!old_map->is_observed());
   int transition_index =
-      old_map->SearchTransition(isolate->heap()->observed_symbol());
+      old_map->SearchSpecialTransition(isolate->heap()->observed_symbol());
   if (transition_index != TransitionArray::kNotFound) {
     new_map = handle(old_map->GetTransition(transition_index), isolate);
     DCHECK(new_map->is_observed());
@@ -6759,7 +6805,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
-  ConnectTransition(map, result, name, SIMPLE_TRANSITION);
+  ConnectTransition(map, result, name, SIMPLE_PROPERTY_TRANSITION);
 
   return result;
 }
@@ -6892,7 +6938,7 @@ Handle<Map> Map::CopyInstallDescriptors(
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  ConnectTransition(map, result, name, SIMPLE_TRANSITION);
+  ConnectTransition(map, result, name, SIMPLE_PROPERTY_TRANSITION);
 
   return result;
 }
@@ -6970,7 +7016,7 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
   if (map->CanHaveMoreTransitions()) {
     Handle<Name> name = isolate->factory()->observed_symbol();
-    ConnectTransition(map, new_map, name, FULL_TRANSITION);
+    ConnectTransition(map, new_map, name, SPECIAL_TRANSITION);
   }
   return new_map;
 }
@@ -6984,7 +7030,8 @@ Handle<Map> Map::Copy(Handle<Map> map, const char* reason) {
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                  map->GetIsolate());
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
-                                OMIT_TRANSITION, MaybeHandle<Name>(), reason);
+                                OMIT_TRANSITION, MaybeHandle<Name>(), reason,
+                                SPECIAL_TRANSITION);
 }
 
 
@@ -7014,17 +7061,20 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
 }
 
 
-Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
+Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
+                                          PropertyAttributes attrs_to_add,
+                                          Handle<Symbol> transition_marker,
+                                          const char* reason) {
   int num_descriptors = map->NumberOfOwnDescriptors();
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
-      handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
+      handle(map->instance_descriptors(), isolate), num_descriptors,
+      attrs_to_add);
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                  isolate);
   Handle<Map> new_map = CopyReplaceDescriptors(
       map, new_desc, new_layout_descriptor, INSERT_TRANSITION,
-      isolate->factory()->frozen_symbol(), "CopyForFreeze");
-  new_map->freeze();
+      transition_marker, reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
   new_map->set_elements_kind(DICTIONARY_ELEMENTS);
   return new_map;
@@ -7083,17 +7133,14 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   // Migrate to the newest map before storing the property.
   map = Update(map);
 
-  int index = map->SearchTransition(*name);
+  int index = map->SearchTransition(FIELD, *name, attributes);
   if (index != TransitionArray::kNotFound) {
     Handle<Map> transition(map->GetTransition(index));
     int descriptor = transition->LastAdded();
 
-    // TODO(verwaest): Handle attributes better.
-    DescriptorArray* descriptors = transition->instance_descriptors();
-    if (descriptors->GetDetails(descriptor).attributes() != attributes) {
-      return Map::Normalize(map, CLEAR_INOBJECT_PROPERTIES,
-                            "IncompatibleAttributes");
-    }
+    DCHECK_EQ(attributes, transition->instance_descriptors()
+                              ->GetDetails(descriptor)
+                              .attributes());
 
     return Map::PrepareForDataProperty(transition, descriptor, value);
   }
@@ -7163,26 +7210,15 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
                                        ? KEEP_INOBJECT_PROPERTIES
                                        : CLEAR_INOBJECT_PROPERTIES;
 
-  int index = map->SearchTransition(*name);
+  int index = map->SearchTransition(CALLBACKS, *name, attributes);
   if (index != TransitionArray::kNotFound) {
     Handle<Map> transition(map->GetTransition(index));
     DescriptorArray* descriptors = transition->instance_descriptors();
-    // Fast path, assume that we're modifying the last added descriptor.
     int descriptor = transition->LastAdded();
-    if (descriptors->GetKey(descriptor) != *name) {
-      // If not, search for the descriptor.
-      descriptor = descriptors->SearchWithCache(*name, *transition);
-    }
+    DCHECK(descriptors->GetKey(descriptor)->Equals(*name));
 
-    if (descriptors->GetDetails(descriptor).type() != CALLBACKS) {
-      return Map::Normalize(map, mode, "TransitionToAccessorFromNonPair");
-    }
-
-    // TODO(verwaest): Handle attributes better.
-    if (descriptors->GetDetails(descriptor).attributes() != attributes) {
-      return Map::Normalize(map, mode,
-                            "TransitionToAccessorDifferentAttributes");
-    }
+    DCHECK_EQ(CALLBACKS, descriptors->GetDetails(descriptor).type());
+    DCHECK_EQ(attributes, descriptors->GetDetails(descriptor).attributes());
 
     Handle<Object> maybe_pair(descriptors->GetValue(descriptor), isolate);
     if (!maybe_pair->IsAccessorPair()) {
@@ -7201,6 +7237,9 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
   DescriptorArray* old_descriptors = map->instance_descriptors();
   int descriptor = old_descriptors->SearchWithCache(*name, *map);
   if (descriptor != DescriptorArray::kNotFound) {
+    if (descriptor != map->LastAdded()) {
+      return Map::Normalize(map, mode, "AccessorsOverwritingNonLast");
+    }
     PropertyDetails old_details = old_descriptors->GetDetails(descriptor);
     if (old_details.type() != CALLBACKS) {
       return Map::Normalize(map, mode, "AccessorsOverwritingNonAccessors");
@@ -7262,7 +7301,7 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
 
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
                                 flag, descriptor->GetKey(), "CopyAddDescriptor",
-                                SIMPLE_TRANSITION);
+                                SIMPLE_PROPERTY_TRANSITION);
 }
 
 
@@ -7358,8 +7397,8 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)
-          ? SIMPLE_TRANSITION
-          : FULL_TRANSITION;
+          ? SIMPLE_PROPERTY_TRANSITION
+          : PROPERTY_TRANSITION;
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
                                 flag, key, "CopyReplaceDescriptor",
                                 simple_flag);
@@ -9390,7 +9429,6 @@ static bool CheckEquivalent(Map* first, Map* second) {
     first->instance_type() == second->instance_type() &&
     first->bit_field() == second->bit_field() &&
     first->bit_field2() == second->bit_field2() &&
-    first->is_frozen() == second->is_frozen() &&
     first->has_instance_call_handler() == second->has_instance_call_handler();
 }
 
@@ -15987,7 +16025,7 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
                table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
 
   table->SetNextTable(*new_table);
-  table->SetNumberOfDeletedElements(-1);
+  table->SetNumberOfDeletedElements(kClearedTableSentinel);
 
   return new_table;
 }
@@ -16232,8 +16270,7 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
     if (index > 0) {
       int nod = table->NumberOfDeletedElements();
 
-      // When we clear the table we set the number of deleted elements to -1.
-      if (nod == -1) {
+      if (nod == TableType::kClearedTableSentinel) {
         index = 0;
       } else {
         int old_index = index;

@@ -70,8 +70,8 @@
 }],  # 'gc_stress == True'
 
 ['gc_stress == True and mode == debug', {
-  # Skip tests that timout with turbofan.
-  'array-iterate-backwards': [PASS, NO_VARIANTS]
+  # Skip tests that timeout.
+  'array-iterate-backwards': [SKIP]
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################

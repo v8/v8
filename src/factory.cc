@@ -139,12 +139,12 @@ Handle<ConstantPoolArray> Factory::NewExtendedConstantPoolArray(
 
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
-  return OrderedHashSet::Allocate(isolate(), 4);
+  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
 }
 
 
 Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
-  return OrderedHashMap::Allocate(isolate(), 4);
+  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity);
 }
 
 
@@ -2156,7 +2156,7 @@ void Factory::SetNumberStringCache(Handle<Object> number,
       // cache in the snapshot to keep  boot-time memory usage down.
       // If we expand the number string cache already while creating
       // the snapshot then that didn't work out.
-      DCHECK(!isolate()->serializer_enabled() || FLAG_extra_code != NULL);
+      DCHECK(!isolate()->serializer_enabled());
       Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;

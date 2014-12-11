@@ -275,6 +275,7 @@ namespace internal {
   F(LookupAccessor, 3, 1)                              \
                                                        \
   /* ES5 */                                            \
+  F(ObjectSeal, 1, 1)                                  \
   F(ObjectFreeze, 1, 1)                                \
                                                        \
   /* Harmony modules */                                \
@@ -299,19 +300,11 @@ namespace internal {
   F(GetConstructTrap, 1, 1)                            \
   F(Fix, 1, 1)                                         \
                                                        \
-  /* Harmony sets */                                   \
-  F(SetInitialize, 1, 1)                               \
-  F(SetClear, 1, 1)                                    \
-                                                       \
+  /* ES6 collection iterators */                       \
   F(SetIteratorInitialize, 3, 1)                       \
   F(SetIteratorClone, 1, 1)                            \
   F(SetIteratorNext, 2, 1)                             \
   F(SetIteratorDetails, 1, 1)                          \
-                                                       \
-  /* Harmony maps */                                   \
-  F(MapInitialize, 1, 1)                               \
-  F(MapClear, 1, 1)                                    \
-                                                       \
   F(MapIteratorInitialize, 3, 1)                       \
   F(MapIteratorClone, 1, 1)                            \
   F(MapIteratorNext, 2, 1)                             \
@@ -722,15 +715,19 @@ namespace internal {
   F(MathSqrtRT, 1, 1)                     \
   F(MathLogRT, 1, 1)                      \
   /* ES6 Collections */                   \
+  F(MapClear, 1, 1)                       \
   F(MapDelete, 2, 1)                      \
   F(MapGet, 2, 1)                         \
   F(MapGetSize, 1, 1)                     \
   F(MapHas, 2, 1)                         \
+  F(MapInitialize, 1, 1)                  \
   F(MapSet, 3, 1)                         \
   F(SetAdd, 2, 1)                         \
+  F(SetClear, 1, 1)                       \
   F(SetDelete, 2, 1)                      \
   F(SetGetSize, 1, 1)                     \
   F(SetHas, 2, 1)                         \
+  F(SetInitialize, 1, 1)                  \
   /* Arrays */                            \
   F(HasFastPackedElements, 1, 1)          \
   F(GetPrototype, 1, 1)

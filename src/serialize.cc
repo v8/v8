@@ -491,7 +491,9 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
       if (LookupEntry(map_, heap_object, false) != NULL) {
         // Some root values are initialized to the empty FixedArray();
         // Do not add them to the map.
-        DCHECK_EQ(isolate->heap()->empty_fixed_array(), heap_object);
+        // TODO(yangguo): This assert is not true. Some roots like
+        // instanceof_cache_answer can be e.g. null.
+        // DCHECK_EQ(isolate->heap()->empty_fixed_array(), heap_object);
       } else {
         SetValue(LookupEntry(map_, heap_object, true), i);
       }
@@ -1657,14 +1659,17 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     }
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
+    bool needs_double_align = false;
     if (object_->NeedsToEnsureDoubleAlignment()) {
       // Add wriggle room for double alignment padding.
       back_reference = serializer_->Allocate(space, size + kPointerSize);
-      sink_->PutInt(kDoubleAlignmentSentinel, "DoubleAlignSentinel");
+      needs_double_align = true;
     } else {
       back_reference = serializer_->Allocate(space, size);
     }
     sink_->Put(kNewObject + reference_representation_ + space, "NewObject");
+    if (needs_double_align)
+      sink_->PutInt(kDoubleAlignmentSentinel, "DoubleAlignSentinel");
     int encoded_size = size >> kObjectAlignmentBits;
     DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
     sink_->PutInt(encoded_size, "ObjectSizeInWords");

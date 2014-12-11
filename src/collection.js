@@ -30,7 +30,7 @@ function SetConstructor(iterable) {
     }
   }
 
-  %SetInitialize(this);
+  %_SetInitialize(this);
 
   if (IS_UNDEFINED(iter)) return;
 
@@ -92,7 +92,7 @@ function SetClearJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.clear', this]);
   }
-  %SetClear(this);
+  %_SetClear(this);
 }
 
 
@@ -170,7 +170,7 @@ function MapConstructor(iterable) {
     }
   }
 
-  %MapInitialize(this);
+  %_MapInitialize(this);
 
   if (IS_UNDEFINED(iter)) return;
 
@@ -245,7 +245,7 @@ function MapClearJS() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.clear', this]);
   }
-  %MapClear(this);
+  %_MapClear(this);
 }
 
 

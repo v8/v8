@@ -2432,6 +2432,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                         HValue* hash,
                                         HIfContinuation* join_continuation);
   template <typename CollectionType>
+  HValue* BuildAllocateOrderedHashTable();
+  template <typename CollectionType>
+  void BuildOrderedHashTableClear(HValue* receiver);
+  template <typename CollectionType>
   void BuildJSCollectionDelete(CallRuntime* call,
                                const Runtime::Function* c_function);
   template <typename CollectionType>

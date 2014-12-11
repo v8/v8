@@ -11,4 +11,4 @@ class C {
   }
 }
 
-new C();
+var c = new C();

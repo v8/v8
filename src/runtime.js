@@ -601,6 +601,15 @@ function SameValue(x, y) {
   return x === y;
 }
 
+// ES6, section 7.2.4
+function SameValueZero(x, y) {
+  if (typeof x != typeof y) return false;
+  if (IS_NUMBER(x)) {
+    if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
+  }
+  return x === y;
+}
+
 
 /* ---------------------------------
    - - -   U t i l i t i e s   - - -

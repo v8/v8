@@ -30,9 +30,4 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 }],  # ALWAYS
-['no_snap == True', {
-  # BUG(3744)
-  'super-constructor': [PASS,FAIL],
-  'super-constructor-extra-statement': [PASS,FAIL],
-}],
 ]

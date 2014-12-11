@@ -279,6 +279,8 @@ namespace internal {
   V(RegExp_string, "RegExp")
 
 #define PRIVATE_SYMBOL_LIST(V)      \
+  V(nonextensible_symbol)           \
+  V(sealed_symbol)                  \
   V(frozen_symbol)                  \
   V(nonexistent_symbol)             \
   V(elements_transition_symbol)     \

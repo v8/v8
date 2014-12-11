@@ -1582,6 +1582,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_scoping)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_modules)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_strings)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrays)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_array_includes)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_classes)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object_literals)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_regexps)
@@ -1611,6 +1612,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_scoping)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_modules)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_strings)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrays)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_array_includes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_classes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_literals)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
@@ -2154,6 +2156,8 @@ bool Genesis::InstallNatives() {
 bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_arrays_natives[] = {
       "native harmony-array.js", "native harmony-typedarray.js", NULL};
+  static const char* harmony_array_includes_natives[] = {
+      "native harmony-array-includes.js", NULL};
   static const char* harmony_proxies_natives[] = {"native proxy.js", NULL};
   static const char* harmony_strings_natives[] = {"native harmony-string.js",
                                                   NULL};
@@ -2162,7 +2166,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_modules_natives[] = {NULL};
   static const char* harmony_scoping_natives[] = {NULL};
   static const char* harmony_object_literals_natives[] = {NULL};
-  static const char* harmony_regexps_natives[] = {NULL};
+  static const char* harmony_regexps_natives[] = {
+      "native harmony-regexp.js", NULL};
   static const char* harmony_arrow_functions_natives[] = {NULL};
   static const char* harmony_numeric_literals_natives[] = {NULL};
   static const char* harmony_tostring_natives[] = {"native harmony-tostring.js",

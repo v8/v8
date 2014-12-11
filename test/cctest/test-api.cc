@@ -24630,3 +24630,15 @@ TEST(GetPrototypeHidden) {
       "f()");
   CHECK(result->Equals(proto2));
 }
+
+
+TEST(ClassPrototypeCreationContext) {
+  i::FLAG_harmony_classes = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  Handle<Object> result = Handle<Object>::Cast(
+      CompileRun("'use strict'; class Example { }; Example.prototype"));
+  CHECK(env.local() == result->CreationContext());
+}

@@ -20,14 +20,14 @@ namespace internal {
 namespace compiler {
 
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph)
+                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop)
     : StructuredGraphBuilder(local_zone, jsgraph->graph(), jsgraph->common()),
       info_(info),
       jsgraph_(jsgraph),
       globals_(0, local_zone),
       breakable_(NULL),
       execution_context_(NULL),
-      loop_assignment_analysis_(NULL) {
+      loop_assignment_analysis_(loop) {
   InitializeAstVisitor(local_zone);
 }
 
@@ -61,12 +61,6 @@ bool AstGraphBuilder::CreateGraph() {
   // Set up the basic structure of the graph.
   int parameter_count = info()->num_parameters();
   graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
-
-  if (FLAG_loop_assignment_analysis) {
-    // TODO(turbofan): use a temporary zone for the loop assignment analysis.
-    AstLoopAssignmentAnalyzer analyzer(zone(), info());
-    loop_assignment_analysis_ = analyzer.Analyze();
-  }
 
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());

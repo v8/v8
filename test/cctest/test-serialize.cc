@@ -188,7 +188,7 @@ v8::Isolate* InitializeFromFile(const char* snapshot_file) {
   if (!str) return NULL;
   v8::Isolate* v8_isolate = NULL;
   {
-    SnapshotData snapshot_data(str, len);
+    SnapshotData snapshot_data(Vector<const byte>(str, len));
     Deserializer deserializer(&snapshot_data);
     Isolate* isolate = Isolate::NewForTesting();
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -393,7 +393,7 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
       Object* root;
       {
-        SnapshotData snapshot_data(snapshot, snapshot_size);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root);
         CHECK(root->IsString());
@@ -404,7 +404,7 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 
       Object* root2;
       {
-        SnapshotData snapshot_data(snapshot, snapshot_size);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root2);
         CHECK(root2->IsString());
@@ -503,7 +503,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
       Object* root;
       {
-        SnapshotData snapshot_data(snapshot, snapshot_size);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root);
         CHECK(root->IsContext());
@@ -514,7 +514,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 
       Object* root2;
       {
-        SnapshotData snapshot_data(snapshot, snapshot_size);
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
         deserializer.DeserializePartial(isolate, &root2);
         CHECK(root2->IsContext());

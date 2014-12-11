@@ -15,8 +15,6 @@ std::ostream& operator<<(std::ostream& os,
   const InstructionOperand& op = *printable.op_;
   const RegisterConfiguration* conf = printable.register_configuration_;
   switch (op.kind()) {
-    case InstructionOperand::INVALID:
-      return os << "(0)";
     case InstructionOperand::UNALLOCATED: {
       const UnallocatedOperand* unalloc = UnallocatedOperand::cast(&op);
       os << "v" << unalloc->virtual_register();

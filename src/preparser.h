@@ -2838,12 +2838,12 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
       return Traits::EmptyExpression();
     }
 
-    int pos = peek_position();
+    int expr_pos = peek_position();
     ExpressionT expression = this->ParseExpression(true, CHECK_OK);
     Traits::AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::RBRACE) {
-      ReportMessageAt(Scanner::Location(pos, peek_position()),
+      ReportMessageAt(Scanner::Location(expr_pos, peek_position()),
                       "unterminated_template_expr");
       *ok = false;
       return Traits::EmptyExpression();

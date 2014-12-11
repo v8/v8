@@ -5361,6 +5361,13 @@ class V8_EXPORT V8 {
   static void SetSnapshotDataBlob(StartupData* startup_blob);
 
   /**
+   * Create a new isolate and context for the purpose of capturing a snapshot
+   * Returns { NULL, 0 } on failure.
+   * The caller owns the data array in the return value.
+   */
+  static StartupData CreateSnapshotDataBlob();
+
+  /**
    * Adds a message listener.
    *
    * The same message listener can be added more than once and in that

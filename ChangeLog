@@ -1,3 +1,15 @@
+2014-12-11: Version 3.31.52
+
+        Ship ES6 block scoping (issue 2198).
+
+        Optimize Object.seal and Object.preventExtensions (issue 3662, Chromium
+        issue 115960).
+
+        Add Array.prototype.includes (issue 3575).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-10: Version 3.31.51
 
         [x64] Fix optimization for certain checked load/stores (Chromium issue

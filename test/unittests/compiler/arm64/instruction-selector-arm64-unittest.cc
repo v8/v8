@@ -808,7 +808,8 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
@@ -827,7 +828,8 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
@@ -847,7 +849,8 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
@@ -866,7 +869,8 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
@@ -886,7 +890,8 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbnz, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
@@ -905,7 +910,8 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbz, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
@@ -925,7 +931,8 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbnz, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
@@ -944,7 +951,8 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tbz, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
@@ -964,7 +972,8 @@ TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Cbnz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   }
@@ -980,7 +989,8 @@ TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Cbz32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   }

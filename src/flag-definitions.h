@@ -175,6 +175,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #define HARMONY_INPROGRESS(V)                                             \
   V(harmony_modules, "harmony modules (implies block scoping)")           \
   V(harmony_arrays, "harmony array methods")                              \
+  V(harmony_array_includes, "harmony Array.prototype.includes")           \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_arrow_functions, "harmony arrow functions")                   \
   V(harmony_proxies, "harmony proxies")                                   \
@@ -187,13 +188,13 @@ DEFINE_IMPLICATION(es_staging, harmony)
     "harmony classes (implies block scoping & object literal extension)") \
   V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_tostring, "harmony toString")                                 \
-  V(harmony_scoping, "harmony block scoping")                             \
   V(harmony_templates, "harmony template literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                               \
   V(harmony_numeric_literals, "harmony numeric literals") \
-  V(harmony_strings, "harmony string methods")
+  V(harmony_strings, "harmony string methods")            \
+  V(harmony_scoping, "harmony block scoping")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -711,18 +712,8 @@ DEFINE_STRING(testing_serialization_file, "/tmp/serdes",
 #endif
 
 // mksnapshot.cc
-DEFINE_STRING(extra_code, NULL,
-              "A filename with extra code to be included in"
-              " the snapshot (mksnapshot only)")
-DEFINE_STRING(raw_file, NULL,
-              "A file to write the raw snapshot bytes to. "
-              "(mksnapshot only)")
-DEFINE_STRING(raw_context_file, NULL,
-              "A file to write the raw context "
-              "snapshot bytes to. (mksnapshot only)")
 DEFINE_STRING(startup_blob, NULL,
-              "Write V8 startup blob file. "
-              "(mksnapshot only)")
+              "Write V8 startup blob file. (mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_BOOL(profile_hydrogen_code_stub_compilation, false,

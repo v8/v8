@@ -7,6 +7,8 @@
 // var $Function = global.Function;
 // var $Array = global.Array;
 
+"use strict";
+
 
 (function() {
   function FunctionToMethod(homeObject) {

@@ -578,3 +578,30 @@ THREADED_TEST(GlobalObjectAccessor) {
   CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
   CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
 }
+
+
+static void EmptyGetter(Local<Name> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+}
+
+
+static void OneProperty(Local<String> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(1));
+}
+
+
+THREADED_TEST(Regress433458) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(EmptyGetter));
+  obj->SetNativeDataProperty(v8_str("prop"), OneProperty);
+  env->Global()->Set(v8_str("obj"), obj->NewInstance());
+  CompileRun(
+      "Object.defineProperty(obj, 'prop', { writable: false });"
+      "Object.defineProperty(obj, 'prop', { writable: true });");
+}

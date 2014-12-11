@@ -865,8 +865,8 @@ class SnapshotData : public SerializedData {
   SnapshotData(const SnapshotByteSink& sink, const Serializer& ser);
 
   // Used when consuming.
-  explicit SnapshotData(const byte* data, int size)
-      : SerializedData(const_cast<byte*>(data), size) {
+  explicit SnapshotData(const Vector<const byte> snapshot)
+      : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
     CHECK(IsSane());
   }
 

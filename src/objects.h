@@ -280,7 +280,11 @@ enum DebugExtraICState {
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.
-enum SimpleTransitionFlag { SIMPLE_TRANSITION, FULL_TRANSITION };
+enum SimpleTransitionFlag {
+  SIMPLE_PROPERTY_TRANSITION,
+  PROPERTY_TRANSITION,
+  SPECIAL_TRANSITION
+};
 
 
 // Indicates whether we are only interested in the descriptors of a particular
@@ -2111,6 +2115,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
       Handle<JSObject> object);
 
+  // ES5 Object.seal
+  MUST_USE_RESULT static MaybeHandle<Object> Seal(Handle<JSObject> object);
+
   // ES5 Object.freeze
   MUST_USE_RESULT static MaybeHandle<Object> Freeze(Handle<JSObject> object);
 
@@ -2399,6 +2406,15 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT Object* GetIdentityHash();
 
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSObject> object);
+
+  static Handle<SeededNumberDictionary> GetNormalizedElementDictionary(
+      Handle<JSObject> object);
+
+  // Helper for fast versions of preventExtensions, seal, and freeze.
+  // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
+  template <PropertyAttributes attrs>
+  MUST_USE_RESULT static MaybeHandle<Object> PreventExtensionsWithTransition(
+      Handle<JSObject> object);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -3917,6 +3933,7 @@ class OrderedHashTable: public FixedArray {
   static const int kNumberOfElementsIndex = kNumberOfBucketsIndex + 1;
   static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
   static const int kHashTableStartIndex = kNumberOfDeletedElementsIndex + 1;
+  static const int kNextTableIndex = kNumberOfElementsIndex;
 
   static const int kNumberOfBucketsOffset =
       kHeaderSize + kNumberOfBucketsIndex * kPointerSize;
@@ -3924,11 +3941,20 @@ class OrderedHashTable: public FixedArray {
       kHeaderSize + kNumberOfElementsIndex * kPointerSize;
   static const int kNumberOfDeletedElementsOffset =
       kHeaderSize + kNumberOfDeletedElementsIndex * kPointerSize;
+  static const int kHashTableStartOffset =
+      kHeaderSize + kHashTableStartIndex * kPointerSize;
+  static const int kNextTableOffset =
+      kHeaderSize + kNextTableIndex * kPointerSize;
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
 
   static const int kLoadFactor = 2;
+
+  // NumberOfDeletedElements is set to kClearedTableSentinel when
+  // the table is cleared, which allows iterator transitions to
+  // optimize that case.
+  static const int kClearedTableSentinel = -1;
 
  private:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
@@ -3971,7 +3997,6 @@ class OrderedHashTable: public FixedArray {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
 
-  static const int kNextTableIndex = kNumberOfElementsIndex;
   static const int kRemovedHolesIndex = kHashTableStartIndex;
 
   static const int kMaxCapacity =
@@ -5672,10 +5697,9 @@ class Map: public HeapObject {
   class OwnsDescriptors : public BitField<bool, 21, 1> {};
   class HasInstanceCallHandler : public BitField<bool, 22, 1> {};
   class Deprecated : public BitField<bool, 23, 1> {};
-  class IsFrozen : public BitField<bool, 24, 1> {};
-  class IsUnstable : public BitField<bool, 25, 1> {};
-  class IsMigrationTarget : public BitField<bool, 26, 1> {};
-  // Bit 27 is free.
+  class IsUnstable : public BitField<bool, 24, 1> {};
+  class IsMigrationTarget : public BitField<bool, 25, 1> {};
+  // Bits 26 and 27 are free.
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
@@ -5824,7 +5848,9 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
 
   inline Map* GetTransition(int transition_index);
-  inline int SearchTransition(Name* name);
+  inline int SearchSpecialTransition(Symbol* name);
+  inline int SearchTransition(PropertyType type, Name* name,
+                              PropertyAttributes attributes);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
@@ -5979,6 +6005,7 @@ class Map: public HeapObject {
                                LookupResult* result);
 
   inline void LookupTransition(JSObject* holder, Name* name,
+                               PropertyAttributes attributes,
                                LookupResult* result);
 
   inline PropertyDetails GetLastDescriptorDetails();
@@ -6022,8 +6049,6 @@ class Map: public HeapObject {
   inline void set_owns_descriptors(bool owns_descriptors);
   inline bool has_instance_call_handler();
   inline void set_has_instance_call_handler();
-  inline void freeze();
-  inline bool is_frozen();
   inline void mark_unstable();
   inline bool is_stable();
   inline void set_migration_target(bool value);
@@ -6081,7 +6106,10 @@ class Map: public HeapObject {
 
   static Handle<Map> CopyForObserved(Handle<Map> map);
 
-  static Handle<Map> CopyForFreeze(Handle<Map> map);
+  static Handle<Map> CopyForPreventExtensions(Handle<Map> map,
+                                              PropertyAttributes attrs_to_add,
+                                              Handle<Symbol> transition_marker,
+                                              const char* reason);
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
@@ -6369,7 +6397,8 @@ class Map: public HeapObject {
       Handle<Map> map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
       MaybeHandle<Name> maybe_name, const char* reason,
-      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
+      SimpleTransitionFlag simple_flag);
+
   static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor,
@@ -6397,7 +6426,9 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  bool DeprecateTarget(Name* key, DescriptorArray* new_descriptors,
+  bool DeprecateTarget(PropertyType type, Name* key,
+                       PropertyAttributes attributes,
+                       DescriptorArray* new_descriptors,
                        LayoutDescriptor* new_layout_descriptor);
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
