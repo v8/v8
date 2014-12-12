@@ -390,6 +390,9 @@ TEST_F(NodeMatcherTest, ScaledWithOffset64Matcher) {
   const Operator* d15_op = common()->Int64Constant(15);
   Node* d15 = graph()->NewNode(d15_op);
   USE(d15);
+  const Operator* d15_32_op = common()->Int32Constant(15);
+  Node* d15_32 = graph()->NewNode(d15_32_op);
+  USE(d15_32);
 
   const Operator* b0_op = common()->Parameter(0);
   Node* b0 = graph()->NewNode(b0_op, graph()->start());
@@ -450,6 +453,10 @@ TEST_F(NodeMatcherTest, ScaledWithOffset64Matcher) {
   // (B0 + D15) -> [NULL, 0, B0, D15]
   BaseWithIndexAndDisplacement64Matcher match2(graph()->NewNode(a_op, b0, d15));
   CheckBaseWithIndexAndDisplacement(&match2, NULL, 0, b0, d15);
+
+  BaseWithIndexAndDisplacement64Matcher match2_32(
+      graph()->NewNode(a_op, b0, d15_32));
+  CheckBaseWithIndexAndDisplacement(&match2_32, NULL, 0, b0, d15_32);
 
   // (D15 + B0) -> [NULL, 0, B0, D15]
   BaseWithIndexAndDisplacement64Matcher match3(graph()->NewNode(a_op, d15, b0));
