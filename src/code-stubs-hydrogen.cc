@@ -34,11 +34,11 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
-  CodeStubGraphBuilderBase(Isolate* isolate, HydrogenCodeStub* stub)
-      : HGraphBuilder(&info_),
+  explicit CodeStubGraphBuilderBase(CompilationInfoWithZone* info)
+      : HGraphBuilder(info),
         arguments_length_(NULL),
-        info_(stub, isolate),
-        descriptor_(stub),
+        info_(info),
+        descriptor_(info->code_stub()),
         context_(NULL) {
     int parameter_count = descriptor_.GetEnvironmentParameterCount();
     parameters_.Reset(new HParameter*[parameter_count]);
@@ -56,10 +56,10 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     DCHECK(arguments_length_ != NULL);
     return arguments_length_;
   }
-  CompilationInfo* info() { return &info_; }
-  HydrogenCodeStub* stub() { return info_.code_stub(); }
+  CompilationInfo* info() { return info_; }
+  HydrogenCodeStub* stub() { return info_->code_stub(); }
   HContext* context() { return context_; }
-  Isolate* isolate() { return info_.isolate(); }
+  Isolate* isolate() { return info_->isolate(); }
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        FieldIndex index);
@@ -106,7 +106,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
   SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
-  CompilationInfoWithZone info_;
+  CompilationInfoWithZone* info_;
   CodeStubDescriptor descriptor_;
   HContext* context_;
 };
@@ -120,7 +120,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
-    isolate()->GetHTracer()->TraceCompilation(&info_);
+    isolate()->GetHTracer()->TraceCompilation(info());
   }
 
   int param_count = descriptor_.GetEnvironmentParameterCount();
@@ -189,8 +189,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
  public:
-  CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
-      : CodeStubGraphBuilderBase(isolate, stub) {}
+  explicit CodeStubGraphBuilder(CompilationInfoWithZone* info)
+      : CodeStubGraphBuilderBase(info) {}
 
  protected:
   virtual HValue* BuildCodeStub() {
@@ -271,7 +271,8 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }
-  CodeStubGraphBuilder<Stub> builder(isolate, stub);
+  CompilationInfoWithZone info(stub, isolate);
+  CodeStubGraphBuilder<Stub> builder(&info);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
@@ -1700,8 +1701,8 @@ template <>
 class CodeStubGraphBuilder<KeyedLoadGenericStub>
     : public CodeStubGraphBuilderBase {
  public:
-  CodeStubGraphBuilder(Isolate* isolate, KeyedLoadGenericStub* stub)
-      : CodeStubGraphBuilderBase(isolate, stub) {}
+  explicit CodeStubGraphBuilder(CompilationInfoWithZone* info)
+      : CodeStubGraphBuilderBase(info) {}
 
  protected:
   virtual HValue* BuildCodeStub();
