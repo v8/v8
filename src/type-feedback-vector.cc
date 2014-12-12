@@ -98,6 +98,10 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
   }
   array->set(kWithTypesIndex, Smi::FromInt(0));
   array->set(kGenericCountIndex, Smi::FromInt(0));
+  // Fill the indexes with zeros.
+  for (int i = 0; i < index_count; i++) {
+    array->set(kReservedIndexCount + i, Smi::FromInt(0));
+  }
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -134,8 +138,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 static bool ClearLogic(Heap* heap, int ic_age, Code::Kind kind,
                        InlineCacheState state) {
   if (FLAG_cleanup_code_caches_at_gc &&
-      (kind == Code::CALL_IC || state == MEGAMORPHIC || state == GENERIC ||
-       state == POLYMORPHIC || heap->flush_monomorphic_ics() ||
+      (kind == Code::CALL_IC || heap->flush_monomorphic_ics() ||
        // TODO(mvstanton): is this ic_age granular enough? it comes from
        // the SharedFunctionInfo which may change on a different schedule
        // than ic targets.
@@ -258,8 +261,6 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
     return UNINITIALIZED;
   } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
     return PREMONOMORPHIC;
-  } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
-    return MEGAMORPHIC;
   } else if (feedback == *vector()->GenericSentinel(isolate)) {
     return GENERIC;
   } else if (feedback->IsFixedArray()) {
@@ -319,11 +320,6 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 
 void KeyedLoadICNexus::ConfigureGeneric() {
   SetFeedback(*vector()->GenericSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
-}
-
-
-void KeyedLoadICNexus::ConfigureMegamorphic() {
-  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
 }
 
 

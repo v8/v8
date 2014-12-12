@@ -8,6 +8,7 @@
 #include "src/code-stubs.h"
 #include "src/field-index.h"
 #include "src/hydrogen.h"
+#include "src/ic/ic.h"
 #include "src/lithium.h"
 
 namespace v8 {
@@ -98,6 +99,21 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   void BuildInstallFromOptimizedCodeMap(HValue* js_function,
                                         HValue* shared_info,
                                         HValue* native_context);
+
+  // Tail calls handler found at array[map_index + 1].
+  void TailCallHandler(HValue* receiver, HValue* name, HValue* array,
+                       HValue* map_index, HValue* slot, HValue* vector);
+
+  // Tail calls handler_code.
+  void TailCallHandler(HValue* receiver, HValue* name, HValue* slot,
+                       HValue* vector, HValue* handler_code);
+
+  void TailCallMiss(HValue* receiver, HValue* name, HValue* slot,
+                    HValue* vector, bool keyed_load);
+
+  // Handle MONOMORPHIC and POLYMORPHIC LoadIC and KeyedLoadIC cases.
+  void HandleArrayCases(HValue* array, HValue* receiver, HValue* name,
+                        HValue* slot, HValue* vector, bool keyed_load);
 
  private:
   HValue* BuildArraySingleArgumentConstructor(JSArrayBuilder* builder);
@@ -2004,11 +2020,126 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
 }
 
 
+void CodeStubGraphBuilderBase::TailCallHandler(HValue* receiver, HValue* name,
+                                               HValue* array, HValue* map_index,
+                                               HValue* slot, HValue* vector) {
+  // The handler is at array[map_index + 1]. Compute this with a custom offset
+  // to HLoadKeyed.
+  int offset =
+      GetDefaultHeaderSizeForElementsKind(FAST_ELEMENTS) + kPointerSize;
+  HValue* handler_code =
+      Add<HLoadKeyed>(array, map_index, static_cast<HValue*>(NULL),
+                      FAST_ELEMENTS, NEVER_RETURN_HOLE, offset);
+  TailCallHandler(receiver, name, slot, vector, handler_code);
+}
+
+
+void CodeStubGraphBuilderBase::TailCallHandler(HValue* receiver, HValue* name,
+                                               HValue* slot, HValue* vector,
+                                               HValue* handler_code) {
+  VectorLoadICDescriptor descriptor(isolate());
+  HValue* op_vals[] = {context(), receiver, name, slot, vector};
+  Add<HCallWithDescriptor>(handler_code, 0, descriptor,
+                           Vector<HValue*>(op_vals, 5), TAIL_CALL);
+  // We never return here, it is a tail call.
+}
+
+
+void CodeStubGraphBuilderBase::TailCallMiss(HValue* receiver, HValue* name,
+                                            HValue* slot, HValue* vector,
+                                            bool keyed_load) {
+  DCHECK(FLAG_vector_ics);
+  Add<HTailCallThroughMegamorphicCache>(
+      receiver, name, slot, vector,
+      HTailCallThroughMegamorphicCache::ComputeFlags(keyed_load, true));
+  // We never return here, it is a tail call.
+}
+
+
+void CodeStubGraphBuilderBase::HandleArrayCases(HValue* array, HValue* receiver,
+                                                HValue* name, HValue* slot,
+                                                HValue* vector,
+                                                bool keyed_load) {
+  IfBuilder if_receiver_heap_object(this);
+  if_receiver_heap_object.IfNot<HIsSmiAndBranch>(receiver);
+  if_receiver_heap_object.Then();
+  {
+    HConstant* constant_two = Add<HConstant>(2);
+    HConstant* constant_three = Add<HConstant>(3);
+
+    HValue* receiver_map = AddLoadMap(receiver, static_cast<HValue*>(NULL));
+    HValue* start =
+        keyed_load ? graph()->GetConstant1() : graph()->GetConstant0();
+    HValue* array_map =
+        Add<HLoadKeyed>(array, start, static_cast<HValue*>(NULL), FAST_ELEMENTS,
+                        ALLOW_RETURN_HOLE);
+    IfBuilder if_correct_map(this);
+    if_correct_map.If<HCompareObjectEqAndBranch>(receiver_map, array_map);
+    if_correct_map.Then();
+    { TailCallHandler(receiver, name, array, start, slot, vector); }
+    if_correct_map.Else();
+    {
+      // If our array has more elements, the ic is polymorphic. Look for the
+      // receiver map in the rest of the array.
+      HValue* length =
+          AddLoadFixedArrayLength(array, static_cast<HValue*>(NULL));
+      LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement,
+                          constant_two);
+      start = keyed_load ? constant_three : constant_two;
+      HValue* key = builder.BeginBody(start, length, Token::LT);
+      {
+        HValue* array_map =
+            Add<HLoadKeyed>(array, key, static_cast<HValue*>(NULL),
+                            FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+        IfBuilder if_correct_poly_map(this);
+        if_correct_poly_map.If<HCompareObjectEqAndBranch>(receiver_map,
+                                                          array_map);
+        if_correct_poly_map.Then();
+        { TailCallHandler(receiver, name, array, key, slot, vector); }
+      }
+      builder.EndBody();
+    }
+    if_correct_map.End();
+  }
+}
+
+
 template <>
 HValue* CodeStubGraphBuilder<VectorLoadStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(VectorLoadICDescriptor::kReceiverIndex);
-  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
-  return receiver;
+  HValue* name = GetParameter(VectorLoadICDescriptor::kNameIndex);
+  HValue* slot = GetParameter(VectorLoadICDescriptor::kSlotIndex);
+  HValue* vector = GetParameter(VectorLoadICDescriptor::kVectorIndex);
+
+  // If the feedback is an array, then the IC is in the monomorphic or
+  // polymorphic state.
+  HValue* feedback = Add<HLoadKeyed>(vector, slot, static_cast<HValue*>(NULL),
+                                     FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+  IfBuilder array_checker(this);
+  array_checker.If<HCompareMap>(feedback,
+                                isolate()->factory()->fixed_array_map());
+  array_checker.Then();
+  { HandleArrayCases(feedback, receiver, name, slot, vector, false); }
+  array_checker.Else();
+  {
+    // Is the IC megamorphic?
+    IfBuilder mega_checker(this);
+    HConstant* megamorphic_symbol =
+        Add<HConstant>(isolate()->factory()->megamorphic_symbol());
+    mega_checker.If<HCompareObjectEqAndBranch>(feedback, megamorphic_symbol);
+    mega_checker.Then();
+    {
+      // Probe the stub cache.
+      Add<HTailCallThroughMegamorphicCache>(
+          receiver, name, slot, vector,
+          HTailCallThroughMegamorphicCache::ComputeFlags(false, false));
+    }
+    mega_checker.End();
+  }
+  array_checker.End();
+
+  TailCallMiss(receiver, name, slot, vector, false);
+  return graph()->GetConstant0();
 }
 
 
@@ -2018,8 +2149,66 @@ Handle<Code> VectorLoadStub::GenerateCode() { return DoGenerateCode(this); }
 template <>
 HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(VectorLoadICDescriptor::kReceiverIndex);
-  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
-  return receiver;
+  HValue* name = GetParameter(VectorLoadICDescriptor::kNameIndex);
+  HValue* slot = GetParameter(VectorLoadICDescriptor::kSlotIndex);
+  HValue* vector = GetParameter(VectorLoadICDescriptor::kVectorIndex);
+  HConstant* zero = graph()->GetConstant0();
+
+  // If the feedback is an array, then the IC is in the monomorphic or
+  // polymorphic state.
+  HValue* feedback = Add<HLoadKeyed>(vector, slot, static_cast<HValue*>(NULL),
+                                     FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+  IfBuilder array_checker(this);
+  array_checker.If<HCompareMap>(feedback,
+                                isolate()->factory()->fixed_array_map());
+  array_checker.Then();
+  {
+    // If feedback[0] is 0, then the IC has element handlers and name should be
+    // a smi. If feedback[0] is a string, verify that it matches name.
+    HValue* recorded_name =
+        Add<HLoadKeyed>(feedback, zero, static_cast<HValue*>(NULL),
+                        FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+
+    IfBuilder recorded_name_is_zero(this);
+    recorded_name_is_zero.If<HCompareObjectEqAndBranch>(recorded_name, zero);
+    recorded_name_is_zero.Then();
+    { Add<HCheckSmi>(name); }
+    recorded_name_is_zero.Else();
+    {
+      IfBuilder strings_match(this);
+      strings_match.IfNot<HCompareObjectEqAndBranch>(name, recorded_name);
+      strings_match.Then();
+      TailCallMiss(receiver, name, slot, vector, true);
+      strings_match.End();
+    }
+    recorded_name_is_zero.End();
+
+    HandleArrayCases(feedback, receiver, name, slot, vector, true);
+  }
+  array_checker.Else();
+  {
+    // Check if the IC is in generic state.
+    IfBuilder generic_checker(this);
+    HConstant* generic_symbol =
+        Add<HConstant>(isolate()->factory()->generic_symbol());
+    generic_checker.If<HCompareObjectEqAndBranch>(feedback, generic_symbol);
+    generic_checker.Then();
+    {
+      // Tail-call to the generic KeyedLoadIC, treating it like a handler.
+      Handle<Code> stub = KeyedLoadIC::generic_stub(isolate());
+      HValue* constant_stub = Add<HConstant>(stub);
+      LoadDescriptor descriptor(isolate());
+      HValue* op_vals[] = {context(), receiver, name};
+      Add<HCallWithDescriptor>(constant_stub, 0, descriptor,
+                               Vector<HValue*>(op_vals, 3), TAIL_CALL);
+      // We never return here, it is a tail call.
+    }
+    generic_checker.End();
+  }
+  array_checker.End();
+
+  TailCallMiss(receiver, name, slot, vector, true);
+  return zero;
 }
 
 
@@ -2035,14 +2224,15 @@ Handle<Code> MegamorphicLoadStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
-  // The return address is on the stack.
   HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
   HValue* name = GetParameter(LoadDescriptor::kNameIndex);
 
+  // We shouldn't generate this when FLAG_vector_ics is true because the
+  // megamorphic case is handled as part of the default stub.
+  DCHECK(!FLAG_vector_ics);
+
   // Probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
-  Add<HTailCallThroughMegamorphicCache>(receiver, name, flags);
+  Add<HTailCallThroughMegamorphicCache>(receiver, name);
 
   // We never continue.
   return graph()->GetConstant0();

@@ -796,7 +796,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCallNew:
     case HValue::kCallNewArray:
     case HValue::kCallStub:
-    case HValue::kCallWithDescriptor:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
     case HValue::kCompareGeneric:
@@ -863,6 +862,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBranch:
     case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
+    case HValue::kCallWithDescriptor:
     case HValue::kChange:
     case HValue::kCheckHeapObject:
     case HValue::kCheckInstanceType:
@@ -1713,6 +1713,13 @@ std::ostream& HCheckInstanceType::PrintDataTo(
 std::ostream& HCallStub::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << CodeStub::MajorName(major_key_, false) << " ";
   return HUnaryCall::PrintDataTo(os);
+}
+
+
+Code::Flags HTailCallThroughMegamorphicCache::flags() const {
+  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  return code_flags;
 }
 
 

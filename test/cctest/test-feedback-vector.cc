@@ -40,11 +40,17 @@ TEST(VectorStructure) {
   CHECK_EQ(0, vector->ICSlots());
 
   FeedbackVectorSpec one_icslot(0, 1);
+  if (FLAG_vector_ics) {
+    one_icslot.SetKind(0, Code::CALL_IC);
+  }
   vector = factory->NewTypeFeedbackVector(one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());
 
   FeedbackVectorSpec spec(3, 5);
+  if (FLAG_vector_ics) {
+    for (int i = 0; i < 5; i++) spec.SetKind(i, Code::CALL_IC);
+  }
   vector = factory->NewTypeFeedbackVector(spec);
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
@@ -295,8 +301,8 @@ TEST(VectorLoadICStates) {
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
   CHECK_EQ(NULL, nexus.FindFirstMap());
 
-  // After a collection, state should be reset to PREMONOMORPHIC.
+  // After a collection, state should not be reset to PREMONOMORPHIC.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
 }

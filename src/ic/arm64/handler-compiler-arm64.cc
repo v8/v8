@@ -15,6 +15,27 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
+                                                Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ Push(vector);
+  __ Push(slot);
+}
+
+
+void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ Pop(slot);
+  __ Pop(vector);
+}
+
+
+void PropertyHandlerCompiler::DiscardVectorAndSlot() {
+  MacroAssembler* masm = this->masm();
+  // Remove vector and slot.
+  __ Drop(2);
+}
+
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
@@ -306,6 +327,9 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
+  if (IC::ICUseVector(kind())) {
+    PushVectorAndSlot();
+  }
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
@@ -320,6 +344,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, x1, x3);
+  if (IC::ICUseVector(kind())) {
+    DiscardVectorAndSlot();
+  }
   __ Ret();
 
   FrontendFooter(name, &miss);
@@ -530,6 +557,10 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     __ B(&success);
 
     __ Bind(miss);
+    if (IC::ICUseVector(kind())) {
+      DCHECK(kind() == Code::LOAD_IC);
+      PopVectorAndSlot();
+    }
     TailCallBuiltin(masm(), MissBuiltin(kind()));
 
     __ Bind(&success);
@@ -642,6 +673,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     } else {
       __ Push(holder_reg, this->name());
     }
+    InterceptorVectorSlotPush(holder_reg);
     // Invoke an interceptor.  Note: map checks from receiver to
     // interceptor's holder has been compiled before (see a caller
     // of this method.)
@@ -658,6 +690,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     __ Ret();
 
     __ Bind(&interceptor_failed);
+    InterceptorVectorSlotPop(holder_reg);
     if (must_preserve_receiver_reg) {
       __ Pop(this->name(), holder_reg, receiver());
     } else {
@@ -688,7 +721,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
-  Register holder_reg = Frontend(receiver(), name);
+  Register holder_reg = Frontend(name);
 
   // Stub never generated for non-global objects that require access checks.
   DCHECK(holder()->IsJSGlobalProxy() || !holder()->IsAccessCheckNeeded());

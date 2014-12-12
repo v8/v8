@@ -1412,6 +1412,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadDescriptor::ReceiverRegister();
+  // Ensure that the vector and slot registers won't be clobbered before
+  // calling the miss handler.
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(x10, x11, VectorLoadICDescriptor::VectorRegister(),
+                     VectorLoadICDescriptor::SlotRegister()));
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10,
                                                           x11, &miss);
@@ -1429,9 +1434,15 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register index = LoadDescriptor::NameRegister();
   Register result = x0;
-  Register scratch = x3;
+  Register scratch = x10;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
+  DCHECK(!FLAG_vector_ics ||
+         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+          result.is(VectorLoadICDescriptor::SlotRegister())));
 
+  // StringCharAtGenerator doesn't use the result register until it's passed
+  // the different miss possibilities. If it did, we would have a conflict
+  // when FLAG_vector_ics is true.
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.

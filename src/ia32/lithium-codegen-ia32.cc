@@ -2831,14 +2831,17 @@ template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
   Register vector_register = ToRegister(instr->temp_vector());
+  Register slot_register = VectorLoadICDescriptor::SlotRegister();
   DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(slot_register.is(eax));
+
+  AllowDeferredHandleDereference vector_structure_check;
   Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
   __ mov(vector_register, vector);
   // No need to allocate this register.
-  DCHECK(VectorLoadICDescriptor::SlotRegister().is(eax));
-  int index = vector->GetIndex(instr->hydrogen()->slot());
-  __ mov(VectorLoadICDescriptor::SlotRegister(),
-         Immediate(Smi::FromInt(index)));
+  FeedbackVectorICSlot slot = instr->hydrogen()->slot();
+  int index = vector->GetIndex(slot);
+  __ mov(slot_register, Immediate(Smi::FromInt(index)));
 }
 
 
@@ -3452,45 +3455,81 @@ void LCodeGen::DoTailCallThroughMegamorphicCache(
   Register name = ToRegister(instr->name());
   DCHECK(receiver.is(LoadDescriptor::ReceiverRegister()));
   DCHECK(name.is(LoadDescriptor::NameRegister()));
+  Register slot = FLAG_vector_ics ? ToRegister(instr->slot()) : no_reg;
+  Register vector = FLAG_vector_ics ? ToRegister(instr->vector()) : no_reg;
 
   Register scratch = ebx;
-  Register extra = eax;
+  Register extra = edi;
+  DCHECK(!extra.is(slot) && !extra.is(vector));
   DCHECK(!scratch.is(receiver) && !scratch.is(name));
   DCHECK(!extra.is(receiver) && !extra.is(name));
 
   // Important for the tail-call.
   bool must_teardown_frame = NeedsEagerFrame();
 
-  // The probe will tail call to a handler if found.
-  isolate()->stub_cache()->GenerateProbe(masm(), instr->hydrogen()->flags(),
-                                         must_teardown_frame, receiver, name,
-                                         scratch, extra);
+  if (!instr->hydrogen()->is_just_miss()) {
+    if (FLAG_vector_ics) {
+      __ push(slot);
+      __ push(vector);
+    }
+
+    // The probe will tail call to a handler if found.
+    // If --vector-ics is on, then it knows to pop the two args first.
+    DCHECK(!instr->hydrogen()->is_keyed_load());
+    isolate()->stub_cache()->GenerateProbe(
+        masm(), Code::LOAD_IC, instr->hydrogen()->flags(), must_teardown_frame,
+        receiver, name, scratch, extra);
+
+    if (FLAG_vector_ics) {
+      __ pop(vector);
+      __ pop(slot);
+    }
+  }
 
   // Tail call to miss if we ended up here.
   if (must_teardown_frame) __ leave();
-  LoadIC::GenerateMiss(masm());
+  if (instr->hydrogen()->is_keyed_load()) {
+    KeyedLoadIC::GenerateMiss(masm());
+  } else {
+    LoadIC::GenerateMiss(masm());
+  }
 }
 
 
 void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
   DCHECK(ToRegister(instr->result()).is(eax));
 
-  LPointerMap* pointers = instr->pointer_map();
-  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) __ leave();
 
-  if (instr->target()->IsConstantOperand()) {
-    LConstantOperand* target = LConstantOperand::cast(instr->target());
-    Handle<Code> code = Handle<Code>::cast(ToHandle(target));
-    generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
-    __ call(code, RelocInfo::CODE_TARGET);
+    if (instr->target()->IsConstantOperand()) {
+      LConstantOperand* target = LConstantOperand::cast(instr->target());
+      Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+      __ jmp(code, RelocInfo::CODE_TARGET);
+    } else {
+      DCHECK(instr->target()->IsRegister());
+      Register target = ToRegister(instr->target());
+      __ add(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ jmp(target);
+    }
   } else {
-    DCHECK(instr->target()->IsRegister());
-    Register target = ToRegister(instr->target());
-    generator.BeforeCall(__ CallSize(Operand(target)));
-    __ add(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ call(target);
+    LPointerMap* pointers = instr->pointer_map();
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+    if (instr->target()->IsConstantOperand()) {
+      LConstantOperand* target = LConstantOperand::cast(instr->target());
+      Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+      generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
+      __ call(code, RelocInfo::CODE_TARGET);
+    } else {
+      DCHECK(instr->target()->IsRegister());
+      Register target = ToRegister(instr->target());
+      generator.BeforeCall(__ CallSize(Operand(target)));
+      __ add(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ call(target);
+    }
+    generator.AfterCall();
   }
-  generator.AfterCall();
 }
 
 

@@ -15,6 +15,28 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
+                                                Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ Push(vector);
+  __ Push(slot);
+}
+
+
+void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
+  MacroAssembler* masm = this->masm();
+  __ Pop(slot);
+  __ Pop(vector);
+}
+
+
+void PropertyHandlerCompiler::DiscardVectorAndSlot() {
+  MacroAssembler* masm = this->masm();
+  // Remove vector and slot.
+  __ addp(rsp, Immediate(2 * kPointerSize));
+}
+
+
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
     Handle<Name> name, Register scratch0, Register scratch1) {
@@ -484,6 +506,10 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     __ bind(miss);
+    if (IC::ICUseVector(kind())) {
+      DCHECK(kind() == Code::LOAD_IC);
+      PopVectorAndSlot();
+    }
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -582,6 +608,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     }
     __ Push(holder_reg);
     __ Push(this->name());
+    InterceptorVectorSlotPush(holder_reg);
 
     // Invoke an interceptor.  Note: map checks from receiver to
     // interceptor's holder has been compiled before (see a caller
@@ -599,6 +626,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     __ ret(0);
 
     __ bind(&interceptor_failed);
+    InterceptorVectorSlotPop(holder_reg);
     __ Pop(this->name());
     __ Pop(holder_reg);
     if (must_preserve_receiver_reg) {
@@ -631,7 +659,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
-  Register holder_reg = Frontend(receiver(), name);
+  Register holder_reg = Frontend(name);
 
   __ PopReturnAddressTo(scratch1());
   __ Push(receiver());
@@ -677,6 +705,9 @@ Register NamedStoreHandlerCompiler::value() {
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
+  if (IC::ICUseVector(kind())) {
+    PushVectorAndSlot();
+  }
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
@@ -695,6 +726,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1);
+  if (IC::ICUseVector(kind())) {
+    DiscardVectorAndSlot();
+  }
   __ ret(0);
 
   FrontendFooter(name, &miss);

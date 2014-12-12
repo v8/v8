@@ -1347,10 +1347,16 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register index = LoadDescriptor::NameRegister();
-  Register scratch = a3;
+  Register scratch = a4;
   Register result = v0;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
+  DCHECK(!FLAG_vector_ics ||
+         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+          result.is(VectorLoadICDescriptor::SlotRegister())));
 
+  // StringCharAtGenerator doesn't use the result register until it's passed
+  // the different miss possibilities. If it did, we would have a conflict
+  // when FLAG_vector_ics is true.
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
@@ -1564,8 +1570,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadDescriptor::ReceiverRegister();
-  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, a3,
-                                                          a4, &miss);
+  // Ensure that the vector and slot registers won't be clobbered before
+  // calling the miss handler.
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(a4, a5, VectorLoadICDescriptor::VectorRegister(),
+                     VectorLoadICDescriptor::SlotRegister()));
+
+  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, a4,
+                                                          a5, &miss);
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));

@@ -348,7 +348,6 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureMegamorphic();
   void ConfigureGeneric();
   void ConfigurePremonomorphic();
   // name can be a null handle for element loads.

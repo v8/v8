@@ -24,9 +24,12 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
 
   if (check == PROPERTY &&
       (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC)) {
-    // In case we are compiling an IC for dictionary loads and stores, just
+    // In case we are compiling an IC for dictionary loads or stores, just
     // check whether the name is unique.
     if (name.is_identical_to(isolate()->factory()->normal_ic_symbol())) {
+      // Keyed loads with dictionaries shouldn't be here, they go generic.
+      // The DCHECK is to protect assumptions when --vector-ics is on.
+      DCHECK(kind() != Code::KEYED_LOAD_IC);
       Register tmp = scratch1();
       __ JumpIfSmi(this->name(), &miss);
       __ ld(tmp, FieldMemOperand(this->name(), HeapObject::kMapOffset));

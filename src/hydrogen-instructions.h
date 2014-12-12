@@ -2314,15 +2314,19 @@ class HCallJSFunction FINAL : public HCall<1> {
 };
 
 
+enum CallMode { NORMAL_CALL, TAIL_CALL };
+
+
 class HCallWithDescriptor FINAL : public HInstruction {
  public:
   static HCallWithDescriptor* New(Zone* zone, HValue* context, HValue* target,
                                   int argument_count,
                                   CallInterfaceDescriptor descriptor,
-                                  const Vector<HValue*>& operands) {
+                                  const Vector<HValue*>& operands,
+                                  CallMode call_mode = NORMAL_CALL) {
     DCHECK(operands.length() == descriptor.GetEnvironmentLength());
-    HCallWithDescriptor* res = new (zone)
-        HCallWithDescriptor(target, argument_count, descriptor, operands, zone);
+    HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
+        target, argument_count, descriptor, operands, call_mode, zone);
     return res;
   }
 
@@ -2343,6 +2347,8 @@ class HCallWithDescriptor FINAL : public HInstruction {
 
   HType CalculateInferredType() FINAL { return HType::Tagged(); }
 
+  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
+
   virtual int argument_count() const {
     return argument_count_;
   }
@@ -2361,10 +2367,14 @@ class HCallWithDescriptor FINAL : public HInstruction {
   // The argument count includes the receiver.
   HCallWithDescriptor(HValue* target, int argument_count,
                       CallInterfaceDescriptor descriptor,
-                      const Vector<HValue*>& operands, Zone* zone)
+                      const Vector<HValue*>& operands, CallMode call_mode,
+                      Zone* zone)
       : descriptor_(descriptor),
-        values_(descriptor.GetEnvironmentLength() + 1, zone) {
-    argument_count_ = argument_count;
+        values_(descriptor.GetEnvironmentLength() + 1, zone),
+        argument_count_(argument_count),
+        call_mode_(call_mode) {
+    // We can only tail call without any stack arguments.
+    DCHECK(call_mode != TAIL_CALL || argument_count == 0);
     AddOperand(target, zone);
     for (int i = 0; i < operands.length(); i++) {
       AddOperand(operands[i], zone);
@@ -2385,6 +2395,7 @@ class HCallWithDescriptor FINAL : public HInstruction {
   CallInterfaceDescriptor descriptor_;
   ZoneList<HValue*> values_;
   int argument_count_;
+  CallMode call_mode_;
 };
 
 
@@ -5354,34 +5365,90 @@ class HCallStub FINAL : public HUnaryCall {
 };
 
 
-class HTailCallThroughMegamorphicCache FINAL : public HTemplateInstruction<3> {
+class HTailCallThroughMegamorphicCache FINAL : public HInstruction {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HTailCallThroughMegamorphicCache,
-                                              HValue*, HValue*, Code::Flags);
+  enum Flags {
+    NONE = 0,
+    CALLED_FROM_KEYED_LOAD = 1 << 0,
+    PERFORM_MISS_ONLY = 1 << 1
+  };
+
+  static Flags ComputeFlags(bool called_from_keyed_load,
+                            bool perform_miss_only) {
+    Flags flags = NONE;
+    if (called_from_keyed_load) {
+      flags = static_cast<Flags>(flags | CALLED_FROM_KEYED_LOAD);
+    }
+    if (perform_miss_only) {
+      flags = static_cast<Flags>(flags | PERFORM_MISS_ONLY);
+    }
+    return flags;
+  }
+
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(
+      HTailCallThroughMegamorphicCache, HValue*, HValue*, HValue*, HValue*,
+      HTailCallThroughMegamorphicCache::Flags);
+
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HTailCallThroughMegamorphicCache,
+                                              HValue*, HValue*);
 
   Representation RequiredInputRepresentation(int index) OVERRIDE {
     return Representation::Tagged();
   }
 
+  virtual int OperandCount() const FINAL OVERRIDE {
+    return FLAG_vector_ics ? 5 : 3;
+  }
+  virtual HValue* OperandAt(int i) const FINAL OVERRIDE { return inputs_[i]; }
+
   HValue* context() const { return OperandAt(0); }
   HValue* receiver() const { return OperandAt(1); }
   HValue* name() const { return OperandAt(2); }
-  Code::Flags flags() const { return flags_; }
+  HValue* slot() const {
+    DCHECK(FLAG_vector_ics);
+    return OperandAt(3);
+  }
+  HValue* vector() const {
+    DCHECK(FLAG_vector_ics);
+    return OperandAt(4);
+  }
+  Code::Flags flags() const;
+
+  bool is_keyed_load() const { return flags_ & CALLED_FROM_KEYED_LOAD; }
+  bool is_just_miss() const { return flags_ & PERFORM_MISS_ONLY; }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache)
 
+ protected:
+  virtual void InternalSetOperandAt(int i, HValue* value) FINAL OVERRIDE {
+    inputs_[i] = value;
+  }
+
  private:
   HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
-                                   HValue* name, Code::Flags flags)
+                                   HValue* name, HValue* slot, HValue* vector,
+                                   Flags flags)
       : flags_(flags) {
+    DCHECK(FLAG_vector_ics);
+    SetOperandAt(0, context);
+    SetOperandAt(1, receiver);
+    SetOperandAt(2, name);
+    SetOperandAt(3, slot);
+    SetOperandAt(4, vector);
+  }
+
+  HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
+                                   HValue* name)
+      : flags_(NONE) {
     SetOperandAt(0, context);
     SetOperandAt(1, receiver);
     SetOperandAt(2, name);
   }
 
-  Code::Flags flags_;
+  EmbeddedContainer<HValue*, 5> inputs_;
+  Flags flags_;
 };
 
 
@@ -5470,13 +5537,11 @@ class HLoadGlobalGeneric FINAL : public HTemplateInstruction<2> {
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
   bool for_typeof() const { return for_typeof_; }
-  FeedbackVectorICSlot slot() const {
-    DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
-    return slot_;
-  }
+  FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
+  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
@@ -6529,13 +6594,11 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
   HValue* object() const { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
 
-  FeedbackVectorICSlot slot() const {
-    DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
-    return slot_;
-  }
+  FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
+  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
@@ -6694,8 +6757,7 @@ class HLoadKeyed FINAL
     if (!other->IsLoadKeyed()) return false;
     HLoadKeyed* other_load = HLoadKeyed::cast(other);
 
-    if (IsDehoisted() && base_offset() != other_load->base_offset())
-      return false;
+    if (base_offset() != other_load->base_offset()) return false;
     return elements_kind() == other_load->elements_kind();
   }
 
@@ -6808,13 +6870,11 @@ class HLoadKeyedGeneric FINAL : public HTemplateInstruction<3> {
   HValue* object() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
-  FeedbackVectorICSlot slot() const {
-    DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
-    return slot_;
-  }
+  FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
+  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);

@@ -354,7 +354,10 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   ASM_LOCATION("LoadIC::GenerateMiss");
 
-  __ IncrementCounter(isolate->counters()->load_miss(), 1, x3, x4);
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(x4, x5, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
+  __ IncrementCounter(isolate->counters()->load_miss(), 1, x4, x5);
 
   // Perform tail call to the entry.
   if (FLAG_vector_ics) {
@@ -428,6 +431,9 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(x10, x11, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, x10, x11);
 
   if (FLAG_vector_ics) {
@@ -852,8 +858,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfNotUniqueNameInstanceType(x10, &slow);
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               key, x3, x4, x5, x6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, key, x3, x4, x5, x6);
   // Cache miss.
   __ B(&miss);
 
@@ -912,8 +918,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               name, x3, x4, x5, x6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, name, x3, x4, x5, x6);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
