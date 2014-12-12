@@ -276,10 +276,8 @@ class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
     auto* moves = move->move_operands();
     for (auto i = moves->begin(); i != moves->end(); ++i) {
       if (i->IsEliminated()) continue;
-      CHECK(i->source()->kind() != InstructionOperand::INVALID);
       auto cur = locations()->find(i->source());
       CHECK(cur != locations()->end());
-      if (i->destination()->kind() == InstructionOperand::INVALID) continue;
       to_insert.insert(std::make_pair(i->destination(), cur->second));
     }
     // Drop current mappings.

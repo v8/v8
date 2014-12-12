@@ -585,6 +585,15 @@ struct ReuseSpillSlotsPhase {
 };
 
 
+struct CommitAssignmentPhase {
+  static const char* phase_name() { return "commit assignment"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->register_allocator()->CommitAssignment();
+  }
+};
+
+
 struct PopulatePointerMapsPhase {
   static const char* phase_name() { return "populate pointer maps"; }
 
@@ -1036,6 +1045,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (FLAG_turbo_reuse_spill_slots) {
     Run<ReuseSpillSlotsPhase>();
   }
+  Run<CommitAssignmentPhase>();
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
