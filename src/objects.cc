@@ -3996,19 +3996,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
       case LookupIterator::ACCESSOR: {
         PropertyDetails details = it.property_details();
-        Handle<Object> old_value = it.isolate()->factory()->the_hole_value();
         // Ensure the context isn't changed after calling into accessors.
         AssertNoContextChange ncc(it.isolate());
 
         Handle<Object> accessors = it.GetAccessors();
-
-        if (is_observed && accessors->IsAccessorInfo()) {
-          ASSIGN_RETURN_ON_EXCEPTION(
-              it.isolate(), old_value,
-              GetPropertyWithAccessor(it.GetReceiver(), it.name(),
-                                      it.GetHolder<JSObject>(), accessors),
-              Object);
-        }
 
         // Special handling for ExecutableAccessorInfo, which behaves like a
         // data property.
@@ -4024,21 +4015,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
           DCHECK(result->SameValue(*value));
 
           if (details.attributes() == attributes) {
-            // Regular property update if the attributes match.
-            if (is_observed && !old_value->SameValue(*value)) {
-              // If we are setting the prototype of a function and are
-              // observed, don't send change records because the prototype
-              // handles that itself.
-              if (!object->IsJSFunction() ||
-                  !Name::Equals(it.isolate()->factory()->prototype_string(),
-                                name) ||
-                  !Handle<JSFunction>::cast(object)->should_have_prototype()) {
-                RETURN_ON_EXCEPTION(
-                    it.isolate(),
-                    EnqueueChangeRecord(object, "update", name, old_value),
-                    Object);
-              }
-            }
             return value;
           }
 
@@ -4052,12 +4028,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
           if (attributes & READ_ONLY) new_data->clear_setter();
           SetPropertyCallback(object, name, new_data, attributes);
           if (is_observed) {
-            if (old_value->SameValue(*value)) {
-              old_value = it.isolate()->factory()->the_hole_value();
-            }
             RETURN_ON_EXCEPTION(
                 it.isolate(),
-                EnqueueChangeRecord(object, "reconfigure", name, old_value),
+                EnqueueChangeRecord(object, "reconfigure", name,
+                                    it.isolate()->factory()->the_hole_value()),
                 Object);
           }
           return value;
@@ -4068,12 +4042,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         it.WriteDataValue(value);
 
         if (is_observed) {
-          if (old_value->SameValue(*value)) {
-            old_value = it.isolate()->factory()->the_hole_value();
-          }
           RETURN_ON_EXCEPTION(
               it.isolate(),
-              EnqueueChangeRecord(object, "reconfigure", name, old_value),
+              EnqueueChangeRecord(object, "reconfigure", name,
+                                  it.isolate()->factory()->the_hole_value()),
               Object);
         }
 
