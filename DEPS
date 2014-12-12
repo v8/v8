@@ -29,8 +29,6 @@ deps_os = {
   "win": {
     "v8/third_party/cygwin":
       Var("git_url") + "/chromium/deps/cygwin.git" + "@" + "c89e446b273697fadf3a10ff1007a97c0b7de6df",
-    "v8/third_party/python_26":
-      Var("git_url") + "/chromium/deps/python_26.git" + "@" + "67d19f904470effe3122d27101cc5a8195abd157",
   }
 }
 
