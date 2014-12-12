@@ -238,6 +238,13 @@
         ],
       },
     }],
+    ['clang==1', {
+      'target_defaults': {
+        # Remove once issue 3753 is fixed.
+        'cflags_cc': [ '-Wno-inconsistent-missing-override',
+                       '-Wno-unknown-warning-option', ],
+       },
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
        or OS=="netbsd"', {
       'target_defaults': {
