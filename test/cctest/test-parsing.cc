@@ -1395,6 +1395,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::Factory* factory = isolate->factory();
 
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
+  int preparser_materialized_literals = -1;
+  int parser_materialized_literals = -2;
 
   // Preparse the data.
   i::CompleteParserRecorder log;
@@ -1404,7 +1406,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::PreParser preparser(&scanner, &log, stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
-    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    i::PreParser::PreParseResult result = preparser.PreParseProgram(
+        &preparser_materialized_literals);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
 
@@ -1423,6 +1426,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     info.MarkAsGlobal();
     parser.Parse();
     function = info.function();
+    if (function) {
+      parser_materialized_literals = function->materialized_literal_count();
+    }
   }
 
   // Check that preparsing fails iff parsing fails.
@@ -1486,6 +1492,15 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "Expected error on:\n"
         "\t%s\n"
         "However, parser and preparser succeeded",
+        source->ToCString().get());
+    CHECK(false);
+  } else if (preparser_materialized_literals != parser_materialized_literals) {
+    v8::base::OS::Print(
+        "Preparser materialized literals (%d) differ from Parser materialized "
+        "literals (%d) on:\n"
+        "\t%s\n"
+        "However, parser and preparser succeeded",
+        preparser_materialized_literals, parser_materialized_literals,
         source->ToCString().get());
     CHECK(false);
   }
@@ -4463,6 +4478,35 @@ TEST(ScanTaggedTemplateLiterals) {
       "tag`foo${\r a}`",
       "tag`foo${'a' in a}`",
       NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(TemplateMaterializedLiterals) {
+  const char* context_data[][2] = {
+    {
+      "'use strict';\n"
+      "function tag() {}\n"
+      "var a, b, c;\n"
+      "(", ")"
+    },
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "tag``",
+    "tag`a`",
+    "tag`a${1}b`",
+    "tag`a${1}b${2}c`",
+    "``",
+    "`a`",
+    "`a${1}b`",
+    "`a${1}b${2}c`",
+    NULL
+  };
+
   static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));

@@ -605,9 +605,41 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kIA32Lea:
-      __ lea(i.OutputRegister(), i.MemoryOperand());
+    case kIA32Lea: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      // Shorten "leal" to "addl", "subl" or "shll" if the register allocation
+      // and addressing mode just happens to work out. The "addl"/"subl" forms
+      // in these cases are faster based on measurements.
+      if (mode == kMode_MI) {
+        __ Move(i.OutputRegister(), Immediate(i.InputInt32(0)));
+      } else if (i.InputRegister(0).is(i.OutputRegister())) {
+        if (mode == kMode_MRI) {
+          int32_t constant_summand = i.InputInt32(1);
+          if (constant_summand > 0) {
+            __ add(i.OutputRegister(), Immediate(constant_summand));
+          } else if (constant_summand < 0) {
+            __ sub(i.OutputRegister(), Immediate(-constant_summand));
+          }
+        } else if (mode == kMode_MR1) {
+          if (i.InputRegister(1).is(i.OutputRegister())) {
+            __ shl(i.OutputRegister(), 1);
+          } else {
+            __ lea(i.OutputRegister(), i.MemoryOperand());
+          }
+        } else if (mode == kMode_M2) {
+          __ shl(i.OutputRegister(), 1);
+        } else if (mode == kMode_M4) {
+          __ shl(i.OutputRegister(), 2);
+        } else if (mode == kMode_M8) {
+          __ shl(i.OutputRegister(), 3);
+        } else {
+          __ lea(i.OutputRegister(), i.MemoryOperand());
+        }
+      } else {
+        __ lea(i.OutputRegister(), i.MemoryOperand());
+      }
       break;
+    }
     case kIA32Push:
       if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));

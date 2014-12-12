@@ -756,6 +756,12 @@ class PreParserExpression {
                                ExpressionTypeField::encode(kCallExpression));
   }
 
+  static PreParserExpression NoTemplateTag() {
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(
+                                  kNoTemplateTagExpression));
+  }
+
   bool IsIdentifier() const {
     return TypeField::decode(code_) == kIdentifierExpression;
   }
@@ -809,6 +815,11 @@ class PreParserExpression {
   bool IsFunctionLiteral() const { return false; }
   bool IsCallNew() const { return false; }
 
+  bool IsNoTemplateTag() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kNoTemplateTagExpression;
+  }
+
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   bool IsBinaryOperation() const {
@@ -855,7 +866,8 @@ class PreParserExpression {
     kThisPropertyExpression,
     kPropertyExpression,
     kCallExpression,
-    kSuperExpression
+    kSuperExpression,
+    kNoTemplateTagExpression
   };
 
   explicit PreParserExpression(uint32_t expression_code)
@@ -1398,10 +1410,21 @@ class PreParserTraits {
   void AddTemplateSpan(TemplateLiteralState*, bool) {}
   void AddTemplateExpression(TemplateLiteralState*, PreParserExpression) {}
   PreParserExpression CloseTemplateLiteral(TemplateLiteralState*, int,
-                                           PreParserExpression) {
+                                           PreParserExpression tag) {
+    if (IsTaggedTemplate(tag)) {
+      // Emulate generation of array literals for tag callsite
+      // 1st is array of cooked strings, second is array of raw strings
+      MaterializeTemplateCallsiteLiterals();
+    }
     return EmptyExpression();
   }
-  PreParserExpression NoTemplateTag() { return PreParserExpression::Default(); }
+  inline void MaterializeTemplateCallsiteLiterals();
+  PreParserExpression NoTemplateTag() {
+    return PreParserExpression::NoTemplateTag();
+  }
+  static bool IsTaggedTemplate(const PreParserExpression tag) {
+    return !tag.IsNoTemplateTag();
+  }
   static AstValueFactory* ast_value_factory() { return NULL; }
 
   void CheckConflictingVarDeclarations(PreParserScope scope, bool* ok) {}
@@ -1455,7 +1478,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram() {
+  PreParseResult PreParseProgram(int* materialized_literals = 0) {
     PreParserScope scope(scope_, SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
     FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
@@ -1467,6 +1490,9 @@ class PreParser : public ParserBase<PreParserTraits> {
       ReportUnexpectedToken(scanner()->current_token());
     } else if (scope_->strict_mode() == STRICT) {
       CheckOctalLiteral(start_position, scanner()->location().end_pos, &ok);
+    }
+    if (materialized_literals) {
+      *materialized_literals = function_state_->materialized_literal_count();
     }
     return kPreParseSuccess;
   }
@@ -1563,6 +1589,12 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   bool CheckInOrOf(bool accept_OF);
 };
+
+
+void PreParserTraits::MaterializeTemplateCallsiteLiterals() {
+  pre_parser_->function_state_->NextMaterializedLiteralIndex();
+  pre_parser_->function_state_->NextMaterializedLiteralIndex();
+}
 
 
 PreParserStatementList PreParser::ParseEagerFunctionBody(

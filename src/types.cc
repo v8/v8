@@ -153,9 +153,9 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   }
   if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
   if (type->IsRange()) return type->AsRange()->BitsetLub();
-  if (type->IsContext()) return kInternal & kTaggedPtr;
+  if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kArray;
-  if (type->IsFunction()) return kFunction;
+  if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
   UNREACHABLE();
   return kNone;
 }
@@ -200,10 +200,10 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map());
-      return kInternal & kTaggedPtr;
+      return kInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:
-      return kNumber & kTaggedPtr;
+      return kNumber & kTaggedPointer;
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
@@ -227,9 +227,9 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_ARRAY_TYPE:
       return kArray;
     case JS_FUNCTION_TYPE:
-      return kFunction;
+      return kOtherObject;  // TODO(rossberg): there should be a Function type.
     case JS_REGEXP_TYPE:
-      return kRegExp;
+      return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return kProxy;
@@ -252,7 +252,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case BYTE_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case CODE_TYPE:
-      return kInternal & kTaggedPtr;
+      return kInternal & kTaggedPointer;
     default:
       UNREACHABLE();
       return kNone;
@@ -265,7 +265,8 @@ typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::Lub(i::Object* value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
-    return Lub(value->Number()) & (value->IsSmi() ? kTaggedInt : kTaggedPtr);
+    return Lub(value->Number()) &
+        (value->IsSmi() ? kTaggedSigned : kTaggedPointer);
   }
   return Lub(i::HeapObject::cast(value)->map());
 }
@@ -278,35 +279,33 @@ TypeImpl<Config>::BitsetType::Lub(double value) {
   if (i::IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
-  return kOtherNumber;
+  return kPlainNumber;
 }
 
 
 // Minimum values of regular numeric bitsets when SmiValuesAre31Bits.
-template<class Config>
+template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
-TypeImpl<Config>::BitsetType::BitsetMins31[] = {
-    {kOtherNumber, -V8_INFINITY},
-    {kOtherSigned32, kMinInt},
-    {kOtherSignedSmall, -0x40000000},
-    {kUnsignedSmall, 0},
-    {kOtherUnsigned31, 0x40000000},
-    {kOtherUnsigned32, 0x80000000},
-    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
-};
+    TypeImpl<Config>::BitsetType::BitsetMins31[] = {
+        {kOtherNumber, -V8_INFINITY},
+        {kOtherSigned32, kMinInt},
+        {kNegativeSignedSmall, -0x40000000},
+        {kUnsignedSmall, 0},
+        {kOtherUnsigned31, 0x40000000},
+        {kOtherUnsigned32, 0x80000000},
+        {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}};
 
 
 // Minimum values of regular numeric bitsets when SmiValuesAre32Bits.
 // OtherSigned32 and OtherUnsigned31 are empty (see the diagrams in types.h).
-template<class Config>
+template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
-TypeImpl<Config>::BitsetType::BitsetMins32[] = {
-    {kOtherNumber, -V8_INFINITY},
-    {kOtherSignedSmall, kMinInt},
-    {kUnsignedSmall, 0},
-    {kOtherUnsigned32, 0x80000000},
-    {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}
-};
+    TypeImpl<Config>::BitsetType::BitsetMins32[] = {
+        {kOtherNumber, -V8_INFINITY},
+        {kNegativeSignedSmall, kMinInt},
+        {kUnsignedSmall, 0},
+        {kOtherUnsigned32, 0x80000000},
+        {kOtherNumber, static_cast<double>(kMaxUInt32) + 1}};
 
 
 template<class Config>
@@ -315,6 +314,11 @@ TypeImpl<Config>::BitsetType::Lub(double min, double max) {
   DisallowHeapAllocation no_allocation;
   int lub = kNone;
   const BitsetMin* mins = BitsetMins();
+
+  // Make sure the min-max range touches 0, so we are guaranteed no holes
+  // in unions of valid bitsets.
+  if (max < -1) max = -1;
+  if (min > 0) min = 0;
 
   for (size_t i = 1; i < BitsetMinsSize(); ++i) {
     if (min < mins[i].min) {
@@ -986,6 +990,7 @@ void TypeImpl<Config>::BitsetType::Print(std::ostream& os,  // NOLINT
 #undef BITSET_CONSTANT
 
 #define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
+      INTERNAL_BITSET_TYPE_LIST(BITSET_CONSTANT)
       SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
 #undef BITSET_CONSTANT
   };

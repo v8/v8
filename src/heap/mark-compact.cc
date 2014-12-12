@@ -3243,7 +3243,7 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
-      Map* map = live_object->map();
+      Map* map = live_object->synchronized_map();
       int size = live_object->SizeFromMap(map);
       if (sweeping_mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
         live_object->IterateBody(map->instance_type(), size, v);

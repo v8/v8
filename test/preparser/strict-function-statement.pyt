@@ -31,7 +31,10 @@
 # scopes (global scope, function scope, and nested function scope).
 def StrictTest(name, source, legacy):
   if legacy:
-    extra_flags = ["--noharmony-scoping"]
+    extra_flags = [
+      "--noharmony-scoping",
+      "--noharmony-classes",
+      "--noharmony-object-literals"]
   else:
     extra_flags = []
   Test(name, '"use strict";\n' + source, "strict_function",

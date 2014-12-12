@@ -280,13 +280,6 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
   } while (0)
 
 
-#define ASSEMBLE_BRANCH_TO(target)                    \
-  do {                                                \
-    bool fallthrough = IsNextInAssemblyOrder(target); \
-    if (!fallthrough) __ B(GetLabel(target));         \
-  } while (0)
-
-
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
@@ -541,29 +534,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt8(1),
               i.InputInt8(2));
       break;
-    case kArm64Tbz:
-      __ Tbz(i.InputRegister64(0), i.InputInt6(1), GetLabel(i.InputRpo(2)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(3));
+    case kArm64TestAndBranch32:
+    case kArm64TestAndBranch:
+      // Pseudo instructions turned into tbz/tbnz in AssembleArchBranch.
       break;
-    case kArm64Tbz32:
-      __ Tbz(i.InputRegister32(0), i.InputInt5(1), GetLabel(i.InputRpo(2)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(3));
-      break;
-    case kArm64Tbnz:
-      __ Tbnz(i.InputRegister64(0), i.InputInt6(1), GetLabel(i.InputRpo(2)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(3));
-      break;
-    case kArm64Tbnz32:
-      __ Tbnz(i.InputRegister32(0), i.InputInt5(1), GetLabel(i.InputRpo(2)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(3));
-      break;
-    case kArm64Cbz32:
-      __ Cbz(i.InputRegister32(0), GetLabel(i.InputRpo(1)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(2));
-      break;
-    case kArm64Cbnz32:
-      __ Cbnz(i.InputRegister32(0), GetLabel(i.InputRpo(1)));
-      ASSEMBLE_BRANCH_TO(i.InputRpo(2));
+    case kArm64CompareAndBranch32:
+      // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
     case kArm64Claim: {
       int words = MiscField::decode(instr->opcode());
@@ -766,61 +742,102 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Arm64OperandConverter i(this, instr);
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  switch (branch->condition) {
-    case kUnorderedEqual:
-      __ B(vs, flabel);
-    // Fall through.
-    case kEqual:
-      __ B(eq, tlabel);
-      break;
-    case kUnorderedNotEqual:
-      __ B(vs, tlabel);
-    // Fall through.
-    case kNotEqual:
-      __ B(ne, tlabel);
-      break;
-    case kSignedLessThan:
-      __ B(lt, tlabel);
-      break;
-    case kSignedGreaterThanOrEqual:
-      __ B(ge, tlabel);
-      break;
-    case kSignedLessThanOrEqual:
-      __ B(le, tlabel);
-      break;
-    case kSignedGreaterThan:
-      __ B(gt, tlabel);
-      break;
-    case kUnorderedLessThan:
-      __ B(vs, flabel);
-    // Fall through.
-    case kUnsignedLessThan:
-      __ B(lo, tlabel);
-      break;
-    case kUnorderedGreaterThanOrEqual:
-      __ B(vs, tlabel);
-    // Fall through.
-    case kUnsignedGreaterThanOrEqual:
-      __ B(hs, tlabel);
-      break;
-    case kUnorderedLessThanOrEqual:
-      __ B(vs, flabel);
-    // Fall through.
-    case kUnsignedLessThanOrEqual:
-      __ B(ls, tlabel);
-      break;
-    case kUnorderedGreaterThan:
-      __ B(vs, tlabel);
-    // Fall through.
-    case kUnsignedGreaterThan:
-      __ B(hi, tlabel);
-      break;
-    case kOverflow:
-      __ B(vs, tlabel);
-      break;
-    case kNotOverflow:
-      __ B(vc, tlabel);
-      break;
+  FlagsCondition condition = branch->condition;
+  ArchOpcode opcode = instr->arch_opcode();
+
+  if (opcode == kArm64CompareAndBranch32) {
+    switch (condition) {
+      case kEqual:
+        __ Cbz(i.InputRegister32(0), tlabel);
+        break;
+      case kNotEqual:
+        __ Cbnz(i.InputRegister32(0), tlabel);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (opcode == kArm64TestAndBranch32) {
+    switch (condition) {
+      case kEqual:
+        __ Tbz(i.InputRegister32(0), i.InputInt5(1), tlabel);
+        break;
+      case kNotEqual:
+        __ Tbnz(i.InputRegister32(0), i.InputInt5(1), tlabel);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (opcode == kArm64TestAndBranch) {
+    switch (condition) {
+      case kEqual:
+        __ Tbz(i.InputRegister64(0), i.InputInt6(1), tlabel);
+        break;
+      case kNotEqual:
+        __ Tbnz(i.InputRegister64(0), i.InputInt6(1), tlabel);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    switch (condition) {
+      case kUnorderedEqual:
+        // The "eq" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
+      case kEqual:
+        __ B(eq, tlabel);
+        break;
+      case kUnorderedNotEqual:
+        // Unordered or not equal can be tested with "ne" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
+      case kNotEqual:
+        __ B(ne, tlabel);
+        break;
+      case kSignedLessThan:
+        __ B(lt, tlabel);
+        break;
+      case kSignedGreaterThanOrEqual:
+        __ B(ge, tlabel);
+        break;
+      case kSignedLessThanOrEqual:
+        __ B(le, tlabel);
+        break;
+      case kSignedGreaterThan:
+        __ B(gt, tlabel);
+        break;
+      case kUnorderedLessThan:
+        // The "lo" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
+      case kUnsignedLessThan:
+        __ B(lo, tlabel);
+        break;
+      case kUnorderedGreaterThanOrEqual:
+        // Unordered, greater than or equal can be tested with "hs" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
+      case kUnsignedGreaterThanOrEqual:
+        __ B(hs, tlabel);
+        break;
+      case kUnorderedLessThanOrEqual:
+        // The "ls" condition will not catch the unordered case.
+        // The jump/fall through to false label will be used if the comparison
+        // was unordered.
+      case kUnsignedLessThanOrEqual:
+        __ B(ls, tlabel);
+        break;
+      case kUnorderedGreaterThan:
+        // Unordered or greater than can be tested with "hi" condtion.
+        // See ARMv8 manual C1.2.3 - Condition Code.
+      case kUnsignedGreaterThan:
+        __ B(hi, tlabel);
+        break;
+      case kOverflow:
+        __ B(vs, tlabel);
+        break;
+      case kNotOverflow:
+        __ B(vc, tlabel);
+        break;
+    }
   }
   if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
 }

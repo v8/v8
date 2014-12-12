@@ -105,7 +105,7 @@ class LifetimePosition FINAL {
 class UseInterval FINAL : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
-      : start_(start), end_(end), next_(NULL) {
+      : start_(start), end_(end), next_(nullptr) {
     DCHECK(start.Value() < end.Value());
   }
 
@@ -148,7 +148,7 @@ class UsePosition FINAL : public ZoneObject {
               InstructionOperand* hint);
 
   InstructionOperand* operand() const { return operand_; }
-  bool HasOperand() const { return operand_ != NULL; }
+  bool HasOperand() const { return operand_ != nullptr; }
 
   InstructionOperand* hint() const { return hint_; }
   bool HasHint() const;
@@ -184,19 +184,19 @@ class LiveRange FINAL : public ZoneObject {
   UseInterval* first_interval() const { return first_interval_; }
   UsePosition* first_pos() const { return first_pos_; }
   LiveRange* parent() const { return parent_; }
-  LiveRange* TopLevel() { return (parent_ == NULL) ? this : parent_; }
+  LiveRange* TopLevel() { return (parent_ == nullptr) ? this : parent_; }
   const LiveRange* TopLevel() const {
-    return (parent_ == NULL) ? this : parent_;
+    return (parent_ == nullptr) ? this : parent_;
   }
   LiveRange* next() const { return next_; }
-  bool IsChild() const { return parent() != NULL; }
+  bool IsChild() const { return parent() != nullptr; }
   int id() const { return id_; }
   bool IsFixed() const { return id_ < 0; }
-  bool IsEmpty() const { return first_interval() == NULL; }
+  bool IsEmpty() const { return first_interval() == nullptr; }
   InstructionOperand* CreateAssignedOperand(Zone* zone) const;
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
-  void set_assigned_register(int reg);
+  void set_assigned_register(int reg, Zone* zone);
   void MakeSpilled();
   bool is_phi() const { return is_phi_; }
   void set_is_phi(bool is_phi) { is_phi_ = is_phi; }
@@ -245,9 +245,9 @@ class LiveRange FINAL : public ZoneObject {
   }
   InstructionOperand* FirstHint() const {
     UsePosition* pos = first_pos_;
-    while (pos != NULL && !pos->HasHint()) pos = pos->next();
-    if (pos != NULL) return pos->hint();
-    return NULL;
+    while (pos != nullptr && !pos->HasHint()) pos = pos->next();
+    if (pos != nullptr) return pos->hint();
+    return nullptr;
   }
 
   LifetimePosition Start() const {
@@ -345,26 +345,28 @@ class LiveRange FINAL : public ZoneObject {
 };
 
 
-class SpillRange : public ZoneObject {
+class SpillRange FINAL : public ZoneObject {
  public:
-  SpillRange(LiveRange* range, int id, Zone* zone);
-  bool TryMerge(SpillRange* other, Zone* zone);
+  SpillRange(LiveRange* range, Zone* zone);
+
+  UseInterval* interval() const { return use_interval_; }
+  RegisterKind Kind() const { return live_ranges_[0]->Kind(); }
+  bool IsEmpty() const { return live_ranges_.empty(); }
+  bool TryMerge(SpillRange* other);
   void SetOperand(InstructionOperand* op);
-  bool IsEmpty() { return live_ranges_.length() == 0; }
-  int id() const { return id_; }
-  UseInterval* interval() { return use_interval_; }
-  RegisterKind Kind() const { return live_ranges_.at(0)->Kind(); }
-  LifetimePosition End() const { return end_position_; }
-  bool IsIntersectingWith(SpillRange* other);
 
  private:
-  int id_;
-  ZoneList<LiveRange*> live_ranges_;
+  LifetimePosition End() const { return end_position_; }
+  ZoneVector<LiveRange*>& live_ranges() { return live_ranges_; }
+  bool IsIntersectingWith(SpillRange* other) const;
+  // Merge intervals, making sure the use intervals are sorted
+  void MergeDisjointIntervals(UseInterval* other);
+
+  ZoneVector<LiveRange*> live_ranges_;
   UseInterval* use_interval_;
   LifetimePosition end_position_;
 
-  // Merge intervals, making sure the use intervals are sorted
-  void MergeDisjointIntervals(UseInterval* other, Zone* zone);
+  DISALLOW_COPY_AND_ASSIGN(SpillRange);
 };
 
 
