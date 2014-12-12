@@ -39,6 +39,7 @@ const InstructionCode kSourcePositionInstruction = -3;
 class InstructionOperand : public ZoneObject {
  public:
   enum Kind {
+    INVALID,
     UNALLOCATED,
     CONSTANT,
     IMMEDIATE,
@@ -48,6 +49,7 @@ class InstructionOperand : public ZoneObject {
     DOUBLE_REGISTER
   };
 
+  InstructionOperand() : value_(KindField::encode(INVALID)) {}
   InstructionOperand(Kind kind, int index) { ConvertTo(kind, index); }
 
   Kind kind() const { return KindField::decode(value_); }
@@ -56,6 +58,7 @@ class InstructionOperand : public ZoneObject {
   bool Is##name() const { return kind() == type; }
   INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_PREDICATE)
   INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED, 0)
+  INSTRUCTION_OPERAND_PREDICATE(Ignored, INVALID, 0)
 #undef INSTRUCTION_OPERAND_PREDICATE
   bool Equals(const InstructionOperand* other) const {
     return value_ == other->value_;
@@ -288,10 +291,14 @@ class MoveOperands FINAL {
   }
 
   // A move is redundant if it's been eliminated, if its source and
-  // destination are the same, or if its destination is  constant.
+  // destination are the same, or if its destination is unneeded or constant.
   bool IsRedundant() const {
-    return IsEliminated() || source_->Equals(destination_) ||
+    return IsEliminated() || source_->Equals(destination_) || IsIgnored() ||
            (destination_ != NULL && destination_->IsConstant());
+  }
+
+  bool IsIgnored() const {
+    return destination_ != NULL && destination_->IsIgnored();
   }
 
   // We clear both operands to indicate move that's been eliminated.
@@ -341,7 +348,7 @@ class SubKindOperand FINAL : public InstructionOperand {
  private:
   static SubKindOperand* cache;
 
-  SubKindOperand() : InstructionOperand(kOperandKind, 0) {}  // For the caches.
+  SubKindOperand() : InstructionOperand() {}
   explicit SubKindOperand(int index)
       : InstructionOperand(kOperandKind, index) {}
 };

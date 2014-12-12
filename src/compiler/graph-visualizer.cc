@@ -725,7 +725,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
       }
     } else if (range->IsSpilled()) {
       int index = -1;
-      if (range->TopLevel()->HasSpillRange()) {
+      if (range->TopLevel()->GetSpillRange() != nullptr) {
         index = kMaxInt;  // This hasn't been set yet.
       } else {
         index = range->TopLevel()->GetSpillOperand()->index();
