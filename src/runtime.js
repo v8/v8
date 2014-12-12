@@ -626,6 +626,15 @@ function IsPrimitive(x) {
 }
 
 
+// ES6, draft 10-14-14, section 22.1.3.1.1
+function IsConcatSpreadable(O) {
+  if (!IS_SPEC_OBJECT(O)) return false;
+  var spreadable = O[symbolIsConcatSpreadable];
+  if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
+  return ToBoolean(spreadable);
+}
+
+
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
   if (!IS_SYMBOL_WRAPPER(x)) {
