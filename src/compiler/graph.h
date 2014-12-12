@@ -16,7 +16,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class GraphDecorator;
+
 
 class Graph : public ZoneObject {
  public:
@@ -28,7 +30,7 @@ class Graph : public ZoneObject {
 
   // Factories for nodes with static input counts.
   Node* NewNode(const Operator* op) {
-    return NewNode(op, 0, static_cast<Node**>(NULL));
+    return NewNode(op, 0, static_cast<Node**>(nullptr));
   }
   Node* NewNode(const Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
   Node* NewNode(const Operator* op, Node* n1, Node* n2) {
@@ -60,7 +62,7 @@ class Graph : public ZoneObject {
   }
 
   template <class Visitor>
-  void VisitNodeInputsFromEnd(Visitor* visitor);
+  inline void VisitNodeInputsFromEnd(Visitor* visitor);
 
   Zone* zone() const { return zone_; }
   Node* start() const { return start_; }

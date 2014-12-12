@@ -231,6 +231,7 @@ namespace internal {
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
+  V(StringOrReceiver,    kString | kReceiver) \
   V(Unique,              kBoolean | kUniqueName | kNull | kUndefined | \
                          kReceiver) \
   V(NonNumber,           kUnique | kString | kInternal) \

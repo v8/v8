@@ -65,6 +65,22 @@
       "tests": [
         {"name": "StringFunctions"}
       ]
+    },
+    {
+      "name": "Templates",
+      "path": ["Templates"],
+      "main": "run.js",
+      "resources": ["templates.js"],
+      "flags": ["--harmony-templates"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
+      "total": true,
+      "tests": [
+        {"name": "Untagged"},
+        {"name": "LargeUntagged"},
+        {"name": "Tagged"}
+      ]
     }
   ]
 }

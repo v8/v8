@@ -115,6 +115,7 @@ class JSGraph : public ZoneObject {
   Graph* graph() { return graph_; }
   Zone* zone() { return graph()->zone(); }
   Isolate* isolate() { return zone()->isolate(); }
+  Factory* factory() { return isolate()->factory(); }
 
   void GetCachedNodes(NodeVector* nodes);
 
@@ -139,8 +140,6 @@ class JSGraph : public ZoneObject {
 
   Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
-
-  Factory* factory() { return isolate()->factory(); }
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);
 };
