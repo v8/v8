@@ -1049,7 +1049,9 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
-  Run<OptimizeMovesPhase>();
+  if (FLAG_turbo_move_optimization) {
+    Run<OptimizeMovesPhase>();
+  }
 
   if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);

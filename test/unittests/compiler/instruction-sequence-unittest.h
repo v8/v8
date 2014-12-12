@@ -36,7 +36,9 @@ class InstructionSequenceTest : public TestWithZone {
     kFixedSlot,
     kImmediate,
     kNone,
-    kConstant
+    kConstant,
+    kUnique,
+    kUniqueRegister
   };
 
   struct TestOperand {
@@ -77,6 +79,12 @@ class InstructionSequenceTest : public TestWithZone {
   static TestOperand Use(VReg vreg) { return TestOperand(kNone, vreg); }
 
   static TestOperand Use() { return Use(VReg()); }
+
+  static TestOperand Unique(VReg vreg) { return TestOperand(kUnique, vreg); }
+
+  static TestOperand UniqueReg(VReg vreg) {
+    return TestOperand(kUniqueRegister, vreg);
+  }
 
   enum BlockCompletionType { kBlockEnd, kFallThrough, kBranch, kJump };
 
@@ -134,10 +142,16 @@ class InstructionSequenceTest : public TestWithZone {
 
   VReg DefineConstant(int32_t imm = 0);
   int EmitNop();
-  int EmitI(TestOperand input_op_0);
-  VReg EmitOI(TestOperand output_op, TestOperand input_op_0);
-  VReg EmitOII(TestOperand output_op, TestOperand input_op_0,
-               TestOperand input_op_1);
+  int EmitI(size_t input_size, TestOperand* inputs);
+  int EmitI(TestOperand input_op_0 = TestOperand(),
+            TestOperand input_op_1 = TestOperand(),
+            TestOperand input_op_2 = TestOperand(),
+            TestOperand input_op_3 = TestOperand());
+  VReg EmitOI(TestOperand output_op, size_t input_size, TestOperand* inputs);
+  VReg EmitOI(TestOperand output_op, TestOperand input_op_0 = TestOperand(),
+              TestOperand input_op_1 = TestOperand(),
+              TestOperand input_op_2 = TestOperand(),
+              TestOperand input_op_3 = TestOperand());
   VReg EmitCall(TestOperand output_op, size_t input_size, TestOperand* inputs);
   VReg EmitCall(TestOperand output_op, TestOperand input_op_0 = TestOperand(),
                 TestOperand input_op_1 = TestOperand(),
@@ -181,6 +195,7 @@ class InstructionSequenceTest : public TestWithZone {
   InstructionOperand* Unallocated(TestOperand op,
                                   UnallocatedOperand::BasicPolicy policy,
                                   int index);
+  InstructionOperand** ConvertInputs(size_t input_size, TestOperand* inputs);
   InstructionOperand* ConvertInputOp(TestOperand op);
   InstructionOperand* ConvertOutputOp(VReg vreg, TestOperand op);
   InstructionBlock* NewBlock();
