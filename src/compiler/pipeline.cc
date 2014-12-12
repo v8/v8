@@ -302,7 +302,7 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
   }
 
 #define DEF_VISIT(type)                                               \
-  virtual void Visit##type(type* node) OVERRIDE {                     \
+  void Visit##type(type* node) OVERRIDE {                             \
     SourcePositionTable::Scope pos(source_positions_,                 \
                                    SourcePosition(node->position())); \
     AstGraphBuilder::Visit##type(node);                               \

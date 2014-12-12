@@ -215,9 +215,9 @@ class RecordWriteStub : public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const FINAL { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) OVERRIDE;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm, OnNoNeedToInformIncrementalMarker on_no_need,

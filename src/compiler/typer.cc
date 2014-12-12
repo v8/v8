@@ -223,7 +223,7 @@ class Typer::Visitor : public Reducer {
  public:
   explicit Visitor(Typer* typer) : typer_(typer) {}
 
-  virtual Reduction Reduce(Node* node) OVERRIDE {
+  Reduction Reduce(Node* node) OVERRIDE {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {
 #define DECLARE_CASE(x) \

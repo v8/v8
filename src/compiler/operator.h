@@ -141,12 +141,12 @@ class Operator1 : public Operator {
 
   T const& parameter() const { return parameter_; }
 
-  virtual bool Equals(const Operator* other) const FINAL {
+  bool Equals(const Operator* other) const FINAL {
     if (opcode() != other->opcode()) return false;
     const Operator1<T>* that = static_cast<const Operator1<T>*>(other);
     return this->pred_(this->parameter(), that->parameter());
   }
-  virtual size_t HashCode() const FINAL {
+  size_t HashCode() const FINAL {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
   virtual void PrintParameter(std::ostream& os) const {
@@ -154,7 +154,7 @@ class Operator1 : public Operator {
   }
 
  protected:
-  virtual void PrintTo(std::ostream& os) const FINAL {
+  void PrintTo(std::ostream& os) const FINAL {
     os << mnemonic();
     PrintParameter(os);
   }

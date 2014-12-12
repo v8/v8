@@ -32,9 +32,9 @@ class SafepointGenerator FINAL : public CallWrapper {
         deopt_mode_(mode) {}
   virtual ~SafepointGenerator() {}
 
-  virtual void BeforeCall(int call_size) const OVERRIDE {}
+  void BeforeCall(int call_size) const OVERRIDE {}
 
-  virtual void AfterCall() const OVERRIDE {
+  void AfterCall() const OVERRIDE {
     codegen_->RecordSafepoint(pointers_, deopt_mode_);
   }
 
@@ -2924,10 +2924,10 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
                                   LInstanceOfKnownGlobal* instr,
                                   const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
     Label* map_check() { return &map_check_; }
    private:
     LInstanceOfKnownGlobal* instr_;
@@ -3873,10 +3873,11 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
                                     LMathAbs* instr,
                                     const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LMathAbs* instr_;
   };
@@ -4781,10 +4782,9 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
                              LStringCharCodeAt* instr,
                              const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
-      codegen()->DoDeferredStringCharCodeAt(instr_);
-    }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    void Generate() OVERRIDE { codegen()->DoDeferredStringCharCodeAt(instr_); }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LStringCharCodeAt* instr_;
   };
@@ -4840,10 +4840,11 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
                                LStringCharFromCode* instr,
                                const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredStringCharFromCode(instr_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LStringCharFromCode* instr_;
   };
@@ -4929,11 +4930,12 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
                        LNumberTagI* instr,
                        const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp(),
                                        SIGNED_INT32);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LNumberTagI* instr_;
   };
@@ -4957,11 +4959,12 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
                        LNumberTagU* instr,
                        const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp(),
                                        UNSIGNED_INT32);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LNumberTagU* instr_;
   };
@@ -5046,10 +5049,9 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
                        LNumberTagD* instr,
                        const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
-      codegen()->DoDeferredNumberTagD(instr_);
-    }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    void Generate() OVERRIDE { codegen()->DoDeferredNumberTagD(instr_); }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LNumberTagD* instr_;
   };
@@ -5292,10 +5294,9 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
                       LTaggedToI* instr,
                       const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
-      codegen()->DoDeferredTaggedToI(instr_, done());
-    }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    void Generate() OVERRIDE { codegen()->DoDeferredTaggedToI(instr_, done()); }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LTaggedToI* instr_;
   };
@@ -5498,11 +5499,12 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
         : LDeferredCode(codegen, x87_stack), instr_(instr), object_(object) {
       SetExit(check_maps());
     }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredInstanceMigration(instr_, object_);
     }
     Label* check_maps() { return &check_maps_; }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LCheckMaps* instr_;
     Label check_maps_;
@@ -5721,10 +5723,9 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
                      LAllocate* instr,
                      const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
-      codegen()->DoDeferredAllocate(instr_);
-    }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    void Generate() OVERRIDE { codegen()->DoDeferredAllocate(instr_); }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LAllocate* instr_;
   };
@@ -6090,10 +6091,9 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
                        LStackCheck* instr,
                        const X87Stack& x87_stack)
         : LDeferredCode(codegen, x87_stack), instr_(instr) { }
-    virtual void Generate() OVERRIDE {
-      codegen()->DoDeferredStackCheck(instr_);
-    }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    void Generate() OVERRIDE { codegen()->DoDeferredStackCheck(instr_); }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LStackCheck* instr_;
   };
@@ -6241,10 +6241,11 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
           object_(object),
           index_(index) {
     }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredLoadMutableDouble(instr_, object_, index_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LLoadFieldByIndex* instr_;
     Register object_;

@@ -14167,17 +14167,17 @@ class InternalizedStringKey : public HashTableKey {
   explicit InternalizedStringKey(Handle<String> string)
       : string_(string) { }
 
-  virtual bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->Equals(*string_);
   }
 
-  virtual uint32_t Hash() OVERRIDE { return string_->Hash(); }
+  uint32_t Hash() OVERRIDE { return string_->Hash(); }
 
-  virtual uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     // Internalize the string if possible.
     MaybeHandle<Map> maybe_map =
         isolate->factory()->InternalizedStringMapForString(string_);

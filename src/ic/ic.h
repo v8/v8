@@ -433,7 +433,7 @@ class LoadIC : public IC {
     }
   }
 
-  virtual Handle<Code> megamorphic_stub() OVERRIDE;
+  Handle<Code> megamorphic_stub() OVERRIDE;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -554,7 +554,7 @@ class StoreIC : public IC {
                       JSReceiver::StoreFromKeyed store_mode);
 
  protected:
-  virtual Handle<Code> megamorphic_stub() OVERRIDE;
+  Handle<Code> megamorphic_stub() OVERRIDE;
 
   // Stub accessors.
   Handle<Code> generic_stub() const;

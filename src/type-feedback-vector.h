@@ -292,13 +292,13 @@ class CallICNexus : public FeedbackNexus {
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
-  virtual InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const OVERRIDE;
 
-  virtual int ExtractMaps(MapHandleList* maps) const OVERRIDE {
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE {
     // CallICs don't record map feedback.
     return 0;
   }
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
     return MaybeHandle<Code>();
   }
   virtual bool FindHandlers(CodeHandleList* code_list,
@@ -327,9 +327,9 @@ class LoadICNexus : public FeedbackNexus {
 
   void ConfigurePolymorphic(TypeHandleList* types, CodeHandleList* handlers);
 
-  virtual InlineCacheState StateFromFeedback() const OVERRIDE;
-  virtual int ExtractMaps(MapHandleList* maps) const OVERRIDE;
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
+  InlineCacheState StateFromFeedback() const OVERRIDE;
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
   virtual bool FindHandlers(CodeHandleList* code_list,
                             int length = -1) const OVERRIDE;
 };
@@ -358,12 +358,12 @@ class KeyedLoadICNexus : public FeedbackNexus {
   void ConfigurePolymorphic(Handle<Name> name, TypeHandleList* types,
                             CodeHandleList* handlers);
 
-  virtual InlineCacheState StateFromFeedback() const OVERRIDE;
-  virtual int ExtractMaps(MapHandleList* maps) const OVERRIDE;
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
+  InlineCacheState StateFromFeedback() const OVERRIDE;
+  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
   virtual bool FindHandlers(CodeHandleList* code_list,
                             int length = -1) const OVERRIDE;
-  virtual Name* FindFirstName() const OVERRIDE;
+  Name* FindFirstName() const OVERRIDE;
 };
 }
 }  // namespace v8::internal

@@ -2508,18 +2508,18 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
-  __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ test(result_, Immediate(kIsNotStringMask));
-  __ j(not_zero, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
+    __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ test(result_, Immediate(kIsNotStringMask));
+    __ j(not_zero, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
-  STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(index_, &index_not_smi_);
   __ bind(&got_smi_index_);
 

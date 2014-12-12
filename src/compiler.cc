@@ -310,29 +310,29 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
       : HOptimizedGraphBuilder(info) {
   }
 
-#define DEF_VISIT(type)                                 \
-  virtual void Visit##type(type* node) OVERRIDE {    \
-    if (node->position() != RelocInfo::kNoPosition) {   \
-      SetSourcePosition(node->position());              \
-    }                                                   \
-    HOptimizedGraphBuilder::Visit##type(node);          \
+#define DEF_VISIT(type)                               \
+  void Visit##type(type* node) OVERRIDE {             \
+    if (node->position() != RelocInfo::kNoPosition) { \
+      SetSourcePosition(node->position());            \
+    }                                                 \
+    HOptimizedGraphBuilder::Visit##type(node);        \
   }
   EXPRESSION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-#define DEF_VISIT(type)                                          \
-  virtual void Visit##type(type* node) OVERRIDE {             \
-    if (node->position() != RelocInfo::kNoPosition) {            \
-      SetSourcePosition(node->position());                       \
-    }                                                            \
-    HOptimizedGraphBuilder::Visit##type(node);                   \
+#define DEF_VISIT(type)                               \
+  void Visit##type(type* node) OVERRIDE {             \
+    if (node->position() != RelocInfo::kNoPosition) { \
+      SetSourcePosition(node->position());            \
+    }                                                 \
+    HOptimizedGraphBuilder::Visit##type(node);        \
   }
   STATEMENT_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-#define DEF_VISIT(type)                                            \
-  virtual void Visit##type(type* node) OVERRIDE {               \
-    HOptimizedGraphBuilder::Visit##type(node);                     \
+#define DEF_VISIT(type)                        \
+  void Visit##type(type* node) OVERRIDE {      \
+    HOptimizedGraphBuilder::Visit##type(node); \
   }
   MODULE_NODE_LIST(DEF_VISIT)
   DECLARATION_NODE_LIST(DEF_VISIT)

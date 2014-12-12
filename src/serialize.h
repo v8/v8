@@ -595,7 +595,7 @@ class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
   ~Serializer();
-  virtual void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) OVERRIDE;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
 
@@ -780,7 +780,7 @@ class StartupSerializer : public Serializer {
 
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
-  virtual void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) OVERRIDE;
 
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.

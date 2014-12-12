@@ -5986,10 +5986,11 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
           object_(object),
           index_(index) {
     }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredLoadMutableDouble(instr_, result_, object_, index_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LLoadFieldByIndex* instr_;
     Register result_;

@@ -57,7 +57,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Support for control flow builders. The concrete type of the environment
   // depends on the graph builder, but environments themselves are not virtual.
   typedef StructuredGraphBuilder::Environment BaseEnvironment;
-  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
+  BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
 
   // Getters for values in the activation record.
   Node* GetFunctionClosure();
@@ -120,7 +120,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
  private:
   CompilationInfo* info_;
@@ -348,8 +348,8 @@ class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
   explicit AstEffectContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {}
   virtual ~AstEffectContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
+  void ProduceValue(Node* value) OVERRIDE;
+  Node* ConsumeValue() OVERRIDE;
 };
 
 
@@ -359,8 +359,8 @@ class AstGraphBuilder::AstValueContext FINAL : public AstContext {
   explicit AstValueContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {}
   virtual ~AstValueContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
+  void ProduceValue(Node* value) OVERRIDE;
+  Node* ConsumeValue() OVERRIDE;
 };
 
 
@@ -370,8 +370,8 @@ class AstGraphBuilder::AstTestContext FINAL : public AstContext {
   explicit AstTestContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kTest) {}
   virtual ~AstTestContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
+  void ProduceValue(Node* value) OVERRIDE;
+  Node* ConsumeValue() OVERRIDE;
 };
 
 

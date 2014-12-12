@@ -23,7 +23,7 @@ class ChangeLowering FINAL : public Reducer {
       : jsgraph_(jsgraph), linkage_(linkage) {}
   virtual ~ChangeLowering();
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   Node* HeapNumberValueIndexConstant();
