@@ -1898,7 +1898,7 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
-  int transition = transitions->Search(FIELD, *key, NONE);
+  int transition = transitions->Search(DATA, *key, NONE);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
   PropertyDetails details = transitions->GetTargetDetails(transition);
   if (details.type() != FIELD) return Handle<Map>::null();
@@ -3006,7 +3006,7 @@ void Map::LookupDescriptor(JSObject* holder,
 void Map::LookupTransition(JSObject* holder, Name* name,
                            PropertyAttributes attributes,
                            LookupResult* result) {
-  int transition_index = this->SearchTransition(FIELD, name, attributes);
+  int transition_index = this->SearchTransition(DATA, name, attributes);
   if (transition_index == TransitionArray::kNotFound) return result->NotFound();
   result->TransitionResult(holder, this->GetTransition(transition_index));
 }
@@ -5369,10 +5369,10 @@ int Map::SearchSpecialTransition(Symbol* name) {
 }
 
 
-int Map::SearchTransition(PropertyType type, Name* name,
+int Map::SearchTransition(PropertyKind kind, Name* name,
                           PropertyAttributes attributes) {
   if (HasTransitionArray()) {
-    return transitions()->Search(type, name, attributes);
+    return transitions()->Search(kind, name, attributes);
   }
   return TransitionArray::kNotFound;
 }
@@ -5430,7 +5430,7 @@ void Map::set_transitions(TransitionArray* transition_array,
         } else {
           PropertyDetails details =
               TransitionArray::GetTargetDetails(key, target);
-          new_target_index = transition_array->Search(details.type(), key,
+          new_target_index = transition_array->Search(details.kind(), key,
                                                       details.attributes());
         }
         DCHECK_NE(TransitionArray::kNotFound, new_target_index);

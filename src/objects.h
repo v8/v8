@@ -5849,7 +5849,7 @@ class Map: public HeapObject {
 
   inline Map* GetTransition(int transition_index);
   inline int SearchSpecialTransition(Symbol* name);
-  inline int SearchTransition(PropertyType type, Name* name,
+  inline int SearchTransition(PropertyKind kind, Name* name,
                               PropertyAttributes attributes);
   inline FixedArrayBase* GetInitialElements();
 
@@ -6426,7 +6426,7 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   void DeprecateTransitionTree();
-  bool DeprecateTarget(PropertyType type, Name* key,
+  bool DeprecateTarget(PropertyKind kind, Name* key,
                        PropertyAttributes attributes,
                        DescriptorArray* new_descriptors,
                        LayoutDescriptor* new_layout_descriptor);

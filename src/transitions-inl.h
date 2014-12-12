@@ -165,16 +165,14 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
 #endif
 
 
-int TransitionArray::CompareKeys(Name* key1, uint32_t hash1,
-                                 bool is_data_property1,
+int TransitionArray::CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
                                  PropertyAttributes attributes1, Name* key2,
-                                 uint32_t hash2, bool is_data_property2,
+                                 uint32_t hash2, PropertyKind kind2,
                                  PropertyAttributes attributes2) {
   int cmp = CompareNames(key1, hash1, key2, hash2);
   if (cmp != 0) return cmp;
 
-  return CompareDetails(is_data_property1, attributes1, is_data_property2,
-                        attributes2);
+  return CompareDetails(kind1, attributes1, kind2, attributes2);
 }
 
 
@@ -189,15 +187,12 @@ int TransitionArray::CompareNames(Name* key1, uint32_t hash1, Name* key2,
 }
 
 
-int TransitionArray::CompareDetails(bool is_data_property1,
+int TransitionArray::CompareDetails(PropertyKind kind1,
                                     PropertyAttributes attributes1,
-                                    bool is_data_property2,
+                                    PropertyKind kind2,
                                     PropertyAttributes attributes2) {
-  if (is_data_property1 != is_data_property2) {
-    return static_cast<int>(is_data_property1) <
-                   static_cast<int>(is_data_property2)
-               ? -1
-               : 1;
+  if (kind1 != kind2) {
+    return static_cast<int>(kind1) < static_cast<int>(kind2) ? -1 : 1;
   }
 
   if (attributes1 != attributes2) {

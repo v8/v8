@@ -2278,14 +2278,14 @@ void Map::DeprecateTransitionTree() {
 // the current instance_descriptors to ensure proper sharing of descriptor
 // arrays.
 // Returns true if the transition target at given key was deprecated.
-bool Map::DeprecateTarget(PropertyType type, Name* key,
+bool Map::DeprecateTarget(PropertyKind kind, Name* key,
                           PropertyAttributes attributes,
                           DescriptorArray* new_descriptors,
                           LayoutDescriptor* new_layout_descriptor) {
   bool transition_target_deprecated = false;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
-    int transition = transitions->Search(type, key, attributes);
+    int transition = transitions->Search(kind, key, attributes);
     if (transition != TransitionArray::kNotFound) {
       transitions->GetTarget(transition)->DeprecateTransitionTree();
       transition_target_deprecated = true;
@@ -2337,7 +2337,7 @@ Map* Map::FindLastMatchMap(int verbatim,
     PropertyDetails details = descriptors->GetDetails(i);
     TransitionArray* transitions = current->transitions();
     int transition =
-        transitions->Search(details.type(), name, details.attributes());
+        transitions->Search(details.kind(), name, details.attributes());
     if (transition == TransitionArray::kNotFound) break;
 
     Map* next = transitions->GetTarget(transition);
@@ -2547,7 +2547,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   Handle<Map> target_map = root_map;
   for (int i = root_nof; i < old_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
-    int j = target_map->SearchTransition(old_details.type(),
+    int j = target_map->SearchTransition(old_details.kind(),
                                          old_descriptors->GetKey(i),
                                          old_details.attributes());
     if (j == TransitionArray::kNotFound) break;
@@ -2615,7 +2615,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Find the last compatible target map in the transition tree.
   for (int i = target_nof; i < old_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
-    int j = target_map->SearchTransition(old_details.type(),
+    int j = target_map->SearchTransition(old_details.kind(),
                                          old_descriptors->GetKey(i),
                                          old_details.attributes());
     if (j == TransitionArray::kNotFound) break;
@@ -2762,7 +2762,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       LayoutDescriptor::New(split_map, new_descriptors, old_nof);
   PropertyDetails split_prop_details = old_descriptors->GetDetails(split_nof);
   bool transition_target_deprecated = split_map->DeprecateTarget(
-      split_prop_details.type(), old_descriptors->GetKey(split_nof),
+      split_prop_details.kind(), old_descriptors->GetKey(split_nof),
       split_prop_details.attributes(), *new_descriptors,
       *new_layout_descriptor);
 
@@ -2859,7 +2859,7 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
   Map* new_map = root_map;
   for (int i = root_nof; i < old_nof; ++i) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
-    int j = new_map->SearchTransition(old_details.type(),
+    int j = new_map->SearchTransition(old_details.kind(),
                                       old_descriptors->GetKey(i),
                                       old_details.attributes());
     if (j == TransitionArray::kNotFound) return MaybeHandle<Map>();
@@ -7133,7 +7133,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   // Migrate to the newest map before storing the property.
   map = Update(map);
 
-  int index = map->SearchTransition(FIELD, *name, attributes);
+  int index = map->SearchTransition(DATA, *name, attributes);
   if (index != TransitionArray::kNotFound) {
     Handle<Map> transition(map->GetTransition(index));
     int descriptor = transition->LastAdded();
@@ -7210,7 +7210,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
                                        ? KEEP_INOBJECT_PROPERTIES
                                        : CLEAR_INOBJECT_PROPERTIES;
 
-  int index = map->SearchTransition(CALLBACKS, *name, attributes);
+  int index = map->SearchTransition(ACCESSOR, *name, attributes);
   if (index != TransitionArray::kNotFound) {
     Handle<Map> transition(map->GetTransition(index));
     DescriptorArray* descriptors = transition->instance_descriptors();
