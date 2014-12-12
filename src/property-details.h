@@ -41,10 +41,24 @@ typedef TypeImpl<ZoneTypeConfig> Type;
 class TypeInfo;
 
 // Type of properties.
+// Order of kinds is significant.
+// Must fit in the BitField PropertyDetails::KindField.
+enum PropertyKind { DATA = 0, ACCESSOR = 1 };
+
+
+// Order of modes is significant.
+// Must fit in the BitField PropertyDetails::StoreModeField.
+enum PropertyLocation { IN_OBJECT = 0, IN_DESCRIPTOR = 1 };
+
+
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
-enum PropertyType { FIELD = 0, CONSTANT = 1, CALLBACKS = 2 };
+enum PropertyType {
+  FIELD = (IN_OBJECT << 1) | DATA,
+  CONSTANT = (IN_DESCRIPTOR << 1) | DATA,
+  CALLBACKS = (IN_DESCRIPTOR << 1) | ACCESSOR
+};
 
 
 class Representation {
@@ -222,6 +236,9 @@ class PropertyDetails BASE_EMBEDDED {
     return Representation::FromKind(static_cast<Representation::Kind>(bits));
   }
 
+  PropertyKind kind() const { return KindField::decode(value_); }
+  PropertyLocation location() const { return LocationField::decode(value_); }
+
   PropertyType type() const { return TypeField::decode(value_); }
 
   PropertyAttributes attributes() const {
@@ -253,7 +270,8 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField : public BitField<PropertyType, 0, 2> {};
+  class KindField : public BitField<PropertyKind, 0, 1> {};
+  class LocationField : public BitField<PropertyLocation, 1, 1> {};
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
@@ -267,6 +285,12 @@ class PropertyDetails BASE_EMBEDDED {
   class FieldIndexField
       : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
                         kDescriptorIndexBitCount> {};  // NOLINT
+
+  // NOTE: TypeField overlaps with KindField and LocationField.
+  class TypeField : public BitField<PropertyType, 0, 2> {};
+  STATIC_ASSERT(KindField::kNext == LocationField::kShift);
+  STATIC_ASSERT(TypeField::kShift == KindField::kShift);
+  STATIC_ASSERT(TypeField::kNext == LocationField::kNext);
 
   // All bits for both fast and slow objects must fit in a smi.
   STATIC_ASSERT(DictionaryStorageField::kNext <= 31);

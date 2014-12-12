@@ -32,7 +32,7 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
 }
 
 
-enum PropertyKind {
+enum TestPropertyKind {
   PROP_CONSTANT,
   PROP_SMI,
   PROP_DOUBLE,
@@ -46,7 +46,7 @@ static Representation representations[PROP_KIND_NUMBER] = {
 
 
 static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
-                                                     PropertyKind* props,
+                                                     TestPropertyKind* props,
                                                      int kPropsCount) {
   Factory* factory = isolate->factory();
 
@@ -62,7 +62,7 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
 
-    PropertyKind kind = props[i];
+    TestPropertyKind kind = props[i];
 
     if (kind == PROP_CONSTANT) {
       ConstantDescriptor d(name, func, NONE);
@@ -113,7 +113,7 @@ TEST(LayoutDescriptorBasicSlow) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     // All properties tagged.
     props[i] = PROP_TAGGED;
@@ -202,7 +202,7 @@ TEST(LayoutDescriptorCreateNewFast) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<LayoutDescriptor> layout_descriptor;
-  PropertyKind props[] = {
+  TestPropertyKind props[] = {
       PROP_CONSTANT,
       PROP_TAGGED,  // field #0
       PROP_CONSTANT,
@@ -254,9 +254,9 @@ TEST(LayoutDescriptorCreateNewSlow) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
-    props[i] = static_cast<PropertyKind>(i % PROP_KIND_NUMBER);
+    props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
   }
 
   Handle<DescriptorArray> descriptors =
@@ -334,7 +334,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
 
 
 static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
-    Isolate* isolate, int inobject_properties, PropertyKind* props,
+    Isolate* isolate, int inobject_properties, TestPropertyKind* props,
     int kPropsCount) {
   Factory* factory = isolate->factory();
 
@@ -355,7 +355,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
 
     Handle<LayoutDescriptor> layout_descriptor;
-    PropertyKind kind = props[i];
+    TestPropertyKind kind = props[i];
     if (kind == PROP_CONSTANT) {
       ConstantDescriptor d(name, func, NONE);
       layout_descriptor = LayoutDescriptor::Append(map, d.GetDetails());
@@ -391,9 +391,9 @@ TEST(LayoutDescriptorAppend) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
-    props[i] = static_cast<PropertyKind>(i % PROP_KIND_NUMBER);
+    props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
   }
 
   layout_descriptor =
@@ -425,7 +425,7 @@ TEST(LayoutDescriptorAppendAllDoubles) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
   }
@@ -523,9 +523,9 @@ TEST(LayoutDescriptorAppendIfFastOrUseFull) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
-    props[i] = static_cast<PropertyKind>(i % PROP_KIND_NUMBER);
+    props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
   }
   Handle<DescriptorArray> descriptors =
       CreateDescriptorArray(isolate, props, kPropsCount);
@@ -559,7 +559,7 @@ TEST(LayoutDescriptorAppendIfFastOrUseFullAllDoubles) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
   }
@@ -610,7 +610,7 @@ TEST(Regress436816) {
   v8::HandleScope scope(CcTest::isolate());
 
   const int kPropsCount = kSmiValueSize * 3;
-  PropertyKind props[kPropsCount];
+  TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
     props[i] = PROP_DOUBLE;
   }

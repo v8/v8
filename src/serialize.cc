@@ -365,15 +365,11 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   }
 
   // Accessors
-#define ACCESSOR_INFO_DECLARATION(name) \
-  Add(FUNCTION_ADDR(&Accessors::name##Getter), \
-      ACCESSOR, \
-      Accessors::k##name##Getter, \
-      "Accessors::" #name "Getter"); \
-  Add(FUNCTION_ADDR(&Accessors::name##Setter), \
-      ACCESSOR, \
-      Accessors::k##name##Setter, \
-      "Accessors::" #name "Setter");
+#define ACCESSOR_INFO_DECLARATION(name)                          \
+  Add(FUNCTION_ADDR(&Accessors::name##Getter), ACCESSOR_CODE,    \
+      Accessors::k##name##Getter, "Accessors::" #name "Getter"); \
+  Add(FUNCTION_ADDR(&Accessors::name##Setter), ACCESSOR_CODE,    \
+      Accessors::k##name##Setter, "Accessors::" #name "Setter");
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
 

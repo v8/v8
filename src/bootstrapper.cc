@@ -2587,8 +2587,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
-          PropertyDetails d = PropertyDetails(
-              details.attributes(), CALLBACKS, i + 1);
+          PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
