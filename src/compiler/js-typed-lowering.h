@@ -6,26 +6,26 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class CommonOperatorBuilder;
+class JSGraph;
+class JSOperatorBuilder;
+class MachineOperatorBuilder;
+
+
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering FINAL : public Reducer {
  public:
   explicit JSTypedLowering(JSGraph* jsgraph);
-  ~JSTypedLowering() {}
+  ~JSTypedLowering() FINAL {}
 
-  Reduction Reduce(Node* node) OVERRIDE;
-
-  JSGraph* jsgraph() { return jsgraph_; }
-  Graph* graph() { return jsgraph_->graph(); }
-  Zone* zone() { return jsgraph_->zone(); }
+  Reduction Reduce(Node* node) FINAL;
 
  private:
   friend class JSBinopReduction;
@@ -41,23 +41,26 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
+  Reduction ReduceJSToBooleanInput(Node* input);
+  Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
-  Reduction ReduceJSToBooleanInput(Node* input);
-  Reduction ReduceJSToBoolean(Node* node);
+  Reduction ReduceJSToString(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
-  Reduction ReduceI32Binop(Node* node, bool left_signed, bool right_signed,
-                           const Operator* intOp);
-  Reduction ReduceI32Shift(Node* node, bool left_signed,
-                           const Operator* shift_op);
+  Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
+  Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
+                            const Operator* shift_op);
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
-  JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
-  CommonOperatorBuilder* common() { return jsgraph_->common(); }
+  Factory* factory() const;
+  Graph* graph() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+  JSOperatorBuilder* javascript() const;
+  CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  MachineOperatorBuilder* machine() { return jsgraph_->machine(); }
+  MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;

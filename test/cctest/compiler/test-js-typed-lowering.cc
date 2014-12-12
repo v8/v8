@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/typer.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;

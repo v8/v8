@@ -18,6 +18,7 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
@@ -417,11 +418,13 @@ struct TypedLoweringPhase {
                                    SourcePosition::Unknown());
     ValueNumberingReducer vn_reducer(temp_zone);
     LoadElimination load_elimination;
-    JSTypedLowering lowering(data->jsgraph());
+    JSBuiltinReducer builtin_reducer(data->jsgraph());
+    JSTypedLowering typed_lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
-    graph_reducer.AddReducer(&lowering);
+    graph_reducer.AddReducer(&builtin_reducer);
+    graph_reducer.AddReducer(&typed_lowering);
     graph_reducer.AddReducer(&load_elimination);
     graph_reducer.AddReducer(&simple_reducer);
     graph_reducer.ReduceGraph();
