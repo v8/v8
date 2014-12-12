@@ -2214,7 +2214,7 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
 
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);
-  if (store_mode == FORCE_FIELD &&
+  if (store_mode == FORCE_IN_OBJECT &&
       (details.type() != FIELD || details.attributes() != attributes)) {
     int field_index = details.type() == FIELD ? details.field_index()
                                               : new_map->NumberOfFields();
@@ -2236,12 +2236,12 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
     HeapType* field_type = (details.type() == FIELD)
         ? map->instance_descriptors()->GetFieldType(modify_index)
         : NULL;
-    map->PrintGeneralization(stdout, reason, modify_index,
-                        new_map->NumberOfOwnDescriptors(),
-                        new_map->NumberOfOwnDescriptors(),
-                        details.type() == CONSTANT && store_mode == FORCE_FIELD,
-                        details.representation(), Representation::Tagged(),
-                        field_type, HeapType::Any());
+    map->PrintGeneralization(
+        stdout, reason, modify_index, new_map->NumberOfOwnDescriptors(),
+        new_map->NumberOfOwnDescriptors(),
+        details.type() == CONSTANT && store_mode == FORCE_IN_OBJECT,
+        details.representation(), Representation::Tagged(), field_type,
+        HeapType::Any());
   }
   return new_map;
 }
@@ -2535,7 +2535,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   int root_nof = root_map->NumberOfOwnDescriptors();
   if (modify_index < root_nof) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    if ((old_details.type() != FIELD && store_mode == FORCE_FIELD) ||
+    if ((old_details.type() != FIELD && store_mode == FORCE_IN_OBJECT) ||
         (old_details.type() == FIELD &&
          (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
           !new_representation.fits_into(old_details.representation())))) {
@@ -2601,7 +2601,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       target_map->instance_descriptors(), isolate);
   int target_nof = target_map->NumberOfOwnDescriptors();
   if (target_nof == old_nof &&
-      (store_mode != FORCE_FIELD ||
+      (store_mode != FORCE_IN_OBJECT ||
        target_descriptors->GetDetails(modify_index).type() == FIELD)) {
     DCHECK(modify_index < target_nof);
     DCHECK(new_representation.fits_into(
@@ -2676,9 +2676,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
           new_representation.generalize(target_details.representation()));
     }
     DCHECK_EQ(old_details.attributes(), target_details.attributes());
-    if (old_details.type() == FIELD ||
-        target_details.type() == FIELD ||
-        (modify_index == i && store_mode == FORCE_FIELD) ||
+    if (old_details.type() == FIELD || target_details.type() == FIELD ||
+        (modify_index == i && store_mode == FORCE_IN_OBJECT) ||
         (target_descriptors->GetValue(i) != old_descriptors->GetValue(i))) {
       Handle<HeapType> old_field_type = (old_details.type() == FIELD)
           ? handle(old_descriptors->GetFieldType(i), isolate)
@@ -2729,7 +2728,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       new_descriptors->Set(i, &d);
     } else {
       DCHECK(old_details.type() == CONSTANT || old_details.type() == CALLBACKS);
-      if (modify_index == i && store_mode == FORCE_FIELD) {
+      if (modify_index == i && store_mode == FORCE_IN_OBJECT) {
         FieldDescriptor d(
             old_key, current_offset,
             GeneralizeFieldType(old_descriptors->GetValue(i)->OptimalType(
@@ -2750,7 +2749,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   new_descriptors->Sort();
 
-  DCHECK(store_mode != FORCE_FIELD ||
+  DCHECK(store_mode != FORCE_IN_OBJECT ||
          new_descriptors->GetDetails(modify_index).type() == FIELD);
 
   Handle<Map> split_map(root_map->FindLastMatchMap(
@@ -2787,7 +2786,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
                                     isolate), isolate);
     old_map->PrintGeneralization(
         stdout, "", modify_index, split_nof, old_nof,
-        old_details.type() == CONSTANT && store_mode == FORCE_FIELD,
+        old_details.type() == CONSTANT && store_mode == FORCE_IN_OBJECT,
         old_details.representation(), new_details.representation(),
         *old_field_type, *new_field_type);
   }
@@ -2811,7 +2810,7 @@ Handle<Map> Map::GeneralizeAllFieldRepresentations(
     if (descriptors->GetDetails(i).type() == FIELD) {
       map = GeneralizeRepresentation(map, i, Representation::Tagged(),
                                      HeapType::Any(map->GetIsolate()),
-                                     FORCE_FIELD);
+                                     FORCE_IN_OBJECT);
     }
   }
   return map;
@@ -2837,7 +2836,7 @@ Handle<Map> Map::Update(Handle<Map> map) {
   if (!map->is_deprecated()) return map;
   return GeneralizeRepresentation(map, 0, Representation::None(),
                                   HeapType::None(map->GetIsolate()),
-                                  ALLOW_AS_CONSTANT);
+                                  ALLOW_IN_DESCRIPTOR);
 }
 
 
@@ -7119,7 +7118,7 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   Handle<HeapType> type = value->OptimalType(isolate, representation);
 
   return GeneralizeRepresentation(map, descriptor, representation, type,
-                                  FORCE_FIELD);
+                                  FORCE_IN_OBJECT);
 }
 
 
@@ -7183,8 +7182,9 @@ Handle<Map> Map::ReconfigureDataProperty(Handle<Map> map, int descriptor,
 
   // For now, give up on transitioning and just create a unique map.
   // TODO(verwaest/ishell): Cache transitions with different attributes.
-  return CopyGeneralizeAllRepresentations(
-      map, descriptor, FORCE_FIELD, attributes, "GenAll_AttributesMismatch");
+  return CopyGeneralizeAllRepresentations(map, descriptor, FORCE_IN_OBJECT,
+                                          attributes,
+                                          "GenAll_AttributesMismatch");
 }
 
 
