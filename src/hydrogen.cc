@@ -6907,9 +6907,10 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     if (FLAG_vector_ics) {
       Handle<SharedFunctionInfo> current_shared =
           function_state()->compilation_info()->shared_info();
-      result->SetVectorAndSlot(
-          handle(current_shared->feedback_vector(), isolate()),
-          expr->AsProperty()->PropertyFeedbackSlot());
+      Handle<TypeFeedbackVector> vector =
+          handle(current_shared->feedback_vector(), isolate());
+      FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
+      result->SetVectorAndSlot(vector, slot);
     }
     return result;
   } else {
@@ -6930,9 +6931,10 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     if (FLAG_vector_ics) {
       Handle<SharedFunctionInfo> current_shared =
           function_state()->compilation_info()->shared_info();
-      result->SetVectorAndSlot(
-          handle(current_shared->feedback_vector(), isolate()),
-          expr->AsProperty()->PropertyFeedbackSlot());
+      Handle<TypeFeedbackVector> vector =
+          handle(current_shared->feedback_vector(), isolate());
+      FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
+      result->SetVectorAndSlot(vector, slot);
     }
     return result;
   } else {
@@ -7208,7 +7210,9 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* obj, HValue* key, HValue* val, Expression* expr, BailoutId ast_id,
     BailoutId return_id, PropertyAccessType access_type,
     bool* has_side_effects) {
-  if (key->ActualValue()->IsConstant()) {
+  // TODO(mvstanton): This optimization causes trouble for vector-based
+  // KeyedLoadICs, turn it off for now.
+  if (!FLAG_vector_ics && key->ActualValue()->IsConstant()) {
     Handle<Object> constant =
         HConstant::cast(key->ActualValue())->handle(isolate());
     uint32_t array_index;

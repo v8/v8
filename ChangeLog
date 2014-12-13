@@ -1,3 +1,10 @@
+2014-12-12: Version 3.31.57
+
+        Consistently use only one of virtual/OVERRIDE/FINAL (issue 3753).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-12: Version 3.31.56
 
         Performance and stability improvements on all platforms.

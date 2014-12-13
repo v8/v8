@@ -805,3 +805,33 @@ TEST(ObjectObserveCallsFunctionTemplateInstance) {
       "obj.bar = 2;");
   CHECK_EQ(2, numRecordsSent);
 }
+
+
+static void AccessorGetter(Local<String> property,
+                           const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(Integer::New(info.GetIsolate(), 42));
+}
+
+
+static void AccessorSetter(Local<String> property, Local<Value> value,
+                           const PropertyCallbackInfo<void>& info) {
+  info.GetReturnValue().SetUndefined();
+}
+
+
+TEST(APIAccessorsShouldNotNotify) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  LocalContext context(isolate);
+  Handle<Object> object = Object::New(isolate);
+  object->SetAccessor(String::NewFromUtf8(isolate, "accessor"), &AccessorGetter,
+                      &AccessorSetter);
+  context->Global()->Set(String::NewFromUtf8(isolate, "obj"), object);
+  CompileRun(
+      "var records = null;"
+      "Object.observe(obj, function(r) { records = r });"
+      "obj.accessor = 43;");
+  CHECK(CompileRun("records")->IsNull());
+  CompileRun("Object.defineProperty(obj, 'accessor', { value: 44 });");
+  CHECK(CompileRun("records")->IsNull());
+}

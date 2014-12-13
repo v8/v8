@@ -254,7 +254,7 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if V8_OS_MACOSX
+#if V8_OS_MACOSX || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));

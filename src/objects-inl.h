@@ -517,7 +517,7 @@ class SequentialStringKey : public HashTableKey {
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual uint32_t Hash() OVERRIDE {
+  uint32_t Hash() OVERRIDE {
     hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
                                                            string_.length(),
                                                            seed_);
@@ -528,7 +528,7 @@ class SequentialStringKey : public HashTableKey {
   }
 
 
-  virtual uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
@@ -543,11 +543,11 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
@@ -558,7 +558,7 @@ class SeqOneByteSubStringKey : public HashTableKey {
     DCHECK(string_->IsSeqOneByteString());
   }
 
-  virtual uint32_t Hash() OVERRIDE {
+  uint32_t Hash() OVERRIDE {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
     const uint8_t* chars = string_->GetChars() + from_;
@@ -569,12 +569,12 @@ class SeqOneByteSubStringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string) OVERRIDE;
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  bool IsMatch(Object* string) OVERRIDE;
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 
  private:
   Handle<SeqOneByteString> string_;
@@ -589,11 +589,11 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
@@ -603,11 +603,11 @@ class Utf8StringKey : public HashTableKey {
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  virtual uint32_t Hash() OVERRIDE {
+  uint32_t Hash() OVERRIDE {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -615,11 +615,11 @@ class Utf8StringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     if (hash_field_ == 0) Hash();
     return isolate->factory()->NewInternalizedStringFromUtf8(
         string_, chars_, hash_field_);
@@ -1898,7 +1898,7 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
-  int transition = transitions->Search(FIELD, *key, NONE);
+  int transition = transitions->Search(DATA, *key, NONE);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
   PropertyDetails details = transitions->GetTargetDetails(transition);
   if (details.type() != FIELD) return Handle<Map>::null();
@@ -3006,7 +3006,7 @@ void Map::LookupDescriptor(JSObject* holder,
 void Map::LookupTransition(JSObject* holder, Name* name,
                            PropertyAttributes attributes,
                            LookupResult* result) {
-  int transition_index = this->SearchTransition(FIELD, name, attributes);
+  int transition_index = this->SearchTransition(DATA, name, attributes);
   if (transition_index == TransitionArray::kNotFound) return result->NotFound();
   result->TransitionResult(holder, this->GetTransition(transition_index));
 }
@@ -5369,10 +5369,10 @@ int Map::SearchSpecialTransition(Symbol* name) {
 }
 
 
-int Map::SearchTransition(PropertyType type, Name* name,
+int Map::SearchTransition(PropertyKind kind, Name* name,
                           PropertyAttributes attributes) {
   if (HasTransitionArray()) {
-    return transitions()->Search(type, name, attributes);
+    return transitions()->Search(kind, name, attributes);
   }
   return TransitionArray::kNotFound;
 }
@@ -5430,7 +5430,7 @@ void Map::set_transitions(TransitionArray* transition_array,
         } else {
           PropertyDetails details =
               TransitionArray::GetTargetDetails(key, target);
-          new_target_index = transition_array->Search(details.type(), key,
+          new_target_index = transition_array->Search(details.kind(), key,
                                                       details.attributes());
         }
         DCHECK_NE(TransitionArray::kNotFound, new_target_index);

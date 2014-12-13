@@ -62,7 +62,7 @@ std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
       UNREACHABLE();
       break;
   }
-  return os << "dictionary_index: " << details.dictionary_index()
+  return os << " dictionary_index: " << details.dictionary_index()
             << ", attrs: " << details.attributes() << ")";
 }
 
@@ -103,9 +103,15 @@ void PropertyDetails::Print(bool dictionary_mode) {
 
 
 std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
-  return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
-            << Brief(*d.GetValue()) << " "
-            << FastPropertyDetails(d.GetDetails());
+  Object* value = *d.GetValue();
+  os << "Descriptor " << Brief(*d.GetKey()) << " @ " << Brief(value) << " ";
+  if (value->IsAccessorPair()) {
+    AccessorPair* pair = AccessorPair::cast(value);
+    os << "(get: " << Brief(pair->getter())
+       << ", set: " << Brief(pair->setter()) << ") ";
+  }
+  os << FastPropertyDetails(d.GetDetails());
+  return os;
 }
 
 } }  // namespace v8::internal

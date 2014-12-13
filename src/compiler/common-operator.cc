@@ -360,7 +360,7 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               descriptor->ReturnCount(),
               Operator::ZeroIfPure(descriptor->properties()), 0, descriptor) {}
 
-    virtual void PrintParameter(std::ostream& os) const OVERRIDE {
+    void PrintParameter(std::ostream& os) const OVERRIDE {
       os << "[" << *parameter() << "]";
     }
   };

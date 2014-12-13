@@ -887,15 +887,6 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
         break;
       }
     }
-    // Make sure the below call to DefineObjectProperty() doesn't overwrite
-    // any magic "length" property by removing the value.
-    // TODO(mstarzinger): This hack should be removed once we have addressed the
-    // respective TODO in Runtime_DefineDataPropertyUnchecked.
-    // For the time being, we need a hack to prevent Object.observe from
-    // generating two change records.
-    obj.length = new_length;
-    desc.value_ = UNDEFINED;
-    desc.hasValue_ = false;
     threw = !DefineObjectProperty(obj, "length", desc, should_throw) || threw;
     if (emit_splice) {
       EndPerformSplice(obj);

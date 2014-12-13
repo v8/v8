@@ -24,7 +24,7 @@ class OptimizingCompilerThread::CompileTask : public v8::Task {
 
  private:
   // v8::Task overrides.
-  virtual void Run() OVERRIDE {
+  void Run() OVERRIDE {
     DisallowHeapAllocation no_allocation;
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;

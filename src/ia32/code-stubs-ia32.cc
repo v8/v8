@@ -652,9 +652,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadDescriptor::ReceiverRegister();
+  if (FLAG_vector_ics) {
+    // With careful management, we won't have to save slot and vector on
+    // the stack. Simply handle the possibly missing case first.
+    // TODO(mvstanton): this code can be more efficient.
+    __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
+           Immediate(isolate()->factory()->the_hole_value()));
+    __ j(equal, &miss);
+    __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
+    __ ret(0);
+  } else {
+    NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
+                                                            ebx, &miss);
+  }
 
-  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
-                                                          ebx, &miss);
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
@@ -697,11 +708,17 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register index = LoadDescriptor::NameRegister();
-  Register scratch = ebx;
+  Register scratch = edi;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
   Register result = eax;
   DCHECK(!result.is(scratch));
+  DCHECK(!FLAG_vector_ics ||
+         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+          result.is(VectorLoadICDescriptor::SlotRegister())));
 
+  // StringCharAtGenerator doesn't use the result register until it's passed
+  // the different miss possibilities. If it did, we would have a conflict
+  // when FLAG_vector_ics is true.
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.

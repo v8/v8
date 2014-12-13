@@ -182,7 +182,7 @@ PropertyKind.Indexed = 2;
 var PropertyType = {};
 PropertyType.Field                   = 0;
 PropertyType.Constant                = 1;
-PropertyType.Callbacks               = 2;
+PropertyType.Callbacks               = 3;
 
 
 // Different attributes for a property.

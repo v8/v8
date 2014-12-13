@@ -129,11 +129,17 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
 }
 
 
-Register PropertyHandlerCompiler::Frontend(Register object_reg,
-                                           Handle<Name> name) {
+Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   Label miss;
-  Register reg = FrontendHeader(object_reg, name, &miss);
+  if (IC::ICUseVector(kind())) {
+    PushVectorAndSlot();
+  }
+  Register reg = FrontendHeader(receiver(), name, &miss);
   FrontendFooter(name, &miss);
+  // The footer consumes the vector and slot from the stack if miss occurs.
+  if (IC::ICUseVector(kind())) {
+    DiscardVectorAndSlot();
+  }
   return reg;
 }
 
@@ -179,7 +185,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(Handle<Name> name,
                                                         FieldIndex field) {
-  Register reg = Frontend(receiver(), name);
+  Register reg = Frontend(name);
   __ Move(receiver(), reg);
   LoadFieldStub stub(isolate(), field);
   GenerateTailCall(masm(), stub.GetCode());
@@ -189,7 +195,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(Handle<Name> name,
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
                                                            int constant_index) {
-  Register reg = Frontend(receiver(), name);
+  Register reg = Frontend(name);
   __ Move(receiver(), reg);
   LoadConstantStub stub(isolate(), constant_index);
   GenerateTailCall(masm(), stub.GetCode());
@@ -200,7 +206,14 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
     Handle<Name> name) {
   Label miss;
+  if (IC::ICUseVector(kind())) {
+    DCHECK(kind() == Code::LOAD_IC);
+    PushVectorAndSlot();
+  }
   NonexistentFrontendHeader(name, &miss, scratch2(), scratch3());
+  if (IC::ICUseVector(kind())) {
+    DiscardVectorAndSlot();
+  }
   GenerateLoadConstant(isolate()->factory()->undefined_value());
   FrontendFooter(name, &miss);
   return GetCode(kind(), Code::FAST, name);
@@ -209,7 +222,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<ExecutableAccessorInfo> callback) {
-  Register reg = Frontend(receiver(), name);
+  Register reg = Frontend(name);
   GenerateLoadCallback(reg, callback);
   return GetCode(kind(), Code::FAST, name);
 }
@@ -218,11 +231,40 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization) {
   DCHECK(call_optimization.is_simple_api_call());
-  Frontend(receiver(), name);
+  Frontend(name);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
   GenerateFastApiCall(masm(), call_optimization, receiver_map, receiver(),
                       scratch1(), false, 0, NULL);
   return GetCode(kind(), Code::FAST, name);
+}
+
+
+void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
+  if (IC::ICUseVector(kind())) {
+    if (holder_reg.is(receiver())) {
+      PushVectorAndSlot();
+    } else {
+      DCHECK(holder_reg.is(scratch1()));
+      PushVectorAndSlot(scratch2(), scratch3());
+    }
+  }
+}
+
+
+void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
+                                                        PopMode mode) {
+  if (IC::ICUseVector(kind())) {
+    if (mode == DISCARD) {
+      DiscardVectorAndSlot();
+    } else {
+      if (holder_reg.is(receiver())) {
+        PopVectorAndSlot();
+      } else {
+        DCHECK(holder_reg.is(scratch1()));
+        PopVectorAndSlot(scratch2(), scratch3());
+      }
+    }
+  }
 }
 
 
@@ -256,7 +298,12 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     }
   }
 
-  Register reg = Frontend(receiver(), it->name());
+  Label miss;
+  InterceptorVectorSlotPush(receiver());
+  Register reg = FrontendHeader(receiver(), it->name(), &miss);
+  FrontendFooter(it->name(), &miss);
+  InterceptorVectorSlotPop(reg);
+
   if (inline_followup) {
     // TODO(368): Compile in the whole chain: all the interceptors in
     // prototypes and ultimate answer.
@@ -274,7 +321,13 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
 
   set_type_for_object(holder());
   set_holder(real_named_property_holder);
-  Register reg = Frontend(interceptor_reg, it->name());
+
+  Label miss;
+  InterceptorVectorSlotPush(interceptor_reg);
+  Register reg = FrontendHeader(interceptor_reg, it->name(), &miss);
+  FrontendFooter(it->name(), &miss);
+  // We discard the vector and slot now because we don't miss below this point.
+  InterceptorVectorSlotPop(reg, DISCARD);
 
   switch (it->state()) {
     case LookupIterator::ACCESS_CHECK:
@@ -301,7 +354,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, Handle<JSFunction> getter) {
-  Frontend(receiver(), name);
+  Frontend(name);
   GenerateLoadViaGetter(masm(), type(), receiver(), getter);
   return GetCode(kind(), Code::FAST, name);
 }
@@ -389,7 +442,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     Handle<JSObject> object, Handle<Name> name, Handle<JSFunction> setter) {
-  Frontend(receiver(), name);
+  Frontend(name);
   GenerateStoreViaSetter(masm(), type(), receiver(), setter);
 
   return GetCode(kind(), Code::FAST, name);
@@ -399,7 +452,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization) {
-  Frontend(receiver(), name);
+  Frontend(name);
   Register values[] = {value()};
   GenerateFastApiCall(masm(), call_optimization, handle(object->map()),
                       receiver(), scratch1(), true, 1, values);

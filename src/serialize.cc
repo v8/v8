@@ -365,15 +365,11 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   }
 
   // Accessors
-#define ACCESSOR_INFO_DECLARATION(name) \
-  Add(FUNCTION_ADDR(&Accessors::name##Getter), \
-      ACCESSOR, \
-      Accessors::k##name##Getter, \
-      "Accessors::" #name "Getter"); \
-  Add(FUNCTION_ADDR(&Accessors::name##Setter), \
-      ACCESSOR, \
-      Accessors::k##name##Setter, \
-      "Accessors::" #name "Setter");
+#define ACCESSOR_INFO_DECLARATION(name)                          \
+  Add(FUNCTION_ADDR(&Accessors::name##Getter), ACCESSOR_CODE,    \
+      Accessors::k##name##Getter, "Accessors::" #name "Getter"); \
+  Add(FUNCTION_ADDR(&Accessors::name##Setter), ACCESSOR_CODE,    \
+      Accessors::k##name##Setter, "Accessors::" #name "Setter");
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
 
@@ -758,7 +754,7 @@ class StringTableInsertionKey : public HashTableKey {
     DCHECK(string->IsInternalizedString());
   }
 
-  virtual bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) OVERRIDE {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
     if (hash_ != HashForObject(string)) return false;
@@ -766,9 +762,9 @@ class StringTableInsertionKey : public HashTableKey {
     return string_->SlowEquals(String::cast(string));
   }
 
-  virtual uint32_t Hash() OVERRIDE { return hash_; }
+  uint32_t Hash() OVERRIDE { return hash_; }
 
-  virtual uint32_t HashForObject(Object* key) OVERRIDE {
+  uint32_t HashForObject(Object* key) OVERRIDE {
     return String::cast(key)->Hash();
   }
 

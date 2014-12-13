@@ -39,10 +39,9 @@ struct NodeMatcher {
 
 
 // A pattern matcher for abitrary value constants.
-template <typename T, IrOpcode::Value kMatchOpcode>
+template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
   typedef T ValueType;
-  static const IrOpcode::Value kOpcode = kMatchOpcode;
 
   explicit ValueMatcher(Node* node)
       : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
@@ -69,6 +68,33 @@ struct ValueMatcher : public NodeMatcher {
   T value_;
   bool has_value_;
 };
+
+
+template <>
+inline ValueMatcher<int64_t, IrOpcode::kInt64Constant>::ValueMatcher(Node* node)
+    : NodeMatcher(node), value_(), has_value_(false) {
+  if (opcode() == IrOpcode::kInt32Constant) {
+    value_ = OpParameter<int32_t>(node);
+    has_value_ = true;
+  } else if (opcode() == IrOpcode::kInt64Constant) {
+    value_ = OpParameter<int64_t>(node);
+    has_value_ = true;
+  }
+}
+
+
+template <>
+inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
+    Node* node)
+    : NodeMatcher(node), value_(), has_value_(false) {
+  if (opcode() == IrOpcode::kInt32Constant) {
+    value_ = OpParameter<uint32_t>(node);
+    has_value_ = true;
+  } else if (opcode() == IrOpcode::kInt64Constant) {
+    value_ = OpParameter<uint64_t>(node);
+    has_value_ = true;
+  }
+}
 
 
 // A pattern matcher for integer constants.

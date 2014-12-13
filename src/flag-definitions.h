@@ -406,6 +406,8 @@ DEFINE_BOOL(turbo_reuse_spill_slots, false, "reuse spill slots in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_delay_ssa_decon, false,
             "delay ssa deconstruction in TurboFan register allocator")
+// TODO(dcarney): this is just for debugging, remove eventually.
+DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,

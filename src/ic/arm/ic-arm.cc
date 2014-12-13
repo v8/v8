@@ -283,7 +283,10 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
-  __ IncrementCounter(isolate->counters()->load_miss(), 1, r3, r4);
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(r4, r5, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
+  __ IncrementCounter(isolate->counters()->load_miss(), 1, r4, r5);
 
   LoadIC_PushArgs(masm);
 
@@ -417,7 +420,10 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
-  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, r3, r4);
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(r4, r5, VectorLoadICDescriptor::SlotRegister(),
+                     VectorLoadICDescriptor::VectorRegister()));
+  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, r4, r5);
 
   LoadIC_PushArgs(masm);
 
@@ -818,8 +824,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfNotUniqueNameInstanceType(r4, &slow);
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               key, r3, r4, r5, r6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, key, r3, r4, r5, r6);
   // Cache miss.
   __ b(&miss);
 
@@ -880,8 +886,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
 
-  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
-                                               name, r3, r4, r5, r6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, false, receiver, name, r3, r4, r5, r6);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);

@@ -333,8 +333,19 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadDescriptor::ReceiverRegister();
 
-  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
-                                                          ebx, &miss);
+  if (FLAG_vector_ics) {
+    // With careful management, we won't have to save slot and vector on
+    // the stack. Simply handle the possibly missing case first.
+    // TODO(mvstanton): this code can be more efficient.
+    __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
+           Immediate(isolate()->factory()->the_hole_value()));
+    __ j(equal, &miss);
+    __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
+    __ ret(0);
+  } else {
+    NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
+                                                            ebx, &miss);
+  }
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
@@ -377,10 +388,17 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register index = LoadDescriptor::NameRegister();
-  Register scratch = ebx;
+  Register scratch = edi;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
   Register result = eax;
   DCHECK(!result.is(scratch));
+  DCHECK(!FLAG_vector_ics ||
+         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+          result.is(VectorLoadICDescriptor::SlotRegister())));
+
+  // StringCharAtGenerator doesn't use the result register until it's passed
+  // the different miss possibilities. If it did, we would have a conflict
+  // when FLAG_vector_ics is true.
 
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
@@ -2508,18 +2526,18 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
-  __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ test(result_, Immediate(kIsNotStringMask));
-  __ j(not_zero, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
+    __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ test(result_, Immediate(kIsNotStringMask));
+    __ j(not_zero, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
-  STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfNotSmi(index_, &index_not_smi_);
   __ bind(&got_smi_index_);
 

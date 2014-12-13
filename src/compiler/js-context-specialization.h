@@ -21,7 +21,7 @@ class JSContextSpecializer : public Reducer {
   JSContextSpecializer(CompilationInfo* info, JSGraph* jsgraph, Node* context)
       : info_(info), jsgraph_(jsgraph), context_(context) {}
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) OVERRIDE;
 
   // Visible for unit testing.
   Reduction ReduceJSLoadContext(Node* node);

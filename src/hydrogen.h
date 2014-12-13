@@ -819,7 +819,7 @@ class EffectContext FINAL : public AstContext {
   }
   virtual ~EffectContext();
 
-  virtual void ReturnValue(HValue* value) OVERRIDE;
+  void ReturnValue(HValue* value) OVERRIDE;
   virtual void ReturnInstruction(HInstruction* instr,
                                  BailoutId ast_id) OVERRIDE;
   virtual void ReturnControl(HControlInstruction* instr,
@@ -836,7 +836,7 @@ class ValueContext FINAL : public AstContext {
   }
   virtual ~ValueContext();
 
-  virtual void ReturnValue(HValue* value) OVERRIDE;
+  void ReturnValue(HValue* value) OVERRIDE;
   virtual void ReturnInstruction(HInstruction* instr,
                                  BailoutId ast_id) OVERRIDE;
   virtual void ReturnControl(HControlInstruction* instr,
@@ -863,7 +863,7 @@ class TestContext FINAL : public AstContext {
         if_false_(if_false) {
   }
 
-  virtual void ReturnValue(HValue* value) OVERRIDE;
+  void ReturnValue(HValue* value) OVERRIDE;
   virtual void ReturnInstruction(HInstruction* instr,
                                  BailoutId ast_id) OVERRIDE;
   virtual void ReturnControl(HControlInstruction* instr,
@@ -2108,13 +2108,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   explicit HOptimizedGraphBuilder(CompilationInfo* info);
 
-  virtual bool BuildGraph() OVERRIDE;
+  bool BuildGraph() OVERRIDE;
 
   // Simple accessors.
   BreakAndContinueScope* break_scope() const { return break_scope_; }
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
-  HValue* context() { return environment()->context(); }
+  HValue* context() OVERRIDE { return environment()->context(); }
 
   HOsrBuilder* osr() const { return osr_; }
 
@@ -2126,7 +2126,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   FunctionState* function_state() const { return function_state_; }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
@@ -2285,7 +2285,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HBasicBlock* false_block);
 
   // Visit a list of expressions from left to right, each in a value context.
-  void VisitExpressions(ZoneList<Expression*>* exprs);
+  void VisitExpressions(ZoneList<Expression*>* exprs) OVERRIDE;
   void VisitExpressions(ZoneList<Expression*>* exprs,
                         ArgumentsAllowedFlag flag);
 
@@ -2295,7 +2295,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void PushArgumentsFromEnvironment(int count);
 
   void SetUpScope(Scope* scope);
-  virtual void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
+  void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
 
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)

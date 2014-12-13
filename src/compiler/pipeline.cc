@@ -302,7 +302,7 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
   }
 
 #define DEF_VISIT(type)                                               \
-  virtual void Visit##type(type* node) OVERRIDE {                     \
+  void Visit##type(type* node) OVERRIDE {                             \
     SourcePositionTable::Scope pos(source_positions_,                 \
                                    SourcePosition(node->position())); \
     AstGraphBuilder::Visit##type(node);                               \
@@ -1049,7 +1049,9 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
-  Run<OptimizeMovesPhase>();
+  if (FLAG_turbo_move_optimization) {
+    Run<OptimizeMovesPhase>();
+  }
 
   if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);

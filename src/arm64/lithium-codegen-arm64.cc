@@ -2042,23 +2042,33 @@ void LCodeGen::DoTailCallThroughMegamorphicCache(
   DCHECK(name.is(LoadDescriptor::NameRegister()));
   DCHECK(receiver.is(x1));
   DCHECK(name.is(x2));
-
-  Register scratch = x3;
-  Register extra = x4;
-  Register extra2 = x5;
-  Register extra3 = x6;
+  Register scratch = x4;
+  Register extra = x5;
+  Register extra2 = x6;
+  Register extra3 = x7;
+  DCHECK(!FLAG_vector_ics ||
+         !AreAliased(ToRegister(instr->slot()), ToRegister(instr->vector()),
+                     scratch, extra, extra2, extra3));
 
   // Important for the tail-call.
   bool must_teardown_frame = NeedsEagerFrame();
 
-  // The probe will tail call to a handler if found.
-  isolate()->stub_cache()->GenerateProbe(masm(), instr->hydrogen()->flags(),
-                                         must_teardown_frame, receiver, name,
-                                         scratch, extra, extra2, extra3);
+  if (!instr->hydrogen()->is_just_miss()) {
+    DCHECK(!instr->hydrogen()->is_keyed_load());
+
+    // The probe will tail call to a handler if found.
+    isolate()->stub_cache()->GenerateProbe(
+        masm(), Code::LOAD_IC, instr->hydrogen()->flags(), must_teardown_frame,
+        receiver, name, scratch, extra, extra2, extra3);
+  }
 
   // Tail call to miss if we ended up here.
   if (must_teardown_frame) __ LeaveFrame(StackFrame::INTERNAL);
-  LoadIC::GenerateMiss(masm());
+  if (instr->hydrogen()->is_keyed_load()) {
+    KeyedLoadIC::GenerateMiss(masm());
+  } else {
+    LoadIC::GenerateMiss(masm());
+  }
 }
 
 
@@ -2066,25 +2076,44 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(ToRegister(instr->result()).Is(x0));
 
-  LPointerMap* pointers = instr->pointer_map();
-  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+  if (instr->hydrogen()->IsTailCall()) {
+    if (NeedsEagerFrame()) __ LeaveFrame(StackFrame::INTERNAL);
 
-  if (instr->target()->IsConstantOperand()) {
-    LConstantOperand* target = LConstantOperand::cast(instr->target());
-    Handle<Code> code = Handle<Code>::cast(ToHandle(target));
-    generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
-    // TODO(all): on ARM we use a call descriptor to specify a storage mode
-    // but on ARM64 we only have one storage mode so it isn't necessary. Check
-    // this understanding is correct.
-    __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None());
+    if (instr->target()->IsConstantOperand()) {
+      LConstantOperand* target = LConstantOperand::cast(instr->target());
+      Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+      // TODO(all): on ARM we use a call descriptor to specify a storage mode
+      // but on ARM64 we only have one storage mode so it isn't necessary. Check
+      // this understanding is correct.
+      __ Jump(code, RelocInfo::CODE_TARGET);
+    } else {
+      DCHECK(instr->target()->IsRegister());
+      Register target = ToRegister(instr->target());
+      __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+      __ Br(target);
+    }
   } else {
-    DCHECK(instr->target()->IsRegister());
-    Register target = ToRegister(instr->target());
-    generator.BeforeCall(__ CallSize(target));
-    __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
-    __ Call(target);
+    LPointerMap* pointers = instr->pointer_map();
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+
+    if (instr->target()->IsConstantOperand()) {
+      LConstantOperand* target = LConstantOperand::cast(instr->target());
+      Handle<Code> code = Handle<Code>::cast(ToHandle(target));
+      generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
+      // TODO(all): on ARM we use a call descriptor to specify a storage mode
+      // but on ARM64 we only have one storage mode so it isn't necessary. Check
+      // this understanding is correct.
+      __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None());
+    } else {
+      DCHECK(instr->target()->IsRegister());
+      Register target = ToRegister(instr->target());
+      generator.BeforeCall(__ CallSize(target));
+      __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+      __ Call(target);
+    }
+    generator.AfterCall();
   }
-  generator.AfterCall();
+
   after_push_argument_ = false;
 }
 
@@ -3367,13 +3396,17 @@ template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
   Register vector_register = ToRegister(instr->temp_vector());
+  Register slot_register = VectorLoadICDescriptor::SlotRegister();
   DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(slot_register.is(x0));
+
+  AllowDeferredHandleDereference vector_structure_check;
   Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
   __ Mov(vector_register, vector);
   // No need to allocate this register.
-  DCHECK(VectorLoadICDescriptor::SlotRegister().is(x0));
-  int index = vector->GetIndex(instr->hydrogen()->slot());
-  __ Mov(VectorLoadICDescriptor::SlotRegister(), Smi::FromInt(index));
+  FeedbackVectorICSlot slot = instr->hydrogen()->slot();
+  int index = vector->GetIndex(slot);
+  __ Mov(slot_register, Smi::FromInt(index));
 }
 
 
@@ -5986,10 +6019,11 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
           object_(object),
           index_(index) {
     }
-    virtual void Generate() OVERRIDE {
+    void Generate() OVERRIDE {
       codegen()->DoDeferredLoadMutableDouble(instr_, result_, object_, index_);
     }
-    virtual LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() OVERRIDE { return instr_; }
+
    private:
     LLoadFieldByIndex* instr_;
     Register result_;

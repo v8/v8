@@ -665,8 +665,6 @@ void IC::ConfigureVectorState(IC::State new_state) {
       nexus->ConfigureGeneric();
     } else if (new_state == PREMONOMORPHIC) {
       nexus->ConfigurePremonomorphic();
-    } else if (new_state == MEGAMORPHIC) {
-      nexus->ConfigureMegamorphic();
     } else {
       UNREACHABLE();
     }
@@ -971,7 +969,8 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
         CopyICToMegamorphicCache(name);
       }
       if (UseVector()) {
-        ConfigureVectorState(MEGAMORPHIC);
+        ConfigureVectorState(kind() == Code::KEYED_LOAD_IC ? GENERIC
+                                                           : MEGAMORPHIC);
       } else {
         set_target(*megamorphic_stub());
       }
@@ -2317,10 +2316,23 @@ RUNTIME_FUNCTION(LoadIC_Miss) {
     Handle<Smi> slot = args.at<Smi>(2);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
     FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
-    LoadICNexus nexus(vector, vector_slot);
-    LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
+    // LoadIC miss handler if the handler misses. Since the vector Nexus is
+    // set up outside the IC, handle that here.
+    if (vector->GetKind(vector_slot) == Code::LOAD_IC) {
+      LoadICNexus nexus(vector, vector_slot);
+      LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Load(receiver, key));
+    } else {
+      DCHECK(vector->GetKind(vector_slot) == Code::KEYED_LOAD_IC);
+      KeyedLoadICNexus nexus(vector, vector_slot);
+      KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Load(receiver, key));
+    }
   } else {
     DCHECK(args.length() == 2);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -2962,10 +2974,23 @@ RUNTIME_FUNCTION(LoadIC_MissFromStubFailure) {
     Handle<Smi> slot = args.at<Smi>(2);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
     FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
-    LoadICNexus nexus(vector, vector_slot);
-    LoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
+    // LoadIC miss handler if the handler misses. Since the vector Nexus is
+    // set up outside the IC, handle that here.
+    if (vector->GetKind(vector_slot) == Code::LOAD_IC) {
+      LoadICNexus nexus(vector, vector_slot);
+      LoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Load(receiver, key));
+    } else {
+      DCHECK(vector->GetKind(vector_slot) == Code::KEYED_LOAD_IC);
+      KeyedLoadICNexus nexus(vector, vector_slot);
+      KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Load(receiver, key));
+    }
   } else {
     DCHECK(args.length() == 2);
     LoadIC ic(IC::EXTRA_CALL_FRAME, isolate);

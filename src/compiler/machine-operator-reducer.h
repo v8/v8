@@ -24,7 +24,7 @@ class MachineOperatorReducer FINAL : public Reducer {
   explicit MachineOperatorReducer(JSGraph* jsgraph);
   ~MachineOperatorReducer();
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   Node* Float32Constant(volatile float value);
