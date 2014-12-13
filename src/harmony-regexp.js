@@ -28,7 +28,7 @@ function ExtendRegExpPrototype() {
   %CheckIsBootstrapping();
 
   %DefineAccessorPropertyUnchecked($RegExp.prototype, 'flags', RegExpGetFlags,
-                                   null, DONT_ENUM | DONT_DELETE);
+                                   null, DONT_ENUM);
   %SetNativeFlag(RegExpGetFlags);
 }
 

@@ -4,7 +4,6 @@
 
 // Flags: --harmony-regexps
 
-delete RegExp.prototype.flags;
 RegExp.prototype.flags = 'setter should be undefined';
 
 assertEquals('', RegExp('').flags);
@@ -18,7 +17,7 @@ assertEquals('gimy', /foo/ymig.flags);
 assertThrows(function() { RegExp('', 'yumig').flags; }, SyntaxError);
 
 var descriptor = Object.getOwnPropertyDescriptor(RegExp.prototype, 'flags');
-assertFalse(descriptor.configurable);
+assertTrue(descriptor.configurable);
 assertFalse(descriptor.enumerable);
 assertInstanceof(descriptor.get, Function);
 assertEquals(undefined, descriptor.set);
@@ -38,3 +37,25 @@ assertThrows(function() { testGenericFlags(true); }, TypeError);
 assertThrows(function() { testGenericFlags(false); }, TypeError);
 assertThrows(function() { testGenericFlags(''); }, TypeError);
 assertThrows(function() { testGenericFlags(42); }, TypeError);
+
+var counter = 0;
+var map = {};
+var object = {
+  get global() {
+    map.g = counter++;
+  },
+  get ignoreCase() {
+    map.i = counter++;
+  },
+  get multiline() {
+    map.m = counter++;
+  },
+  get unicode() {
+    map.u = counter++;
+  },
+  get sticky() {
+    map.y = counter++;
+  }
+};
+testGenericFlags(object);
+assertEquals({ g: 0, i: 1, m: 2, u: 3, y: 4 }, map);
