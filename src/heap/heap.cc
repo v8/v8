@@ -5393,8 +5393,6 @@ bool Heap::SetUp() {
 
   mark_compact_collector()->SetUp();
 
-  if (!FLAG_inline_new) DisableInlineAllocation();
-
   return true;
 }
 
