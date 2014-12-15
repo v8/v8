@@ -3379,20 +3379,43 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // The ToNumber stub takes one argument in a0.
-  Label check_heap_number, call_builtin;
-  __ JumpIfNotSmi(a0, &check_heap_number);
+  Label not_smi;
+  __ JumpIfNotSmi(a0, &not_smi);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
+  __ bind(&not_smi);
 
-  __ bind(&check_heap_number);
+  Label not_heap_number;
   __ ld(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-  __ Branch(&call_builtin, ne, a1, Operand(at));
+  __ lbu(a1, FieldMemOperand(a1, Map::kInstanceTypeOffset));
+  // a0: object
+  // a1: instance type.
+  __ Branch(&not_heap_number, ne, a1, Operand(HEAP_NUMBER_TYPE));
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
+  __ bind(&not_heap_number);
 
-  __ bind(&call_builtin);
-  __ push(a0);
+  Label not_string, slow_string;
+  __ Branch(&not_string, hs, a1, Operand(FIRST_NONSTRING_TYPE));
+  // Check if string has a cached array index.
+  __ ld(a2, FieldMemOperand(a0, String::kHashFieldOffset));
+  __ And(at, a2, Operand(String::kContainsCachedArrayIndexMask));
+  __ Branch(&slow_string, ne, at, Operand(zero_reg));
+  __ IndexFromHash(a2, a0);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);
+  __ bind(&slow_string);
+  __ push(a0);  // Push argument.
+  __ TailCallRuntime(Runtime::kStringToNumber, 1, 1);
+  __ bind(&not_string);
+
+  Label not_oddball;
+  __ Branch(&not_oddball, ne, a1, Operand(ODDBALL_TYPE));
+  __ Ret(USE_DELAY_SLOT);
+  __ ld(v0, FieldMemOperand(a0, Oddball::kToNumberOffset));
+  __ bind(&not_oddball);
+
+  __ push(a0);  // Push argument.
   __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
