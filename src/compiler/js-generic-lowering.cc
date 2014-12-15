@@ -232,12 +232,6 @@ void JSGenericLowering::LowerJSToBoolean(Node* node) {
 
 void JSGenericLowering::LowerJSToNumber(Node* node) {
   Callable callable = CodeFactory::ToNumber(isolate());
-  // TODO(mstarzinger): Embedding the context this way prevents sharing of code
-  // across native contexts.
-  if (!info_context_constant_.is_set()) {
-    info_context_constant_.set(jsgraph()->HeapConstant(info()->context()));
-  }
-  node->ReplaceInput(1, info_context_constant_.get());
   ReplaceWithStubCall(node, callable, FlagsForNode(node));
 }
 
