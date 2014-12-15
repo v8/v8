@@ -18,7 +18,6 @@ namespace compiler {
 // TODO(turbofan): js-typed-lowering improvements possible
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
-// - relax effects for ToNumber(mixed)
 
 
 // Relax the effects of {node} by immediately replacing effect uses of {node}
@@ -731,6 +730,9 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
         node->ReplaceInput(i, value);
       }
       node->TrimInputCount(input_count);
+    } else {
+      // JSToNumber(x:plain-primitive,context) => JSToNumber(x,no-context)
+      node->ReplaceInput(1, jsgraph()->NoContextConstant());
     }
     return Changed(node);
   }
