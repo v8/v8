@@ -476,7 +476,6 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
 
 void AstNumberingVisitor::VisitObjectLiteralProperty(
     ObjectLiteralProperty* node) {
-  if (node->is_computed_name()) DisableTurbofan(kComputedPropertyName);
   Visit(node->key());
   Visit(node->value());
 }

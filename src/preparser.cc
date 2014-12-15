@@ -990,10 +990,8 @@ PreParserExpression PreParser::ParseClassLiteral(
     if (Check(Token::SEMICOLON)) continue;
     const bool in_class = true;
     const bool is_static = false;
-    bool is_computed_name = false;  // Classes do not care about computed
-                                    // property names here.
-    ParsePropertyDefinition(NULL, in_class, is_static, &is_computed_name,
-                            &has_seen_constructor, CHECK_OK);
+    ParsePropertyDefinition(NULL, in_class, is_static, &has_seen_constructor,
+                            CHECK_OK);
   }
 
   Expect(Token::RBRACE, CHECK_OK);
