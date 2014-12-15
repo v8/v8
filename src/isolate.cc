@@ -2148,6 +2148,8 @@ bool Isolate::Init(Deserializer* des) {
 
   initialized_from_snapshot_ = (des != NULL);
 
+  if (!FLAG_inline_new) heap_.DisableInlineAllocation();
+
   return true;
 }
 
