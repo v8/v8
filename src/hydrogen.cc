@@ -7215,7 +7215,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   bool monomorphic = ComputeReceiverTypes(expr, obj, &types, zone());
 
   bool force_generic = false;
-  if (access_type == STORE && expr->GetKeyType() == PROPERTY) {
+  if (expr->GetKeyType() == PROPERTY) {
     // Non-Generic accesses assume that elements are being accessed, and will
     // deopt for non-index keys, which the IC knows will occur.
     // TODO(jkummerow): Consider adding proper support for property accesses.

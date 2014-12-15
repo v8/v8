@@ -63,6 +63,9 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
         KeyedStoreIC::IcCheckTypeField::update(extra_ic_state, PROPERTY);
     DCHECK(STANDARD_STORE ==
            KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
+  } else if (kind == Code::KEYED_LOAD_IC) {
+    extra_ic_state = KeyedLoadIC::IcCheckTypeField::update(extra_ic_state,
+                                                           PROPERTY);
   }
 
   Handle<Code> ic;
@@ -86,6 +89,7 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
     Handle<Map> receiver_map) {
   Isolate* isolate = receiver_map->GetIsolate();
+  DCHECK(KeyedLoadIC::GetKeyType(kNoExtraICState) == ELEMENT);
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
   Handle<Name> name = isolate->factory()->KeyedLoadMonomorphic_string();
 
@@ -255,6 +259,7 @@ Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
     MapHandleList* receiver_maps) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
+  DCHECK(KeyedLoadIC::GetKeyType(kNoExtraICState) == ELEMENT);
   Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
   Handle<PolymorphicCodeCache> cache =
       isolate->factory()->polymorphic_code_cache();
