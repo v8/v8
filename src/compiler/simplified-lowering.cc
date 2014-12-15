@@ -70,7 +70,6 @@ class RepresentationSelector {
         info_(zone->NewArray<NodeInfo>(count_)),
         nodes_(zone),
         replacements_(zone),
-        contains_js_nodes_(false),
         phase_(PROPAGATE),
         changer_(changer),
         queue_(zone) {
@@ -515,7 +514,6 @@ class RepresentationSelector {
 #define DEFINE_JS_CASE(x) case IrOpcode::k##x:
         JS_OP_LIST(DEFINE_JS_CASE)
 #undef DEFINE_JS_CASE
-        contains_js_nodes_ = true;
         VisitInputs(node);
         return SetOutput(node, kRepTagged);
 
@@ -1032,7 +1030,6 @@ class RepresentationSelector {
   NodeInfo* info_;                  // node id -> usage information
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering
-  bool contains_js_nodes_;          // {true} if a JS operator was seen
   Phase phase_;                     // current phase of algorithm
   RepresentationChanger* changer_;  // for inserting representation changes
   ZoneQueue<Node*> queue_;          // queue for traversing the graph
