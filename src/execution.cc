@@ -545,6 +545,12 @@ MaybeHandle<Object> Execution::ToInt32(
 }
 
 
+MaybeHandle<Object> Execution::ToLength(
+    Isolate* isolate, Handle<Object> obj) {
+  RETURN_NATIVE_CALL(to_length, { obj });
+}
+
+
 MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
   Handle<Object> time_obj = isolate->factory()->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, { time_obj });

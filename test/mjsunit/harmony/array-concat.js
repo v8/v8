@@ -40,6 +40,110 @@
 })();
 
 
+(function testConcatArrayLikeStringLength() {
+  "use strict";
+  var obj = {
+    "length": "6",
+    "1": "A",
+    "3": "B",
+    "5": "C"
+  };
+  obj[Symbol.isConcatSpreadable] = true;
+  var obj2 = { length: 3, "0": "0", "1": "1", "2": "2" };
+  var arr = ["X", "Y", "Z"];
+  assertEquals([void 0, "A", void 0, "B", void 0, "C",
+               { "length": 3, "0": "0", "1": "1", "2": "2" },
+               "X", "Y", "Z"], Array.prototype.concat.call(obj, obj2, arr));
+})();
+
+
+(function testConcatArrayLikeNegativeLength() {
+  "use strict";
+  var obj = {
+    "length": -6,
+    "1": "A",
+    "3": "B",
+    "5": "C"
+  };
+  obj[Symbol.isConcatSpreadable] = true;
+  assertEquals([], [].concat(obj));
+  obj.length = -6.7;
+  assertEquals([], [].concat(obj));
+  obj.length = "-6";
+  assertEquals([], [].concat(obj));
+})();
+
+
+(function testConcatArrayLikeToLengthThrows() {
+  "use strict";
+  var obj = {
+    "length": {valueOf: null, toString: null},
+    "1": "A",
+    "3": "B",
+    "5": "C"
+  };
+  obj[Symbol.isConcatSpreadable] = true;
+  var obj2 = { length: 3, "0": "0", "1": "1", "2": "2" };
+  var arr = ["X", "Y", "Z"];
+  assertThrows(function() {
+    Array.prototype.concat.call(obj, obj2, arr);
+  }, TypeError);
+})();
+
+
+(function testConcatArrayLikePrimitiveNonNumberLength() {
+  "use strict";
+  var obj = {
+    "1": "A",
+    "3": "B",
+    "5": "C"
+  };
+  obj[Symbol.isConcatSpreadable] = true;
+  obj.length = {toString: function() { return "SIX"; }, valueOf: null };
+  assertEquals([], [].concat(obj));
+  obj.length = {toString: null, valueOf: function() { return "SIX"; } };
+  assertEquals([], [].concat(obj));
+})();
+
+
+(function testConcatArrayLikeLengthToStringThrows() {
+  "use strict";
+  function MyError() {}
+  var obj = {
+    "length": { toString: function() {
+        throw new MyError();
+      }, valueOf: null
+    },
+    "1": "A",
+    "3": "B",
+    "5": "C"
+  };
+  obj[Symbol.isConcatSpreadable] = true;
+  assertThrows(function() {
+    [].concat(obj);
+  }, MyError);
+})();
+
+
+(function testConcatArrayLikeLengthValueOfThrows() {
+  "use strict";
+  function MyError() {}
+  var obj = {
+    "length": { valueOf: function() {
+      throw new MyError();
+    }, toString: null
+  },
+  "1": "A",
+  "3": "B",
+  "5": "C"
+};
+obj[Symbol.isConcatSpreadable] = true;
+assertThrows(function() {
+  [].concat(obj);
+}, MyError);
+})();
+
+
 (function testConcatHoleyArray() {
   "use strict";
   var arr = [];

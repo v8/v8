@@ -98,6 +98,7 @@ enum BindingFlags {
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                          \
   V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun)                            \
   V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun)                              \
+  V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                            \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun)                        \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun)          \
@@ -416,6 +417,7 @@ class Context: public FixedArray {
     ARRAY_VALUES_ITERATOR_INDEX,
     SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,
+    TO_LENGTH_FUN_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
