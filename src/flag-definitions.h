@@ -184,17 +184,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                 \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_tostring, "harmony toString")                                 \
   V(harmony_templates, "harmony template literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                               \
-  V(harmony_numeric_literals, "harmony numeric literals") \
-  V(harmony_strings, "harmony string methods")            \
-  V(harmony_scoping, "harmony block scoping")
+#define HARMONY_SHIPPING(V)                                               \
+  V(harmony_numeric_literals, "harmony numeric literals")                 \
+  V(harmony_strings, "harmony string methods")                            \
+  V(harmony_scoping, "harmony block scoping")                             \
+  V(harmony_classes,                                                      \
+    "harmony classes (implies block scoping & object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
