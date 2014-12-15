@@ -87,6 +87,7 @@ class ParserBase : public Traits {
         allow_harmony_arrow_functions_(false),
         allow_harmony_object_literals_(false),
         allow_harmony_sloppy_(false),
+        allow_harmony_computed_property_names_(false),
         zone_(zone) {}
 
   // Getters that indicate whether certain syntactical constructs are
@@ -108,6 +109,9 @@ class ParserBase : public Traits {
   bool allow_harmony_templates() const { return scanner()->HarmonyTemplates(); }
   bool allow_harmony_sloppy() const { return allow_harmony_sloppy_; }
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
+  bool allow_harmony_computed_property_names() const {
+    return allow_harmony_computed_property_names_;
+  }
 
   // Setters that determine whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -139,6 +143,9 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_unicode(bool allow) {
     scanner()->SetHarmonyUnicode(allow);
+  }
+  void set_allow_harmony_computed_property_names(bool allow) {
+    allow_harmony_computed_property_names_ = allow;
   }
 
  protected:
@@ -490,11 +497,13 @@ class ParserBase : public Traits {
   ExpressionT ParsePrimaryExpression(bool* ok);
   ExpressionT ParseExpression(bool accept_IN, bool* ok);
   ExpressionT ParseArrayLiteral(bool* ok);
-  IdentifierT ParsePropertyName(bool* is_get, bool* is_set, bool* is_static,
+  ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
+                                bool* is_static, bool* is_computed_name,
                                 bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(ObjectLiteralChecker* checker,
                                                  bool in_class, bool is_static,
+                                                 bool* is_computed_name,
                                                  bool* has_seen_constructor,
                                                  bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
@@ -598,6 +607,7 @@ class ParserBase : public Traits {
   bool allow_harmony_arrow_functions_;
   bool allow_harmony_object_literals_;
   bool allow_harmony_sloppy_;
+  bool allow_harmony_computed_property_names_;
 
   typename Traits::Type::Zone* zone_;  // Only used by Parser.
 };
@@ -1031,13 +1041,16 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteralProperty(bool is_getter,
+                                               PreParserExpression key,
                                                PreParserExpression value,
-                                               int pos, bool is_static) {
+                                               int pos, bool is_static,
+                                               bool is_computed_name) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
                                                PreParserExpression value,
-                                               bool is_static) {
+                                               bool is_static,
+                                               bool is_computed_name) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
@@ -1223,11 +1236,13 @@ class PreParserTraits {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
+
   static void PushPropertyName(FuncNameInferrer* fni,
                                PreParserExpression expression) {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
+
   static void InferFunctionName(FuncNameInferrer* fni,
                                 PreParserExpression expression) {
     // PreParser should not use FuncNameInferrer.
@@ -1987,24 +2002,55 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 
 template <class Traits>
-typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParsePropertyName(
-    bool* is_get, bool* is_set, bool* is_static, bool* ok) {
-  Token::Value next = peek();
-  switch (next) {
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
+    IdentifierT* name, bool* is_get, bool* is_set, bool* is_static,
+    bool* is_computed_name, bool* ok) {
+  Token::Value token = peek();
+  int pos = peek_position();
+
+  // For non computed property names we normalize the name a bit:
+  //
+  //   "12" -> 12
+  //   12.3 -> "12.3"
+  //   12.30 -> "12.3"
+  //   identifier -> "identifier"
+  //
+  // This is important because we use the property name as a key in a hash
+  // table when we compute constant properties.
+  switch (token) {
     case Token::STRING:
       Consume(Token::STRING);
-      return this->GetSymbol(scanner_);
+      *name = this->GetSymbol(scanner());
+      break;
+
     case Token::NUMBER:
       Consume(Token::NUMBER);
-      return this->GetNumberAsSymbol(scanner_);
+      *name = this->GetNumberAsSymbol(scanner());
+      break;
+
+    case Token::LBRACK:
+      if (allow_harmony_computed_property_names_) {
+        *is_computed_name = true;
+        Consume(Token::LBRACK);
+        ExpressionT expression = ParseAssignmentExpression(true, CHECK_OK);
+        Expect(Token::RBRACK, CHECK_OK);
+        return expression;
+      }
+
+    // Fall through.
     case Token::STATIC:
       *is_static = true;
-      // Fall through.
+
+    // Fall through.
     default:
-      return ParseIdentifierNameOrGetOrSet(is_get, is_set, ok);
+      *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
+      break;
   }
-  UNREACHABLE();
-  return this->EmptyIdentifier();
+
+  uint32_t index;
+  return this->IsArrayIndex(*name, &index)
+             ? factory()->NewNumberLiteral(index, pos)
+             : factory()->NewStringLiteral(*name, pos);
 }
 
 
@@ -2012,9 +2058,11 @@ template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
                                      bool in_class, bool is_static,
+                                     bool* is_computed_name,
                                      bool* has_seen_constructor, bool* ok) {
   DCHECK(!in_class || is_static || has_seen_constructor != NULL);
   ExpressionT value = this->EmptyExpression();
+  IdentifierT name = this->EmptyIdentifier();
   bool is_get = false;
   bool is_set = false;
   bool name_is_static = false;
@@ -2022,15 +2070,17 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   Token::Value name_token = peek();
   int next_pos = peek_position();
-  IdentifierT name =
-      ParsePropertyName(&is_get, &is_set, &name_is_static,
-                        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+  ExpressionT name_expression = ParsePropertyName(
+      &name, &is_get, &is_set, &name_is_static, is_computed_name,
+      CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-  if (fni_ != NULL) this->PushLiteralName(fni_, name);
+  if (fni_ != NULL && !*is_computed_name) {
+    this->PushLiteralName(fni_, name);
+  }
 
   if (!in_class && !is_generator && peek() == Token::COLON) {
     // PropertyDefinition : PropertyName ':' AssignmentExpression
-    if (checker != NULL) {
+    if (!*is_computed_name && checker != NULL) {
       checker->CheckProperty(name_token, kValueProperty,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
@@ -2068,7 +2118,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       kind = FunctionKind::kNormalFunction;
     }
 
-    if (checker != NULL) {
+    if (!*is_computed_name && checker != NULL) {
       checker->CheckProperty(name_token, kValueProperty,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
@@ -2082,14 +2132,18 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   } else if (in_class && name_is_static && !is_static) {
     // static MethodDefinition
-    return ParsePropertyDefinition(checker, true, true, NULL, ok);
+    return ParsePropertyDefinition(checker, true, true, is_computed_name, NULL,
+                                   ok);
 
   } else if (is_get || is_set) {
     // Accessor
+    name = this->EmptyIdentifier();
     bool dont_care = false;
     name_token = peek();
-    name = ParsePropertyName(&dont_care, &dont_care, &dont_care,
-                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+
+    name_expression = ParsePropertyName(
+        &name, &dont_care, &dont_care, &dont_care, is_computed_name,
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Validate the property.
     if (is_static && this->IsPrototype(name)) {
@@ -2101,7 +2155,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     }
-    if (checker != NULL) {
+    if (!*is_computed_name && checker != NULL) {
       checker->CheckProperty(name_token,
                              is_get ? kGetterProperty : kSetterProperty,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -2114,8 +2168,17 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
         FunctionLiteral::ANONYMOUS_EXPRESSION,
         is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-    return factory()->NewObjectLiteralProperty(is_get, value, next_pos,
-                                               is_static);
+
+    // Make sure the name expression is a string since we need a Name for
+    // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
+    // statically we can skip the extra runtime check.
+    if (!*is_computed_name) {
+      name_expression =
+          factory()->NewStringLiteral(name, name_expression->position());
+    }
+
+    return factory()->NewObjectLiteralProperty(
+        is_get, name_expression, value, next_pos, is_static, *is_computed_name);
 
   } else if (!in_class && allow_harmony_object_literals_ &&
              Token::IsIdentifier(name_token, strict_mode(),
@@ -2129,12 +2192,8 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     return this->EmptyObjectLiteralProperty();
   }
 
-  uint32_t index;
-  LiteralT key = this->IsArrayIndex(name, &index)
-                     ? factory()->NewNumberLiteral(index, next_pos)
-                     : factory()->NewStringLiteral(name, next_pos);
-
-  return factory()->NewObjectLiteralProperty(key, value, is_static);
+  return factory()->NewObjectLiteralProperty(name_expression, value, is_static,
+                                             *is_computed_name);
 }
 
 
@@ -2149,6 +2208,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
       this->NewPropertyList(4, zone_);
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
+  bool has_computed_names = false;
 
   ObjectLiteralChecker checker(this, strict_mode());
 
@@ -2159,8 +2219,13 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
 
     const bool in_class = false;
     const bool is_static = false;
+    bool is_computed_name = false;
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        &checker, in_class, is_static, NULL, CHECK_OK);
+        &checker, in_class, is_static, &is_computed_name, NULL, CHECK_OK);
+
+    if (is_computed_name) {
+      has_computed_names = true;
+    }
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -2169,7 +2234,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
                                                           &has_function);
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
-    if (this->IsBoilerplateProperty(property)) {
+    if (!has_computed_names && this->IsBoilerplateProperty(property)) {
       number_of_boilerplate_properties++;
     }
     properties->Add(property, zone());

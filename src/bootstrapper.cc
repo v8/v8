@@ -1592,6 +1592,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_tostring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_templates)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1622,6 +1623,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_templates)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2176,6 +2178,7 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-templates.js", NULL};
   static const char* harmony_sloppy_natives[] = {NULL};
   static const char* harmony_unicode_natives[] = {NULL};
+  static const char* harmony_computed_property_names_natives[] = {NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

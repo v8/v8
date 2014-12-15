@@ -1358,7 +1358,8 @@ enum ParserFlag {
   kAllowHarmonyObjectLiterals,
   kAllowHarmonyTemplates,
   kAllowHarmonySloppy,
-  kAllowHarmonyUnicode
+  kAllowHarmonyUnicode,
+  kAllowHarmonyComputedPropertyNames
 };
 
 
@@ -1385,6 +1386,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_templates(flags.Contains(kAllowHarmonyTemplates));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
+  parser->set_allow_harmony_computed_property_names(
+      flags.Contains(kAllowHarmonyComputedPropertyNames));
 }
 
 
@@ -4581,4 +4584,62 @@ TEST(LexicalScopingSloppyMode) {
   RunParserSyncTest(context_data, good_data, kSuccess, NULL, 0,
                     always_true_flags, arraysize(always_true_flags),
                     always_false_flags, arraysize(always_false_flags));
+}
+
+
+TEST(ComputedPropertyName) {
+  const char* context_data[][2] = {{"({[", "]: 1});"},
+                                   {"({get [", "]() {}});"},
+                                   {"({set [", "](_) {}});"},
+                                   {"({[", "]() {}});"},
+                                   {"({*[", "]() {}});"},
+                                   {"(class {get [", "]() {}});"},
+                                   {"(class {set [", "](_) {}});"},
+                                   {"(class {[", "]() {}});"},
+                                   {"(class {*[", "]() {}});"},
+                                   {NULL, NULL}};
+  const char* error_data[] = {
+    "1, 2",
+    "var name",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses,
+    kAllowHarmonyComputedPropertyNames,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy,
+  };
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  const char* name_data[] = {
+    "1",
+    "1 + 2",
+    "'name'",
+    "\"name\"",
+    "[]",
+    "{}",
+    NULL};
+
+  RunParserSyncTest(context_data, name_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ComputedPropertyNameShorthandError) {
+  const char* context_data[][2] = {{"({", "});"},
+                                   {NULL, NULL}};
+  const char* error_data[] = {
+    "a: 1, [2]",
+    "[1], a: 1",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses,
+    kAllowHarmonyComputedPropertyNames,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy,
+  };
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
