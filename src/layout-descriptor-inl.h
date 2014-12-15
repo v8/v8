@@ -53,7 +53,7 @@ LayoutDescriptor* LayoutDescriptor::FastPointerLayout() {
 
 
 bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
-                                  uint32_t* layout_mask) {
+                                  int* layout_bit_index) {
   if (static_cast<unsigned>(field_index) >= static_cast<unsigned>(capacity())) {
     return false;
   }
@@ -62,20 +62,20 @@ bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
   CHECK((!IsSmi() && (*layout_word_index < length())) ||
         (IsSmi() && (*layout_word_index < 1)));
 
-  int layout_bit_index = field_index % kNumberOfBits;
-  *layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
+  *layout_bit_index = field_index % kNumberOfBits;
   return true;
 }
 
 
 LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
   int layout_word_index;
-  uint32_t layout_mask;
+  int layout_bit_index;
 
-  if (!GetIndexes(field_index, &layout_word_index, &layout_mask)) {
+  if (!GetIndexes(field_index, &layout_word_index, &layout_bit_index)) {
     CHECK(false);
     return this;
   }
+  uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   if (IsSlowLayout()) {
     uint32_t value = get_scalar(layout_word_index);
@@ -102,12 +102,13 @@ bool LayoutDescriptor::IsTagged(int field_index) {
   if (IsFastPointerLayout()) return true;
 
   int layout_word_index;
-  uint32_t layout_mask;
+  int layout_bit_index;
 
-  if (!GetIndexes(field_index, &layout_word_index, &layout_mask)) {
+  if (!GetIndexes(field_index, &layout_word_index, &layout_bit_index)) {
     // All bits after Out of bounds queries
     return true;
   }
+  uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   if (IsSlowLayout()) {
     uint32_t value = get_scalar(layout_word_index);
@@ -155,7 +156,7 @@ LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
 
 // InobjectPropertiesHelper is a helper class for querying whether inobject
 // property at offset is Double or not.
-InobjectPropertiesHelper::InobjectPropertiesHelper(Map* map)
+LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
     : all_fields_tagged_(true),
       header_size_(0),
       layout_descriptor_(LayoutDescriptor::FastPointerLayout()) {
@@ -175,7 +176,7 @@ InobjectPropertiesHelper::InobjectPropertiesHelper(Map* map)
 }
 
 
-bool InobjectPropertiesHelper::IsTagged(int offset_in_bytes) {
+bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
   DCHECK(IsAligned(offset_in_bytes, kPointerSize));
   if (all_fields_tagged_) return true;
   // Object headers do not contain non-tagged fields.

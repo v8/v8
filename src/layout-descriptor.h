@@ -26,6 +26,14 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
  public:
   V8_INLINE bool IsTagged(int field_index);
 
+  // Queries the contiguous region of fields that are either tagged or not.
+  // Returns true if the given field is tagged or false otherwise and writes
+  // the length of the contiguous region to |out_sequence_length|.
+  // If the sequence is longer than |max_sequence_length| then
+  // |out_sequence_length| is set to |max_sequence_length|.
+  bool IsTagged(int field_index, int max_sequence_length,
+                int* out_sequence_length);
+
   // Returns true if this is a layout of the object having only tagged fields.
   V8_INLINE bool IsFastPointerLayout();
   V8_INLINE static bool IsFastPointerLayout(Object* layout_descriptor);
@@ -76,10 +84,8 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   // Capacity of layout descriptors in bits.
   V8_INLINE int capacity();
 
-  V8_INLINE LayoutDescriptor* SetTaggedForTesting(int field_index,
-                                                  bool tagged) {
-    return SetTagged(field_index, tagged);
-  }
+  static Handle<LayoutDescriptor> NewForTesting(Isolate* isolate, int length);
+  LayoutDescriptor* SetTaggedForTesting(int field_index, bool tagged);
 
  private:
   static const int kNumberOfBits = 32;
@@ -96,7 +102,7 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
 
   // Returns false if requested field_index is out of bounds.
   V8_INLINE bool GetIndexes(int field_index, int* layout_word_index,
-                            uint32_t* layout_mask);
+                            int* layout_bit_index);
 
   V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetRawData(int field_index) {
     return SetTagged(field_index, false);
@@ -107,14 +113,22 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
 };
 
 
-// InobjectPropertiesHelper is a helper class for querying layout descriptor
+// LayoutDescriptorHelper is a helper class for querying layout descriptor
 // about whether the field at given offset is tagged or not.
-class InobjectPropertiesHelper {
+class LayoutDescriptorHelper {
  public:
-  inline explicit InobjectPropertiesHelper(Map* map);
+  inline explicit LayoutDescriptorHelper(Map* map);
 
   bool all_fields_tagged() { return all_fields_tagged_; }
   inline bool IsTagged(int offset_in_bytes);
+
+  // Queries the contiguous region of fields that are either tagged or not.
+  // Returns true if fields starting at |offset_in_bytes| are tagged or false
+  // otherwise and writes the offset of the end of the contiguous region to
+  // |out_end_of_contiguous_region_offset|. The |end_offset| value is the
+  // upper bound for |out_end_of_contiguous_region_offset|.
+  bool IsTagged(int offset_in_bytes, int end_offset,
+                int* out_end_of_contiguous_region_offset);
 
  private:
   bool all_fields_tagged_;

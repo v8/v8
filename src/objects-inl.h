@@ -7421,7 +7421,7 @@ static inline void IterateBodyUsingLayoutDescriptor(HeapObject* object,
   DCHECK(IsAligned(start_offset, kPointerSize) &&
          IsAligned(end_offset, kPointerSize));
 
-  InobjectPropertiesHelper helper(object->map());
+  LayoutDescriptorHelper helper(object->map());
   DCHECK(!helper.all_fields_tagged());
 
   for (int offset = start_offset; offset < end_offset; offset += kPointerSize) {
