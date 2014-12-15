@@ -1010,31 +1010,27 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
       Handle<JSObject> jsproto =
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
-      if (i > 0) {
-        // Names from hidden prototypes may already have been added
-        // for inherited function template instances. Count the duplicates
-        // and stub them out; the final copy pass at the end ignores holes.
-        for (int j = next_copy_index;
-             j < next_copy_index + own_property_count[i]; j++) {
-          Object* name_from_hidden_proto = names->get(j);
+      // Names from hidden prototypes may already have been added
+      // for inherited function template instances. Count the duplicates
+      // and stub them out; the final copy pass at the end ignores holes.
+      for (int j = next_copy_index; j < next_copy_index + own_property_count[i];
+           j++) {
+        Object* name_from_hidden_proto = names->get(j);
+        if (isolate->IsInternallyUsedPropertyName(name_from_hidden_proto)) {
+          hidden_strings++;
+        } else {
           for (int k = 0; k < next_copy_index; k++) {
-            if (names->get(k) != isolate->heap()->hidden_string()) {
-              Object* name = names->get(k);
-              if (name_from_hidden_proto == name) {
-                names->set(j, isolate->heap()->hidden_string());
-                hidden_strings++;
-                break;
-              }
+            Object* name = names->get(k);
+            if (name_from_hidden_proto == name) {
+              names->set(j, isolate->heap()->hidden_string());
+              hidden_strings++;
+              break;
             }
           }
         }
       }
       next_copy_index += own_property_count[i];
 
-      // Hidden properties only show up if the filter does not skip strings.
-      if ((filter & STRING) == 0 && JSObject::HasHiddenProperties(jsproto)) {
-        hidden_strings++;
-      }
       iter.Advance();
     }
   }
@@ -1047,7 +1043,7 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
     int dest_pos = 0;
     for (int i = 0; i < total_property_count; i++) {
       Object* name = old_names->get(i);
-      if (name == isolate->heap()->hidden_string()) {
+      if (isolate->IsInternallyUsedPropertyName(name)) {
         hidden_strings--;
         continue;
       }

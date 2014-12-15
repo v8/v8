@@ -177,7 +177,8 @@ class LookupIterator FINAL BASE_EMBEDDED {
   static Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name) {
     if (name->IsOwn()) {
-      return static_cast<Configuration>(configuration & HIDDEN);
+      return static_cast<Configuration>(configuration &
+                                        HIDDEN_SKIP_INTERCEPTOR);
     } else {
       return configuration;
     }

@@ -645,6 +645,9 @@ DEFINE_INT(random_seed, 0,
            "(0, the default, means to use system random).")
 
 // objects.cc
+DEFINE_BOOL(trace_weak_arrays, false, "trace WeakFixedArray usage")
+DEFINE_BOOL(track_prototype_users, false,
+            "keep track of which maps refer to a given prototype object")
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
 #if TRACE_MAPS
 DEFINE_BOOL(trace_maps, false, "trace map creation")

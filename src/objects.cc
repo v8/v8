@@ -3085,9 +3085,8 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   // Old value for the observation change record.
   // Fetch before transforming the object since the encoding may become
   // incompatible with what's cached in |it|.
-  bool is_observed =
-      receiver->map()->is_observed() &&
-      !it->name().is_identical_to(it->factory()->hidden_string());
+  bool is_observed = receiver->map()->is_observed() &&
+                     !it->isolate()->IsInternallyUsedPropertyName(it->name());
   MaybeHandle<Object> maybe_old;
   if (is_observed) maybe_old = it->GetDataValue();
 
@@ -3157,7 +3156,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
 
   // Send the change record if there are observers.
   if (receiver->map()->is_observed() &&
-      !it->name().is_identical_to(it->factory()->hidden_string())) {
+      !it->isolate()->IsInternallyUsedPropertyName(it->name())) {
     RETURN_ON_EXCEPTION(it->isolate(), JSObject::EnqueueChangeRecord(
                                            receiver, "add", it->name(),
                                            it->factory()->the_hole_value()),
@@ -3961,7 +3960,7 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(maybe.has_value);
   DCHECK(!it.IsFound());
   DCHECK(object->map()->is_extensible() ||
-         name.is_identical_to(it.isolate()->factory()->hidden_string()));
+         it.isolate()->IsInternallyUsedPropertyName(name));
 #endif
   AddDataProperty(&it, value, attributes, STRICT,
                   CERTAINLY_NOT_STORE_FROM_KEYED).Check();
@@ -3979,7 +3978,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   bool is_observed = object->map()->is_observed() &&
-                     *name != it.isolate()->heap()->hidden_string();
+                     !it.isolate()->IsInternallyUsedPropertyName(name);
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {
       case LookupIterator::INTERCEPTOR:
@@ -5109,7 +5108,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   LookupIterator it(object, name, config);
 
   bool is_observed = object->map()->is_observed() &&
-                     *name != it.isolate()->heap()->hidden_string();
+                     !it.isolate()->IsInternallyUsedPropertyName(name);
   Handle<Object> old_value = it.isolate()->factory()->the_hole_value();
 
   for (; it.IsFound(); it.Next()) {
@@ -6370,7 +6369,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool is_observed = object->map()->is_observed() &&
-                     *name != isolate->heap()->hidden_string();
+                     !isolate->IsInternallyUsedPropertyName(name);
   bool preexists = false;
   if (is_observed) {
     if (is_element) {
@@ -6629,7 +6628,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
   Handle<Map> result = map->GetIsolate()->factory()->NewMap(
       map->instance_type(), instance_size);
-  result->set_prototype(map->prototype());
+  result->SetPrototype(handle(map->prototype(), map->GetIsolate()));
   result->set_constructor(map->constructor());
   result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
@@ -6825,6 +6824,12 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
       parent->set_transitions(*transitions);
     }
     child->SetBackPointer(*parent);
+    if (child->prototype()->IsJSObject()) {
+      Handle<JSObject> proto(JSObject::cast(child->prototype()));
+      if (!child->ShouldRegisterAsPrototypeUser(proto)) {
+        JSObject::UnregisterPrototypeUser(proto, child);
+      }
+    }
 #if TRACE_MAPS
     Map::TraceTransition("Transition", *parent, *child, *name);
 #endif
@@ -8133,6 +8138,116 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
   return true;
 }
 #endif
+
+
+// static
+void WeakFixedArray::Set(Handle<WeakFixedArray> array, int index,
+                         Handle<HeapObject> value) {
+  DCHECK(array->IsEmptySlot(index));  // Don't overwrite anything.
+  Handle<WeakCell> cell =
+      value->IsMap() ? Map::WeakCellForMap(Handle<Map>::cast(value))
+                     : array->GetIsolate()->factory()->NewWeakCell(value);
+  Handle<FixedArray>::cast(array)->set(index + kFirstIndex, *cell);
+  if (FLAG_trace_weak_arrays) {
+    PrintF("[WeakFixedArray: storing at index %d ]\n", index);
+  }
+  array->set_last_used_index(index);
+}
+
+
+// static
+Handle<WeakFixedArray> WeakFixedArray::Add(
+    Handle<Object> maybe_array, Handle<HeapObject> value,
+    SearchForDuplicates search_for_duplicates) {
+  Handle<WeakFixedArray> array =
+      (maybe_array.is_null() || !maybe_array->IsWeakFixedArray())
+          ? Allocate(value->GetIsolate(), 1, Handle<WeakFixedArray>::null())
+          : Handle<WeakFixedArray>::cast(maybe_array);
+
+  if (search_for_duplicates == kAddIfNotFound) {
+    for (int i = 0; i < array->Length(); ++i) {
+      if (array->Get(i) == *value) return array;
+    }
+  } else {
+#ifdef DEBUG
+    for (int i = 0; i < array->Length(); ++i) {
+      DCHECK_NE(*value, array->Get(i));
+    }
+#endif
+  }
+
+  // Try to store the new entry if there's room. Optimize for consecutive
+  // accesses.
+  int first_index = array->last_used_index();
+  for (int i = first_index;;) {
+    if (array->IsEmptySlot((i))) {
+      WeakFixedArray::Set(array, i, value);
+      return array;
+    }
+    if (FLAG_trace_weak_arrays) {
+      PrintF("[WeakFixedArray: searching for free slot]\n");
+    }
+    i = (i + 1) % array->Length();
+    if (i == first_index) break;
+  }
+
+  // No usable slot found, grow the array.
+  int new_length = array->Length() + (array->Length() >> 1) + 4;
+  Handle<WeakFixedArray> new_array =
+      Allocate(array->GetIsolate(), new_length, array);
+  if (FLAG_trace_weak_arrays) {
+    PrintF("[WeakFixedArray: growing to size %d ]\n", new_length);
+  }
+  WeakFixedArray::Set(new_array, array->Length(), value);
+  return new_array;
+}
+
+
+void WeakFixedArray::Remove(Handle<HeapObject> value) {
+  // Optimize for the most recently added element to be removed again.
+  int first_index = last_used_index();
+  for (int i = first_index;;) {
+    if (Get(i) == *value) {
+      clear(i);
+      // Users of WeakFixedArray should make sure that there are no duplicates,
+      // they can use Add(..., kAddIfNotFound) if necessary.
+      return;
+    }
+    i = (i + 1) % Length();
+    if (i == first_index) break;
+  }
+}
+
+
+// static
+Handle<WeakFixedArray> WeakFixedArray::Allocate(
+    Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from) {
+  DCHECK(0 <= size);
+  Handle<FixedArray> result =
+      isolate->factory()->NewUninitializedFixedArray(size + kFirstIndex);
+  Handle<WeakFixedArray> casted_result = Handle<WeakFixedArray>::cast(result);
+  if (initialize_from.is_null()) {
+    for (int i = 0; i < result->length(); ++i) {
+      result->set(i, Smi::FromInt(0));
+    }
+  } else {
+    DCHECK(initialize_from->Length() <= size);
+    Handle<FixedArray> raw_source = Handle<FixedArray>::cast(initialize_from);
+    int target_index = kFirstIndex;
+    for (int source_index = kFirstIndex; source_index < raw_source->length();
+         ++source_index) {
+      // The act of allocating might have caused entries in the source array
+      // to be cleared. Copy only what's needed.
+      if (initialize_from->IsEmptySlot(source_index - kFirstIndex)) continue;
+      result->set(target_index++, raw_source->get(source_index));
+    }
+    casted_result->set_last_used_index(target_index - 1 - kFirstIndex);
+    for (; target_index < result->length(); ++target_index) {
+      result->set(target_index, Smi::FromInt(0));
+    }
+  }
+  return casted_result;
+}
 
 
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
@@ -9716,6 +9831,74 @@ void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
 }
 
 
+void JSObject::RegisterPrototypeUser(Handle<JSObject> prototype,
+                                     Handle<HeapObject> user) {
+  DCHECK(FLAG_track_prototype_users);
+  Isolate* isolate = prototype->GetIsolate();
+  Handle<Name> symbol = isolate->factory()->prototype_users_symbol();
+
+  // Get prototype users array, create it if it doesn't exist yet.
+  Handle<Object> maybe_array =
+      JSObject::GetProperty(prototype, symbol).ToHandleChecked();
+
+  Handle<WeakFixedArray> new_array = WeakFixedArray::Add(maybe_array, user);
+  if (!maybe_array.is_identical_to(new_array)) {
+    JSObject::SetOwnPropertyIgnoreAttributes(prototype, symbol, new_array,
+                                             DONT_ENUM).Assert();
+  }
+}
+
+
+void JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
+                                       Handle<HeapObject> user) {
+  Isolate* isolate = prototype->GetIsolate();
+  Handle<Name> symbol = isolate->factory()->prototype_users_symbol();
+
+  Handle<Object> maybe_array =
+      JSObject::GetProperty(prototype, symbol).ToHandleChecked();
+  if (!maybe_array->IsWeakFixedArray()) return;
+  Handle<WeakFixedArray>::cast(maybe_array)->Remove(user);
+}
+
+
+void Map::SetPrototype(Handle<Object> prototype,
+                       PrototypeOptimizationMode proto_mode) {
+  if (this->prototype()->IsJSObject() && FLAG_track_prototype_users) {
+    Handle<JSObject> old_prototype(JSObject::cast(this->prototype()));
+    JSObject::UnregisterPrototypeUser(old_prototype, handle(this));
+  }
+  if (prototype->IsJSObject()) {
+    Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
+    if (ShouldRegisterAsPrototypeUser(prototype_jsobj)) {
+      JSObject::RegisterPrototypeUser(prototype_jsobj, handle(this));
+    }
+    JSObject::OptimizeAsPrototype(prototype_jsobj, proto_mode);
+  }
+  WriteBarrierMode wb_mode =
+      prototype->IsNull() ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+  set_prototype(*prototype, wb_mode);
+}
+
+
+bool Map::ShouldRegisterAsPrototypeUser(Handle<JSObject> prototype) {
+  if (!FLAG_track_prototype_users) return false;
+  if (this->is_prototype_map()) return true;
+  if (this->is_dictionary_map()) return false;
+  Object* back = GetBackPointer();
+  if (!back->IsMap()) return true;
+  if (Map::cast(back)->prototype() != *prototype) return true;
+  return false;
+}
+
+
+bool Map::CanUseOptimizationsBasedOnPrototypeRegistry() {
+  if (!FLAG_track_prototype_users) return false;
+  if (this->is_prototype_map()) return true;
+  if (GetBackPointer()->IsMap()) return true;
+  return false;
+}
+
+
 Handle<Object> CacheInitialJSArrayMaps(
     Handle<Context> native_context, Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
@@ -9854,11 +10037,9 @@ bool JSFunction::RemovePrototype() {
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<Object> prototype) {
-  if (prototype->IsJSObject()) {
-    Handle<JSObject> js_proto = Handle<JSObject>::cast(prototype);
-    JSObject::OptimizeAsPrototype(js_proto, FAST_PROTOTYPE);
+  if (map->prototype() != *prototype) {
+    map->SetPrototype(prototype, FAST_PROTOTYPE);
   }
-  map->set_prototype(*prototype);
   function->set_prototype_or_initial_map(*map);
   map->set_constructor(*function);
 #if TRACE_MAPS
@@ -12010,12 +12191,13 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
 
 
 Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
-                                       Handle<Object> prototype) {
+                                       Handle<Object> prototype,
+                                       PrototypeOptimizationMode mode) {
   Handle<Map> new_map = GetPrototypeTransition(map, prototype);
   if (new_map.is_null()) {
     new_map = Copy(map, "TransitionToPrototype");
     PutPrototypeTransition(map, prototype, new_map);
-    new_map->set_prototype(*prototype);
+    new_map->SetPrototype(prototype, mode);
   }
   return new_map;
 }
@@ -12085,13 +12267,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   // Nothing to do if prototype is already set.
   if (map->prototype() == *value) return value;
 
-  if (value->IsJSObject()) {
-    PrototypeOptimizationMode mode =
-        from_javascript ? REGULAR_PROTOTYPE : FAST_PROTOTYPE;
-    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value), mode);
-  }
-
-  Handle<Map> new_map = Map::TransitionToPrototype(map, value);
+  PrototypeOptimizationMode mode =
+      from_javascript ? REGULAR_PROTOTYPE : FAST_PROTOTYPE;
+  Handle<Map> new_map = Map::TransitionToPrototype(map, value, mode);
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 

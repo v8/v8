@@ -127,7 +127,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
 
-  if (!name().is_identical_to(isolate()->factory()->hidden_string()) &&
+  if (!isolate()->IsInternallyUsedPropertyName(name()) &&
       !receiver->map()->is_extensible()) {
     return;
   }
