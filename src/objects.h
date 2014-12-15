@@ -9658,8 +9658,10 @@ class PropertyCell: public Cell {
   // of the cell's current type and the value's type. If the change causes
   // a change of the type of the cell's contents, code dependent on the cell
   // will be deoptimized.
-  static void SetValueInferType(Handle<PropertyCell> cell,
-                                Handle<Object> value);
+  // Usually returns the value that was passed in, but may perform
+  // non-observable modifications on it, such as internalize strings.
+  static Handle<Object> SetValueInferType(Handle<PropertyCell> cell,
+                                          Handle<Object> value);
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the 'type' field.

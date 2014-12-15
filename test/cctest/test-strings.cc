@@ -1024,7 +1024,8 @@ TEST(JSONStringifySliceMadeExternal) {
           "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
           "underlying")->ToString(CcTest::isolate());
   v8::Handle<v8::String> slice = CompileRun(
-                                     "var slice = underlying.slice(1);"
+                                     "var slice = '';"
+                                     "slice = underlying.slice(1);"
                                      "slice")->ToString(CcTest::isolate());
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
   CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
@@ -1183,7 +1184,7 @@ TEST(SliceFromSlice) {
   v8::Local<v8::Value> result;
   Handle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
-  const char* slice = "var slice = str.slice(1,-1); slice";
+  const char* slice = "var slice = ''; slice = str.slice(1,-1); slice";
   const char* slice_from_slice = "slice.slice(1,-1);";
 
   CompileRun(init);

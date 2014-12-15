@@ -3096,7 +3096,7 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   it->PrepareForDataProperty(value);
 
   // Write the property value.
-  it->WriteDataValue(value);
+  value = it->WriteDataValue(value);
 
   // Send the change record if there are observers.
   if (is_observed && !value->SameValue(*maybe_old.ToHandleChecked())) {
@@ -3152,7 +3152,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     JSObject::AddSlowProperty(receiver, it->name(), value, attributes);
   } else {
     // Write the property value.
-    it->WriteDataValue(value);
+    value = it->WriteDataValue(value);
   }
 
   // Send the change record if there are observers.
@@ -4039,7 +4039,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
         it.ReconfigureDataProperty(value, attributes);
         it.PrepareForDataProperty(value);
-        it.WriteDataValue(value);
+        value = it.WriteDataValue(value);
 
         if (is_observed) {
           RETURN_ON_EXCEPTION(
@@ -4064,7 +4064,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
         it.ReconfigureDataProperty(value, attributes);
         it.PrepareForDataProperty(value);
-        it.WriteDataValue(value);
+        value = it.WriteDataValue(value);
 
         if (is_observed) {
           if (old_value->SameValue(*value)) {
@@ -16887,13 +16887,22 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 }
 
 
-void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
-                                     Handle<Object> value) {
+Handle<Object> PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
+                                               Handle<Object> value) {
+  // Heuristic: if a string is stored in a previously uninitialized
+  // property cell, internalize it.
+  if ((cell->type()->Is(HeapType::None()) ||
+       cell->type()->Is(HeapType::Undefined())) &&
+      value->IsString()) {
+    value = cell->GetIsolate()->factory()->InternalizeString(
+        Handle<String>::cast(value));
+  }
   cell->set_value(*value);
   if (!HeapType::Any()->Is(cell->type())) {
     Handle<HeapType> new_type = UpdatedType(cell, value);
     cell->set_type(*new_type);
   }
+  return value;
 }
 
 
