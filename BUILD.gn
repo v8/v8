@@ -280,7 +280,7 @@ if (v8_use_external_startup_data) {
     ]
 
     outputs = [
-      "$root_gen_dir/natives_blob.bin"
+      "$root_out_dir/natives_blob.bin"
     ]
 
     script = "tools/concatenate-files.py"
@@ -333,10 +333,10 @@ action("run_mksnapshot") {
   }
 
   if (v8_use_external_startup_data) {
-    outputs += [ "$root_gen_dir/snapshot_blob.bin" ]
+    outputs += [ "$root_out_dir/snapshot_blob.bin" ]
     args += [
       "--startup_blob",
-      rebase_path("$root_gen_dir/snapshot_blob.bin", root_build_dir)
+      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir)
     ]
   }
 }
