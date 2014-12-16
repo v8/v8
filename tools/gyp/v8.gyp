@@ -1263,6 +1263,7 @@
         '../../src/base/flags.h',
         '../../src/base/functional.cc',
         '../../src/base/functional.h',
+        '../../src/base/iterator.h',
         '../../src/base/lazy-instance.h',
         '../../src/base/logging.cc',
         '../../src/base/logging.h',
