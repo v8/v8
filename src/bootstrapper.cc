@@ -2581,6 +2581,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::AddProperty(to, key, constant, details.attributes());
           break;
         }
+        case ACCESSOR_FIELD:
+          UNREACHABLE();
         case CALLBACKS: {
           Handle<Name> key(descs->GetKey(i));
           LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -2619,6 +2621,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
+        DCHECK_EQ(DATA, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());
       }
     }

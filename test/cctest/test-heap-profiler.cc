@@ -1916,6 +1916,47 @@ TEST(FastCaseAccessors) {
 }
 
 
+TEST(FastCaseRedefinedAccessors) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "var obj1 = {};\n"
+      "Object.defineProperty(obj1, 'prop', { "
+      "  get: function() { return 42; },\n"
+      "  set: function(value) { return this.prop_ = value; },\n"
+      "  configurable: true,\n"
+      "  enumerable: true,\n"
+      "});\n"
+      "Object.defineProperty(obj1, 'prop', { "
+      "  get: function() { return 153; },\n"
+      "  set: function(value) { return this.prop_ = value; },\n"
+      "  configurable: true,\n"
+      "  enumerable: true,\n"
+      "});\n");
+  v8::Local<v8::Object> js_global =
+      env->Global()->GetPrototype().As<v8::Object>();
+  i::Handle<i::JSObject> js_obj1 =
+      v8::Utils::OpenHandle(*js_global->Get(v8_str("obj1")).As<v8::Object>());
+  USE(js_obj1);
+
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("fastCaseAccessors"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* obj1 =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "obj1");
+  CHECK_NE(NULL, obj1);
+  const v8::HeapGraphNode* func;
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get prop");
+  CHECK_NE(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set prop");
+  CHECK_NE(NULL, func);
+}
+
+
 TEST(SlowCaseAccessors) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
