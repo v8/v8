@@ -17079,11 +17079,13 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 
 Handle<Object> PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                                Handle<Object> value) {
-  // Heuristic: if a string is stored in a previously uninitialized
+  // Heuristic: if a small-ish string is stored in a previously uninitialized
   // property cell, internalize it.
+  const int kMaxLengthForInternalization = 200;
   if ((cell->type()->Is(HeapType::None()) ||
        cell->type()->Is(HeapType::Undefined())) &&
-      value->IsString()) {
+      value->IsString() &&
+      Handle<String>::cast(value)->length() <= kMaxLengthForInternalization) {
     value = cell->GetIsolate()->factory()->InternalizeString(
         Handle<String>::cast(value));
   }
