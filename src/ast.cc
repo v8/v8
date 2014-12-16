@@ -185,17 +185,13 @@ void FunctionLiteral::InitializeSharedInfo(
 
 ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
                                              AstValueFactory* ast_value_factory,
-                                             Expression* key, Expression* value,
-                                             bool is_static,
-                                             bool is_computed_name)
-    : key_(key),
-      value_(value),
-      emit_store_(true),
-      is_static_(is_static),
-      is_computed_name_(is_computed_name) {
-  if (!is_computed_name &&
-      key->AsLiteral()->raw_value()->EqualsString(
-          ast_value_factory->proto_string())) {
+                                             Literal* key, Expression* value,
+                                             bool is_static) {
+  emit_store_ = true;
+  key_ = key;
+  value_ = value;
+  is_static_ = is_static;
+  if (key->raw_value()->EqualsString(ast_value_factory->proto_string())) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -208,16 +204,13 @@ ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
 
 
 ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone, bool is_getter,
-                                             Expression* key,
                                              FunctionLiteral* value,
-                                             bool is_static,
-                                             bool is_computed_name)
-    : key_(key),
-      value_(value),
-      kind_(is_getter ? GETTER : SETTER),
-      emit_store_(true),
-      is_static_(is_static),
-      is_computed_name_(is_computed_name) {}
+                                             bool is_static) {
+  emit_store_ = true;
+  value_ = value;
+  kind_ = is_getter ? GETTER : SETTER;
+  is_static_ = is_static;
+}
 
 
 bool ObjectLiteral::Property::IsCompileTimeValue() {
@@ -244,11 +237,10 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
                     allocator);
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (property->is_computed_name()) continue;
-    Literal* literal = property->key()->AsLiteral();
+    Literal* literal = property->key();
     if (literal->value()->IsNull()) continue;
     uint32_t hash = literal->Hash();
-    // If the key of a computed property value is in the table, do not emit
+    // If the key of a computed property is in the table, do not emit
     // a store for the property later.
     if ((property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
          property->kind() == ObjectLiteral::Property::COMPUTED) &&
@@ -287,13 +279,6 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
       is_simple = false;
       continue;
     }
-
-    if (position == boilerplate_properties_ * 2) {
-      DCHECK(property->is_computed_name());
-      break;
-    }
-    DCHECK(!property->is_computed_name());
-
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
@@ -303,7 +288,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->AsLiteral()->value();
+    Handle<Object> key = property->key()->value();
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Ensure objects that may, at any point in time, contain fields with double
@@ -655,8 +640,7 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  DCHECK(!is_computed_name());
-  TypeFeedbackId id = key()->AsLiteral()->LiteralFeedbackId();
+  TypeFeedbackId id = key()->LiteralFeedbackId();
   SmallMapList maps;
   oracle->CollectReceiverTypes(id, &maps);
   receiver_type_ = maps.length() == 1 ? maps.at(0)
