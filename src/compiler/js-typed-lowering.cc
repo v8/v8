@@ -18,7 +18,6 @@ namespace compiler {
 // TODO(turbofan): js-typed-lowering improvements possible
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
-// - relax effects for ToNumber(mixed)
 
 
 // Relax the effects of {node} by immediately replacing effect uses of {node}
@@ -658,8 +657,6 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::PlainPrimitive())) {
-    // Converting a plain primitive to a number has no observable side effects.
-    RelaxEffects(node);
     if (input->opcode() == IrOpcode::kPhi) {
       // JSToNumber(phi(x1,...,xn,control):plain-primitive,context)
       //   => phi(JSToNumber(x1,no-context),
@@ -671,6 +668,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       DCHECK(NodeProperties::IsControl(control));
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+      RelaxEffects(node);
       node->set_op(common()->Phi(kMachAnyTagged, input_count));
       for (int i = 0; i < input_count; ++i) {
         Node* value = input->InputAt(i);
@@ -701,7 +699,9 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
         node->AppendInput(graph()->zone(), control);
       }
       node->TrimInputCount(input_count + 1);
-    } else if (input->opcode() == IrOpcode::kSelect) {
+      return Changed(node);
+    }
+    if (input->opcode() == IrOpcode::kSelect) {
       // JSToNumber(select(c,x1,x2):plain-primitive,context)
       //   => select(c,JSToNumber(x1,no-context),JSToNumber(x2,no-context))
       int const input_count = input->InputCount();
@@ -709,6 +709,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       DCHECK_EQ(3, input_count);
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+      RelaxEffects(node);
       node->set_op(common()->Select(kMachAnyTagged, input_hint));
       node->ReplaceInput(0, input->InputAt(0));
       for (int i = 1; i < input_count; ++i) {
@@ -731,8 +732,15 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
         node->ReplaceInput(i, value);
       }
       node->TrimInputCount(input_count);
+      return Changed(node);
     }
-    return Changed(node);
+    if (node->InputAt(1) != jsgraph()->NoContextConstant() ||
+        node->InputAt(2) != graph()->start()) {
+      // JSToNumber(x:plain-primitive,context) => JSToNumber(x,no-context)
+      node->ReplaceInput(1, jsgraph()->NoContextConstant());
+      RelaxEffects(node);
+      return Changed(node);
+    }
   }
   return NoChange();
 }
