@@ -1743,7 +1743,7 @@ TEST(TestSizeOfRegExpCode) {
 
   int size_of_regexp_code = size_with_regexp - initial_size;
 
-  CHECK_LE(size_of_regexp_code, 500 * KB);
+  CHECK_LE(size_of_regexp_code, 1 * MB);
 
   // Small regexp is half the size, but compiles to more than twice the code
   // due to the optimization steps.
