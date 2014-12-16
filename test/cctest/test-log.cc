@@ -42,6 +42,7 @@
 #include "src/natives.h"
 #include "src/utils.h"
 #include "src/v8threads.h"
+#include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -504,6 +505,26 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       fflush(stdout);
       CHECK(false);
     }
+  }
+  isolate->Dispose();
+}
+
+
+TEST(LogVersion) {
+  v8::Isolate* isolate;
+  {
+    ScopedLoggerInitializer initialize_logger;
+    isolate = initialize_logger.isolate();
+    bool exists = false;
+    i::Vector<const char> log(
+        i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
+    CHECK(exists);
+    i::EmbeddedVector<char, 100> ref_data;
+    i::SNPrintF(ref_data, "v8-version,%d,%d,%d,%d,%d", i::Version::GetMajor(),
+                i::Version::GetMinor(), i::Version::GetBuild(),
+                i::Version::GetPatch(), i::Version::IsCandidate());
+    CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
+    log.Dispose();
   }
   isolate->Dispose();
 }
