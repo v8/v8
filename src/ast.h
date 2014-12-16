@@ -1748,8 +1748,7 @@ class Property FINAL : public Expression {
   SmallMapList* GetReceiverTypes() OVERRIDE { return &receiver_types_; }
   KeyedAccessStoreMode GetStoreMode() const OVERRIDE { return STANDARD_STORE; }
   IcCheckType GetKeyType() const OVERRIDE {
-    // PROPERTY key types currently aren't implemented for KeyedLoadICs.
-    return ELEMENT;
+    return KeyTypeField::decode(bit_field_);
   }
   bool IsUninitialized() const {
     return !is_for_call() && HasNoTypeInformation();
@@ -1762,6 +1761,9 @@ class Property FINAL : public Expression {
   }
   void set_is_string_access(bool b) {
     bit_field_ = IsStringAccessField::update(bit_field_, b);
+  }
+  void set_key_type(IcCheckType key_type) {
+    bit_field_ = KeyTypeField::update(bit_field_, key_type);
   }
   void mark_for_call() {
     bit_field_ = IsForCallField::update(bit_field_, true);
@@ -1805,6 +1807,7 @@ class Property FINAL : public Expression {
   class IsForCallField : public BitField8<bool, 0, 1> {};
   class IsUninitializedField : public BitField8<bool, 1, 1> {};
   class IsStringAccessField : public BitField8<bool, 2, 1> {};
+  class KeyTypeField : public BitField8<IcCheckType, 3, 1> {};
   uint8_t bit_field_;
   FeedbackVectorICSlot property_feedback_slot_;
   Expression* obj_;

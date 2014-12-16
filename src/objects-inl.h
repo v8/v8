@@ -707,6 +707,7 @@ TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
 TYPE_CHECKER(Map, MAP_TYPE)
 TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
+TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(ConstantPoolArray, CONSTANT_POOL_ARRAY_TYPE)
 
 
@@ -2368,6 +2369,39 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
+Object* WeakFixedArray::Get(int index) const {
+  Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
+  if (raw->IsSmi()) return raw;
+  return WeakCell::cast(raw)->value();
+}
+
+
+bool WeakFixedArray::IsEmptySlot(int index) const {
+  DCHECK(index < Length());
+  return Get(index)->IsSmi();
+}
+
+
+void WeakFixedArray::clear(int index) {
+  FixedArray::cast(this)->set(index + kFirstIndex, Smi::FromInt(0));
+}
+
+
+int WeakFixedArray::Length() const {
+  return FixedArray::cast(this)->length() - kFirstIndex;
+}
+
+
+int WeakFixedArray::last_used_index() const {
+  return Smi::cast(FixedArray::cast(this)->get(kLastUsedIndexIndex))->value();
+}
+
+
+void WeakFixedArray::set_last_used_index(int index) {
+  FixedArray::cast(this)->set(kLastUsedIndexIndex, Smi::FromInt(index));
+}
+
+
 void ConstantPoolArray::NumberOfEntries::increment(Type type) {
   DCHECK(type < NUMBER_OF_TYPES);
   element_counts_[type]++;
@@ -3364,6 +3398,7 @@ CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
+CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
 
 
@@ -7421,7 +7456,7 @@ static inline void IterateBodyUsingLayoutDescriptor(HeapObject* object,
   DCHECK(IsAligned(start_offset, kPointerSize) &&
          IsAligned(end_offset, kPointerSize));
 
-  InobjectPropertiesHelper helper(object->map());
+  LayoutDescriptorHelper helper(object->map());
   DCHECK(!helper.all_fields_tagged());
 
   for (int offset = start_offset; offset < end_offset; offset += kPointerSize) {

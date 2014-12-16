@@ -1806,29 +1806,28 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         promotion_queue()->remove(&target, &size);
 
         // Promoted object might be already partially visited
-        // during old space pointer iteration. Thus we search specificly
+        // during old space pointer iteration. Thus we search specifically
         // for pointers to from semispace instead of looking for pointers
         // to new space.
         DCHECK(!target->IsMap());
-        Address start_address = target->address();
-        Address end_address = start_address + size;
+        Address obj_address = target->address();
 #if V8_DOUBLE_FIELDS_UNBOXING
-        InobjectPropertiesHelper helper(target->map());
+        LayoutDescriptorHelper helper(target->map());
         bool has_only_tagged_fields = helper.all_fields_tagged();
 
         if (!has_only_tagged_fields) {
-          for (Address slot = start_address; slot < end_address;
-               slot += kPointerSize) {
-            if (helper.IsTagged(static_cast<int>(slot - start_address))) {
-              // TODO(ishell): call this once for contiguous region
-              // of tagged fields.
-              IterateAndMarkPointersToFromSpace(slot, slot + kPointerSize,
-                                                &ScavengeObject);
+          for (int offset = 0; offset < size;) {
+            int end_of_region_offset;
+            if (helper.IsTagged(offset, size, &end_of_region_offset)) {
+              IterateAndMarkPointersToFromSpace(
+                  obj_address + offset, obj_address + end_of_region_offset,
+                  &ScavengeObject);
             }
+            offset = end_of_region_offset;
           }
         } else {
 #endif
-          IterateAndMarkPointersToFromSpace(start_address, end_address,
+          IterateAndMarkPointersToFromSpace(obj_address, obj_address + size,
                                             &ScavengeObject);
 #if V8_DOUBLE_FIELDS_UNBOXING
         }

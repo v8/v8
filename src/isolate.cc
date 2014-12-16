@@ -802,14 +802,26 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 }
 
 
+bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
+  return name.is_identical_to(factory()->hidden_string()) ||
+         name.is_identical_to(factory()->prototype_users_symbol());
+}
+
+
+bool Isolate::IsInternallyUsedPropertyName(Object* name) {
+  return name == heap()->hidden_string() ||
+         name == heap()->prototype_users_symbol();
+}
+
+
 bool Isolate::MayNamedAccess(Handle<JSObject> receiver,
                              Handle<Object> key,
                              v8::AccessType type) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
-  // Skip checks for hidden properties access.  Note, we do not
+  // Skip checks for internally used properties. Note, we do not
   // require existence of a context in this case.
-  if (key.is_identical_to(factory()->hidden_string())) return true;
+  if (IsInternallyUsedPropertyName(key)) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
@@ -2147,6 +2159,8 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   initialized_from_snapshot_ = (des != NULL);
+
+  if (!FLAG_inline_new) heap_.DisableInlineAllocation();
 
   return true;
 }

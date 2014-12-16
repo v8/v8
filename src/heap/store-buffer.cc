@@ -512,24 +512,28 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
               bool may_contain_raw_values = heap_object->MayContainRawValues();
               if (!may_contain_raw_values) {
                 Address obj_address = heap_object->address();
-                Address start_address = obj_address + HeapObject::kHeaderSize;
-                Address end_address = obj_address + heap_object->Size();
+                const int start_offset = HeapObject::kHeaderSize;
+                const int end_offset = heap_object->Size();
 #if V8_DOUBLE_FIELDS_UNBOXING
-                InobjectPropertiesHelper helper(heap_object->map());
+                LayoutDescriptorHelper helper(heap_object->map());
                 bool has_only_tagged_fields = helper.all_fields_tagged();
 
                 if (!has_only_tagged_fields) {
-                  for (Address slot = start_address; slot < end_address;
-                       slot += kPointerSize) {
-                    if (helper.IsTagged(static_cast<int>(slot - obj_address))) {
-                      // TODO(ishell): call this once for contiguous region
-                      // of tagged fields.
-                      FindPointersToNewSpaceInRegion(slot, slot + kPointerSize,
-                                                     slot_callback, clear_maps);
+                  for (int offset = start_offset; offset < end_offset;) {
+                    int end_of_region_offset;
+                    if (helper.IsTagged(offset, end_offset,
+                                        &end_of_region_offset)) {
+                      FindPointersToNewSpaceInRegion(
+                          obj_address + offset,
+                          obj_address + end_of_region_offset, slot_callback,
+                          clear_maps);
                     }
+                    offset = end_of_region_offset;
                   }
                 } else {
 #endif
+                  Address start_address = obj_address + start_offset;
+                  Address end_address = obj_address + end_offset;
                   // Object has only tagged fields.
                   FindPointersToNewSpaceInRegion(start_address, end_address,
                                                  slot_callback, clear_maps);

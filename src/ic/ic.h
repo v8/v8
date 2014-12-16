@@ -459,6 +459,19 @@ class LoadIC : public IC {
 
 class KeyedLoadIC : public LoadIC {
  public:
+  // ExtraICState bits (building on IC)
+  class IcCheckTypeField : public BitField<IcCheckType, 1, 1> {};
+
+  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+                                          IcCheckType key_type) {
+    return LoadICState(contextual_mode).GetExtraICState() |
+           IcCheckTypeField::encode(key_type);
+  }
+
+  static IcCheckType GetKeyType(ExtraICState extra_state) {
+    return IcCheckTypeField::decode(extra_state);
+  }
+
   KeyedLoadIC(FrameDepth depth, Isolate* isolate,
               KeyedLoadICNexus* nexus = NULL)
       : LoadIC(depth, isolate, nexus) {

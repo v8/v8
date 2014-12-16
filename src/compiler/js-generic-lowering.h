@@ -60,7 +60,6 @@ class JSGenericLowering : public Reducer {
 
  private:
   CompilationInfo* info_;
-  SetOncePointer<Node> info_context_constant_;
   JSGraph* jsgraph_;
   Linkage* linkage_;
 };

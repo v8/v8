@@ -2169,7 +2169,7 @@ static Handle<JSObject> NewJSObjectWithNullProto(Isolate* isolate) {
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<Map> new_map =
       Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
-  new_map->set_prototype(*isolate->factory()->null_value());
+  new_map->SetPrototype(isolate->factory()->null_value());
   JSObject::MigrateToMap(result, new_map);
   return result;
 }

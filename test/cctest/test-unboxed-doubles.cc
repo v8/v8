@@ -31,6 +31,8 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   }
 }
 
+const int kNumberOfBits = 32;
+
 
 enum TestPropertyKind {
   PROP_CONSTANT,
@@ -103,6 +105,14 @@ TEST(LayoutDescriptorBasicFast) {
     CHECK_EQ(true, layout_desc->IsTagged(i));
   }
   CHECK(layout_desc->IsFastPointerLayout());
+
+  int sequence_length;
+  CHECK_EQ(true, layout_desc->IsTagged(0, std::numeric_limits<int>::max(),
+                                       &sequence_length));
+  CHECK_EQ(std::numeric_limits<int>::max(), sequence_length);
+
+  CHECK_EQ(true, layout_desc->IsTagged(0, 7, &sequence_length));
+  CHECK_EQ(7, sequence_length);
 }
 
 
@@ -193,6 +203,239 @@ TEST(LayoutDescriptorBasicSlow) {
 
     DCHECK(layout_descriptor->IsConsistentWithMap(*map));
   }
+}
+
+
+static void TestLayoutDescriptorQueries(int layout_descriptor_length,
+                                        int* bit_flip_positions,
+                                        int max_sequence_length) {
+  Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::NewForTesting(
+      CcTest::i_isolate(), layout_descriptor_length);
+  layout_descriptor_length = layout_descriptor->capacity();
+  LayoutDescriptor* layout_desc = *layout_descriptor;
+
+  {
+    // Fill in the layout descriptor.
+    int cur_bit_flip_index = 0;
+    bool tagged = true;
+    for (int i = 0; i < layout_descriptor_length; i++) {
+      if (i == bit_flip_positions[cur_bit_flip_index]) {
+        tagged = !tagged;
+        ++cur_bit_flip_index;
+        CHECK(i < bit_flip_positions[cur_bit_flip_index]);  // check test data
+      }
+      layout_desc = layout_desc->SetTaggedForTesting(i, tagged);
+    }
+  }
+
+  if (layout_desc->IsFastPointerLayout()) {
+    return;
+  }
+
+  {
+    // Check queries.
+    int cur_bit_flip_index = 0;
+    bool tagged = true;
+    for (int i = 0; i < layout_descriptor_length; i++) {
+      if (i == bit_flip_positions[cur_bit_flip_index]) {
+        tagged = !tagged;
+        ++cur_bit_flip_index;
+      }
+      CHECK_EQ(tagged, layout_desc->IsTagged(i));
+
+      int next_bit_flip_position = bit_flip_positions[cur_bit_flip_index];
+      int expected_sequence_length;
+      if (next_bit_flip_position < layout_desc->capacity()) {
+        expected_sequence_length = next_bit_flip_position - i;
+      } else {
+        expected_sequence_length = tagged ? std::numeric_limits<int>::max()
+                                          : (layout_desc->capacity() - i);
+      }
+      expected_sequence_length =
+          Min(expected_sequence_length, max_sequence_length);
+      int sequence_length;
+      CHECK_EQ(tagged,
+               layout_desc->IsTagged(i, max_sequence_length, &sequence_length));
+      CHECK(sequence_length > 0);
+
+      CHECK_EQ(expected_sequence_length, sequence_length);
+    }
+
+    int sequence_length;
+    CHECK_EQ(true,
+             layout_desc->IsTagged(layout_descriptor_length,
+                                   max_sequence_length, &sequence_length));
+    CHECK_EQ(max_sequence_length, sequence_length);
+  }
+}
+
+
+static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
+  {
+    LayoutDescriptor* layout_desc = LayoutDescriptor::FastPointerLayout();
+    int sequence_length;
+    for (int i = 0; i < kNumberOfBits; i++) {
+      CHECK_EQ(true,
+               layout_desc->IsTagged(i, max_sequence_length, &sequence_length));
+      CHECK(sequence_length > 0);
+      CHECK_EQ(max_sequence_length, sequence_length);
+    }
+  }
+
+  {
+    int bit_flip_positions[] = {1000};
+    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {0, 1000};
+    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[kNumberOfBits + 1];
+    for (int i = 0; i <= kNumberOfBits; i++) {
+      bit_flip_positions[i] = i;
+    }
+    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {3, 7, 8, 10, 15, 21, 30, 1000};
+    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {0,  1,  2,  3,  5,  7,  9,
+                                12, 15, 18, 22, 26, 29, 1000};
+    TestLayoutDescriptorQueries(kSmiValueSize, bit_flip_positions,
+                                max_sequence_length);
+  }
+}
+
+
+TEST(LayoutDescriptorQueriesFastLimited7) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesFast(7);
+}
+
+
+TEST(LayoutDescriptorQueriesFastLimited13) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesFast(13);
+}
+
+
+TEST(LayoutDescriptorQueriesFastUnlimited) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesFast(std::numeric_limits<int>::max());
+}
+
+
+static void TestLayoutDescriptorQueriesSlow(int max_sequence_length) {
+  {
+    int bit_flip_positions[] = {10000};
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {0, 10000};
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[kMaxNumberOfDescriptors + 1];
+    for (int i = 0; i < kMaxNumberOfDescriptors; i++) {
+      bit_flip_positions[i] = i;
+    }
+    bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {3,  7,  8,  10, 15,  21,   30,
+                                37, 54, 80, 99, 383, 10000};
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[] = {0,   10,  20,  30,  50,  70,  90,
+                                120, 150, 180, 220, 260, 290, 10000};
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[kMaxNumberOfDescriptors + 1];
+    int cur = 0;
+    for (int i = 0; i < kMaxNumberOfDescriptors; i++) {
+      bit_flip_positions[i] = cur;
+      cur = (cur + 1) * 2;
+    }
+    CHECK(cur < 10000);
+    bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+
+  {
+    int bit_flip_positions[kMaxNumberOfDescriptors + 1];
+    int cur = 3;
+    for (int i = 0; i < kMaxNumberOfDescriptors; i++) {
+      bit_flip_positions[i] = cur;
+      cur = (cur + 1) * 2;
+    }
+    CHECK(cur < 10000);
+    bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
+    TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
+                                max_sequence_length);
+  }
+}
+
+
+TEST(LayoutDescriptorQueriesSlowLimited7) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesSlow(7);
+}
+
+
+TEST(LayoutDescriptorQueriesSlowLimited13) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesSlow(13);
+}
+
+
+TEST(LayoutDescriptorQueriesSlowLimited42) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesSlow(42);
+}
+
+
+TEST(LayoutDescriptorQueriesSlowUnlimited) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  TestLayoutDescriptorQueriesSlow(std::numeric_limits<int>::max());
 }
 
 
@@ -705,6 +948,151 @@ TEST(DoScavenge) {
   CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
+}
+
+
+static void TestLayoutDescriptorHelper(Isolate* isolate,
+                                       int inobject_properties,
+                                       Handle<DescriptorArray> descriptors,
+                                       int number_of_descriptors) {
+  Handle<Map> map = Map::Create(isolate, inobject_properties);
+
+  Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
+      map, descriptors, descriptors->number_of_descriptors());
+  map->InitializeDescriptors(*descriptors, *layout_descriptor);
+  DCHECK(layout_descriptor->IsConsistentWithMap(*map));
+
+  LayoutDescriptorHelper helper(*map);
+  bool all_fields_tagged = true;
+
+  int instance_size = map->instance_size();
+
+  int end_offset = instance_size * 2;
+  int first_non_tagged_field_offset = end_offset;
+  for (int i = 0; i < number_of_descriptors; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.type() != FIELD) continue;
+    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+    if (!index.is_inobject()) continue;
+    all_fields_tagged &= !details.representation().IsDouble();
+    bool expected_tagged = !index.is_double();
+    if (!expected_tagged) {
+      first_non_tagged_field_offset =
+          Min(first_non_tagged_field_offset, index.offset());
+    }
+
+    int end_of_region_offset;
+    CHECK_EQ(expected_tagged, helper.IsTagged(index.offset()));
+    CHECK_EQ(expected_tagged, helper.IsTagged(index.offset(), instance_size,
+                                              &end_of_region_offset));
+    CHECK(end_of_region_offset > 0);
+    CHECK(end_of_region_offset % kPointerSize == 0);
+    CHECK(end_of_region_offset <= instance_size);
+
+    for (int offset = index.offset(); offset < end_of_region_offset;
+         offset += kPointerSize) {
+      CHECK_EQ(expected_tagged, helper.IsTagged(index.offset()));
+    }
+    if (end_of_region_offset < instance_size) {
+      CHECK_EQ(!expected_tagged, helper.IsTagged(end_of_region_offset));
+    } else {
+      CHECK_EQ(true, helper.IsTagged(end_of_region_offset));
+    }
+  }
+
+  for (int offset = 0; offset < JSObject::kHeaderSize; offset += kPointerSize) {
+    // Header queries
+    CHECK_EQ(true, helper.IsTagged(offset));
+    int end_of_region_offset;
+    CHECK_EQ(true, helper.IsTagged(offset, end_offset, &end_of_region_offset));
+    CHECK_EQ(first_non_tagged_field_offset, end_of_region_offset);
+
+    // Out of bounds queries
+    CHECK_EQ(true, helper.IsTagged(offset + instance_size));
+  }
+
+  CHECK_EQ(all_fields_tagged, helper.all_fields_tagged());
+}
+
+
+TEST(LayoutDescriptorHelperMixed) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<LayoutDescriptor> layout_descriptor;
+  const int kPropsCount = kSmiValueSize * 3;
+  TestPropertyKind props[kPropsCount];
+  for (int i = 0; i < kPropsCount; i++) {
+    props[i] = static_cast<TestPropertyKind>(i % PROP_KIND_NUMBER);
+  }
+  Handle<DescriptorArray> descriptors =
+      CreateDescriptorArray(isolate, props, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 0, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+                             kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
+}
+
+
+TEST(LayoutDescriptorHelperAllTagged) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<LayoutDescriptor> layout_descriptor;
+  const int kPropsCount = kSmiValueSize * 3;
+  TestPropertyKind props[kPropsCount];
+  for (int i = 0; i < kPropsCount; i++) {
+    props[i] = PROP_TAGGED;
+  }
+  Handle<DescriptorArray> descriptors =
+      CreateDescriptorArray(isolate, props, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 0, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+                             kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
+}
+
+
+TEST(LayoutDescriptorHelperAllDoubles) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<LayoutDescriptor> layout_descriptor;
+  const int kPropsCount = kSmiValueSize * 3;
+  TestPropertyKind props[kPropsCount];
+  for (int i = 0; i < kPropsCount; i++) {
+    props[i] = PROP_DOUBLE;
+  }
+  Handle<DescriptorArray> descriptors =
+      CreateDescriptorArray(isolate, props, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 0, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, 13, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize, descriptors, kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kSmiValueSize * 2, descriptors,
+                             kPropsCount);
+
+  TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
 }
 
 

@@ -762,6 +762,8 @@ class Isolate {
   bool MayIndexedAccess(Handle<JSObject> receiver,
                         uint32_t index,
                         v8::AccessType type);
+  bool IsInternallyUsedPropertyName(Handle<Object> name);
+  bool IsInternallyUsedPropertyName(Object* name);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver, v8::AccessType type);

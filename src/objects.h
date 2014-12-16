@@ -88,6 +88,7 @@
 //         - ScopeInfo
 //         - TransitionArray
 //         - ScriptContextTable
+//         - WeakFixedArray
 //       - FixedDoubleArray
 //       - ExternalArray
 //         - ExternalUint8ClampedArray
@@ -943,6 +944,7 @@ template <class C> inline bool Is(Object* obj);
   V(DependentCode)                 \
   V(FixedArray)                    \
   V(FixedDoubleArray)              \
+  V(WeakFixedArray)                \
   V(ConstantPoolArray)             \
   V(Context)                       \
   V(ScriptContextTable)            \
@@ -1821,6 +1823,10 @@ class JSObject: public JSReceiver {
   static void OptimizeAsPrototype(Handle<JSObject> object,
                                   PrototypeOptimizationMode mode);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
+  static void RegisterPrototypeUser(Handle<JSObject> prototype,
+                                    Handle<HeapObject> user);
+  static void UnregisterPrototypeUser(Handle<JSObject> prototype,
+                                      Handle<HeapObject> user);
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
@@ -2605,6 +2611,45 @@ class FixedDoubleArray: public FixedArrayBase {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
+};
+
+
+class WeakFixedArray : public FixedArray {
+ public:
+  enum SearchForDuplicates { kAlwaysAdd, kAddIfNotFound };
+
+  // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
+  static Handle<WeakFixedArray> Add(
+      Handle<Object> maybe_array, Handle<HeapObject> value,
+      SearchForDuplicates search_for_duplicates = kAlwaysAdd);
+
+  void Remove(Handle<HeapObject> value);
+
+  inline Object* Get(int index) const;
+  inline int Length() const;
+
+  DECLARE_CAST(WeakFixedArray)
+
+ private:
+  static const int kLastUsedIndexIndex = 0;
+  static const int kFirstIndex = 1;
+
+  static Handle<WeakFixedArray> Allocate(
+      Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from);
+
+  static void Set(Handle<WeakFixedArray> array, int index,
+                  Handle<HeapObject> value);
+  inline void clear(int index);
+  inline bool IsEmptySlot(int index) const;
+
+  inline int last_used_index() const;
+  inline void set_last_used_index(int index);
+
+  // Disallow inherited setters.
+  void set(int index, Smi* value);
+  void set(int index, Object* value);
+  void set(int index, Object* value, WriteBarrierMode mode);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
 };
 
 
@@ -5926,6 +5971,11 @@ class Map: public HeapObject {
 
   // [prototype]: implicit prototype object.
   DECL_ACCESSORS(prototype, Object)
+  // TODO(jkummerow): make set_prototype private.
+  void SetPrototype(Handle<Object> prototype,
+                    PrototypeOptimizationMode proto_mode = FAST_PROTOTYPE);
+  bool ShouldRegisterAsPrototypeUser(Handle<JSObject> prototype);
+  bool CanUseOptimizationsBasedOnPrototypeRegistry();
 
   // [constructor]: points back to the function responsible for this map.
   DECL_ACCESSORS(constructor, Object)
@@ -6257,10 +6307,11 @@ class Map: public HeapObject {
   // the original map.  That way we can transition to the same map if the same
   // prototype is set, rather than creating a new map every time.  The
   // transitions are in the form of a map where the keys are prototype objects
-  // and the values are the maps the are transitioned to.
+  // and the values are the maps they transition to.
   static const int kMaxCachedPrototypeTransitions = 256;
   static Handle<Map> TransitionToPrototype(Handle<Map> map,
-                                           Handle<Object> prototype);
+                                           Handle<Object> prototype,
+                                           PrototypeOptimizationMode mode);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -9658,8 +9709,10 @@ class PropertyCell: public Cell {
   // of the cell's current type and the value's type. If the change causes
   // a change of the type of the cell's contents, code dependent on the cell
   // will be deoptimized.
-  static void SetValueInferType(Handle<PropertyCell> cell,
-                                Handle<Object> value);
+  // Usually returns the value that was passed in, but may perform
+  // non-observable modifications on it, such as internalize strings.
+  static Handle<Object> SetValueInferType(Handle<PropertyCell> cell,
+                                          Handle<Object> value);
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the 'type' field.

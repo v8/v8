@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,9 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --string-slices --expose-externalize-string
+// Flags: --allow-natives-syntax
 
-var a = "internalized dummy";
-a = "abcdefghijklmnopqrstuvqxy"+"z";
-externalizeString(a, true);
-assertEquals('b', a.substring(1).charAt(0));
+
+var o = {
+  "foo": "bar",
+}
+
+function get(obj, key) {
+  return obj[key];
+}
+
+get(o, "foo");
+get(o, "foo");
+get(o, "foo");
+
+%OptimizeFunctionOnNextCall(get);
+get(o, "foo");
+
+assertOptimized(get);

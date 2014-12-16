@@ -3280,11 +3280,9 @@ Operand LCodeGen::BuildFastArrayOperand(
     return Operand(elements_pointer_reg,
                    (constant_value << shift_size) + offset);
   } else {
-    // Take the tag bit into account while computing the shift size.
-    if (key_representation.IsSmi() && (shift_size >= 1)) {
-      DCHECK(SmiValuesAre31Bits());
-      shift_size -= kSmiTagSize;
-    }
+    // Guaranteed by ArrayInstructionInterface::KeyedAccessIndexRequirement().
+    DCHECK(key_representation.IsInteger32());
+
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
     return Operand(elements_pointer_reg,
                    ToRegister(key),

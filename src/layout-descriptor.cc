@@ -6,7 +6,10 @@
 
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/layout-descriptor.h"
+
+using v8::base::bits::CountTrailingZeros32;
 
 namespace v8 {
 namespace internal {
@@ -142,6 +145,112 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     new_layout_descriptor->set(0, value);
     return new_layout_descriptor;
   }
+}
+
+
+bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
+                                int* out_sequence_length) {
+  DCHECK(max_sequence_length > 0);
+  if (IsFastPointerLayout()) {
+    *out_sequence_length = max_sequence_length;
+    return true;
+  }
+
+  int layout_word_index;
+  int layout_bit_index;
+
+  if (!GetIndexes(field_index, &layout_word_index, &layout_bit_index)) {
+    // Out of bounds queries are considered tagged.
+    *out_sequence_length = max_sequence_length;
+    return true;
+  }
+  uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
+
+  uint32_t value = IsSlowLayout()
+                       ? get_scalar(layout_word_index)
+                       : static_cast<uint32_t>(Smi::cast(this)->value());
+
+  bool is_tagged = (value & layout_mask) == 0;
+  if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.
+  value = value & ~(layout_mask - 1);  // Clear bits we are not interested in.
+  int sequence_length = CountTrailingZeros32(value) - layout_bit_index;
+
+  if (layout_bit_index + sequence_length == kNumberOfBits) {
+    // This is a contiguous sequence till the end of current word, proceed
+    // counting in the subsequent words.
+    if (IsSlowLayout()) {
+      int len = length();
+      ++layout_word_index;
+      for (; layout_word_index < len; layout_word_index++) {
+        value = get_scalar(layout_word_index);
+        bool cur_is_tagged = (value & 1) == 0;
+        if (cur_is_tagged != is_tagged) break;
+        if (!is_tagged) value = ~value;  // Count set bits instead.
+        int cur_sequence_length = CountTrailingZeros32(value);
+        sequence_length += cur_sequence_length;
+        if (sequence_length >= max_sequence_length) break;
+        if (cur_sequence_length != kNumberOfBits) break;
+      }
+    }
+    if (is_tagged && (field_index + sequence_length == capacity())) {
+      // The contiguous sequence of tagged fields lasts till the end of the
+      // layout descriptor which means that all the fields starting from
+      // field_index are tagged.
+      sequence_length = std::numeric_limits<int>::max();
+    }
+  }
+  *out_sequence_length = Min(sequence_length, max_sequence_length);
+  return is_tagged;
+}
+
+
+Handle<LayoutDescriptor> LayoutDescriptor::NewForTesting(Isolate* isolate,
+                                                         int length) {
+  return New(isolate, length);
+}
+
+
+LayoutDescriptor* LayoutDescriptor::SetTaggedForTesting(int field_index,
+                                                        bool tagged) {
+  return SetTagged(field_index, tagged);
+}
+
+
+bool LayoutDescriptorHelper::IsTagged(
+    int offset_in_bytes, int end_offset,
+    int* out_end_of_contiguous_region_offset) {
+  DCHECK(IsAligned(offset_in_bytes, kPointerSize));
+  DCHECK(IsAligned(end_offset, kPointerSize));
+  DCHECK(offset_in_bytes < end_offset);
+  if (all_fields_tagged_) {
+    *out_end_of_contiguous_region_offset = end_offset;
+    DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
+    return true;
+  }
+  int max_sequence_length = (end_offset - offset_in_bytes) / kPointerSize;
+  int field_index = Max(0, (offset_in_bytes - header_size_) / kPointerSize);
+  int sequence_length;
+  bool tagged = layout_descriptor_->IsTagged(field_index, max_sequence_length,
+                                             &sequence_length);
+  DCHECK(sequence_length > 0);
+  if (offset_in_bytes < header_size_) {
+    // Object headers do not contain non-tagged fields. Check if the contiguous
+    // region continues after the header.
+    if (tagged) {
+      // First field is tagged, calculate end offset from there.
+      *out_end_of_contiguous_region_offset =
+          header_size_ + sequence_length * kPointerSize;
+
+    } else {
+      *out_end_of_contiguous_region_offset = header_size_;
+    }
+    DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
+    return true;
+  }
+  *out_end_of_contiguous_region_offset =
+      offset_in_bytes + sequence_length * kPointerSize;
+  DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
+  return tagged;
 }
 }
 }  // namespace v8::internal
