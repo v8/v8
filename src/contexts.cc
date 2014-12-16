@@ -134,13 +134,14 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
     return Maybe<PropertyAttributes>();
   }
   if (!unscopables->IsSpecObject()) return attrs;
-  Maybe<bool> blacklist = JSReceiver::HasProperty(
-      Handle<JSReceiver>::cast(unscopables), it->name());
-  if (!blacklist.has_value) {
+  Handle<Object> blacklist;
+  MaybeHandle<Object> maybe_blacklist =
+      Object::GetProperty(unscopables, it->name());
+  if (!maybe_blacklist.ToHandle(&blacklist)) {
     DCHECK(isolate->has_pending_exception());
     return Maybe<PropertyAttributes>();
   }
-  if (blacklist.value) return maybe(ABSENT);
+  if (!blacklist->IsUndefined()) return maybe(ABSENT);
   return attrs;
 }
 
