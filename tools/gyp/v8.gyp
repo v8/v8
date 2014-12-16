@@ -469,6 +469,8 @@
         '../../src/compiler/linkage.h',
         '../../src/compiler/load-elimination.cc',
         '../../src/compiler/load-elimination.h',
+        '../../src/compiler/loop-analysis.cc',
+        '../../src/compiler/loop-analysis.h',
         '../../src/compiler/machine-operator-reducer.cc',
         '../../src/compiler/machine-operator-reducer.h',
         '../../src/compiler/machine-operator.cc',
