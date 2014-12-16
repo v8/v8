@@ -298,9 +298,11 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 
   // The declared const was configurable, and may have been deleted in the
   // meanwhile. If so, re-introduce the variable in the context extension.
-  DCHECK(context_arg->has_extension());
   if (attributes == ABSENT) {
-    holder = handle(context_arg->extension(), isolate);
+    Handle<Context> declaration_context(context_arg->declaration_context());
+    DCHECK(declaration_context->has_extension());
+    holder = handle(declaration_context->extension(), isolate);
+    CHECK(holder->IsJSObject());
   } else {
     // For JSContextExtensionObjects, the initializer can be run multiple times
     // if in a for loop: for (var i = 0; i < 2; i++) { const x = i; }. Only the
