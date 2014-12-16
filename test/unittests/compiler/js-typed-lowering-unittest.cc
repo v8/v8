@@ -197,23 +197,6 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithSelect) {
 
 
 // -----------------------------------------------------------------------------
-// JSToNumber
-
-
-TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
-  Node* const input = Parameter(Type::PlainPrimitive(), 0);
-  Node* const context = Parameter(Type::Any(), 1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToNumber(), input,
-                                        context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(0),
-                                          graph()->start(), control));
-}
-
-
-// -----------------------------------------------------------------------------
 // JSStrictEqual
 
 
