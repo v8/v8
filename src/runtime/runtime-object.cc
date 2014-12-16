@@ -1606,5 +1606,35 @@ RUNTIME_FUNCTION(RuntimeReference_ClassOf) {
   if (!obj->IsJSReceiver()) return isolate->heap()->null_value();
   return JSReceiver::cast(obj)->class_name();
 }
+
+
+RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
+
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      JSObject::DefineAccessor(object, name, getter,
+                               isolate->factory()->null_value(), NONE));
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
+
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      JSObject::DefineAccessor(object, name, isolate->factory()->null_value(),
+                               setter, NONE));
+  return isolate->heap()->undefined_value();
+}
 }
 }  // namespace v8::internal

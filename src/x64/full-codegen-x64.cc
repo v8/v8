@@ -1651,11 +1651,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   expr->CalculateEmitStore(zone());
 
   AccessorTable accessor_table(zone());
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+  int property_index = 0;
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+    if (property->is_computed_name()) break;
     if (property->IsCompileTimeValue()) continue;
 
-    Literal* key = property->key();
+    Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
     if (!result_saved) {
       __ Push(rax);  // Save result on the stack
@@ -1733,6 +1735,65 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     EmitSetHomeObjectIfNeeded(it->second->setter, 3);
     __ Push(Smi::FromInt(NONE));
     __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+  }
+
+  // Object literals have two parts. The "static" part on the left contains no
+  // computed property names, and so we can compute its map ahead of time; see
+  // runtime.cc::CreateObjectLiteralBoilerplate. The second "dynamic" part
+  // starts with the first computed property name, and continues with all
+  // properties to its right.  All the code from above initializes the static
+  // component of the object literal, and arranges for the map of the result to
+  // reflect the static order in which the keys appear. For the dynamic
+  // properties, we compile them into a series of "SetOwnProperty" runtime
+  // calls. This will preserve insertion order.
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+
+    Expression* value = property->value();
+    if (!result_saved) {
+      __ Push(rax);  // Save result on the stack
+      result_saved = true;
+    }
+
+    __ Push(Operand(rsp, 0));  // Duplicate receiver.
+
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
+      DCHECK(!property->is_computed_name());
+      VisitForStackValue(value);
+      if (property->emit_store()) {
+        __ CallRuntime(Runtime::kInternalSetPrototype, 2);
+      } else {
+        __ Drop(2);
+      }
+    } else {
+      EmitPropertyKey(property);
+      VisitForStackValue(value);
+
+      switch (property->kind()) {
+        case ObjectLiteral::Property::CONSTANT:
+        case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        case ObjectLiteral::Property::COMPUTED:
+          if (property->emit_store()) {
+            __ Push(Smi::FromInt(NONE));
+            __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+          } else {
+            __ Drop(3);
+          }
+          break;
+
+        case ObjectLiteral::Property::PROTOTYPE:
+          UNREACHABLE();
+          break;
+
+        case ObjectLiteral::Property::GETTER:
+          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
+          break;
+
+        case ObjectLiteral::Property::SETTER:
+          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
+          break;
+      }
+    }
   }
 
   if (expr->has_function()) {
@@ -2393,16 +2454,14 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
 
   for (int i = 0; i < lit->properties()->length(); i++) {
     ObjectLiteral::Property* property = lit->properties()->at(i);
-    Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
-    DCHECK(key != NULL);
 
     if (property->is_static()) {
       __ Push(Operand(rsp, kPointerSize));  // constructor
     } else {
       __ Push(Operand(rsp, 0));  // prototype
     }
-    VisitForStackValue(key);
+    EmitPropertyKey(property);
     VisitForStackValue(value);
     EmitSetHomeObjectIfNeeded(value, 2);
 
@@ -2415,11 +2474,11 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         break;
 
       case ObjectLiteral::Property::GETTER:
-        __ CallRuntime(Runtime::kDefineClassGetter, 3);
+        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ CallRuntime(Runtime::kDefineClassSetter, 3);
+        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
         break;
 
       default:
