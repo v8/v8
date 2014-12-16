@@ -439,6 +439,25 @@ static void CollectElementIndices(Handle<JSObject> object, uint32_t range,
 }
 
 
+static bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
+                                uint32_t length, ArrayConcatVisitor* visitor) {
+  for (uint32_t i = 0; i < length; ++i) {
+    HandleScope loop_scope(isolate);
+    Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
+    if (!maybe.has_value) return false;
+    if (maybe.value) {
+      Handle<Object> element_value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, element_value,
+          Runtime::GetElementOrCharAt(isolate, receiver, i), false);
+      visitor->visit(i, element_value);
+    }
+  }
+  visitor->increase_index_offset(length);
+  return true;
+}
+
+
 /**
  * A helper function that visits elements of a JSObject in numerical
  * order.
@@ -467,6 +486,12 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
           Execution::ToLength(isolate, val), false);
       val->ToUint32(&length);
     }
+  }
+
+  if (!(receiver->IsJSArray() || receiver->IsJSTypedArray())) {
+    // For classes which are not known to be safe to access via elements alone,
+    // use the slow case.
+    return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
   switch (receiver->GetElementsKind()) {
