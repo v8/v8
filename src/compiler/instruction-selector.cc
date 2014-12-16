@@ -298,7 +298,7 @@ void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
+CallBuffer::CallBuffer(Zone* zone, const CallDescriptor* d,
                        FrameStateDescriptor* frame_desc)
     : descriptor(d),
       frame_state_descriptor(frame_desc),

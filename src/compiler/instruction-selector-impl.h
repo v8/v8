@@ -338,10 +338,10 @@ class FlagsContinuation FINAL {
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
 struct CallBuffer {
-  CallBuffer(Zone* zone, CallDescriptor* descriptor,
+  CallBuffer(Zone* zone, const CallDescriptor* descriptor,
              FrameStateDescriptor* frame_state);
 
-  CallDescriptor* descriptor;
+  const CallDescriptor* descriptor;
   FrameStateDescriptor* frame_state_descriptor;
   NodeVector output_nodes;
   InstructionOperandVector outputs;
