@@ -419,7 +419,7 @@ struct TypedLoweringPhase {
     ValueNumberingReducer vn_reducer(temp_zone);
     LoadElimination load_elimination;
     JSBuiltinReducer builtin_reducer(data->jsgraph());
-    JSTypedLowering typed_lowering(data->jsgraph());
+    JSTypedLowering typed_lowering(data->jsgraph(), temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
