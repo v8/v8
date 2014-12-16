@@ -603,7 +603,7 @@ void Assembler::Align(int m) {
 void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
   if (label->is_linked()) {
-    static const int kMaxLinksToCheck = 256;  // Avoid O(n2) behaviour.
+    static const int kMaxLinksToCheck = 64;  // Avoid O(n2) behaviour.
     int links_checked = 0;
     int linkoffset = label->pos();
     bool end_of_chain = false;
