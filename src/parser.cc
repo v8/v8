@@ -4323,6 +4323,9 @@ void RegExpParser::Advance() {
     }
   } else {
     current_ = kEndMarker;
+    // Advance so that position() points to 1-after-the-last-character. This is
+    // important so that Reset() to this position works correctly.
+    next_pos_ = in()->length() + 1;
     has_more_ = false;
   }
 }
