@@ -1078,7 +1078,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       for (auto succ : block->successors()) {
         const InstructionBlock* successor = code()->InstructionBlockAt(succ);
         DCHECK(successor->PredecessorCount() == 1);
-        int gap_index = successor->first_instruction_index() + 1;
+        int gap_index = successor->first_instruction_index();
         DCHECK(code()->IsGapAt(gap_index));
 
         // Create an unconstrained operand for the same virtual register
@@ -1095,7 +1095,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       for (auto succ : block->successors()) {
         const InstructionBlock* successor = code()->InstructionBlockAt(succ);
         DCHECK(successor->PredecessorCount() == 1);
-        int gap_index = successor->first_instruction_index() + 1;
+        int gap_index = successor->first_instruction_index();
         range->SpillAtDefinition(local_zone(), gap_index, output);
         range->SetSpillStartIndex(gap_index);
       }
@@ -2376,7 +2376,8 @@ void RegisterAllocator::SplitAndSpillIntersecting(LiveRange* current) {
 
 bool RegisterAllocator::IsBlockBoundary(LifetimePosition pos) {
   return pos.IsInstructionStart() &&
-         InstructionAt(pos.InstructionIndex())->IsBlockStart();
+         code()->GetInstructionBlock(pos.InstructionIndex())->code_start() ==
+             pos.InstructionIndex();
 }
 
 
@@ -2474,9 +2475,13 @@ void RegisterAllocator::SpillBetweenUntil(LiveRange* range,
     // The split result intersects with [start, end[.
     // Split it at position between ]start+1, end[, spill the middle part
     // and put the rest to unhandled.
+    auto third_part_end = end.PrevInstruction().InstructionEnd();
+    if (IsBlockBoundary(end.InstructionStart())) {
+      third_part_end = end.InstructionStart();
+    }
     auto third_part = SplitBetween(
         second_part, Max(second_part->Start().InstructionEnd(), until),
-        end.PrevInstruction().InstructionEnd());
+        third_part_end);
     if (!AllocationOk()) return;
 
     DCHECK(third_part != second_part);

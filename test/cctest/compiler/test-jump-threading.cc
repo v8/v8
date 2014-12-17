@@ -60,14 +60,14 @@ class TestCode : public HandleAndZoneScope {
   void RedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 1;
+    int index = static_cast<int>(sequence_.instructions().size()) - 2;
     sequence_.AddGapMove(index, RegisterOperand::Create(13, main_zone()),
                          RegisterOperand::Create(13, main_zone()));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 1;
+    int index = static_cast<int>(sequence_.instructions().size()) - 2;
     sequence_.AddGapMove(index, ImmediateOperand::Create(11, main_zone()),
                          RegisterOperand::Create(11, main_zone()));
   }
