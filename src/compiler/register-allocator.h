@@ -474,8 +474,8 @@ class RegisterAllocator FINAL : public ZoneObject {
               InstructionOperand* hint);
   void Use(LifetimePosition block_start, LifetimePosition position,
            InstructionOperand* operand, InstructionOperand* hint);
-  void AddConstraintsGapMove(int index, InstructionOperand* from,
-                             InstructionOperand* to);
+  void AddGapMove(int index, GapInstruction::InnerPosition position,
+                  InstructionOperand* from, InstructionOperand* to);
 
   // Helper methods for updating the life range lists.
   void AddToActive(LiveRange* range);

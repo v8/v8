@@ -777,25 +777,12 @@ void RegisterAllocator::Use(LifetimePosition block_start,
 }
 
 
-void RegisterAllocator::AddConstraintsGapMove(int index,
-                                              InstructionOperand* from,
-                                              InstructionOperand* to) {
+void RegisterAllocator::AddGapMove(int index,
+                                   GapInstruction::InnerPosition position,
+                                   InstructionOperand* from,
+                                   InstructionOperand* to) {
   auto gap = code()->GapAt(index);
-  auto move = gap->GetOrCreateParallelMove(GapInstruction::START, code_zone());
-  if (from->IsUnallocated()) {
-    const ZoneList<MoveOperands>* move_operands = move->move_operands();
-    for (int i = 0; i < move_operands->length(); ++i) {
-      auto cur = move_operands->at(i);
-      auto cur_to = cur.destination();
-      if (cur_to->IsUnallocated()) {
-        if (UnallocatedOperand::cast(cur_to)->virtual_register() ==
-            UnallocatedOperand::cast(from)->virtual_register()) {
-          move->AddMove(cur.source(), to, code_zone());
-          return;
-        }
-      }
-    }
-  }
+  auto move = gap->GetOrCreateParallelMove(position, code_zone());
   move->AddMove(from, to, code_zone());
 }
 
@@ -1100,7 +1087,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
             new (code_zone()) UnallocatedOperand(UnallocatedOperand::ANY);
         output_copy->set_virtual_register(output_vreg);
 
-        code()->AddGapMove(gap_index, output, output_copy);
+        AddGapMove(gap_index, GapInstruction::START, output, output_copy);
       }
     }
 
@@ -1153,7 +1140,8 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
             range->SetSpillStartIndex(gap_index - 1);
             assigned = true;
           }
-          code()->AddGapMove(gap_index, first_output, output_copy);
+          AddGapMove(gap_index, GapInstruction::START, first_output,
+                     output_copy);
         }
 
         // Make sure we add a gap move for spilling (if we have not done
@@ -1176,7 +1164,7 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
         auto input_copy = cur_input->CopyUnconstrained(code_zone());
         bool is_tagged = HasTaggedValue(cur_input->virtual_register());
         AllocateFixed(cur_input, gap_index + 1, is_tagged);
-        AddConstraintsGapMove(gap_index, input_copy, cur_input);
+        AddGapMove(gap_index, GapInstruction::END, input_copy, cur_input);
       }
     }
 
@@ -1194,7 +1182,7 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
 
         auto input_copy = cur_input->CopyUnconstrained(code_zone());
         cur_input->set_virtual_register(second_output->virtual_register());
-        AddConstraintsGapMove(gap_index, input_copy, cur_input);
+        AddGapMove(gap_index, GapInstruction::END, input_copy, cur_input);
 
         if (HasTaggedValue(input_vreg) && !HasTaggedValue(output_vreg)) {
           int index = gap_index + 1;
@@ -1249,39 +1237,45 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
     if (instr->IsGapMoves()) {
       // Process the moves of the gap instruction, making their sources live.
       auto gap = code()->GapAt(index);
-
-      // TODO(titzer): no need to create the parallel move if it doesn't exist.
-      auto move =
-          gap->GetOrCreateParallelMove(GapInstruction::START, code_zone());
-      const ZoneList<MoveOperands>* move_operands = move->move_operands();
-      for (int i = 0; i < move_operands->length(); ++i) {
-        auto cur = &move_operands->at(i);
-        auto from = cur->source();
-        auto to = cur->destination();
-        auto hint = to;
-        if (to->IsUnallocated()) {
-          int to_vreg = UnallocatedOperand::cast(to)->virtual_register();
-          auto to_range = LiveRangeFor(to_vreg);
-          if (to_range->is_phi()) {
-            DCHECK(!FLAG_turbo_delay_ssa_decon);
-            if (to_range->is_non_loop_phi()) {
-              hint = to_range->current_hint_operand();
+      const GapInstruction::InnerPosition kPositions[] = {
+          GapInstruction::END, GapInstruction::START};
+      for (auto position : kPositions) {
+        auto move = gap->GetParallelMove(position);
+        if (move == nullptr) continue;
+        if (position == GapInstruction::END) {
+          curr_position = curr_position.InstructionEnd();
+        } else {
+          curr_position = curr_position.InstructionStart();
+        }
+        auto move_ops = move->move_operands();
+        for (auto cur = move_ops->begin(); cur != move_ops->end(); ++cur) {
+          auto from = cur->source();
+          auto to = cur->destination();
+          auto hint = to;
+          if (to->IsUnallocated()) {
+            int to_vreg = UnallocatedOperand::cast(to)->virtual_register();
+            auto to_range = LiveRangeFor(to_vreg);
+            if (to_range->is_phi()) {
+              DCHECK(!FLAG_turbo_delay_ssa_decon);
+              if (to_range->is_non_loop_phi()) {
+                hint = to_range->current_hint_operand();
+              }
+            } else {
+              if (live->Contains(to_vreg)) {
+                Define(curr_position, to, from);
+                live->Remove(to_vreg);
+              } else {
+                cur->Eliminate();
+                continue;
+              }
             }
           } else {
-            if (live->Contains(to_vreg)) {
-              Define(curr_position, to, from);
-              live->Remove(to_vreg);
-            } else {
-              cur->Eliminate();
-              continue;
-            }
+            Define(curr_position, to, from);
           }
-        } else {
-          Define(curr_position, to, from);
-        }
-        Use(block_start_position, curr_position, from, hint);
-        if (from->IsUnallocated()) {
-          live->Add(UnallocatedOperand::cast(from)->virtual_register());
+          Use(block_start_position, curr_position, from, hint);
+          if (from->IsUnallocated()) {
+            live->Add(UnallocatedOperand::cast(from)->virtual_register());
+          }
         }
       }
     } else {
@@ -1369,10 +1363,8 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
       for (size_t i = 0; i < phi->operands().size(); ++i) {
         InstructionBlock* cur_block =
             code()->InstructionBlockAt(block->predecessors()[i]);
-        // The gap move must be added without any special processing as in
-        // the AddConstraintsGapMove.
-        code()->AddGapMove(cur_block->last_instruction_index() - 1,
-                           phi->inputs()[i], output);
+        AddGapMove(cur_block->last_instruction_index() - 1, GapInstruction::END,
+                   phi->inputs()[i], output);
         DCHECK(!InstructionAt(cur_block->last_instruction_index())
                     ->HasPointerMap());
       }
@@ -1648,18 +1640,18 @@ void RegisterAllocator::ResolveControlFlow(const InstructionBlock* block,
                                            const InstructionBlock* pred,
                                            InstructionOperand* pred_op) {
   if (pred_op->Equals(cur_op)) return;
-  GapInstruction* gap = nullptr;
+  int gap_index;
+  GapInstruction::InnerPosition position;
   if (block->PredecessorCount() == 1) {
-    gap = code()->GapAt(block->first_instruction_index());
+    gap_index = block->first_instruction_index();
+    position = GapInstruction::START;
   } else {
     DCHECK(pred->SuccessorCount() == 1);
-    gap = GetLastGap(pred);
-    auto branch = InstructionAt(pred->last_instruction_index());
-    DCHECK(!branch->HasPointerMap());
-    USE(branch);
+    DCHECK(!InstructionAt(pred->last_instruction_index())->HasPointerMap());
+    gap_index = pred->last_instruction_index() - 1;
+    position = GapInstruction::END;
   }
-  gap->GetOrCreateParallelMove(GapInstruction::START, code_zone())
-      ->AddMove(pred_op, cur_op, code_zone());
+  AddGapMove(gap_index, position, pred_op, cur_op);
 }
 
 
@@ -1689,7 +1681,7 @@ void RegisterAllocator::BuildLiveRanges() {
         auto gap =
             GetLastGap(code()->InstructionBlockAt(block->predecessors()[0]));
         auto move =
-            gap->GetOrCreateParallelMove(GapInstruction::START, code_zone());
+            gap->GetOrCreateParallelMove(GapInstruction::END, code_zone());
         for (int j = 0; j < move->move_operands()->length(); ++j) {
           auto to = move->move_operands()->at(j).destination();
           if (to->IsUnallocated() &&
