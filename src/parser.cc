@@ -407,8 +407,9 @@ bool ParserTraits::IsConstructor(const AstRawString* identifier) const {
 bool ParserTraits::IsThisProperty(Expression* expression) {
   DCHECK(expression != NULL);
   Property* property = expression->AsProperty();
-  return property != NULL && property->obj()->IsVariableProxy() &&
-         property->obj()->AsVariableProxy()->is_this();
+  return property != NULL &&
+      property->obj()->AsVariableProxy() != NULL &&
+      property->obj()->AsVariableProxy()->is_this();
 }
 
 
@@ -432,7 +433,8 @@ void ParserTraits::PushPropertyName(FuncNameInferrer* fni,
 void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
                                                            Expression* right) {
   DCHECK(left != NULL);
-  if (left->IsProperty() && right->IsFunctionLiteral()) {
+  if (left->AsProperty() != NULL &&
+      right->AsFunctionLiteral() != NULL) {
     right->AsFunctionLiteral()->set_pretenure();
   }
 }
@@ -804,8 +806,6 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_harmony_templates(FLAG_harmony_templates);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_unicode(FLAG_harmony_unicode);
-  set_allow_harmony_computed_property_names(
-      FLAG_harmony_computed_property_names);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -3976,8 +3976,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_templates(allow_harmony_templates());
     reusable_preparser_->set_allow_harmony_sloppy(allow_harmony_sloppy());
     reusable_preparser_->set_allow_harmony_unicode(allow_harmony_unicode());
-    reusable_preparser_->set_allow_harmony_computed_property_names(
-        allow_harmony_computed_property_names());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),
@@ -4037,11 +4035,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     if (fni_ != NULL) fni_->Enter();
     const bool in_class = true;
     const bool is_static = false;
-    bool is_computed_name = false;  // Classes do not care about computed
-                                    // property names here.
-    ObjectLiteral::Property* property =
-        ParsePropertyDefinition(NULL, in_class, is_static, &is_computed_name,
-                                &has_seen_constructor, CHECK_OK);
+    ObjectLiteral::Property* property = ParsePropertyDefinition(
+        NULL, in_class, is_static, &has_seen_constructor, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property);

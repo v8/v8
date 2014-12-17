@@ -412,6 +412,11 @@ class ParserTraits {
     return string->AsArrayIndex(index);
   }
 
+  bool IsConstructorProperty(ObjectLiteral::Property* property) {
+    return property->key()->raw_value()->EqualsString(
+        ast_value_factory()->constructor_string());
+  }
+
   static Expression* GetPropertyValue(ObjectLiteral::Property* property) {
     return property->value();
   }
@@ -421,9 +426,7 @@ class ParserTraits {
   static void PushLiteralName(FuncNameInferrer* fni, const AstRawString* id) {
     fni->PushLiteralName(id);
   }
-
   void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
-
   static void InferFunctionName(FuncNameInferrer* fni,
                                 FunctionLiteral* func_to_infer) {
     fni->AddFunction(func_to_infer);

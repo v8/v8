@@ -568,9 +568,6 @@ class FullCodeGenerator: public AstVisitor {
   // in the accumulator after installing all the properties.
   void EmitClassDefineProperties(ClassLiteral* lit);
 
-  // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(ObjectLiteralProperty* property);
-
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
   void EmitBinaryOp(BinaryOperation* expr,
