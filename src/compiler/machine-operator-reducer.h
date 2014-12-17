@@ -65,7 +65,6 @@ class MachineOperatorReducer FINAL : public Reducer {
   Reduction ReduceUint32Div(Node* node);
   Reduction ReduceInt32Mod(Node* node);
   Reduction ReduceUint32Mod(Node* node);
-  Reduction ReduceTruncateFloat64ToInt32Input(Node* input);
   Reduction ReduceTruncateFloat64ToInt32(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);

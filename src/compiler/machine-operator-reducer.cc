@@ -608,52 +608,31 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
 }
 
 
-Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32Input(
-    Node* input) {
-  Float64Matcher m(input);
+Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
+  Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
   if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-  return NoChange();
-}
-
-
-Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
-  // Try to reduce the input first.
-  Node* const input = node->InputAt(0);
-  Reduction reduction = ReduceTruncateFloat64ToInt32Input(input);
-  if (reduction.Changed()) return reduction;
-  if (input->opcode() == IrOpcode::kPhi) {
-    DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(input)));
-    // TruncateFloat64ToInt32(Phi[Float64](x1,...,xn))
-    //   => Phi[Int32](TruncateFloat64ToInt32(x1),
-    //                 ...,
-    //                 TruncateFloat64ToInt32(xn))
-    int const input_count = input->InputCount() - 1;
-    Node* const control = input->InputAt(input_count);
-    DCHECK_LE(0, input_count);
-    node->set_op(common()->Phi(kMachInt32, input_count));
-    for (int i = 0; i < input_count; ++i) {
-      Node* value = input->InputAt(i);
-      // Recursively try to reduce the value first.
-      Reduction const reduction = ReduceTruncateFloat64ToInt32Input(value);
-      if (reduction.Changed()) {
-        value = reduction.replacement();
-      } else {
-        value = graph()->NewNode(machine()->TruncateFloat64ToInt32(), value);
+  if (m.IsPhi()) {
+    Node* const phi = m.node();
+    DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));
+    if (phi->OwnedBy(node)) {
+      // TruncateFloat64ToInt32(Phi[Float64](x1,...,xn))
+      //   => Phi[Int32](TruncateFloat64ToInt32(x1),
+      //                 ...,
+      //                 TruncateFloat64ToInt32(xn))
+      const int value_input_count = phi->InputCount() - 1;
+      for (int i = 0; i < value_input_count; ++i) {
+        Node* input = graph()->NewNode(machine()->TruncateFloat64ToInt32(),
+                                       phi->InputAt(i));
+        // TODO(bmeurer): Reschedule input for reduction once we have Revisit()
+        // instead of recursing into ReduceTruncateFloat64ToInt32() here.
+        Reduction reduction = ReduceTruncateFloat64ToInt32(input);
+        if (reduction.Changed()) input = reduction.replacement();
+        phi->ReplaceInput(i, input);
       }
-      if (i < node->InputCount()) {
-        node->ReplaceInput(i, value);
-      } else {
-        node->AppendInput(graph()->zone(), value);
-      }
+      phi->set_op(common()->Phi(kMachInt32, value_input_count));
+      return Replace(phi);
     }
-    if (input_count < node->InputCount()) {
-      node->ReplaceInput(input_count, control);
-    } else {
-      node->AppendInput(graph()->zone(), control);
-    }
-    node->TrimInputCount(input_count + 1);
-    return Changed(node);
   }
   return NoChange();
 }
