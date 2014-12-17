@@ -1506,8 +1506,6 @@ class Heap {
   int initial_semispace_size_;
   int target_semispace_size_;
   intptr_t max_old_generation_size_;
-  intptr_t initial_old_generation_size_;
-  bool old_generation_size_configured_;
   intptr_t max_executable_size_;
   intptr_t maximum_committed_;
 
@@ -1995,10 +1993,8 @@ class Heap {
 
   int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
-  double promotion_ratio_;
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
-  intptr_t previous_semi_space_copied_object_size_;
   double semi_space_copied_rate_;
   int nodes_died_in_new_space_;
   int nodes_copied_in_new_space_;
@@ -2013,8 +2009,6 @@ class Heap {
   // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
   // Re-visit incremental marking heuristics.
   bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
-
-  void ConfigureInitialOldGenerationSize();
 
   void SelectScavengingVisitorsTable();
 
