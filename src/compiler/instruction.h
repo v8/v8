@@ -816,7 +816,6 @@ class PhiInstruction FINAL : public ZoneObject {
 class InstructionBlock FINAL : public ZoneObject {
  public:
   InstructionBlock(Zone* zone, BasicBlock::Id id,
-                   BasicBlock::RpoNumber ao_number,
                    BasicBlock::RpoNumber rpo_number,
                    BasicBlock::RpoNumber loop_header,
                    BasicBlock::RpoNumber loop_end, bool deferred);
@@ -905,6 +904,8 @@ class InstructionSequence FINAL : public ZoneObject {
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);
+  // Puts the deferred blocks last.
+  static void ComputeAssemblyOrder(InstructionBlocks* blocks);
 
   InstructionSequence(Zone* zone, InstructionBlocks* instruction_blocks);
 

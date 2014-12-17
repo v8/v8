@@ -133,10 +133,6 @@ class InstructionSelector FINAL {
  private:
   friend class OperandGenerator;
 
-  // Checks if {block} will appear directly after {current_block_} when
-  // assembling code, in which case, a fall-through can be used.
-  bool IsNextInAssemblyOrder(const BasicBlock* block) const;
-
   // Inform the instruction selection that {node} was just defined.
   void MarkAsDefined(Node* node);
 

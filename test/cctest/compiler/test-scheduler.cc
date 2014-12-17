@@ -35,17 +35,6 @@ static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
       CHECK_EQ(NULL, order->at(i)->loop_header());
     }
   }
-  int number = 0;
-  for (auto const block : *order) {
-    if (block->deferred()) continue;
-    CHECK_EQ(number, block->ao_number());
-    ++number;
-  }
-  for (auto const block : *order) {
-    if (!block->deferred()) continue;
-    CHECK_EQ(number, block->ao_number());
-    ++number;
-  }
 }
 
 

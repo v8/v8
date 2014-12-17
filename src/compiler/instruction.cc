@@ -348,7 +348,6 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 
 
 InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
-                                   BasicBlock::RpoNumber ao_number,
                                    BasicBlock::RpoNumber rpo_number,
                                    BasicBlock::RpoNumber loop_header,
                                    BasicBlock::RpoNumber loop_end,
@@ -357,7 +356,7 @@ InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
       predecessors_(zone),
       phis_(zone),
       id_(id),
-      ao_number_(ao_number),
+      ao_number_(rpo_number),
       rpo_number_(rpo_number),
       loop_header_(loop_header),
       loop_end_(loop_end),
@@ -392,8 +391,8 @@ static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
   InstructionBlock* instr_block = new (zone) InstructionBlock(
-      zone, block->id(), block->GetAoNumber(), block->GetRpoNumber(),
-      GetRpo(block->loop_header()), GetLoopEndRpo(block), block->deferred());
+      zone, block->id(), block->GetRpoNumber(), GetRpo(block->loop_header()),
+      GetLoopEndRpo(block), block->deferred());
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (auto it = block->successors_begin(); it != block->successors_end();
@@ -421,7 +420,23 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
+  ComputeAssemblyOrder(blocks);
   return blocks;
+}
+
+
+void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
+  int ao = 0;
+  for (auto const block : *blocks) {
+    if (!block->IsDeferred()) {
+      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+    }
+  }
+  for (auto const block : *blocks) {
+    if (block->IsDeferred()) {
+      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+    }
+  }
 }
 
 

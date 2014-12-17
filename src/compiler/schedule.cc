@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 BasicBlock::BasicBlock(Zone* zone, Id id)
-    : ao_number_(-1),
+    : loop_number_(-1),
       rpo_number_(-1),
       deferred_(false),
       dominator_depth_(-1),

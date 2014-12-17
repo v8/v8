@@ -163,9 +163,8 @@ class BasicBlock FINAL : public ZoneObject {
   int32_t loop_depth() const { return loop_depth_; }
   void set_loop_depth(int32_t loop_depth);
 
-  RpoNumber GetAoNumber() const { return RpoNumber::FromInt(ao_number_); }
-  int32_t ao_number() const { return ao_number_; }
-  void set_ao_number(int32_t ao_number) { ao_number_ = ao_number; }
+  int32_t loop_number() const { return loop_number_; }
+  void set_loop_number(int32_t loop_number) { loop_number_ = loop_number; }
 
   RpoNumber GetRpoNumber() const { return RpoNumber::FromInt(rpo_number_); }
   int32_t rpo_number() const { return rpo_number_; }
@@ -176,7 +175,7 @@ class BasicBlock FINAL : public ZoneObject {
   bool LoopContains(BasicBlock* block) const;
 
  private:
-  int32_t ao_number_;        // assembly order number of the block.
+  int32_t loop_number_;      // loop number of the block.
   int32_t rpo_number_;       // special RPO number of the block.
   bool deferred_;            // true if the block contains deferred code.
   int32_t dominator_depth_;  // Depth within the dominator tree.

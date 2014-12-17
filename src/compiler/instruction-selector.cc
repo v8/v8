@@ -173,11 +173,6 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 }
 
 
-bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
-  return current_block_->GetAoNumber().IsNext(block->GetAoNumber());
-}
-
-
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return node->OwnedBy(user) &&
          schedule()->block(node) == schedule()->block(user);

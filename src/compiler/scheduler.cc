@@ -568,20 +568,6 @@ class SpecialRPONumberer : public ZoneObject {
     ComputeAndInsertSpecialRPO(entry, end);
   }
 
-  // Serialize the previously computed order as an assembly order (non-deferred
-  // code first, deferred code afterwards) into the final schedule.
-  void SerializeAOIntoSchedule() {
-    int32_t number = 0;
-    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
-      if (b->deferred()) continue;
-      b->set_ao_number(number++);
-    }
-    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
-      if (!b->deferred()) continue;
-      b->set_ao_number(number++);
-    }
-  }
-
   // Serialize the previously computed order as a special reverse-post-order
   // numbering for basic blocks into the final schedule.
   void SerializeRPOIntoSchedule() {
@@ -648,14 +634,12 @@ class SpecialRPONumberer : public ZoneObject {
     return block;
   }
 
-  // We are hijacking the {ao_number} to enumerate loops temporarily. Note that
-  // these numbers are only valid within this class.
-  static int GetLoopNumber(BasicBlock* block) { return block->ao_number(); }
+  static int GetLoopNumber(BasicBlock* block) { return block->loop_number(); }
   static void SetLoopNumber(BasicBlock* block, int loop_number) {
-    return block->set_ao_number(loop_number);
+    return block->set_loop_number(loop_number);
   }
   static bool HasLoopNumber(BasicBlock* block) {
-    return block->ao_number() >= 0;
+    return block->loop_number() >= 0;
   }
 
   // TODO(mstarzinger): We only need this special sentinel because some tests
@@ -673,7 +657,7 @@ class SpecialRPONumberer : public ZoneObject {
   // mutating any existing order so that the result is still valid.
   void ComputeAndInsertSpecialRPO(BasicBlock* entry, BasicBlock* end) {
     // RPO should not have been serialized for this schedule yet.
-    CHECK_EQ(kBlockUnvisited1, schedule_->start()->ao_number());
+    CHECK_EQ(kBlockUnvisited1, schedule_->start()->loop_number());
     CHECK_EQ(kBlockUnvisited1, schedule_->start()->rpo_number());
     CHECK_EQ(0, static_cast<int>(schedule_->rpo_order()->size()));
 
@@ -1031,7 +1015,6 @@ class SpecialRPONumberer : public ZoneObject {
 BasicBlockVector* Scheduler::ComputeSpecialRPO(Zone* zone, Schedule* schedule) {
   SpecialRPONumberer numberer(zone, schedule);
   numberer.ComputeSpecialRPO();
-  numberer.SerializeAOIntoSchedule();
   numberer.SerializeRPOIntoSchedule();
   numberer.PrintAndVerifySpecialRPO();
   return schedule->rpo_order();
@@ -1412,7 +1395,6 @@ void Scheduler::SealFinalSchedule() {
   Trace("--- SEAL FINAL SCHEDULE ------------------------------------\n");
 
   // Serialize the assembly order and reverse-post-order numbering.
-  special_rpo_->SerializeAOIntoSchedule();
   special_rpo_->SerializeRPOIntoSchedule();
   special_rpo_->PrintAndVerifySpecialRPO();
 
