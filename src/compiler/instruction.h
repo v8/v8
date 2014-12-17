@@ -454,7 +454,7 @@ class Instruction : public ZoneObject {
     return FlagsConditionField::decode(opcode());
   }
 
-  // TODO(titzer): make control and call into flags.
+  // TODO(titzer): make call into a flag.
   static Instruction* New(Zone* zone, InstructionCode opcode) {
     return New(zone, opcode, 0, NULL, 0, NULL, 0, NULL);
   }
@@ -476,17 +476,10 @@ class Instruction : public ZoneObject {
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
 
-  // TODO(titzer): another holdover from lithium days; register allocator
-  // should not need to know about control instructions.
-  Instruction* MarkAsControl() {
-    bit_field_ = IsControlField::update(bit_field_, true);
-    return this;
-  }
   Instruction* MarkAsCall() {
     bit_field_ = IsCallField::update(bit_field_, true);
     return this;
   }
-  bool IsControl() const { return IsControlField::decode(bit_field_); }
   bool IsCall() const { return IsCallField::decode(bit_field_); }
   bool NeedsPointerMap() const { return IsCall(); }
   bool HasPointerMap() const { return pointer_map_ != NULL; }
@@ -528,8 +521,7 @@ class Instruction : public ZoneObject {
   explicit Instruction(InstructionCode opcode)
       : opcode_(opcode),
         bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
-                   TempCountField::encode(0) | IsCallField::encode(false) |
-                   IsControlField::encode(false)),
+                   TempCountField::encode(0) | IsCallField::encode(false)),
         pointer_map_(NULL) {}
 
   Instruction(InstructionCode opcode, size_t output_count,
@@ -540,7 +532,7 @@ class Instruction : public ZoneObject {
         bit_field_(OutputCountField::encode(output_count) |
                    InputCountField::encode(input_count) |
                    TempCountField::encode(temp_count) |
-                   IsCallField::encode(false) | IsControlField::encode(false)),
+                   IsCallField::encode(false)),
         pointer_map_(NULL) {
     for (size_t i = 0; i < output_count; ++i) {
       operands_[i] = outputs[i];
@@ -558,7 +550,6 @@ class Instruction : public ZoneObject {
   typedef BitField<size_t, 8, 16> InputCountField;
   typedef BitField<size_t, 24, 6> TempCountField;
   typedef BitField<bool, 30, 1> IsCallField;
-  typedef BitField<bool, 31, 1> IsControlField;
 
   InstructionCode opcode_;
   uint32_t bit_field_;

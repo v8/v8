@@ -1002,7 +1002,7 @@ void InstructionSelector::VisitConstant(Node* node) {
 void InstructionSelector::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);
-  Emit(kArchJmp, NULL, g.Label(target))->MarkAsControl();
+  Emit(kArchJmp, NULL, g.Label(target));
 }
 
 
