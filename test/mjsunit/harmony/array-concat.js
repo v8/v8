@@ -232,6 +232,16 @@ function testConcatTypedArray(type, elems, modulo) {
   assertEquals([ta_by_len, ta_by_len], [].concat(ta_by_len, ta_by_len));
   ta_by_len[Symbol.isConcatSpreadable] = true;
   assertEquals(items, [].concat(ta_by_len));
+
+  // TypedArray with fake `length`.
+  ta = new type(1);
+  var defValue = ta[0];
+  var expected = new Array(4000);
+  expected[0] = defValue;
+
+  Object.defineProperty(ta, "length", { value: 4000 });
+  ta[Symbol.isConcatSpreadable] = true;
+  assertEquals(expected, [].concat(ta));
 }
 
 (function testConcatSmallTypedArray() {
@@ -266,6 +276,9 @@ function testConcatTypedArray(type, elems, modulo) {
   var args = (function(a, b, c) { "use strict"; return arguments; })(1,2,3);
   args[Symbol.isConcatSpreadable] = true;
   assertEquals([1, 2, 3, 1, 2, 3], [].concat(args, args));
+
+  Object.defineProperty(args, "length", { value: 6 });
+  assertEquals([1, 2, 3, void 0, void 0, void 0], [].concat(args));
 })();
 
 
@@ -273,6 +286,9 @@ function testConcatTypedArray(type, elems, modulo) {
   var args = (function(a, b, c) { return arguments; })(1,2,3);
   args[Symbol.isConcatSpreadable] = true;
   assertEquals([1, 2, 3, 1, 2, 3], [].concat(args, args));
+
+  Object.defineProperty(args, "length", { value: 6 });
+  assertEquals([1, 2, 3, void 0, void 0, void 0], [].concat(args));
 })();
 
 
@@ -280,6 +296,9 @@ function testConcatTypedArray(type, elems, modulo) {
   var args = (function(a, a, a) { return arguments; })(1,2,3);
   args[Symbol.isConcatSpreadable] = true;
   assertEquals([1, 2, 3, 1, 2, 3], [].concat(args, args));
+
+  Object.defineProperty(args, "length", { value: 6 });
+  assertEquals([1, 2, 3, void 0, void 0, void 0], [].concat(args));
 })();
 
 
@@ -301,6 +320,156 @@ function testConcatTypedArray(type, elems, modulo) {
   delete args[1];
   args[Symbol.isConcatSpreadable] = true;
   assertEquals([1, void 0, 3, 1, void 0, 3], [].concat(args, args));
+})();
+
+
+(function testConcatSpreadableStringWrapper() {
+  "use strict";
+  var str1 = new String("yuck\uD83D\uDCA9")
+  // String wrapper objects are not concat-spreadable by default
+  assertEquals([str1], [].concat(str1));
+
+  // String wrapper objects may be individually concat-spreadable
+  str1[Symbol.isConcatSpreadable] = true;
+  assertEquals(["y", "u", "c", "k", "\uD83D", "\uDCA9"],
+               [].concat(str1));
+
+  String.prototype[Symbol.isConcatSpreadable] = true;
+  // String wrapper objects may be concat-spreadable
+  assertEquals(["y", "u", "c", "k", "\uD83D", "\uDCA9"],
+               [].concat(new String("yuck\uD83D\uDCA9")));
+
+  // String values are never concat-spreadable
+  assertEquals(["yuck\uD83D\uDCA9"], [].concat("yuck\uD83D\uDCA9"));
+  delete String.prototype[Symbol.isConcatSpreadable];
+})();
+
+
+(function testConcatSpreadableBooleanWrapper() {
+  "use strict";
+  var bool = new Boolean(true)
+  // Boolean wrapper objects are not concat-spreadable by default
+  assertEquals([bool], [].concat(bool));
+
+  // Boolean wrapper objects may be individually concat-spreadable
+  bool[Symbol.isConcatSpreadable] = true;
+  bool.length = 3;
+  bool[0] = 1, bool[1] = 2, bool[2] = 3;
+  assertEquals([1, 2, 3], [].concat(bool));
+
+  Boolean.prototype[Symbol.isConcatSpreadable] = true;
+  // Boolean wrapper objects may be concat-spreadable
+  assertEquals([], [].concat(new Boolean(true)));
+  Boolean.prototype[0] = 1;
+  Boolean.prototype[1] = 2;
+  Boolean.prototype[2] = 3;
+  Boolean.prototype.length = 3;
+  assertEquals([1,2,3], [].concat(new Boolean(true)));
+
+  // Boolean values are never concat-spreadable
+  assertEquals([true], [].concat(true));
+  delete Boolean.prototype[Symbol.isConcatSpreadable];
+  delete Boolean.prototype[0];
+  delete Boolean.prototype[1];
+  delete Boolean.prototype[2];
+  delete Boolean.prototype.length;
+})();
+
+
+(function testConcatSpreadableNumberWrapper() {
+  "use strict";
+  var num = new Number(true)
+  // Number wrapper objects are not concat-spreadable by default
+  assertEquals([num], [].concat(num));
+
+  // Number wrapper objects may be individually concat-spreadable
+  num[Symbol.isConcatSpreadable] = true;
+  num.length = 3;
+  num[0] = 1, num[1] = 2, num[2] = 3;
+  assertEquals([1, 2, 3], [].concat(num));
+
+  Number.prototype[Symbol.isConcatSpreadable] = true;
+  // Number wrapper objects may be concat-spreadable
+  assertEquals([], [].concat(new Number(123)));
+  Number.prototype[0] = 1;
+  Number.prototype[1] = 2;
+  Number.prototype[2] = 3;
+  Number.prototype.length = 3;
+  assertEquals([1,2,3], [].concat(new Number(123)));
+
+  // Number values are never concat-spreadable
+  assertEquals([true], [].concat(true));
+  delete Number.prototype[Symbol.isConcatSpreadable];
+  delete Number.prototype[0];
+  delete Number.prototype[1];
+  delete Number.prototype[2];
+  delete Number.prototype.length;
+})();
+
+
+(function testConcatSpreadableFunction() {
+  "use strict";
+  var fn = function(a, b, c) {}
+  // Functions are not concat-spreadable by default
+  assertEquals([fn], [].concat(fn));
+
+  // Functions may be individually concat-spreadable
+  fn[Symbol.isConcatSpreadable] = true;
+  fn[0] = 1, fn[1] = 2, fn[2] = 3;
+  assertEquals([1, 2, 3], [].concat(fn));
+
+  Function.prototype[Symbol.isConcatSpreadable] = true;
+  // Functions may be concat-spreadable
+  assertEquals([void 0, void 0, void 0], [].concat(function(a,b,c) {}));
+  Function.prototype[0] = 1;
+  Function.prototype[1] = 2;
+  Function.prototype[2] = 3;
+  assertEquals([1,2,3], [].concat(function(a, b, c) {}));
+
+  delete Function.prototype[Symbol.isConcatSpreadable];
+  delete Function.prototype[0];
+  delete Function.prototype[1];
+  delete Function.prototype[2];
+})();
+
+
+(function testConcatSpreadableRegExp() {
+  "use strict";
+  var re = /abc/;
+  // RegExps are not concat-spreadable by default
+  assertEquals([re], [].concat(re));
+
+  // RegExps may be individually concat-spreadable
+  re[Symbol.isConcatSpreadable] = true;
+  re[0] = 1, re[1] = 2, re[2] = 3, re.length = 3;
+  assertEquals([1, 2, 3], [].concat(re));
+
+  // RegExps may be concat-spreadable
+  RegExp.prototype[Symbol.isConcatSpreadable] = true;
+  RegExp.prototype.length = 3;
+
+  assertEquals([void 0, void 0, void 0], [].concat(/abc/));
+  RegExp.prototype[0] = 1;
+  RegExp.prototype[1] = 2;
+  RegExp.prototype[2] = 3;
+  assertEquals([1,2,3], [].concat(/abc/));
+
+  delete RegExp.prototype[Symbol.isConcatSpreadable];
+  delete RegExp.prototype[0];
+  delete RegExp.prototype[1];
+  delete RegExp.prototype[2];
+  delete RegExp.prototype.length;
+})();
+
+
+(function testArrayConcatSpreadableSparseObject() {
+  "use strict";
+  var obj = { length: 5 };
+  obj[Symbol.isConcatSpreadable] = true;
+  assertEquals([void 0, void 0, void 0, void 0, void 0], [].concat(obj));
+
+  obj.length = 4000;
+  assertEquals(new Array(4000), [].concat(obj));
 })();
 
 

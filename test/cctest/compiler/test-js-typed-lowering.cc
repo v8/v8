@@ -76,7 +76,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* reduce(Node* node) {
     JSGraph jsgraph(&graph, &common, &javascript, &machine);
-    JSTypedLowering reducer(&jsgraph);
+    JSTypedLowering reducer(&jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -990,7 +990,7 @@ TEST(OrderNumberBinopEffects1) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::String(), Type::String());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Symbol());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
@@ -1063,8 +1063,8 @@ TEST(OrderCompareEffects) {
     CHECK_EQ(B.p1, i0->InputAt(0));
     CHECK_EQ(B.p0, i1->InputAt(0));
 
-    // But effects should be ordered start -> i1 -> i0 -> effect_use
-    B.CheckEffectOrdering(i1, i0);
+    // But effects should be ordered start -> i1 -> effect_use
+    B.CheckEffectOrdering(i1);
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {

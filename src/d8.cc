@@ -1555,11 +1555,13 @@ class StartupDataHandler {
     if (natives_blob || snapshot_blob) {
       LoadFromFiles(natives_blob, snapshot_blob);
     } else {
-      char natives[100], snapshot[100];
-      LoadFromFiles(
-          RelativePath(natives, exec_path, "natives_blob.bin", sizeof(natives)),
-          RelativePath(snapshot, exec_path, "snapshot_blob.bin",
-                       sizeof(snapshot)));
+      char* natives;
+      char* snapshot;
+      LoadFromFiles(RelativePath(&natives, exec_path, "natives_blob.bin"),
+                    RelativePath(&snapshot, exec_path, "snapshot_blob.bin"));
+
+      free(natives);
+      free(snapshot);
     }
   }
 
@@ -1569,19 +1571,21 @@ class StartupDataHandler {
   }
 
  private:
-  static char* RelativePath(char* buffer, const char* exec_path,
-                            const char* name, int buffer_length) {
+  static char* RelativePath(char** buffer, const char* exec_path,
+                            const char* name) {
     DCHECK(exec_path);
     const char* last_slash = strrchr(exec_path, '/');
     if (last_slash) {
       int after_slash = last_slash - exec_path + 1;
-      DCHECK(buffer_length > after_slash);
-      strncpy(buffer, exec_path, after_slash);
-      buffer[after_slash] = '\0';
-      return strncat(buffer, name, buffer_length);
+      int name_length = strlen(name);
+      *buffer =
+          reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
+      strncpy(*buffer, exec_path, after_slash);
+      strncat(*buffer, name, name_length);
     } else {
-      return strncpy(buffer, name, buffer_length);
+      *buffer = strdup(name);
     }
+    return *buffer;
   }
 
   void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {

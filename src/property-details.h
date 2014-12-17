@@ -57,6 +57,7 @@ enum PropertyLocation { IN_OBJECT = 0, IN_DESCRIPTOR = 1 };
 enum PropertyType {
   FIELD = (IN_OBJECT << 1) | DATA,
   CONSTANT = (IN_DESCRIPTOR << 1) | DATA,
+  ACCESSOR_FIELD = (IN_OBJECT << 1) | ACCESSOR,
   CALLBACKS = (IN_DESCRIPTOR << 1) | ACCESSOR
 };
 

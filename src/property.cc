@@ -51,18 +51,11 @@ struct FastPropertyDetails {
 // Outputs PropertyDetails as a dictionary details.
 std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
   os << "(";
-  switch (details.type()) {
-    case FIELD:
-      os << "normal: ";
-      break;
-    case CALLBACKS:
-      os << "callbacks: ";
-      break;
-    case CONSTANT:
-      UNREACHABLE();
-      break;
+  if (details.location() == IN_DESCRIPTOR) {
+    os << "immutable ";
   }
-  return os << " dictionary_index: " << details.dictionary_index()
+  os << (details.kind() == DATA ? "data" : "accessor");
+  return os << ", dictionary_index: " << details.dictionary_index()
             << ", attrs: " << details.attributes() << ")";
 }
 
@@ -72,20 +65,16 @@ std::ostream& operator<<(std::ostream& os,
                          const FastPropertyDetails& details_fast) {
   const PropertyDetails& details = details_fast.details;
   os << "(";
-  switch (details.type()) {
-    case CONSTANT:
-      os << "constant: p: " << details.pointer();
-      break;
-    case FIELD:
-      os << "field: " << details.representation().Mnemonic()
-         << ", field_index: " << details.field_index()
-         << ", p: " << details.pointer();
-      break;
-    case CALLBACKS:
-      os << "callbacks: p: " << details.pointer();
-      break;
+  if (details.location() == IN_DESCRIPTOR) {
+    os << "immutable ";
   }
-  return os << ", attrs: " << details.attributes() << ")";
+  os << (details.kind() == DATA ? "data" : "accessor");
+  if (details.location() == IN_OBJECT) {
+    os << ": " << details.representation().Mnemonic()
+       << ", field_index: " << details.field_index();
+  }
+  return os << ", p: " << details.pointer()
+            << ", attrs: " << details.attributes() << ")";
 }
 
 

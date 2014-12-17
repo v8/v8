@@ -29,8 +29,8 @@ static void RelaxEffects(Node* node) {
 }
 
 
-JSTypedLowering::JSTypedLowering(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {
+JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
+    : jsgraph_(jsgraph), simplified_(graph()->zone()), conversions_(zone) {
   Handle<Object> zero = factory()->NewNumber(0.0);
   Handle<Object> one = factory()->NewNumber(1.0);
   zero_range_ = Type::Range(zero, zero, graph()->zone());
@@ -195,9 +195,9 @@ class JSBinopReduction FINAL {
   }
 
   Node* ConvertToNumber(Node* node) {
-    // Avoid introducing too many eager ToNumber() operations.
-    Reduction reduced = lowering_->ReduceJSToNumberInput(node);
-    if (reduced.Changed()) return reduced.replacement();
+    if (NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive())) {
+      return lowering_->ConvertToNumber(node);
+    }
     Node* n = graph()->NewNode(javascript()->ToNumber(), node, context(),
                                effect(), control());
     update_effect(n);
@@ -497,6 +497,9 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     if (result.Changed()) return result;
     return Changed(input);  // JSToBoolean(JSToBoolean(x)) => JSToBoolean(x)
   }
+  // Check if we have a cached conversion.
+  Node* conversion = FindConversion<IrOpcode::kJSToBoolean>(input);
+  if (conversion) return Replace(conversion);
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Boolean())) {
     return Changed(input);  // JSToBoolean(x:boolean) => x
@@ -554,21 +557,13 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Boolean()));
     node->set_op(common()->Phi(kMachAnyTagged, input_count));
     for (int i = 0; i < input_count; ++i) {
-      Node* value = input->InputAt(i);
-      // Recursively try to reduce the value first.
-      Reduction reduction = ReduceJSToBooleanInput(value);
-      if (reduction.Changed()) {
-        value = reduction.replacement();
-      } else {
-        // We must be very careful not to introduce cycles when pushing
-        // operations into phis. It is safe for {value}, since it appears
-        // as input to the phi that we are replacing, but it's not safe
-        // to simply reuse the context of the {node}. However, ToBoolean()
-        // does not require a context anyways, so it's safe to discard it
-        // here and pass the dummy context.
-        value = graph()->NewNode(javascript()->ToBoolean(), value,
-                                 jsgraph()->NoContextConstant());
-      }
+      // We must be very careful not to introduce cycles when pushing
+      // operations into phis. It is safe for {value}, since it appears
+      // as input to the phi that we are replacing, but it's not safe
+      // to simply reuse the context of the {node}. However, ToBoolean()
+      // does not require a context anyways, so it's safe to discard it
+      // here and pass the dummy context.
+      Node* const value = ConvertToBoolean(input->InputAt(i));
       if (i < node->InputCount()) {
         node->ReplaceInput(i, value);
       } else {
@@ -594,24 +589,22 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     node->set_op(common()->Select(kMachAnyTagged, input_hint));
     node->InsertInput(graph()->zone(), 0, input->InputAt(0));
     for (int i = 1; i < input_count; ++i) {
-      Node* value = input->InputAt(i);
-      // Recursively try to reduce the value first.
-      Reduction reduction = ReduceJSToBooleanInput(value);
-      if (reduction.Changed()) {
-        value = reduction.replacement();
-      } else {
-        // We must be very careful not to introduce cycles when pushing
-        // operations into selects. It is safe for {value}, since it appears
-        // as input to the select that we are replacing, but it's not safe
-        // to simply reuse the context of the {node}. However, ToBoolean()
-        // does not require a context anyways, so it's safe to discard it
-        // here and pass the dummy context.
-        value = graph()->NewNode(javascript()->ToBoolean(), value,
-                                 jsgraph()->NoContextConstant());
-      }
+      // We must be very careful not to introduce cycles when pushing
+      // operations into selects. It is safe for {value}, since it appears
+      // as input to the select that we are replacing, but it's not safe
+      // to simply reuse the context of the {node}. However, ToBoolean()
+      // does not require a context anyways, so it's safe to discard it
+      // here and pass the dummy context.
+      Node* const value = ConvertToBoolean(input->InputAt(i));
       node->ReplaceInput(i, value);
     }
     DCHECK_EQ(3, node->InputCount());
+    return Changed(node);
+  }
+  InsertConversion(node);
+  if (node->InputAt(1) != jsgraph()->NoContextConstant()) {
+    // JSToBoolean(x,context) => JSToBoolean(x,no-context)
+    node->ReplaceInput(1, jsgraph()->NoContextConstant());
     return Changed(node);
   }
   return NoChange();
@@ -625,6 +618,9 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     if (result.Changed()) return result;
     return Changed(input);  // JSToNumber(JSToNumber(x)) => JSToNumber(x)
   }
+  // Check if we have a cached conversion.
+  Node* conversion = FindConversion<IrOpcode::kJSToNumber>(input);
+  if (conversion) return Replace(conversion);
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Number())) {
     // JSToNumber(x:number) => x
@@ -671,22 +667,13 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       RelaxEffects(node);
       node->set_op(common()->Phi(kMachAnyTagged, input_count));
       for (int i = 0; i < input_count; ++i) {
-        Node* value = input->InputAt(i);
-        // Recursively try to reduce the value first.
-        Reduction reduction = ReduceJSToNumberInput(value);
-        if (reduction.Changed()) {
-          value = reduction.replacement();
-        } else {
-          // We must be very careful not to introduce cycles when pushing
-          // operations into phis. It is safe for {value}, since it appears
-          // as input to the phi that we are replacing, but it's not safe
-          // to simply reuse the context of the {node}. However, ToNumber()
-          // does not require a context anyways, so it's safe to discard it
-          // here and pass the dummy context.
-          value = graph()->NewNode(javascript()->ToNumber(), value,
-                                   jsgraph()->NoContextConstant(),
-                                   graph()->start(), graph()->start());
-        }
+        // We must be very careful not to introduce cycles when pushing
+        // operations into phis. It is safe for {value}, since it appears
+        // as input to the phi that we are replacing, but it's not safe
+        // to simply reuse the context of the {node}. However, ToNumber()
+        // does not require a context anyways, so it's safe to discard it
+        // here and pass the dummy context.
+        Node* const value = ConvertToNumber(input->InputAt(i));
         if (i < node->InputCount()) {
           node->ReplaceInput(i, value);
         } else {
@@ -713,32 +700,29 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       node->set_op(common()->Select(kMachAnyTagged, input_hint));
       node->ReplaceInput(0, input->InputAt(0));
       for (int i = 1; i < input_count; ++i) {
-        Node* value = input->InputAt(i);
-        // Recursively try to reduce the value first.
-        Reduction reduction = ReduceJSToNumberInput(value);
-        if (reduction.Changed()) {
-          value = reduction.replacement();
-        } else {
-          // We must be very careful not to introduce cycles when pushing
-          // operations into selects. It is safe for {value}, since it appears
-          // as input to the select that we are replacing, but it's not safe
-          // to simply reuse the context of the {node}. However, ToNumber()
-          // does not require a context anyways, so it's safe to discard it
-          // here and pass the dummy context.
-          value = graph()->NewNode(javascript()->ToNumber(), value,
-                                   jsgraph()->NoContextConstant(),
-                                   graph()->start(), graph()->start());
-        }
+        // We must be very careful not to introduce cycles when pushing
+        // operations into selects. It is safe for {value}, since it appears
+        // as input to the select that we are replacing, but it's not safe
+        // to simply reuse the context of the {node}. However, ToNumber()
+        // does not require a context anyways, so it's safe to discard it
+        // here and pass the dummy context.
+        Node* const value = ConvertToNumber(input->InputAt(i));
         node->ReplaceInput(i, value);
       }
       node->TrimInputCount(input_count);
       return Changed(node);
     }
+    // Remember this conversion.
+    InsertConversion(node);
     if (node->InputAt(1) != jsgraph()->NoContextConstant() ||
-        node->InputAt(2) != graph()->start()) {
-      // JSToNumber(x:plain-primitive,context) => JSToNumber(x,no-context)
-      node->ReplaceInput(1, jsgraph()->NoContextConstant());
+        node->InputAt(2) != graph()->start() ||
+        node->InputAt(3) != graph()->start()) {
+      // JSToNumber(x:plain-primitive,context,effect,control)
+      //   => JSToNumber(x,no-context,start,start)
       RelaxEffects(node);
+      node->ReplaceInput(1, jsgraph()->NoContextConstant());
+      node->ReplaceInput(2, graph()->start());
+      node->ReplaceInput(3, graph()->start());
       return Changed(node);
     }
   }
@@ -1019,6 +1003,54 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+
+Node* JSTypedLowering::ConvertToBoolean(Node* input) {
+  // Avoid inserting too many eager ToBoolean() operations.
+  Reduction const reduction = ReduceJSToBooleanInput(input);
+  if (reduction.Changed()) return reduction.replacement();
+  Node* const conversion = graph()->NewNode(javascript()->ToBoolean(), input,
+                                            jsgraph()->NoContextConstant());
+  InsertConversion(conversion);
+  return conversion;
+}
+
+
+Node* JSTypedLowering::ConvertToNumber(Node* input) {
+  DCHECK(NodeProperties::GetBounds(input).upper->Is(Type::PlainPrimitive()));
+  // Avoid inserting too many eager ToNumber() operations.
+  Reduction const reduction = ReduceJSToNumberInput(input);
+  if (reduction.Changed()) return reduction.replacement();
+  Node* const conversion = graph()->NewNode(javascript()->ToNumber(), input,
+                                            jsgraph()->NoContextConstant(),
+                                            graph()->start(), graph()->start());
+  InsertConversion(conversion);
+  return conversion;
+}
+
+
+template <IrOpcode::Value kOpcode>
+Node* JSTypedLowering::FindConversion(Node* input) {
+  size_t const input_id = input->id();
+  if (input_id < conversions_.size()) {
+    Node* const conversion = conversions_[input_id];
+    if (conversion && conversion->opcode() == kOpcode) {
+      return conversion;
+    }
+  }
+  return nullptr;
+}
+
+
+void JSTypedLowering::InsertConversion(Node* conversion) {
+  DCHECK(conversion->opcode() == IrOpcode::kJSToBoolean ||
+         conversion->opcode() == IrOpcode::kJSToNumber);
+  size_t const input_id = conversion->InputAt(0)->id();
+  if (input_id >= conversions_.size()) {
+    conversions_.resize(2 * input_id + 1);
+  }
+  conversions_[input_id] = conversion;
 }
 
 

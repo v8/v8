@@ -469,25 +469,6 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithPhi) {
 }
 
 
-TEST_F(MachineOperatorReducerTest,
-       TruncateFloat64ToInt32WithPhiAndChangeInt32ToFloat64) {
-  Node* const p0 = Parameter(0);
-  Node* const merge = graph()->start();
-  Node* const truncate = graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(),
-      graph()->NewNode(common()->Phi(kMachFloat64, 2), p0, p0, merge));
-  truncate->InputAt(0)->ReplaceInput(
-      1, graph()->NewNode(machine()->ChangeInt32ToFloat64(), truncate));
-  Reduction reduction = Reduce(truncate);
-  ASSERT_TRUE(reduction.Changed());
-  Capture<Node*> phi;
-  EXPECT_THAT(
-      reduction.replacement(),
-      AllOf(CaptureEq(&phi), IsPhi(kMachInt32, IsTruncateFloat64ToInt32(p0),
-                                   CaptureEq(&phi), merge)));
-}
-
-
 // -----------------------------------------------------------------------------
 // TruncateInt64ToInt32
 

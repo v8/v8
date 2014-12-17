@@ -965,8 +965,8 @@ SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
 
 bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
   DCHECK(FLAG_turbo_reuse_spill_slots);
-  DCHECK(range->HasNoSpillType());
   if (range->IsChild() || !range->is_phi()) return false;
+  DCHECK(range->HasNoSpillType());
 
   auto lookup = phi_map_.find(range->id());
   DCHECK(lookup != phi_map_.end());

@@ -118,40 +118,52 @@ void GraphReducer::ReduceTop() {
   // All inputs should be visited or on stack. Apply reductions to node.
   Reduction reduction = Reduce(node);
 
+  // If there was no reduction, pop {node} and continue.
+  if (!reduction.Changed()) return Pop();
+
+  // Check if the reduction is an in-place update of the {node}.
+  Node* const replacement = reduction.replacement();
+  if (replacement == node) {
+    // In-place update of {node}, may need to recurse on an input.
+    for (int i = 0; i < node->InputCount(); ++i) {
+      Node* input = node->InputAt(i);
+      entry.input_index = i + 1;
+      if (input != node && Recurse(input)) return;
+    }
+  }
+
   // After reducing the node, pop it off the stack.
   Pop();
 
-  // If there was a reduction, revisit the uses and reduce the replacement.
-  if (reduction.Changed()) {
-    for (Node* const use : node->uses()) {
-      // Don't revisit this node if it refers to itself.
-      if (use != node) Revisit(use);
-    }
-    Node* const replacement = reduction.replacement();
-    if (replacement != node) {
-      if (node == graph()->start()) graph()->SetStart(replacement);
-      if (node == graph()->end()) graph()->SetEnd(replacement);
-      // If {node} was replaced by an old node, unlink {node} and assume that
-      // {replacement} was already reduced and finish.
-      if (replacement->id() < node_count) {
-        node->ReplaceUses(replacement);
-        node->Kill();
-      } else {
-        // Otherwise {node} was replaced by a new node. Replace all old uses of
-        // {node} with {replacement}. New nodes created by this reduction can
-        // use {node}.
-        node->ReplaceUsesIf([node_count](Node* const node) {
-                              return node->id() < node_count;
-                            },
-                            replacement);
-        // Unlink {node} if it's no longer used.
-        if (node->uses().empty()) {
-          node->Kill();
-        }
+  // Revisit all uses of the node.
+  for (Node* const use : node->uses()) {
+    // Don't revisit this node if it refers to itself.
+    if (use != node) Revisit(use);
+  }
 
-        // If there was a replacement, reduce it after popping {node}.
-        Recurse(replacement);
+  // Check if we have a new replacement.
+  if (replacement != node) {
+    if (node == graph()->start()) graph()->SetStart(replacement);
+    if (node == graph()->end()) graph()->SetEnd(replacement);
+    // If {node} was replaced by an old node, unlink {node} and assume that
+    // {replacement} was already reduced and finish.
+    if (replacement->id() < node_count) {
+      node->ReplaceUses(replacement);
+      node->Kill();
+    } else {
+      // Otherwise {node} was replaced by a new node. Replace all old uses of
+      // {node} with {replacement}. New nodes created by this reduction can
+      // use {node}.
+      node->ReplaceUsesIf(
+          [node_count](Node* const node) { return node->id() < node_count; },
+          replacement);
+      // Unlink {node} if it's no longer used.
+      if (node->uses().empty()) {
+        node->Kill();
       }
+
+      // If there was a replacement, reduce it after popping {node}.
+      Recurse(replacement);
     }
   }
 }

@@ -30,6 +30,24 @@ static void ConnectTransition(Handle<Map> parent,
 }
 
 
+static void CheckPropertyDetailsFieldsConsistency(PropertyType type,
+                                                  PropertyKind kind,
+                                                  PropertyLocation location) {
+  int type_value = PropertyDetails::TypeField::encode(type);
+  int kind_location_value = PropertyDetails::KindField::encode(kind) |
+                            PropertyDetails::LocationField::encode(location);
+  CHECK_EQ(type_value, kind_location_value);
+}
+
+
+TEST(PropertyDetailsFieldsConsistency) {
+  CheckPropertyDetailsFieldsConsistency(FIELD, DATA, IN_OBJECT);
+  CheckPropertyDetailsFieldsConsistency(CONSTANT, DATA, IN_DESCRIPTOR);
+  CheckPropertyDetailsFieldsConsistency(ACCESSOR_FIELD, ACCESSOR, IN_OBJECT);
+  CheckPropertyDetailsFieldsConsistency(CALLBACKS, ACCESSOR, IN_DESCRIPTOR);
+}
+
+
 TEST(TransitionArray_SimpleFieldTransitions) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

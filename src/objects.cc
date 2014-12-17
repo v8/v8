@@ -2866,29 +2866,35 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
     DescriptorArray* new_descriptors = new_map->instance_descriptors();
 
     PropertyDetails new_details = new_descriptors->GetDetails(i);
-    if (old_details.attributes() != new_details.attributes() ||
-        !old_details.representation().fits_into(new_details.representation())) {
+    DCHECK_EQ(old_details.kind(), new_details.kind());
+    DCHECK_EQ(old_details.attributes(), new_details.attributes());
+    if (!old_details.representation().fits_into(new_details.representation())) {
       return MaybeHandle<Map>();
     }
-    PropertyType new_type = new_details.type();
-    PropertyType old_type = old_details.type();
     Object* new_value = new_descriptors->GetValue(i);
     Object* old_value = old_descriptors->GetValue(i);
-    switch (new_type) {
-      case FIELD:
-        if ((old_type == FIELD &&
-             !HeapType::cast(old_value)->NowIs(HeapType::cast(new_value))) ||
-            (old_type == CONSTANT &&
-             !HeapType::cast(new_value)->NowContains(old_value)) ||
-            (old_type == CALLBACKS &&
-             !HeapType::Any()->Is(HeapType::cast(new_value)))) {
-          return MaybeHandle<Map>();
+    switch (new_details.type()) {
+      case FIELD: {
+        PropertyType old_type = old_details.type();
+        if (old_type == FIELD) {
+          if (!HeapType::cast(old_value)->NowIs(HeapType::cast(new_value))) {
+            return MaybeHandle<Map>();
+          }
+        } else {
+          DCHECK(old_type == CONSTANT);
+          if (!HeapType::cast(new_value)->NowContains(old_value)) {
+            return MaybeHandle<Map>();
+          }
         }
+        break;
+      }
+      case ACCESSOR_FIELD:
+        DCHECK(HeapType::Any()->Is(HeapType::cast(new_value)));
         break;
 
       case CONSTANT:
       case CALLBACKS:
-        if (old_type != new_type || old_value != new_value) {
+        if (old_details.location() == IN_OBJECT || old_value != new_value) {
           return MaybeHandle<Map>();
         }
         break;
@@ -4364,16 +4370,15 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
   Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
+    Handle<Name> key(descs->GetKey(i));
     switch (details.type()) {
       case CONSTANT: {
-        Handle<Name> key(descs->GetKey(i));
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d(details.attributes(), FIELD, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case FIELD: {
-        Handle<Name> key(descs->GetKey(i));
         FieldIndex index = FieldIndex::ForDescriptor(*map, i);
         Handle<Object> value;
         if (object->IsUnboxedDoubleField(index)) {
@@ -4391,8 +4396,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
+      case ACCESSOR_FIELD: {
+        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
+        PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        break;
+      }
       case CALLBACKS: {
-        Handle<Name> key(descs->GetKey(i));
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
@@ -7069,6 +7080,7 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
              value->FitsRepresentation(details.representation()));
       return GetConstant(descriptor) == value;
 
+    case ACCESSOR_FIELD:
     case CALLBACKS:
       return false;
   }
@@ -7194,7 +7206,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
     int descriptor = transition->LastAdded();
     DCHECK(descriptors->GetKey(descriptor)->Equals(*name));
 
-    DCHECK_EQ(CALLBACKS, descriptors->GetDetails(descriptor).type());
+    DCHECK_EQ(ACCESSOR, descriptors->GetDetails(descriptor).kind());
     DCHECK_EQ(attributes, descriptors->GetDetails(descriptor).attributes());
 
     Handle<Object> maybe_pair(descriptors->GetValue(descriptor), isolate);
@@ -17067,11 +17079,13 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 
 Handle<Object> PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
                                                Handle<Object> value) {
-  // Heuristic: if a string is stored in a previously uninitialized
+  // Heuristic: if a small-ish string is stored in a previously uninitialized
   // property cell, internalize it.
+  const int kMaxLengthForInternalization = 200;
   if ((cell->type()->Is(HeapType::None()) ||
        cell->type()->Is(HeapType::Undefined())) &&
-      value->IsString()) {
+      value->IsString() &&
+      Handle<String>::cast(value)->length() <= kMaxLengthForInternalization) {
     value = cell->GetIsolate()->factory()->InternalizeString(
         Handle<String>::cast(value));
   }

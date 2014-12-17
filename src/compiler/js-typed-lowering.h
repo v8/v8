@@ -22,7 +22,7 @@ class MachineOperatorBuilder;
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering FINAL : public Reducer {
  public:
-  explicit JSTypedLowering(JSGraph* jsgraph);
+  JSTypedLowering(JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() FINAL {}
 
   Reduction Reduce(Node* node) FINAL;
@@ -52,6 +52,12 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 
+  Node* ConvertToBoolean(Node* input);
+  Node* ConvertToNumber(Node* input);
+  template <IrOpcode::Value>
+  Node* FindConversion(Node* input);
+  void InsertConversion(Node* conversion);
+
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
   Factory* factory() const;
@@ -64,6 +70,7 @@ class JSTypedLowering FINAL : public Reducer {
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;
+  ZoneVector<Node*> conversions_;  // Cache inserted JSToXXX() conversions.
   Type* zero_range_;
   Type* one_range_;
   Type* zero_thirtyone_range_;

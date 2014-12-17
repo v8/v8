@@ -241,11 +241,16 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
           os << " (field at offset " << index.property_index() << ")\n";
           break;
         }
+        case ACCESSOR_FIELD: {
+          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+          os << " (accessor at offset " << index.property_index() << ")\n";
+          break;
+        }
         case CONSTANT:
           os << Brief(descs->GetConstant(i)) << " (constant)\n";
           break;
         case CALLBACKS:
-          os << Brief(descs->GetCallbacksObject(i)) << " (callback)\n";
+          os << Brief(descs->GetCallbacksObject(i)) << " (callbacks)\n";
           break;
       }
     }
@@ -1189,19 +1194,15 @@ void TransitionArray::PrintTransitions(std::ostream& os,
       os << " (transition to Object.observe)";
     } else {
       PropertyDetails details = GetTargetDetails(key, target);
-      switch (details.type()) {
-        case FIELD: {
-          os << " (transition to field)";
-          break;
-        }
-        case CONSTANT:
-          os << " (transition to constant " << Brief(GetTargetValue(i)) << ")";
-          break;
-        case CALLBACKS:
-          os << " (transition to callback " << Brief(GetTargetValue(i)) << ")";
-          break;
+      os << " (transition to ";
+      if (details.location() == IN_DESCRIPTOR) {
+        os << "immutable ";
       }
-      os << ", attrs: " << details.attributes();
+      os << (details.kind() == DATA ? "data" : "accessor");
+      if (details.location() == IN_DESCRIPTOR) {
+        os << " " << Brief(GetTargetValue(i));
+      }
+      os << "), attrs: " << details.attributes();
     }
     os << " -> " << Brief(target) << "\n";
   }

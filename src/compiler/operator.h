@@ -172,6 +172,20 @@ inline T const& OpParameter(const Operator* op) {
   return static_cast<const Operator1<T>*>(op)->parameter();
 }
 
+// NOTE: We have to be careful to use the right equal/hash functions below, for
+// float/double we always use the ones operating on the bit level.
+template <>
+inline float const& OpParameter(const Operator* op) {
+  return static_cast<const Operator1<float, base::bit_equal_to<float>,
+                                     base::bit_hash<float>>*>(op)->parameter();
+}
+
+template <>
+inline double const& OpParameter(const Operator* op) {
+  return static_cast<const Operator1<double, base::bit_equal_to<double>,
+                                     base::bit_hash<double>>*>(op)->parameter();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
