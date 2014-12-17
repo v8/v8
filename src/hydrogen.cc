@@ -5552,6 +5552,13 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
+
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    if (expr->properties()->at(i)->is_computed_name()) {
+      return Bailout(kComputedPropertyName);
+    }
+  }
+
   expr->BuildConstantProperties(isolate());
   Handle<JSFunction> closure = function_state()->compilation_info()->closure();
   HInstruction* literal;
@@ -5607,9 +5614,10 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
+    DCHECK(!property->is_computed_name());
     if (property->IsCompileTimeValue()) continue;
 
-    Literal* key = property->key();
+    Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
 
     switch (property->kind()) {
@@ -5635,7 +5643,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             }
 
             Handle<Map> map = property->GetReceiverType();
-            Handle<String> name = property->key()->AsPropertyName();
+            Handle<String> name = key->AsPropertyName();
             HInstruction* store;
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
