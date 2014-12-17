@@ -319,7 +319,7 @@
   # Regexp too long for PCRE.
   'js1_5/Regress/regress-280769': [PASS, FAIL],
   'js1_5/Regress/regress-280769-1': [PASS, FAIL],
-  'js1_5/Regress/regress-280769-2': [PASS, FAIL],
+  'js1_5/Regress/regress-280769-2': [PASS, FAIL, TIMEOUT],
   'js1_5/Regress/regress-280769-4': [PASS, FAIL],
   'js1_5/Regress/regress-280769-5': [PASS, FAIL],
 
