@@ -77,7 +77,7 @@ var expectedPropertyNamesSet = {
     "Function.prototype": "['apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toMethod', 'toString']",
     "Array": "['arguments', 'caller', 'isArray', 'length', 'name', 'observe', 'prototype', 'unobserve']",
     "Array.prototype": "['concat', 'constructor', 'entries', 'every', 'filter', 'forEach', 'indexOf', 'join', 'keys', 'lastIndexOf', 'length', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'slice', 'some', 'sort', 'splice', 'toLocaleString', 'toString', 'unshift']",
-    "String": "['arguments', 'caller', 'fromCharCode', 'fromCodePoint', 'length', 'name', 'prototype']",
+    "String": "['arguments', 'caller', 'fromCharCode', 'fromCodePoint', 'length', 'name', 'prototype', 'raw']",
     "String.prototype": "['anchor', 'big', 'blink', 'bold', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'constructor', 'endsWith', 'fixed', 'fontcolor', 'fontsize', 'includes', 'indexOf', 'italics', 'lastIndexOf', 'length', 'link', 'localeCompare', 'match', 'normalize', 'repeat', 'replace', 'search', 'slice', 'small', 'split', 'startsWith', 'strike', 'sub', 'substr', 'substring', 'sup', 'toLocaleLowerCase', 'toLocaleUpperCase', 'toLowerCase', 'toString', 'toUpperCase', 'trim', 'trimLeft', 'trimRight', 'valueOf']",
     "Boolean": "['arguments', 'caller', 'length', 'name', 'prototype']",
     "Boolean.prototype": "['constructor', 'toString', 'valueOf']",
