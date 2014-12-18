@@ -795,6 +795,29 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       Reduction const reduction = ReduceInt32Add(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
+    if (mleft.left().IsInt32Mul()) {
+      Int32BinopMatcher mleftleft(mleft.left().node());
+      if (mleftleft.right().IsMultipleOf(-m.right().Value())) {
+        // (y * (K << L) + x) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
+        node->set_op(machine()->Int32Add());
+        node->ReplaceInput(0,
+                           Word32And(mleft.right().node(), m.right().node()));
+        node->ReplaceInput(1, mleftleft.node());
+        Reduction const reduction = ReduceInt32Add(node);
+        return reduction.Changed() ? reduction : Changed(node);
+      }
+    }
+    if (mleft.right().IsInt32Mul()) {
+      Int32BinopMatcher mleftright(mleft.right().node());
+      if (mleftright.right().IsMultipleOf(-m.right().Value())) {
+        // (x + y * (K << L)) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
+        node->set_op(machine()->Int32Add());
+        node->ReplaceInput(0, Word32And(mleft.left().node(), m.right().node()));
+        node->ReplaceInput(1, mleftright.node());
+        Reduction const reduction = ReduceInt32Add(node);
+        return reduction.Changed() ? reduction : Changed(node);
+      }
+    }
     if (mleft.left().IsWord32Shl()) {
       Int32BinopMatcher mleftleft(mleft.left().node());
       if (mleftleft.right().Is(
