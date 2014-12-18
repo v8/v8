@@ -4501,18 +4501,24 @@ void HPhi::SimplifyConstantInputs() {
 
 void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
   DCHECK(CheckFlag(kFlexibleRepresentation));
-  Representation new_rep = RepresentationFromInputs();
-  UpdateRepresentation(new_rep, h_infer, "inputs");
-  new_rep = RepresentationFromUses();
+  Representation new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromInputs();
+  UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUseRequirements();
   UpdateRepresentation(new_rep, h_infer, "use requirements");
 }
 
 
 Representation HPhi::RepresentationFromInputs() {
-  Representation r = Representation::None();
+  bool has_type_feedback =
+      smi_non_phi_uses() + int32_non_phi_uses() + double_non_phi_uses() > 0;
+  Representation r = representation();
   for (int i = 0; i < OperandCount(); ++i) {
+    // Ignore conservative Tagged assumption of parameters if we have
+    // reason to believe that it's too conservative.
+    if (has_type_feedback && OperandAt(i)->IsParameter()) continue;
+
     r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
   }
   return r;
