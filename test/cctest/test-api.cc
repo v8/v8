@@ -742,23 +742,28 @@ THREADED_TEST(UsingExternalOneByteString) {
 }
 
 
-class DummyResource : public v8::String::ExternalStringResource {
+class RandomLengthResource : public v8::String::ExternalStringResource {
  public:
+  explicit RandomLengthResource(int length) : length_(length) {}
   virtual const uint16_t* data() const { return string_; }
-  virtual size_t length() const { return 1 << 30; }
+  virtual size_t length() const { return length_; }
 
  private:
   uint16_t string_[10];
+  int length_;
 };
 
 
-class DummyOneByteResource : public v8::String::ExternalOneByteStringResource {
+class RandomLengthOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
  public:
+  explicit RandomLengthOneByteResource(int length) : length_(length) {}
   virtual const char* data() const { return string_; }
-  virtual size_t length() const { return 1 << 30; }
+  virtual size_t length() const { return length_; }
 
  private:
   char string_[10];
+  int length_;
 };
 
 
@@ -767,7 +772,7 @@ THREADED_TEST(NewExternalForVeryLongString) {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
     v8::TryCatch try_catch;
-    DummyOneByteResource r;
+    RandomLengthOneByteResource r(1 << 30);
     v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
     CHECK(str.IsEmpty());
     CHECK(try_catch.HasCaught());
@@ -779,7 +784,7 @@ THREADED_TEST(NewExternalForVeryLongString) {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
     v8::TryCatch try_catch;
-    DummyResource r;
+    RandomLengthResource r(1 << 30);
     v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
     CHECK(str.IsEmpty());
     CHECK(try_catch.HasCaught());
@@ -24163,4 +24168,18 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
   chunk2[1] = reference[2];
   const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StringConcatOverflow) {
+  v8::V8::Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+  RandomLengthOneByteResource* r =
+      new RandomLengthOneByteResource(i::String::kMaxLength);
+  v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), r);
+  CHECK(!str.IsEmpty());
+  v8::TryCatch try_catch;
+  v8::Local<v8::String> result = v8::String::Concat(str, str);
+  CHECK(result.IsEmpty());
+  CHECK(!try_catch.HasCaught());
 }

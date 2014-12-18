@@ -5545,7 +5545,11 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   LOG_API(isolate, "String::New(char)");
   ENTER_V8(isolate);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
-  // We do not expect this to fail. Change this if it does.
+  // If we are steering towards a range error, do not wait for the error to be
+  // thrown, and return the null handle instead.
+  if (left_string->length() + right_string->length() > i::String::kMaxLength) {
+    return Local<String>();
+  }
   i::Handle<i::String> result = isolate->factory()->NewConsString(
       left_string, right_string).ToHandleChecked();
   return Utils::ToLocal(result);
