@@ -1,3 +1,8 @@
+2014-12-17: Version 3.31.62
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-17: Version 3.31.61
 
         ES6: Update unscopables to match spec (issue 3632).

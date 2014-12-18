@@ -536,6 +536,7 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithInt32AddAndConstant) {
 
   TRACED_FORRANGE(int32_t, l, 1, 31) {
     TRACED_FOREACH(int32_t, k, kInt32Values) {
+      if ((k << l) == 0) continue;
       // (x + (K << L)) & (-1 << L) => (x & (-1 << L)) + (K << L)
       Reduction const r = Reduce(graph()->NewNode(
           machine()->Word32And(),
@@ -768,6 +769,7 @@ TEST_F(MachineOperatorReducerTest,
   Node* const p0 = Parameter(0);
   TRACED_FOREACH(int32_t, k, kInt32Values) {
     TRACED_FORRANGE(int32_t, l, 1, 31) {
+      if ((k << l) == 0) continue;
       // (x + (K << L)) >> L << L => (x & (-1 << L)) + (K << L)
       Reduction const r = Reduce(graph()->NewNode(
           machine()->Word32Shl(),

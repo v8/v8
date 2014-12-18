@@ -260,22 +260,20 @@ int InstructionSequenceTest::EmitBranch(TestOperand input_op) {
                                 ConvertInputOp(Imm()), ConvertInputOp(Imm())};
   InstructionCode opcode = kArchJmp | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
-  auto instruction =
-      NewInstruction(opcode, 0, nullptr, 4, inputs)->MarkAsControl();
+  auto instruction = NewInstruction(opcode, 0, nullptr, 4, inputs);
   return AddInstruction(NewIndex(), instruction);
 }
 
 
 int InstructionSequenceTest::EmitFallThrough() {
-  auto instruction = NewInstruction(kArchNop, 0, nullptr)->MarkAsControl();
+  auto instruction = NewInstruction(kArchNop, 0, nullptr);
   return AddInstruction(NewIndex(), instruction);
 }
 
 
 int InstructionSequenceTest::EmitJump() {
   InstructionOperand* inputs[1]{ConvertInputOp(Imm())};
-  auto instruction =
-      NewInstruction(kArchJmp, 0, nullptr, 1, inputs)->MarkAsControl();
+  auto instruction = NewInstruction(kArchJmp, 0, nullptr, 1, inputs);
   return AddInstruction(NewIndex(), instruction);
 }
 
@@ -408,8 +406,8 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
     }
   }
   // Construct instruction block.
-  auto instruction_block = new (zone()) InstructionBlock(
-      zone(), block_id, rpo, rpo, loop_header, loop_end, false);
+  auto instruction_block = new (zone())
+      InstructionBlock(zone(), block_id, rpo, loop_header, loop_end, false);
   instruction_blocks_.push_back(instruction_block);
   current_block_ = instruction_block;
   sequence()->StartBlock(rpo);

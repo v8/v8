@@ -25,8 +25,7 @@ namespace compiler {
 
 // A couple of reserved opcodes are used for internal use.
 const InstructionCode kGapInstruction = -1;
-const InstructionCode kBlockStartInstruction = -2;
-const InstructionCode kSourcePositionInstruction = -3;
+const InstructionCode kSourcePositionInstruction = -2;
 
 #define INSTRUCTION_OPERAND_LIST(V)                                  \
   V(Constant, CONSTANT, 0)                                           \
@@ -455,7 +454,7 @@ class Instruction : public ZoneObject {
     return FlagsConditionField::decode(opcode());
   }
 
-  // TODO(titzer): make control and call into flags.
+  // TODO(titzer): make call into a flag.
   static Instruction* New(Zone* zone, InstructionCode opcode) {
     return New(zone, opcode, 0, NULL, 0, NULL, 0, NULL);
   }
@@ -477,25 +476,15 @@ class Instruction : public ZoneObject {
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
 
-  // TODO(titzer): another holdover from lithium days; register allocator
-  // should not need to know about control instructions.
-  Instruction* MarkAsControl() {
-    bit_field_ = IsControlField::update(bit_field_, true);
-    return this;
-  }
   Instruction* MarkAsCall() {
     bit_field_ = IsCallField::update(bit_field_, true);
     return this;
   }
-  bool IsControl() const { return IsControlField::decode(bit_field_); }
   bool IsCall() const { return IsCallField::decode(bit_field_); }
   bool NeedsPointerMap() const { return IsCall(); }
   bool HasPointerMap() const { return pointer_map_ != NULL; }
 
-  bool IsGapMoves() const {
-    return opcode() == kGapInstruction || opcode() == kBlockStartInstruction;
-  }
-  bool IsBlockStart() const { return opcode() == kBlockStartInstruction; }
+  bool IsGapMoves() const { return opcode() == kGapInstruction; }
   bool IsSourcePosition() const {
     return opcode() == kSourcePositionInstruction;
   }
@@ -532,8 +521,7 @@ class Instruction : public ZoneObject {
   explicit Instruction(InstructionCode opcode)
       : opcode_(opcode),
         bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
-                   TempCountField::encode(0) | IsCallField::encode(false) |
-                   IsControlField::encode(false)),
+                   TempCountField::encode(0) | IsCallField::encode(false)),
         pointer_map_(NULL) {}
 
   Instruction(InstructionCode opcode, size_t output_count,
@@ -544,7 +532,7 @@ class Instruction : public ZoneObject {
         bit_field_(OutputCountField::encode(output_count) |
                    InputCountField::encode(input_count) |
                    TempCountField::encode(temp_count) |
-                   IsCallField::encode(false) | IsControlField::encode(false)),
+                   IsCallField::encode(false)),
         pointer_map_(NULL) {
     for (size_t i = 0; i < output_count; ++i) {
       operands_[i] = outputs[i];
@@ -562,7 +550,6 @@ class Instruction : public ZoneObject {
   typedef BitField<size_t, 8, 16> InputCountField;
   typedef BitField<size_t, 24, 6> TempCountField;
   typedef BitField<bool, 30, 1> IsCallField;
-  typedef BitField<bool, 31, 1> IsControlField;
 
   InstructionCode opcode_;
   uint32_t bit_field_;
@@ -638,30 +625,6 @@ class GapInstruction : public Instruction {
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstruction& instr);
   ParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
-};
-
-
-// This special kind of gap move instruction represents the beginning of a
-// block of code.
-class BlockStartInstruction FINAL : public GapInstruction {
- public:
-  static BlockStartInstruction* New(Zone* zone) {
-    void* buffer = zone->New(sizeof(BlockStartInstruction));
-    return new (buffer) BlockStartInstruction();
-  }
-
-  static BlockStartInstruction* cast(Instruction* instr) {
-    DCHECK(instr->IsBlockStart());
-    return static_cast<BlockStartInstruction*>(instr);
-  }
-
-  static const BlockStartInstruction* cast(const Instruction* instr) {
-    DCHECK(instr->IsBlockStart());
-    return static_cast<const BlockStartInstruction*>(instr);
-  }
-
- private:
-  BlockStartInstruction() : GapInstruction(kBlockStartInstruction) {}
 };
 
 
@@ -853,7 +816,6 @@ class PhiInstruction FINAL : public ZoneObject {
 class InstructionBlock FINAL : public ZoneObject {
  public:
   InstructionBlock(Zone* zone, BasicBlock::Id id,
-                   BasicBlock::RpoNumber ao_number,
                    BasicBlock::RpoNumber rpo_number,
                    BasicBlock::RpoNumber loop_header,
                    BasicBlock::RpoNumber loop_end, bool deferred);
@@ -942,6 +904,8 @@ class InstructionSequence FINAL : public ZoneObject {
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);
+  // Puts the deferred blocks last.
+  static void ComputeAssemblyOrder(InstructionBlocks* blocks);
 
   InstructionSequence(Zone* zone, InstructionBlocks* instruction_blocks);
 
@@ -980,7 +944,7 @@ class InstructionSequence FINAL : public ZoneObject {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
+  GapInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
 
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }

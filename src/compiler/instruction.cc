@@ -287,7 +287,7 @@ std::ostream& operator<<(std::ostream& os,
 
   if (instr.IsGapMoves()) {
     const GapInstruction* gap = GapInstruction::cast(&instr);
-    os << (instr.IsBlockStart() ? " block-start" : "gap ");
+    os << "gap ";
     for (int i = GapInstruction::FIRST_INNER_POSITION;
          i <= GapInstruction::LAST_INNER_POSITION; i++) {
       os << "(";
@@ -348,7 +348,6 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 
 
 InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
-                                   BasicBlock::RpoNumber ao_number,
                                    BasicBlock::RpoNumber rpo_number,
                                    BasicBlock::RpoNumber loop_header,
                                    BasicBlock::RpoNumber loop_end,
@@ -357,7 +356,7 @@ InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
       predecessors_(zone),
       phis_(zone),
       id_(id),
-      ao_number_(ao_number),
+      ao_number_(rpo_number),
       rpo_number_(rpo_number),
       loop_header_(loop_header),
       loop_end_(loop_end),
@@ -392,8 +391,8 @@ static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
   InstructionBlock* instr_block = new (zone) InstructionBlock(
-      zone, block->id(), block->GetAoNumber(), block->GetRpoNumber(),
-      GetRpo(block->loop_header()), GetLoopEndRpo(block), block->deferred());
+      zone, block->id(), block->GetRpoNumber(), GetRpo(block->loop_header()),
+      GetLoopEndRpo(block), block->deferred());
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (auto it = block->successors_begin(); it != block->successors_end();
@@ -421,7 +420,23 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
+  ComputeAssemblyOrder(blocks);
   return blocks;
+}
+
+
+void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
+  int ao = 0;
+  for (auto const block : *blocks) {
+    if (!block->IsDeferred()) {
+      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+    }
+  }
+  for (auto const block : *blocks) {
+    if (block->IsDeferred()) {
+      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+    }
+  }
 }
 
 
@@ -443,10 +458,10 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
 }
 
 
-BlockStartInstruction* InstructionSequence::GetBlockStart(
+GapInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);
-  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
+  return GapInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
@@ -456,26 +471,26 @@ void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
   int code_start = static_cast<int>(instructions_.size());
   block->set_code_start(code_start);
   block_starts_.push_back(code_start);
-  BlockStartInstruction* block_start = BlockStartInstruction::New(zone());
-  AddInstruction(block_start);
 }
 
 
 void InstructionSequence::EndBlock(BasicBlock::RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
   InstructionBlock* block = InstructionBlockAt(rpo);
+  if (block->code_start() == end) {  // Empty block.  Insert a nop.
+    AddInstruction(Instruction::New(zone(), kArchNop));
+    end = static_cast<int>(instructions_.size());
+  }
   DCHECK(block->code_start() >= 0 && block->code_start() < end);
   block->set_code_end(end);
 }
 
 
 int InstructionSequence::AddInstruction(Instruction* instr) {
-  // TODO(titzer): the order of these gaps is a holdover from Lithium.
   GapInstruction* gap = GapInstruction::New(zone());
-  if (instr->IsControl()) instructions_.push_back(gap);
+  instructions_.push_back(gap);
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
-  if (!instr->IsControl()) instructions_.push_back(gap);
   if (instr->NeedsPointerMap()) {
     DCHECK(instr->pointer_map() == NULL);
     PointerMap* pointer_map = new (zone()) PointerMap(zone());

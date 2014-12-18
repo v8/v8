@@ -394,6 +394,44 @@ TEST_F(RegisterAllocatorTest, NestedDiamondPhiMergeDifferent) {
   Allocate();
 }
 
+
+TEST_F(RegisterAllocatorTest, RegressionSplitBeforeAndMove) {
+  StartBlock();
+
+  // Fill registers.
+  VReg values[kDefaultNRegs];
+  for (size_t i = 0; i < arraysize(values); ++i) {
+    if (i == 0 || i == 1) continue;  // Leave a hole for c_1 to take.
+    values[i] = Define(Reg(static_cast<int>(i)));
+  }
+
+  auto c_0 = DefineConstant();
+  auto c_1 = DefineConstant();
+
+  EmitOI(Reg(1), Reg(c_0, 0), UniqueReg(c_1));
+
+  // Use previous values to force c_1 to split before the previous instruction.
+  for (size_t i = 0; i < arraysize(values); ++i) {
+    if (i == 0 || i == 1) continue;
+    EmitI(Reg(values[i], static_cast<int>(i)));
+  }
+
+  EndBlock(Last());
+
+  Allocate();
+}
+
+
+TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
+  StartBlock();
+  auto p_0 = Parameter(Reg(1));
+  EmitCall(Slot(-2), Unique(p_0), Reg(p_0, 1));
+  EndBlock(Last());
+
+  Allocate();
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
