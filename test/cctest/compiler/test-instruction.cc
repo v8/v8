@@ -214,10 +214,14 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(b0->GetRpoNumber());
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
+
+  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
+  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
+  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
+  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(5));  // g
 }
 
 
@@ -244,10 +248,23 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(b1->GetRpoNumber());
 
-  CHECK(R.code->instructions().size() == 8);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
+
+  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
+  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
+  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
+  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(5));  // g
+
+  CHECK_EQ(true, R.code->InstructionAt(6)->IsBlockStart());
+
+  CHECK_EQ(true, R.code->IsGapAt(6));    // Label
+  CHECK_EQ(true, R.code->IsGapAt(7));    // Gap
+  CHECK_EQ(false, R.code->IsGapAt(8));   // i1
+  CHECK_EQ(true, R.code->IsGapAt(9));    // Gap
+  CHECK_EQ(true, R.code->IsGapAt(10));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(11));  // g1
 }
 
 
@@ -265,12 +282,16 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(b0->GetRpoNumber());
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
 
-  int indexes[] = {0, 2, -1};
+  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
+  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
+  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
+  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
+  CHECK_EQ(false, R.code->IsGapAt(5));  // g
+
+  int indexes[] = {0, 1, 3, 4, -1};
   for (int i = 0; indexes[i] >= 0; i++) {
     int index = indexes[i];
 

@@ -287,7 +287,7 @@ std::ostream& operator<<(std::ostream& os,
 
   if (instr.IsGapMoves()) {
     const GapInstruction* gap = GapInstruction::cast(&instr);
-    os << "gap ";
+    os << (instr.IsBlockStart() ? " block-start" : "gap ");
     for (int i = GapInstruction::FIRST_INNER_POSITION;
          i <= GapInstruction::LAST_INNER_POSITION; i++) {
       os << "(";
@@ -458,10 +458,10 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
 }
 
 
-GapInstruction* InstructionSequence::GetBlockStart(
+BlockStartInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);
-  return GapInstruction::cast(InstructionAt(block->code_start()));
+  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
@@ -471,26 +471,26 @@ void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
   int code_start = static_cast<int>(instructions_.size());
   block->set_code_start(code_start);
   block_starts_.push_back(code_start);
+  BlockStartInstruction* block_start = BlockStartInstruction::New(zone());
+  AddInstruction(block_start);
 }
 
 
 void InstructionSequence::EndBlock(BasicBlock::RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
   InstructionBlock* block = InstructionBlockAt(rpo);
-  if (block->code_start() == end) {  // Empty block.  Insert a nop.
-    AddInstruction(Instruction::New(zone(), kArchNop));
-    end = static_cast<int>(instructions_.size());
-  }
   DCHECK(block->code_start() >= 0 && block->code_start() < end);
   block->set_code_end(end);
 }
 
 
 int InstructionSequence::AddInstruction(Instruction* instr) {
+  // TODO(titzer): the order of these gaps is a holdover from Lithium.
   GapInstruction* gap = GapInstruction::New(zone());
-  instructions_.push_back(gap);
+  if (instr->IsControl()) instructions_.push_back(gap);
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
+  if (!instr->IsControl()) instructions_.push_back(gap);
   if (instr->NeedsPointerMap()) {
     DCHECK(instr->pointer_map() == NULL);
     PointerMap* pointer_map = new (zone()) PointerMap(zone());
