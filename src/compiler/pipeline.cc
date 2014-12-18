@@ -442,9 +442,11 @@ struct SimplifiedLoweringPhase {
     lowering.LowerAllNodes();
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&simple_reducer);
+    graph_reducer.AddReducer(&machine_reducer);
     graph_reducer.ReduceGraph();
   }
 };
@@ -460,13 +462,12 @@ struct ChangeLoweringPhase {
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ChangeLowering lowering(data->jsgraph(), &linkage);
-    MachineOperatorReducer mach_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    // TODO(titzer): Figure out if we should run all reducers at once here.
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&simple_reducer);
     graph_reducer.AddReducer(&lowering);
-    graph_reducer.AddReducer(&mach_reducer);
+    graph_reducer.AddReducer(&machine_reducer);
     graph_reducer.ReduceGraph();
   }
 };

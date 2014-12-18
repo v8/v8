@@ -82,15 +82,14 @@ class NativesStore {
   NativesStore() : debugger_count_(0) {}
 
   Vector<const char> NameFromId(const byte* id, int id_length) {
-    Vector<char> name(Vector<char>::New(id_length + 11));
-    SimpleStringBuilder builder(name.start(), name.length());
-    builder.AddString("native ");
-    builder.AddSubstring(reinterpret_cast<const char*>(id), id_length);
-    builder.AddString(".js");
-    builder.Finalize();
-    // SimpleStringBuilder wants zero-byte; the caller does not.
-    DCHECK(name[name.length() - 1] == '\0');
-    name.Truncate(name.length() - 1);
+    const char native[] = "native ";
+    const char extension[] = ".js";
+    Vector<char> name(Vector<char>::New(id_length + sizeof(native) - 1 +
+                                        sizeof(extension) - 1));
+    memcpy(name.start(), native, sizeof(native) - 1);
+    memcpy(name.start() + sizeof(native) - 1, id, id_length);
+    memcpy(name.start() + sizeof(native) - 1 + id_length, extension,
+           sizeof(extension) - 1);
     return Vector<const char>::cast(name);
   }
 

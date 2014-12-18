@@ -102,6 +102,9 @@ template <typename T, IrOpcode::Value kOpcode>
 struct IntMatcher FINAL : public ValueMatcher<T, kOpcode> {
   explicit IntMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
+  bool IsMultipleOf(T n) const {
+    return this->HasValue() && (this->Value() % n) == 0;
+  }
   bool IsPowerOf2() const {
     return this->HasValue() && this->Value() > 0 &&
            (this->Value() & (this->Value() - 1)) == 0;
