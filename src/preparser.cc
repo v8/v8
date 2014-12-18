@@ -125,7 +125,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
     if (scope_->strict_mode() == STRICT) {
       int end_pos = scanner()->location().end_pos;
-      CheckOctalLiteral(start_position, end_pos, &ok);
+      CheckStrictOctalLiteral(start_position, end_pos, &ok);
     }
   }
   return kPreParseSuccess;
@@ -937,7 +937,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
 
     int end_position = scanner()->location().end_pos;
-    CheckOctalLiteral(start_position, end_position, CHECK_OK);
+    CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
 
   return Expression::Default();

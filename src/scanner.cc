@@ -733,21 +733,7 @@ bool Scanner::ScanEscape() {
       if (c < 0) return false;
       break;
     }
-    case '0':
-      if (in_template_literal) {
-        // \ 0 DecimalDigit is never allowed in templates.
-        if (IsDecimalDigit(c0_)) {
-          Advance<capture_raw>();  // Advance to include the problematic char.
-          return false;
-        }
-
-        // The TV of TemplateCharacter :: \ EscapeSequence is the CV of
-        //     EscapeSequence.
-        // The CV of EscapeSequence :: 0 is the code unit value 0.
-        c = 0;
-        break;
-      }
-    // Fall through.
+    case '0':  // Fall through.
     case '1':  // fall through
     case '2':  // fall through
     case '3':  // fall through
@@ -755,14 +741,8 @@ bool Scanner::ScanEscape() {
     case '5':  // fall through
     case '6':  // fall through
     case '7':
-      if (!in_template_literal) {
-        c = ScanOctalEscape<capture_raw>(c, 2);
-        break;
-      }
-    // Fall through
-    case '8':
-    case '9':
-      if (in_template_literal) return false;
+      c = ScanOctalEscape<capture_raw>(c, 2);
+      break;
   }
 
   // According to ECMA-262, section 7.8.4, characters not covered by the
