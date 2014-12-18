@@ -208,7 +208,7 @@ TEST(InstructionIsGapAt) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103);
+  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
@@ -231,14 +231,14 @@ TEST(InstructionIsGapAt2) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103);
+  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
   R.code->EndBlock(b0->GetRpoNumber());
 
   TestInstr* i1 = TestInstr::New(R.zone(), 102);
-  TestInstr* g1 = TestInstr::New(R.zone(), 104);
+  TestInstr* g1 = TestInstr::New(R.zone(), 104)->MarkAsControl();
   R.code->StartBlock(b1->GetRpoNumber());
   R.code->AddInstruction(i1);
   R.code->AddInstruction(g1);
@@ -259,7 +259,7 @@ TEST(InstructionAddGapMove) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103);
+  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0->GetRpoNumber());
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);

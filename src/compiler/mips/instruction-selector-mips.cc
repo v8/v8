@@ -105,8 +105,9 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
 }
 
 
@@ -585,7 +586,7 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
     selector->Emit(opcode, NULL, left, right, g.Label(cont->true_block()),
-                   g.Label(cont->false_block()));
+                   g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
     // TODO(plind): Revisit and test this path.
@@ -714,7 +715,8 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   InstructionOperand* const value_operand = g.UseRegister(value);
   if (cont->IsBranch()) {
     selector->Emit(opcode, nullptr, value_operand, g.TempImmediate(0),
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+                   g.Label(cont->true_block()),
+                   g.Label(cont->false_block()))->MarkAsControl();
   } else {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    g.TempImmediate(0));

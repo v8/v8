@@ -2389,11 +2389,9 @@ LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
   if (pos.Value() <= range->Start().Value()) return range;
 
   // We can't properly connect liveranges if split occured at the end
-  // a block.
+  // of control instruction.
   DCHECK(pos.IsInstructionStart() ||
-         code()
-                 ->GetInstructionBlock(pos.InstructionIndex())
-                 ->last_instruction_index() != pos.InstructionIndex());
+         !InstructionAt(pos.InstructionIndex())->IsControl());
 
   int vreg = GetVirtualRegister();
   if (!AllocationOk()) return nullptr;

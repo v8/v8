@@ -260,20 +260,22 @@ int InstructionSequenceTest::EmitBranch(TestOperand input_op) {
                                 ConvertInputOp(Imm()), ConvertInputOp(Imm())};
   InstructionCode opcode = kArchJmp | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
-  auto instruction = NewInstruction(opcode, 0, nullptr, 4, inputs);
+  auto instruction =
+      NewInstruction(opcode, 0, nullptr, 4, inputs)->MarkAsControl();
   return AddInstruction(NewIndex(), instruction);
 }
 
 
 int InstructionSequenceTest::EmitFallThrough() {
-  auto instruction = NewInstruction(kArchNop, 0, nullptr);
+  auto instruction = NewInstruction(kArchNop, 0, nullptr)->MarkAsControl();
   return AddInstruction(NewIndex(), instruction);
 }
 
 
 int InstructionSequenceTest::EmitJump() {
   InstructionOperand* inputs[1]{ConvertInputOp(Imm())};
-  auto instruction = NewInstruction(kArchJmp, 0, nullptr, 1, inputs);
+  auto instruction =
+      NewInstruction(kArchJmp, 0, nullptr, 1, inputs)->MarkAsControl();
   return AddInstruction(NewIndex(), instruction);
 }
 
