@@ -309,6 +309,8 @@ void MarkCompactCollector::CollectGarbage() {
 
   heap_->set_encountered_weak_cells(Smi::FromInt(0));
 
+  isolate()->global_handles()->CollectPhantomCallbackData();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyMarking(heap_);
@@ -2091,7 +2093,7 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 void MarkCompactCollector::ProcessEphemeralMarking(
     ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
   bool work_to_do = true;
-  DCHECK(marking_deque_.IsEmpty());
+  DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
   while (work_to_do) {
     if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(

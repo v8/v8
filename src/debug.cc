@@ -695,12 +695,11 @@ void ScriptCache::HandleWeakScript(
 }
 
 
-void Debug::HandleWeakDebugInfo(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
+void Debug::HandlePhantomDebugInfo(
+    const v8::PhantomCallbackData<DebugInfoListNode>& data) {
   Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
-  DebugInfoListNode* node =
-      reinterpret_cast<DebugInfoListNode*>(data.GetParameter());
-  debug->RemoveDebugInfo(node->debug_info().location());
+  DebugInfoListNode* node = data.GetParameter();
+  debug->RemoveDebugInfo(node);
 #ifdef DEBUG
   for (DebugInfoListNode* n = debug->debug_info_list_;
        n != NULL;
@@ -715,9 +714,10 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
-                          this, Debug::HandleWeakDebugInfo,
-                          GlobalHandles::Phantom);
+  typedef PhantomCallbackData<void>::Callback Callback;
+  GlobalHandles::MakePhantom(
+      reinterpret_cast<Object**>(debug_info_.location()), this,
+      reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo));
 }
 
 
@@ -2240,10 +2240,21 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 }
 
 
-// This uses the location of a handle to look up the debug info in the debug
-// info list, but it doesn't use the actual debug info for anything.  Therefore
-// if the debug info has been collected by the GC, we can be sure that this
-// method will not attempt to resurrect it.
+void Debug::RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node) {
+  // Unlink from list. If prev is NULL we are looking at the first element.
+  if (prev == NULL) {
+    debug_info_list_ = node->next();
+  } else {
+    prev->set_next(node->next());
+  }
+  delete node;
+
+  // If there are no more debug info objects there are not more break
+  // points.
+  has_break_points_ = debug_info_list_ != NULL;
+}
+
+
 void Debug::RemoveDebugInfo(DebugInfo** debug_info) {
   DCHECK(debug_info_list_ != NULL);
   // Run through the debug info objects to find this one and remove it.
@@ -2251,18 +2262,25 @@ void Debug::RemoveDebugInfo(DebugInfo** debug_info) {
   DebugInfoListNode* current = debug_info_list_;
   while (current != NULL) {
     if (current->debug_info().location() == debug_info) {
-      // Unlink from list. If prev is NULL we are looking at the first element.
-      if (prev == NULL) {
-        debug_info_list_ = current->next();
-      } else {
-        prev->set_next(current->next());
-      }
-      delete current;
+      RemoveDebugInfo(prev, current);
+      return;
+    }
+    // Move to next in list.
+    prev = current;
+    current = current->next();
+  }
+  UNREACHABLE();
+}
 
-      // If there are no more debug info objects there are not more break
-      // points.
-      has_break_points_ = debug_info_list_ != NULL;
 
+void Debug::RemoveDebugInfo(DebugInfoListNode* node) {
+  DCHECK(debug_info_list_ != NULL);
+  // Run through the debug info objects to find this one and remove it.
+  DebugInfoListNode* prev = NULL;
+  DebugInfoListNode* current = debug_info_list_;
+  while (current != NULL) {
+    if (current == node) {
+      RemoveDebugInfo(prev, node);
       return;
     }
     // Move to next in list.
