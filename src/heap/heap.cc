@@ -63,6 +63,8 @@ Heap::Heap()
       initial_semispace_size_(Page::kPageSize),
       target_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
+      initial_old_generation_size_(max_old_generation_size_ / 2),
+      old_generation_size_configured_(false),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
       // Variables set based on semispace_size_ and old_generation_size_ in
       // ConfigureHeap.
@@ -97,7 +99,7 @@ Heap::Heap()
 #ifdef DEBUG
       allocation_timeout_(0),
 #endif  // DEBUG
-      old_generation_allocation_limit_(kMinimumOldGenerationAllocationLimit),
+      old_generation_allocation_limit_(initial_old_generation_size_),
       old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
@@ -107,8 +109,9 @@ Heap::Heap()
       tracer_(this),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
-      promotion_rate_(0),
+      promotion_ratio_(0),
       semi_space_copied_object_size_(0),
+      previous_semi_space_copied_object_size_(0),
       semi_space_copied_rate_(0),
       nodes_died_in_new_space_(0),
       nodes_copied_in_new_space_(0),
@@ -433,6 +436,7 @@ void Heap::GarbageCollectionPrologue() {
 
   // Reset GC statistics.
   promoted_objects_size_ = 0;
+  previous_semi_space_copied_object_size_ = semi_space_copied_object_size_;
   semi_space_copied_object_size_ = 0;
   nodes_died_in_new_space_ = 0;
   nodes_copied_in_new_space_ = 0;
@@ -1036,14 +1040,23 @@ void Heap::ClearNormalizedMapCaches() {
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
-  promotion_rate_ = (static_cast<double>(promoted_objects_size_) /
-                     static_cast<double>(start_new_space_size) * 100);
+  promotion_ratio_ = (static_cast<double>(promoted_objects_size_) /
+                      static_cast<double>(start_new_space_size) * 100);
+
+  if (previous_semi_space_copied_object_size_ > 0) {
+    promotion_rate_ =
+        (static_cast<double>(promoted_objects_size_) /
+         static_cast<double>(previous_semi_space_copied_object_size_) * 100);
+  } else {
+    promotion_rate_ = 0;
+  }
 
   semi_space_copied_rate_ =
       (static_cast<double>(semi_space_copied_object_size_) /
        static_cast<double>(start_new_space_size) * 100);
 
-  double survival_rate = promotion_rate_ + semi_space_copied_rate_;
+  double survival_rate = promotion_ratio_ + semi_space_copied_rate_;
+  tracer()->AddSurvivalRate(survival_rate);
 
   if (survival_rate > kYoungSurvivalRateHighThreshold) {
     high_survival_rate_period_length_++;
@@ -1101,11 +1114,13 @@ bool Heap::PerformGarbageCollection(
     old_generation_allocation_limit_ =
         OldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(), 0);
     old_gen_exhausted_ = false;
+    old_generation_size_configured_ = true;
   } else {
     Scavenge();
   }
 
   UpdateSurvivalStatistics(start_new_space_size);
+  ConfigureInitialOldGenerationSize();
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
@@ -2343,6 +2358,17 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   SLOW_DCHECK(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
   map->GetHeap()->DoScavengeObject(map, p, object);
+}
+
+
+void Heap::ConfigureInitialOldGenerationSize() {
+  if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
+    old_generation_allocation_limit_ =
+        Max(kMinimumOldGenerationAllocationLimit,
+            static_cast<intptr_t>(
+                static_cast<double>(initial_old_generation_size_) *
+                (tracer()->AverageSurvivalRate() / 100)));
+  }
 }
 
 
@@ -5157,6 +5183,13 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   max_old_generation_size_ =
       Max(static_cast<intptr_t>(paged_space_count * Page::kPageSize),
           max_old_generation_size_);
+
+  if (FLAG_initial_old_space_size > 0) {
+    initial_old_generation_size_ = FLAG_initial_old_space_size * MB;
+  } else {
+    initial_old_generation_size_ = max_old_generation_size_ / 2;
+  }
+  old_generation_allocation_limit_ = initial_old_generation_size_;
 
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(Page::kMaxRegularHeapObjectSize >=
