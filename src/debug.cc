@@ -2455,7 +2455,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Perform GC to get unreferenced scripts evicted from the cache before
   // returning the content.
-  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+  isolate_->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
                                       "Debug::GetLoadedScripts");
 
   // Get the scripts from the cache.
