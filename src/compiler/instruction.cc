@@ -287,18 +287,16 @@ std::ostream& operator<<(std::ostream& os,
 
   if (instr.IsGapMoves()) {
     const GapInstruction* gap = GapInstruction::cast(&instr);
-    if (!gap->IsRedundant()) {
-      os << "gap ";
-      for (int i = GapInstruction::FIRST_INNER_POSITION;
-           i <= GapInstruction::LAST_INNER_POSITION; i++) {
-        os << "(";
-        if (gap->parallel_moves_[i] != NULL) {
-          PrintableParallelMove ppm = {printable.register_configuration_,
-                                       gap->parallel_moves_[i]};
-          os << ppm;
-        }
-        os << ") ";
+    os << "gap ";
+    for (int i = GapInstruction::FIRST_INNER_POSITION;
+         i <= GapInstruction::LAST_INNER_POSITION; i++) {
+      os << "(";
+      if (gap->parallel_moves_[i] != NULL) {
+        PrintableParallelMove ppm = {printable.register_configuration_,
+                                     gap->parallel_moves_[i]};
+        os << ppm;
       }
+      os << ") ";
     }
   } else if (instr.IsSourcePosition()) {
     const SourcePositionInstruction* pos =
