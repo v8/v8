@@ -2672,8 +2672,12 @@ std::ostream& HEnterInlined::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 static bool IsInteger32(double value) {
-  double roundtrip_value = static_cast<double>(static_cast<int32_t>(value));
-  return bit_cast<int64_t>(roundtrip_value) == bit_cast<int64_t>(value);
+  if (value >= std::numeric_limits<int32_t>::min() &&
+      value <= std::numeric_limits<int32_t>::max()) {
+    double roundtrip_value = static_cast<double>(static_cast<int32_t>(value));
+    return bit_cast<int64_t>(roundtrip_value) == bit_cast<int64_t>(value);
+  }
+  return false;
 }
 
 
@@ -2779,7 +2783,7 @@ HConstant::HConstant(double double_value, Representation r,
                                            !std::isnan(double_value)) |
                  IsUndetectableField::encode(false) |
                  InstanceTypeField::encode(kUnknownInstanceType)),
-      int32_value_(DoubleToInt32(double_value)),
+      int32_value_(HasInteger32Value() ? DoubleToInt32(double_value) : 0),
       double_value_(double_value) {
   bit_field_ = HasSmiValueField::update(
       bit_field_, HasInteger32Value() && Smi::IsValid(int32_value_));
