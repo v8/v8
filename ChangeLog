@@ -1,3 +1,10 @@
+2014-12-18: Version 3.31.63
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-17: Version 3.31.62
 
         Performance and stability improvements on all platforms.
