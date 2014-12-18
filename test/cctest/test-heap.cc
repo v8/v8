@@ -4639,6 +4639,94 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
 }
 
 
+Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
+  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
+  Handle<Object> obj =
+      Object::GetProperty(isolate->global_object(), str).ToHandleChecked();
+  return Handle<JSFunction>::cast(obj);
+}
+
+
+void CheckIC(Code* code, Code::Kind kind, InlineCacheState state) {
+  Code* ic = FindFirstIC(code, kind);
+  CHECK(ic->is_inline_cache_stub());
+  CHECK(ic->ic_state() == state);
+}
+
+
+TEST(MonomorphicStaysMonomorphicAfterGC) {
+  if (FLAG_always_opt) return;
+  // TODO(mvstanton): vector ics need weak support!
+  if (FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      "function testIC() {"
+      "  var proto = {'name' : 'weak'};"
+      "  var obj = Object.create(proto);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  return proto;"
+      "};");
+  Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+}
+
+
+TEST(PolymorphicStaysPolymorphicAfterGC) {
+  if (FLAG_always_opt) return;
+  // TODO(mvstanton): vector ics need weak support!
+  if (FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      "function testIC() {"
+      "  var proto = {'name' : 'weak'};"
+      "  var obj = Object.create(proto);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  var poly = Object.create(proto);"
+      "  poly.x = true;"
+      "  loadIC(poly);"
+      "  return proto;"
+      "};");
+  Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
+}
+
+
 TEST(WeakCell) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

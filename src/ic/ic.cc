@@ -832,7 +832,10 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code) {
       number_of_types - deprecated_types - (handler_to_overwrite != -1);
 
   if (number_of_valid_types >= 4) return false;
-  if (number_of_types == 0) return false;
+  if (number_of_types == 0 && state() != MONOMORPHIC &&
+      state() != POLYMORPHIC) {
+    return false;
+  }
   if (UseVector()) {
     if (!nexus()->FindHandlers(&handlers, types.length())) return false;
   } else {
