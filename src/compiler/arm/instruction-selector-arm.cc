@@ -238,8 +238,9 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
 }
 
 
@@ -577,8 +578,9 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
 }
 
 
@@ -1075,7 +1077,7 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
     selector->Emit(cont->Encode(kArmVcmpF64), nullptr,
                    g.UseRegister(m.left().node()),
                    g.UseRegister(m.right().node()), g.Label(cont->true_block()),
-                   g.Label(cont->false_block()));
+                   g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
     selector->Emit(
@@ -1122,8 +1124,9 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
 }
 
 
@@ -1228,7 +1231,8 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   InstructionOperand* const value_operand = g.UseRegister(value);
   if (cont->IsBranch()) {
     selector->Emit(opcode, nullptr, value_operand, value_operand,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+                   g.Label(cont->true_block()),
+                   g.Label(cont->false_block()))->MarkAsControl();
   } else {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    value_operand);

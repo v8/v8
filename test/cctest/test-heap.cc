@@ -1499,6 +1499,7 @@ TEST(TestInternalWeakLists) {
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
   if (FLAG_gc_global || FLAG_stress_compaction) return;
+  FLAG_retain_maps_for_n_gc = 0;
 
   static const int kNumTestContexts = 10;
 
@@ -2921,6 +2922,7 @@ TEST(Regress1465) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
+  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 256;
@@ -2983,6 +2985,7 @@ static void AddPropertyTo(
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   i::FLAG_gc_interval = gc_count;
   i::FLAG_gc_global = true;
+  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::heap()->set_allocation_timeout(gc_count);
   JSReceiver::SetProperty(object, prop_name, twenty_three, SLOPPY).Check();
 }
@@ -4205,7 +4208,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // Now make sure that a gc should get rid of the function, even though we
   // still have the allocation site alive.
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   }
 
   // TODO(mvstanton): this test fails when FLAG_vector_ics is true because
@@ -4316,6 +4319,7 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;
+  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -4636,6 +4640,94 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
                 "   compareNilIC(obj);"
                 "   return proto;"
                 " })();");
+}
+
+
+Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
+  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
+  Handle<Object> obj =
+      Object::GetProperty(isolate->global_object(), str).ToHandleChecked();
+  return Handle<JSFunction>::cast(obj);
+}
+
+
+void CheckIC(Code* code, Code::Kind kind, InlineCacheState state) {
+  Code* ic = FindFirstIC(code, kind);
+  CHECK(ic->is_inline_cache_stub());
+  CHECK(ic->ic_state() == state);
+}
+
+
+TEST(MonomorphicStaysMonomorphicAfterGC) {
+  if (FLAG_always_opt) return;
+  // TODO(mvstanton): vector ics need weak support!
+  if (FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      "function testIC() {"
+      "  var proto = {'name' : 'weak'};"
+      "  var obj = Object.create(proto);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  return proto;"
+      "};");
+  Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+}
+
+
+TEST(PolymorphicStaysPolymorphicAfterGC) {
+  if (FLAG_always_opt) return;
+  // TODO(mvstanton): vector ics need weak support!
+  if (FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      "function testIC() {"
+      "  var proto = {'name' : 'weak'};"
+      "  var obj = Object.create(proto);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  loadIC(obj);"
+      "  var poly = Object.create(proto);"
+      "  poly.x = true;"
+      "  loadIC(poly);"
+      "  return proto;"
+      "};");
+  Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("(testIC())");
+  }
+  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
 }
 
 
@@ -5003,6 +5095,57 @@ TEST(Regress3631) {
       "}");
   heap->incremental_marking()->set_should_hurry(true);
   heap->CollectGarbage(OLD_POINTER_SPACE);
+}
+
+
+TEST(Regress442710) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+
+  HandleScope sc(isolate);
+  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSArray> array = factory->NewJSArray(2);
+
+  Handle<String> name = factory->InternalizeUtf8String("testArray");
+  JSReceiver::SetProperty(global, name, array, SLOPPY).Check();
+  CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+}
+
+
+void CheckMapRetainingFor(int n) {
+  FLAG_retain_maps_for_n_gc = n;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Handle<WeakCell> weak_cell;
+  {
+    HandleScope inner_scope(isolate);
+    Handle<Map> map = Map::Create(isolate, 1);
+    weak_cell = inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
+  }
+  CHECK(!weak_cell->cleared());
+  int retaining_count =
+      Min(FLAG_retain_maps_for_n_gc,
+          Map::kRetainingCounterStart - Map::kRetainingCounterEnd);
+  for (int i = 0; i < retaining_count; i++) {
+    heap->CollectGarbage(OLD_POINTER_SPACE);
+  }
+  CHECK(!weak_cell->cleared());
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+  CHECK(weak_cell->cleared());
+}
+
+
+TEST(MapRetaining) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  CheckMapRetainingFor(FLAG_retain_maps_for_n_gc);
+  CheckMapRetainingFor(0);
+  CheckMapRetainingFor(Map::kRetainingCounterStart - Map::kRetainingCounterEnd);
+  CheckMapRetainingFor(Map::kRetainingCounterStart - Map::kRetainingCounterEnd +
+                       1);
 }
 
 

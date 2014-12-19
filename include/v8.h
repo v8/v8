@@ -140,6 +140,17 @@ template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
+
+class CallbackData {
+ public:
+  V8_INLINE v8::Isolate* GetIsolate() const { return isolate_; }
+
+ protected:
+  explicit CallbackData(v8::Isolate* isolate) : isolate_(isolate) {}
+
+ private:
+  v8::Isolate* isolate_;
+};
 }
 
 
@@ -418,22 +429,53 @@ template <class T> class Eternal {
 };
 
 
-template<class T, class P>
-class WeakCallbackData {
+template <typename T>
+class PhantomCallbackData : public internal::CallbackData {
+ public:
+  typedef void (*Callback)(const PhantomCallbackData<T>& data);
+
+  V8_INLINE T* GetParameter() const { return parameter_; }
+
+  PhantomCallbackData<T>(Isolate* isolate, T* parameter)
+      : internal::CallbackData(isolate), parameter_(parameter) {}
+
+ private:
+  T* parameter_;
+};
+
+
+template <class T, class P>
+class WeakCallbackData : public PhantomCallbackData<P> {
  public:
   typedef void (*Callback)(const WeakCallbackData<T, P>& data);
 
-  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
   V8_INLINE Local<T> GetValue() const { return handle_; }
-  V8_INLINE P* GetParameter() const { return parameter_; }
 
  private:
   friend class internal::GlobalHandles;
-  WeakCallbackData(Isolate* isolate, Local<T> handle, P* parameter)
-    : isolate_(isolate), handle_(handle), parameter_(parameter) { }
-  Isolate* isolate_;
+  WeakCallbackData(Isolate* isolate, P* parameter, Local<T> handle)
+      : PhantomCallbackData<P>(isolate, parameter), handle_(handle) {}
   Local<T> handle_;
-  P* parameter_;
+};
+
+
+template <typename T, typename U>
+class InternalFieldsCallbackData : public internal::CallbackData {
+ public:
+  typedef void (*Callback)(const InternalFieldsCallbackData<T, U>& data);
+
+  InternalFieldsCallbackData(Isolate* isolate, T* internalField1,
+                             U* internalField2)
+      : internal::CallbackData(isolate),
+        internal_field1_(internalField1),
+        internal_field2_(internalField2) {}
+
+  V8_INLINE T* GetInternalField1() const { return internal_field1_; }
+  V8_INLINE U* GetInternalField2() const { return internal_field2_; }
+
+ private:
+  T* internal_field1_;
+  U* internal_field2_;
 };
 
 
@@ -471,22 +513,23 @@ template <class T> class PersistentBase {
   template <class S>
   V8_INLINE void Reset(Isolate* isolate, const PersistentBase<S>& other);
 
-  V8_INLINE bool IsEmpty() const { return val_ == 0; }
+  V8_INLINE bool IsEmpty() const { return val_ == NULL; }
+  V8_INLINE void Empty() { val_ = 0; }
 
   template <class S>
   V8_INLINE bool operator==(const PersistentBase<S>& that) const {
     internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
     internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
-    if (a == 0) return b == 0;
-    if (b == 0) return false;
+    if (a == NULL) return b == NULL;
+    if (b == NULL) return false;
     return *a == *b;
   }
 
   template <class S> V8_INLINE bool operator==(const Handle<S>& that) const {
     internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
     internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
-    if (a == 0) return b == 0;
-    if (b == 0) return false;
+    if (a == NULL) return b == NULL;
+    if (b == NULL) return false;
     return *a == *b;
   }
 
@@ -519,14 +562,17 @@ template <class T> class PersistentBase {
   // Phantom persistents work like weak persistents, except that the pointer to
   // the object being collected is not available in the finalization callback.
   // This enables the garbage collector to collect the object and any objects
-  // it references transitively in one GC cycle.
+  // it references transitively in one GC cycle. At the moment you can either
+  // specify a parameter for the callback or the location of two internal
+  // fields in the dying object.
   template <typename P>
   V8_INLINE void SetPhantom(P* parameter,
-                            typename WeakCallbackData<T, P>::Callback callback);
+                            typename PhantomCallbackData<P>::Callback callback);
 
-  template <typename S, typename P>
-  V8_INLINE void SetPhantom(P* parameter,
-                            typename WeakCallbackData<S, P>::Callback callback);
+  template <typename P, typename Q>
+  V8_INLINE void SetPhantom(
+      void (*callback)(const InternalFieldsCallbackData<P, Q>&),
+      int internal_field_index1, int internal_field_index2);
 
   template<typename P>
   V8_INLINE P* ClearWeak();
@@ -2491,6 +2537,8 @@ class V8_EXPORT Object : public Value {
 
   /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
+
+  static const int kNoInternalFieldIndex = -1;
 
   /** Same as above, but works for Persistents */
   V8_INLINE static int InternalFieldCount(
@@ -5615,7 +5663,14 @@ class V8_EXPORT V8 {
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
   static void MakeWeak(internal::Object** global_handle, void* data,
-                       WeakCallback weak_callback, WeakHandleType phantom);
+                       WeakCallback weak_callback);
+  static void MakePhantom(internal::Object** global_handle, void* data,
+                          PhantomCallbackData<void>::Callback weak_callback);
+  static void MakePhantom(
+      internal::Object** global_handle,
+      InternalFieldsCallbackData<void, void>::Callback weak_callback,
+      int internal_field_index1,
+      int internal_field_index2 = Object::kNoInternalFieldIndex);
   static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
@@ -6224,12 +6279,12 @@ class Internals {
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
-  static const int kNodeStateMask = 0xf;
+  static const int kNodeStateMask = 0x7;
   static const int kNodeStateIsWeakValue = 2;
   static const int kNodeStateIsPendingValue = 3;
   static const int kNodeStateIsNearDeathValue = 4;
-  static const int kNodeIsIndependentShift = 4;
-  static const int kNodeIsPartiallyDependentShift = 5;
+  static const int kNodeIsIndependentShift = 3;
+  static const int kNodeIsPartiallyDependentShift = 4;
 
   static const int kJSObjectType = 0xbd;
   static const int kFirstNonstringType = 0x80;
@@ -6487,7 +6542,7 @@ void PersistentBase<T>::SetWeak(
   TYPE_CHECK(S, T);
   typedef typename WeakCallbackData<Value, void>::Callback Callback;
   V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
-               reinterpret_cast<Callback>(callback), V8::NonphantomHandle);
+               reinterpret_cast<Callback>(callback));
 }
 
 
@@ -6501,21 +6556,24 @@ void PersistentBase<T>::SetWeak(
 
 
 template <class T>
-template <typename S, typename P>
+template <typename P>
 void PersistentBase<T>::SetPhantom(
-    P* parameter, typename WeakCallbackData<S, P>::Callback callback) {
-  TYPE_CHECK(S, T);
-  typedef typename WeakCallbackData<Value, void>::Callback Callback;
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
-               reinterpret_cast<Callback>(callback), V8::PhantomHandle);
+    P* parameter, typename PhantomCallbackData<P>::Callback callback) {
+  typedef typename PhantomCallbackData<void>::Callback Callback;
+  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_), parameter,
+                  reinterpret_cast<Callback>(callback));
 }
 
 
 template <class T>
-template <typename P>
+template <typename U, typename V>
 void PersistentBase<T>::SetPhantom(
-    P* parameter, typename WeakCallbackData<T, P>::Callback callback) {
-  SetPhantom<T, P>(parameter, callback);
+    void (*callback)(const InternalFieldsCallbackData<U, V>&),
+    int internal_field_index1, int internal_field_index2) {
+  typedef typename InternalFieldsCallbackData<void, void>::Callback Callback;
+  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_),
+                  reinterpret_cast<Callback>(callback), internal_field_index1,
+                  internal_field_index2);
 }
 
 

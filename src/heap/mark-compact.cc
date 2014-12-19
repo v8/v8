@@ -309,6 +309,8 @@ void MarkCompactCollector::CollectGarbage() {
 
   heap_->set_encountered_weak_cells(Smi::FromInt(0));
 
+  isolate()->global_handles()->CollectPhantomCallbackData();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyMarking(heap_);
@@ -2091,7 +2093,7 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 void MarkCompactCollector::ProcessEphemeralMarking(
     ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
   bool work_to_do = true;
-  DCHECK(marking_deque_.IsEmpty());
+  DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
   while (work_to_do) {
     if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
@@ -2120,6 +2122,52 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
       return;
     }
   }
+}
+
+
+void MarkCompactCollector::RetainMaps(ObjectVisitor* visitor) {
+  if (reduce_memory_footprint_ || abort_incremental_marking_ ||
+      FLAG_retain_maps_for_n_gc == 0) {
+    // Do not retain dead maps if flag disables it or there is
+    // - memory pressure (reduce_memory_footprint_),
+    // - GC is requested by tests or dev-tools (abort_incremental_marking_).
+    return;
+  }
+
+  HeapObjectIterator map_iterator(heap()->map_space());
+  // The retaining counter goes from Map::kRetainingCounterStart
+  // down to Map::kRetainingCounterEnd. This range can be narrowed
+  // by the FLAG_retain_maps_for_n_gc flag.
+  int retaining_counter_end =
+      Max(Map::kRetainingCounterEnd,
+          Map::kRetainingCounterStart - FLAG_retain_maps_for_n_gc);
+  for (HeapObject* obj = map_iterator.Next(); obj != NULL;
+       obj = map_iterator.Next()) {
+    Map* map = Map::cast(obj);
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    int counter = map->counter();
+    if (!map_mark.Get()) {
+      if (counter > Map::kRetainingCounterStart ||
+          counter <= retaining_counter_end) {
+        // The counter is outside of retaining range. Do not retain this map.
+        continue;
+      }
+      Object* constructor = map->constructor();
+      if (!constructor->IsHeapObject() ||
+          !Marking::MarkBitFrom(HeapObject::cast(constructor)).Get()) {
+        // The constructor is dead, no new objects with this map can
+        // be created. Do not retain this map.
+        continue;
+      }
+      map->set_counter(counter - 1);
+      SetMark(map, map_mark);
+      MarkCompactMarkingVisitor::IterateBody(map->map(), map);
+    } else if (counter < Map::kRetainingCounterStart) {
+      // Reset the counter for live maps.
+      map->set_counter(Map::kRetainingCounterStart);
+    }
+  }
+  ProcessMarkingDeque();
 }
 
 
@@ -2221,6 +2269,11 @@ void MarkCompactCollector::MarkLiveObjects() {
   MarkRoots(&root_visitor);
 
   ProcessTopOptimizedFrame(&root_visitor);
+
+  // Retaining dying maps should happen before or during ephemeral marking
+  // because a map could keep the key of an ephemeron alive. Note that map
+  // aging is imprecise: maps that are kept alive only by ephemerons will age.
+  RetainMaps(&root_visitor);
 
   {
     GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCLOSURE);

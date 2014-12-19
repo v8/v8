@@ -1682,6 +1682,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
     return;
   }
 
+  HandleScope inner_scope(isolate());
   Handle<FixedArrayBase> elms;
   ElementsKind elements_kind = array->GetElementsKind();
   if (IsFastDoubleElementsKind(elements_kind)) {

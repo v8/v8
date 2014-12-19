@@ -167,7 +167,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
   StreamBuilder m(this, kMachFloat32);
   m.Return(m.Float32Constant(kValue));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_FLOAT_EQ(kValue, s.ToFloat32(s[0]->OutputAt(0)));
@@ -180,7 +180,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
@@ -192,7 +192,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   StreamBuilder m(this, kMachInt32);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
@@ -210,7 +210,7 @@ TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
   StreamBuilder m(this, kMachInt32, kMachFloat64);
   m.Return(m.TruncateFloat64ToInt32(m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(4U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   EXPECT_EQ(kArchTruncateDoubleToI, s[1]->arch_opcode());
   EXPECT_EQ(1U, s[1]->InputCount());
@@ -251,7 +251,7 @@ TARGET_TEST_F(InstructionSelectorTest, Finish) {
   Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
   m.Return(finish);
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(4U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());

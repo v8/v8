@@ -253,7 +253,7 @@ var obj = {
   //   The TRV of CharacterEscapeSequence :: NonEscapeCharacter is the CV of the
   //   NonEscapeCharacter.
   calls = 0;
-  (function(s) { calls++; assertEquals("\u005Cx", s.raw[0]); })`\x`;
+  (function(s) { calls++; assertEquals("\u005Cz", s.raw[0]); })`\z`;
   assertEquals(1, calls);
 
   // The TRV of LineTerminatorSequence :: <LF> is the code unit value 0x000A.
@@ -470,4 +470,26 @@ var obj = {
   {
     // block
   }`jkl`;
+})();
+
+
+(function testLegacyOctal() {
+  assertEquals('\u0000', `\0`);
+  assertEquals('\u0000a', `\0a`);
+  for (var i = 0; i < 10; i++) {
+    var code = "`\\0" + i + "`";
+    assertThrows(code, SyntaxError);
+  }
+
+  assertEquals('\\0', String.raw`\0`);
+})();
+
+
+(function testSyntaxErrorsNonEscapeCharacter() {
+  assertThrows("`\\x`", SyntaxError);
+  assertThrows("`\\u`", SyntaxError);
+  for (var i = 1; i < 10; i++) {
+    var code = "`\\" + i + "`";
+    assertThrows(code, SyntaxError);
+  }
 })();

@@ -447,8 +447,8 @@ class Debug {
                              Object** restarter_frame_function_pointer);
 
   // Passed to MakeWeak.
-  static void HandleWeakDebugInfo(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void HandlePhantomDebugInfo(
+      const PhantomCallbackData<DebugInfoListNode>& data);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -572,6 +572,8 @@ class Debug {
   void ClearStepNext();
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   void RemoveDebugInfo(DebugInfo** debug_info);
+  void RemoveDebugInfo(DebugInfoListNode* node);
+  void RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 

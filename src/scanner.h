@@ -677,8 +677,9 @@ class Scanner {
   // Scans an escape-sequence which is part of a string and adds the
   // decoded character to the current literal. Returns true if a pattern
   // is scanned.
-  template <bool capture_raw>
+  template <bool capture_raw, bool in_template_literal>
   bool ScanEscape();
+
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
