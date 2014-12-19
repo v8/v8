@@ -1182,7 +1182,7 @@ Bounds Typer::Visitor::TypeJSTypeOf(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSToBoolean(Node* node) {
-  return Bounds(Type::None(zone()), Type::Boolean(zone()));
+  return TypeUnaryOp(node, ToBoolean);
 }
 
 
