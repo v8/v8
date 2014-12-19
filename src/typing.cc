@@ -510,8 +510,7 @@ void AstTyper::VisitProperty(Property* expr) {
       IcCheckType key_type;
       if (FLAG_vector_ics) {
         oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
-                                             &is_string);
-        key_type = ELEMENT;
+                                             &is_string, &key_type);
       } else {
         oracle()->KeyedPropertyReceiverTypes(id, expr->GetReceiverTypes(),
                                              &is_string, &key_type);

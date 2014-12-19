@@ -342,11 +342,13 @@ void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorICSlot slot,
 
 
 void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
-    FeedbackVectorICSlot slot, SmallMapList* receiver_types, bool* is_string) {
+    FeedbackVectorICSlot slot, SmallMapList* receiver_types, bool* is_string,
+    IcCheckType* key_type) {
   receiver_types->Clear();
   KeyedLoadICNexus nexus(feedback_vector_, slot);
   CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
   *is_string = HasOnlyStringMaps(receiver_types);
+  *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
 }
 
 
