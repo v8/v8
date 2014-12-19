@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/base/bits.h"
@@ -4355,7 +4357,8 @@ HInstruction* HDiv::New(
       } else {
         int sign = Double(c_left->DoubleValue()).Sign() *
                    Double(c_right->DoubleValue()).Sign();  // Right could be -0.
-        return H_CONSTANT_DOUBLE(sign * V8_INFINITY);
+        return H_CONSTANT_DOUBLE(sign *
+                                 std::numeric_limits<double>::infinity());
       }
     }
   }

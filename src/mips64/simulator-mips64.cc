@@ -1204,7 +1204,8 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
   }
 
-  if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
+  if (rounded < std::numeric_limits<double>::min() &&
+      rounded > -std::numeric_limits<double>::min() && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
     ret = true;
   }
@@ -1236,7 +1237,8 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
   }
 
-  if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
+  if (rounded < std::numeric_limits<double>::min() &&
+      rounded > -std::numeric_limits<double>::min() && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
     ret = true;
   }

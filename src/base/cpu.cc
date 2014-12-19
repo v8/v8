@@ -300,6 +300,7 @@ CPU::CPU()
       type_(0),
       implementer_(0),
       architecture_(0),
+      variant_(-1),
       part_(0),
       has_fpu_(false),
       has_cmov_(false),
@@ -388,7 +389,7 @@ CPU::CPU()
   // Extract implementor from the "CPU implementer" field.
   char* implementer = cpu_info.ExtractField("CPU implementer");
   if (implementer != NULL) {
-    char* end ;
+    char* end;
     implementer_ = strtol(implementer, &end, 0);
     if (end == implementer) {
       implementer_ = 0;
@@ -396,10 +397,20 @@ CPU::CPU()
     delete[] implementer;
   }
 
+  char* variant = cpu_info.ExtractField("CPU variant");
+  if (variant != NULL) {
+    char* end;
+    variant_ = strtol(variant, &end, 0);
+    if (end == variant) {
+      variant_ = -1;
+    }
+    delete[] variant;
+  }
+
   // Extract part number from the "CPU part" field.
   char* part = cpu_info.ExtractField("CPU part");
   if (part != NULL) {
-    char* end ;
+    char* end;
     part_ = strtol(part, &end, 0);
     if (end == part) {
       part_ = 0;
@@ -540,7 +551,7 @@ CPU::CPU()
   // Extract implementor from the "CPU implementer" field.
   char* implementer = cpu_info.ExtractField("CPU implementer");
   if (implementer != NULL) {
-    char* end ;
+    char* end;
     implementer_ = strtol(implementer, &end, 0);
     if (end == implementer) {
       implementer_ = 0;
@@ -548,10 +559,20 @@ CPU::CPU()
     delete[] implementer;
   }
 
+  char* variant = cpu_info.ExtractField("CPU variant");
+  if (variant != NULL) {
+    char* end;
+    variant_ = strtol(variant, &end, 0);
+    if (end == variant) {
+      variant_ = -1;
+    }
+    delete[] variant;
+  }
+
   // Extract part number from the "CPU part" field.
   char* part = cpu_info.ExtractField("CPU part");
   if (part != NULL) {
-    char* end ;
+    char* end;
     part_ = strtol(part, &end, 0);
     if (end == part) {
       part_ = 0;

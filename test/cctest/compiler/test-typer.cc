@@ -32,8 +32,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
     integers.push_back(0);
     integers.push_back(-1);
     integers.push_back(+1);
-    integers.push_back(-V8_INFINITY);
-    integers.push_back(+V8_INFINITY);
+    integers.push_back(-std::numeric_limits<double>::infinity());
+    integers.push_back(+std::numeric_limits<double>::infinity());
     for (int i = 0; i < 5; ++i) {
       double x = rng_->NextInt();
       integers.push_back(x);
@@ -99,9 +99,12 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
       case 1: return max;
       default: break;
     }
-    if (min == +V8_INFINITY) return +V8_INFINITY;
-    if (max == -V8_INFINITY) return -V8_INFINITY;
-    if (min == -V8_INFINITY && max == +V8_INFINITY) {
+    if (min == +std::numeric_limits<double>::infinity())
+      return +std::numeric_limits<double>::infinity();
+    if (max == -std::numeric_limits<double>::infinity())
+      return -std::numeric_limits<double>::infinity();
+    if (min == -std::numeric_limits<double>::infinity() &&
+        max == +std::numeric_limits<double>::infinity()) {
       return rng_->NextInt() * static_cast<double>(rng_->NextInt());
     }
     double result = nearbyint(min + (max - min) * rng_->NextDouble());

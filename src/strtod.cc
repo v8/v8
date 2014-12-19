@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdarg.h>
 #include <cmath>
+#include <cstdarg>
+#include <limits>
 
 #include "src/v8.h"
 
@@ -352,7 +353,7 @@ static bool DiyFpStrtod(Vector<const char> buffer,
 static double BignumStrtod(Vector<const char> buffer,
                            int exponent,
                            double guess) {
-  if (guess == V8_INFINITY) {
+  if (guess == std::numeric_limits<double>::infinity()) {
     return guess;
   }
 
@@ -408,7 +409,9 @@ double Strtod(Vector<const char> buffer, int exponent) {
                                      kMaxSignificantDecimalDigits),
                   significant_exponent);
   }
-  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
+  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) {
+    return std::numeric_limits<double>::infinity();
+  }
   if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
 
   double guess;

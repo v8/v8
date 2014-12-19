@@ -1,3 +1,8 @@
+2014-12-19: Version 3.31.67
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-19: Version 3.31.66
 
         Ship ES6 template literals (issue 3230).

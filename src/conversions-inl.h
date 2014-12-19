@@ -5,11 +5,9 @@
 #ifndef V8_CONVERSIONS_INL_H_
 #define V8_CONVERSIONS_INL_H_
 
-#include <float.h>         // Required for DBL_MAX and on Win32 for finite()
-#include <limits.h>        // Required for INT_MAX etc.
-#include <stdarg.h>
 #include <cmath>
-#include "src/globals.h"       // Required for V8_INFINITY
+#include <cstdarg>
+#include <limits>
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
@@ -483,7 +481,8 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     }
 
     DCHECK(buffer_pos == 0);
-    return (sign == NEGATIVE) ? -V8_INFINITY : V8_INFINITY;
+    return (sign == NEGATIVE) ? -std::numeric_limits<double>::infinity()
+                              : std::numeric_limits<double>::infinity();
   }
 
   bool leading_zero = false;
@@ -643,7 +642,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
       }
     }
 
-    const int max_exponent = INT_MAX / 2;
+    const int max_exponent = std::numeric_limits<int>::max() / 2;
     DCHECK(-max_exponent / 2 <= exponent && exponent <= max_exponent / 2);
     int num = 0;
     do {

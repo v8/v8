@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/base/bits.h"
@@ -4036,7 +4038,8 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.sqrt(-Infinity) == NaN
   Label skip, done;
 
-  __ LoadDoubleLiteral(temp, -V8_INFINITY, scratch0());
+  __ LoadDoubleLiteral(temp, -std::numeric_limits<double>::infinity(),
+                       scratch0());
   __ fcmpu(input, temp);
   __ bne(&skip);
   __ fneg(result, temp);

@@ -87,8 +87,10 @@ class Types {
       types.push_back(Type::Constant(*it, region));
     }
 
-    integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
-    integers.push_back(isolate->factory()->NewNumber(+V8_INFINITY));
+    integers.push_back(isolate->factory()->NewNumber(
+        -std::numeric_limits<double>::infinity()));
+    integers.push_back(isolate->factory()->NewNumber(
+        +std::numeric_limits<double>::infinity()));
     integers.push_back(isolate->factory()->NewNumber(-rng_->NextInt(10)));
     integers.push_back(isolate->factory()->NewNumber(+rng_->NextInt(10)));
     for (int i = 0; i < 10; ++i) {
@@ -98,8 +100,10 @@ class Types {
       if (!IsMinusZero(x)) integers.push_back(isolate->factory()->NewNumber(x));
     }
 
-    Integer = Type::Range(isolate->factory()->NewNumber(-V8_INFINITY),
-                          isolate->factory()->NewNumber(+V8_INFINITY), region);
+    Integer = Type::Range(
+        isolate->factory()->NewNumber(-std::numeric_limits<double>::infinity()),
+        isolate->factory()->NewNumber(+std::numeric_limits<double>::infinity()),
+        region);
 
     NumberArray = Type::Array(Number, region);
     StringArray = Type::Array(String, region);

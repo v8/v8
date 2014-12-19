@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
@@ -132,7 +134,8 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsNumberConstant(-V8_INFINITY));
+  EXPECT_THAT(r.replacement(),
+              IsNumberConstant(-std::numeric_limits<double>::infinity()));
 }
 
 
