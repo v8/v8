@@ -415,6 +415,12 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Check the whitelist for TurboFan.
   if ((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
       info()->closure()->PassesFilter(FLAG_turbo_filter)) {
+    if (FLAG_trace_opt) {
+      OFStream os(stdout);
+      os << "[compiling method " << Brief(*info()->closure())
+         << " using TurboFan]" << std::endl;
+    }
+    Timer t(this, &time_taken_to_create_graph_);
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
@@ -422,10 +428,13 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
   }
 
+  if (FLAG_trace_opt) {
+    OFStream os(stdout);
+    os << "[compiling method " << Brief(*info()->closure())
+       << " using Crankshaft]" << std::endl;
+  }
+
   if (FLAG_trace_hydrogen) {
-    Handle<String> name = info()->function()->debug_name();
-    PrintF("-----------------------------------------------------------\n");
-    PrintF("Compiling method %s using hydrogen\n", name->ToCString().get());
     isolate()->GetHTracer()->TraceCompilation(info());
   }
 
@@ -871,11 +880,6 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
   InsertCodeIntoOptimizedCodeMap(info);
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
                             info->shared_info());
-  if (FLAG_trace_opt) {
-    PrintF("[completed optimizing ");
-    info->closure()->ShortPrint();
-    PrintF("]\n");
-  }
   return true;
 }
 
