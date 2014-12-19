@@ -10824,7 +10824,9 @@ void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
     if (object->IsHeapObject()) {
-      DCHECK(!object->IsWeakCell());
+      if (object->IsWeakCell()) {
+        object = HeapObject::cast(WeakCell::cast(object)->value());
+      }
       Map* map = HeapObject::cast(object)->map();
       if (map == *pattern.find_[current_pattern]) {
         info->set_target_object(*pattern.replace_[current_pattern]);

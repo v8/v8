@@ -1102,7 +1102,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
   Type* type = stub->GetType(zone(), sentinel_map);
-  BuildCompareNil(GetParameter(0), type, &continuation);
+  BuildCompareNil(GetParameter(0), type, &continuation, kEmbedMapsViaWeakCells);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
   if (continuation.IsFalseReachable()) {

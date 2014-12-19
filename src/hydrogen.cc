@@ -3016,10 +3016,9 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
 }
 
 
-void HGraphBuilder::BuildCompareNil(
-    HValue* value,
-    Type* type,
-    HIfContinuation* continuation) {
+void HGraphBuilder::BuildCompareNil(HValue* value, Type* type,
+                                    HIfContinuation* continuation,
+                                    MapEmbedding map_embedding) {
   IfBuilder if_nil(this);
   bool some_case_handled = false;
   bool some_case_missing = false;
@@ -3058,7 +3057,21 @@ void HGraphBuilder::BuildCompareNil(
       // the monomorphic map when the code is used as a template to generate a
       // new IC. For optimized functions, there is no sentinel map, the map
       // emitted below is the actual monomorphic map.
-      Add<HCheckMaps>(value, type->Classes().Current());
+      if (map_embedding == kEmbedMapsViaWeakCells) {
+        HValue* cell =
+            Add<HConstant>(Map::WeakCellForMap(type->Classes().Current()));
+        HValue* expected_map = Add<HLoadNamedField>(
+            cell, nullptr, HObjectAccess::ForWeakCellValue());
+        HValue* map =
+            Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
+        IfBuilder map_check(this);
+        map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
+        map_check.ThenDeopt("Unknown map");
+        map_check.End();
+      } else {
+        DCHECK(map_embedding == kEmbedMapsDirectly);
+        Add<HCheckMaps>(value, type->Classes().Current());
+      }
     } else {
       if_nil.Deopt("Too many undetectable types");
     }

@@ -1864,10 +1864,10 @@ class HGraphBuilder {
 
   HValue* BuildElementIndexHash(HValue* index);
 
-  void BuildCompareNil(
-      HValue* value,
-      Type* type,
-      HIfContinuation* continuation);
+  enum MapEmbedding { kEmbedMapsDirectly, kEmbedMapsViaWeakCells };
+
+  void BuildCompareNil(HValue* value, Type* type, HIfContinuation* continuation,
+                       MapEmbedding map_embedding = kEmbedMapsDirectly);
 
   void BuildCreateAllocationMemento(HValue* previous_object,
                                     HValue* previous_object_size,
