@@ -11809,8 +11809,8 @@ MaybeHandle<Object> JSArray::SetElementsLength(
       // Skip deletions where the property was an accessor, leaving holes
       // in the array of old values.
       if (old_values[i]->IsTheHole()) continue;
-      JSObject::SetElement(
-          deleted, indices[i] - index, old_values[i], NONE, SLOPPY).Assert();
+      JSObject::SetOwnElement(deleted, indices[i] - index, old_values[i],
+                              SLOPPY).Assert();
     }
 
     SetProperty(deleted, isolate->factory()->length_string(),
