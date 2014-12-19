@@ -189,7 +189,9 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   signed32ish = Type::Union(signed32, truncating_to_zero, zone);
   unsigned32ish = Type::Union(unsigned32, truncating_to_zero, zone);
   falsish = Type::Union(Type::Undetectable(),
-      Type::Union(zeroish, undefined_or_null, zone), zone);
+                        Type::Union(Type::Union(singleton_false, zeroish, zone),
+                                    undefined_or_null, zone),
+                        zone);
   integer = Type::Range(minusinfinity, infinity, zone);
   weakint = Type::Union(integer, nan_or_minuszero, zone);
 
