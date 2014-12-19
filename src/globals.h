@@ -609,6 +609,7 @@ enum CpuFeature {
   MIPSr6,
   // ARM64
   ALWAYS_ALIGN_CSP,
+  COHERENT_CACHE,
   NUMBER_OF_CPU_FEATURES
 };
 

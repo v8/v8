@@ -46,11 +46,25 @@ namespace internal {
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // AArch64 has no configuration options, no further probing is required.
   supported_ = 0;
+
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
+
+  // Probe for runtime features
+  base::CPU cpu;
+  if (cpu.implementer() == base::CPU::NVIDIA &&
+      cpu.variant() == base::CPU::NVIDIA_DENVER) {
+    supported_ |= 1u << COHERENT_CACHE;
+  }
 }
 
 
 void CpuFeatures::PrintTarget() { }
-void CpuFeatures::PrintFeatures() { }
+
+
+void CpuFeatures::PrintFeatures() {
+  printf("COHERENT_CACHE=%d\n", CpuFeatures::IsSupported(COHERENT_CACHE));
+}
 
 
 // -----------------------------------------------------------------------------
