@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/code-factory.h"
@@ -3874,7 +3876,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ Move(temp, static_cast<double>(-V8_INFINITY));
+  __ Move(temp, std::numeric_limits<double>::infinity());
   __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, temp, input);
   // Set up Infinity in the delay slot.
   // result is overwritten if the branch is not taken.

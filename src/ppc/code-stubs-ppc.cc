@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #if V8_TARGET_ARCH_PPC
@@ -798,7 +800,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ LoadDoubleLiteral(double_scratch, -V8_INFINITY, scratch);
+      __ LoadDoubleLiteral(double_scratch,
+                           -std::numeric_limits<double>::infinity(), scratch);
       __ fcmpu(double_base, double_scratch);
       __ bne(&not_minus_inf1);
       __ fneg(double_result, double_scratch);
@@ -817,7 +820,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ LoadDoubleLiteral(double_scratch, -V8_INFINITY, scratch);
+      __ LoadDoubleLiteral(double_scratch,
+                           -std::numeric_limits<double>::infinity(), scratch);
       __ fcmpu(double_base, double_scratch);
       __ bne(&not_minus_inf2);
       __ fmr(double_result, kDoubleRegZero);

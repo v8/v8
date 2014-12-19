@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/arm/lithium-codegen-arm.h"
@@ -3880,7 +3882,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ vmov(temp, -V8_INFINITY, scratch0());
+  __ vmov(temp, -std::numeric_limits<double>::infinity(), scratch0());
   __ VFPCompareAndSetFlags(input, temp);
   __ vneg(result, temp, eq);
   __ b(&done, eq);
