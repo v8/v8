@@ -385,15 +385,24 @@ class ParserBase : public Traits {
   }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
-  // If so, reports an error. Only called for strict mode.
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+  // If so, reports an error. Only called for strict mode and template strings.
+  void CheckOctalLiteral(int beg_pos, int end_pos, const char* error,
+                         bool* ok) {
     Scanner::Location octal = scanner()->octal_position();
     if (octal.IsValid() && beg_pos <= octal.beg_pos &&
         octal.end_pos <= end_pos) {
-      ReportMessageAt(octal, "strict_octal_literal");
+      ReportMessageAt(octal, error);
       scanner()->clear_octal_position();
       *ok = false;
     }
+  }
+
+  inline void CheckStrictOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+    CheckOctalLiteral(beg_pos, end_pos, "strict_octal_literal", ok);
+  }
+
+  inline void CheckTemplateOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+    CheckOctalLiteral(beg_pos, end_pos, "template_octal_literal", ok);
   }
 
   // Validates strict mode for function parameter lists. This has to be
@@ -1489,7 +1498,8 @@ class PreParser : public ParserBase<PreParserTraits> {
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
     } else if (scope_->strict_mode() == STRICT) {
-      CheckOctalLiteral(start_position, scanner()->location().end_pos, &ok);
+      CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
+                              &ok);
     }
     if (materialized_literals) {
       *materialized_literals = function_state_->materialized_literal_count();
@@ -2802,7 +2812,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
     // Validate strict mode.
     if (strict_mode() == STRICT) {
-      CheckOctalLiteral(start_pos, scanner()->location().end_pos, CHECK_OK);
+      CheckStrictOctalLiteral(start_pos, scanner()->location().end_pos,
+                              CHECK_OK);
     }
 
     if (allow_harmony_scoping() && strict_mode() == STRICT)
@@ -2846,6 +2857,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
   if (peek() == Token::TEMPLATE_TAIL) {
     Consume(Token::TEMPLATE_TAIL);
     int pos = position();
+    CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
     typename Traits::TemplateLiteralState ts = Traits::OpenTemplateLiteral(pos);
     Traits::AddTemplateSpan(&ts, true);
     return Traits::CloseTemplateLiteral(&ts, start, tag);
@@ -2897,6 +2909,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
   } while (next == Token::TEMPLATE_SPAN);
 
   DCHECK_EQ(next, Token::TEMPLATE_TAIL);
+  CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
   // Once we've reached a TEMPLATE_TAIL, we can close the TemplateLiteral.
   return Traits::CloseTemplateLiteral(&ts, start, tag);
 }

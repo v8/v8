@@ -936,7 +936,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
                         &ok);
 
     if (ok && strict_mode() == STRICT) {
-      CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
+      CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
 
     if (ok && allow_harmony_scoping() && strict_mode() == STRICT) {
@@ -3803,9 +3803,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                            CHECK_OK);
     }
     if (strict_mode() == STRICT) {
-      CheckOctalLiteral(scope->start_position(),
-                        scope->end_position(),
-                        CHECK_OK);
+      CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
+                              CHECK_OK);
     }
     if (allow_harmony_scoping() && strict_mode() == STRICT) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);

@@ -154,6 +154,7 @@ var kMessages = {
   too_many_variables:            ["Too many variables declared (only 4194303 allowed)"],
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
+  template_octal_literal:        ["Octal literals are not allowed in template strings."],
   strict_duplicate_property:     ["Duplicate data property in object literal not allowed in strict mode"],
   accessor_data_property:        ["Object literal may not have data and accessor property with the same name"],
   accessor_get_set:              ["Object literal may not have multiple get/set accessors with the same name"],

@@ -1,3 +1,10 @@
+2014-12-19: Version 3.31.66
+
+        Ship ES6 template literals (issue 3230).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-18: Version 3.31.65
 
         ES6 template literals should not use legacy octal strings (issue 3736).
