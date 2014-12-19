@@ -724,12 +724,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
   // Get the value from the cell.
   Register result = StoreDescriptor::ValueRegister();
-  if (masm()->serializer_enabled()) {
-    __ mov(result, Immediate(cell));
-    __ mov(result, FieldOperand(result, PropertyCell::kValueOffset));
-  } else {
-    __ mov(result, Operand::ForCell(cell));
-  }
+  Handle<WeakCell> weak_cell = factory()->NewWeakCell(cell);
+  __ LoadWeakValue(result, weak_cell, &miss);
+  __ mov(result, FieldOperand(result, PropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
   if (is_configurable) {
