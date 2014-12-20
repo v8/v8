@@ -390,10 +390,8 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
-  Emit(opcode | AddressingModeField::encode(kMode_MRR),
-       g.DefineAsRegister(node), offset_operand, g.UseRegister(length),
-       g.UseRegister(buffer), offset_operand);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+       g.UseRegister(offset), g.UseOperand(length, kArithmeticImm));
 }
 
 
@@ -425,10 +423,8 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
-  Emit(opcode | AddressingModeField::encode(kMode_MRR), nullptr, offset_operand,
-       g.UseRegister(length), g.UseRegister(value), g.UseRegister(buffer),
-       offset_operand);
+  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+       g.UseOperand(length, kArithmeticImm), g.UseRegister(value));
 }
 
 

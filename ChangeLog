@@ -1,3 +1,11 @@
+2014-12-19: Version 3.31.68
+
+        [turbofan] Fix unsafe out-of-bounds check for checked loads/stores
+        (Chromium issue 443744).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-19: Version 3.31.67
 
         Performance and stability improvements on all platforms.

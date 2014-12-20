@@ -6256,6 +6256,10 @@ class HObjectAccess FINAL {
     return HObjectAccess(kInobject, Cell::kValueOffset);
   }
 
+  static HObjectAccess ForWeakCellValue() {
+    return HObjectAccess(kInobject, WeakCell::kValueOffset);
+  }
+
   static HObjectAccess ForAllocationMementoSite() {
     return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }

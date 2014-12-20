@@ -334,7 +334,8 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   // Get the value from the cell.
   Register result = StoreDescriptor::ValueRegister();
-  __ Mov(result, Operand(cell));
+  Handle<WeakCell> weak_cell = factory()->NewWeakCell(cell);
+  __ LoadWeakValue(result, weak_cell, &miss);
   __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.

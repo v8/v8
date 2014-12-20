@@ -1102,7 +1102,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
   Type* type = stub->GetType(zone(), sentinel_map);
-  BuildCompareNil(GetParameter(0), type, &continuation);
+  BuildCompareNil(GetParameter(0), type, &continuation, kEmbedMapsViaWeakCells);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
   if (continuation.IsFalseReachable()) {
@@ -2043,8 +2043,13 @@ void CodeStubGraphBuilderBase::HandleArrayCases(HValue* array, HValue* receiver,
     HValue* receiver_map = AddLoadMap(receiver, nullptr);
     HValue* start =
         keyed_load ? graph()->GetConstant1() : graph()->GetConstant0();
-    HValue* array_map = Add<HLoadKeyed>(array, start, nullptr, FAST_ELEMENTS,
+    HValue* weak_cell = Add<HLoadKeyed>(array, start, nullptr, FAST_ELEMENTS,
                                         ALLOW_RETURN_HOLE);
+    // Load the weak cell value. It may be Smi(0), or a map. Compare nonetheless
+    // against the receiver_map.
+    HValue* array_map = Add<HLoadNamedField>(weak_cell, nullptr,
+                                             HObjectAccess::ForWeakCellValue());
+
     IfBuilder if_correct_map(this);
     if_correct_map.If<HCompareObjectEqAndBranch>(receiver_map, array_map);
     if_correct_map.Then();
@@ -2059,8 +2064,10 @@ void CodeStubGraphBuilderBase::HandleArrayCases(HValue* array, HValue* receiver,
       start = keyed_load ? constant_three : constant_two;
       HValue* key = builder.BeginBody(start, length, Token::LT);
       {
-        HValue* array_map = Add<HLoadKeyed>(array, key, nullptr, FAST_ELEMENTS,
+        HValue* weak_cell = Add<HLoadKeyed>(array, key, nullptr, FAST_ELEMENTS,
                                             ALLOW_RETURN_HOLE);
+        HValue* array_map = Add<HLoadNamedField>(
+            weak_cell, nullptr, HObjectAccess::ForWeakCellValue());
         IfBuilder if_correct_poly_map(this);
         if_correct_poly_map.If<HCompareObjectEqAndBranch>(receiver_map,
                                                           array_map);

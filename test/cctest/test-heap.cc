@@ -3407,8 +3407,6 @@ static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
-  // TODO(mvstanton): vector-ics need to treat maps weakly.
-  if (i::FLAG_vector_ics) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -3806,8 +3804,6 @@ TEST(Regress169209) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
-  // TODO(mvstanton): vector ics need weak support.
-  if (i::FLAG_vector_ics) return;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4161,8 +4157,6 @@ static int AllocationSitesCount(Heap* heap) {
 
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
@@ -4211,10 +4205,6 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   }
 
-  // TODO(mvstanton): this test fails when FLAG_vector_ics is true because
-  // monomorphic load ics are preserved, but also strongly walked. They
-  // end up keeping function bar alive.
-
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
   DependentCode::GroupStartIndexes starts(site->dependent_code());
@@ -4225,8 +4215,6 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
 TEST(CellsInOptimizedCodeAreWeak) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
-  // TODO(mvstanton): vector-ics need to treat maps weakly.
-  if (i::FLAG_vector_ics) return;
   i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
@@ -4269,8 +4257,6 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
   i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
@@ -4314,8 +4300,6 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
   if (!i::FLAG_incremental_marking) return;
-  // TODO(mvstanton): vector ics need weak support.
-  if (FLAG_vector_ics) return;
   i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;
@@ -4487,8 +4471,6 @@ void CheckWeakness(const char* source) {
 // Each of the following "weak IC" tests creates an IC that embeds a map with
 // the prototype pointing to _proto_ and checks that the _proto_ dies on GC.
 TEST(WeakMapInMonomorphicLoadIC) {
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   CheckWeakness("function loadIC(obj) {"
                 "  return obj.name;"
                 "}"
@@ -4504,8 +4486,6 @@ TEST(WeakMapInMonomorphicLoadIC) {
 
 
 TEST(WeakMapInPolymorphicLoadIC) {
-  // TODO(mvstanton): vector-ics need to treat maps weakly.
-  if (i::FLAG_vector_ics) return;
   CheckWeakness(
       "function loadIC(obj) {"
       "  return obj.name;"
@@ -4525,8 +4505,6 @@ TEST(WeakMapInPolymorphicLoadIC) {
 
 
 TEST(WeakMapInMonomorphicKeyedLoadIC) {
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   CheckWeakness("function keyedLoadIC(obj, field) {"
                 "  return obj[field];"
                 "}"

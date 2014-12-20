@@ -244,7 +244,8 @@ Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
   }
 
   Code::FindAndReplacePattern pattern;
-  pattern.Add(isolate->factory()->meta_map(), receiver_map);
+  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
+  pattern.Add(isolate->factory()->meta_map(), cell);
   Handle<Code> ic = stub->GetCodeCopy(pattern);
 
   if (!receiver_map->is_dictionary_map()) {

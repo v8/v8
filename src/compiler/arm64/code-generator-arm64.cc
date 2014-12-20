@@ -176,9 +176,9 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
 namespace {
 
-class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN32 FINAL : public OutOfLineCode {
  public:
-  OutOfLineLoadFloat32(CodeGenerator* gen, DoubleRegister result)
+  OutOfLineLoadNaN32(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() FINAL {
@@ -190,9 +190,9 @@ class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN64 FINAL : public OutOfLineCode {
  public:
-  OutOfLineLoadFloat64(CodeGenerator* gen, DoubleRegister result)
+  OutOfLineLoadNaN64(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() FINAL {
@@ -204,9 +204,9 @@ class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+class OutOfLineLoadZero FINAL : public OutOfLineCode {
  public:
-  OutOfLineLoadInteger(CodeGenerator* gen, Register result)
+  OutOfLineLoadZero(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() FINAL { __ Mov(result_, 0); }
@@ -218,53 +218,59 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
 }  // namespace
 
 
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                           \
-  do {                                                               \
-    auto result = i.OutputFloat##width##Register();                  \
-    auto offset = i.InputRegister32(0);                              \
-    auto length = i.InputOperand32(1);                               \
-    __ Cmp(offset, length);                                          \
-    auto ool = new (zone()) OutOfLineLoadFloat##width(this, result); \
-    __ B(hs, ool->entry());                                          \
-    __ Ldr(result, i.MemoryOperand(2));                              \
-    __ Bind(ool->exit());                                            \
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                         \
+  do {                                                             \
+    auto result = i.OutputFloat##width##Register();                \
+    auto buffer = i.InputRegister(0);                              \
+    auto offset = i.InputRegister32(1);                            \
+    auto length = i.InputOperand32(2);                             \
+    __ Cmp(offset, length);                                        \
+    auto ool = new (zone()) OutOfLineLoadNaN##width(this, result); \
+    __ B(hs, ool->entry());                                        \
+    __ Ldr(result, MemOperand(buffer, offset, UXTW));              \
+    __ Bind(ool->exit());                                          \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                \
-  do {                                                          \
-    auto result = i.OutputRegister32();                         \
-    auto offset = i.InputRegister32(0);                         \
-    auto length = i.InputOperand32(1);                          \
-    __ Cmp(offset, length);                                     \
-    auto ool = new (zone()) OutOfLineLoadInteger(this, result); \
-    __ B(hs, ool->entry());                                     \
-    __ asm_instr(result, i.MemoryOperand(2));                   \
-    __ Bind(ool->exit());                                       \
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)             \
+  do {                                                       \
+    auto result = i.OutputRegister32();                      \
+    auto buffer = i.InputRegister(0);                        \
+    auto offset = i.InputRegister32(1);                      \
+    auto length = i.InputOperand32(2);                       \
+    __ Cmp(offset, length);                                  \
+    auto ool = new (zone()) OutOfLineLoadZero(this, result); \
+    __ B(hs, ool->entry());                                  \
+    __ asm_instr(result, MemOperand(buffer, offset, UXTW));  \
+    __ Bind(ool->exit());                                    \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width)                       \
-  do {                                                            \
-    auto offset = i.InputRegister32(0);                           \
-    auto length = i.InputOperand32(1);                            \
-    __ Cmp(offset, length);                                       \
-    Label done;                                                   \
-    __ B(hs, &done);                                              \
-    __ Str(i.InputFloat##width##Register(2), i.MemoryOperand(3)); \
-    __ Bind(&done);                                               \
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width)          \
+  do {                                               \
+    auto buffer = i.InputRegister(0);                \
+    auto offset = i.InputRegister32(1);              \
+    auto length = i.InputOperand32(2);               \
+    auto value = i.InputFloat##width##Register(3);   \
+    __ Cmp(offset, length);                          \
+    Label done;                                      \
+    __ B(hs, &done);                                 \
+    __ Str(value, MemOperand(buffer, offset, UXTW)); \
+    __ Bind(&done);                                  \
   } while (0)
 
 
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)           \
-  do {                                                      \
-    auto offset = i.InputRegister32(0);                     \
-    auto length = i.InputOperand32(1);                      \
-    __ Cmp(offset, length);                                 \
-    Label done;                                             \
-    __ B(hs, &done);                                        \
-    __ asm_instr(i.InputRegister32(2), i.MemoryOperand(3)); \
-    __ Bind(&done);                                         \
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)          \
+  do {                                                     \
+    auto buffer = i.InputRegister(0);                      \
+    auto offset = i.InputRegister32(1);                    \
+    auto length = i.InputOperand32(2);                     \
+    auto value = i.InputRegister32(3);                     \
+    __ Cmp(offset, length);                                \
+    Label done;                                            \
+    __ B(hs, &done);                                       \
+    __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
+    __ Bind(&done);                                        \
   } while (0)
 
 
