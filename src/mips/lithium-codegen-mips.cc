@@ -3844,7 +3844,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ Move(temp, -std::numeric_limits<double>::infinity());
+  __ Move(temp, std::numeric_limits<double>::infinity());
   __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, temp, input);
   // Set up Infinity in the delay slot.
   // result is overwritten if the branch is not taken.

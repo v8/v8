@@ -853,7 +853,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // double_scratch can be overwritten in the delay slot.
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, -std::numeric_limits<double>::infinity());
+      __ Move(double_scratch, std::numeric_limits<double>::infinity());
       __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
       __ neg_d(double_result, double_scratch);
 
@@ -873,7 +873,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // double_scratch can be overwritten in the delay slot.
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ Move(double_scratch, -std::numeric_limits<double>::infinity());
+      __ Move(double_scratch, std::numeric_limits<double>::infinity());
       __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, double_base, double_scratch);
       __ Move(double_result, kDoubleRegZero);
 
