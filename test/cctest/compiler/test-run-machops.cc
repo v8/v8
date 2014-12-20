@@ -2910,7 +2910,7 @@ TEST(RunFloat64Binop) {
                            m.machine()->Float64Mul(), m.machine()->Float64Div(),
                            m.machine()->Float64Mod(), NULL};
 
-  double inf = std::numeric_limits<double>::infinity();
+  double inf = V8_INFINITY;
   const Operator* inputs[] = {
       m.common()->Float64Constant(0),     m.common()->Float64Constant(1),
       m.common()->Float64Constant(1),     m.common()->Float64Constant(0),
@@ -3864,7 +3864,7 @@ static int Float64CompareHelper(RawMachineAssemblerTester<int32_t>* m,
 
 
 TEST(RunFloat64Compare) {
-  double inf = std::numeric_limits<double>::infinity();
+  double inf = V8_INFINITY;
   // All pairs (a1, a2) are of the form a1 < a2.
   double inputs[] = {0.0,  1.0,  -1.0, 0.22, -1.22, 0.22,
                      -inf, 0.22, 0.22, inf,  -inf,  inf};

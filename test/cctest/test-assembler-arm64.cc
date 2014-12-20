@@ -5858,11 +5858,10 @@ TEST(fmax_fmin_d) {
                        snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
-  double inputs[] = {
-      std::numeric_limits<double>::max(), std::numeric_limits<double>::min(),
-      1.0, 0.0, -std::numeric_limits<double>::max(),
-      -std::numeric_limits<double>::min(), -1.0, -0.0, kFP64PositiveInfinity,
-      kFP64NegativeInfinity, kFP64QuietNaN, kFP64SignallingNaN};
+  double inputs[] = { DBL_MAX, DBL_MIN, 1.0, 0.0,
+                      -DBL_MAX, -DBL_MIN, -1.0, -0.0,
+                      kFP64PositiveInfinity, kFP64NegativeInfinity,
+                      kFP64QuietNaN, kFP64SignallingNaN };
 
   const int count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -5944,11 +5943,10 @@ TEST(fmax_fmin_s) {
                       snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
-  float inputs[] = {
-      std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), 1.0,
-      0.0, -std::numeric_limits<float>::max(),
-      -std::numeric_limits<float>::min(), -1.0, -0.0, kFP32PositiveInfinity,
-      kFP32NegativeInfinity, kFP32QuietNaN, kFP32SignallingNaN};
+  float inputs[] = { FLT_MAX, FLT_MIN, 1.0, 0.0,
+                     -FLT_MAX, -FLT_MIN, -1.0, -0.0,
+                     kFP32PositiveInfinity, kFP32NegativeInfinity,
+                     kFP32QuietNaN, kFP32SignallingNaN };
 
   const int count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -6744,8 +6742,8 @@ TEST(fcvt_ds) {
   __ Fmov(s24, kFP32NegativeInfinity);
   __ Fmov(s25, 0.0);
   __ Fmov(s26, -0.0);
-  __ Fmov(s27, std::numeric_limits<float>::max());
-  __ Fmov(s28, std::numeric_limits<float>::min());
+  __ Fmov(s27, FLT_MAX);
+  __ Fmov(s28, FLT_MIN);
   __ Fmov(s29, rawbits_to_float(0x7fc12345));   // Quiet NaN.
   __ Fmov(s30, rawbits_to_float(0x7f812345));   // Signalling NaN.
 
@@ -6779,8 +6777,8 @@ TEST(fcvt_ds) {
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d8);
   CHECK_EQUAL_FP64(0.0f, d9);
   CHECK_EQUAL_FP64(-0.0f, d10);
-  CHECK_EQUAL_FP64(std::numeric_limits<float>::max(), d11);
-  CHECK_EQUAL_FP64(std::numeric_limits<float>::min(), d12);
+  CHECK_EQUAL_FP64(FLT_MAX, d11);
+  CHECK_EQUAL_FP64(FLT_MIN, d12);
 
   // Check that the NaN payload is preserved according to ARM64 conversion
   // rules:
@@ -6804,86 +6802,83 @@ TEST(fcvt_sd) {
   //
   // Note that this test only checks ties-to-even rounding, because that is all
   // that the simulator supports.
-  struct {
-    double in;
-    float expected;
-  } test[] = {
-      // Check some simple conversions.
-      {0.0, 0.0f},
-      {1.0, 1.0f},
-      {1.5, 1.5f},
-      {2.0, 2.0f},
-      {std::numeric_limits<float>::max(), std::numeric_limits<float>::max()},
-      //  - The smallest normalized float.
-      {pow(2.0, -126), powf(2, -126)},
-      //  - Normal floats that need (ties-to-even) rounding.
-      //    For normalized numbers:
-      //         bit 29 (0x0000000020000000) is the lowest-order bit which will
-      //                                     fit in the float's mantissa.
-      {rawbits_to_double(0x3ff0000000000000), rawbits_to_float(0x3f800000)},
-      {rawbits_to_double(0x3ff0000000000001), rawbits_to_float(0x3f800000)},
-      {rawbits_to_double(0x3ff0000010000000), rawbits_to_float(0x3f800000)},
-      {rawbits_to_double(0x3ff0000010000001), rawbits_to_float(0x3f800001)},
-      {rawbits_to_double(0x3ff0000020000000), rawbits_to_float(0x3f800001)},
-      {rawbits_to_double(0x3ff0000020000001), rawbits_to_float(0x3f800001)},
-      {rawbits_to_double(0x3ff0000030000000), rawbits_to_float(0x3f800002)},
-      {rawbits_to_double(0x3ff0000030000001), rawbits_to_float(0x3f800002)},
-      {rawbits_to_double(0x3ff0000040000000), rawbits_to_float(0x3f800002)},
-      {rawbits_to_double(0x3ff0000040000001), rawbits_to_float(0x3f800002)},
-      {rawbits_to_double(0x3ff0000050000000), rawbits_to_float(0x3f800002)},
-      {rawbits_to_double(0x3ff0000050000001), rawbits_to_float(0x3f800003)},
-      {rawbits_to_double(0x3ff0000060000000), rawbits_to_float(0x3f800003)},
-      //  - A mantissa that overflows into the exponent during rounding.
-      {rawbits_to_double(0x3feffffff0000000), rawbits_to_float(0x3f800000)},
-      //  - The largest double that rounds to a normal float.
-      {rawbits_to_double(0x47efffffefffffff), rawbits_to_float(0x7f7fffff)},
+  struct {double in; float expected;} test[] = {
+    // Check some simple conversions.
+    {0.0, 0.0f},
+    {1.0, 1.0f},
+    {1.5, 1.5f},
+    {2.0, 2.0f},
+    {FLT_MAX, FLT_MAX},
+    //  - The smallest normalized float.
+    {pow(2.0, -126), powf(2, -126)},
+    //  - Normal floats that need (ties-to-even) rounding.
+    //    For normalized numbers:
+    //         bit 29 (0x0000000020000000) is the lowest-order bit which will
+    //                                     fit in the float's mantissa.
+    {rawbits_to_double(0x3ff0000000000000), rawbits_to_float(0x3f800000)},
+    {rawbits_to_double(0x3ff0000000000001), rawbits_to_float(0x3f800000)},
+    {rawbits_to_double(0x3ff0000010000000), rawbits_to_float(0x3f800000)},
+    {rawbits_to_double(0x3ff0000010000001), rawbits_to_float(0x3f800001)},
+    {rawbits_to_double(0x3ff0000020000000), rawbits_to_float(0x3f800001)},
+    {rawbits_to_double(0x3ff0000020000001), rawbits_to_float(0x3f800001)},
+    {rawbits_to_double(0x3ff0000030000000), rawbits_to_float(0x3f800002)},
+    {rawbits_to_double(0x3ff0000030000001), rawbits_to_float(0x3f800002)},
+    {rawbits_to_double(0x3ff0000040000000), rawbits_to_float(0x3f800002)},
+    {rawbits_to_double(0x3ff0000040000001), rawbits_to_float(0x3f800002)},
+    {rawbits_to_double(0x3ff0000050000000), rawbits_to_float(0x3f800002)},
+    {rawbits_to_double(0x3ff0000050000001), rawbits_to_float(0x3f800003)},
+    {rawbits_to_double(0x3ff0000060000000), rawbits_to_float(0x3f800003)},
+    //  - A mantissa that overflows into the exponent during rounding.
+    {rawbits_to_double(0x3feffffff0000000), rawbits_to_float(0x3f800000)},
+    //  - The largest double that rounds to a normal float.
+    {rawbits_to_double(0x47efffffefffffff), rawbits_to_float(0x7f7fffff)},
 
-      // Doubles that are too big for a float.
-      {kFP64PositiveInfinity, kFP32PositiveInfinity},
-      {std::numeric_limits<double>::max(), kFP32PositiveInfinity},
-      //  - The smallest exponent that's too big for a float.
-      {pow(2.0, 128), kFP32PositiveInfinity},
-      //  - This exponent is in range, but the value rounds to infinity.
-      {rawbits_to_double(0x47effffff0000000), kFP32PositiveInfinity},
+    // Doubles that are too big for a float.
+    {kFP64PositiveInfinity, kFP32PositiveInfinity},
+    {DBL_MAX, kFP32PositiveInfinity},
+    //  - The smallest exponent that's too big for a float.
+    {pow(2.0, 128), kFP32PositiveInfinity},
+    //  - This exponent is in range, but the value rounds to infinity.
+    {rawbits_to_double(0x47effffff0000000), kFP32PositiveInfinity},
 
-      // Doubles that are too small for a float.
-      //  - The smallest (subnormal) double.
-      {std::numeric_limits<double>::min(), 0.0},
-      //  - The largest double which is too small for a subnormal float.
-      {rawbits_to_double(0x3690000000000000), rawbits_to_float(0x00000000)},
+    // Doubles that are too small for a float.
+    //  - The smallest (subnormal) double.
+    {DBL_MIN, 0.0},
+    //  - The largest double which is too small for a subnormal float.
+    {rawbits_to_double(0x3690000000000000), rawbits_to_float(0x00000000)},
 
-      // Normal doubles that become subnormal floats.
-      //  - The largest subnormal float.
-      {rawbits_to_double(0x380fffffc0000000), rawbits_to_float(0x007fffff)},
-      //  - The smallest subnormal float.
-      {rawbits_to_double(0x36a0000000000000), rawbits_to_float(0x00000001)},
-      //  - Subnormal floats that need (ties-to-even) rounding.
-      //    For these subnormals:
-      //         bit 34 (0x0000000400000000) is the lowest-order bit which will
-      //                                     fit in the float's mantissa.
-      {rawbits_to_double(0x37c159e000000000), rawbits_to_float(0x00045678)},
-      {rawbits_to_double(0x37c159e000000001), rawbits_to_float(0x00045678)},
-      {rawbits_to_double(0x37c159e200000000), rawbits_to_float(0x00045678)},
-      {rawbits_to_double(0x37c159e200000001), rawbits_to_float(0x00045679)},
-      {rawbits_to_double(0x37c159e400000000), rawbits_to_float(0x00045679)},
-      {rawbits_to_double(0x37c159e400000001), rawbits_to_float(0x00045679)},
-      {rawbits_to_double(0x37c159e600000000), rawbits_to_float(0x0004567a)},
-      {rawbits_to_double(0x37c159e600000001), rawbits_to_float(0x0004567a)},
-      {rawbits_to_double(0x37c159e800000000), rawbits_to_float(0x0004567a)},
-      {rawbits_to_double(0x37c159e800000001), rawbits_to_float(0x0004567a)},
-      {rawbits_to_double(0x37c159ea00000000), rawbits_to_float(0x0004567a)},
-      {rawbits_to_double(0x37c159ea00000001), rawbits_to_float(0x0004567b)},
-      {rawbits_to_double(0x37c159ec00000000), rawbits_to_float(0x0004567b)},
-      //  - The smallest double which rounds up to become a subnormal float.
-      {rawbits_to_double(0x3690000000000001), rawbits_to_float(0x00000001)},
+    // Normal doubles that become subnormal floats.
+    //  - The largest subnormal float.
+    {rawbits_to_double(0x380fffffc0000000), rawbits_to_float(0x007fffff)},
+    //  - The smallest subnormal float.
+    {rawbits_to_double(0x36a0000000000000), rawbits_to_float(0x00000001)},
+    //  - Subnormal floats that need (ties-to-even) rounding.
+    //    For these subnormals:
+    //         bit 34 (0x0000000400000000) is the lowest-order bit which will
+    //                                     fit in the float's mantissa.
+    {rawbits_to_double(0x37c159e000000000), rawbits_to_float(0x00045678)},
+    {rawbits_to_double(0x37c159e000000001), rawbits_to_float(0x00045678)},
+    {rawbits_to_double(0x37c159e200000000), rawbits_to_float(0x00045678)},
+    {rawbits_to_double(0x37c159e200000001), rawbits_to_float(0x00045679)},
+    {rawbits_to_double(0x37c159e400000000), rawbits_to_float(0x00045679)},
+    {rawbits_to_double(0x37c159e400000001), rawbits_to_float(0x00045679)},
+    {rawbits_to_double(0x37c159e600000000), rawbits_to_float(0x0004567a)},
+    {rawbits_to_double(0x37c159e600000001), rawbits_to_float(0x0004567a)},
+    {rawbits_to_double(0x37c159e800000000), rawbits_to_float(0x0004567a)},
+    {rawbits_to_double(0x37c159e800000001), rawbits_to_float(0x0004567a)},
+    {rawbits_to_double(0x37c159ea00000000), rawbits_to_float(0x0004567a)},
+    {rawbits_to_double(0x37c159ea00000001), rawbits_to_float(0x0004567b)},
+    {rawbits_to_double(0x37c159ec00000000), rawbits_to_float(0x0004567b)},
+    //  - The smallest double which rounds up to become a subnormal float.
+    {rawbits_to_double(0x3690000000000001), rawbits_to_float(0x00000001)},
 
-      // Check NaN payload preservation.
-      {rawbits_to_double(0x7ff82468a0000000), rawbits_to_float(0x7fc12345)},
-      {rawbits_to_double(0x7ff82468bfffffff), rawbits_to_float(0x7fc12345)},
-      //  - Signalling NaNs become quiet NaNs.
-      {rawbits_to_double(0x7ff02468a0000000), rawbits_to_float(0x7fc12345)},
-      {rawbits_to_double(0x7ff02468bfffffff), rawbits_to_float(0x7fc12345)},
-      {rawbits_to_double(0x7ff000001fffffff), rawbits_to_float(0x7fc00000)},
+    // Check NaN payload preservation.
+    {rawbits_to_double(0x7ff82468a0000000), rawbits_to_float(0x7fc12345)},
+    {rawbits_to_double(0x7ff82468bfffffff), rawbits_to_float(0x7fc12345)},
+    //  - Signalling NaNs become quiet NaNs.
+    {rawbits_to_double(0x7ff02468a0000000), rawbits_to_float(0x7fc12345)},
+    {rawbits_to_double(0x7ff02468bfffffff), rawbits_to_float(0x7fc12345)},
+    {rawbits_to_double(0x7ff000001fffffff), rawbits_to_float(0x7fc00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 

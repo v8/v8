@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/types.h"
-
 #include <iomanip>
-#include <limits>
+
+#include "src/types.h"
 
 #include "src/ostreams.h"
 #include "src/types-inl.h"
@@ -82,7 +81,7 @@ double TypeImpl<Config>::Min() {
   DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
-    double min = +std::numeric_limits<double>::infinity();
+    double min = +V8_INFINITY;
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       min = std::min(min, this->AsUnion()->Get(i)->Min());
     }
@@ -100,7 +99,7 @@ double TypeImpl<Config>::Max() {
   DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
-    double max = -std::numeric_limits<double>::infinity();
+    double max = -V8_INFINITY;
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
@@ -288,7 +287,7 @@ TypeImpl<Config>::BitsetType::Lub(double value) {
 template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
     TypeImpl<Config>::BitsetType::BitsetMins31[] = {
-        {kOtherNumber, -std::numeric_limits<double>::infinity()},
+        {kOtherNumber, -V8_INFINITY},
         {kOtherSigned32, kMinInt},
         {kNegativeSignedSmall, -0x40000000},
         {kUnsignedSmall, 0},
@@ -302,7 +301,7 @@ const typename TypeImpl<Config>::BitsetType::BitsetMin
 template <class Config>
 const typename TypeImpl<Config>::BitsetType::BitsetMin
     TypeImpl<Config>::BitsetType::BitsetMins32[] = {
-        {kOtherNumber, -std::numeric_limits<double>::infinity()},
+        {kOtherNumber, -V8_INFINITY},
         {kNegativeSignedSmall, kMinInt},
         {kUnsignedSmall, 0},
         {kOtherUnsigned32, 0x80000000},
@@ -354,7 +353,7 @@ double TypeImpl<Config>::BitsetType::Max(bitset bits) {
   const BitsetMin* mins = BitsetMins();
   bool mz = SEMANTIC(bits & kMinusZero);
   if (BitsetType::Is(mins[BitsetMinsSize()-1].bits, bits)) {
-    return +std::numeric_limits<double>::infinity();
+    return +V8_INFINITY;
   }
   for (size_t i = BitsetMinsSize()-1; i-- > 0; ) {
     if (Is(SEMANTIC(mins[i].bits), bits)) {

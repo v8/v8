@@ -2,12 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/js-builtin-reducer.h"
-
-#include <limits>
-
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
@@ -141,8 +138,7 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   JSCallReduction r(node);
   if (r.InputsMatchZero()) {
     // Math.max() -> -Infinity
-    return Replace(
-        jsgraph()->Constant(-std::numeric_limits<double>::infinity()));
+    return Replace(jsgraph()->Constant(-V8_INFINITY));
   }
   if (r.InputsMatchOne(Type::Number())) {
     // Math.max(a:number) -> a
