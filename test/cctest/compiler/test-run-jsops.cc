@@ -57,8 +57,8 @@ TEST(BinopDivide) {
 
   T.CheckCall(2, 8, 4);
   T.CheckCall(2.1, 8.4, 4);
-  T.CheckCall(std::numeric_limits<double>::infinity(), 8, 0);
-  T.CheckCall(-std::numeric_limits<double>::infinity(), -8, 0);
+  T.CheckCall(V8_INFINITY, 8, 0);
+  T.CheckCall(-V8_INFINITY, -8, 0);
   T.CheckCall(T.infinity(), T.Val(8), T.Val("0"));
   T.CheckCall(T.minus_infinity(), T.Val("-8"), T.Val(0.0));
   T.CheckCall(T.Val(1.5), T.Val("3"), T.Val("2"));

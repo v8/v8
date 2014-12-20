@@ -446,12 +446,23 @@ TEST(JSGraph_GetCachedNodes_together) {
   JSConstantCacheTester T;
 
   Node* constants[] = {
-      T.TrueConstant(), T.UndefinedConstant(), T.TheHoleConstant(),
-      T.TrueConstant(), T.FalseConstant(), T.NullConstant(), T.ZeroConstant(),
-      T.OneConstant(), T.NaNConstant(), T.Int32Constant(0), T.Int32Constant(1),
-      T.Int64Constant(-2), T.Int64Constant(-4), T.Float64Constant(0.9),
-      T.Float64Constant(std::numeric_limits<double>::infinity()),
-      T.Constant(0.99), T.Constant(1.11),
+      T.TrueConstant(),
+      T.UndefinedConstant(),
+      T.TheHoleConstant(),
+      T.TrueConstant(),
+      T.FalseConstant(),
+      T.NullConstant(),
+      T.ZeroConstant(),
+      T.OneConstant(),
+      T.NaNConstant(),
+      T.Int32Constant(0),
+      T.Int32Constant(1),
+      T.Int64Constant(-2),
+      T.Int64Constant(-4),
+      T.Float64Constant(0.9),
+      T.Float64Constant(V8_INFINITY),
+      T.Constant(0.99),
+      T.Constant(1.11),
       T.ExternalConstant(ExternalReference::address_of_one_half())};
 
   NodeVector nodes(T.main_zone());

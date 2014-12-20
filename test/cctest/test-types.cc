@@ -339,14 +339,10 @@ struct Tests : Rep {
     CHECK(!T.Constant(fac->NewNumber(10e60))->Is(T.Integral32));
     CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
     CHECK(T.Constant(fac->NewNumber(v8::base::OS::nan_value()))->Is(T.NaN));
-    CHECK(T.Constant(fac->NewNumber(std::numeric_limits<double>::infinity()))
-              ->Is(T.PlainNumber));
-    CHECK(!T.Constant(fac->NewNumber(std::numeric_limits<double>::infinity()))
-               ->Is(T.Integral32));
-    CHECK(T.Constant(fac->NewNumber(-std::numeric_limits<double>::infinity()))
-              ->Is(T.PlainNumber));
-    CHECK(!T.Constant(fac->NewNumber(-std::numeric_limits<double>::infinity()))
-               ->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.Integral32));
   }
 
   void Range() {

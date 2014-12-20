@@ -16,7 +16,7 @@ TEST(CheckEqualsZeroAndMinusZero) {
 
 
 TEST(CheckEqualsReflexivity) {
-  double inf = std::numeric_limits<double>::infinity();
+  double inf = V8_INFINITY;
   double nan = v8::base::OS::nan_value();
   double constants[] = {-nan, -inf, -3.1415, -1.0,   -0.1, -0.0,
                         0.0,  0.1,  1.0,     3.1415, inf,  nan};

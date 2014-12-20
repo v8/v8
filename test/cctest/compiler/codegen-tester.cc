@@ -142,7 +142,7 @@ TEST(CompareWrapper) {
 
   // Check NaN handling.
   double nan = v8::base::OS::nan_value();
-  double inf = std::numeric_limits<double>::infinity();
+  double inf = V8_INFINITY;
   CHECK_EQ(false, wFloat64Equal.Float64Compare(nan, 0.0));
   CHECK_EQ(false, wFloat64Equal.Float64Compare(nan, 1.0));
   CHECK_EQ(false, wFloat64Equal.Float64Compare(nan, inf));

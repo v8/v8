@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <limits>
-
 #include "src/v8.h"
 
 #include "src/base/bits.h"
@@ -3844,7 +3842,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ Move(temp, -std::numeric_limits<double>::infinity());
+  __ Move(temp, static_cast<double>(-V8_INFINITY));
   __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, temp, input);
   // Set up Infinity in the delay slot.
   // result is overwritten if the branch is not taken.
