@@ -929,22 +929,26 @@ void Isolate::CancelTerminateExecution() {
 }
 
 
-void Isolate::InvokeApiInterruptCallback() {
-  // Note: callback below should be called outside of execution access lock.
-  InterruptCallback callback = NULL;
-  void* data = NULL;
-  {
-    ExecutionAccess access(this);
-    callback = api_interrupt_callback_;
-    data = api_interrupt_callback_data_;
-    api_interrupt_callback_ = NULL;
-    api_interrupt_callback_data_ = NULL;
-  }
+void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
+  ExecutionAccess access(this);
+  api_interrupts_queue_.push(InterruptEntry(callback, data));
+  stack_guard()->RequestApiInterrupt();
+}
 
-  if (callback != NULL) {
+
+void Isolate::InvokeApiInterruptCallbacks() {
+  // Note: callback below should be called outside of execution access lock.
+  while (true) {
+    InterruptEntry entry;
+    {
+      ExecutionAccess access(this);
+      if (api_interrupts_queue_.empty()) return;
+      entry = api_interrupts_queue_.front();
+      api_interrupts_queue_.pop();
+    }
     VMState<EXTERNAL> state(this);
     HandleScope handle_scope(this);
-    callback(reinterpret_cast<v8::Isolate*>(this), data);
+    entry.first(reinterpret_cast<v8::Isolate*>(this), entry.second);
   }
 }
 
