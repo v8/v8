@@ -713,8 +713,8 @@ Object* StackGuard::HandleInterrupts() {
   }
 
   if (CheckAndClearInterrupt(API_INTERRUPT)) {
-    // Callbacks must be invoked outside of ExecusionAccess lock.
-    isolate_->InvokeApiInterruptCallbacks();
+    // Callback must be invoked outside of ExecusionAccess lock.
+    isolate_->InvokeApiInterruptCallback();
   }
 
   isolate_->counters()->stack_interrupts()->Increment();

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/accessors.h"
@@ -2908,7 +2910,8 @@ void Heap::CreateInitialObjects() {
 
   set_nan_value(
       *factory->NewHeapNumber(base::OS::nan_value(), IMMUTABLE, TENURED));
-  set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED));
+  set_infinity_value(*factory->NewHeapNumber(
+      std::numeric_limits<double>::infinity(), IMMUTABLE, TENURED));
 
   // The hole has not been created yet, but we want to put something
   // predictable in the gaps in the string table, so lets make that Smi zero.

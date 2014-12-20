@@ -5,7 +5,6 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
-#include <queue>
 #include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
@@ -391,6 +390,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, fp_stubs_generated, false)                                           \
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
+  V(InterruptCallback, api_interrupt_callback, NULL)                           \
+  V(void*, api_interrupt_callback_data, NULL)                                  \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
@@ -815,8 +816,7 @@ class Isolate {
   Object* TerminateExecution();
   void CancelTerminateExecution();
 
-  void RequestInterrupt(InterruptCallback callback, void* data);
-  void InvokeApiInterruptCallbacks();
+  void InvokeApiInterruptCallback();
 
   // Administration
   void Iterate(ObjectVisitor* v);
@@ -1293,9 +1293,6 @@ class Isolate {
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
   FunctionEntryHook function_entry_hook_;
-
-  typedef std::pair<InterruptCallback, void*> InterruptEntry;
-  std::queue<InterruptEntry> api_interrupts_queue_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

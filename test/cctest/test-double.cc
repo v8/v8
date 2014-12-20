@@ -103,8 +103,8 @@ TEST(IsDenormal) {
 
 
 TEST(IsSpecial) {
-  CHECK(Double(V8_INFINITY).IsSpecial());
-  CHECK(Double(-V8_INFINITY).IsSpecial());
+  CHECK(Double(std::numeric_limits<double>::infinity()).IsSpecial());
+  CHECK(Double(-std::numeric_limits<double>::infinity()).IsSpecial());
   CHECK(Double(v8::base::OS::nan_value()).IsSpecial());
   uint64_t bits = V8_2PART_UINT64_C(0xFFF12345, 00000000);
   CHECK(Double(bits).IsSpecial());
@@ -126,8 +126,8 @@ TEST(IsSpecial) {
 
 
 TEST(IsInfinite) {
-  CHECK(Double(V8_INFINITY).IsInfinite());
-  CHECK(Double(-V8_INFINITY).IsInfinite());
+  CHECK(Double(std::numeric_limits<double>::infinity()).IsInfinite());
+  CHECK(Double(-std::numeric_limits<double>::infinity()).IsInfinite());
   CHECK(!Double(v8::base::OS::nan_value()).IsInfinite());
   CHECK(!Double(0.0).IsInfinite());
   CHECK(!Double(-0.0).IsInfinite());
@@ -140,8 +140,8 @@ TEST(IsInfinite) {
 
 TEST(Sign) {
   CHECK_EQ(1, Double(1.0).Sign());
-  CHECK_EQ(1, Double(V8_INFINITY).Sign());
-  CHECK_EQ(-1, Double(-V8_INFINITY).Sign());
+  CHECK_EQ(1, Double(std::numeric_limits<double>::infinity()).Sign());
+  CHECK_EQ(-1, Double(-std::numeric_limits<double>::infinity()).Sign());
   CHECK_EQ(1, Double(0.0).Sign());
   CHECK_EQ(-1, Double(-0.0).Sign());
   uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
@@ -225,7 +225,8 @@ TEST(NextDouble) {
   CHECK_EQ(-0.0, d1.value());
   CHECK_EQ(0.0, d2.value());
   CHECK_EQ(4e-324, d2.NextDouble());
-  CHECK_EQ(-1.7976931348623157e308, Double(-V8_INFINITY).NextDouble());
-  CHECK_EQ(V8_INFINITY,
+  CHECK_EQ(-1.7976931348623157e308,
+           Double(-std::numeric_limits<double>::infinity()).NextDouble());
+  CHECK_EQ(std::numeric_limits<double>::infinity(),
            Double(V8_2PART_UINT64_C(0x7fefffff, ffffffff)).NextDouble());
 }

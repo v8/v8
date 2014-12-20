@@ -35,6 +35,8 @@
 #include "src/assembler.h"
 
 #include <cmath>
+#include <limits>
+
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
@@ -886,7 +888,7 @@ void ExternalReference::SetUp() {
   double_constants.minus_one_half = -0.5;
   double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = bit_cast<double>(kHoleNanInt64);
-  double_constants.negative_infinity = -V8_INFINITY;
+  double_constants.negative_infinity = -std::numeric_limits<double>::infinity();
   double_constants.uint32_bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 
@@ -910,7 +912,7 @@ void ExternalReference::InitializeMathExpData() {
     math_exp_constants_array[0] = -708.39641853226408;
     // Input values larger than this always return +Infinity.
     math_exp_constants_array[1] = 709.78271289338397;
-    math_exp_constants_array[2] = V8_INFINITY;
+    math_exp_constants_array[2] = std::numeric_limits<double>::infinity();
     // The rest is black magic. Do not attempt to understand it. It is
     // loosely based on the "expd" function published at:
     // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
@@ -1413,7 +1415,7 @@ double power_helper(double x, double y) {
     return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   }
   if (y == 0.5) {
-    return (std::isinf(x)) ? V8_INFINITY
+    return (std::isinf(x)) ? std::numeric_limits<double>::infinity()
                            : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   if (y == -0.5) {
@@ -1450,7 +1452,8 @@ double power_double_double(double x, double y) {
   if ((x == 0.0 || std::isinf(x)) && std::isfinite(y)) {
     double f;
     if (std::modf(y, &f) != 0.0) {
-      return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+      return ((x == 0.0) ^ (y > 0)) ? std::numeric_limits<double>::infinity()
+                                    : 0.0;
     }
   }
 

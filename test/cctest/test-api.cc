@@ -23140,6 +23140,8 @@ class RequestInterruptTestBase {
 
     TestBody();
 
+    isolate_->ClearInterrupt();
+
     // Verify we arrived here because interruptor was called
     // not due to a bug causing us to exit the loop too early.
     CHECK(!should_continue());
@@ -23388,9 +23390,10 @@ TEST(RequestInterruptTestWithMathAbs) {
 }
 
 
-class RequestMultipleInterrupts : public RequestInterruptTestBase {
+class ClearInterruptFromAnotherThread
+    : public RequestInterruptTestBase {
  public:
-  RequestMultipleInterrupts() : i_thread(this), counter_(0) {}
+  ClearInterruptFromAnotherThread() : i_thread(this), sem2_(0) { }
 
   virtual void StartInterruptThread() {
     i_thread.Start();
@@ -23407,33 +23410,39 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
  private:
   class InterruptThread : public v8::base::Thread {
    public:
-    enum { NUM_INTERRUPTS = 10 };
-    explicit InterruptThread(RequestMultipleInterrupts* test)
+    explicit InterruptThread(ClearInterruptFromAnotherThread* test)
         : Thread(Options("RequestInterruptTest")), test_(test) {}
 
     virtual void Run() {
       test_->sem_.Wait();
-      for (int i = 0; i < NUM_INTERRUPTS; i++) {
-        test_->isolate_->RequestInterrupt(&OnInterrupt, test_);
-      }
+      test_->isolate_->RequestInterrupt(&OnInterrupt, test_);
+      test_->sem_.Wait();
+      test_->isolate_->ClearInterrupt();
+      test_->sem2_.Signal();
     }
 
     static void OnInterrupt(v8::Isolate* isolate, void* data) {
-      RequestMultipleInterrupts* test =
-          reinterpret_cast<RequestMultipleInterrupts*>(data);
-      test->should_continue_ = ++test->counter_ < NUM_INTERRUPTS;
+      ClearInterruptFromAnotherThread* test =
+          reinterpret_cast<ClearInterruptFromAnotherThread*>(data);
+      test->sem_.Signal();
+      bool success = test->sem2_.WaitFor(v8::base::TimeDelta::FromSeconds(2));
+      // Crash instead of timeout to make this failure more prominent.
+      CHECK(success);
+      test->should_continue_ = false;
     }
 
    private:
-    RequestMultipleInterrupts* test_;
+     ClearInterruptFromAnotherThread* test_;
   };
 
   InterruptThread i_thread;
-  int counter_;
+  v8::base::Semaphore sem2_;
 };
 
 
-TEST(RequestMultipleInterrupts) { RequestMultipleInterrupts().RunTest(); }
+TEST(ClearInterruptFromAnotherThread) {
+  ClearInterruptFromAnotherThread().RunTest();
+}
 
 
 static Local<Value> function_new_expected_env;
