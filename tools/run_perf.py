@@ -265,8 +265,11 @@ class Trace(Graph):
 
   def ConsumeOutput(self, stdout):
     try:
-      self.results.append(
-          re.search(self.results_regexp, stdout, re.M).group(1))
+      result = re.search(self.results_regexp, stdout, re.M).group(1)
+      self.results.append(str(float(result)))
+    except ValueError:
+      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
+                         % (self.results_regexp, self.graphs[-1]))
     except:
       self.errors.append("Regexp \"%s\" didn't match for test %s."
                          % (self.results_regexp, self.graphs[-1]))
@@ -374,6 +377,7 @@ class RunnableGeneric(Runnable):
           units = match.group(4)
           match_stddev = RESULT_STDDEV_RE.match(body)
           match_list = RESULT_LIST_RE.match(body)
+          errors = []
           if match_stddev:
             result, stddev = map(str.strip, match_stddev.group(1).split(","))
             results = [result]
@@ -382,12 +386,19 @@ class RunnableGeneric(Runnable):
           else:
             results = [body.strip()]
 
+          try:
+            results = map(lambda r: str(float(r)), results)
+          except ValueError:
+            results = []
+            errors = ["Found non-numeric in %s" %
+                      "/".join(self.graphs + [graph, trace])]
+
           trace_result = traces.setdefault(trace, Results([{
             "graphs": self.graphs + [graph, trace],
             "units": (units or self.units).strip(),
             "results": [],
             "stddev": "",
-          }], []))
+          }], errors))
           trace_result.traces[0]["results"].extend(results)
           trace_result.traces[0]["stddev"] = stddev
 
