@@ -187,6 +187,9 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
                         Type::Union(Type::Union(singleton_false, zeroish, zone),
                                     undefined_or_null, zone),
                         zone);
+  truish = Type::Union(
+      singleton_true,
+      Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone), zone);
   integer = Type::Range(minusinfinity, infinity, zone);
   weakint = Type::Union(integer, nan_or_minuszero, zone);
 
@@ -513,8 +516,8 @@ Type* Typer::Visitor::ToPrimitive(Type* type, Typer* t) {
 Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
   if (type->Is(Type::Boolean())) return type;
   if (type->Is(t->falsish)) return t->singleton_false;
-  if (type->Is(Type::DetectableReceiver())) return t->singleton_true;
-  if (type->Is(Type::OrderedNumber()) && (type->Max() < 0 || 0 < type->Min())) {
+  if (type->Is(t->truish)) return t->singleton_true;
+  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
     return t->singleton_true;  // Ruled out nan, -0 and +0.
   }
   return Type::Boolean();
