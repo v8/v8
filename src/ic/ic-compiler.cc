@@ -451,7 +451,10 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
     stub = StoreElementStub(isolate(), elements_kind).GetCode();
   }
 
-  __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
+  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
+
+  __ DispatchWeakMap(receiver(), scratch1(), scratch2(), cell, stub,
+                     DO_SMI_CHECK);
 
   TailCallBuiltin(masm(), Builtins::kKeyedStoreIC_Miss);
 

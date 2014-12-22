@@ -3630,18 +3630,17 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
 }
 
 
-void MacroAssembler::DispatchMap(Register obj,
-                                 Register unused,
-                                 Handle<Map> map,
-                                 Handle<Code> success,
-                                 SmiCheckType smi_check_type) {
+void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
+                                     Register scratch2, Handle<WeakCell> cell,
+                                     Handle<Code> success,
+                                     SmiCheckType smi_check_type) {
   Label fail;
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, &fail);
   }
-  Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
+  movq(scratch1, FieldOperand(obj, HeapObject::kMapOffset));
+  CmpWeakValue(scratch1, cell, scratch2);
   j(equal, success, RelocInfo::CODE_TARGET);
-
   bind(&fail);
 }
 

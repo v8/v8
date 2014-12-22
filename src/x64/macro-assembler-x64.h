@@ -992,14 +992,12 @@ class MacroAssembler: public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the map of an object is equal to a specified map and branch to a
-  // specified target if equal. Skip the smi check if not required (object is
-  // known to be a heap object)
-  void DispatchMap(Register obj,
-                   Register unused,
-                   Handle<Map> map,
-                   Handle<Code> success,
-                   SmiCheckType smi_check_type);
+  // Check if the map of an object is equal to a specified weak map and branch
+  // to a specified target if equal. Skip the smi check if not required
+  // (object is known to be a heap object)
+  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
+                       Handle<WeakCell> cell, Handle<Code> success,
+                       SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type

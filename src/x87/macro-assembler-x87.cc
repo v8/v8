@@ -654,16 +654,16 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::DispatchMap(Register obj,
-                                 Register unused,
-                                 Handle<Map> map,
-                                 Handle<Code> success,
-                                 SmiCheckType smi_check_type) {
+void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
+                                     Register scratch2, Handle<WeakCell> cell,
+                                     Handle<Code> success,
+                                     SmiCheckType smi_check_type) {
   Label fail;
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, &fail);
   }
-  cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
+  mov(scratch1, FieldOperand(obj, HeapObject::kMapOffset));
+  CmpWeakValue(scratch1, cell, scratch2);
   j(equal, success);
 
   bind(&fail);
