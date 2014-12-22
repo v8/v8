@@ -102,13 +102,14 @@ class ValueHelper {
   static std::vector<double> float64_vector() {
     static const double nan = v8::base::OS::nan_value();
     static const double values[] = {
-        0.125, 0.25, 0.375, 0.5, 1.25, -1.75, 2, 5.125, 6.25, 0.0, -0.0,
-        982983.25, 888, 2147483647.0, -999.75, 3.1e7, -2e66, 3e-88,
-        -2147483648.0, std::numeric_limits<double>::infinity(),
-        -std::numeric_limits<double>::infinity(), nan, 2147483647.375,
-        2147483647.75, 2147483648.0, 2147483648.25, 2147483649.25,
-        -2147483647.0, -2147483647.125, -2147483647.875, -2147483648.25,
-        -2147483649.5};
+        0.125,           0.25,            0.375,          0.5,
+        1.25,            -1.75,           2,              5.125,
+        6.25,            0.0,             -0.0,           982983.25,
+        888,             2147483647.0,    -999.75,        3.1e7,
+        -2e66,           3e-88,           -2147483648.0,  V8_INFINITY,
+        -V8_INFINITY,    nan,             2147483647.375, 2147483647.75,
+        2147483648.0,    2147483648.25,   2147483649.25,  -2147483647.0,
+        -2147483647.125, -2147483647.875, -2147483648.25, -2147483649.5};
     return std::vector<double>(&values[0], &values[arraysize(values)]);
   }
 
@@ -134,11 +135,9 @@ class ValueHelper {
 
   static const std::vector<double> nan_vector(size_t limit = 0) {
     static const double nan = v8::base::OS::nan_value();
-    static const double values[] = {
-        -nan, -std::numeric_limits<double>::infinity() * -0.0,
-        -std::numeric_limits<double>::infinity() * 0.0,
-        std::numeric_limits<double>::infinity() * -0.0,
-        std::numeric_limits<double>::infinity() * 0.0, nan};
+    static const double values[] = {-nan,               -V8_INFINITY * -0.0,
+                                    -V8_INFINITY * 0.0, V8_INFINITY * -0.0,
+                                    V8_INFINITY * 0.0,  nan};
     return std::vector<double>(&values[0], &values[arraysize(values)]);
   }
 

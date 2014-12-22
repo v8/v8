@@ -5397,9 +5397,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     Label lost_precision, is_nan, minus_zero, done;
     X87Register input_reg = ToX87Register(input);
     X87Fxch(input_reg);
-    Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
     __ X87TOSToI(result_reg, instr->hydrogen()->GetMinusZeroMode(),
-                 &lost_precision, &is_nan, &minus_zero, dist);
+                 &lost_precision, &is_nan, &minus_zero);
     __ jmp(&done);
     __ bind(&lost_precision);
     DeoptimizeIf(no_condition, instr, "lost precision");
@@ -5422,9 +5421,8 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Label lost_precision, is_nan, minus_zero, done;
   X87Register input_reg = ToX87Register(input);
   X87Fxch(input_reg);
-  Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   __ X87TOSToI(result_reg, instr->hydrogen()->GetMinusZeroMode(),
-               &lost_precision, &is_nan, &minus_zero, dist);
+               &lost_precision, &is_nan, &minus_zero);
   __ jmp(&done);
   __ bind(&lost_precision);
   DeoptimizeIf(no_condition, instr, "lost precision");

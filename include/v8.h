@@ -5050,8 +5050,7 @@ class V8_EXPORT Isolate {
    * Request V8 to interrupt long running JavaScript code and invoke
    * the given |callback| passing the given |data| to it. After |callback|
    * returns control will be returned to the JavaScript code.
-   * At any given moment V8 can remember only a single callback for the very
-   * last interrupt request.
+   * There may be a number of interrupt requests in flight.
    * Can be called from another thread without acquiring a |Locker|.
    * Registered |callback| must not reenter interrupted Isolate.
    */
@@ -5061,7 +5060,8 @@ class V8_EXPORT Isolate {
    * Clear interrupt request created by |RequestInterrupt|.
    * Can be called from another thread without acquiring a |Locker|.
    */
-  void ClearInterrupt();
+  V8_DEPRECATED("There's no way to clear interrupts in flight.",
+                void ClearInterrupt());
 
   /**
    * Request garbage collection in this Isolate. It is only valid to call this

@@ -795,7 +795,7 @@ TEST(ReduceFloat64Mul) {
     }
   }
 
-  double inf = std::numeric_limits<double>::infinity();
+  double inf = V8_INFINITY;
   R.CheckPutConstantOnRight(-inf);
   R.CheckPutConstantOnRight(-0.1);
   R.CheckPutConstantOnRight(0.1);

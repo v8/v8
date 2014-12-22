@@ -6476,17 +6476,11 @@ void Isolate::CancelTerminateExecution() {
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_api_interrupt_callback(callback);
-  isolate->set_api_interrupt_callback_data(data);
-  isolate->stack_guard()->RequestApiInterrupt();
+  isolate->RequestInterrupt(callback, data);
 }
 
 
 void Isolate::ClearInterrupt() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->stack_guard()->ClearApiInterrupt();
-  isolate->set_api_interrupt_callback(NULL);
-  isolate->set_api_interrupt_callback_data(NULL);
 }
 
 

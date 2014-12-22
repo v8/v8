@@ -54,6 +54,7 @@ class Typer {
   Type* signed32ish;
   Type* unsigned32ish;
   Type* falsish;
+  Type* truish;
   Type* integer;
   Type* weakint;
   Type* number_fun0_;

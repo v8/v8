@@ -200,42 +200,36 @@ TEST(Strtod) {
   CHECK_EQ(0.0, StrtodChar("0000000010000", -329));
   CHECK_EQ(0.0, StrtodChar("0000000090000", -329));
 
-  // It would be more readable to put the literals (and not
-  // std::numeric_limits<double>::infinity()) on the
+  // It would be more readable to put the literals (and not V8_INFINITY) on the
   // left side (i.e. CHECK_EQ(1e309, StrtodChar("1", 309))), but then Gcc
   // complains that the floating constant exceeds range of 'double'.
-  CHECK_EQ(std::numeric_limits<double>::infinity(), StrtodChar("1", 309));
+  CHECK_EQ(V8_INFINITY, StrtodChar("1", 309));
   CHECK_EQ(1e308, StrtodChar("1", 308));
   CHECK_EQ(1234e305, StrtodChar("1234", 305));
   CHECK_EQ(1234e304, StrtodChar("1234", 304));
-  CHECK_EQ(std::numeric_limits<double>::infinity(), StrtodChar("18", 307));
+  CHECK_EQ(V8_INFINITY, StrtodChar("18", 307));
   CHECK_EQ(17e307, StrtodChar("17", 307));
-  CHECK_EQ(std::numeric_limits<double>::infinity(), StrtodChar("0000001", 309));
+  CHECK_EQ(V8_INFINITY, StrtodChar("0000001", 309));
   CHECK_EQ(1e308, StrtodChar("00000001", 308));
   CHECK_EQ(1234e305, StrtodChar("00000001234", 305));
   CHECK_EQ(1234e304, StrtodChar("000000001234", 304));
-  CHECK_EQ(std::numeric_limits<double>::infinity(),
-           StrtodChar("0000000018", 307));
+  CHECK_EQ(V8_INFINITY, StrtodChar("0000000018", 307));
   CHECK_EQ(17e307, StrtodChar("0000000017", 307));
-  CHECK_EQ(std::numeric_limits<double>::infinity(), StrtodChar("1000000", 303));
+  CHECK_EQ(V8_INFINITY, StrtodChar("1000000", 303));
   CHECK_EQ(1e308, StrtodChar("100000", 303));
   CHECK_EQ(1234e305, StrtodChar("123400000", 300));
   CHECK_EQ(1234e304, StrtodChar("123400000", 299));
-  CHECK_EQ(std::numeric_limits<double>::infinity(),
-           StrtodChar("180000000", 300));
+  CHECK_EQ(V8_INFINITY, StrtodChar("180000000", 300));
   CHECK_EQ(17e307, StrtodChar("170000000", 300));
-  CHECK_EQ(std::numeric_limits<double>::infinity(),
-           StrtodChar("00000001000000", 303));
+  CHECK_EQ(V8_INFINITY, StrtodChar("00000001000000", 303));
   CHECK_EQ(1e308, StrtodChar("000000000000100000", 303));
   CHECK_EQ(1234e305, StrtodChar("00000000123400000", 300));
   CHECK_EQ(1234e304, StrtodChar("0000000123400000", 299));
-  CHECK_EQ(std::numeric_limits<double>::infinity(),
-           StrtodChar("00000000180000000", 300));
+  CHECK_EQ(V8_INFINITY, StrtodChar("00000000180000000", 300));
   CHECK_EQ(17e307, StrtodChar("00000000170000000", 300));
   CHECK_EQ(1.7976931348623157E+308, StrtodChar("17976931348623157", 292));
   CHECK_EQ(1.7976931348623158E+308, StrtodChar("17976931348623158", 292));
-  CHECK_EQ(std::numeric_limits<double>::infinity(),
-           StrtodChar("17976931348623159", 292));
+  CHECK_EQ(V8_INFINITY, StrtodChar("17976931348623159", 292));
 
   // The following number is the result of 89255.0/1e22. Both floating-point
   // numbers can be accurately represented with doubles. However on Linux,x86
@@ -413,7 +407,7 @@ static bool CheckDouble(Vector<const char> buffer,
     d.NormalizedBoundaries(&lower_boundary, &upper_boundary);
     return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) <= 0;
   }
-  if (to_check == std::numeric_limits<double>::infinity()) {
+  if (to_check == V8_INFINITY) {
     const double kMaxDouble = 1.7976931348623157e308;
     // Check that the buffer*10^exponent >= boundary between kMaxDouble and inf.
     Double d(kMaxDouble);

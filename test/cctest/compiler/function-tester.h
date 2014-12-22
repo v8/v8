@@ -137,9 +137,7 @@ class FunctionTester : public InitializedHandleScope {
 
   Handle<Object> infinity() { return isolate->factory()->infinity_value(); }
 
-  Handle<Object> minus_infinity() {
-    return Val(-std::numeric_limits<double>::infinity());
-  }
+  Handle<Object> minus_infinity() { return Val(-V8_INFINITY); }
 
   Handle<Object> nan() { return isolate->factory()->nan_value(); }
 

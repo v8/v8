@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/typer.h"
-
-#include <limits>
-
 #include "src/bootstrapper.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-reducer.h"
@@ -14,6 +10,7 @@
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/typer.h"
 
 namespace v8 {
 namespace internal {
@@ -163,10 +160,8 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
 
   Handle<Object> zero = f->NewNumber(0);
   Handle<Object> one = f->NewNumber(1);
-  Handle<Object> infinity =
-      f->NewNumber(+std::numeric_limits<double>::infinity());
-  Handle<Object> minusinfinity =
-      f->NewNumber(-std::numeric_limits<double>::infinity());
+  Handle<Object> infinity = f->NewNumber(+V8_INFINITY);
+  Handle<Object> minusinfinity = f->NewNumber(-V8_INFINITY);
 
   Type* number = Type::Number();
   Type* signed32 = Type::Signed32();
@@ -192,6 +187,9 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
                         Type::Union(Type::Union(singleton_false, zeroish, zone),
                                     undefined_or_null, zone),
                         zone);
+  truish = Type::Union(
+      singleton_true,
+      Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone), zone);
   integer = Type::Range(minusinfinity, infinity, zone);
   weakint = Type::Union(integer, nan_or_minuszero, zone);
 
@@ -518,8 +516,8 @@ Type* Typer::Visitor::ToPrimitive(Type* type, Typer* t) {
 Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
   if (type->Is(Type::Boolean())) return type;
   if (type->Is(t->falsish)) return t->singleton_false;
-  if (type->Is(Type::DetectableReceiver())) return t->singleton_true;
-  if (type->Is(Type::OrderedNumber()) && (type->Max() < 0 || 0 < type->Min())) {
+  if (type->Is(t->truish)) return t->singleton_true;
+  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
     return t->singleton_true;  // Ruled out nan, -0 and +0.
   }
   return Type::Boolean();
@@ -943,7 +941,7 @@ Type* Typer::Visitor::JSShiftRightLogicalTyper(Type* lhs, Type* rhs, Typer* t) {
 // Any -0 is converted to 0.
 static double array_min(double a[], size_t n) {
   DCHECK(n != 0);
-  double x = +std::numeric_limits<double>::infinity();
+  double x = +V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
       x = std::min(a[i], x);
@@ -959,7 +957,7 @@ static double array_min(double a[], size_t n) {
 // Any -0 is converted to 0.
 static double array_max(double a[], size_t n) {
   DCHECK(n != 0);
-  double x = -std::numeric_limits<double>::infinity();
+  double x = -V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
       x = std::max(a[i], x);
@@ -1074,11 +1072,9 @@ Type* Typer::Visitor::JSMultiplyRanger(Type::RangeType* lhs,
   // "results" above is nan, the actual result may still be, so we have to do a
   // different check:
   bool maybe_nan = (lhs->Maybe(t->singleton_zero) &&
-                    (rmin == -std::numeric_limits<double>::infinity() ||
-                     rmax == +std::numeric_limits<double>::infinity())) ||
+                    (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
                    (rhs->Maybe(t->singleton_zero) &&
-                    (lmin == -std::numeric_limits<double>::infinity() ||
-                     lmax == +std::numeric_limits<double>::infinity()));
+                    (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
   if (maybe_nan) return t->weakint;  // Giving up.
   bool maybe_minuszero = (lhs->Maybe(t->singleton_zero) && rmin < 0) ||
                          (rhs->Maybe(t->singleton_zero) && lmin < 0);
@@ -1107,11 +1103,10 @@ Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
   // Division is tricky, so all we do is try ruling out nan.
   // TODO(neis): try ruling out -0 as well?
-  bool maybe_nan = lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
-                   ((lhs->Min() == -std::numeric_limits<double>::infinity() ||
-                     lhs->Max() == +std::numeric_limits<double>::infinity()) &&
-                    (rhs->Min() == -std::numeric_limits<double>::infinity() ||
-                     rhs->Max() == +std::numeric_limits<double>::infinity()));
+  bool maybe_nan =
+      lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
+      ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
+       (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
   return maybe_nan ? Type::Number() : Type::OrderedNumber();
 }
 
@@ -1156,8 +1151,7 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
 
   if (lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
-      lhs->Min() == -std::numeric_limits<double>::infinity() ||
-      lhs->Max() == +std::numeric_limits<double>::infinity()) {
+      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
     // Result maybe NaN.
     return Type::Number();
   }
