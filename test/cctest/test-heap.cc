@@ -1579,7 +1579,7 @@ TEST(TestInternalWeakLists) {
   }
 
   // Force compilation cache cleanup.
-  CcTest::heap()->NotifyContextDisposed();
+  CcTest::heap()->NotifyContextDisposed(true);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the native contexts one by one.

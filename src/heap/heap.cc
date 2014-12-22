@@ -863,7 +863,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 }
 
 
-int Heap::NotifyContextDisposed() {
+int Heap::NotifyContextDisposed(bool dependant_context) {
+  // TODO(hpayer): Reset heap shrinking if dependant_context is false.
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
     isolate()->optimizing_compiler_thread()->Flush();

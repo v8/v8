@@ -6742,9 +6742,9 @@ void Isolate::LowMemoryNotification() {
 }
 
 
-int Isolate::ContextDisposedNotification() {
+int Isolate::ContextDisposedNotification(bool dependant_context) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->heap()->NotifyContextDisposed();
+  return isolate->heap()->NotifyContextDisposed(dependant_context);
 }
 
 
