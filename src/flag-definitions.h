@@ -581,8 +581,6 @@ DEFINE_BOOL(trace_fragmentation, false,
             "report fragmentation for old pointer and data pages")
 DEFINE_BOOL(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_BOOL(weak_embedded_maps_in_ic, true,
-            "make maps embedded in inline cache stubs")
 DEFINE_BOOL(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
 DEFINE_BOOL(weak_embedded_objects_in_optimized_code, true,

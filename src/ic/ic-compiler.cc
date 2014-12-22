@@ -380,7 +380,6 @@ Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
   Code::Flags flags =
       Code::ComputeFlags(kind, state, extra_ic_state_, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  IC::RegisterWeakMapDependency(code);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   return code;
 }

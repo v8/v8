@@ -684,9 +684,8 @@ void Code::VerifyEmbeddedObjectsDependency() {
     if (IsWeakObject(obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
-        DependentCode::DependencyGroup group = is_optimized_code() ?
-            DependentCode::kWeakCodeGroup : DependentCode::kWeakICGroup;
-        CHECK(map->dependent_code()->Contains(group, this));
+        CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
+                                              this));
       } else if (obj->IsJSObject()) {
         Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
         WeakHashTable* table = WeakHashTable::cast(raw_table);

@@ -76,14 +76,6 @@ class IC {
     state_ = PROTOTYPE_FAILURE;
   }
 
-  // If the stub contains weak maps then this function adds the stub to
-  // the dependent code array of each weak map.
-  static void RegisterWeakMapDependency(Handle<Code> stub);
-
-  // This function is called when a weak map in the stub is dying,
-  // invalidates the stub by setting maps in it to undefined.
-  static void InvalidateMaps(Code* stub);
-
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address,
                     ConstantPoolArray* constant_pool);

@@ -125,9 +125,6 @@ void IC::SetTargetAtAddress(Address address, Code* target,
 
 
 void IC::set_target(Code* code) {
-#ifdef VERIFY_HEAP
-  code->VerifyEmbeddedObjectsDependency();
-#endif
   SetTargetAtAddress(address(), code, constant_pool());
   target_set_ = true;
 }

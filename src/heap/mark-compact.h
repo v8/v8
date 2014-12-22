@@ -808,7 +808,6 @@ class MarkCompactCollector {
   void TrimEnumCache(Map* map, DescriptorArray* descriptors);
 
   void ClearDependentCode(DependentCode* dependent_code);
-  void ClearDependentICList(Object* head);
   void ClearNonLiveDependentCode(DependentCode* dependent_code);
   int ClearNonLiveDependentCodeInGroup(DependentCode* dependent_code, int group,
                                        int start, int end, int new_start);

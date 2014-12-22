@@ -385,7 +385,7 @@ void MarkCompactCollector::VerifyWeakEmbeddedObjectsInCode() {
   for (HeapObject* obj = code_iterator.Next(); obj != NULL;
        obj = code_iterator.Next()) {
     Code* code = Code::cast(obj);
-    if (!code->is_optimized_code() && !code->is_weak_stub()) continue;
+    if (!code->is_optimized_code()) continue;
     if (WillBeDeoptimized(code)) continue;
     code->VerifyEmbeddedObjectsDependency();
   }
@@ -2545,34 +2545,12 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 }
 
 
-void MarkCompactCollector::ClearDependentICList(Object* head) {
-  Object* current = head;
-  Object* undefined = heap()->undefined_value();
-  while (current != undefined) {
-    Code* code = Code::cast(current);
-    if (IsMarked(code)) {
-      DCHECK(code->is_weak_stub());
-      IC::InvalidateMaps(code);
-    }
-    current = code->next_code_link();
-    code->set_next_code_link(undefined);
-  }
-}
-
-
 void MarkCompactCollector::ClearDependentCode(DependentCode* entries) {
   DisallowHeapAllocation no_allocation;
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
-  int g = DependentCode::kWeakICGroup;
-  if (starts.at(g) != starts.at(g + 1)) {
-    int i = starts.at(g);
-    DCHECK(i + 1 == starts.at(g + 1));
-    Object* head = entries->object_at(i);
-    ClearDependentICList(head);
-  }
-  g = DependentCode::kWeakCodeGroup;
+  int g = DependentCode::kWeakCodeGroup;
   for (int i = starts.at(g); i < starts.at(g + 1); i++) {
     // If the entry is compilation info then the map must be alive,
     // and ClearDependentCode shouldn't be called.
@@ -2594,34 +2572,17 @@ void MarkCompactCollector::ClearDependentCode(DependentCode* entries) {
 int MarkCompactCollector::ClearNonLiveDependentCodeInGroup(
     DependentCode* entries, int group, int start, int end, int new_start) {
   int survived = 0;
-  if (group == DependentCode::kWeakICGroup) {
-    // Dependent weak IC stubs form a linked list and only the head is stored
-    // in the dependent code array.
-    if (start != end) {
-      DCHECK(start + 1 == end);
-      Object* old_head = entries->object_at(start);
-      MarkCompactWeakObjectRetainer retainer;
-      Object* head = VisitWeakList<Code>(heap(), old_head, &retainer);
-      entries->set_object_at(new_start, head);
-      Object** slot = entries->slot_at(new_start);
-      RecordSlot(slot, slot, head);
-      // We do not compact this group even if the head is undefined,
-      // more dependent ICs are likely to be added later.
-      survived = 1;
-    }
-  } else {
-    for (int i = start; i < end; i++) {
-      Object* obj = entries->object_at(i);
-      DCHECK(obj->IsCode() || IsMarked(obj));
-      if (IsMarked(obj) &&
-          (!obj->IsCode() || !WillBeDeoptimized(Code::cast(obj)))) {
-        if (new_start + survived != i) {
-          entries->set_object_at(new_start + survived, obj);
-        }
-        Object** slot = entries->slot_at(new_start + survived);
-        RecordSlot(slot, slot, obj);
-        survived++;
+  for (int i = start; i < end; i++) {
+    Object* obj = entries->object_at(i);
+    DCHECK(obj->IsCode() || IsMarked(obj));
+    if (IsMarked(obj) &&
+        (!obj->IsCode() || !WillBeDeoptimized(Code::cast(obj)))) {
+      if (new_start + survived != i) {
+        entries->set_object_at(new_start + survived, obj);
       }
+      Object** slot = entries->slot_at(new_start + survived);
+      RecordSlot(slot, slot, obj);
+      survived++;
     }
   }
   entries->set_number_of_entries(
