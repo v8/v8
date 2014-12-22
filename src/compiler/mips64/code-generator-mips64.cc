@@ -163,6 +163,46 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
   Register const result_;
 };
 
+
+class OutOfLineRound : public OutOfLineCode {
+ public:
+  OutOfLineRound(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineCode(gen), result_(result) {}
+
+  void Generate() FINAL {
+    // Handle rounding to zero case where sign has to be preserved.
+    // High bits of double input already in kScratchReg.
+    __ dsrl(at, kScratchReg, 31);
+    __ dsll(at, at, 31);
+    __ mthc1(at, result_);
+  }
+
+ private:
+  DoubleRegister const result_;
+};
+
+
+class OutOfLineTruncate FINAL : public OutOfLineRound {
+ public:
+  OutOfLineTruncate(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineRound(gen, result) {}
+};
+
+
+class OutOfLineFloor FINAL : public OutOfLineRound {
+ public:
+  OutOfLineFloor(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineRound(gen, result) {}
+};
+
+
+class OutOfLineCeil FINAL : public OutOfLineRound {
+ public:
+  OutOfLineCeil(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineRound(gen, result) {}
+};
+
+
 }  // namespace
 
 
@@ -237,6 +277,26 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
       __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
     }                                                                  \
     __ bind(&done);                                                    \
+  } while (0)
+
+
+#define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(asm_instr, operation)                  \
+  do {                                                                         \
+    auto ool =                                                                 \
+        new (zone()) OutOfLine##operation(this, i.OutputDoubleRegister());     \
+    Label done;                                                                \
+    __ mfhc1(kScratchReg, i.InputDoubleRegister(0));                           \
+    __ Ext(at, kScratchReg, HeapNumber::kExponentShift,                        \
+           HeapNumber::kExponentBits);                                         \
+    __ Branch(USE_DELAY_SLOT, &done, hs, at,                                   \
+              Operand(HeapNumber::kExponentBias + HeapNumber::kMantissaBits)); \
+    __ mov_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));              \
+    __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));          \
+    __ dmfc1(at, i.OutputDoubleRegister());                                    \
+    __ Branch(USE_DELAY_SLOT, ool->entry(), eq, at, Operand(zero_reg));        \
+    __ cvt_d_l(i.OutputDoubleRegister(), i.OutputDoubleRegister());            \
+    __ bind(ool->exit());                                                      \
+    __ bind(&done);                                                            \
   } while (0)
 
 
@@ -472,19 +532,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
-    case kMips64FloorD: {
-      __ floor_l_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      __ cvt_d_l(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+    case kMips64Float64Floor: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
       break;
     }
-    case kMips64CeilD: {
-      __ ceil_l_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      __ cvt_d_l(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+    case kMips64Float64Ceil: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
-    case kMips64RoundTruncateD: {
-      __ trunc_l_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      __ cvt_d_l(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+    case kMips64Float64RoundTruncate: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(trunc_l_d, Truncate);
       break;
     }
     case kMips64SqrtD: {

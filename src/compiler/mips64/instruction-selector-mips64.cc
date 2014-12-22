@@ -609,17 +609,17 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat64Floor(Node* node) {
-  VisitRR(this, kMips64FloorD, node);
+  VisitRR(this, kMips64Float64Floor, node);
 }
 
 
 void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  VisitRR(this, kMips64CeilD, node);
+  VisitRR(this, kMips64Float64Ceil, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  VisitRR(this, kMips64RoundTruncateD, node);
+  VisitRR(this, kMips64Float64RoundTruncate, node);
 }
 
 
@@ -1069,7 +1069,9 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kNoFlags;
+  return MachineOperatorBuilder::kFloat64Floor |
+         MachineOperatorBuilder::kFloat64Ceil |
+         MachineOperatorBuilder::kFloat64RoundTruncate;
 }
 
 }  // namespace compiler

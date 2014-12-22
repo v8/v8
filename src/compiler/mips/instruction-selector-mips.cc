@@ -69,6 +69,14 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
 }
 
 
+static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
+                    Node* node) {
+  MipsOperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)));
+}
+
+
 static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   MipsOperandGenerator g(selector);
@@ -420,14 +428,18 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Floor(Node* node) {
+  VisitRR(this, kMipsFloat64Floor, node);
+}
 
 
-void InstructionSelector::VisitFloat64Ceil(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Ceil(Node* node) {
+  VisitRR(this, kMipsFloat64Ceil, node);
+}
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  UNREACHABLE();
+  VisitRR(this, kMipsFloat64RoundTruncate, node);
 }
 
 
@@ -806,6 +818,11 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    return MachineOperatorBuilder::kFloat64Floor |
+           MachineOperatorBuilder::kFloat64Ceil |
+           MachineOperatorBuilder::kFloat64RoundTruncate;
+  }
   return MachineOperatorBuilder::kNoFlags;
 }
 
