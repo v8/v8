@@ -356,7 +356,6 @@ DEFINE_BOOL(job_based_recompilation, false,
             "post tasks to v8::Platform instead of using a thread for "
             "concurrent recompilation")
 DEFINE_IMPLICATION(job_based_recompilation, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(job_based_recompilation, block_concurrent_recompilation)
 DEFINE_BOOL(trace_concurrent_recompilation, false,
             "track concurrent recompilation")
 DEFINE_INT(concurrent_recompilation_queue_length, 8,
