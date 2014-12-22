@@ -922,6 +922,24 @@ void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::NEW_SPACE) ==
+              ObjectSpace::kObjectSpaceNewSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1
+                                       << AllocationSpace::OLD_POINTER_SPACE) ==
+              ObjectSpace::kObjectSpaceOldPointerSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::OLD_DATA_SPACE) ==
+              ObjectSpace::kObjectSpaceOldDataSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
+              ObjectSpace::kObjectSpaceCodeSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CELL_SPACE) ==
+              ObjectSpace::kObjectSpaceCellSpace);
+STATIC_ASSERT(
+    static_cast<ObjectSpace>(1 << AllocationSpace::PROPERTY_CELL_SPACE) ==
+    ObjectSpace::kObjectSpacePropertyCellSpace);
+STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
+              ObjectSpace::kObjectSpaceMapSpace);
+
+
 PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace space,
                        Executability executable)
     : Space(heap, space, executable),
