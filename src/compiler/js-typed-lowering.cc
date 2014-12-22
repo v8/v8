@@ -781,7 +781,6 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
     double const byte_length = array->byte_length()->Number();
     CHECK_LT(k, arraysize(shifted_int32_ranges_));
     if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
-        access.external_array_type() != kExternalUint8ClampedArray &&
         key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
       // JSLoadProperty(typed-array, int32)
       Handle<ExternalArray> elements =

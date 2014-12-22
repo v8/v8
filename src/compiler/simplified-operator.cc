@@ -28,6 +28,7 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
 MachineType BufferAccess::machine_type() const {
   switch (external_array_type_) {
     case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
       return kMachUint8;
     case kExternalInt8Array:
       return kMachInt8;
@@ -43,8 +44,6 @@ MachineType BufferAccess::machine_type() const {
       return kMachFloat32;
     case kExternalFloat64Array:
       return kMachFloat64;
-    case kExternalUint8ClampedArray:
-      break;
   }
   UNREACHABLE();
   return kMachNone;
