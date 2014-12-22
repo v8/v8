@@ -114,7 +114,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder for stack-check guards.
   Node* BuildStackCheck();
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
@@ -347,9 +347,9 @@ class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
  public:
   explicit AstEffectContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {}
-  virtual ~AstEffectContext();
-  void ProduceValue(Node* value) OVERRIDE;
-  Node* ConsumeValue() OVERRIDE;
+  ~AstEffectContext() FINAL;
+  void ProduceValue(Node* value) FINAL;
+  Node* ConsumeValue() FINAL;
 };
 
 
@@ -358,9 +358,9 @@ class AstGraphBuilder::AstValueContext FINAL : public AstContext {
  public:
   explicit AstValueContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {}
-  virtual ~AstValueContext();
-  void ProduceValue(Node* value) OVERRIDE;
-  Node* ConsumeValue() OVERRIDE;
+  ~AstValueContext() FINAL;
+  void ProduceValue(Node* value) FINAL;
+  Node* ConsumeValue() FINAL;
 };
 
 
@@ -369,9 +369,9 @@ class AstGraphBuilder::AstTestContext FINAL : public AstContext {
  public:
   explicit AstTestContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kTest) {}
-  virtual ~AstTestContext();
-  void ProduceValue(Node* value) OVERRIDE;
-  Node* ConsumeValue() OVERRIDE;
+  ~AstTestContext() FINAL;
+  void ProduceValue(Node* value) FINAL;
+  Node* ConsumeValue() FINAL;
 };
 
 

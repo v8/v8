@@ -30,7 +30,7 @@ using ::testing::Matcher;
 class GraphTest : public TestWithContext, public TestWithZone {
  public:
   explicit GraphTest(int parameters = 1);
-  virtual ~GraphTest();
+  ~GraphTest() OVERRIDE;
 
  protected:
   Node* Parameter(int32_t index);

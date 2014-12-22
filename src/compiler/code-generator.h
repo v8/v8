@@ -86,10 +86,10 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // ===========================================================================
 
   // Interface used by the gap resolver to emit moves and swaps.
-  virtual void AssembleMove(InstructionOperand* source,
-                            InstructionOperand* destination) OVERRIDE;
-  virtual void AssembleSwap(InstructionOperand* source,
-                            InstructionOperand* destination) OVERRIDE;
+  void AssembleMove(InstructionOperand* source,
+                    InstructionOperand* destination) FINAL;
+  void AssembleSwap(InstructionOperand* source,
+                    InstructionOperand* destination) FINAL;
 
   // ===========================================================================
   // Deoptimization table construction

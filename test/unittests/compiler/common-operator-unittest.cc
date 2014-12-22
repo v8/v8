@@ -117,7 +117,7 @@ namespace {
 class CommonOperatorTest : public TestWithZone {
  public:
   CommonOperatorTest() : common_(zone()) {}
-  virtual ~CommonOperatorTest() {}
+  ~CommonOperatorTest() OVERRIDE {}
 
   CommonOperatorBuilder* common() { return &common_; }
 
