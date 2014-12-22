@@ -130,10 +130,11 @@ class StaticVisitorBase : public AllStatic {
 
     if (has_unboxed_fields) return generic;
 
-    const VisitorId specialization = static_cast<VisitorId>(
-        base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords);
+    int visitor_id =
+        Min(base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords,
+            static_cast<int>(generic));
 
-    return Min(specialization, generic);
+    return static_cast<VisitorId>(visitor_id);
   }
 };
 
