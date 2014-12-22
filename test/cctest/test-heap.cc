@@ -4742,6 +4742,23 @@ TEST(Regress3631) {
 }
 
 
+TEST(Regress442710) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+
+  HandleScope sc(isolate);
+  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSArray> array = factory->NewJSArray(2);
+
+  Handle<String> name = factory->InternalizeUtf8String("testArray");
+  JSReceiver::SetProperty(global, name, array, SLOPPY).Check();
+  CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
