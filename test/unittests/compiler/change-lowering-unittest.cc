@@ -61,10 +61,6 @@ class ChangeLoweringTest : public GraphTest {
                   : SmiTagging<8>::SmiValueSize();
   }
 
-  Node* Parameter(int32_t index = 0) {
-    return graph()->NewNode(common()->Parameter(index), graph()->start());
-  }
-
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone(), WordRepresentation());
     JSOperatorBuilder javascript(zone());

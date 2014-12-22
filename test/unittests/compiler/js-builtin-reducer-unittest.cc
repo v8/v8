@@ -29,12 +29,6 @@ class JSBuiltinReducerTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
-  Node* Parameter(Type* t, int32_t index = 0) {
-    Node* n = graph()->NewNode(common()->Parameter(index), graph()->start());
-    NodeProperties::SetBounds(n, Bounds(Type::None(), t));
-    return n;
-  }
-
   Handle<JSFunction> MathFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(isolate()->global_object(),

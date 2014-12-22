@@ -50,12 +50,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
-  Node* Parameter(Type* type, int index = 0) {
-    Node* node = graph()->NewNode(common()->Parameter(index), graph()->start());
-    NodeProperties::SetBounds(node, Bounds(Type::None(), type));
-    return node;
-  }
-
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
     Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
     Runtime::SetupArrayBuffer(isolate(), buffer, true, bytes, byte_length);

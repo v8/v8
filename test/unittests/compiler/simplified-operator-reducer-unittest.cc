@@ -18,7 +18,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), simplified_(zone()) {}
-  virtual ~SimplifiedOperatorReducerTest() {}
+  ~SimplifiedOperatorReducerTest() OVERRIDE {}
 
  protected:
   Reduction Reduce(Node* node) {
@@ -43,7 +43,7 @@ class SimplifiedOperatorReducerTestWithParam
  public:
   explicit SimplifiedOperatorReducerTestWithParam(int num_parameters = 1)
       : SimplifiedOperatorReducerTest(num_parameters) {}
-  virtual ~SimplifiedOperatorReducerTestWithParam() {}
+  ~SimplifiedOperatorReducerTestWithParam() OVERRIDE {}
 };
 
 
