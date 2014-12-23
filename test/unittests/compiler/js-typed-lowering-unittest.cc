@@ -40,7 +40,7 @@ const StrictMode kStrictModes[] = {SLOPPY, STRICT};
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
   JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
-  virtual ~JSTypedLoweringTest() {}
+  ~JSTypedLoweringTest() OVERRIDE {}
 
  protected:
   Reduction Reduce(Node* node) {
@@ -48,12 +48,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(graph(), common(), javascript(), &machine);
     JSTypedLowering reducer(&jsgraph, zone());
     return reducer.Reduce(node);
-  }
-
-  Node* Parameter(Type* type, int index = 0) {
-    Node* node = graph()->NewNode(common()->Parameter(index), graph()->start());
-    NodeProperties::SetBounds(node, Bounds(Type::None(), type));
-    return node;
   }
 
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {

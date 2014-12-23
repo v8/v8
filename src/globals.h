@@ -362,6 +362,7 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
+// Keep this enum in sync with the ObjectSpace enum in v8.h
 enum AllocationSpace {
   NEW_SPACE,            // Semispaces collected with copying collector.
   OLD_POINTER_SPACE,    // May contain pointers to new space.

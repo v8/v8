@@ -1,3 +1,13 @@
+2014-12-23: Version 3.31.73
+
+        [turbofan] Fix missing ChangeUint32ToUint64 in lowering of LoadBuffer
+        (Chromium issue 444695).
+
+        Enable the embedder to specify what kind of context was disposed.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-22: Version 3.31.72
 
         [turbofan] Correctify lowering of Uint8ClampedArray buffer access

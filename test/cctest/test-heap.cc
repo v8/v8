@@ -1499,7 +1499,6 @@ TEST(TestInternalWeakLists) {
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
   if (FLAG_gc_global || FLAG_stress_compaction) return;
-  FLAG_retain_maps_for_n_gc = 0;
 
   static const int kNumTestContexts = 10;
 
@@ -1580,7 +1579,7 @@ TEST(TestInternalWeakLists) {
   }
 
   // Force compilation cache cleanup.
-  CcTest::heap()->NotifyContextDisposed();
+  CcTest::heap()->NotifyContextDisposed(true);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the native contexts one by one.
@@ -2922,7 +2921,6 @@ TEST(Regress1465) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
-  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 256;
@@ -2985,7 +2983,6 @@ static void AddPropertyTo(
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   i::FLAG_gc_interval = gc_count;
   i::FLAG_gc_global = true;
-  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::heap()->set_allocation_timeout(gc_count);
   JSReceiver::SetProperty(object, prop_name, twenty_three, SLOPPY).Check();
 }
@@ -4202,7 +4199,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // Now make sure that a gc should get rid of the function, even though we
   // still have the allocation site alive.
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
   }
 
   // The site still exists because of our global handle, but the code is no
@@ -4303,7 +4300,6 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;
-  i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -5090,40 +5086,6 @@ TEST(Regress442710) {
   JSReceiver::SetProperty(global, name, array, SLOPPY).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   heap->CollectGarbage(OLD_POINTER_SPACE);
-}
-
-
-void CheckMapRetainingFor(int n) {
-  FLAG_retain_maps_for_n_gc = n;
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Handle<WeakCell> weak_cell;
-  {
-    HandleScope inner_scope(isolate);
-    Handle<Map> map = Map::Create(isolate, 1);
-    weak_cell = inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
-  }
-  CHECK(!weak_cell->cleared());
-  int retaining_count =
-      Min(FLAG_retain_maps_for_n_gc,
-          Map::kRetainingCounterStart - Map::kRetainingCounterEnd);
-  for (int i = 0; i < retaining_count; i++) {
-    heap->CollectGarbage(OLD_POINTER_SPACE);
-  }
-  CHECK(!weak_cell->cleared());
-  heap->CollectGarbage(OLD_POINTER_SPACE);
-  CHECK(weak_cell->cleared());
-}
-
-
-TEST(MapRetaining) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  CheckMapRetainingFor(FLAG_retain_maps_for_n_gc);
-  CheckMapRetainingFor(0);
-  CheckMapRetainingFor(Map::kRetainingCounterStart - Map::kRetainingCounterEnd);
-  CheckMapRetainingFor(Map::kRetainingCounterStart - Map::kRetainingCounterEnd +
-                       1);
 }
 
 

@@ -22,13 +22,14 @@ class CommonOperatorBuilder;
 class MachineOperatorBuilder;
 class Linkage;
 
+
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering : public Reducer {
+class JSGenericLowering FINAL : public Reducer {
  public:
   JSGenericLowering(CompilationInfo* info, JSGraph* graph);
-  virtual ~JSGenericLowering() {}
+  ~JSGenericLowering() FINAL {}
 
-  virtual Reduction Reduce(Node* node);
+  Reduction Reduce(Node* node) FINAL;
 
  protected:
 #define DECLARE_LOWER(x) void Lower##x(Node* node);

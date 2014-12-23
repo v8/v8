@@ -170,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  isolate->heap()->NotifyContextDisposed();
+  isolate->heap()->NotifyContextDisposed(true);
   return isolate->heap()->undefined_value();
 }
 

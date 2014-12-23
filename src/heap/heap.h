@@ -767,7 +767,7 @@ class Heap {
   bool IsHeapIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed();
+  int NotifyContextDisposed(bool dependant_context);
 
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;

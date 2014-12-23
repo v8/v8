@@ -71,6 +71,11 @@ class RingBuffer {
     elements_[begin_] = element;
   }
 
+  void reset() {
+    begin_ = 0;
+    end_ = 0;
+  }
+
  private:
   T elements_[MAX_SIZE + 1];
   size_t begin_;
@@ -389,6 +394,9 @@ class GCTracer {
 
   // Returns true if at least one survival event was recorded.
   bool SurvivalEventsRecorded() const;
+
+  // Discard all recorded survival events.
+  void ResetSurvivalEvents();
 
  private:
   // Print one detailed trace line in name=value format.

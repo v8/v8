@@ -138,10 +138,10 @@ class LazyTypeCache FINAL : public ZoneObject {
 };
 
 
-class Typer::Decorator : public GraphDecorator {
+class Typer::Decorator FINAL : public GraphDecorator {
  public:
   explicit Decorator(Typer* typer) : typer_(typer) {}
-  virtual void Decorate(Node* node);
+  void Decorate(Node* node) FINAL;
 
  private:
   Typer* typer_;

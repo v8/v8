@@ -587,5 +587,8 @@ double GCTracer::AverageSurvivalRate() const {
 bool GCTracer::SurvivalEventsRecorded() const {
   return survival_events_.size() > 0;
 }
+
+
+void GCTracer::ResetSurvivalEvents() { survival_events_.reset(); }
 }
 }  // namespace v8::internal

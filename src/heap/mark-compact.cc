@@ -385,7 +385,7 @@ void MarkCompactCollector::VerifyWeakEmbeddedObjectsInCode() {
   for (HeapObject* obj = code_iterator.Next(); obj != NULL;
        obj = code_iterator.Next()) {
     Code* code = Code::cast(obj);
-    if (!code->is_optimized_code() && !code->is_weak_stub()) continue;
+    if (!code->is_optimized_code()) continue;
     if (WillBeDeoptimized(code)) continue;
     code->VerifyEmbeddedObjectsDependency();
   }
@@ -2125,52 +2125,6 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 
-void MarkCompactCollector::RetainMaps(ObjectVisitor* visitor) {
-  if (reduce_memory_footprint_ || abort_incremental_marking_ ||
-      FLAG_retain_maps_for_n_gc == 0) {
-    // Do not retain dead maps if flag disables it or there is
-    // - memory pressure (reduce_memory_footprint_),
-    // - GC is requested by tests or dev-tools (abort_incremental_marking_).
-    return;
-  }
-
-  HeapObjectIterator map_iterator(heap()->map_space());
-  // The retaining counter goes from Map::kRetainingCounterStart
-  // down to Map::kRetainingCounterEnd. This range can be narrowed
-  // by the FLAG_retain_maps_for_n_gc flag.
-  int retaining_counter_end =
-      Max(Map::kRetainingCounterEnd,
-          Map::kRetainingCounterStart - FLAG_retain_maps_for_n_gc);
-  for (HeapObject* obj = map_iterator.Next(); obj != NULL;
-       obj = map_iterator.Next()) {
-    Map* map = Map::cast(obj);
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    int counter = map->counter();
-    if (!map_mark.Get()) {
-      if (counter > Map::kRetainingCounterStart ||
-          counter <= retaining_counter_end) {
-        // The counter is outside of retaining range. Do not retain this map.
-        continue;
-      }
-      Object* constructor = map->constructor();
-      if (!constructor->IsHeapObject() ||
-          !Marking::MarkBitFrom(HeapObject::cast(constructor)).Get()) {
-        // The constructor is dead, no new objects with this map can
-        // be created. Do not retain this map.
-        continue;
-      }
-      map->set_counter(counter - 1);
-      SetMark(map, map_mark);
-      MarkCompactMarkingVisitor::IterateBody(map->map(), map);
-    } else if (counter < Map::kRetainingCounterStart) {
-      // Reset the counter for live maps.
-      map->set_counter(Map::kRetainingCounterStart);
-    }
-  }
-  ProcessMarkingDeque();
-}
-
-
 void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize() {
   if (marking_deque_memory_ == NULL) {
     marking_deque_memory_ = new base::VirtualMemory(4 * MB);
@@ -2269,11 +2223,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   MarkRoots(&root_visitor);
 
   ProcessTopOptimizedFrame(&root_visitor);
-
-  // Retaining dying maps should happen before or during ephemeral marking
-  // because a map could keep the key of an ephemeron alive. Note that map
-  // aging is imprecise: maps that are kept alive only by ephemerons will age.
-  RetainMaps(&root_visitor);
 
   {
     GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCLOSURE);
@@ -2596,34 +2545,12 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 }
 
 
-void MarkCompactCollector::ClearDependentICList(Object* head) {
-  Object* current = head;
-  Object* undefined = heap()->undefined_value();
-  while (current != undefined) {
-    Code* code = Code::cast(current);
-    if (IsMarked(code)) {
-      DCHECK(code->is_weak_stub());
-      IC::InvalidateMaps(code);
-    }
-    current = code->next_code_link();
-    code->set_next_code_link(undefined);
-  }
-}
-
-
 void MarkCompactCollector::ClearDependentCode(DependentCode* entries) {
   DisallowHeapAllocation no_allocation;
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
-  int g = DependentCode::kWeakICGroup;
-  if (starts.at(g) != starts.at(g + 1)) {
-    int i = starts.at(g);
-    DCHECK(i + 1 == starts.at(g + 1));
-    Object* head = entries->object_at(i);
-    ClearDependentICList(head);
-  }
-  g = DependentCode::kWeakCodeGroup;
+  int g = DependentCode::kWeakCodeGroup;
   for (int i = starts.at(g); i < starts.at(g + 1); i++) {
     // If the entry is compilation info then the map must be alive,
     // and ClearDependentCode shouldn't be called.
@@ -2645,34 +2572,17 @@ void MarkCompactCollector::ClearDependentCode(DependentCode* entries) {
 int MarkCompactCollector::ClearNonLiveDependentCodeInGroup(
     DependentCode* entries, int group, int start, int end, int new_start) {
   int survived = 0;
-  if (group == DependentCode::kWeakICGroup) {
-    // Dependent weak IC stubs form a linked list and only the head is stored
-    // in the dependent code array.
-    if (start != end) {
-      DCHECK(start + 1 == end);
-      Object* old_head = entries->object_at(start);
-      MarkCompactWeakObjectRetainer retainer;
-      Object* head = VisitWeakList<Code>(heap(), old_head, &retainer);
-      entries->set_object_at(new_start, head);
-      Object** slot = entries->slot_at(new_start);
-      RecordSlot(slot, slot, head);
-      // We do not compact this group even if the head is undefined,
-      // more dependent ICs are likely to be added later.
-      survived = 1;
-    }
-  } else {
-    for (int i = start; i < end; i++) {
-      Object* obj = entries->object_at(i);
-      DCHECK(obj->IsCode() || IsMarked(obj));
-      if (IsMarked(obj) &&
-          (!obj->IsCode() || !WillBeDeoptimized(Code::cast(obj)))) {
-        if (new_start + survived != i) {
-          entries->set_object_at(new_start + survived, obj);
-        }
-        Object** slot = entries->slot_at(new_start + survived);
-        RecordSlot(slot, slot, obj);
-        survived++;
+  for (int i = start; i < end; i++) {
+    Object* obj = entries->object_at(i);
+    DCHECK(obj->IsCode() || IsMarked(obj));
+    if (IsMarked(obj) &&
+        (!obj->IsCode() || !WillBeDeoptimized(Code::cast(obj)))) {
+      if (new_start + survived != i) {
+        entries->set_object_at(new_start + survived, obj);
       }
+      Object** slot = entries->slot_at(new_start + survived);
+      RecordSlot(slot, slot, obj);
+      survived++;
     }
   }
   entries->set_number_of_entries(

@@ -127,7 +127,6 @@ TEST(NoPromotion) {
 
 TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
-  FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   TestHeap* heap = CcTest::test_heap();
