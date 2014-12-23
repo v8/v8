@@ -129,7 +129,8 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= index << FixedSlotIndexField::kShift;
-    DCHECK(this->fixed_slot_index() == index);
+    // TODO(dcarney): 2^10 is not enough for the fixed slot index.
+    CHECK(this->fixed_slot_index() == index);
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index)

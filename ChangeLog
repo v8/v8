@@ -1,3 +1,11 @@
+2014-12-23: Version 3.31.74
+
+        [turbofan] Turn DCHECK for fixed slot index into a CHECK (Chromium issue
+        444681).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-12-23: Version 3.31.73
 
         [turbofan] Fix missing ChangeUint32ToUint64 in lowering of LoadBuffer
