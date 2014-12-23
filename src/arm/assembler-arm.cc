@@ -1338,7 +1338,7 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
 void Assembler::b(int branch_offset, Condition cond) {
   DCHECK((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   emit(cond | B27 | B25 | (imm24 & kImm24Mask));
 
   if (cond == al) {
@@ -1352,7 +1352,7 @@ void Assembler::bl(int branch_offset, Condition cond) {
   positions_recorder()->WriteRecordedPositions();
   DCHECK((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   emit(cond | B27 | B25 | B24 | (imm24 & kImm24Mask));
 }
 
@@ -1362,7 +1362,7 @@ void Assembler::blx(int branch_offset) {  // v5 and above
   DCHECK((branch_offset & 1) == 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   emit(kSpecialCondition | B27 | B25 | h | (imm24 & kImm24Mask));
 }
 
@@ -1504,7 +1504,7 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
     //
     // When the label gets bound: target_at extracts the link and target_at_put
     // patches the instructions.
-    DCHECK(is_uint24(link));
+    CHECK(is_uint24(link));
     BlockConstPoolScope block_const_pool(this);
     emit(link);
     nop(dst.code());
