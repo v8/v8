@@ -1027,6 +1027,8 @@ class RegExpCompiler {
 
   inline bool ignore_case() { return ignore_case_; }
   inline bool one_byte() { return one_byte_; }
+  inline bool optimize() { return optimize_; }
+  inline void set_optimize(bool value) { optimize_ = value; }
   FrequencyCollator* frequency_collator() { return &frequency_collator_; }
 
   int current_expansion_factor() { return current_expansion_factor_; }
@@ -1047,6 +1049,7 @@ class RegExpCompiler {
   bool ignore_case_;
   bool one_byte_;
   bool reg_exp_too_big_;
+  bool optimize_;
   int current_expansion_factor_;
   FrequencyCollator frequency_collator_;
   Zone* zone_;
@@ -1079,6 +1082,7 @@ RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case,
       ignore_case_(ignore_case),
       one_byte_(one_byte),
       reg_exp_too_big_(false),
+      optimize_(FLAG_regexp_optimization),
       current_expansion_factor_(1),
       frequency_collator_(),
       zone_(zone) {
@@ -1093,16 +1097,6 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
     int capture_count,
     Handle<String> pattern) {
   Heap* heap = pattern->GetHeap();
-
-  bool use_slow_safe_regexp_compiler = false;
-  if (heap->total_regexp_code_generated() >
-          RegExpImpl::kRegWxpCompiledLimit &&
-      heap->isolate()->memory_allocator()->SizeExecutable() >
-          RegExpImpl::kRegExpExecutableMemoryLimit) {
-    use_slow_safe_regexp_compiler = true;
-  }
-
-  macro_assembler->set_slow_safe(use_slow_safe_regexp_compiler);
 
 #ifdef DEBUG
   if (FLAG_trace_regexp_assembler)
@@ -2257,8 +2251,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   // We are being asked to make a non-generic version.  Keep track of how many
   // non-generic versions we generate so as not to overdo it.
   trace_count_++;
-  if (FLAG_regexp_optimization &&
-      trace_count_ < kMaxCopiesCodeGenerated &&
+  if (compiler->optimize() && trace_count_ < kMaxCopiesCodeGenerated &&
       compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion) {
     return CONTINUE;
   }
@@ -4137,15 +4130,12 @@ void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
     }
     alt_gen->expects_preload = preload->preload_is_current_;
     bool generate_full_check_inline = false;
-    if (FLAG_regexp_optimization &&
+    if (compiler->optimize() &&
         try_to_emit_quick_check_for_alternative(i == 0) &&
-        alternative.node()->EmitQuickCheck(compiler,
-                                           trace,
-                                           &new_trace,
-                                           preload->preload_has_checked_bounds_,
-                                           &alt_gen->possible_success,
-                                           &alt_gen->quick_check_details,
-                                           fall_through_on_failure)) {
+        alternative.node()->EmitQuickCheck(
+            compiler, trace, &new_trace, preload->preload_has_checked_bounds_,
+            &alt_gen->possible_success, &alt_gen->quick_check_details,
+            fall_through_on_failure)) {
       // Quick check was generated for this choice.
       preload->preload_is_current_ = true;
       preload->preload_has_checked_bounds_ = true;
@@ -4943,7 +4933,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
 
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (FLAG_regexp_optimization && !needs_capture_clearing) {
+  } else if (compiler->optimize() && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     {
@@ -6041,6 +6031,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   }
   RegExpCompiler compiler(data->capture_count, ignore_case, is_one_byte, zone);
 
+  compiler.set_optimize(!TooMuchRegExpCode(pattern));
+
   // Sample some characters from the middle of the string.
   static const int kSampleSize = 128;
 
@@ -6143,6 +6135,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   RegExpMacroAssemblerIrregexp macro_assembler(codes, zone);
 #endif  // V8_INTERPRETED_REGEXP
 
+  macro_assembler.set_slow_safe(TooMuchRegExpCode(pattern));
+
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
   static const int kMaxBacksearchLimit = 1024;
@@ -6166,4 +6160,14 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 }
 
 
+bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
+  Heap* heap = pattern->GetHeap();
+  bool too_much = pattern->length() > RegExpImpl::kRegExpTooLargeToOptimize;
+  if (heap->total_regexp_code_generated() > RegExpImpl::kRegExpCompiledLimit &&
+      heap->isolate()->memory_allocator()->SizeExecutable() >
+          RegExpImpl::kRegExpExecutableMemoryLimit) {
+    too_much = true;
+  }
+  return too_much;
+}
 }}  // namespace v8::internal
