@@ -491,7 +491,7 @@
         '../../src/compiler/node.cc',
         '../../src/compiler/node.h',
         '../../src/compiler/opcodes.h',
-        '../../src/compiler/operator-properties-inl.h',
+        '../../src/compiler/operator-properties.cc',
         '../../src/compiler/operator-properties.h',
         '../../src/compiler/operator.cc',
         '../../src/compiler/operator.h',

@@ -11,6 +11,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/representation-change.h"
