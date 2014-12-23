@@ -215,7 +215,7 @@
               '-fno-stack-protector',
             ],
           }],
-          ['target_arch=="arm" or target_arch=="arm64" or target_arch=="x64"', {
+          ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64") and component!="shared_library"', {
             'cflags': [
               '-fPIE',
             ],
