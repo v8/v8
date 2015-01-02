@@ -230,11 +230,13 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const MachineOperatorGlobalCache& cache_;
   const MachineType word_;
   const Flags flags_;
+
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };
 
 
 DEFINE_OPERATORS_FOR_FLAGS(MachineOperatorBuilder::Flags)
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
