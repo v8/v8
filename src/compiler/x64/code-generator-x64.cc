@@ -354,12 +354,15 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
               length_(length) {}                                               \
                                                                                \
         void Generate() FINAL {                                                \
+          Label oob;                                                           \
           __ leal(kScratchRegister, Operand(index1_, index2_));                \
-          __ xorl(result_, result_);                                           \
           __ cmpl(kScratchRegister, Immediate(length_));                       \
-          __ j(above_equal, exit());                                           \
+          __ j(above_equal, &oob, Label::kNear);                               \
           __ asm_instr(result_,                                                \
                        Operand(buffer_, kScratchRegister, times_1, 0));        \
+          __ jmp(exit());                                                      \
+          __ bind(&oob);                                                       \
+          __ xorl(result_, result_);                                           \
         }                                                                      \
                                                                                \
        private:                                                                \
