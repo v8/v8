@@ -181,7 +181,7 @@ class RepresentationSelector {
     } else {
       // In the change phase, insert a change before the use if necessary.
       MachineTypeUnion output = GetInfo(input)->output;
-      if ((output & kRepWord32) == 0) {
+      if ((output & (kRepBit | kRepWord8 | kRepWord16 | kRepWord32)) == 0) {
         // Output representation doesn't match usage.
         TRACE(("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
                node->op()->mnemonic(), index, input->id(),
