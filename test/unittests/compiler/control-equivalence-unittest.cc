@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bit-vector.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties-inl.h"

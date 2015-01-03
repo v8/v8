@@ -237,6 +237,7 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     Int32Matcher mlength(length);
     Int32BinopMatcher moffset(offset);
     if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
         mlength.Value() >= moffset.right().Value()) {
       Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
            g.UseRegister(moffset.left().node()),
@@ -285,6 +286,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     Int32Matcher mlength(length);
     Int32BinopMatcher moffset(offset);
     if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
         mlength.Value() >= moffset.right().Value()) {
       Emit(opcode, nullptr, g.UseRegister(buffer),
            g.UseRegister(moffset.left().node()),

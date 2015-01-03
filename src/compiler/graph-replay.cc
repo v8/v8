@@ -9,7 +9,7 @@
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/operator-properties-inl.h"
+#include "src/compiler/operator-properties.h"
 
 namespace v8 {
 namespace internal {

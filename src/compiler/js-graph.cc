@@ -174,8 +174,11 @@ Node* JSGraph::NumberConstant(double value) {
 
 
 Node* JSGraph::Float32Constant(float value) {
-  // TODO(turbofan): cache float32 constants.
-  return graph()->NewNode(common()->Float32Constant(value));
+  Node** loc = cache_.FindFloat32Constant(value);
+  if (*loc == NULL) {
+    *loc = graph()->NewNode(common()->Float32Constant(value));
+  }
+  return *loc;
 }
 
 
