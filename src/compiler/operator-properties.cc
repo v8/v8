@@ -1,30 +1,29 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
-#define V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
+#include "src/compiler/operator-properties.h"
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/operator-properties.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-inline bool OperatorProperties::HasContextInput(const Operator* op) {
+// static
+bool OperatorProperties::HasContextInput(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
   return IrOpcode::IsJsOpcode(opcode);
 }
 
-inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
+
+// static
+bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   if (!FLAG_turbo_deoptimization) {
     return false;
   }
-
   switch (op->opcode()) {
     case IrOpcode::kFrameState:
       return true;
@@ -81,25 +80,18 @@ inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   }
 }
 
-inline int OperatorProperties::GetContextInputCount(const Operator* op) {
-  return OperatorProperties::HasContextInput(op) ? 1 : 0;
-}
 
-inline int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
-  return OperatorProperties::HasFrameStateInput(op) ? 1 : 0;
-}
-
-inline int OperatorProperties::GetTotalInputCount(const Operator* op) {
+// static
+int OperatorProperties::GetTotalInputCount(const Operator* op) {
   return op->ValueInputCount() + GetContextInputCount(op) +
          GetFrameStateInputCount(op) + op->EffectInputCount() +
          op->ControlInputCount();
 }
 
-// -----------------------------------------------------------------------------
-// Output properties.
 
-inline bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
-  uint8_t opcode = op->opcode();
+// static
+bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
+  Operator::Opcode const opcode = op->opcode();
   return opcode == IrOpcode::kStart || opcode == IrOpcode::kEnd ||
          opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
          opcode == IrOpcode::kMerge || opcode == IrOpcode::kIfTrue ||
@@ -109,5 +101,3 @@ inline bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPILER_OPERATOR_PROPERTIES_INL_H_

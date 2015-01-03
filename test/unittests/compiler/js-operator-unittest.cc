@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-operator.h"
-#include "src/compiler/operator-properties-inl.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator.h"
+#include "src/compiler/operator-properties.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

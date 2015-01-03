@@ -5,7 +5,6 @@
 #include "test/cctest/compiler/simplified-graph-builder.h"
 
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 
 namespace v8 {
 namespace internal {

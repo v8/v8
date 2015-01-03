@@ -64,7 +64,7 @@ class InstructionOperand : public ZoneObject {
   void ConvertTo(Kind kind, int index) {
     if (kind == REGISTER || kind == DOUBLE_REGISTER) DCHECK(index >= 0);
     value_ = KindField::encode(kind);
-    value_ |= index << KindField::kSize;
+    value_ |= bit_cast<unsigned>(index << KindField::kSize);
     DCHECK(this->index() == index);
   }
 
@@ -73,9 +73,9 @@ class InstructionOperand : public ZoneObject {
   static void TearDownCaches();
 
  protected:
-  typedef BitField<Kind, 0, 3> KindField;
+  typedef BitField64<Kind, 0, 3> KindField;
 
-  unsigned value_;
+  uint64_t value_;
 };
 
 typedef ZoneVector<InstructionOperand*> InstructionOperandVector;
@@ -128,9 +128,8 @@ class UnallocatedOperand : public InstructionOperand {
     DCHECK(policy == FIXED_SLOT);
     value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(policy);
-    value_ |= index << FixedSlotIndexField::kShift;
-    // TODO(dcarney): 2^10 is not enough for the fixed slot index.
-    CHECK(this->fixed_slot_index() == index);
+    value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
+    DCHECK(this->fixed_slot_index() == index);
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index)
@@ -183,22 +182,22 @@ class UnallocatedOperand : public InstructionOperand {
   //     +------------------------------------------+    P ... Policy
   //
   // The slot index is a signed value which requires us to decode it manually
-  // instead of using the BitField utility class.
+  // instead of using the BitField64 utility class.
 
   // The superclass has a KindField.
   STATIC_ASSERT(KindField::kSize == 3);
 
   // BitFields for all unallocated operands.
-  class BasicPolicyField : public BitField<BasicPolicy, 3, 1> {};
-  class VirtualRegisterField : public BitField<unsigned, 4, 18> {};
+  class BasicPolicyField : public BitField64<BasicPolicy, 3, 1> {};
+  class VirtualRegisterField : public BitField64<unsigned, 4, 30> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField : public BitField<int, 22, 10> {};
+  class FixedSlotIndexField : public BitField64<int, 34, 30> {};
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField : public BitField<ExtendedPolicy, 22, 3> {};
-  class LifetimeField : public BitField<Lifetime, 25, 1> {};
-  class FixedRegisterField : public BitField<int, 26, 6> {};
+  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 34, 3> {};
+  class LifetimeField : public BitField64<Lifetime, 37, 1> {};
+  class FixedRegisterField : public BitField64<int, 38, 6> {};
 
   static const int kInvalidVirtualRegister = VirtualRegisterField::kMax;
   static const int kMaxVirtualRegisters = VirtualRegisterField::kMax;
@@ -245,7 +244,8 @@ class UnallocatedOperand : public InstructionOperand {
   // [fixed_slot_index]: Only for FIXED_SLOT.
   int fixed_slot_index() const {
     DCHECK(HasFixedSlotPolicy());
-    return static_cast<int>(value_) >> FixedSlotIndexField::kShift;
+    return static_cast<int>(bit_cast<int64_t>(value_) >>
+                            FixedSlotIndexField::kShift);
   }
 
   // [fixed_register_index]: Only for FIXED_REGISTER or FIXED_DOUBLE_REGISTER.

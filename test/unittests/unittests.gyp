@@ -55,6 +55,7 @@
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/load-elimination-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
+        'compiler/machine-operator-unittest.cc',
         'compiler/move-optimizer-unittest.cc',
         'compiler/node-matchers-unittest.cc',
         'compiler/node-test-utils.cc',

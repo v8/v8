@@ -10,7 +10,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/compiler/value-helper.h"
 

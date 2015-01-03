@@ -4,6 +4,7 @@
 
 #include "test/unittests/compiler/node-test-utils.h"
 
+#include "src/assembler.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 
