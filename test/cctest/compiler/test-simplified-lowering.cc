@@ -39,7 +39,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
         typer(this->graph(), MaybeHandle<Context>()),
         javascript(this->zone()),
         jsgraph(this->graph(), this->common(), &javascript, this->machine()),
-        lowering(&jsgraph) {}
+        lowering(&jsgraph, this->zone()) {}
 
   Typer typer;
   JSOperatorBuilder javascript;
@@ -698,9 +698,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     CHECK_EQ(expected, node->opcode());
   }
 
-  void Lower() {
-    SimplifiedLowering(&jsgraph).LowerAllNodes();
-  }
+  void Lower() { SimplifiedLowering(&jsgraph, jsgraph.zone()).LowerAllNodes(); }
 
   // Inserts the node as the return value of the graph.
   Node* Return(Node* node) {
@@ -787,6 +785,46 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   CommonOperatorBuilder* common() { return &main_common_; }
   Graph* graph() { return main_graph_; }
 };
+
+
+TEST(LowerAnyToBoolean_bit_bit) {
+  // AnyToBoolean(x: kRepBit) used as kRepBit
+  HandleAndZoneScope scope;
+  Factory* f = scope.main_zone()->isolate()->factory();
+  Handle<Object> zero = f->NewNumber(0);
+  Handle<Object> one = f->NewNumber(1);
+  Type* singleton_zero = Type::Constant(zero, scope.main_zone());
+  Type* singleton_one = Type::Constant(one, scope.main_zone());
+  Type* zero_one_range = Type::Range(zero, one, scope.main_zone());
+  static Type* kTypes[] = {
+      singleton_zero, singleton_one, zero_one_range, Type::Boolean(),
+      Type::Union(Type::Boolean(), singleton_zero, scope.main_zone()),
+      Type::Union(Type::Boolean(), singleton_one, scope.main_zone()),
+      Type::Union(Type::Boolean(), zero_one_range, scope.main_zone())};
+  for (Type* type : kTypes) {
+    TestingGraph t(type);
+    Node* x = t.ExampleWithTypeAndRep(type, kRepBit);
+    Node* cnv = t.graph()->NewNode(t.simplified()->AnyToBoolean(), x);
+    Node* use = t.Branch(cnv);
+    t.Lower();
+    CHECK_EQ(x, use->InputAt(0));
+  }
+}
+
+
+TEST(LowerAnyToBoolean_tagged_tagged) {
+  // AnyToBoolean(x: kRepTagged) used as kRepTagged
+  TestingGraph t(Type::Any());
+  Node* x = t.p0;
+  Node* cnv = t.graph()->NewNode(t.simplified()->AnyToBoolean(), x);
+  Node* use = t.Use(cnv, kRepTagged);
+  t.Return(use);
+  t.Lower();
+  CHECK_EQ(IrOpcode::kCall, cnv->opcode());
+  CHECK_EQ(IrOpcode::kHeapConstant, cnv->InputAt(0)->opcode());
+  CHECK_EQ(x, cnv->InputAt(1));
+  CHECK_EQ(t.jsgraph.NoContextConstant(), cnv->InputAt(2));
+}
 
 
 TEST(LowerBooleanNot_bit_bit) {

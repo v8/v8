@@ -1441,6 +1441,11 @@ Bounds Typer::Visitor::TypeJSDebugger(Node* node) {
 // Simplified operators.
 
 
+Bounds Typer::Visitor::TypeAnyToBoolean(Node* node) {
+  return TypeUnaryOp(node, ToBoolean);
+}
+
+
 Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
   return Bounds(Type::None(zone()), Type::Boolean(zone()));
 }

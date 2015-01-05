@@ -8,7 +8,6 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties-inl.h"
-#include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -73,13 +72,93 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
 
 // -----------------------------------------------------------------------------
+// JSUnaryNot
+
+
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
+  Node* input = Parameter(Type::Boolean(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(input));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
+  Handle<Object> zero = factory()->NewNumber(0);
+  Node* input = Parameter(
+      Type::Union(
+          Type::MinusZero(),
+          Type::Union(
+              Type::NaN(),
+              Type::Union(
+                  Type::Null(),
+                  Type::Union(
+                      Type::Undefined(),
+                      Type::Union(
+                          Type::Undetectable(),
+                          Type::Union(
+                              Type::Constant(factory()->false_value(), zone()),
+                              Type::Range(zero, zero, zone()), zone()),
+                          zone()),
+                      zone()),
+                  zone()),
+              zone()),
+          zone()),
+      0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsTrueConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithTruish) {
+  Node* input = Parameter(
+      Type::Union(
+          Type::Constant(factory()->true_value(), zone()),
+          Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
+          zone()),
+      0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFalseConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithNonZeroPlainNumber) {
+  Node* input = Parameter(
+      Type::Range(factory()->NewNumber(1), factory()->NewNumber(42), zone()),
+      0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFalseConstant());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithAny) {
+  Node* input = Parameter(Type::Any(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(IsAnyToBoolean(input)));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSToBoolean
 
 
 TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
-  Node* input = Parameter(Type::Boolean());
-  Node* context = UndefinedConstant();
-
+  Node* input = Parameter(Type::Boolean(), 0);
+  Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
@@ -87,10 +166,29 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithUndefined) {
-  Node* input = Parameter(Type::Undefined());
-  Node* context = UndefinedConstant();
-
+TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
+  Handle<Object> zero = factory()->NewNumber(0);
+  Node* input = Parameter(
+      Type::Union(
+          Type::MinusZero(),
+          Type::Union(
+              Type::NaN(),
+              Type::Union(
+                  Type::Null(),
+                  Type::Union(
+                      Type::Undefined(),
+                      Type::Union(
+                          Type::Undetectable(),
+                          Type::Union(
+                              Type::Constant(factory()->false_value(), zone()),
+                              Type::Range(zero, zero, zone()), zone()),
+                          zone()),
+                      zone()),
+                  zone()),
+              zone()),
+          zone()),
+      0);
+  Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
@@ -98,21 +196,14 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithUndefined) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithNull) {
-  Node* input = Parameter(Type::Null());
-  Node* context = UndefinedConstant();
-
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFalseConstant());
-}
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiver) {
-  Node* input = Parameter(Type::DetectableReceiver());
-  Node* context = UndefinedConstant();
-
+TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
+  Node* input = Parameter(
+      Type::Union(
+          Type::Constant(factory()->true_value(), zone()),
+          Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
+          zone()),
+      0);
+  Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
@@ -120,78 +211,26 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiver) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithUndetectable) {
-  Node* input = Parameter(Type::Undetectable());
-  Node* context = UndefinedConstant();
-
+TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
+  Node* input =
+      Parameter(Type::Range(factory()->NewNumber(1),
+                            factory()->NewNumber(V8_INFINITY), zone()),
+                0);
+  Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFalseConstant());
+  EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
 
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
-  Node* input = Parameter(Type::OrderedNumber());
-  Node* context = UndefinedConstant();
-
+TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
+  Node* input = Parameter(Type::Any(), 0);
+  Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(BitEq(0.0)))));
-}
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
-  Node* input = Parameter(Type::String());
-  Node* context = UndefinedConstant();
-
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsNumberEqual(
-                  IsLoadField(AccessBuilder::ForStringLength(), input,
-                              graph()->start(), graph()->start()),
-                  IsNumberConstant(BitEq(0.0)))));
-}
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithPhi) {
-  Node* p0 = Parameter(Type::OrderedNumber(), 0);
-  Node* p1 = Parameter(Type::Boolean(), 1);
-  Node* context = UndefinedConstant();
-  Node* control = graph()->start();
-
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(),
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), p0, p1, control),
-      context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsPhi(kMachAnyTagged, IsBooleanNot(IsNumberEqual(
-                                        p0, IsNumberConstant(BitEq(0.0)))),
-                    p1, control));
-}
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithSelect) {
-  Node* p0 = Parameter(Type::Boolean(), 0);
-  Node* p1 = Parameter(Type::DetectableReceiver(), 1);
-  Node* p2 = Parameter(Type::OrderedNumber(), 2);
-  Node* context = UndefinedConstant();
-
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(),
-      graph()->NewNode(common()->Select(kMachAnyTagged, BranchHint::kTrue), p0,
-                       p1, p2),
-      context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsSelect(kMachAnyTagged, p0, IsTrueConstant(),
-               IsBooleanNot(IsNumberEqual(p2, IsNumberConstant(BitEq(0.0))))));
+  EXPECT_THAT(r.replacement(), IsAnyToBoolean(input));
 }
 
 

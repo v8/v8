@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/conversions.h"
@@ -18,10 +20,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedOperatorReducerTest : public GraphTest {
+class SimplifiedOperatorReducerTest : public TypedGraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
-      : GraphTest(num_parameters), simplified_(zone()) {}
+      : TypedGraphTest(num_parameters), simplified_(zone()) {}
   ~SimplifiedOperatorReducerTest() OVERRIDE {}
 
  protected:
@@ -139,6 +141,7 @@ std::ostream& operator<<(std::ostream& os, const UnaryOperator& unop) {
 
 
 static const UnaryOperator kUnaryOperators[] = {
+    {&SimplifiedOperatorBuilder::AnyToBoolean, "AnyToBoolean"},
     {&SimplifiedOperatorBuilder::BooleanNot, "BooleanNot"},
     {&SimplifiedOperatorBuilder::ChangeBitToBool, "ChangeBitToBool"},
     {&SimplifiedOperatorBuilder::ChangeBoolToBit, "ChangeBoolToBit"},
@@ -160,8 +163,8 @@ typedef SimplifiedOperatorReducerTestWithParam<UnaryOperator>
 
 TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
   const UnaryOperator& unop = GetParam();
-  Reduction reduction = Reduce(
-      graph()->NewNode((simplified()->*unop.constructor)(), Parameter(0)));
+  Reduction reduction = Reduce(graph()->NewNode(
+      (simplified()->*unop.constructor)(), Parameter(Type::Any())));
   EXPECT_FALSE(reduction.Changed());
 }
 
@@ -169,6 +172,39 @@ TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
 INSTANTIATE_TEST_CASE_P(SimplifiedOperatorReducerTest,
                         SimplifiedUnaryOperatorTest,
                         ::testing::ValuesIn(kUnaryOperators));
+
+
+// -----------------------------------------------------------------------------
+// AnyToBoolean
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithBoolean) {
+  Node* p = Parameter(Type::Boolean());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p, r.replacement());
+}
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithOrderedNumber) {
+  Node* p = Parameter(Type::OrderedNumber());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(p, IsNumberConstant(0))));
+}
+
+
+TEST_F(SimplifiedOperatorReducerTest, AnyToBooleanWithString) {
+  Node* p = Parameter(Type::String());
+  Reduction r = Reduce(graph()->NewNode(simplified()->AnyToBoolean(), p));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(
+                  IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(), p,
+                                            graph()->start(), graph()->start()),
+                                IsNumberConstant(0))));
+}
 
 
 // -----------------------------------------------------------------------------
