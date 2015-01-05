@@ -9,6 +9,10 @@
 #include "src/types.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
+#include "testing/gmock-support.h"
+
+using testing::BitEq;
+
 
 namespace v8 {
 namespace internal {
@@ -113,11 +117,6 @@ static const uint32_t kUint32Values[] = {
     0x9b98c482, 0xb158667e, 0xb432932c, 0xb5b70989, 0xb669971a, 0xb7c359d1,
     0xbeb15c0d, 0xc171c53d, 0xc743dd38, 0xc8e2af50, 0xc98e2df0, 0xd9d1cdf9,
     0xdcc91049, 0xe46f396d, 0xee991950, 0xef64e521, 0xf7aeefc9, 0xffffffff};
-
-
-MATCHER(IsNaN, std::string(negation ? "isn't" : "is") + " NaN") {
-  return std::isnan(arg);
-}
 
 }  // namespace
 
@@ -271,7 +270,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeFloat64ToTaggedWithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeFloat64ToTagged(), Float64Constant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(n));
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(n)));
   }
 }
 
@@ -285,7 +284,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeInt32ToTaggedWithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeInt32ToTagged(), Int32Constant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastI2D(n)));
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(FastI2D(n))));
   }
 }
 
@@ -332,7 +331,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->ChangeTaggedToFloat64(), NumberConstant(n)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(n));
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(n)));
   }
 }
 
@@ -342,7 +341,8 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithNaNConstant1) {
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                               NumberConstant(-base::OS::nan_value())));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsFloat64Constant(IsNaN()));
+  EXPECT_THAT(reduction.replacement(),
+              IsFloat64Constant(BitEq(-base::OS::nan_value())));
 }
 
 
@@ -351,7 +351,8 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithNaNConstant2) {
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
                               NumberConstant(base::OS::nan_value())));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsFloat64Constant(IsNaN()));
+  EXPECT_THAT(reduction.replacement(),
+              IsFloat64Constant(BitEq(base::OS::nan_value())));
 }
 
 
@@ -474,7 +475,7 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeUint32ToTagged) {
         Reduce(graph()->NewNode(simplified()->ChangeUint32ToTagged(),
                                 Int32Constant(bit_cast<int32_t>(n))));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastUI2D(n)));
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(FastUI2D(n))));
   }
 }
 

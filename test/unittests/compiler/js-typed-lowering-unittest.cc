@@ -12,6 +12,10 @@
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
+#include "testing/gmock-support.h"
+
+using testing::BitEq;
+
 
 namespace v8 {
 namespace internal {
@@ -135,7 +139,7 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0))));
+              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(BitEq(0.0)))));
 }
 
 
@@ -150,7 +154,7 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
               IsBooleanNot(IsNumberEqual(
                   IsLoadField(AccessBuilder::ForStringLength(), input,
                               graph()->start(), graph()->start()),
-                  IsNumberConstant(0))));
+                  IsNumberConstant(BitEq(0.0)))));
 }
 
 
@@ -165,10 +169,10 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithPhi) {
       graph()->NewNode(common()->Phi(kMachAnyTagged, 2), p0, p1, control),
       context));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsPhi(kMachAnyTagged,
-            IsBooleanNot(IsNumberEqual(p0, IsNumberConstant(0))), p1, control));
+  EXPECT_THAT(r.replacement(),
+              IsPhi(kMachAnyTagged, IsBooleanNot(IsNumberEqual(
+                                        p0, IsNumberConstant(BitEq(0.0)))),
+                    p1, control));
 }
 
 
@@ -184,9 +188,10 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithSelect) {
                        p1, p2),
       context));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSelect(kMachAnyTagged, p0, IsTrueConstant(),
-                       IsBooleanNot(IsNumberEqual(p2, IsNumberConstant(0)))));
+  EXPECT_THAT(
+      r.replacement(),
+      IsSelect(kMachAnyTagged, p0, IsTrueConstant(),
+               IsBooleanNot(IsNumberEqual(p2, IsNumberConstant(BitEq(0.0))))));
 }
 
 
@@ -202,7 +207,7 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Reduction r = Reduce(graph()->NewNode(javascript()->ToNumber(), input,
                                         context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(0),
+  EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(BitEq(0.0)),
                                           graph()->start(), control));
 }
 
@@ -235,12 +240,13 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+  TRACED_FORRANGE(double, rhs, 0, 31) {
     Reduction r =
         Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs,
                                 NumberConstant(rhs), context, effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsWord32Shl(lhs, IsNumberConstant(rhs)));
+    EXPECT_THAT(r.replacement(),
+                IsWord32Shl(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
@@ -268,12 +274,13 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+  TRACED_FORRANGE(double, rhs, 0, 31) {
     Reduction r =
         Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs,
                                 NumberConstant(rhs), context, effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsWord32Sar(lhs, IsNumberConstant(rhs)));
+    EXPECT_THAT(r.replacement(),
+                IsWord32Sar(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
@@ -301,12 +308,13 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndConstant) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FORRANGE(int32_t, rhs, 0, 31) {
+  TRACED_FORRANGE(double, rhs, 0, 31) {
     Reduction r =
         Reduce(graph()->NewNode(javascript()->ShiftRightLogical(), lhs,
                                 NumberConstant(rhs), context, effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsWord32Shr(lhs, IsNumberConstant(rhs)));
+    EXPECT_THAT(r.replacement(),
+                IsWord32Shr(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
