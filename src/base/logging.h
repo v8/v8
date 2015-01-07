@@ -33,8 +33,9 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
 // The CHECK macro checks that the given condition is true; if not, it
 // prints a message to stderr and aborts.
-#define CHECK(condition) do {                                       \
-    if (!(condition)) {                                             \
+#define CHECK(condition)                                            \
+  do {                                                              \
+    if (V8_UNLIKELY(!(condition))) {                                \
       V8_Fatal(__FILE__, __LINE__, "CHECK(%s) failed", #condition); \
     }                                                               \
   } while (0)
@@ -45,7 +46,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 inline void CheckEqualsHelper(const char* file, int line,
                               const char* expected_source, int expected,
                               const char* value_source, int value) {
-  if (expected != value) {
+  if (V8_UNLIKELY(expected != value)) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %i\n#   Found: %i",
              expected_source, value_source, expected, value);
@@ -60,7 +61,7 @@ inline void CheckEqualsHelper(const char* file, int line,
                               int64_t expected,
                               const char* value_source,
                               int64_t value) {
-  if (expected != value) {
+  if (V8_UNLIKELY(expected != value)) {
     // Print int64_t values in hex, as two int32s,
     // to avoid platform-dependencies.
     V8_Fatal(file, line,
@@ -83,7 +84,7 @@ inline void CheckNonEqualsHelper(const char* file,
                                  int unexpected,
                                  const char* value_source,
                                  int value) {
-  if (unexpected == value) {
+  if (V8_UNLIKELY(unexpected == value)) {
     V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %i",
              unexpected_source, value_source, value);
   }
@@ -98,9 +99,10 @@ inline void CheckEqualsHelper(const char* file,
                               const char* expected,
                               const char* value_source,
                               const char* value) {
-  if ((expected == NULL && value != NULL) ||
-      (expected != NULL && value == NULL) ||
-      (expected != NULL && value != NULL && strcmp(expected, value) != 0)) {
+  if (V8_UNLIKELY((expected == NULL && value != NULL) ||
+                  (expected != NULL && value == NULL) ||
+                  (expected != NULL && value != NULL &&
+                   strcmp(expected, value) != 0))) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %s\n#   Found: %s",
              expected_source, value_source, expected, value);
@@ -114,8 +116,8 @@ inline void CheckNonEqualsHelper(const char* file,
                                  const char* expected,
                                  const char* value_source,
                                  const char* value) {
-  if (expected == value ||
-      (expected != NULL && value != NULL && strcmp(expected, value) == 0)) {
+  if (V8_UNLIKELY(expected == value || (expected != NULL && value != NULL &&
+                                        strcmp(expected, value) == 0))) {
     V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %s",
              expected_source, value_source, value);
   }
@@ -130,7 +132,7 @@ inline void CheckEqualsHelper(const char* file,
                               const void* expected,
                               const char* value_source,
                               const void* value) {
-  if (expected != value) {
+  if (V8_UNLIKELY(expected != value)) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %p\n#   Found: %p",
              expected_source, value_source,
@@ -145,7 +147,7 @@ inline void CheckNonEqualsHelper(const char* file,
                                  const void* expected,
                                  const char* value_source,
                                  const void* value) {
-  if (expected == value) {
+  if (V8_UNLIKELY(expected == value)) {
     V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %p",
              expected_source, value_source, value);
   }
@@ -158,7 +160,7 @@ inline void CheckNonEqualsHelper(const char* file,
                               int64_t expected,
                               const char* value_source,
                               int64_t value) {
-  if (expected == value) {
+  if (V8_UNLIKELY(expected == value)) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
              expected_source, value_source, expected, value);
