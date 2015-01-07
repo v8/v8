@@ -27,8 +27,6 @@
 
 
 # Variable default definitions. Override them by exporting them in your shell.
-CXX ?= g++
-LINK ?= g++
 OUTDIR ?= out
 TESTJOBS ?=
 GYPFLAGS ?=
@@ -144,14 +142,9 @@ endif
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
 endif
-# asan=/path/to/clang++
-ifneq ($(strip $(asan)),)
-  GYPFLAGS += -Dasan=1
-  export CC=$(dir $(asan))clang
-  export CXX=$(asan)
-  export CXX_host=$(asan)
-  export LINK=$(asan)
-  export ASAN_SYMBOLIZER_PATH=$(dir $(asan))llvm-symbolizer
+# asan=on
+ifeq ($(asan), on)
+  GYPFLAGS += -Dasan=1 -Dclang=1
   TESTFLAGS += --asan
   ifeq ($(lsan), on)
     GYPFLAGS += -Dlsan=1
@@ -291,7 +284,6 @@ $(ARCHES): $(addprefix $$@.,$(DEFAULT_MODES))
 # Defines how to build a particular target (e.g. ia32.release).
 $(BUILDS): $(OUTDIR)/Makefile.$$@
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
-	         CXX="$(CXX)" LINK="$(LINK)" \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print \
 	                     raw_input().replace('opt', '').capitalize()") \
@@ -299,7 +291,7 @@ $(BUILDS): $(OUTDIR)/Makefile.$$@
 
 native: $(OUTDIR)/Makefile.native
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \
-	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
+	         BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
@@ -468,8 +460,10 @@ $(ENVFILE): $(ENVFILE).new
 
 # Stores current GYPFLAGS in a file.
 $(ENVFILE).new:
-	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new; \
-	    echo "CXX=$(CXX)" >> $(ENVFILE).new
+	$(eval CXX_TARGET_ARCH:=$(shell $(CXX) -v 2>&1 | grep ^Target: | \
+	        cut -f 2 -d " " | cut -f 1 -d "-" ))
+	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
+	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS) -Dtarget_arch=$(CXX_TARGET_ARCH)" > $(ENVFILE).new;
 
 # Heap constants for grokdump.
 DUMP_FILE = tools/v8heapconst.py
