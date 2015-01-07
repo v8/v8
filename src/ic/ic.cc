@@ -1223,8 +1223,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         }
         return compiler.CompileLoadViaGetter(lookup->name(), function);
       }
-      // TODO(dcarney): Handle correctly.
-      DCHECK(accessors->IsDeclaredAccessorInfo());
       break;
     }
 
@@ -1732,9 +1730,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
                                               Handle<JSFunction>::cast(setter));
       }
-      // TODO(dcarney): Handle correctly.
-      DCHECK(accessors->IsDeclaredAccessorInfo());
-      TRACE_GENERIC_IC(isolate(), "StoreIC", "declared accessor info");
       break;
     }
 

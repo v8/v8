@@ -135,43 +135,41 @@ class RegisteredExtension {
 };
 
 
-#define OPEN_HANDLE_LIST(V)                    \
-  V(Template, TemplateInfo)                    \
-  V(FunctionTemplate, FunctionTemplateInfo)    \
-  V(ObjectTemplate, ObjectTemplateInfo)        \
-  V(Signature, SignatureInfo)                  \
-  V(AccessorSignature, FunctionTemplateInfo)   \
-  V(TypeSwitch, TypeSwitchInfo)                \
-  V(Data, Object)                              \
-  V(RegExp, JSRegExp)                          \
-  V(Object, JSObject)                          \
-  V(Array, JSArray)                            \
-  V(ArrayBuffer, JSArrayBuffer)                \
-  V(ArrayBufferView, JSArrayBufferView)        \
-  V(TypedArray, JSTypedArray)                  \
-  V(Uint8Array, JSTypedArray)                  \
-  V(Uint8ClampedArray, JSTypedArray)           \
-  V(Int8Array, JSTypedArray)                   \
-  V(Uint16Array, JSTypedArray)                 \
-  V(Int16Array, JSTypedArray)                  \
-  V(Uint32Array, JSTypedArray)                 \
-  V(Int32Array, JSTypedArray)                  \
-  V(Float32Array, JSTypedArray)                \
-  V(Float64Array, JSTypedArray)                \
-  V(DataView, JSDataView)                      \
-  V(Name, Name)                                \
-  V(String, String)                            \
-  V(Symbol, Symbol)                            \
-  V(Script, JSFunction)                        \
-  V(UnboundScript, SharedFunctionInfo)         \
-  V(Function, JSFunction)                      \
-  V(Message, JSMessageObject)                  \
-  V(Context, Context)                          \
-  V(External, Object)                          \
-  V(StackTrace, JSArray)                       \
-  V(StackFrame, JSObject)                      \
-  V(DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
-
+#define OPEN_HANDLE_LIST(V)                  \
+  V(Template, TemplateInfo)                  \
+  V(FunctionTemplate, FunctionTemplateInfo)  \
+  V(ObjectTemplate, ObjectTemplateInfo)      \
+  V(Signature, SignatureInfo)                \
+  V(AccessorSignature, FunctionTemplateInfo) \
+  V(TypeSwitch, TypeSwitchInfo)              \
+  V(Data, Object)                            \
+  V(RegExp, JSRegExp)                        \
+  V(Object, JSObject)                        \
+  V(Array, JSArray)                          \
+  V(ArrayBuffer, JSArrayBuffer)              \
+  V(ArrayBufferView, JSArrayBufferView)      \
+  V(TypedArray, JSTypedArray)                \
+  V(Uint8Array, JSTypedArray)                \
+  V(Uint8ClampedArray, JSTypedArray)         \
+  V(Int8Array, JSTypedArray)                 \
+  V(Uint16Array, JSTypedArray)               \
+  V(Int16Array, JSTypedArray)                \
+  V(Uint32Array, JSTypedArray)               \
+  V(Int32Array, JSTypedArray)                \
+  V(Float32Array, JSTypedArray)              \
+  V(Float64Array, JSTypedArray)              \
+  V(DataView, JSDataView)                    \
+  V(Name, Name)                              \
+  V(String, String)                          \
+  V(Symbol, Symbol)                          \
+  V(Script, JSFunction)                      \
+  V(UnboundScript, SharedFunctionInfo)       \
+  V(Function, JSFunction)                    \
+  V(Message, JSMessageObject)                \
+  V(Context, Context)                        \
+  V(External, Object)                        \
+  V(StackTrace, JSArray)                     \
+  V(StackFrame, JSObject)
 
 class Utils {
  public:
@@ -257,8 +255,6 @@ class Utils {
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<DeclaredAccessorDescriptor> ToLocal(
-      v8::internal::Handle<v8::internal::DeclaredAccessorDescriptor> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -365,7 +361,6 @@ MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
-MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL

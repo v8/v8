@@ -113,7 +113,6 @@
         'test-cpu-profiler.cc',
         'test-date.cc',
         'test-debug.cc',
-        'test-declarative-accessors.cc',
         'test-decls.cc',
         'test-deoptimization.cc',
         'test-dictionary.cc',
