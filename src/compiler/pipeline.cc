@@ -584,11 +584,11 @@ struct AllocateDoubleRegistersPhase {
 };
 
 
-struct ReuseSpillSlotsPhase {
-  static const char* phase_name() { return "reuse spill slots"; }
+struct AssignSpillSlotsPhase {
+  static const char* phase_name() { return "assign spill slots"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->register_allocator()->ReuseSpillSlots();
+    data->register_allocator()->AssignSpillSlots();
   }
 };
 
@@ -1036,9 +1036,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   }
   Run<AllocateGeneralRegistersPhase>();
   Run<AllocateDoubleRegistersPhase>();
-  if (FLAG_turbo_reuse_spill_slots) {
-    Run<ReuseSpillSlotsPhase>();
-  }
+  Run<AssignSpillSlotsPhase>();
+
   Run<CommitAssignmentPhase>();
   Run<PopulatePointerMapsPhase>();
   Run<ConnectRangesPhase>();
