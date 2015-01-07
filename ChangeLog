@@ -1,3 +1,8 @@
+2015-01-07: Version 3.32.2
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-07: Version 3.32.1
 
         [turbofan] Don't crash when typing load from a Uint8ClampedArray

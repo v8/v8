@@ -812,6 +812,8 @@ TEST(LowerAnyToBoolean_bit_bit) {
 }
 
 
+#if V8_TURBOFAN_TARGET
+
 TEST(LowerAnyToBoolean_tagged_tagged) {
   // AnyToBoolean(x: kRepTagged) used as kRepTagged
   TestingGraph t(Type::Any());
@@ -825,6 +827,8 @@ TEST(LowerAnyToBoolean_tagged_tagged) {
   CHECK_EQ(x, cnv->InputAt(1));
   CHECK_EQ(t.jsgraph.NoContextConstant(), cnv->InputAt(2));
 }
+
+#endif
 
 
 TEST(LowerBooleanNot_bit_bit) {
