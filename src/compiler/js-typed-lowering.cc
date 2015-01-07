@@ -837,14 +837,36 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
-  // result value and can simply replace the node unless there are effects.
+  // result value and can simply replace the node if it's eliminable.
   if (NodeProperties::IsTyped(node) &&
-      NodeProperties::GetBounds(node).upper->IsConstant() &&
       !IrOpcode::IsLeafOpcode(node->opcode()) &&
-      node->op()->EffectOutputCount() == 0) {
-    return ReplaceEagerly(node, jsgraph()->Constant(
-        NodeProperties::GetBounds(node).upper->AsConstant()->Value()));
-    // TODO(neis): Extend this to Range(x,x), NaN, MinusZero, ...?
+      node->op()->HasProperty(Operator::kEliminatable)) {
+    Type* upper = NodeProperties::GetBounds(node).upper;
+    if (upper->IsConstant()) {
+      Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::MinusZero())) {
+      Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::NaN())) {
+      Node* replacement = jsgraph()->NaNConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::Null())) {
+      Node* replacement = jsgraph()->NullConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::PlainNumber()) && upper->Min() == upper->Max()) {
+      Node* replacement = jsgraph()->Constant(upper->Min());
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    } else if (upper->Is(Type::Undefined())) {
+      Node* replacement = jsgraph()->UndefinedConstant();
+      NodeProperties::ReplaceWithValue(node, replacement);
+      return Changed(replacement);
+    }
   }
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:

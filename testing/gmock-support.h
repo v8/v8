@@ -5,6 +5,7 @@
 #ifndef V8_TESTING_GMOCK_SUPPORT_H_
 #define V8_TESTING_GMOCK_SUPPORT_H_
 
+#include <cmath>
 #include <cstring>
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -94,6 +95,12 @@ inline internal::BitEqMatcher<T> BitEq(T const& x) {
 template <typename T>
 inline Matcher<T> CaptureEq(Capture<T>* capture) {
   return MakeMatcher(new internal::CaptureEqMatcher<T>(capture));
+}
+
+
+// Creates a polymorphic matcher that matches any floating point NaN value.
+MATCHER(IsNaN, std::string(negation ? "isn't" : "is") + " not a number") {
+  return std::isnan(arg);
 }
 
 }  // namespace testing
