@@ -69,9 +69,20 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
       concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> code;
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+    // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);
   } else {
-    function->ReplaceCode(function->shared()->code());
+    // Optimization failed, get unoptimized code.
+    if (isolate->has_pending_exception()) {  // Possible stack overflow.
+      return isolate->heap()->exception();
+    }
+    code = Handle<Code>(function->shared()->code(), isolate);
+    if (code->kind() != Code::FUNCTION &&
+        code->kind() != Code::OPTIMIZED_FUNCTION) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, code, Compiler::GetUnoptimizedCode(function));
+    }
+    function->ReplaceCode(*code);
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
