@@ -458,6 +458,13 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
 }
 
 
+int InstructionSequence::NextVirtualRegister() {
+  int virtual_register = next_virtual_register_++;
+  CHECK_NE(virtual_register, UnallocatedOperand::kInvalidVirtualRegister);
+  return virtual_register;
+}
+
+
 BlockStartInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);

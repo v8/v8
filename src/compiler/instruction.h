@@ -73,9 +73,9 @@ class InstructionOperand : public ZoneObject {
   static void TearDownCaches();
 
  protected:
-  typedef BitField64<Kind, 0, 3> KindField;
+  typedef BitField<Kind, 0, 3> KindField;
 
-  uint64_t value_;
+  uint32_t value_;
 };
 
 typedef ZoneVector<InstructionOperand*> InstructionOperandVector;
@@ -115,27 +115,29 @@ class UnallocatedOperand : public InstructionOperand {
     USED_AT_END
   };
 
+  static const int kInvalidVirtualRegister = -1;
+
   explicit UnallocatedOperand(ExtendedPolicy policy)
-      : InstructionOperand(UNALLOCATED, 0) {
-    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
+      : InstructionOperand(UNALLOCATED, 0),
+        virtual_register_(kInvalidVirtualRegister) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
   }
 
   UnallocatedOperand(BasicPolicy policy, int index)
-      : InstructionOperand(UNALLOCATED, 0) {
+      : InstructionOperand(UNALLOCATED, 0),
+        virtual_register_(kInvalidVirtualRegister) {
     DCHECK(policy == FIXED_SLOT);
-    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(policy);
-    value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
+    value_ |= static_cast<int32_t>(index) << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index)
-      : InstructionOperand(UNALLOCATED, 0) {
+      : InstructionOperand(UNALLOCATED, 0),
+        virtual_register_(kInvalidVirtualRegister) {
     DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
-    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -143,8 +145,8 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   UnallocatedOperand(ExtendedPolicy policy, Lifetime lifetime)
-      : InstructionOperand(UNALLOCATED, 0) {
-    value_ |= VirtualRegisterField::encode(kInvalidVirtualRegister);
+      : InstructionOperand(UNALLOCATED, 0),
+        virtual_register_(kInvalidVirtualRegister) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(lifetime);
@@ -172,35 +174,32 @@ class UnallocatedOperand : public InstructionOperand {
   // because it accommodates a larger pay-load.
   //
   // For FIXED_SLOT policy:
-  //     +------------------------------------------+
-  //     |       slot_index      |  vreg  | 0 | 001 |
-  //     +------------------------------------------+
+  //     +-----------------------------+
+  //     |      slot_index   | 0 | 001 |
+  //     +-----------------------------+
   //
   // For all other (extended) policies:
-  //     +------------------------------------------+
-  //     |  reg_index  | L | PPP |  vreg  | 1 | 001 |    L ... Lifetime
-  //     +------------------------------------------+    P ... Policy
+  //     +----------------------------------+
+  //     |  reg_index  | L | PPP |  1 | 001 |    L ... Lifetime
+  //     +----------------------------------+    P ... Policy
   //
   // The slot index is a signed value which requires us to decode it manually
-  // instead of using the BitField64 utility class.
+  // instead of using the BitField utility class.
 
   // The superclass has a KindField.
   STATIC_ASSERT(KindField::kSize == 3);
 
   // BitFields for all unallocated operands.
-  class BasicPolicyField : public BitField64<BasicPolicy, 3, 1> {};
-  class VirtualRegisterField : public BitField64<unsigned, 4, 30> {};
+  class BasicPolicyField : public BitField<BasicPolicy, 3, 1> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField : public BitField64<int, 34, 30> {};
+  class FixedSlotIndexField : public BitField<int, 4, 28> {};
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 34, 3> {};
-  class LifetimeField : public BitField64<Lifetime, 37, 1> {};
-  class FixedRegisterField : public BitField64<int, 38, 6> {};
+  class ExtendedPolicyField : public BitField<ExtendedPolicy, 4, 3> {};
+  class LifetimeField : public BitField<Lifetime, 7, 1> {};
+  class FixedRegisterField : public BitField<int, 8, 6> {};
 
-  static const int kInvalidVirtualRegister = VirtualRegisterField::kMax;
-  static const int kMaxVirtualRegisters = VirtualRegisterField::kMax;
   static const int kFixedSlotIndexWidth = FixedSlotIndexField::kSize;
   static const int kMaxFixedSlotIndex = (1 << (kFixedSlotIndexWidth - 1)) - 1;
   static const int kMinFixedSlotIndex = -(1 << (kFixedSlotIndexWidth - 1));
@@ -244,7 +243,7 @@ class UnallocatedOperand : public InstructionOperand {
   // [fixed_slot_index]: Only for FIXED_SLOT.
   int fixed_slot_index() const {
     DCHECK(HasFixedSlotPolicy());
-    return static_cast<int>(bit_cast<int64_t>(value_) >>
+    return static_cast<int>(bit_cast<int32_t>(value_) >>
                             FixedSlotIndexField::kShift);
   }
 
@@ -255,16 +254,18 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   // [virtual_register]: The virtual register ID for this operand.
-  int virtual_register() const { return VirtualRegisterField::decode(value_); }
-  void set_virtual_register(unsigned id) {
-    value_ = VirtualRegisterField::update(value_, id);
-  }
+  int32_t virtual_register() const { return virtual_register_; }
+  void set_virtual_register(int32_t id) { virtual_register_ = id; }
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() const {
     DCHECK(basic_policy() == EXTENDED_POLICY);
     return LifetimeField::decode(value_) == USED_AT_START;
   }
+
+ private:
+  // TODO(dcarney): this should really be unsigned.
+  int32_t virtual_register_;
 };
 
 
@@ -947,7 +948,7 @@ class InstructionSequence FINAL : public ZoneObject {
 
   InstructionSequence(Zone* zone, InstructionBlocks* instruction_blocks);
 
-  int NextVirtualRegister() { return next_virtual_register_++; }
+  int NextVirtualRegister();
   int VirtualRegisterCount() const { return next_virtual_register_; }
 
   const InstructionBlocks& instruction_blocks() const {
