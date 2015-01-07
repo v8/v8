@@ -403,6 +403,14 @@ class ControlReducerImpl {
     if (n <= 1) return dead();            // No non-control inputs.
     if (n == 2) return node->InputAt(0);  // Only one non-control input.
 
+    // Never remove an effect phi from a (potentially non-terminating) loop.
+    // Otherwise, we might end up eliminating effect nodes, such as calls,
+    // before the loop.
+    if (node->opcode() == IrOpcode::kEffectPhi &&
+        NodeProperties::GetControlInput(node)->opcode() == IrOpcode::kLoop) {
+      return node;
+    }
+
     Node* replacement = NULL;
     Node::Inputs inputs = node->inputs();
     for (InputIter it = inputs.begin(); n > 1; --n, ++it) {
