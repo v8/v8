@@ -6,14 +6,11 @@
 #define V8_COMPILER_NODE_H_
 
 #include <deque>
-#include <set>
 #include <vector>
-
-#include "src/v8.h"
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/types.h"
+#include "src/types-inl.h"
 #include "src/zone.h"
 #include "src/zone-allocator.h"
 #include "src/zone-containers.h"
@@ -32,9 +29,11 @@ class Graph;
 // {NodeMarker} has a range of values that indicate states of a node.
 typedef uint32_t Mark;
 
+
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef int NodeId;
+typedef int32_t NodeId;
+
 
 // A Node is the basic primitive of graphs. Nodes are chained together by
 // input/use chains but by default otherwise contain only an identifying number
@@ -47,11 +46,6 @@ typedef int NodeId;
 // by the Node's id.
 class Node FINAL {
  public:
-  void Initialize(const Operator* op) {
-    set_op(op);
-    set_mark(0);
-  }
-
   bool IsDead() const { return InputCount() > 0 && InputAt(0) == NULL; }
   void Kill();
 
@@ -144,8 +138,8 @@ class Node FINAL {
 
   bool OwnedBy(Node* owner) const;
 
-  static Node* New(Graph* graph, int input_count, Node** inputs,
-                   bool has_extensible_inputs);
+  static Node* New(Zone* zone, NodeId id, const Operator* op, int input_count,
+                   Node** inputs, bool has_extensible_inputs);
 
  protected:
   friend class Graph;
@@ -183,13 +177,13 @@ class Node FINAL {
   void* operator new(size_t, void* location) { return location; }
 
  private:
-  inline Node(NodeId id, int input_count, int reserve_input_count);
+  inline Node(NodeId id, const Operator* op, int input_count,
+              int reserve_input_count);
 
   typedef ZoneDeque<Input> InputDeque;
 
+  friend class NodeMarkerBase;
   friend class NodeProperties;
-  template <typename State>
-  friend class NodeMarker;
 
   // Only NodeProperties should manipulate the bounds.
   Bounds bounds() { return bounds_; }
@@ -440,10 +434,6 @@ class Node::Uses::iterator {
 
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
-
-typedef std::set<Node*, std::less<Node*>, zone_allocator<Node*> > NodeSet;
-typedef NodeSet::iterator NodeSetIter;
-typedef NodeSet::reverse_iterator NodeSetRIter;
 
 typedef ZoneDeque<Node*> NodeDeque;
 

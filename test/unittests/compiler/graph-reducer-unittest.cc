@@ -4,6 +4,7 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"

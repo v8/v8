@@ -12,7 +12,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties.h"
+#include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties-inl.h"
 
 namespace v8 {
