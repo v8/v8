@@ -307,8 +307,8 @@ class RepresentationSelector {
     if ((use & kRepMask) == kRepTagged) {
       // only tagged uses.
       return kRepTagged;
-    } else if (IsSafeIntAdditiveOperand(node)) {
-      // Integer within [-2^52, 2^52] range.
+    } else if (upper->Is(Type::Integral32())) {
+      // Integer within [-2^31, 2^32[ range.
       if ((use & kRepMask) == kRepFloat64) {
         // only float64 uses.
         return kRepFloat64;
@@ -318,7 +318,7 @@ class RepresentationSelector {
       } else if ((use & kRepMask) == kRepWord32 ||
                  (use & kTypeMask) == kTypeInt32 ||
                  (use & kTypeMask) == kTypeUint32) {
-        // The type is a safe integer, but we only use 32 bits.
+        // We only use 32 bits or we use the result consistently.
         return kRepWord32;
       } else {
         return kRepFloat64;
