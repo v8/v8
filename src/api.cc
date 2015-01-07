@@ -1943,15 +1943,17 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
-    EXCEPTION_PREAMBLE(isolate_);
-    Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
-    has_pending_exception = !maybe.has_value;
-    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
-    if (!maybe.value) return v8::Local<Value>();
-    i::Handle<i::Object> value;
-    if (!i::Object::GetProperty(obj, name).ToHandle(&value)) {
-      return v8::Local<Value>();
+    {
+      EXCEPTION_PREAMBLE(isolate_);
+      Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
+      has_pending_exception = !maybe.has_value;
+      EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
+      if (!maybe.value) return v8::Local<Value>();
     }
+    i::Handle<i::Object> value;
+    EXCEPTION_PREAMBLE(isolate_);
+    has_pending_exception = !i::Object::GetProperty(obj, name).ToHandle(&value);
+    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
     return v8::Local<Value>();
