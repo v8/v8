@@ -1004,12 +1004,6 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
                                  bool run_verifier) {
   PipelineData* data = this->data_;
 
-  int node_count = data->sequence()->VirtualRegisterCount();
-  if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
-    data->set_compilation_failed();
-    return;
-  }
-
   // Don't track usage for this zone in compiler stats.
   SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
@@ -1041,15 +1035,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     CHECK(!data->register_allocator()->ExistsUseWithoutDefinition());
   }
   Run<AllocateGeneralRegistersPhase>();
-  if (!data->register_allocator()->AllocationOk()) {
-    data->set_compilation_failed();
-    return;
-  }
   Run<AllocateDoubleRegistersPhase>();
-  if (!data->register_allocator()->AllocationOk()) {
-    data->set_compilation_failed();
-    return;
-  }
   if (FLAG_turbo_reuse_spill_slots) {
     Run<ReuseSpillSlotsPhase>();
   }
