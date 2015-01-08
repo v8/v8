@@ -27,12 +27,14 @@ class RepresentationChanger {
       : jsgraph_(jsgraph),
         simplified_(simplified),
         isolate_(isolate),
+        bit_range_(Type::Range(isolate->factory()->NewNumber(0),
+                               isolate->factory()->NewNumber(1),
+                               jsgraph->zone())),
         testing_type_errors_(false),
         type_error_(false) {}
 
   // TODO(titzer): should Word64 also be implicitly convertable to others?
-  static const MachineTypeUnion rWord =
-      kRepBit | kRepWord8 | kRepWord16 | kRepWord32;
+  static const MachineTypeUnion rWord = kRepWord8 | kRepWord16 | kRepWord32;
 
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
                              MachineTypeUnion use_type) {
@@ -262,8 +264,10 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Word32 operator.
-    const Operator* op = NULL;
-    if (output_type & kRepFloat64) {
+    const Operator* op;
+    if (output_type & kRepBit) {
+      return node;  // No change necessary.
+    } else if (output_type & kRepFloat64) {
       if (output_type & kTypeUint32 || use_unsigned) {
         op = machine()->ChangeFloat64ToUint32();
       } else {
@@ -298,17 +302,12 @@ class RepresentationChanger {
       }
       case IrOpcode::kNumberConstant: {
         double value = OpParameter<double>(node);
-        if (std::isnan(value) || value == 0.0) {
-          return jsgraph()->Int32Constant(0);
-        }
-        return jsgraph()->Int32Constant(1);
+        if (value == 0 || std::isnan(value)) return jsgraph()->Int32Constant(0);
+        return jsgraph()->Int32Constant(1);  // value != +0.0, -0.0, NaN
       }
       case IrOpcode::kHeapConstant: {
-        Handle<Object> handle = OpParameter<Unique<Object> >(node).handle();
-        DCHECK(*handle == isolate()->heap()->true_value() ||
-               *handle == isolate()->heap()->false_value());
-        return jsgraph()->Int32Constant(
-            *handle == isolate()->heap()->true_value() ? 1 : 0);
+        Handle<Object> object = OpParameter<Unique<Object>>(node).handle();
+        return jsgraph()->Int32Constant(object->BooleanValue() ? 1 : 0);
       }
       default:
         break;
@@ -316,15 +315,28 @@ class RepresentationChanger {
     // Select the correct X -> Bit operator.
     const Operator* op;
     if (output_type & rWord) {
-      return node;  // No change necessary.
+      op = simplified()->ChangeWord32ToBit();
     } else if (output_type & kRepWord64) {
-      return node;  // TODO(titzer): No change necessary, on 64-bit.
+      op = simplified()->ChangeWord64ToBit();
     } else if (output_type & kRepTagged) {
-      op = simplified()->ChangeBoolToBit();
+      Type* upper = NodeProperties::GetBounds(node).upper;
+      if (upper->Is(Type::Boolean())) {
+        op = simplified()->ChangeBoolToBit();
+      } else if (upper->Is(Type::Signed32())) {
+        // Tagged -> Int32 -> Bit
+        node = InsertChangeTaggedToInt32(node);
+        op = simplified()->ChangeWord32ToBit();
+      } else if (upper->Is(Type::Unsigned32())) {
+        // Tagged -> Uint32 -> Bit
+        node = InsertChangeTaggedToUint32(node);
+        op = simplified()->ChangeWord32ToBit();
+      } else {
+        return TypeError(node, output_type, kRepBit);
+      }
     } else {
       return TypeError(node, output_type, kRepBit);
     }
-    return jsgraph()->graph()->NewNode(op, node);
+    return graph()->NewNode(op, node);
   }
 
   Node* GetWord64RepresentationFor(Node* node, MachineTypeUnion output_type) {
@@ -429,6 +441,7 @@ class RepresentationChanger {
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder* simplified_;
   Isolate* isolate_;
+  Type* bit_range_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
 
@@ -455,19 +468,26 @@ class RepresentationChanger {
   }
 
   Node* InsertChangeFloat32ToFloat64(Node* node) {
-    return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
-                                       node);
+    return graph()->NewNode(machine()->ChangeFloat32ToFloat64(), node);
   }
 
   Node* InsertChangeTaggedToFloat64(Node* node) {
-    return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
-                                       node);
+    return graph()->NewNode(simplified()->ChangeTaggedToFloat64(), node);
   }
 
-  JSGraph* jsgraph() { return jsgraph_; }
-  Isolate* isolate() { return isolate_; }
-  SimplifiedOperatorBuilder* simplified() { return simplified_; }
-  MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
+  Node* InsertChangeTaggedToInt32(Node* node) {
+    return graph()->NewNode(simplified()->ChangeTaggedToInt32(), node);
+  }
+
+  Node* InsertChangeTaggedToUint32(Node* node) {
+    return graph()->NewNode(simplified()->ChangeTaggedToUint32(), node);
+  }
+
+  Graph* graph() const { return jsgraph()->graph(); }
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return isolate_; }
+  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
+  MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
 };
 
 }  // namespace compiler

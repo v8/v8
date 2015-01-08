@@ -298,6 +298,27 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeBoolToBitWithChangeBitToBool) {
 
 
 // -----------------------------------------------------------------------------
+// ChangeWord32ToBit
+
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeWord32ToBitWithBitType) {
+  Handle<Object> zero = factory()->NewNumber(0);
+  Handle<Object> one = factory()->NewNumber(1);
+  Type* const kBitTypes[] = {
+      Type::Constant(zero, zone()), Type::Constant(one, zone()),
+      Type::Range(zero, zero, zone()), Type::Range(one, one, zone()),
+      Type::Range(zero, one, zone())};
+  TRACED_FOREACH(Type*, type, kBitTypes) {
+    Node* param0 = Parameter(type, 0);
+    Reduction reduction =
+        Reduce(graph()->NewNode(simplified()->ChangeWord32ToBit(), param0));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_EQ(param0, reduction.replacement());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // ChangeFloat64ToTagged
 
 

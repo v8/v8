@@ -17,6 +17,7 @@ class JSGraph;
 class Linkage;
 class MachineOperatorBuilder;
 
+
 class ChangeLowering FINAL : public Reducer {
  public:
   ChangeLowering(JSGraph* jsgraph, Linkage* linkage)
@@ -40,8 +41,10 @@ class ChangeLowering FINAL : public Reducer {
   Node* TestNotSmi(Node* value);
   Node* Uint32LessThanOrEqual(Node* lhs, Node* rhs);
 
-  Reduction ChangeBitToBool(Node* value, Node* control);
+  Reduction ChangeBitToBool(Node* value);
   Reduction ChangeBoolToBit(Node* value);
+  Reduction ChangeWord32ToBit(Node* value);
+  Reduction ChangeWord64ToBit(Node* value);
   Reduction ChangeFloat64ToTagged(Node* value, Node* control);
   Reduction ChangeInt32ToTagged(Node* value, Node* control);
   Reduction ChangeTaggedToFloat64(Node* value, Node* control);
