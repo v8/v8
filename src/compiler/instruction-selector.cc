@@ -4,7 +4,6 @@
 
 #include "src/compiler/instruction-selector.h"
 
-#include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
@@ -14,57 +13,56 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-InstructionSelector::InstructionSelector(Zone* local_zone, Graph* graph,
+InstructionSelector::InstructionSelector(Zone* zone, size_t node_count,
                                          Linkage* linkage,
                                          InstructionSequence* sequence,
                                          Schedule* schedule,
                                          SourcePositionTable* source_positions,
                                          Features features)
-    : zone_(local_zone),
+    : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
       source_positions_(source_positions),
       features_(features),
       schedule_(schedule),
-      node_map_(graph->NodeCount(), kNodeUnmapped, zone()),
       current_block_(NULL),
-      instructions_(zone()),
-      defined_(graph->NodeCount(), false, zone()),
-      used_(graph->NodeCount(), false, zone()) {}
+      instructions_(zone),
+      defined_(node_count, false, zone),
+      used_(node_count, false, zone),
+      virtual_registers_(node_count,
+                         UnallocatedOperand::kInvalidVirtualRegister, zone) {
+  instructions_.reserve(node_count);
+}
 
 
 void InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   BasicBlockVector* blocks = schedule()->rpo_order();
-  for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
-    BasicBlock* block = *i;
+  for (auto const block : *blocks) {
     if (!block->IsLoopHeader()) continue;
-    DCHECK_NE(0, static_cast<int>(block->PredecessorCount()));
-    DCHECK_NE(1, static_cast<int>(block->PredecessorCount()));
-    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
-         ++j) {
-      Node* phi = *j;
+    DCHECK_LE(2, block->PredecessorCount());
+    for (Node* const phi : *block) {
       if (phi->opcode() != IrOpcode::kPhi) continue;
 
       // Mark all inputs as used.
-      for (Node* const k : phi->inputs()) {
-        MarkAsUsed(k);
+      for (Node* const input : phi->inputs()) {
+        MarkAsUsed(input);
       }
     }
   }
 
   // Visit each basic block in post order.
-  for (BasicBlockVectorRIter i = blocks->rbegin(); i != blocks->rend(); ++i) {
+  for (auto i = blocks->rbegin(); i != blocks->rend(); ++i) {
     VisitBlock(*i);
   }
 
   // Schedule the selected instructions.
-  for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
-    BasicBlock* block = *i;
+  for (auto const block : *blocks) {
     InstructionBlock* instruction_block =
         sequence()->InstructionBlockAt(block->GetRpoNumber());
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
+    DCHECK_LE(end, start);
     sequence()->StartBlock(block->GetRpoNumber());
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start]);
@@ -180,58 +178,70 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
 
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
-  if (node_map_[node->id()] == kNodeUnmapped) {
-    node_map_[node->id()] = sequence()->NextVirtualRegister();
+  DCHECK_NOT_NULL(node);
+  size_t const id = node->id();
+  DCHECK_LT(id, virtual_registers_.size());
+  int virtual_register = virtual_registers_[id];
+  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+    virtual_register = sequence()->NextVirtualRegister();
+    virtual_registers_[id] = virtual_register;
   }
-  return node_map_[node->id()];
+  return virtual_register;
 }
 
 
-int InstructionSelector::GetMappedVirtualRegister(const Node* node) const {
-  return node_map_[node->id()];
+const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
+    const {
+  std::map<NodeId, int> virtual_registers;
+  for (size_t n = 0; n < virtual_registers_.size(); ++n) {
+    if (virtual_registers_[n] != UnallocatedOperand::kInvalidVirtualRegister) {
+      NodeId const id = static_cast<NodeId>(n);
+      virtual_registers.insert(std::make_pair(id, virtual_registers_[n]));
+    }
+  }
+  return virtual_registers;
 }
 
 
 bool InstructionSelector::IsDefined(Node* node) const {
   DCHECK_NOT_NULL(node);
-  NodeId id = node->id();
-  DCHECK(id >= 0);
-  DCHECK(id < static_cast<NodeId>(defined_.size()));
+  size_t const id = node->id();
+  DCHECK_LT(id, defined_.size());
   return defined_[id];
 }
 
 
 void InstructionSelector::MarkAsDefined(Node* node) {
   DCHECK_NOT_NULL(node);
-  NodeId id = node->id();
-  DCHECK(id >= 0);
-  DCHECK(id < static_cast<NodeId>(defined_.size()));
+  size_t const id = node->id();
+  DCHECK_LT(id, defined_.size());
   defined_[id] = true;
 }
 
 
 bool InstructionSelector::IsUsed(Node* node) const {
+  DCHECK_NOT_NULL(node);
   if (!node->op()->HasProperty(Operator::kEliminatable)) return true;
-  NodeId id = node->id();
-  DCHECK(id >= 0);
-  DCHECK(id < static_cast<NodeId>(used_.size()));
+  size_t const id = node->id();
+  DCHECK_LT(id, used_.size());
   return used_[id];
 }
 
 
 void InstructionSelector::MarkAsUsed(Node* node) {
   DCHECK_NOT_NULL(node);
-  NodeId id = node->id();
-  DCHECK(id >= 0);
-  DCHECK(id < static_cast<NodeId>(used_.size()));
+  size_t const id = node->id();
+  DCHECK_LT(id, used_.size());
   used_[id] = true;
 }
 
 
 bool InstructionSelector::IsDouble(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  int virtual_register = GetMappedVirtualRegister(node);
-  if (virtual_register == kNodeUnmapped) return false;
+  int const virtual_register = virtual_registers_[node->id()];
+  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+    return false;
+  }
   return sequence()->IsDouble(virtual_register);
 }
 
@@ -245,8 +255,10 @@ void InstructionSelector::MarkAsDouble(Node* node) {
 
 bool InstructionSelector::IsReference(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  int virtual_register = GetMappedVirtualRegister(node);
-  if (virtual_register == kNodeUnmapped) return false;
+  int const virtual_register = virtual_registers_[node->id()];
+  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+    return false;
+  }
   return sequence()->IsReference(virtual_register);
 }
 

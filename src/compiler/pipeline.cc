@@ -531,7 +531,7 @@ struct InstructionSelectionPhase {
   static const char* phase_name() { return "select instructions"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    InstructionSelector selector(temp_zone, data->graph(), linkage,
+    InstructionSelector selector(temp_zone, data->graph()->NodeCount(), linkage,
                                  data->sequence(), data->schedule(),
                                  data->source_positions());
     selector.SelectInstructions();

@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_H_
 
-#include <deque>
+#include <map>
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
@@ -21,17 +21,12 @@ struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
 
-typedef IntVector NodeToVregMap;
-
 class InstructionSelector FINAL {
  public:
-  static const int kNodeUnmapped = -1;
-
   // Forward declarations.
   class Features;
 
-  // TODO(dcarney): pass in vreg mapping instead of graph.
-  InstructionSelector(Zone* local_zone, Graph* graph, Linkage* linkage,
+  InstructionSelector(Zone* zone, size_t node_count, Linkage* linkage,
                       InstructionSequence* sequence, Schedule* schedule,
                       SourcePositionTable* source_positions,
                       Features features = SupportedFeatures());
@@ -126,9 +121,7 @@ class InstructionSelector FINAL {
   bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
 
   int GetVirtualRegister(const Node* node);
-  // Gets the current mapping if it exists, kNodeUnmapped otherwise.
-  int GetMappedVirtualRegister(const Node* node) const;
-  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
+  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
  private:
   friend class OperandGenerator;
@@ -222,11 +215,11 @@ class InstructionSelector FINAL {
   SourcePositionTable* const source_positions_;
   Features features_;
   Schedule* const schedule_;
-  NodeToVregMap node_map_;
   BasicBlock* current_block_;
-  ZoneDeque<Instruction*> instructions_;
+  ZoneVector<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
+  IntVector virtual_registers_;
 };
 
 }  // namespace compiler
