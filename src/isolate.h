@@ -1118,6 +1118,24 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
+  void set_store_buffer_hash_set_1_address(
+      uintptr_t* store_buffer_hash_set_1_address) {
+    store_buffer_hash_set_1_address_ = store_buffer_hash_set_1_address;
+  }
+
+  uintptr_t* store_buffer_hash_set_1_address() {
+    return store_buffer_hash_set_1_address_;
+  }
+
+  void set_store_buffer_hash_set_2_address(
+      uintptr_t* store_buffer_hash_set_2_address) {
+    store_buffer_hash_set_2_address_ = store_buffer_hash_set_2_address;
+  }
+
+  uintptr_t* store_buffer_hash_set_2_address() {
+    return store_buffer_hash_set_2_address_;
+  }
+
  private:
   explicit Isolate(bool enable_serializer);
 
@@ -1270,6 +1288,9 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
+  // TODO(hpayer): Remove the following store buffer addresses.
+  uintptr_t* store_buffer_hash_set_1_address_;
+  uintptr_t* store_buffer_hash_set_2_address_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
