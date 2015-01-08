@@ -18,7 +18,6 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
 
@@ -81,9 +80,6 @@ config("features") {
   }
   if (v8_enable_i18n_support == true) {
     defines += [ "V8_I18N_SUPPORT" ]
-  }
-  if (v8_enable_extra_checks == true) {
-    defines += [ "ENABLE_EXTRA_CHECKS" ]
   }
   if (v8_enable_handle_zapping == true) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]

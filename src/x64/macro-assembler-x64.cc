@@ -799,7 +799,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   j(not_equal, &promote_scheduled_exception);
   bind(&exception_handled);
 
-#if ENABLE_EXTRA_CHECKS
+#if DEBUG
   // Check if the function returned a valid JavaScript value.
   Label ok;
   Register return_value = rax;

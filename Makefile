@@ -85,10 +85,10 @@ ifeq ($(snapshot), external)
 endif
 # extrachecks=on/off
 ifeq ($(extrachecks), on)
-  GYPFLAGS += -Dv8_enable_extra_checks=1 -Dv8_enable_handle_zapping=1
+  GYPFLAGS += -Ddcheck_always_on=1 -Dv8_enable_handle_zapping=1
 endif
 ifeq ($(extrachecks), off)
-  GYPFLAGS += -Dv8_enable_extra_checks=0 -Dv8_enable_handle_zapping=0
+  GYPFLAGS += -Ddcheck_always_on=0 -Dv8_enable_handle_zapping=0
 endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)

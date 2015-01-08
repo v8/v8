@@ -214,12 +214,4 @@ void DumpBacktrace();
 
 #define DCHECK_NOT_NULL(p)  DCHECK_NE(NULL, p)
 
-// "Extra checks" are lightweight checks that are enabled in some release
-// builds.
-#ifdef ENABLE_EXTRA_CHECKS
-#define EXTRA_CHECK(condition) CHECK(condition)
-#else
-#define EXTRA_CHECK(condition) ((void) 0)
-#endif
-
 #endif  // V8_BASE_LOGGING_H_

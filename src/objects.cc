@@ -13539,10 +13539,8 @@ MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
     result = args.Call(enum_fun);
   }
   if (result.IsEmpty()) return MaybeHandle<JSObject>();
-#if ENABLE_EXTRA_CHECKS
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
-        v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
-#endif
+  DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
+         v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
   // Rebox before returning.
   return handle(*v8::Utils::OpenHandle(*result), isolate);
 }
@@ -13564,10 +13562,8 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
     result = args.Call(enum_fun);
   }
   if (result.IsEmpty()) return MaybeHandle<JSObject>();
-#if ENABLE_EXTRA_CHECKS
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
-        v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
-#endif
+  DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
+         v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
   // Rebox before returning.
   return handle(*v8::Utils::OpenHandle(*result), isolate);
 }
