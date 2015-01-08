@@ -53,25 +53,28 @@ class OptimizingCompilerThread::CompileTask : public v8::Task {
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
 
-    TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
-
     OptimizingCompilerThread* thread = isolate_->optimizing_compiler_thread();
 
-    if (thread->recompilation_delay_ != 0) {
-      base::OS::Sleep(thread->recompilation_delay_);
-    }
+    {
+      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
-    StopFlag flag;
-    OptimizedCompileJob* job = thread->NextInput(&flag);
+      if (thread->recompilation_delay_ != 0) {
+        base::OS::Sleep(thread->recompilation_delay_);
+      }
 
-    if (flag == CONTINUE) {
-      thread->CompileNext(job);
-    } else {
-      AllowHandleDereference allow_handle_dereference;
-      if (!job->info()->is_osr()) {
-        DisposeOptimizedCompileJob(job, true);
+      StopFlag flag;
+      OptimizedCompileJob* job = thread->NextInput(&flag);
+
+      if (flag == CONTINUE) {
+        thread->CompileNext(job);
+      } else {
+        AllowHandleDereference allow_handle_dereference;
+        if (!job->info()->is_osr()) {
+          DisposeOptimizedCompileJob(job, true);
+        }
       }
     }
+
     bool signal = false;
     {
       base::LockGuard<base::RecursiveMutex> lock(&thread->task_count_mutex_);
