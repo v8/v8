@@ -58,8 +58,8 @@ namespace {
 
 bool EnableAVX() {
 #if V8_OS_MACOSX
-  // Mac OS X 10.9 has a bug where AVX transitions were indeed being caused by
-  // ISRs, so we detect Mac OS X 10.9 here and disable AVX in that case.
+  // Mac OS X up to 10.9 has a bug where AVX transitions were indeed being
+  // caused by ISRs, so we detect that here and disable AVX in that case.
   char buffer[128];
   size_t buffer_size = arraysize(buffer);
   int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
@@ -67,9 +67,12 @@ bool EnableAVX() {
     V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
   }
   // The buffer now contains a string of the form XX.YY.ZZ, where
-  // XX is the major kernel version component. 13.x.x (Mavericks) is
-  // affected by this bug, so disable AVX there.
-  if (memcmp(buffer, "13.", 3) == 0) return false;
+  // XX is the major kernel version component.
+  char* period_pos = strchr(buffer, '.');
+  DCHECK_NOT_NULL(period_pos);
+  *period_pos = '\0';
+  long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
+  if (kernel_version_major <= 13) return false;
 #endif  // V8_OS_MACOSX
   return FLAG_enable_avx;
 }

@@ -72,7 +72,6 @@ class Context;
 class CpuProfiler;
 class Data;
 class Date;
-class DeclaredAccessorDescriptor;
 class External;
 class Function;
 class FunctionTemplate;
@@ -122,9 +121,6 @@ template<typename T> class PropertyCallbackInfo;
 class StackTrace;
 class StackFrame;
 class Isolate;
-class DeclaredAccessorDescriptor;
-class ObjectOperationDescriptor;
-class RawOperationDescriptor;
 class CallHandlerHelper;
 class EscapableHandleScope;
 template<typename T> class ReturnValue;
@@ -2465,12 +2461,6 @@ class V8_EXPORT Object : public Value {
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None);
 
-  // This function is not yet stable and should not be used at this time.
-  bool SetDeclaredAccessor(Local<Name> name,
-                           Local<DeclaredAccessorDescriptor> descriptor,
-                           PropertyAttribute attribute = None,
-                           AccessControl settings = DEFAULT);
-
   void SetAccessorProperty(Local<Name> name,
                            Local<Function> getter,
                            Handle<Function> setter = Handle<Function>(),
@@ -3539,14 +3529,6 @@ class V8_EXPORT Template : public Data {
                                  Local<AccessorSignature>(),
                              AccessControl settings = DEFAULT);
 
-  // This function is not yet stable and should not be used at this time.
-  bool SetDeclaredAccessor(Local<Name> name,
-                           Local<DeclaredAccessorDescriptor> descriptor,
-                           PropertyAttribute attribute = None,
-                           Local<AccessorSignature> signature =
-                               Local<AccessorSignature>(),
-                           AccessControl settings = DEFAULT);
-
  private:
   Template();
 
@@ -4153,61 +4135,6 @@ class V8_EXPORT AccessorSignature : public Data {
 
  private:
   AccessorSignature();
-};
-
-
-class V8_EXPORT DeclaredAccessorDescriptor : public Data {
- private:
-  DeclaredAccessorDescriptor();
-};
-
-
-class V8_EXPORT ObjectOperationDescriptor : public Data {
- public:
-  // This function is not yet stable and should not be used at this time.
-  static Local<RawOperationDescriptor> NewInternalFieldDereference(
-      Isolate* isolate,
-      int internal_field);
- private:
-  ObjectOperationDescriptor();
-};
-
-
-enum DeclaredAccessorDescriptorDataType {
-    kDescriptorBoolType,
-    kDescriptorInt8Type, kDescriptorUint8Type,
-    kDescriptorInt16Type, kDescriptorUint16Type,
-    kDescriptorInt32Type, kDescriptorUint32Type,
-    kDescriptorFloatType, kDescriptorDoubleType
-};
-
-
-class V8_EXPORT RawOperationDescriptor : public Data {
- public:
-  Local<DeclaredAccessorDescriptor> NewHandleDereference(Isolate* isolate);
-  Local<RawOperationDescriptor> NewRawDereference(Isolate* isolate);
-  Local<RawOperationDescriptor> NewRawShift(Isolate* isolate,
-                                            int16_t byte_offset);
-  Local<DeclaredAccessorDescriptor> NewPointerCompare(Isolate* isolate,
-                                                      void* compare_value);
-  Local<DeclaredAccessorDescriptor> NewPrimitiveValue(
-      Isolate* isolate,
-      DeclaredAccessorDescriptorDataType data_type,
-      uint8_t bool_offset = 0);
-  Local<DeclaredAccessorDescriptor> NewBitmaskCompare8(Isolate* isolate,
-                                                       uint8_t bitmask,
-                                                       uint8_t compare_value);
-  Local<DeclaredAccessorDescriptor> NewBitmaskCompare16(
-      Isolate* isolate,
-      uint16_t bitmask,
-      uint16_t compare_value);
-  Local<DeclaredAccessorDescriptor> NewBitmaskCompare32(
-      Isolate* isolate,
-      uint32_t bitmask,
-      uint32_t compare_value);
-
- private:
-  RawOperationDescriptor();
 };
 
 

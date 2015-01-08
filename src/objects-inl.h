@@ -161,9 +161,7 @@ bool Object::IsExternal() const {
 }
 
 
-bool Object::IsAccessorInfo() const {
-  return IsExecutableAccessorInfo() || IsDeclaredAccessorInfo();
-}
+bool Object::IsAccessorInfo() const { return IsExecutableAccessorInfo(); }
 
 
 bool Object::IsSmi() const {
@@ -5488,12 +5486,6 @@ ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
-
-ACCESSORS(DeclaredAccessorDescriptor, serialized_data, ByteArray,
-          kSerializedDataOffset)
-
-ACCESSORS(DeclaredAccessorInfo, descriptor, DeclaredAccessorDescriptor,
-          kDescriptorOffset)
 
 ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)

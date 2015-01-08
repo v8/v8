@@ -6,6 +6,7 @@
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-marker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/zone-containers.h"

@@ -4,15 +4,15 @@
 
 #include "src/compiler/node.h"
 
-#include "src/compiler/graph.h"
-#include "src/zone.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node::Node(NodeId id, int input_count, int reserved_input_count)
-    : id_(id),
+Node::Node(NodeId id, const Operator* op, int input_count,
+           int reserved_input_count)
+    : op_(op),
+      mark_(0),
+      id_(id),
       bit_field_(InputCountField::encode(input_count) |
                  ReservedInputCountField::encode(reserved_input_count) |
                  HasAppendableInputsField::encode(false)),
@@ -22,17 +22,15 @@ Node::Node(NodeId id, int input_count, int reserved_input_count)
 }
 
 
-Node* Node::New(Graph* graph, int input_count, Node** inputs,
-                bool has_extensible_inputs) {
+Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
+                Node** inputs, bool has_extensible_inputs) {
   size_t node_size = sizeof(Node);
   int reserve_input_count = has_extensible_inputs ? kDefaultReservedInputs : 0;
   size_t inputs_size = (input_count + reserve_input_count) * sizeof(Input);
   size_t uses_size = input_count * sizeof(Use);
   int size = static_cast<int>(node_size + inputs_size + uses_size);
-  Zone* zone = graph->zone();
   void* buffer = zone->New(size);
-  Node* result =
-      new (buffer) Node(graph->NextNodeID(), input_count, reserve_input_count);
+  Node* result = new (buffer) Node(id, op, input_count, reserve_input_count);
   Input* input =
       reinterpret_cast<Input*>(reinterpret_cast<char*>(buffer) + node_size);
   Use* use =

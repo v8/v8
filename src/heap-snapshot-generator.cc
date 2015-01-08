@@ -1422,13 +1422,7 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
   SetInternalReference(accessor_info, entry, "expected_receiver_type",
                        accessor_info->expected_receiver_type(),
                        AccessorInfo::kExpectedReceiverTypeOffset);
-  if (accessor_info->IsDeclaredAccessorInfo()) {
-    DeclaredAccessorInfo* declared_accessor_info =
-        DeclaredAccessorInfo::cast(accessor_info);
-    SetInternalReference(declared_accessor_info, entry, "descriptor",
-                         declared_accessor_info->descriptor(),
-                         DeclaredAccessorInfo::kDescriptorOffset);
-  } else if (accessor_info->IsExecutableAccessorInfo()) {
+  if (accessor_info->IsExecutableAccessorInfo()) {
     ExecutableAccessorInfo* executable_accessor_info =
         ExecutableAccessorInfo::cast(accessor_info);
     SetInternalReference(executable_accessor_info, entry, "getter",

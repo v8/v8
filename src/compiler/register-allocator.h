@@ -403,8 +403,8 @@ class RegisterAllocator FINAL : public ZoneObject {
   void AllocateGeneralRegisters();
   void AllocateDoubleRegisters();
 
-  // Phase 5: reassign spill splots for maximal reuse.
-  void ReuseSpillSlots();
+  // Phase 5: assign spill splots.
+  void AssignSpillSlots();
 
   // Phase 6: commit assignment.
   void CommitAssignment();
@@ -484,8 +484,6 @@ class RegisterAllocator FINAL : public ZoneObject {
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
-  void FreeSpillSlot(LiveRange* range);
-  InstructionOperand* TryReuseSpillSlot(LiveRange* range);
 
   // Live range splitting helpers.
 

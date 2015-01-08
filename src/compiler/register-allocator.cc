@@ -897,9 +897,7 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 }
 
 
-void RegisterAllocator::ReuseSpillSlots() {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
-
+void RegisterAllocator::AssignSpillSlots() {
   // Merge disjoint spill ranges
   for (size_t i = 0; i < spill_ranges().size(); i++) {
     auto range = spill_ranges()[i];
@@ -942,7 +940,6 @@ void RegisterAllocator::CommitAssignment() {
 
 
 SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
   auto spill_range = new (local_zone()) SpillRange(range, local_zone());
   spill_ranges().push_back(spill_range);
   return spill_range;
@@ -950,7 +947,6 @@ SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
 
 
 bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
   if (range->IsChild() || !range->is_phi()) return false;
   DCHECK(range->HasNoSpillType());
 
@@ -1348,12 +1344,10 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
 
 void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
   for (auto phi : block->phis()) {
-    if (FLAG_turbo_reuse_spill_slots) {
-      auto res = phi_map_.insert(
-          std::make_pair(phi->virtual_register(), PhiMapValue(phi, block)));
-      DCHECK(res.second);
-      USE(res);
-    }
+    auto res = phi_map_.insert(
+        std::make_pair(phi->virtual_register(), PhiMapValue(phi, block)));
+    DCHECK(res.second);
+    USE(res);
     auto output = phi->output();
     int phi_vreg = phi->virtual_register();
     if (!FLAG_turbo_delay_ssa_decon) {
@@ -1934,11 +1928,7 @@ void RegisterAllocator::AllocateRegisters() {
       }
     }
 
-    if (FLAG_turbo_reuse_spill_slots) {
-      if (TryReuseSpillForPhi(current)) {
-        continue;
-      }
-    }
+    if (TryReuseSpillForPhi(current)) continue;
 
     for (size_t i = 0; i < active_live_ranges().size(); ++i) {
       auto cur_active = active_live_ranges()[i];
@@ -2067,36 +2057,9 @@ bool RegisterAllocator::UnhandledIsSorted() {
 }
 
 
-void RegisterAllocator::FreeSpillSlot(LiveRange* range) {
-  DCHECK(!FLAG_turbo_reuse_spill_slots);
-  // Check that we are the last range.
-  if (range->next() != nullptr) return;
-  if (!range->TopLevel()->HasSpillOperand()) return;
-  auto spill_operand = range->TopLevel()->GetSpillOperand();
-  if (spill_operand->IsConstant()) return;
-  if (spill_operand->index() >= 0) {
-    reusable_slots().push_back(range);
-  }
-}
-
-
-InstructionOperand* RegisterAllocator::TryReuseSpillSlot(LiveRange* range) {
-  DCHECK(!FLAG_turbo_reuse_spill_slots);
-  if (reusable_slots().empty()) return nullptr;
-  if (reusable_slots().front()->End().Value() >
-      range->TopLevel()->Start().Value()) {
-    return nullptr;
-  }
-  auto result = reusable_slots().front()->TopLevel()->GetSpillOperand();
-  reusable_slots().erase(reusable_slots().begin());
-  return result;
-}
-
-
 void RegisterAllocator::ActiveToHandled(LiveRange* range) {
   RemoveElement(&active_live_ranges(), range);
   TraceAlloc("Moving live range %d from active to handled\n", range->id());
-  if (!FLAG_turbo_reuse_spill_slots) FreeSpillSlot(range);
 }
 
 
@@ -2110,7 +2073,6 @@ void RegisterAllocator::ActiveToInactive(LiveRange* range) {
 void RegisterAllocator::InactiveToHandled(LiveRange* range) {
   RemoveElement(&inactive_live_ranges(), range);
   TraceAlloc("Moving live range %d from inactive to handled\n", range->id());
-  if (!FLAG_turbo_reuse_spill_slots) FreeSpillSlot(range);
 }
 
 
@@ -2479,21 +2441,7 @@ void RegisterAllocator::Spill(LiveRange* range) {
   TraceAlloc("Spilling live range %d\n", range->id());
   auto first = range->TopLevel();
   if (first->HasNoSpillType()) {
-    if (FLAG_turbo_reuse_spill_slots) {
-      AssignSpillRangeToLiveRange(first);
-    } else {
-      auto op = TryReuseSpillSlot(range);
-      if (op == nullptr) {
-        // Allocate a new operand referring to the spill slot.
-        RegisterKind kind = range->Kind();
-        int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
-        auto op_kind = kind == DOUBLE_REGISTERS
-                           ? InstructionOperand::DOUBLE_STACK_SLOT
-                           : InstructionOperand::STACK_SLOT;
-        op = new (code_zone()) InstructionOperand(op_kind, index);
-      }
-      first->SetSpillOperand(op);
-    }
+    AssignSpillRangeToLiveRange(first);
   }
   range->MakeSpilled();
 }

@@ -854,122 +854,6 @@ Local<AccessorSignature> AccessorSignature::New(
 }
 
 
-template<typename Operation>
-static Local<Operation> NewDescriptor(
-    Isolate* isolate,
-    const i::DeclaredAccessorDescriptorData& data,
-    Data* previous_descriptor) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::DeclaredAccessorDescriptor> previous =
-      i::Handle<i::DeclaredAccessorDescriptor>();
-  if (previous_descriptor != NULL) {
-    previous = Utils::OpenHandle(
-        static_cast<DeclaredAccessorDescriptor*>(previous_descriptor));
-  }
-  i::Handle<i::DeclaredAccessorDescriptor> descriptor =
-      i::DeclaredAccessorDescriptor::Create(internal_isolate, data, previous);
-  return Utils::Convert<i::DeclaredAccessorDescriptor, Operation>(descriptor);
-}
-
-
-Local<RawOperationDescriptor>
-ObjectOperationDescriptor::NewInternalFieldDereference(
-    Isolate* isolate,
-    int internal_field) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorObjectDereference;
-  data.object_dereference_descriptor.internal_field = internal_field;
-  return NewDescriptor<RawOperationDescriptor>(isolate, data, NULL);
-}
-
-
-Local<RawOperationDescriptor> RawOperationDescriptor::NewRawShift(
-    Isolate* isolate,
-    int16_t byte_offset) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorPointerShift;
-  data.pointer_shift_descriptor.byte_offset = byte_offset;
-  return NewDescriptor<RawOperationDescriptor>(isolate, data, this);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewHandleDereference(
-    Isolate* isolate) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorReturnObject;
-  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
-}
-
-
-Local<RawOperationDescriptor> RawOperationDescriptor::NewRawDereference(
-    Isolate* isolate) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorPointerDereference;
-  return NewDescriptor<RawOperationDescriptor>(isolate, data, this);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewPointerCompare(
-    Isolate* isolate,
-    void* compare_value) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorPointerCompare;
-  data.pointer_compare_descriptor.compare_value = compare_value;
-  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewPrimitiveValue(
-    Isolate* isolate,
-    DeclaredAccessorDescriptorDataType data_type,
-    uint8_t bool_offset) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorPrimitiveValue;
-  data.primitive_value_descriptor.data_type = data_type;
-  data.primitive_value_descriptor.bool_offset = bool_offset;
-  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
-}
-
-
-template<typename T>
-static Local<DeclaredAccessorDescriptor> NewBitmaskCompare(
-    Isolate* isolate,
-    T bitmask,
-    T compare_value,
-    RawOperationDescriptor* operation) {
-  i::DeclaredAccessorDescriptorData data;
-  data.type = i::kDescriptorBitmaskCompare;
-  data.bitmask_compare_descriptor.bitmask = bitmask;
-  data.bitmask_compare_descriptor.compare_value = compare_value;
-  data.bitmask_compare_descriptor.size = sizeof(T);
-  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, operation);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare8(
-    Isolate* isolate,
-    uint8_t bitmask,
-    uint8_t compare_value) {
-  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare16(
-    Isolate* isolate,
-    uint16_t bitmask,
-    uint16_t compare_value) {
-  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
-}
-
-
-Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare32(
-    Isolate* isolate,
-    uint32_t bitmask,
-    uint32_t compare_value) {
-  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
-}
-
-
 Local<TypeSwitch> TypeSwitch::New(Handle<FunctionTemplate> type) {
   Handle<FunctionTemplate> types[1] = { type };
   return TypeSwitch::New(1, types);
@@ -1064,23 +948,6 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
-}
-
-
-static i::Handle<i::AccessorInfo> MakeAccessorInfo(
-    v8::Handle<Name> name,
-    v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
-    void* setter_ignored,
-    void* data_ignored,
-    v8::AccessControl settings,
-    v8::PropertyAttribute attributes,
-    v8::Handle<AccessorSignature> signature) {
-  i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
-  if (descriptor.IsEmpty()) return i::Handle<i::DeclaredAccessorInfo>();
-  i::Handle<i::DeclaredAccessorInfo> obj =
-      isolate->factory()->NewDeclaredAccessorInfo();
-  obj->set_descriptor(*Utils::OpenHandle(*descriptor));
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
 
@@ -1241,18 +1108,6 @@ static bool TemplateSetAccessor(
   i::Handle<i::TemplateInfo> info = GetTemplateInfo(isolate, template_obj);
   AddPropertyToTemplate(info, obj);
   return true;
-}
-
-
-bool Template::SetDeclaredAccessor(
-    Local<Name> name,
-    Local<DeclaredAccessorDescriptor> descriptor,
-    PropertyAttribute attribute,
-    Local<AccessorSignature> signature,
-    AccessControl settings) {
-  void* null = NULL;
-  return TemplateSetAccessor(
-      this, name, descriptor, null, null, settings, attribute, signature);
 }
 
 
@@ -1780,6 +1635,7 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
     // Do the parsing tasks which need to be done on the main thread. This will
     // also handle parse errors.
     source->parser->Internalize();
+    source->parser->HandleSourceURLComments();
 
     i::Handle<i::SharedFunctionInfo> result =
         i::Handle<i::SharedFunctionInfo>::null();
@@ -1943,15 +1799,17 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
-    EXCEPTION_PREAMBLE(isolate_);
-    Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
-    has_pending_exception = !maybe.has_value;
-    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
-    if (!maybe.value) return v8::Local<Value>();
-    i::Handle<i::Object> value;
-    if (!i::Object::GetProperty(obj, name).ToHandle(&value)) {
-      return v8::Local<Value>();
+    {
+      EXCEPTION_PREAMBLE(isolate_);
+      Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
+      has_pending_exception = !maybe.has_value;
+      EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
+      if (!maybe.value) return v8::Local<Value>();
     }
+    i::Handle<i::Object> value;
+    EXCEPTION_PREAMBLE(isolate_);
+    has_pending_exception = !i::Object::GetProperty(obj, name).ToHandle(&value);
+    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
     return v8::Local<Value>();
@@ -3625,16 +3483,6 @@ bool Object::SetAccessor(Handle<Name> name,
                          PropertyAttribute attributes) {
   return ObjectSetAccessor(
       this, name, getter, setter, data, settings, attributes);
-}
-
-
-bool Object::SetDeclaredAccessor(Local<Name> name,
-                                 Local<DeclaredAccessorDescriptor> descriptor,
-                                 PropertyAttribute attributes,
-                                 AccessControl settings) {
-  void* null = NULL;
-  return ObjectSetAccessor(
-      this, name, descriptor, null, null, settings, attributes);
 }
 
 

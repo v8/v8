@@ -264,10 +264,6 @@ class Factory FINAL {
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 
-  Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
-
-  Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();
-
   Handle<ExecutableAccessorInfo> NewExecutableAccessorInfo();
 
   Handle<Script> NewScript(Handle<String> source);

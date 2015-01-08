@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <set>
+
 #include "src/v8.h"
 
 #include "graph-tester.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/node.h"
+#include "src/compiler/operator.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -181,6 +185,7 @@ class AB2Sorter : public Reducer {
 // Simply records the nodes visited.
 class ReducerRecorder : public Reducer {
  public:
+  typedef std::set<Node*, std::less<Node*>, zone_allocator<Node*>> NodeSet;
   explicit ReducerRecorder(Zone* zone)
       : set(NodeSet::key_compare(), NodeSet::allocator_type(zone)) {}
   virtual Reduction Reduce(Node* node) {

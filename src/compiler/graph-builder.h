@@ -10,6 +10,7 @@
 #include "src/allocation.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
 #include "src/unique.h"
 
 namespace v8 {

@@ -486,6 +486,8 @@
         '../../src/compiler/node-aux-data.h',
         '../../src/compiler/node-cache.cc',
         '../../src/compiler/node-cache.h',
+        '../../src/compiler/node-marker.cc',
+        '../../src/compiler/node-marker.h',
         '../../src/compiler/node-matchers.h',
         '../../src/compiler/node-properties-inl.h',
         '../../src/compiler/node-properties.h',

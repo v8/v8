@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph.h"
 #include "src/compiler/loop-analysis.h"
+
+#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/zone.h"
 

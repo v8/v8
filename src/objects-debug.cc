@@ -894,19 +894,6 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
 }
 
 
-void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorVerify() {
-  CHECK(IsDeclaredAccessorDescriptor());
-  VerifyPointer(serialized_data());
-}
-
-
-void DeclaredAccessorInfo::DeclaredAccessorInfoVerify() {
-  CHECK(IsDeclaredAccessorInfo());
-  AccessorInfoVerify();
-  VerifyPointer(descriptor());
-}
-
-
 void AccessorPair::AccessorPairVerify() {
   CHECK(IsAccessorPair());
   VerifyPointer(getter());
