@@ -1,3 +1,12 @@
+2015-01-08: Version 3.32.7
+
+        Correctly parse line ends for debugging (issue 2825).
+
+        Fixed printing during DCE (issue 3679).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-08: Version 3.32.6
 
         Performance and stability improvements on all platforms.

@@ -121,6 +121,12 @@ class UnicodeCache {
   bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
+  bool IsLineTerminatorSequence(unibrow::uchar c, unibrow::uchar next) {
+    if (!IsLineTerminator(c)) return false;
+    if (c == 0x000d && next == 0x000a) return false;  // CR with following LF.
+    return true;
+  }
+
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
   bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
     return kIsWhiteSpaceOrLineTerminator.get(c);
