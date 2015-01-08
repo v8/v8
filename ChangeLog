@@ -1,3 +1,8 @@
+2015-01-08: Version 3.32.6
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-08: Version 3.32.5
 
         Correct handling of exceptions occured during getting of exception stack
