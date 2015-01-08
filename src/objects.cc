@@ -8764,20 +8764,18 @@ static void CalculateLineEndsImpl(Isolate* isolate,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
-  StringSearch<uint8_t, SourceChar> search(isolate, STATIC_CHAR_VECTOR("\n"));
+  UnicodeCache* cache = isolate->unicode_cache();
+  for (int i = 0; i < src_len - 1; i++) {
+    SourceChar current = src[i];
+    SourceChar next = src[i + 1];
+    if (cache->IsLineTerminatorSequence(current, next)) line_ends->Add(i);
+  }
 
-  // Find and record line ends.
-  int position = 0;
-  while (position != -1 && position < src_len) {
-    position = search.Search(src, position);
-    if (position != -1) {
-      line_ends->Add(position);
-      position++;
-    } else if (include_ending_line) {
-      // Even if the last line misses a line end, it is counted.
-      line_ends->Add(src_len);
-      return;
-    }
+  if (src_len > 0 && cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
+    line_ends->Add(src_len - 1);
+  } else if (include_ending_line) {
+    // Even if the last line misses a line end, it is counted.
+    line_ends->Add(src_len);
   }
 }
 
