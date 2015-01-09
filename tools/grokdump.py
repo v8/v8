@@ -2807,16 +2807,20 @@ class InspectionShell(cmd.Cmd):
     else:
       print "%s\n" % string
 
-  def do_dd(self, address):
+  def do_dd(self, args):
     """
-     Interpret memory at the given address (if available) as a sequence
-     of words. Automatic alignment is not performed.
+     Interpret memory in the given region [address, address + num * word_size)
+     (if available) as a sequence of words. Automatic alignment is not performed.
+     If the num is not specified, a default value of 16 words is used.
+     Synopsis: dd 0x<address> 0x<num>
     """
-    start = int(address, 16)
+    args = args.split(' ')
+    start = int(args[0], 16)
+    num = int(args[1], 16) if len(args) > 1 else 0x10
     if (start & self.heap.ObjectAlignmentMask()) != 0:
       print "Warning: Dumping un-aligned memory, is this what you had in mind?"
     for slot in xrange(start,
-                       start + self.reader.PointerSize() * 10,
+                       start + self.reader.PointerSize() * num,
                        self.reader.PointerSize()):
       if not self.reader.IsValidAddress(slot):
         print "Address is not contained within the minidump!"
