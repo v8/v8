@@ -883,6 +883,9 @@
             'LinkIncremental': '2',
           },
         },
+        'variables': {
+          'v8_enable_slow_dchecks%': 1,
+        },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
             OS=="qnx"', {
@@ -902,9 +905,11 @@
                'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
             },
           }],
-        ],
-        'defines': [
-          'ENABLE_SLOW_DCHECKS',
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
+          }],
         ],
       },  # DebugBase0
       # Abstract configuration for v8_optimized_debug == 1.
@@ -930,9 +935,9 @@
             'LinkIncremental': '2',
           },
         },
-        'defines': [
-          'ENABLE_SLOW_DCHECKS',
-        ],
+        'variables': {
+          'v8_enable_slow_dchecks%': 1,
+        },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
             OS=="qnx"', {
@@ -953,6 +958,11 @@
                'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
                'GCC_STRICT_ALIASING': 'YES',
             },
+          }],
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
           }],
         ],
       },  # DebugBase1
@@ -980,6 +990,9 @@
             'OptimizeReferences': '2',
             'EnableCOMDATFolding': '2',
           },
+        },
+        'variables': {
+          'v8_enable_slow_dchecks%': 0,
         },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
@@ -1009,6 +1022,11 @@
               'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
               'GCC_STRICT_ALIASING': 'YES',
             },
+          }],
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
           }],
         ],
       },  # DebugBase2
@@ -1064,6 +1082,9 @@
         ],
       },  # Debug
       'Release': {
+        'variables': {
+          'v8_enable_slow_dchecks%': 0,
+        },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags!': [
@@ -1130,6 +1151,11 @@
               },
             },
           }],  # OS=="win"
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
+          }],
         ],  # conditions
       },  # Release
     },  # configurations

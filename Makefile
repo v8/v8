@@ -90,6 +90,13 @@ endif
 ifeq ($(extrachecks), off)
   GYPFLAGS += -Ddcheck_always_on=0 -Dv8_enable_handle_zapping=0
 endif
+# slowdchecks=on/off
+ifeq ($(slowdchecks), on)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=1
+endif
+ifeq ($(slowdchecks), off)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=0
+endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
