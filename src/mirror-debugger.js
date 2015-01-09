@@ -1265,6 +1265,15 @@ RegExpMirror.prototype.multiline = function() {
 };
 
 
+/**
+ * Returns whether this regular expression has the sticky (y) flag set.
+ * @return {boolean} Value of the sticky flag
+ */
+RegExpMirror.prototype.sticky = function() {
+  return this.value_.sticky;
+};
+
+
 RegExpMirror.prototype.toText = function() {
   // Simpel to text which is used when on specialization in subclass.
   return "/" + this.source() + "/";
