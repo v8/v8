@@ -60,6 +60,7 @@
         'compiler/node-matchers-unittest.cc',
         'compiler/node-test-utils.cc',
         'compiler/node-test-utils.h',
+        'compiler/opcodes-unittest.cc',
         'compiler/register-allocator-unittest.cc',
         'compiler/select-lowering-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
