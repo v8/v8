@@ -282,6 +282,7 @@ class ControlReducerImpl {
 
     // Recurse on an input if necessary.
     for (Node* const input : node->inputs()) {
+      CHECK_NE(NULL, input);
       if (Recurse(input)) return;
     }
 
@@ -496,10 +497,12 @@ class ControlReducerImpl {
         TRACE(("  IfTrue: #%d:%s\n", use->id(), use->op()->mnemonic()));
         edge.UpdateTo(NULL);
         ReplaceNode(use, (result == kTrue) ? control : dead());
+        control = NodeProperties::GetControlInput(node);  // Could change!
       } else if (use->opcode() == IrOpcode::kIfFalse) {
         TRACE(("  IfFalse: #%d:%s\n", use->id(), use->op()->mnemonic()));
         edge.UpdateTo(NULL);
         ReplaceNode(use, (result == kTrue) ? dead() : control);
+        control = NodeProperties::GetControlInput(node);  // Could change!
       }
     }
     return control;
