@@ -2874,6 +2874,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
   // case, representing a TemplateMiddle).
 
   do {
+    CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
     next = peek();
     if (!next) {
       ReportMessageAt(Scanner::Location(start, peek_position()),
@@ -2897,10 +2898,10 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
     // TEMPLATE_SPAN or TEMPLATE_TAIL.
     next = scanner()->ScanTemplateContinuation();
     Next();
+    pos = position();
 
     if (!next) {
-      ReportMessageAt(Scanner::Location(start, position()),
-                      "unterminated_template");
+      ReportMessageAt(Scanner::Location(start, pos), "unterminated_template");
       *ok = false;
       return Traits::EmptyExpression();
     }
