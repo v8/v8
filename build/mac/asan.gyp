@@ -17,8 +17,6 @@
              '../../third_party/llvm-build/Release+Asserts/lib/clang/*/lib/darwin',
          'asan_osx_dynamic':
              '<(asan_rtl_mask_path)/libclang_rt.asan_osx_dynamic.dylib',
-         'asan_iossim_dynamic':
-             '<(asan_rtl_mask_path)/libclang_rt.asan_iossim_dynamic.dylib',
        },
        'copies': [
          {
