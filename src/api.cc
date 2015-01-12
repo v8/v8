@@ -206,7 +206,21 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
-StartupData V8::CreateSnapshotDataBlob() {
+bool RunExtraCode(Isolate* isolate, char* utf8_source) {
+  // Run custom script if provided.
+  TryCatch try_catch;
+  Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
+  if (try_catch.HasCaught()) return false;
+  ScriptOrigin origin(String::NewFromUtf8(isolate, "<embedded script>"));
+  ScriptCompiler::Source source(source_string, origin);
+  Local<Script> script = ScriptCompiler::Compile(isolate, &source);
+  if (try_catch.HasCaught()) return false;
+  script->Run();
+  return !try_catch.HasCaught();
+}
+
+
+StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
   Isolate::CreateParams params;
   params.enable_serializer = true;
   Isolate* isolate = v8::Isolate::New(params);
@@ -217,7 +231,12 @@ StartupData V8::CreateSnapshotDataBlob() {
     Persistent<Context> context;
     {
       HandleScope handle_scope(isolate);
-      context.Reset(isolate, Context::New(isolate));
+      Handle<Context> new_context = Context::New(isolate);
+      context.Reset(isolate, new_context);
+      if (custom_source != NULL) {
+        Context::Scope context_scope(new_context);
+        if (!RunExtraCode(isolate, custom_source)) context.Reset();
+      }
     }
     if (!context.IsEmpty()) {
       // Make sure all builtin scripts are cached.

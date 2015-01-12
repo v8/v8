@@ -153,6 +153,9 @@ ifeq ($(asan), on)
     GYPFLAGS += -Dlsan=1
   endif
 endif
+ifdef embedscript
+  GYPFLAGS += -Dembed_script=$(embedscript)
+endif
 
 # arm specific flags.
 # arm_version=<number | "default">

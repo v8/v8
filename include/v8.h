@@ -5336,7 +5336,7 @@ class V8_EXPORT V8 {
    * Returns { NULL, 0 } on failure.
    * The caller owns the data array in the return value.
    */
-  static StartupData CreateSnapshotDataBlob();
+  static StartupData CreateSnapshotDataBlob(char* custom_source = NULL);
 
   /**
    * Adds a message listener.
