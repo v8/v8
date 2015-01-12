@@ -842,6 +842,25 @@ TEST_F(MachineOperatorReducerTest, Word32ShlWithWord32Shr) {
 
 
 // -----------------------------------------------------------------------------
+// Int32Sub
+
+
+TEST_F(MachineOperatorReducerTest, Int32SubWithConstant) {
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int32_t, k, kInt32Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Int32Sub(), p0, Int32Constant(k)));
+    ASSERT_TRUE(r.Changed());
+    if (k == 0) {
+      EXPECT_EQ(p0, r.replacement());
+    } else {
+      EXPECT_THAT(r.replacement(), IsInt32Add(p0, IsInt32Constant(-k)));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Int32Div
 
 

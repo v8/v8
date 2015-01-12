@@ -75,7 +75,9 @@ Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
 
 
 Node* MachineOperatorReducer::Int32Sub(Node* lhs, Node* rhs) {
-  return graph()->NewNode(machine()->Int32Sub(), lhs, rhs);
+  Node* const node = graph()->NewNode(machine()->Int32Sub(), lhs, rhs);
+  Reduction const reduction = ReduceInt32Sub(node);
+  return reduction.Changed() ? reduction.replacement() : node;
 }
 
 
@@ -216,16 +218,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kInt32Add:
       return ReduceInt32Add(node);
-    case IrOpcode::kInt32Sub: {
-      Int32BinopMatcher m(node);
-      if (m.right().Is(0)) return Replace(m.left().node());  // x - 0 => x
-      if (m.IsFoldable()) {                                  // K - K => K
-        return ReplaceInt32(static_cast<uint32_t>(m.left().Value()) -
-                            static_cast<uint32_t>(m.right().Value()));
-      }
-      if (m.LeftEqualsRight()) return ReplaceInt32(0);  // x - x => 0
-      break;
-    }
+    case IrOpcode::kInt32Sub:
+      return ReduceInt32Sub(node);
     case IrOpcode::kInt32Mul: {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.right().node());  // x * 0 => 0
@@ -470,6 +464,25 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
   if (m.IsFoldable()) {                                  // K + K => K
     return ReplaceUint32(bit_cast<uint32_t>(m.left().Value()) +
                          bit_cast<uint32_t>(m.right().Value()));
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceInt32Sub(Node* node) {
+  DCHECK_EQ(IrOpcode::kInt32Sub, node->opcode());
+  Int32BinopMatcher m(node);
+  if (m.right().Is(0)) return Replace(m.left().node());  // x - 0 => x
+  if (m.IsFoldable()) {                                  // K - K => K
+    return ReplaceInt32(static_cast<uint32_t>(m.left().Value()) -
+                        static_cast<uint32_t>(m.right().Value()));
+  }
+  if (m.LeftEqualsRight()) return ReplaceInt32(0);  // x - x => 0
+  if (m.right().HasValue()) {                       // x - K => x + -K
+    node->set_op(machine()->Int32Add());
+    node->ReplaceInput(1, Int32Constant(-m.right().Value()));
+    Reduction const reduction = ReduceInt32Add(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
   return NoChange();
 }
