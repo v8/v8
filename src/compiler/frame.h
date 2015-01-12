@@ -63,6 +63,11 @@ class Frame : public ZoneObject {
     return spill_slot_count_++;
   }
 
+  void ReserveSpillSlots(size_t slot_count) {
+    DCHECK_EQ(0, spill_slot_count_);  // can only reserve before allocation.
+    spill_slot_count_ = static_cast<int>(slot_count);
+  }
+
  private:
   int register_save_area_size_;
   int spill_slot_count_;

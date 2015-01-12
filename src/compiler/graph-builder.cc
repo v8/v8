@@ -168,10 +168,12 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
 }
 
 
-void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned) {
-  Node* control = GetControlDependency();
+void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
+                                                         bool is_osr) {
   int size = static_cast<int>(values()->size());
-  if (assigned == NULL) {
+
+  Node* control = builder_->NewLoop();
+  if (assigned == nullptr) {
     // Assume that everything is updated in the loop.
     for (int i = 0; i < size; ++i) {
       Node* phi = builder_->NewPhi(1, values()->at(i), control);
@@ -187,6 +189,30 @@ void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned) {
   }
   Node* effect = builder_->NewEffectPhi(1, GetEffectDependency(), control);
   UpdateEffectDependency(effect);
+
+  if (is_osr) {
+    // Merge OSR values as inputs to the phis of the loop.
+    Graph* graph = builder_->graph();
+    Node* osr_loop_entry = builder_->graph()->NewNode(
+        builder_->common()->OsrLoopEntry(), graph->start(), graph->start());
+
+    builder_->MergeControl(control, osr_loop_entry);
+    builder_->MergeEffect(effect, osr_loop_entry, control);
+
+    for (int i = 0; i < size; ++i) {
+      Node* val = values()->at(i);
+      // TODO(titzer): use IrOpcode::IsConstant() or similar.
+      if (val->opcode() == IrOpcode::kNumberConstant ||
+          val->opcode() == IrOpcode::kInt32Constant ||
+          val->opcode() == IrOpcode::kInt64Constant ||
+          val->opcode() == IrOpcode::kFloat64Constant ||
+          val->opcode() == IrOpcode::kHeapConstant)
+        continue;
+      Node* osr_value =
+          graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
+      values()->at(i) = builder_->MergeValue(val, osr_value, control);
+    }
+  }
 }
 
 

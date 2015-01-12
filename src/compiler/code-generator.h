@@ -146,6 +146,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
   OutOfLineCode* ools_;
+  int osr_pc_offset_;
 };
 
 }  // namespace compiler

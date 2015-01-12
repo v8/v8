@@ -219,8 +219,8 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
   }
 
   // Copies this environment at a loop header control-flow point.
-  Environment* CopyForLoop(BitVector* assigned) {
-    PrepareForLoop(assigned);
+  Environment* CopyForLoop(BitVector* assigned, bool is_osr = false) {
+    PrepareForLoop(assigned, is_osr);
     return builder()->CopyEnvironment(this);
   }
 
@@ -234,7 +234,7 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
   NodeVector* values() { return &values_; }
 
   // Prepare environment to be used as loop header.
-  void PrepareForLoop(BitVector* assigned);
+  void PrepareForLoop(BitVector* assigned, bool is_osr = false);
 
  private:
   StructuredGraphBuilder* builder_;

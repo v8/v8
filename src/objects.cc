@@ -8227,7 +8227,6 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 
 Handle<DeoptimizationInputData> DeoptimizationInputData::New(
     Isolate* isolate, int deopt_entry_count, PretenureFlag pretenure) {
-  DCHECK(deopt_entry_count > 0);
   return Handle<DeoptimizationInputData>::cast(
       isolate->factory()->NewFixedArray(LengthFor(deopt_entry_count),
                                         pretenure));

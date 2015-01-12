@@ -188,13 +188,22 @@ class OperandGenerator {
   UnallocatedOperand* ToUnallocatedOperand(LinkageLocation location,
                                            MachineType type) {
     if (location.location_ == LinkageLocation::ANY_REGISTER) {
+      // any machine register.
       return new (zone())
           UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER);
     }
     if (location.location_ < 0) {
+      // a location on the caller frame.
       return new (zone()) UnallocatedOperand(UnallocatedOperand::FIXED_SLOT,
                                              location.location_);
     }
+    if (location.location_ > LinkageLocation::ANY_REGISTER) {
+      // a spill location on this (callee) frame.
+      return new (zone()) UnallocatedOperand(
+          UnallocatedOperand::FIXED_SLOT,
+          location.location_ - LinkageLocation::ANY_REGISTER - 1);
+    }
+    // a fixed register.
     if (RepresentationOf(type) == kRepFloat64) {
       return new (zone()) UnallocatedOperand(
           UnallocatedOperand::FIXED_DOUBLE_REGISTER, location.location_);

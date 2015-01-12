@@ -247,6 +247,14 @@ void Verifier::Visitor::Pre(Node* node) {
       CHECK_EQ(1, control_count);
       CHECK_EQ(input_count, 1 + effect_count);
       break;
+    case IrOpcode::kOsrNormalEntry:
+    case IrOpcode::kOsrLoopEntry:
+      // Osr entries have
+      CHECK_EQ(1, effect_count);
+      CHECK_EQ(1, control_count);
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
 
     // Common operators
     // ----------------
@@ -296,6 +304,13 @@ void Verifier::Visitor::Pre(Node* node) {
       CHECK_EQ(0, input_count);
       // Type is considered internal.
       CheckUpperIs(node, Type::Internal());
+      break;
+    case IrOpcode::kOsrValue:
+      // OSR values have a value and a control input.
+      CHECK_EQ(1, control_count);
+      CHECK_EQ(1, input_count);
+      // Type is merged from other values in the graph and could be any.
+      CheckUpperIs(node, Type::Any());
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.

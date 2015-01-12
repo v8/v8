@@ -32,9 +32,8 @@ void IfBuilder::End() {
 }
 
 
-void LoopBuilder::BeginLoop(BitVector* assigned) {
-  builder_->NewLoop();
-  loop_environment_ = environment()->CopyForLoop(assigned);
+void LoopBuilder::BeginLoop(BitVector* assigned, bool is_osr) {
+  loop_environment_ = environment()->CopyForLoop(assigned, is_osr);
   continue_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
 }

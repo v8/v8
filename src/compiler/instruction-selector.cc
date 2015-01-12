@@ -543,6 +543,8 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
       return kMachAnyTagged;
     case IrOpcode::kParameter:
       return linkage()->GetParameterType(OpParameter<int>(node));
+    case IrOpcode::kOsrValue:
+      return kMachAnyTagged;
     case IrOpcode::kPhi:
       return OpParameter<MachineType>(node);
     case IrOpcode::kProjection:
@@ -681,6 +683,8 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type, node);
       return VisitParameter(node);
     }
+    case IrOpcode::kOsrValue:
+      return MarkAsReference(node), VisitOsrValue(node);
     case IrOpcode::kPhi: {
       MachineType type = OpParameter<MachineType>(node);
       MarkAsRepresentation(type, node);
@@ -962,6 +966,14 @@ void InstructionSelector::VisitParameter(Node* node) {
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
                           linkage()->GetParameterType(index)));
+}
+
+
+void InstructionSelector::VisitOsrValue(Node* node) {
+  OperandGenerator g(this);
+  int index = OpParameter<int>(node);
+  Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index),
+                                    kMachAnyTagged));
 }
 
 

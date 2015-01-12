@@ -69,7 +69,7 @@ class LoopBuilder FINAL : public ControlBuilder {
         break_environment_(NULL) {}
 
   // Primitive control commands.
-  void BeginLoop(BitVector* assigned);
+  void BeginLoop(BitVector* assigned, bool is_osr = false);
   void EndBody();
   void EndLoop();
 

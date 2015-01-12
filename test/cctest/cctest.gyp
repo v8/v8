@@ -74,6 +74,7 @@
         'compiler/test-node-cache.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
+        'compiler/test-osr.cc',
         'compiler/test-pipeline.cc',
         'compiler/test-representation-change.cc',
         'compiler/test-run-deopt.cc',

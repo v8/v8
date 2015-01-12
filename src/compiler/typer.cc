@@ -598,6 +598,16 @@ Bounds Typer::Visitor::TypeParameter(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeOsrValue(Node* node) {
+  // OSR values explicitly have type {None} before OSR form is deconstructed.
+  if (node->InputAt(0)->opcode() == IrOpcode::kOsrLoopEntry) {
+    return Bounds(Type::None(), Type::None());
+  }
+  // TODO(turbofan): preserve the type of OSR values after deconstruction.
+  return Bounds::Unbounded(zone());
+}
+
+
 Bounds Typer::Visitor::TypeInt32Constant(Node* node) {
   Factory* f = isolate()->factory();
   Handle<Object> number = f->NewNumber(OpParameter<int32_t>(node));
