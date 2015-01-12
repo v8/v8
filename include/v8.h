@@ -137,15 +137,18 @@ class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
 
+template <typename T>
 class CallbackData {
  public:
   V8_INLINE v8::Isolate* GetIsolate() const { return isolate_; }
 
- protected:
-  explicit CallbackData(v8::Isolate* isolate) : isolate_(isolate) {}
+  explicit CallbackData(v8::Isolate* isolate, T* parameter)
+      : isolate_(isolate), parameter_(parameter) {}
+  V8_INLINE T* GetParameter() const { return parameter_; }
 
  private:
   v8::Isolate* isolate_;
+  T* parameter_;
 };
 }
 
@@ -425,23 +428,28 @@ template <class T> class Eternal {
 };
 
 
-template <typename T>
-class PhantomCallbackData : public internal::CallbackData {
+template <typename T, typename U = void, typename V = void>
+class PhantomCallbackData : public internal::CallbackData<T> {
  public:
-  typedef void (*Callback)(const PhantomCallbackData<T>& data);
+  typedef void (*Callback)(const PhantomCallbackData<T, U, V>& data);
 
-  V8_INLINE T* GetParameter() const { return parameter_; }
+  V8_INLINE U* GetInternalField1() const { return internal_field1_; }
+  V8_INLINE V* GetInternalField2() const { return internal_field2_; }
 
-  PhantomCallbackData<T>(Isolate* isolate, T* parameter)
-      : internal::CallbackData(isolate), parameter_(parameter) {}
+  PhantomCallbackData(Isolate* isolate, T* parameter, U* internal_field1,
+                      V* internal_field2)
+      : internal::CallbackData<T>(isolate, parameter),
+        internal_field1_(internal_field1),
+        internal_field2_(internal_field2) {}
 
  private:
-  T* parameter_;
+  U* internal_field1_;
+  V* internal_field2_;
 };
 
 
 template <class T, class P>
-class WeakCallbackData : public PhantomCallbackData<P> {
+class WeakCallbackData : public internal::CallbackData<P> {
  public:
   typedef void (*Callback)(const WeakCallbackData<T, P>& data);
 
@@ -450,28 +458,8 @@ class WeakCallbackData : public PhantomCallbackData<P> {
  private:
   friend class internal::GlobalHandles;
   WeakCallbackData(Isolate* isolate, P* parameter, Local<T> handle)
-      : PhantomCallbackData<P>(isolate, parameter), handle_(handle) {}
+      : internal::CallbackData<P>(isolate, parameter), handle_(handle) {}
   Local<T> handle_;
-};
-
-
-template <typename T, typename U>
-class InternalFieldsCallbackData : public internal::CallbackData {
- public:
-  typedef void (*Callback)(const InternalFieldsCallbackData<T, U>& data);
-
-  InternalFieldsCallbackData(Isolate* isolate, T* internalField1,
-                             U* internalField2)
-      : internal::CallbackData(isolate),
-        internal_field1_(internalField1),
-        internal_field2_(internalField2) {}
-
-  V8_INLINE T* GetInternalField1() const { return internal_field1_; }
-  V8_INLINE U* GetInternalField2() const { return internal_field2_; }
-
- private:
-  T* internal_field1_;
-  U* internal_field2_;
 };
 
 
@@ -562,13 +550,17 @@ template <class T> class PersistentBase {
   // specify a parameter for the callback or the location of two internal
   // fields in the dying object.
   template <typename P>
-  V8_INLINE void SetPhantom(P* parameter,
-                            typename PhantomCallbackData<P>::Callback callback);
-
+  V8_INLINE void SetPhantom(
+      P* parameter,
+      typename PhantomCallbackData<P, void, void>::Callback callback);
   template <typename P, typename Q>
   V8_INLINE void SetPhantom(
-      void (*callback)(const InternalFieldsCallbackData<P, Q>&),
-      int internal_field_index1, int internal_field_index2);
+      P* parameter, int internal_field_index1,
+      typename PhantomCallbackData<P, Q, void>::Callback callback);
+  template <typename P, typename Q, typename R>
+  V8_INLINE void SetPhantom(
+      P* parameter, int internal_field_index1, int internal_field_index2,
+      typename PhantomCallbackData<P, Q, R>::Callback callback);
 
   template<typename P>
   V8_INLINE P* ClearWeak();
@@ -5595,13 +5587,13 @@ class V8_EXPORT V8 {
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
   static void MakeWeak(internal::Object** global_handle, void* data,
                        WeakCallback weak_callback);
-  static void MakePhantom(internal::Object** global_handle, void* data,
-                          PhantomCallbackData<void>::Callback weak_callback);
   static void MakePhantom(
-      internal::Object** global_handle,
-      InternalFieldsCallbackData<void, void>::Callback weak_callback,
+      internal::Object** global_handle, void* data,
+      // Must be 0 or kNoInternalFieldIndex.
       int internal_field_index1,
-      int internal_field_index2 = Object::kNoInternalFieldIndex);
+      // Must be 1 or kNoInternalFieldIndex.
+      int internal_field_index2,
+      PhantomCallbackData<void, void, void>::Callback weak_callback);
   static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
@@ -6489,22 +6481,36 @@ void PersistentBase<T>::SetWeak(
 template <class T>
 template <typename P>
 void PersistentBase<T>::SetPhantom(
-    P* parameter, typename PhantomCallbackData<P>::Callback callback) {
-  typedef typename PhantomCallbackData<void>::Callback Callback;
+    P* parameter,
+    typename PhantomCallbackData<P, void, void>::Callback callback) {
+  typedef typename PhantomCallbackData<void, void, void>::Callback Callback;
   V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_), parameter,
+                  Object::kNoInternalFieldIndex, Object::kNoInternalFieldIndex,
                   reinterpret_cast<Callback>(callback));
 }
 
 
 template <class T>
-template <typename U, typename V>
+template <typename P, typename Q>
 void PersistentBase<T>::SetPhantom(
-    void (*callback)(const InternalFieldsCallbackData<U, V>&),
-    int internal_field_index1, int internal_field_index2) {
-  typedef typename InternalFieldsCallbackData<void, void>::Callback Callback;
-  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_),
-                  reinterpret_cast<Callback>(callback), internal_field_index1,
-                  internal_field_index2);
+    P* parameter, int internal_field_index1,
+    typename PhantomCallbackData<P, Q, void>::Callback callback) {
+  typedef typename PhantomCallbackData<void, void, void>::Callback Callback;
+  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_), parameter,
+                  internal_field_index1, Object::kNoInternalFieldIndex,
+                  reinterpret_cast<Callback>(callback));
+}
+
+
+template <class T>
+template <typename P, typename Q, typename R>
+void PersistentBase<T>::SetPhantom(
+    P* parameter, int internal_field_index1, int internal_field_index2,
+    typename PhantomCallbackData<P, Q, R>::Callback callback) {
+  typedef typename PhantomCallbackData<void, void, void>::Callback Callback;
+  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_), parameter,
+                  internal_field_index1, internal_field_index2,
+                  reinterpret_cast<Callback>(callback));
 }
 
 
