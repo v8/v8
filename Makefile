@@ -108,10 +108,6 @@ endif
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
 endif
-# optdebug=on
-ifeq ($(optdebug), on)
-  GYPFLAGS += -Dv8_optimized_debug=2
-endif
 # unalignedaccess=on
 ifeq ($(unalignedaccess), on)
   GYPFLAGS += -Dv8_can_use_unaligned_accesses=true
@@ -430,7 +426,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
 	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
-	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
+	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=1,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
