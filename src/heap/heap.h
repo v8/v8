@@ -227,7 +227,9 @@ namespace internal {
   V(ignore_case_string, "ignoreCase")                      \
   V(multiline_string, "multiline")                         \
   V(sticky_string, "sticky")                               \
+  V(unicode_string, "unicode")                             \
   V(harmony_regexps_string, "harmony_regexps")             \
+  V(harmony_unicode_string, "harmony_unicode")             \
   V(input_string, "input")                                 \
   V(index_string, "index")                                 \
   V(last_index_string, "lastIndex")                        \

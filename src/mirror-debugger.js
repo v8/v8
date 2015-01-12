@@ -1274,6 +1274,15 @@ RegExpMirror.prototype.sticky = function() {
 };
 
 
+/**
+ * Returns whether this regular expression has the unicode (u) flag set.
+ * @return {boolean} Value of the unicode flag
+ */
+RegExpMirror.prototype.unicode = function() {
+  return this.value_.unicode;
+};
+
+
 RegExpMirror.prototype.toText = function() {
   // Simpel to text which is used when on specialization in subclass.
   return "/" + this.source() + "/";

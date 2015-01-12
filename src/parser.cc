@@ -4278,10 +4278,8 @@ void Parser::Internalize() {
 // Regular expressions
 
 
-RegExpParser::RegExpParser(FlatStringReader* in,
-                           Handle<String>* error,
-                           bool multiline,
-                           Zone* zone)
+RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
+                           bool multiline, bool unicode, Zone* zone)
     : isolate_(zone->isolate()),
       zone_(zone),
       error_(error),
@@ -4292,6 +4290,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
       capture_count_(0),
       has_more_(true),
       multiline_(multiline),
+      unicode_(unicode),
       simple_(false),
       contains_anchor_(false),
       is_scanned_for_captures_(false),
@@ -4345,6 +4344,13 @@ void RegExpParser::Advance(int dist) {
 
 bool RegExpParser::simple() {
   return simple_;
+}
+
+
+bool RegExpParser::IsSyntaxCharacter(uc32 c) {
+  return c == '^' || c == '$' || c == '\\' || c == '.' || c == '*' ||
+         c == '+' || c == '?' || c == '(' || c == ')' || c == '[' || c == ']' ||
+         c == '{' || c == '}' || c == '|';
 }
 
 
@@ -4564,9 +4570,15 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         }
         uc32 first_digit = Next();
         if (first_digit == '8' || first_digit == '9') {
-          // Treat as identity escape
-          builder->AddCharacter(first_digit);
-          Advance(2);
+          // If the 'u' flag is present, only syntax characters can be escaped,
+          // no other identity escapes are allowed. If the 'u' flag is not
+          // present, all identity escapes are allowed.
+          if (!FLAG_harmony_unicode || !unicode_) {
+            builder->AddCharacter(first_digit);
+            Advance(2);
+          } else {
+            return ReportError(CStrVector("Invalid escape"));
+          }
           break;
         }
       }
@@ -4622,25 +4634,41 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         uc32 value;
         if (ParseHexEscape(2, &value)) {
           builder->AddCharacter(value);
-        } else {
+        } else if (!FLAG_harmony_unicode || !unicode_) {
           builder->AddCharacter('x');
+        } else {
+          // If the 'u' flag is present, invalid escapes are not treated as
+          // identity escapes.
+          return ReportError(CStrVector("Invalid escape"));
         }
         break;
       }
       case 'u': {
         Advance(2);
         uc32 value;
-        if (ParseHexEscape(4, &value)) {
+        if (ParseUnicodeEscape(&value)) {
           builder->AddCharacter(value);
-        } else {
+        } else if (!FLAG_harmony_unicode || !unicode_) {
           builder->AddCharacter('u');
+        } else {
+          // If the 'u' flag is present, invalid escapes are not treated as
+          // identity escapes.
+          return ReportError(CStrVector("Invalid unicode escape"));
         }
         break;
       }
       default:
-        // Identity escape.
-        builder->AddCharacter(Next());
-        Advance(2);
+        Advance();
+        // If the 'u' flag is present, only syntax characters can be escaped, no
+        // other identity escapes are allowed. If the 'u' flag is not present,
+        // all identity escapes are allowed.
+        if (!FLAG_harmony_unicode || !unicode_ ||
+            IsSyntaxCharacter(current())) {
+          builder->AddCharacter(current());
+          Advance();
+        } else {
+          return ReportError(CStrVector("Invalid escape"));
+        }
         break;
       }
       break;
@@ -4883,11 +4911,10 @@ uc32 RegExpParser::ParseOctalLiteral() {
 }
 
 
-bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
+bool RegExpParser::ParseHexEscape(int length, uc32* value) {
   int start = position();
   uc32 val = 0;
-  bool done = false;
-  for (int i = 0; !done; i++) {
+  for (int i = 0; i < length; ++i) {
     uc32 c = current();
     int d = HexValue(c);
     if (d < 0) {
@@ -4896,11 +4923,48 @@ bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
     }
     val = val * 16 + d;
     Advance();
-    if (i == length - 1) {
-      done = true;
-    }
   }
   *value = val;
+  return true;
+}
+
+
+bool RegExpParser::ParseUnicodeEscape(uc32* value) {
+  // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
+  // allowed). In the latter case, the number of hex digits between { } is
+  // arbitrary. \ and u have already been read.
+  if (current() == '{' && FLAG_harmony_unicode && unicode_) {
+    int start = position();
+    Advance();
+    if (ParseUnlimitedLengthHexNumber(0x10ffff, value)) {
+      if (current() == '}') {
+        Advance();
+        return true;
+      }
+    }
+    Reset(start);
+    return false;
+  }
+  // \u but no {, or \u{...} escapes not allowed.
+  return ParseHexEscape(4, value);
+}
+
+
+bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
+  uc32 x = 0;
+  int d = HexValue(current());
+  if (d < 0) {
+    return false;
+  }
+  while (d >= 0) {
+    x = x * 16 + d;
+    if (x > max_value) {
+      return false;
+    }
+    Advance();
+    d = HexValue(current());
+  }
+  *value = x;
   return true;
 }
 
@@ -4959,27 +5023,41 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseHexEscape(2, &value)) {
         return value;
       }
-      // If \x is not followed by a two-digit hexadecimal, treat it
-      // as an identity escape.
-      return 'x';
+      if (!FLAG_harmony_unicode || !unicode_) {
+        // If \x is not followed by a two-digit hexadecimal, treat it
+        // as an identity escape.
+        return 'x';
+      }
+      // If the 'u' flag is present, invalid escapes are not treated as
+      // identity escapes.
+      ReportError(CStrVector("Invalid escape"));
+      return 0;
     }
     case 'u': {
       Advance();
       uc32 value;
-      if (ParseHexEscape(4, &value)) {
+      if (ParseUnicodeEscape(&value)) {
         return value;
       }
-      // If \u is not followed by a four-digit hexadecimal, treat it
-      // as an identity escape.
-      return 'u';
+      if (!FLAG_harmony_unicode || !unicode_) {
+        return 'u';
+      }
+      // If the 'u' flag is present, invalid escapes are not treated as
+      // identity escapes.
+      ReportError(CStrVector("Invalid unicode escape"));
+      return 0;
     }
     default: {
-      // Extended identity escape. We accept any character that hasn't
-      // been matched by a more specific case, not just the subset required
-      // by the ECMAScript specification.
       uc32 result = current();
-      Advance();
-      return result;
+      // If the 'u' flag is present, only syntax characters can be escaped, no
+      // other identity escapes are allowed. If the 'u' flag is not present, all
+      // identity escapes are allowed.
+      if (!FLAG_harmony_unicode || !unicode_ || IsSyntaxCharacter(result)) {
+        Advance();
+        return result;
+      }
+      ReportError(CStrVector("Invalid escape"));
+      return 0;
     }
   }
   return 0;
@@ -5085,12 +5163,11 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-bool RegExpParser::ParseRegExp(FlatStringReader* input,
-                               bool multiline,
-                               RegExpCompileData* result,
+bool RegExpParser::ParseRegExp(FlatStringReader* input, bool multiline,
+                               bool unicode, RegExpCompileData* result,
                                Zone* zone) {
   DCHECK(result != NULL);
-  RegExpParser parser(input, &result->error, multiline, zone);
+  RegExpParser parser(input, &result->error, multiline, unicode, zone);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
     DCHECK(tree == NULL);
