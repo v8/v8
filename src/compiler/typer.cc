@@ -1462,7 +1462,7 @@ Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
 
 
 Bounds Typer::Visitor::TypeBooleanToNumber(Node* node) {
-  return Bounds(Type::None(zone()), typer_->zero_or_one);
+  return TypeUnaryOp(node, ToNumber);
 }
 
 
@@ -1513,6 +1513,11 @@ Bounds Typer::Visitor::TypeNumberToInt32(Node* node) {
 
 Bounds Typer::Visitor::TypeNumberToUint32(Node* node) {
   return TypeUnaryOp(node, NumberToUint32);
+}
+
+
+Bounds Typer::Visitor::TypePlainPrimitiveToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
 }
 
 

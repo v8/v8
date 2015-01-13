@@ -540,6 +540,11 @@ void Verifier::Visitor::Pre(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Unsigned32());
       break;
+    case IrOpcode::kPlainPrimitiveToNumber:
+      // PlainPrimitive -> Number
+      CheckValueInputIs(node, 0, Type::PlainPrimitive());
+      CheckUpperIs(node, Type::Number());
+      break;
     case IrOpcode::kStringEqual:
     case IrOpcode::kStringLessThan:
     case IrOpcode::kStringLessThanOrEqual:
