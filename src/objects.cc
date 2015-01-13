@@ -557,6 +557,9 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
         }
 #endif
         JSObject::MigrateToMap(object, new_map);
+        // Optimized code does not check for the hole value for non-configurable
+        // properties.
+        Deoptimizer::DeoptimizeGlobalObject(*object);
       }
       Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
       Handle<Object> value = isolate->factory()->the_hole_value();
