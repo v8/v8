@@ -301,7 +301,6 @@ namespace internal {
     "Unexpected unused properties of string wrapper")                          \
   V(kUnimplemented, "unimplemented")                                           \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister")  \
-  V(kUnknown, "Unknown")                                                       \
   V(kUnsupportedConstCompoundAssignment,                                       \
     "Unsupported const compound assignment")                                   \
   V(kUnsupportedCountOperationWithConst,                                       \
