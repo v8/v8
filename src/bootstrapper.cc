@@ -201,7 +201,8 @@ class Genesis BASE_EMBEDDED {
   // Similarly, we want to use the global that has been created by the templates
   // passed through the API.  The global from the snapshot is detached from the
   // other objects in the snapshot.
-  void HookUpGlobalObject(Handle<GlobalObject> global_object);
+  void HookUpGlobalObject(Handle<GlobalObject> global_object,
+                          Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
@@ -871,13 +872,21 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
 }
 
 
-void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object) {
+void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
+                                 Handle<FixedArray> outdated_contexts) {
   Handle<GlobalObject> global_object_from_snapshot(
       GlobalObject::cast(native_context()->extension()));
   Handle<JSBuiltinsObject> builtins_global(native_context()->builtins());
   native_context()->set_extension(*global_object);
-  native_context()->set_global_object(*global_object);
   native_context()->set_security_token(*global_object);
+
+  // Replace outdated global objects in deserialized contexts.
+  for (int i = 0; i < outdated_contexts->length(); ++i) {
+    Context* context = Context::cast(outdated_contexts->get(i));
+    DCHECK_EQ(context->global_object(), *global_object_from_snapshot);
+    context->set_global_object(*global_object);
+  }
+
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Runtime::DefineObjectProperty(builtins_global, factory()->global_string(),
@@ -2724,9 +2733,10 @@ Genesis::Genesis(Isolate* isolate,
 
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
-  if (isolate->initialized_from_snapshot()) {
-    native_context_ = Snapshot::NewContextFromSnapshot(isolate);
-  } else {
+  Handle<FixedArray> outdated_contexts;
+  if (!isolate->initialized_from_snapshot() ||
+      !Snapshot::NewContextFromSnapshot(isolate, &outdated_contexts)
+           .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }
 
@@ -2748,7 +2758,7 @@ Genesis::Genesis(Isolate* isolate,
         global_proxy_template, maybe_global_proxy, &global_object);
 
     HookUpGlobalProxy(global_object, global_proxy);
-    HookUpGlobalObject(global_object);
+    HookUpGlobalObject(global_object, outdated_contexts);
     native_context()->builtins()->set_global_proxy(
         native_context()->global_proxy());
 

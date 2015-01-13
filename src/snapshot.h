@@ -16,7 +16,8 @@ class Snapshot : public AllStatic {
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
   // Create a new context using the internal partial snapshot.
-  static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
+  static MaybeHandle<Context> NewContextFromSnapshot(
+      Isolate* isolate, Handle<FixedArray>* outdated_contexts_out);
 
   static bool HaveASnapshotToStartFrom();
 

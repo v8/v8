@@ -518,12 +518,12 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize the snapshot into an empty heap.
   void Deserialize(Isolate* isolate);
 
-  enum OnOOM { FATAL_ON_OOM, NULL_ON_OOM };
-
   // Deserialize a single object and the objects reachable from it.
   // We may want to abort gracefully even if deserialization fails.
-  void DeserializePartial(Isolate* isolate, Object** root,
-                          OnOOM on_oom = FATAL_ON_OOM);
+  MaybeHandle<Object> DeserializePartial(
+      Isolate* isolate, Handle<FixedArray>* outdated_contexts_out);
+
+  MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
 
   void FlushICacheForNewCodeObjects();
 
@@ -541,6 +541,8 @@ class Deserializer: public SerializerDeserializer {
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
     UNREACHABLE();
   }
+
+  void Initialize(Isolate* isolate);
 
   void DecodeReservation(Vector<const SerializedData::Reservation> res);
 
@@ -738,11 +740,12 @@ class Serializer : public SerializerDeserializer {
 
 class PartialSerializer : public Serializer {
  public:
-  PartialSerializer(Isolate* isolate,
-                    Serializer* startup_snapshot_serializer,
+  PartialSerializer(Isolate* isolate, Serializer* startup_snapshot_serializer,
                     SnapshotByteSink* sink)
-    : Serializer(isolate, sink),
-      startup_serializer_(startup_snapshot_serializer) {
+      : Serializer(isolate, sink),
+        startup_serializer_(startup_snapshot_serializer),
+        outdated_contexts_(0),
+        global_object_(NULL) {
     InitializeCodeAddressMap();
   }
 
@@ -766,8 +769,11 @@ class PartialSerializer : public Serializer {
                startup_serializer_->isolate()->heap()->fixed_cow_array_map();
   }
 
+  void SerializeOutdatedContextsAsFixedArray();
 
   Serializer* startup_serializer_;
+  List<BackReference> outdated_contexts_;
+  Object* global_object_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

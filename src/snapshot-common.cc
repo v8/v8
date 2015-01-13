@@ -38,7 +38,8 @@ bool Snapshot::Initialize(Isolate* isolate) {
 }
 
 
-Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
+MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
+    Isolate* isolate, Handle<FixedArray>* outdated_contexts_out) {
   if (!HaveASnapshotToStartFrom()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -47,15 +48,18 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   Vector<const byte> context_data = ExtractContextData(&blob);
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
-  Object* root;
-  deserializer.DeserializePartial(isolate, &root);
-  CHECK(root->IsContext());
+
+  MaybeHandle<Object> maybe_context =
+      deserializer.DeserializePartial(isolate, outdated_contexts_out);
+  Handle<Object> result;
+  if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
+  CHECK(result->IsContext());
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();
     PrintF("[Deserializing context (%d bytes) took %0.3f ms]\n", bytes, ms);
   }
-  return Handle<Context>(Context::cast(root));
+  return Handle<Context>::cast(result);
 }
 
 

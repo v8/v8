@@ -391,24 +391,26 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      Object* root;
+      HandleScope handle_scope(isolate);
+      Handle<Object> root;
+      Handle<FixedArray> outdated_contexts;
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        deserializer.DeserializePartial(isolate, &root);
+        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+                   .ToHandleChecked();
+        CHECK_EQ(0, outdated_contexts->length());
         CHECK(root->IsString());
       }
-      HandleScope handle_scope(isolate);
-      Handle<Object> root_handle(root, isolate);
 
-
-      Object* root2;
+      Handle<Object> root2;
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        deserializer.DeserializePartial(isolate, &root2);
+        root2 = deserializer.DeserializePartial(isolate, &outdated_contexts)
+                    .ToHandleChecked();
         CHECK(root2->IsString());
-        CHECK(*root_handle == root2);
+        CHECK(root.is_identical_to(root2));
       }
     }
     v8_isolate->Dispose();
@@ -501,24 +503,135 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
       Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      Object* root;
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        deserializer.DeserializePartial(isolate, &root);
-        CHECK(root->IsContext());
-      }
       HandleScope handle_scope(isolate);
-      Handle<Object> root_handle(root, isolate);
-
-
-      Object* root2;
+      Handle<Object> root;
+      Handle<FixedArray> outdated_contexts;
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        deserializer.DeserializePartial(isolate, &root2);
+        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+                   .ToHandleChecked();
+        CHECK(root->IsContext());
+        CHECK_EQ(1, outdated_contexts->length());
+      }
+
+      Handle<Object> root2;
+      {
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
+        root2 = deserializer.DeserializePartial(isolate, &outdated_contexts)
+                    .ToHandleChecked();
         CHECK(root2->IsContext());
-        CHECK(*root_handle != root2);
+        CHECK(!root.is_identical_to(root2));
+      }
+    }
+    v8_isolate->Dispose();
+  }
+}
+
+
+UNINITIALIZED_TEST(CustomContextSerialization) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    v8::Isolate::CreateParams params;
+    params.enable_serializer = true;
+    v8::Isolate* v8_isolate = v8::Isolate::New(params);
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    Heap* heap = isolate->heap();
+    {
+      v8::Isolate::Scope isolate_scope(v8_isolate);
+
+      v8::Persistent<v8::Context> env;
+      {
+        HandleScope scope(isolate);
+        env.Reset(v8_isolate, v8::Context::New(v8_isolate));
+      }
+      DCHECK(!env.IsEmpty());
+      {
+        v8::HandleScope handle_scope(v8_isolate);
+        v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
+        // After execution, e's function context refers to the global object.
+        CompileRun(
+            "var e;"
+            "(function() {"
+            "  e = function(s) { eval (s); }"
+            "})();");
+      }
+      // Make sure all builtin scripts are cached.
+      {
+        HandleScope scope(isolate);
+        for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+          isolate->bootstrapper()->NativesSourceLookup(i);
+        }
+      }
+      // If we don't do this then we end up with a stray root pointing at the
+      // context even after we have disposed of env.
+      heap->CollectAllGarbage(Heap::kNoGCFlags);
+
+      int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+      Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+      SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+      {
+        v8::HandleScope handle_scope(v8_isolate);
+        v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
+      }
+
+      i::Object* raw_context = *v8::Utils::OpenPersistent(env);
+
+      env.Reset();
+
+      SnapshotByteSink startup_sink;
+      StartupSerializer startup_serializer(isolate, &startup_sink);
+      startup_serializer.SerializeStrongReferences();
+
+      SnapshotByteSink partial_sink;
+      PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                           &partial_sink);
+      partial_serializer.Serialize(&raw_context);
+      startup_serializer.SerializeWeakReferences();
+
+      SnapshotData startup_snapshot(startup_sink, startup_serializer);
+      SnapshotData partial_snapshot(partial_sink, partial_serializer);
+
+      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+      WritePayload(startup_snapshot.RawData(), startup_name.start());
+
+      startup_name.Dispose();
+    }
+    v8_isolate->Dispose();
+  }
+}
+
+
+UNINITIALIZED_DEPENDENT_TEST(CustomContextDeSerialization,
+                             CustomContextSerialization) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+    v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
+    CHECK(v8_isolate);
+    startup_name.Dispose();
+    {
+      v8::Isolate::Scope isolate_scope(v8_isolate);
+
+      const char* file_name = FLAG_testing_serialization_file;
+
+      int snapshot_size = 0;
+      byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+      Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+      HandleScope handle_scope(isolate);
+      Handle<Object> root;
+      Handle<FixedArray> outdated_contexts;
+      {
+        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+        Deserializer deserializer(&snapshot_data);
+        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+                   .ToHandleChecked();
+        CHECK_EQ(2, outdated_contexts->length());
+        CHECK(root->IsContext());
       }
     }
     v8_isolate->Dispose();
