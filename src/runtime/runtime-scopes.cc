@@ -106,7 +106,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     bool is_var = initial_value->IsUndefined();
     bool is_const = initial_value->IsTheHole();
     bool is_function = initial_value->IsSharedFunctionInfo();
-    DCHECK(is_var + is_const + is_function == 1);
+    DCHECK_EQ(1,
+              BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
 
     Handle<Object> value;
     if (is_function) {
@@ -220,7 +221,8 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
   bool is_var = *initial_value == NULL;
   bool is_const = initial_value->IsTheHole();
   bool is_function = initial_value->IsJSFunction();
-  DCHECK(is_var + is_const + is_function == 1);
+  DCHECK_EQ(1,
+            BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
 
   int index;
   PropertyAttributes attributes;

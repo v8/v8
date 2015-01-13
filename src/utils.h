@@ -27,6 +27,9 @@ namespace internal {
 // General helper functions
 
 
+inline int BoolToInt(bool b) { return b ? 1 : 0; }
+
+
 // Same as strcmp, but can handle NULL arguments.
 inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
