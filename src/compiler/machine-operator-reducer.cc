@@ -803,63 +803,73 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       return reduction.Changed() ? reduction : Changed(node);
     }
   }
-  if (m.left().IsInt32Add() && m.right().IsNegativePowerOf2()) {
-    Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() &&
-        (mleft.right().Value() & m.right().Value()) == mleft.right().Value()) {
-      // (x + (K << L)) & (-1 << L) => (x & (-1 << L)) + (K << L)
-      node->set_op(machine()->Int32Add());
-      node->ReplaceInput(0, Word32And(mleft.left().node(), m.right().node()));
-      node->ReplaceInput(1, mleft.right().node());
-      Reduction const reduction = ReduceInt32Add(node);
-      return reduction.Changed() ? reduction : Changed(node);
-    }
-    if (mleft.left().IsInt32Mul()) {
-      Int32BinopMatcher mleftleft(mleft.left().node());
-      if (mleftleft.right().IsMultipleOf(-m.right().Value())) {
-        // (y * (K << L) + x) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
-        node->set_op(machine()->Int32Add());
-        node->ReplaceInput(0,
-                           Word32And(mleft.right().node(), m.right().node()));
-        node->ReplaceInput(1, mleftleft.node());
-        Reduction const reduction = ReduceInt32Add(node);
-        return reduction.Changed() ? reduction : Changed(node);
+  if (m.right().IsNegativePowerOf2()) {
+    int32_t const mask = m.right().Value();
+    if (m.left().IsWord32Shl()) {
+      Uint32BinopMatcher mleft(m.left().node());
+      if (mleft.right().HasValue() &&
+          mleft.right().Value() >= base::bits::CountTrailingZeros32(mask)) {
+        // (x << L) & (-1 << K) => x << L iff K >= L
+        return Replace(mleft.node());
       }
-    }
-    if (mleft.right().IsInt32Mul()) {
-      Int32BinopMatcher mleftright(mleft.right().node());
-      if (mleftright.right().IsMultipleOf(-m.right().Value())) {
-        // (x + y * (K << L)) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
+    } else if (m.left().IsInt32Add()) {
+      Int32BinopMatcher mleft(m.left().node());
+      if (mleft.right().HasValue() &&
+          (mleft.right().Value() & mask) == mleft.right().Value()) {
+        // (x + (K << L)) & (-1 << L) => (x & (-1 << L)) + (K << L)
         node->set_op(machine()->Int32Add());
         node->ReplaceInput(0, Word32And(mleft.left().node(), m.right().node()));
-        node->ReplaceInput(1, mleftright.node());
+        node->ReplaceInput(1, mleft.right().node());
         Reduction const reduction = ReduceInt32Add(node);
         return reduction.Changed() ? reduction : Changed(node);
       }
-    }
-    if (mleft.left().IsWord32Shl()) {
-      Int32BinopMatcher mleftleft(mleft.left().node());
-      if (mleftleft.right().Is(
-              base::bits::CountTrailingZeros32(m.right().Value()))) {
-        // (y << L + x) & (-1 << L) => (x & (-1 << L)) + y << L
-        node->set_op(machine()->Int32Add());
-        node->ReplaceInput(0,
-                           Word32And(mleft.right().node(), m.right().node()));
-        node->ReplaceInput(1, mleftleft.node());
-        Reduction const reduction = ReduceInt32Add(node);
-        return reduction.Changed() ? reduction : Changed(node);
+      if (mleft.left().IsInt32Mul()) {
+        Int32BinopMatcher mleftleft(mleft.left().node());
+        if (mleftleft.right().IsMultipleOf(-mask)) {
+          // (y * (K << L) + x) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
+          node->set_op(machine()->Int32Add());
+          node->ReplaceInput(0,
+                             Word32And(mleft.right().node(), m.right().node()));
+          node->ReplaceInput(1, mleftleft.node());
+          Reduction const reduction = ReduceInt32Add(node);
+          return reduction.Changed() ? reduction : Changed(node);
+        }
       }
-    }
-    if (mleft.right().IsWord32Shl()) {
-      Int32BinopMatcher mleftright(mleft.right().node());
-      if (mleftright.right().Is(
-              base::bits::CountTrailingZeros32(m.right().Value()))) {
-        // (x + y << L) & (-1 << L) => (x & (-1 << L)) + y << L
-        node->set_op(machine()->Int32Add());
-        node->ReplaceInput(0, Word32And(mleft.left().node(), m.right().node()));
-        node->ReplaceInput(1, mleftright.node());
-        Reduction const reduction = ReduceInt32Add(node);
-        return reduction.Changed() ? reduction : Changed(node);
+      if (mleft.right().IsInt32Mul()) {
+        Int32BinopMatcher mleftright(mleft.right().node());
+        if (mleftright.right().IsMultipleOf(-mask)) {
+          // (x + y * (K << L)) & (-1 << L) => (x & (-1 << L)) + y * (K << L)
+          node->set_op(machine()->Int32Add());
+          node->ReplaceInput(0,
+                             Word32And(mleft.left().node(), m.right().node()));
+          node->ReplaceInput(1, mleftright.node());
+          Reduction const reduction = ReduceInt32Add(node);
+          return reduction.Changed() ? reduction : Changed(node);
+        }
+      }
+      if (mleft.left().IsWord32Shl()) {
+        Int32BinopMatcher mleftleft(mleft.left().node());
+        if (mleftleft.right().Is(base::bits::CountTrailingZeros32(mask))) {
+          // (y << L + x) & (-1 << L) => (x & (-1 << L)) + y << L
+          node->set_op(machine()->Int32Add());
+          node->ReplaceInput(0,
+                             Word32And(mleft.right().node(), m.right().node()));
+          node->ReplaceInput(1, mleftleft.node());
+          Reduction const reduction = ReduceInt32Add(node);
+          return reduction.Changed() ? reduction : Changed(node);
+        }
+      }
+      if (mleft.right().IsWord32Shl()) {
+        Int32BinopMatcher mleftright(mleft.right().node());
+        if (mleftright.right().Is(base::bits::CountTrailingZeros32(mask))) {
+          // (x + y << L) & (-1 << L) => (x & (-1 << L)) + y << L
+          node->set_op(machine()->Int32Add());
+          node->ReplaceInput(0,
+                             Word32And(mleft.left().node(), m.right().node()));
+          node->ReplaceInput(1, mleftright.node());
+          Reduction const reduction = ReduceInt32Add(node);
+          return reduction.Changed() ? reduction : Changed(node);
+        }
       }
     }
   }
