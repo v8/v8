@@ -232,6 +232,12 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
 }
 
 
+LinkageLocation Linkage::GetOsrValueLocation(int index) const {
+  UNIMPLEMENTED();
+  return LinkageLocation(-1);  // Dummy value
+}
+
+
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Runtime::FunctionId function, int parameter_count,
     Operator::Properties properties, Zone* zone) {
