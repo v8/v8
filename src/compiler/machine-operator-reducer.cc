@@ -104,8 +104,14 @@ Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
 
 Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   DCHECK_LT(0, divisor);
+  // If the divisor is even, we can avoid using the expensive fixup by shifting
+  // the dividend upfront.
+  unsigned const shift = base::bits::CountTrailingZeros32(divisor);
+  dividend = Word32Shr(dividend, shift);
+  divisor >>= shift;
+  // Compute the magic number for the (shifted) divisor.
   base::MagicNumbersForDivision<uint32_t> const mag =
-      base::UnsignedDivisionByConstant(bit_cast<uint32_t>(divisor));
+      base::UnsignedDivisionByConstant(divisor, shift);
   Node* quotient = graph()->NewNode(machine()->Uint32MulHigh(), dividend,
                                     Uint32Constant(mag.multiplier));
   if (mag.add) {
