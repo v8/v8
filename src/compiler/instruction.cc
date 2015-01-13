@@ -252,14 +252,6 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "unordered equal";
     case kUnorderedNotEqual:
       return os << "unordered not equal";
-    case kUnorderedLessThan:
-      return os << "unordered less than";
-    case kUnorderedGreaterThanOrEqual:
-      return os << "unordered greater than or equal";
-    case kUnorderedLessThanOrEqual:
-      return os << "unordered less than or equal";
-    case kUnorderedGreaterThan:
-      return os << "unordered greater than";
     case kOverflow:
       return os << "overflow";
     case kNotOverflow:

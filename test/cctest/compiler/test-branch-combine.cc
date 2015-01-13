@@ -444,10 +444,10 @@ TEST(BranchCombineFloat64Compares) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(ne_constant));
 
-      for (size_t i = 0; i < arraysize(inputs); i++) {
-        for (size_t j = 0; j < arraysize(inputs); j += 2) {
+      for (size_t i = 0; i < arraysize(inputs); ++i) {
+        for (size_t j = 0; j < arraysize(inputs); ++j) {
           input_a = inputs[i];
-          input_b = inputs[i];
+          input_b = inputs[j];
           int32_t expected =
               invert ? (cmp.Float64Compare(input_a, input_b) ? ne_constant
                                                              : eq_constant)

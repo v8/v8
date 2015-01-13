@@ -216,6 +216,41 @@ class OutOfLineLoadZero FINAL : public OutOfLineCode {
   Register const result_;
 };
 
+
+Condition FlagsConditionToCondition(FlagsCondition condition) {
+  switch (condition) {
+    case kEqual:
+      return eq;
+    case kNotEqual:
+      return ne;
+    case kSignedLessThan:
+      return lt;
+    case kSignedGreaterThanOrEqual:
+      return ge;
+    case kSignedLessThanOrEqual:
+      return le;
+    case kSignedGreaterThan:
+      return gt;
+    case kUnsignedLessThan:
+      return lo;
+    case kUnsignedGreaterThanOrEqual:
+      return hs;
+    case kUnsignedLessThanOrEqual:
+      return ls;
+    case kUnsignedGreaterThan:
+      return hi;
+    case kOverflow:
+      return vs;
+    case kNotOverflow:
+      return vc;
+    case kUnorderedEqual:
+    case kUnorderedNotEqual:
+      break;
+  }
+  UNREACHABLE();
+  return nv;
+}
+
 }  // namespace
 
 
@@ -786,65 +821,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else {
-    switch (condition) {
-      case kUnorderedEqual:
-        // The "eq" condition will not catch the unordered case.
-        // The jump/fall through to false label will be used if the comparison
-        // was unordered.
-      case kEqual:
-        __ B(eq, tlabel);
-        break;
-      case kUnorderedNotEqual:
-        // Unordered or not equal can be tested with "ne" condtion.
-        // See ARMv8 manual C1.2.3 - Condition Code.
-      case kNotEqual:
-        __ B(ne, tlabel);
-        break;
-      case kSignedLessThan:
-        __ B(lt, tlabel);
-        break;
-      case kSignedGreaterThanOrEqual:
-        __ B(ge, tlabel);
-        break;
-      case kSignedLessThanOrEqual:
-        __ B(le, tlabel);
-        break;
-      case kSignedGreaterThan:
-        __ B(gt, tlabel);
-        break;
-      case kUnorderedLessThan:
-        // The "lo" condition will not catch the unordered case.
-        // The jump/fall through to false label will be used if the comparison
-        // was unordered.
-      case kUnsignedLessThan:
-        __ B(lo, tlabel);
-        break;
-      case kUnorderedGreaterThanOrEqual:
-        // Unordered, greater than or equal can be tested with "hs" condtion.
-        // See ARMv8 manual C1.2.3 - Condition Code.
-      case kUnsignedGreaterThanOrEqual:
-        __ B(hs, tlabel);
-        break;
-      case kUnorderedLessThanOrEqual:
-        // The "ls" condition will not catch the unordered case.
-        // The jump/fall through to false label will be used if the comparison
-        // was unordered.
-      case kUnsignedLessThanOrEqual:
-        __ B(ls, tlabel);
-        break;
-      case kUnorderedGreaterThan:
-        // Unordered or greater than can be tested with "hi" condtion.
-        // See ARMv8 manual C1.2.3 - Condition Code.
-      case kUnsignedGreaterThan:
-        __ B(hi, tlabel);
-        break;
-      case kOverflow:
-        __ B(vs, tlabel);
-        break;
-      case kNotOverflow:
-        __ B(vc, tlabel);
-        break;
-    }
+    Condition cc = FlagsConditionToCondition(condition);
+    __ B(cc, tlabel);
   }
   if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
 }
@@ -859,85 +837,13 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
   Arm64OperandConverter i(this, instr);
-  Label done;
 
   // Materialize a full 64-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
-  Label check;
   DCHECK_NE(0, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = nv;
-  switch (condition) {
-    case kUnorderedEqual:
-      __ B(vc, &check);
-      __ Mov(reg, 0);
-      __ B(&done);
-    // Fall through.
-    case kEqual:
-      cc = eq;
-      break;
-    case kUnorderedNotEqual:
-      __ B(vc, &check);
-      __ Mov(reg, 1);
-      __ B(&done);
-    // Fall through.
-    case kNotEqual:
-      cc = ne;
-      break;
-    case kSignedLessThan:
-      cc = lt;
-      break;
-    case kSignedGreaterThanOrEqual:
-      cc = ge;
-      break;
-    case kSignedLessThanOrEqual:
-      cc = le;
-      break;
-    case kSignedGreaterThan:
-      cc = gt;
-      break;
-    case kUnorderedLessThan:
-      __ B(vc, &check);
-      __ Mov(reg, 0);
-      __ B(&done);
-    // Fall through.
-    case kUnsignedLessThan:
-      cc = lo;
-      break;
-    case kUnorderedGreaterThanOrEqual:
-      __ B(vc, &check);
-      __ Mov(reg, 1);
-      __ B(&done);
-    // Fall through.
-    case kUnsignedGreaterThanOrEqual:
-      cc = hs;
-      break;
-    case kUnorderedLessThanOrEqual:
-      __ B(vc, &check);
-      __ Mov(reg, 0);
-      __ B(&done);
-    // Fall through.
-    case kUnsignedLessThanOrEqual:
-      cc = ls;
-      break;
-    case kUnorderedGreaterThan:
-      __ B(vc, &check);
-      __ Mov(reg, 1);
-      __ B(&done);
-    // Fall through.
-    case kUnsignedGreaterThan:
-      cc = hi;
-      break;
-    case kOverflow:
-      cc = vs;
-      break;
-    case kNotOverflow:
-      cc = vc;
-      break;
-  }
-  __ Bind(&check);
+  Condition cc = FlagsConditionToCondition(condition);
   __ Cset(reg, cc);
-  __ Bind(&done);
 }
 
 

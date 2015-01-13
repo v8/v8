@@ -303,18 +303,6 @@ class FlagsContinuation FINAL {
       case kUnorderedEqual:
       case kUnorderedNotEqual:
         return;
-      case kUnorderedLessThan:
-        condition_ = kUnorderedGreaterThan;
-        return;
-      case kUnorderedGreaterThanOrEqual:
-        condition_ = kUnorderedLessThanOrEqual;
-        return;
-      case kUnorderedLessThanOrEqual:
-        condition_ = kUnorderedGreaterThanOrEqual;
-        return;
-      case kUnorderedGreaterThan:
-        condition_ = kUnorderedLessThan;
-        return;
     }
     UNREACHABLE();
   }
