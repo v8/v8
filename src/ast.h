@@ -3157,7 +3157,8 @@ class AstVisitor BASE_EMBEDDED {
     if (stack_overflow_) return true;                       \
     StackLimitCheck check(zone_->isolate());                \
     if (!check.HasOverflowed()) return false;               \
-    return (stack_overflow_ = true);                        \
+    stack_overflow_ = true;                                 \
+    return true;                                            \
   }                                                         \
                                                             \
  private:                                                   \
