@@ -152,18 +152,22 @@ class LoopFinderImpl {
       queued_.Set(node, false);
 
       // Setup loop headers first.
+      NodeInfo& ni = info(node);
       if (node->opcode() == IrOpcode::kLoop) {
         // found the loop node first.
-        CreateLoopInfo(node);
+        CreateLoopInfo(node, ni);
       } else if (node->opcode() == IrOpcode::kPhi ||
                  node->opcode() == IrOpcode::kEffectPhi) {
         // found a phi first.
         Node* merge = node->InputAt(node->InputCount() - 1);
-        if (merge->opcode() == IrOpcode::kLoop) CreateLoopInfo(merge);
+        if (merge->opcode() == IrOpcode::kLoop) {
+          NodeInfo& mi = info(merge);
+          CreateLoopInfo(merge, mi);
+          ni.MarkBackward(mi.loop_mark);
+        }
       }
 
       // Propagate reachability marks backwards from this node.
-      NodeInfo& ni = info(node);
       if (ni.IsLoopHeader()) {
         // Handle edges from loop header nodes specially.
         for (int i = 0; i < node->InputCount(); i++) {
@@ -186,8 +190,7 @@ class LoopFinderImpl {
   }
 
   // Make a new loop header for the given node.
-  void CreateLoopInfo(Node* node) {
-    NodeInfo& ni = info(node);
+  void CreateLoopInfo(Node* node, NodeInfo& ni) {
     if (ni.IsLoopHeader()) return;  // loop already set up.
 
     loops_found_++;
@@ -197,7 +200,6 @@ class LoopFinderImpl {
     loops_.push_back({node, nullptr, nullptr, nullptr});
     loop_tree_->NewLoop();
     LoopMarks loop_mark = kVisited | (1 << loop_num);
-    ni.node = node;
     ni.loop_mark = loop_mark;
 
     // Setup loop mark for phis attached to loop header.
