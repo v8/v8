@@ -227,7 +227,12 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     d1.Chain(control);
 
     Node* number =
-        graph()->NewNode(value->op(), object, context, effect, d1.if_true);
+        OperatorProperties::HasFrameStateInput(value->op())
+            ? graph()->NewNode(value->op(), object, context,
+                               NodeProperties::GetFrameStateInput(value),
+                               effect, d1.if_true)
+            : graph()->NewNode(value->op(), object, context, effect,
+                               d1.if_true);
     Diamond d2(graph(), common(), TestNotSmi(number));
     d2.Nest(d1, true);
     Node* phi2 = d2.Phi(kMachFloat64, LoadHeapNumberValue(number, d2.if_true),

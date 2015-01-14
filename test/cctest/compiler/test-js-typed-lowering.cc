@@ -123,8 +123,13 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* UseForEffect(Node* node) {
     // TODO(titzer): use EffectPhi after fixing EffectCount
-    return graph.NewNode(javascript.ToNumber(), node, context(), node,
-                         control());
+    if (OperatorProperties::HasFrameStateInput(javascript.ToNumber())) {
+      return graph.NewNode(javascript.ToNumber(), node, context(),
+                           EmptyFrameState(context()), node, control());
+    } else {
+      return graph.NewNode(javascript.ToNumber(), node, context(), node,
+                           control());
+    }
   }
 
   void CheckEffectInput(Node* effect, Node* use) {
@@ -737,12 +742,25 @@ TEST(RemoveToNumberEffects) {
 
     switch (i) {
       case 0:
+        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
+        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+          effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
+                                       frame_state, ton, R.start());
+        } else {
         effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
                                      ton, R.start());
+        }
         break;
       case 1:
-        effect_use = R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
-                                     ton, R.start());
+        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
+        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+          effect_use =
+              R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
+                              frame_state, ton, R.start());
+        } else {
+          effect_use = R.graph.NewNode(R.javascript.ToNumber(), ton,
+                                       R.context(), ton, R.start());
+        }
         break;
       case 2:
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());

@@ -2170,13 +2170,14 @@ class CountOperation FINAL : public Expression {
   }
   void set_type(Type* type) { type_ = type; }
 
-  static int num_ids() { return parent_num_ids() + 3; }
+  static int num_ids() { return parent_num_ids() + 4; }
   BailoutId AssignmentId() const { return BailoutId(local_id(0)); }
+  BailoutId ToNumberId() const { return BailoutId(local_id(1)); }
   TypeFeedbackId CountBinOpFeedbackId() const {
-    return TypeFeedbackId(local_id(1));
+    return TypeFeedbackId(local_id(2));
   }
   TypeFeedbackId CountStoreFeedbackId() const {
-    return TypeFeedbackId(local_id(2));
+    return TypeFeedbackId(local_id(3));
   }
 
  protected:

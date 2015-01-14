@@ -4607,6 +4607,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
   ToNumberStub convert_stub(isolate());
   __ CallStub(&convert_stub);
+  PrepareForBailoutForId(expr->ToNumberId(), TOS_REG);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {

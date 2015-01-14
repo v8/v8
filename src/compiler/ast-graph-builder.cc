@@ -1488,6 +1488,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   // Convert old value into a number.
   old_value = NewNode(javascript()->ToNumber(), old_value);
+  PrepareFrameState(old_value, expr->ToNumberId(),
+                    OutputFrameStateCombine::Push());
 
   // Save result for postfix expressions at correct stack depth.
   if (is_postfix) environment()->Poke(stack_depth, old_value);
