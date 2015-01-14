@@ -12,25 +12,56 @@ namespace internal {
 
 class Snapshot : public AllStatic {
  public:
+  class Metadata {
+   public:
+    explicit Metadata(uint32_t data = 0) : data_(data) {}
+    bool embeds_script() { return EmbedsScriptBits::decode(data_); }
+    void set_embeds_script(bool v) {
+      data_ = EmbedsScriptBits::update(data_, v);
+    }
+
+    uint32_t& RawValue() { return data_; }
+
+   private:
+    class EmbedsScriptBits : public BitField<bool, 0, 1> {};
+    uint32_t data_;
+  };
+
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
   // Create a new context using the internal partial snapshot.
-  static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
+  static MaybeHandle<Context> NewContextFromSnapshot(
+      Isolate* isolate, Handle<FixedArray>* outdated_contexts_out);
 
   static bool HaveASnapshotToStartFrom();
+
+  static bool EmbedsScript();
 
   // To be implemented by the snapshot source.
   static const v8::StartupData SnapshotBlob();
 
   static v8::StartupData CreateSnapshotBlob(
       const Vector<const byte> startup_data,
-      const Vector<const byte> context_data);
+      const Vector<const byte> context_data, Metadata metadata);
 
-  static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
-  static Vector<const byte> ExtractContextData(const v8::StartupData* data);
+#ifdef DEBUG
+  static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
+#endif  // DEBUG
 
  private:
+  static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+  static Vector<const byte> ExtractContextData(const v8::StartupData* data);
+  static Metadata ExtractMetadata(const v8::StartupData* data);
+
+  static const int kMetadataOffset = 0;
+  static const int kStartupLengthOffset = kMetadataOffset + kInt32Size;
+  static const int kStartupDataOffset = kStartupLengthOffset + kInt32Size;
+
+  static int ContextOffset(int startup_length) {
+    return kStartupDataOffset + startup_length;
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
 

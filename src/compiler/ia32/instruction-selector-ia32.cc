@@ -799,11 +799,12 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 
-// Shared routine for multiple float compare operations.
+// Shared routine for multiple float64 compare operations (inputs commuted).
 void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
-  VisitCompare(selector, kSSEFloat64Cmp, node->InputAt(0), node->InputAt(1),
-               cont, node->op()->HasProperty(Operator::kCommutative));
+  Node* const left = node->InputAt(0);
+  Node* const right = node->InputAt(1);
+  VisitCompare(selector, kSSEFloat64Cmp, right, left, cont, false);
 }
 
 
@@ -868,10 +869,10 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kFloat64LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnorderedLessThan);
+        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
         return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kFloat64LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
+        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
         return VisitFloat64Compare(selector, value, cont);
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
@@ -984,13 +985,13 @@ void InstructionSelector::VisitFloat64Equal(Node* node) {
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnorderedLessThan, node);
+  FlagsContinuation cont(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnorderedLessThanOrEqual, node);
+  FlagsContinuation cont(kUnsignedGreaterThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
@@ -1006,6 +1007,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   }
   return MachineOperatorBuilder::Flag::kNoFlags;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

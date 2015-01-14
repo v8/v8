@@ -191,23 +191,6 @@ action("js2c") {
   }
 }
 
-action("d8_js2c") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  inputs = [
-    "src/d8.js",
-    "src/macros.py",
-  ]
-  outputs = [
-    "$target_gen_dir/d8-js.cc",
-  ]
-
-  args = rebase_path(outputs, root_build_dir) + [ "D8" ] +
-         rebase_path(inputs, root_build_dir)
-}
-
 action("js2c_experimental") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -1420,43 +1403,6 @@ if (current_toolchain == host_toolchain) {
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
     ]
-  }
-
-  executable("d8") {
-    sources = [
-      "src/d8.cc",
-    ]
-    deps = [
-      ":d8_js2c",
-      ":v8",
-      ":v8_libplatform",
-    ]
-
-    configs += [
-      ":internal_config",
-      ":features",
-      ":toolchain",
-    ]
-
-    # TODO(GYP): Build option for readline support.
-
-    if (is_posix) {
-      sources += [ "src/d8-posix.cc" ]
-    } else if (is_win) {
-      sources += [ "src/d8-windows.cc" ]
-    }
-
-    if (component_mode != "shared_library") {
-      sources += [
-        "src/d8-debug.cc",
-        "$target_gen_dir/d8-js.cc",
-      ]
-    }
-    if (v8_enable_i18n_support) {
-      deps += [ "//third_party/icu" ]
-    }
-
-    # TODO(GYP) v8_enable_vtunejit support in d8.
   }
 }
 

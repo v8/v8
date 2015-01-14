@@ -635,6 +635,11 @@ void Deserializer::FlushICacheForNewCodeObjects() {
 
 
 bool Deserializer::ReserveSpace() {
+#ifdef DEBUG
+  for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
+    CHECK(reservations_[i].length() > 0);
+  }
+#endif  // DEBUG
   if (!isolate_->heap()->ReserveSpace(reservations_)) return false;
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     high_water_[i] = reservations_[i][0].start;
@@ -643,16 +648,22 @@ bool Deserializer::ReserveSpace() {
 }
 
 
-void Deserializer::Deserialize(Isolate* isolate) {
+void Deserializer::Initialize(Isolate* isolate) {
+  DCHECK_EQ(NULL, isolate_);
+  DCHECK_NE(NULL, isolate);
   isolate_ = isolate;
-  DCHECK(isolate_ != NULL);
+  DCHECK_EQ(NULL, external_reference_decoder_);
+  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
+}
+
+
+void Deserializer::Deserialize(Isolate* isolate) {
+  Initialize(isolate);
   if (!ReserveSpace()) FatalProcessOutOfMemory("deserializing context");
   // No active threads.
   DCHECK_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  DCHECK_EQ(NULL, external_reference_decoder_);
-  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   isolate_->heap()->IterateSmiRoots(this);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
   isolate_->heap()->RepairFreeListsAfterBoot();
@@ -688,33 +699,46 @@ void Deserializer::Deserialize(Isolate* isolate) {
 }
 
 
-void Deserializer::DeserializePartial(Isolate* isolate, Object** root,
-                                      OnOOM on_oom) {
-  isolate_ = isolate;
-  for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
-    DCHECK(reservations_[i].length() > 0);
-  }
+MaybeHandle<Object> Deserializer::DeserializePartial(
+    Isolate* isolate, Handle<FixedArray>* outdated_contexts_out) {
+  Initialize(isolate);
   if (!ReserveSpace()) {
-    if (on_oom == FATAL_ON_OOM) FatalProcessOutOfMemory("deserialize context");
-    *root = NULL;
-    return;
-  }
-  if (external_reference_decoder_ == NULL) {
-    external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
+    FatalProcessOutOfMemory("deserialize context");
+    return MaybeHandle<Object>();
   }
 
   DisallowHeapAllocation no_gc;
-
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
   OldSpace* code_space = isolate_->heap()->code_space();
   Address start_address = code_space->top();
-  VisitPointer(root);
+  Object* root;
+  Object* outdated_contexts;
+  VisitPointer(&root);
+  VisitPointer(&outdated_contexts);
 
   // There's no code deserialized here. If this assert fires
   // then that's changed and logging should be added to notify
   // the profiler et al of the new code.
   CHECK_EQ(start_address, code_space->top());
+  CHECK(outdated_contexts->IsFixedArray());
+  *outdated_contexts_out =
+      Handle<FixedArray>(FixedArray::cast(outdated_contexts), isolate);
+  return Handle<Object>(root, isolate);
+}
+
+
+MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
+    Isolate* isolate) {
+  Initialize(isolate);
+  if (!ReserveSpace()) {
+    return Handle<SharedFunctionInfo>();
+  } else {
+    DisallowHeapAllocation no_gc;
+    Object* root;
+    VisitPointer(&root);
+    return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+  }
 }
 
 
@@ -1371,9 +1395,38 @@ void StartupSerializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-void PartialSerializer::Serialize(Object** object) {
-  this->VisitPointer(object);
+void PartialSerializer::Serialize(Object** o) {
+  if ((*o)->IsContext()) global_object_ = Context::cast(*o)->global_object();
+  VisitPointer(o);
+  SerializeOutdatedContextsAsFixedArray();
   Pad();
+}
+
+
+void PartialSerializer::SerializeOutdatedContextsAsFixedArray() {
+  int length = outdated_contexts_.length();
+  if (length == 0) {
+    FixedArray* empty = isolate_->heap()->empty_fixed_array();
+    SerializeObject(empty, kPlain, kStartOfObject, 0);
+  } else {
+    // Serialize an imaginary fixed array containing outdated contexts.
+    int size = FixedArray::SizeFor(length);
+    Allocate(NEW_SPACE, size);
+    sink_->Put(kNewObject + NEW_SPACE, "emulated FixedArray");
+    sink_->PutInt(size >> kObjectAlignmentBits, "FixedArray size in words");
+    Map* map = isolate_->heap()->fixed_array_map();
+    SerializeObject(map, kPlain, kStartOfObject, 0);
+    Smi* length_smi = Smi::FromInt(length);
+    sink_->Put(kOnePointerRawData, "Smi");
+    for (int i = 0; i < kPointerSize; i++) {
+      sink_->Put(reinterpret_cast<byte*>(&length_smi)[i], "Byte");
+    }
+    for (int i = 0; i < length; i++) {
+      BackReference back_ref = outdated_contexts_[i];
+      sink_->Put(kBackref + back_ref.space(), "BackRef");
+      sink_->PutInt(back_ref.reference(), "BackRefValue");
+    }
+  }
 }
 
 
@@ -1633,6 +1686,15 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
   serializer.Serialize();
+
+  if (obj->IsContext() &&
+      Context::cast(obj)->global_object() == global_object_) {
+    // Context refers to the current global object. This reference will
+    // become outdated after deserialization.
+    BackReference back_reference = back_reference_map_.Lookup(obj);
+    DCHECK(back_reference.is_valid());
+    outdated_contexts_.Add(back_reference);
+  }
 }
 
 
@@ -2276,52 +2338,47 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
-  Object* root;
+  HandleScope scope(isolate);
 
-  {
-    HandleScope scope(isolate);
-
-    SmartPointer<SerializedCodeData> scd(
-        SerializedCodeData::FromCachedData(cached_data, *source));
-    if (scd.is_empty()) {
-      if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
-      DCHECK(cached_data->rejected());
-      return MaybeHandle<SharedFunctionInfo>();
-    }
-
-    // Eagerly expand string table to avoid allocations during deserialization.
-    StringTable::EnsureCapacityForDeserialization(
-        isolate, scd->NumInternalizedStrings());
-
-    // Prepare and register list of attached objects.
-    Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
-    Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
-        code_stub_keys.length() + kCodeStubsBaseIndex);
-    attached_objects[kSourceObjectIndex] = source;
-    for (int i = 0; i < code_stub_keys.length(); i++) {
-      attached_objects[i + kCodeStubsBaseIndex] =
-          CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
-    }
-
-    Deserializer deserializer(scd.get());
-    deserializer.SetAttachedObjects(&attached_objects);
-
-    // Deserialize.
-    deserializer.DeserializePartial(isolate, &root, Deserializer::NULL_ON_OOM);
-    if (root == NULL) {
-      // Deserializing may fail if the reservations cannot be fulfilled.
-      if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
-      return MaybeHandle<SharedFunctionInfo>();
-    }
-    deserializer.FlushICacheForNewCodeObjects();
+  SmartPointer<SerializedCodeData> scd(
+      SerializedCodeData::FromCachedData(cached_data, *source));
+  if (scd.is_empty()) {
+    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    DCHECK(cached_data->rejected());
+    return MaybeHandle<SharedFunctionInfo>();
   }
+
+  // Eagerly expand string table to avoid allocations during deserialization.
+  StringTable::EnsureCapacityForDeserialization(isolate,
+                                                scd->NumInternalizedStrings());
+
+  // Prepare and register list of attached objects.
+  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
+  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
+      code_stub_keys.length() + kCodeStubsBaseIndex);
+  attached_objects[kSourceObjectIndex] = source;
+  for (int i = 0; i < code_stub_keys.length(); i++) {
+    attached_objects[i + kCodeStubsBaseIndex] =
+        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
+  }
+
+  Deserializer deserializer(scd.get());
+  deserializer.SetAttachedObjects(&attached_objects);
+
+  // Deserialize.
+  Handle<SharedFunctionInfo> result;
+  if (!deserializer.DeserializeCode(isolate).ToHandle(&result)) {
+    // Deserializing may fail if the reservations cannot be fulfilled.
+    if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+  deserializer.FlushICacheForNewCodeObjects();
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
-  Handle<SharedFunctionInfo> result(SharedFunctionInfo::cast(root), isolate);
   result->set_deserialized(true);
 
   if (isolate->logger()->is_logging_code_events() ||
@@ -2335,7 +2392,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                                        *result, NULL, name);
   }
 
-  return result;
+  return scope.CloseAndEscape(result);
 }
 
 

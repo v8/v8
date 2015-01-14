@@ -330,12 +330,15 @@ class CompilationInfo {
   }
 
   void AbortOptimization(BailoutReason reason) {
-    if (bailout_reason_ != kNoReason) bailout_reason_ = reason;
+    DCHECK(reason != kNoReason);
+    if (bailout_reason_ == kNoReason) bailout_reason_ = reason;
     SetFlag(kDisableFutureOptimization);
   }
 
   void RetryOptimization(BailoutReason reason) {
-    if (bailout_reason_ != kNoReason) bailout_reason_ = reason;
+    DCHECK(reason != kNoReason);
+    if (GetFlag(kDisableFutureOptimization)) return;
+    bailout_reason_ = reason;
   }
 
   BailoutReason bailout_reason() const { return bailout_reason_; }

@@ -179,6 +179,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kNewObjectFromBound:
     case Runtime::kNewObjectWithAllocationSite:
     case Runtime::kObjectFreeze:
+    case Runtime::kObjectSeal:
     case Runtime::kOwnKeys:
     case Runtime::kParseJson:
     case Runtime::kPrepareStep:
@@ -202,6 +203,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kStringBuilderJoin:
     case Runtime::kStringMatch:
     case Runtime::kStringReplaceGlobalRegExpWithString:
+    case Runtime::kThrowConstAssignError:
     case Runtime::kThrowNonMethodError:
     case Runtime::kThrowNotDateError:
     case Runtime::kThrowReferenceError:
@@ -227,6 +229,12 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
                                              CallDescriptor::Flags flags) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+
+LinkageLocation Linkage::GetOsrValueLocation(int index) const {
+  UNIMPLEMENTED();
+  return LinkageLocation(-1);  // Dummy value
 }
 
 

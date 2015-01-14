@@ -148,6 +148,7 @@
   V(NumberModulus)            \
   V(NumberToInt32)            \
   V(NumberToUint32)           \
+  V(PlainPrimitiveToNumber)   \
   V(ReferenceEqual)           \
   V(StringEqual)              \
   V(StringLessThan)           \

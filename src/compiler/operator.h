@@ -143,7 +143,7 @@ class Operator1 : public Operator {
 
   bool Equals(const Operator* other) const FINAL {
     if (opcode() != other->opcode()) return false;
-    const Operator1<T>* that = static_cast<const Operator1<T>*>(other);
+    const Operator1<T>* that = reinterpret_cast<const Operator1<T>*>(other);
     return this->pred_(this->parameter(), that->parameter());
   }
   size_t HashCode() const FINAL {
@@ -169,21 +169,23 @@ class Operator1 : public Operator {
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
-  return static_cast<const Operator1<T>*>(op)->parameter();
+  return reinterpret_cast<const Operator1<T>*>(op)->parameter();
 }
 
 // NOTE: We have to be careful to use the right equal/hash functions below, for
 // float/double we always use the ones operating on the bit level.
 template <>
 inline float const& OpParameter(const Operator* op) {
-  return static_cast<const Operator1<float, base::bit_equal_to<float>,
-                                     base::bit_hash<float>>*>(op)->parameter();
+  return reinterpret_cast<const Operator1<float, base::bit_equal_to<float>,
+                                          base::bit_hash<float>>*>(op)
+      ->parameter();
 }
 
 template <>
 inline double const& OpParameter(const Operator* op) {
-  return static_cast<const Operator1<double, base::bit_equal_to<double>,
-                                     base::bit_hash<double>>*>(op)->parameter();
+  return reinterpret_cast<const Operator1<double, base::bit_equal_to<double>,
+                                          base::bit_hash<double>>*>(op)
+      ->parameter();
 }
 
 }  // namespace compiler

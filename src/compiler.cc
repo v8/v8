@@ -185,7 +185,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     DCHECK(strict_mode() == SLOPPY);
     SetStrictMode(shared_info_->strict_mode());
   }
-  bailout_reason_ = kUnknown;
+  bailout_reason_ = kNoReason;
 
   if (!shared_info().is_null() && shared_info()->is_compiled()) {
     // We should initialize the CompilationInfo feedback vector from the
