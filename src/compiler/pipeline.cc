@@ -760,11 +760,9 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
-  // This list must be kept in sync with DONT_TURBOFAN_NODE in ast.cc.
+  // This list must be kept in sync with DisableTurbofan in ast-numbering.cc.
   if (info()->function()->dont_optimize_reason() == kTryCatchStatement ||
       info()->function()->dont_optimize_reason() == kTryFinallyStatement ||
-      // TODO(turbofan): Make ES6 for-of work and remove this bailout.
-      info()->function()->dont_optimize_reason() == kForOfStatement ||
       // TODO(turbofan): Make super work and remove this bailout.
       info()->function()->dont_optimize_reason() == kSuperReference ||
       // TODO(turbofan): Make class literals work and remove this bailout.

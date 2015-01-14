@@ -47,10 +47,10 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   void IncrementNodeCount() { properties_.add_node_count(1); }
   void DisableCrankshaft(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;
-    properties_.flags()->Add(kDontSelfOptimize);
+    DisableSelfOptimization();
   }
   // TODO(turbofan): Remove the dont_turbofan_reason once no nodes are
-  // DontTurbofanNode.  That set of nodes must be kept in sync with
+  // DisableTurbofan.  That set of nodes must be kept in sync with
   // Pipeline::GenerateCode.
   void DisableTurbofan(BailoutReason reason) {
     dont_crankshaft_reason_ = reason;
@@ -390,7 +390,7 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   IncrementNodeCount();
-  DisableTurbofan(kForOfStatement);
+  DisableCrankshaft(kForOfStatement);
   node->set_base_id(ReserveIdRange(ForOfStatement::num_ids()));
   Visit(node->assign_iterator());
   Visit(node->next_result());

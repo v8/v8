@@ -789,9 +789,17 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
 
 void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
-  VisitForValue(stmt->subject());
-  environment()->Pop();
-  // TODO(turbofan): create and use loop builder.
+  LoopBuilder for_loop(this);
+  VisitForEffect(stmt->assign_iterator());
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  VisitForEffect(stmt->next_result());
+  VisitForTest(stmt->result_done());
+  Node* condition = environment()->Pop();
+  for_loop.BreakWhen(condition);
+  VisitForEffect(stmt->assign_each());
+  VisitIterationBody(stmt, &for_loop, 0);
+  for_loop.EndBody();
+  for_loop.EndLoop();
 }
 
 
