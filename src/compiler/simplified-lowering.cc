@@ -77,9 +77,6 @@ class RepresentationSelector {
     memset(info_, 0, sizeof(NodeInfo) * count_);
 
     Factory* f = zone->isolate()->factory();
-    safe_bit_range_ =
-        Type::Union(Type::Boolean(),
-                    Type::Range(f->NewNumber(0), f->NewNumber(1), zone), zone);
     safe_int_additive_range_ =
         Type::Range(f->NewNumber(-std::pow(2.0, 52.0)),
                     f->NewNumber(std::pow(2.0, 52.0)), zone);
@@ -323,7 +320,7 @@ class RepresentationSelector {
       } else {
         return kRepFloat64;
       }
-    } else if (IsSafeBitOperand(node)) {
+    } else if (upper->Is(Type::Boolean())) {
       // multiple uses => pick kRepBit.
       return kRepBit;
     } else if (upper->Is(Type::Number())) {
@@ -415,11 +412,6 @@ class RepresentationSelector {
 
   bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
-  }
-
-  bool IsSafeBitOperand(Node* node) {
-    Type* type = NodeProperties::GetBounds(node).upper;
-    return type->Is(safe_bit_range_);
   }
 
   bool IsSafeIntAdditiveOperand(Node* node) {
@@ -530,24 +522,19 @@ class RepresentationSelector {
       // Simplified operators.
       //------------------------------------------------------------------
       case IrOpcode::kAnyToBoolean: {
-        if (IsSafeBitOperand(node->InputAt(0))) {
-          VisitUnop(node, kRepBit, kRepBit);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          VisitUnop(node, kMachAnyTagged, kTypeBool | kRepTagged);
-          if (lower()) {
-            // AnyToBoolean(x) => Call(ToBooleanStub, x, no-context)
-            Operator::Properties properties = node->op()->properties();
-            Callable callable = CodeFactory::ToBoolean(
-                jsgraph_->isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
-            CallDescriptor::Flags flags = CallDescriptor::kPatchableCallSite;
-            CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-                callable.descriptor(), 0, flags, properties, jsgraph_->zone());
-            node->set_op(jsgraph_->common()->Call(desc));
-            node->InsertInput(jsgraph_->zone(), 0,
-                              jsgraph_->HeapConstant(callable.code()));
-            node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          }
+        VisitUnop(node, kMachAnyTagged, kTypeBool | kRepTagged);
+        if (lower()) {
+          // AnyToBoolean(x) => Call(ToBooleanStub, x, no-context)
+          Operator::Properties properties = node->op()->properties();
+          Callable callable = CodeFactory::ToBoolean(
+              jsgraph_->isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
+          CallDescriptor::Flags flags = CallDescriptor::kPatchableCallSite;
+          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+              callable.descriptor(), 0, flags, properties, jsgraph_->zone());
+          node->set_op(jsgraph_->common()->Call(desc));
+          node->InsertInput(jsgraph_->zone(), 0,
+                            jsgraph_->HeapConstant(callable.code()));
+          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
         }
         break;
       }
@@ -756,7 +743,7 @@ class RepresentationSelector {
               callable.descriptor(), 0, flags, properties, jsgraph_->zone());
           node->set_op(jsgraph_->common()->Call(desc));
           node->InsertInput(jsgraph_->zone(), 0,
-                            +jsgraph_->HeapConstant(callable.code()));
+                            jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
         }
         break;
@@ -1080,7 +1067,6 @@ class RepresentationSelector {
   Phase phase_;                     // current phase of algorithm
   RepresentationChanger* changer_;  // for inserting representation changes
   ZoneQueue<Node*> queue_;          // queue for traversing the graph
-  Type* safe_bit_range_;
   Type* safe_int_additive_range_;
 
   NodeInfo* GetInfo(Node* node) {

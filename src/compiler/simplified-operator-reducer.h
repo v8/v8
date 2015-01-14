@@ -13,6 +13,7 @@ namespace internal {
 
 // Forward declarations.
 class Factory;
+class Heap;
 
 namespace compiler {
 
@@ -30,7 +31,6 @@ class SimplifiedOperatorReducer FINAL : public Reducer {
 
  private:
   Reduction ReduceAnyToBoolean(Node* node);
-  Reduction ReduceChangeWord32ToBit(Node* node);
 
   Reduction Change(Node* node, const Operator* op, Node* a);
   Reduction ReplaceFloat64(double value);

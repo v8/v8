@@ -117,18 +117,6 @@ static void IncrementingSignatureCallback(
 }
 
 
-static void SignatureCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ApiTestFuzzer::Fuzz();
-  v8::Handle<v8::Array> result =
-      v8::Array::New(args.GetIsolate(), args.Length());
-  for (int i = 0; i < args.Length(); i++) {
-    result->Set(v8::Integer::New(args.GetIsolate(), i), args[i]);
-  }
-  args.GetReturnValue().Set(result);
-}
-
-
 // Tests that call v8::V8::Dispose() cannot be threaded.
 UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
   CHECK(v8::V8::Initialize());
@@ -280,75 +268,6 @@ THREADED_TEST(ReceiverSignature) {
     TestSignature("test_object.accessor_sig = 1;", test_object, isolate);
     TestSignature("test_object[accessor_sig_key] = 1;", test_object, isolate);
   }
-}
-
-
-THREADED_TEST(ArgumentSignature) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Handle<v8::FunctionTemplate> cons = v8::FunctionTemplate::New(isolate);
-  cons->SetClassName(v8_str("Cons"));
-  v8::Handle<v8::Signature> sig = v8::Signature::New(
-      isolate, v8::Handle<v8::FunctionTemplate>(), 1, &cons);
-  v8::Handle<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(isolate,
-                                SignatureCallback,
-                                v8::Handle<Value>(),
-                                sig);
-  env->Global()->Set(v8_str("Cons"), cons->GetFunction());
-  env->Global()->Set(v8_str("Fun1"), fun->GetFunction());
-
-  v8::Handle<Value> value1 = CompileRun("Fun1(4) == '';");
-  CHECK(value1->IsTrue());
-
-  v8::Handle<Value> value2 = CompileRun("Fun1(new Cons()) == '[object Cons]';");
-  CHECK(value2->IsTrue());
-
-  v8::Handle<Value> value3 = CompileRun("Fun1() == '';");
-  CHECK(value3->IsTrue());
-
-  v8::Handle<v8::FunctionTemplate> cons1 = v8::FunctionTemplate::New(isolate);
-  cons1->SetClassName(v8_str("Cons1"));
-  v8::Handle<v8::FunctionTemplate> cons2 = v8::FunctionTemplate::New(isolate);
-  cons2->SetClassName(v8_str("Cons2"));
-  v8::Handle<v8::FunctionTemplate> cons3 = v8::FunctionTemplate::New(isolate);
-  cons3->SetClassName(v8_str("Cons3"));
-
-  v8::Handle<v8::FunctionTemplate> args[3] = { cons1, cons2, cons3 };
-  v8::Handle<v8::Signature> wsig = v8::Signature::New(
-      isolate, v8::Handle<v8::FunctionTemplate>(), 3, args);
-  v8::Handle<v8::FunctionTemplate> fun2 =
-      v8::FunctionTemplate::New(isolate,
-                                SignatureCallback,
-                                v8::Handle<Value>(),
-                                wsig);
-
-  env->Global()->Set(v8_str("Cons1"), cons1->GetFunction());
-  env->Global()->Set(v8_str("Cons2"), cons2->GetFunction());
-  env->Global()->Set(v8_str("Cons3"), cons3->GetFunction());
-  env->Global()->Set(v8_str("Fun2"), fun2->GetFunction());
-  v8::Handle<Value> value4 = CompileRun(
-      "Fun2(new Cons1(), new Cons2(), new Cons3()) =="
-      "'[object Cons1],[object Cons2],[object Cons3]'");
-  CHECK(value4->IsTrue());
-
-  v8::Handle<Value> value5 = CompileRun(
-      "Fun2(new Cons1(), new Cons2(), 5) == '[object Cons1],[object Cons2],'");
-  CHECK(value5->IsTrue());
-
-  v8::Handle<Value> value6 = CompileRun(
-      "Fun2(new Cons3(), new Cons2(), new Cons1()) == ',[object Cons2],'");
-  CHECK(value6->IsTrue());
-
-  v8::Handle<Value> value7 = CompileRun(
-      "Fun2(new Cons1(), new Cons2(), new Cons3(), 'd') == "
-      "'[object Cons1],[object Cons2],[object Cons3],d';");
-  CHECK(value7->IsTrue());
-
-  v8::Handle<Value> value8 = CompileRun(
-      "Fun2(new Cons1(), new Cons2()) == '[object Cons1],[object Cons2]'");
-  CHECK(value8->IsTrue());
 }
 
 

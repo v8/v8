@@ -144,6 +144,10 @@ inline bool NodeProperties::IsControl(Node* node) {
 // -----------------------------------------------------------------------------
 // Miscellaneous mutators.
 
+inline void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
+  node->ReplaceInput(FirstContextIndex(node), context);
+}
+
 inline void NodeProperties::ReplaceControlInput(Node* node, Node* control) {
   node->ReplaceInput(FirstControlIndex(node), control);
 }

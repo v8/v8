@@ -1,3 +1,17 @@
+2015-01-14: Version 4.2.4
+
+        Auto-generate v8 version based on tags (Chromium issue 446166).
+
+        Remove support for signatures with arguments.
+
+        Add proper support for proxies to HType (Chromium issue 448730).
+
+        [turbofan] Fix truncation/representation sloppiness wrt. bool/bit (issue
+        3812).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-14: Version 4.2.3
 
         Performance and stability improvements on all platforms.

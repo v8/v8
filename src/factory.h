@@ -465,6 +465,8 @@ class Factory FINAL {
   void ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> global,
                                  Handle<JSFunction> constructor);
 
+  Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
+
   // Change the type of the argument into a JS object/function and reinitialize.
   void BecomeJSObject(Handle<JSProxy> object);
   void BecomeJSFunction(Handle<JSProxy> object);

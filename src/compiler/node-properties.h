@@ -32,6 +32,7 @@ class NodeProperties {
 
   static inline bool IsControl(Node* node);
 
+  static inline void ReplaceContextInput(Node* node, Node* context);
   static inline void ReplaceControlInput(Node* node, Node* control);
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);

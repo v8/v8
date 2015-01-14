@@ -449,6 +449,9 @@ class SerializerDeserializer: public ObjectVisitor {
   // Used as index for the attached reference representing the source object.
   static const int kSourceObjectReference = 0;
 
+  // Used as index for the attached reference representing the global proxy.
+  static const int kGlobalProxyReference = 0;
+
   HotObjectsList hot_objects_;
 };
 
@@ -506,10 +509,10 @@ class Deserializer: public SerializerDeserializer {
   template <class Data>
   explicit Deserializer(Data* data)
       : isolate_(NULL),
-        attached_objects_(NULL),
         source_(data->Payload()),
         external_reference_decoder_(NULL),
-        deserialized_large_objects_(0) {
+        deserialized_large_objects_(0),
+        deserializing_user_code_(false) {
     DecodeReservation(data->Reservations());
   }
 
@@ -519,21 +522,20 @@ class Deserializer: public SerializerDeserializer {
   void Deserialize(Isolate* isolate);
 
   // Deserialize a single object and the objects reachable from it.
-  // We may want to abort gracefully even if deserialization fails.
   MaybeHandle<Object> DeserializePartial(
-      Isolate* isolate, Handle<FixedArray>* outdated_contexts_out);
+      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+      Handle<FixedArray>* outdated_contexts_out);
 
+  // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
 
   void FlushICacheForNewCodeObjects();
 
-  // Serialized user code reference certain objects that are provided in a list
-  // By calling this method, we assume that we are deserializing user code.
-  void SetAttachedObjects(Vector<Handle<Object> >* attached_objects) {
+  // Pass a vector of externally-provided objects referenced by the snapshot.
+  // The ownership to its backing store is handed over as well.
+  void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
     attached_objects_ = attached_objects;
   }
-
-  bool deserializing_user_code() { return attached_objects_ != NULL; }
 
  private:
   virtual void VisitPointers(Object** start, Object** end);
@@ -543,6 +545,8 @@ class Deserializer: public SerializerDeserializer {
   }
 
   void Initialize(Isolate* isolate);
+
+  bool deserializing_user_code() { return deserializing_user_code_; }
 
   void DecodeReservation(Vector<const SerializedData::Reservation> res);
 
@@ -577,7 +581,7 @@ class Deserializer: public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  Vector<Handle<Object> >* attached_objects_;
+  Vector<Handle<Object> > attached_objects_;
 
   SnapshotByteSource source_;
   // The address of the next object that will be allocated in each space.
@@ -591,6 +595,8 @@ class Deserializer: public SerializerDeserializer {
   ExternalReferenceDecoder* external_reference_decoder_;
 
   List<HeapObject*> deserialized_large_objects_;
+
+  bool deserializing_user_code_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
@@ -745,7 +751,8 @@ class PartialSerializer : public Serializer {
       : Serializer(isolate, sink),
         startup_serializer_(startup_snapshot_serializer),
         outdated_contexts_(0),
-        global_object_(NULL) {
+        global_object_(NULL),
+        global_proxy_(NULL) {
     InitializeCodeAddressMap();
   }
 
@@ -774,6 +781,7 @@ class PartialSerializer : public Serializer {
   Serializer* startup_serializer_;
   List<BackReference> outdated_contexts_;
   Object* global_object_;
+  Object* global_proxy_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 
@@ -855,8 +863,6 @@ class CodeSerializer : public Serializer {
                    WhereToPoint where_to_point);
   void SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
                          WhereToPoint where_to_point);
-  void SerializeSourceObject(HowToCode how_to_code,
-                             WhereToPoint where_to_point);
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
   int AddCodeStubKey(uint32_t stub_key);

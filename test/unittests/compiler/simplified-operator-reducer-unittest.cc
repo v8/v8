@@ -124,57 +124,6 @@ static const uint32_t kUint32Values[] = {
 
 
 // -----------------------------------------------------------------------------
-// Unary operators
-
-
-namespace {
-
-struct UnaryOperator {
-  const Operator* (SimplifiedOperatorBuilder::*constructor)();
-  const char* constructor_name;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const UnaryOperator& unop) {
-  return os << unop.constructor_name;
-}
-
-
-static const UnaryOperator kUnaryOperators[] = {
-    {&SimplifiedOperatorBuilder::AnyToBoolean, "AnyToBoolean"},
-    {&SimplifiedOperatorBuilder::BooleanNot, "BooleanNot"},
-    {&SimplifiedOperatorBuilder::ChangeBitToBool, "ChangeBitToBool"},
-    {&SimplifiedOperatorBuilder::ChangeBoolToBit, "ChangeBoolToBit"},
-    {&SimplifiedOperatorBuilder::ChangeFloat64ToTagged,
-     "ChangeFloat64ToTagged"},
-    {&SimplifiedOperatorBuilder::ChangeInt32ToTagged, "ChangeInt32ToTagged"},
-    {&SimplifiedOperatorBuilder::ChangeTaggedToFloat64,
-     "ChangeTaggedToFloat64"},
-    {&SimplifiedOperatorBuilder::ChangeTaggedToInt32, "ChangeTaggedToInt32"},
-    {&SimplifiedOperatorBuilder::ChangeTaggedToUint32, "ChangeTaggedToUint32"},
-    {&SimplifiedOperatorBuilder::ChangeUint32ToTagged, "ChangeUint32ToTagged"}};
-
-}  // namespace
-
-
-typedef SimplifiedOperatorReducerTestWithParam<UnaryOperator>
-    SimplifiedUnaryOperatorTest;
-
-
-TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
-  const UnaryOperator& unop = GetParam();
-  Reduction reduction = Reduce(graph()->NewNode(
-      (simplified()->*unop.constructor)(), Parameter(Type::Any())));
-  EXPECT_FALSE(reduction.Changed());
-}
-
-
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorReducerTest,
-                        SimplifiedUnaryOperatorTest,
-                        ::testing::ValuesIn(kUnaryOperators));
-
-
-// -----------------------------------------------------------------------------
 // AnyToBoolean
 
 
@@ -294,27 +243,6 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeBoolToBitWithChangeBitToBool) {
       graph()->NewNode(simplified()->ChangeBitToBool(), param0)));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(param0, reduction.replacement());
-}
-
-
-// -----------------------------------------------------------------------------
-// ChangeWord32ToBit
-
-
-TEST_F(SimplifiedOperatorReducerTest, ChangeWord32ToBitWithBitType) {
-  Handle<Object> zero = factory()->NewNumber(0);
-  Handle<Object> one = factory()->NewNumber(1);
-  Type* const kBitTypes[] = {
-      Type::Constant(zero, zone()), Type::Constant(one, zone()),
-      Type::Range(zero, zero, zone()), Type::Range(one, one, zone()),
-      Type::Range(zero, one, zone())};
-  TRACED_FOREACH(Type*, type, kBitTypes) {
-    Node* param0 = Parameter(type, 0);
-    Reduction reduction =
-        Reduce(graph()->NewNode(simplified()->ChangeWord32ToBit(), param0));
-    ASSERT_TRUE(reduction.Changed());
-    EXPECT_EQ(param0, reduction.replacement());
-  }
 }
 
 

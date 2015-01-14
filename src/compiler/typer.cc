@@ -1611,14 +1611,6 @@ Bounds Typer::Visitor::TypeChangeFloat64ToTagged(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeChangeBitToBool(Node* node) {
-  Bounds arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
-  return Bounds(ChangeRepresentation(arg.lower, Type::TaggedPointer(), zone()),
-                ChangeRepresentation(arg.upper, Type::TaggedPointer(), zone()));
-}
-
-
 Bounds Typer::Visitor::TypeChangeBoolToBit(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
@@ -1628,15 +1620,11 @@ Bounds Typer::Visitor::TypeChangeBoolToBit(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeChangeWord32ToBit(Node* node) {
-  return Bounds(
-      ChangeRepresentation(Type::Boolean(), Type::UntaggedBit(), zone()));
-}
-
-
-Bounds Typer::Visitor::TypeChangeWord64ToBit(Node* node) {
-  return Bounds(
-      ChangeRepresentation(Type::Boolean(), Type::UntaggedBit(), zone()));
+Bounds Typer::Visitor::TypeChangeBitToBool(Node* node) {
+  Bounds arg = Operand(node, 0);
+  // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
+  return Bounds(ChangeRepresentation(arg.lower, Type::TaggedPointer(), zone()),
+                ChangeRepresentation(arg.upper, Type::TaggedPointer(), zone()));
 }
 
 

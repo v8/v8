@@ -22,13 +22,9 @@ Reduction ChangeLowering::Reduce(Node* node) {
   Node* control = graph()->start();
   switch (node->opcode()) {
     case IrOpcode::kChangeBitToBool:
-      return ChangeBitToBool(node->InputAt(0));
+      return ChangeBitToBool(node->InputAt(0), control);
     case IrOpcode::kChangeBoolToBit:
       return ChangeBoolToBit(node->InputAt(0));
-    case IrOpcode::kChangeWord32ToBit:
-      return ChangeWord32ToBit(node->InputAt(0));
-    case IrOpcode::kChangeWord64ToBit:
-      return ChangeWord64ToBit(node->InputAt(0));
     case IrOpcode::kChangeFloat64ToTagged:
       return ChangeFloat64ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeInt32ToTagged:
@@ -142,35 +138,17 @@ Node* ChangeLowering::Uint32LessThanOrEqual(Node* lhs, Node* rhs) {
 }
 
 
-Reduction ChangeLowering::ChangeBitToBool(Node* value) {
+Reduction ChangeLowering::ChangeBitToBool(Node* val, Node* control) {
   MachineType const type = static_cast<MachineType>(kTypeBool | kRepTagged);
-  return Replace(graph()->NewNode(common()->Select(type), value,
+  return Replace(graph()->NewNode(common()->Select(type), val,
                                   jsgraph()->TrueConstant(),
                                   jsgraph()->FalseConstant()));
 }
 
 
-Reduction ChangeLowering::ChangeBoolToBit(Node* value) {
-  return Replace(graph()->NewNode(machine()->WordEqual(), value,
-                                  jsgraph()->TrueConstant()));
-}
-
-
-Reduction ChangeLowering::ChangeWord32ToBit(Node* value) {
+Reduction ChangeLowering::ChangeBoolToBit(Node* val) {
   return Replace(
-      graph()->NewNode(machine()->Word32Equal(),
-                       graph()->NewNode(machine()->Word32Equal(), value,
-                                        jsgraph()->Int32Constant(0)),
-                       jsgraph()->Int32Constant(0)));
-}
-
-
-Reduction ChangeLowering::ChangeWord64ToBit(Node* value) {
-  return Replace(
-      graph()->NewNode(machine()->Word32Equal(),
-                       graph()->NewNode(machine()->Word64Equal(), value,
-                                        jsgraph()->Int64Constant(0)),
-                       jsgraph()->Int32Constant(0)));
+      graph()->NewNode(machine()->WordEqual(), val, jsgraph()->TrueConstant()));
 }
 
 
@@ -249,7 +227,12 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     d1.Chain(control);
 
     Node* number =
-        graph()->NewNode(value->op(), object, context, effect, d1.if_true);
+        OperatorProperties::HasFrameStateInput(value->op())
+            ? graph()->NewNode(value->op(), object, context,
+                               NodeProperties::GetFrameStateInput(value),
+                               effect, d1.if_true)
+            : graph()->NewNode(value->op(), object, context, effect,
+                               d1.if_true);
     Diamond d2(graph(), common(), TestNotSmi(number));
     d2.Nest(d1, true);
     Node* phi2 = d2.Phi(kMachFloat64, LoadHeapNumberValue(number, d2.if_true),

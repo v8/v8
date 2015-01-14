@@ -262,6 +262,23 @@ TEST(LaLoop1) {
 }
 
 
+TEST(LaLoop1phi) {
+  // One loop with a simple phi.
+  LoopFinderTester t;
+  While w(t, t.p0);
+  Node* phi =
+      t.graph.NewNode(t.common.Phi(kMachAnyTagged, 2), t.zero, t.one, w.loop);
+  t.Return(phi, t.start, w.exit);
+
+  Node* chain[] = {w.loop};
+  t.CheckNestedLoops(chain, 1);
+
+  Node* header[] = {w.loop, phi};
+  Node* body[] = {w.branch, w.if_true};
+  t.CheckLoop(header, 2, body, 2);
+}
+
+
 TEST(LaLoop1c) {
   // One loop with a counter.
   LoopFinderTester t;

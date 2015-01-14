@@ -54,7 +54,8 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
-    Isolate* isolate, Handle<FixedArray>* outdated_contexts_out) {
+    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+    Handle<FixedArray>* outdated_contexts_out) {
   if (!HaveASnapshotToStartFrom()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -64,8 +65,8 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
 
-  MaybeHandle<Object> maybe_context =
-      deserializer.DeserializePartial(isolate, outdated_contexts_out);
+  MaybeHandle<Object> maybe_context = deserializer.DeserializePartial(
+      isolate, global_proxy, outdated_contexts_out);
   Handle<Object> result;
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
   CHECK(result->IsContext());

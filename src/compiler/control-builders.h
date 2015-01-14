@@ -77,8 +77,9 @@ class LoopBuilder FINAL : public ControlBuilder {
   void Continue() FINAL;
   void Break() FINAL;
 
-  // Compound control command for conditional break.
+  // Compound control commands for conditional break.
   void BreakUnless(Node* condition);
+  void BreakWhen(Node* condition);
 
  private:
   Environment* loop_environment_;      // Environment of the loop header.

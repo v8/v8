@@ -133,7 +133,7 @@
   JS_CONTEXT_OP_LIST(V)   \
   JS_OTHER_OP_LIST(V)
 
-// Opcodes for VirtualMachine-level operators.
+// Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_OP_LIST(V) \
   V(AnyToBoolean)             \
   V(BooleanNot)               \
@@ -161,8 +161,6 @@
   V(ChangeUint32ToTagged)     \
   V(ChangeFloat64ToTagged)    \
   V(ChangeBoolToBit)          \
-  V(ChangeWord32ToBit)        \
-  V(ChangeWord64ToBit)        \
   V(ChangeBitToBool)          \
   V(LoadField)                \
   V(LoadBuffer)               \
