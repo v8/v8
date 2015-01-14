@@ -9,9 +9,11 @@ var foreign = {}
 var foo = (function Module(stdlib, foreign, heap) {
   "use asm";
   function foo(i) {
-    return !(i ? 1 : false);
+    var x = i ? (i&1) : true;
+    if (x) return x;
+    return false;
   }
   return {foo:foo};
 })(stdlib, foreign, buffer).foo;
 
-assertFalse(foo(1));
+assertEquals(1, foo(1));

@@ -200,15 +200,6 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
 }
 
 
-Type* JSGraph::ZeroOneRangeType() {
-  if (!zero_one_range_type_.is_set()) {
-    zero_one_range_type_.set(
-        Type::Range(factory()->NewNumber(0), factory()->NewNumber(1), zone()));
-  }
-  return zero_one_range_type_.get();
-}
-
-
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);
   SetOncePointer<Node>* ptrs[] = {

@@ -132,29 +132,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
   Node* node = graph()->NewNode(simplified()->ChangeBoolToBit(), val);
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
+
   EXPECT_THAT(reduction.replacement(), IsWordEqual(val, IsTrueConstant()));
-}
-
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeWord32ToBit) {
-  Node* val = Parameter(0);
-  Node* node = graph()->NewNode(simplified()->ChangeWord32ToBit(), val);
-  Reduction reduction = Reduce(node);
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(),
-              IsWord32Equal(IsWord32Equal(val, IsInt32Constant(0)),
-                            IsInt32Constant(0)));
-}
-
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeWord64ToBit) {
-  Node* val = Parameter(0);
-  Node* node = graph()->NewNode(simplified()->ChangeWord64ToBit(), val);
-  Reduction reduction = Reduce(node);
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(),
-              IsWord32Equal(IsWord64Equal(val, IsInt64Constant(0)),
-                            IsInt32Constant(0)));
 }
 
 

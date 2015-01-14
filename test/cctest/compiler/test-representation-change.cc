@@ -79,13 +79,9 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(expected, m.Value());
   }
 
-  Node* Parameter(Type* type, int index = 0) {
-    Node* node = graph()->NewNode(common()->Parameter(index), graph()->start());
-    NodeProperties::SetBounds(node, Bounds(type));
-    return node;
+  Node* Parameter(int index = 0) {
+    return graph()->NewNode(common()->Parameter(index), graph()->start());
   }
-
-  Node* Parameter(int index = 0) { return Parameter(Type::Any(), index); }
 
   void CheckTypeError(MachineTypeUnion from, MachineTypeUnion to) {
     changer()->testing_type_errors_ = true;
@@ -102,17 +98,16 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(n, c);
   }
 };
-
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}
+}
+}  // namespace v8::internal::compiler
 
 
 static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,
                                        kRepFloat32, kRepFloat64, kRepTagged};
 
 
-TEST(ToBit_constant) {
+TEST(BoolToBit_constant) {
   RepresentationChangerTester r;
 
   Node* true_node = r.jsgraph()->TrueConstant();
@@ -124,22 +119,6 @@ TEST(ToBit_constant) {
   Node* false_bit =
       r.changer()->GetRepresentationFor(false_node, kRepTagged, kRepBit);
   r.CheckInt32Constant(false_bit, 0);
-
-  {
-    FOR_FLOAT64_INPUTS(i) {
-      Node* node = r.jsgraph()->Constant(*i);
-      Node* bit = r.changer()->GetRepresentationFor(node, kRepTagged, kRepBit);
-      r.CheckInt32Constant(bit, DoubleToBoolean(*i) ? 1 : 0);
-    }
-  }
-
-  {
-    FOR_INT32_INPUTS(i) {
-      Node* node = r.jsgraph()->Int32Constant(*i);
-      Node* bit = r.changer()->GetRepresentationFor(node, kRepWord32, kRepBit);
-      r.CheckInt32Constant(bit, *i == 0 ? 0 : 1);
-    }
-  }
 }
 
 
@@ -391,10 +370,10 @@ TEST(ToUint32_constant) {
 
 
 static void CheckChange(IrOpcode::Value expected, MachineTypeUnion from,
-                        MachineTypeUnion to, Type* from_type = Type::Any()) {
+                        MachineTypeUnion to) {
   RepresentationChangerTester r;
 
-  Node* n = r.Parameter(from_type);
+  Node* n = r.Parameter();
   Node* c = r.changer()->GetRepresentationFor(n, from, to);
 
   CHECK_NE(c, n);
@@ -405,11 +384,10 @@ static void CheckChange(IrOpcode::Value expected, MachineTypeUnion from,
 
 static void CheckTwoChanges(IrOpcode::Value expected2,
                             IrOpcode::Value expected1, MachineTypeUnion from,
-                            MachineTypeUnion to,
-                            Type* from_type = Type::Any()) {
+                            MachineTypeUnion to) {
   RepresentationChangerTester r;
 
-  Node* n = r.Parameter(from_type);
+  Node* n = r.Parameter();
   Node* c1 = r.changer()->GetRepresentationFor(n, from, to);
 
   CHECK_NE(c1, n);
@@ -422,15 +400,7 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
 
 
 TEST(SingleChanges) {
-  CheckChange(IrOpcode::kChangeBoolToBit, kRepTagged, kRepBit, Type::Boolean());
-  CheckTwoChanges(IrOpcode::kChangeTaggedToInt32, IrOpcode::kChangeWord32ToBit,
-                  kRepTagged, kRepBit, Type::Signed32());
-  CheckTwoChanges(IrOpcode::kChangeTaggedToUint32, IrOpcode::kChangeWord32ToBit,
-                  kRepTagged, kRepBit, Type::Unsigned32());
-  CheckChange(IrOpcode::kChangeWord32ToBit, kRepWord8, kRepBit);
-  CheckChange(IrOpcode::kChangeWord32ToBit, kRepWord16, kRepBit);
-  CheckChange(IrOpcode::kChangeWord32ToBit, kRepWord32, kRepBit);
-  CheckChange(IrOpcode::kChangeWord64ToBit, kRepWord64, kRepBit);
+  CheckChange(IrOpcode::kChangeBoolToBit, kRepTagged, kRepBit);
   CheckChange(IrOpcode::kChangeBitToBool, kRepBit, kRepTagged);
 
   CheckChange(IrOpcode::kChangeInt32ToTagged, kRepWord32 | kTypeInt32,
@@ -533,6 +503,16 @@ TEST(Nops) {
 
 TEST(TypeErrors) {
   RepresentationChangerTester r;
+
+  // Wordish cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(kRepWord8, kRepBit);
+  r.CheckTypeError(kRepWord8, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord16, kRepBit);
+  r.CheckTypeError(kRepWord16, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord32, kRepBit);
+  r.CheckTypeError(kRepWord32, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord64, kRepBit);
+  r.CheckTypeError(kRepWord64, kRepBit | kTypeBool);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(kRepFloat64, kRepBit);

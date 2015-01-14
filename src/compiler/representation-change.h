@@ -27,9 +27,6 @@ class RepresentationChanger {
       : jsgraph_(jsgraph),
         simplified_(simplified),
         isolate_(isolate),
-        bit_range_(Type::Range(isolate->factory()->NewNumber(0),
-                               isolate->factory()->NewNumber(1),
-                               jsgraph->zone())),
         testing_type_errors_(false),
         type_error_(false) {}
 
@@ -266,7 +263,7 @@ class RepresentationChanger {
     // Select the correct X -> Word32 operator.
     const Operator* op;
     if (output_type & kRepBit) {
-      return node;  // No change necessary.
+      return node;  // Sloppy comparison -> word32
     } else if (output_type & kRepFloat64) {
       if (output_type & kTypeUint32 || use_unsigned) {
         op = machine()->ChangeFloat64ToUint32();
@@ -295,48 +292,24 @@ class RepresentationChanger {
   Node* GetBitRepresentationFor(Node* node, MachineTypeUnion output_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
-      case IrOpcode::kInt32Constant: {
-        int32_t value = OpParameter<int32_t>(node);
-        if (value == 0 || value == 1) return node;
-        return jsgraph()->Int32Constant(1);  // value != 0
-      }
-      case IrOpcode::kNumberConstant: {
-        double value = OpParameter<double>(node);
-        if (value == 0 || std::isnan(value)) return jsgraph()->Int32Constant(0);
-        return jsgraph()->Int32Constant(1);  // value != +0.0, -0.0, NaN
-      }
       case IrOpcode::kHeapConstant: {
-        Handle<Object> object = OpParameter<Unique<Object>>(node).handle();
-        return jsgraph()->Int32Constant(object->BooleanValue() ? 1 : 0);
+        Handle<Object> value = OpParameter<Unique<Object> >(node).handle();
+        DCHECK(value.is_identical_to(factory()->true_value()) ||
+               value.is_identical_to(factory()->false_value()));
+        return jsgraph()->Int32Constant(
+            value.is_identical_to(factory()->true_value()) ? 1 : 0);
       }
       default:
         break;
     }
     // Select the correct X -> Bit operator.
     const Operator* op;
-    if (output_type & rWord) {
-      op = simplified()->ChangeWord32ToBit();
-    } else if (output_type & kRepWord64) {
-      op = simplified()->ChangeWord64ToBit();
-    } else if (output_type & kRepTagged) {
-      Type* upper = NodeProperties::GetBounds(node).upper;
-      if (upper->Is(Type::Boolean())) {
-        op = simplified()->ChangeBoolToBit();
-      } else if (upper->Is(Type::Signed32())) {
-        // Tagged -> Int32 -> Bit
-        node = InsertChangeTaggedToInt32(node);
-        op = simplified()->ChangeWord32ToBit();
-      } else if (upper->Is(Type::Unsigned32())) {
-        // Tagged -> Uint32 -> Bit
-        node = InsertChangeTaggedToUint32(node);
-        op = simplified()->ChangeWord32ToBit();
-      } else {
-        return TypeError(node, output_type, kRepBit);
-      }
+    if (output_type & kRepTagged) {
+      op = simplified()->ChangeBoolToBit();
     } else {
       return TypeError(node, output_type, kRepBit);
     }
-    return graph()->NewNode(op, node);
+    return jsgraph()->graph()->NewNode(op, node);
   }
 
   Node* GetWord64RepresentationFor(Node* node, MachineTypeUnion output_type) {
@@ -441,7 +414,6 @@ class RepresentationChanger {
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder* simplified_;
   Isolate* isolate_;
-  Type* bit_range_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
 
@@ -468,26 +440,20 @@ class RepresentationChanger {
   }
 
   Node* InsertChangeFloat32ToFloat64(Node* node) {
-    return graph()->NewNode(machine()->ChangeFloat32ToFloat64(), node);
+    return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
+                                       node);
   }
 
   Node* InsertChangeTaggedToFloat64(Node* node) {
-    return graph()->NewNode(simplified()->ChangeTaggedToFloat64(), node);
+    return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
+                                       node);
   }
 
-  Node* InsertChangeTaggedToInt32(Node* node) {
-    return graph()->NewNode(simplified()->ChangeTaggedToInt32(), node);
-  }
-
-  Node* InsertChangeTaggedToUint32(Node* node) {
-    return graph()->NewNode(simplified()->ChangeTaggedToUint32(), node);
-  }
-
-  Graph* graph() const { return jsgraph()->graph(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return isolate_; }
-  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
-  MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
+  Factory* factory() const { return isolate()->factory(); }
+  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+  MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
 
 }  // namespace compiler

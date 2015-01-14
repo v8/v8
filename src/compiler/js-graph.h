@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Forward declarations.
 class Typer;
 
 // Implements a facade on a Graph, enhancing the graph with JS-specific
@@ -110,9 +109,6 @@ class JSGraph : public ZoneObject {
   // stubs and runtime functions that do not require a context.
   Node* NoContextConstant() { return ZeroConstant(); }
 
-  // Cached common types.
-  Type* ZeroOneRangeType();
-
   JSOperatorBuilder* javascript() { return javascript_; }
   CommonOperatorBuilder* common() { return common_; }
   MachineOperatorBuilder* machine() { return machine_; }
@@ -139,8 +135,6 @@ class JSGraph : public ZoneObject {
   SetOncePointer<Node> zero_constant_;
   SetOncePointer<Node> one_constant_;
   SetOncePointer<Node> nan_constant_;
-
-  SetOncePointer<Type> zero_one_range_type_;
 
   CommonNodeCache cache_;
 

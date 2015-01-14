@@ -54,8 +54,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeBitToBool()) return Replace(m.node()->InputAt(0));
       break;
     }
-    case IrOpcode::kChangeWord32ToBit:
-      return ReduceChangeWord32ToBit(node);
     case IrOpcode::kChangeFloat64ToTagged: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceNumber(m.Value());
@@ -133,17 +131,6 @@ Reduction SimplifiedOperatorReducer::ReduceAnyToBoolean(Node* node) {
     Node* compare = graph()->NewNode(simplified()->NumberEqual(), length,
                                      jsgraph()->ZeroConstant());
     return Change(node, simplified()->BooleanNot(), compare);
-  }
-  return NoChange();
-}
-
-
-Reduction SimplifiedOperatorReducer::ReduceChangeWord32ToBit(Node* node) {
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetBounds(input).upper;
-  if (input_type->Is(jsgraph()->ZeroOneRangeType())) {
-    // ChangeWord32ToBit(x:bit) => x
-    return Replace(input);
   }
   return NoChange();
 }
