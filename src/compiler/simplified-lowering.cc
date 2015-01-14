@@ -743,7 +743,7 @@ class RepresentationSelector {
               callable.descriptor(), 0, flags, properties, jsgraph_->zone());
           node->set_op(jsgraph_->common()->Call(desc));
           node->InsertInput(jsgraph_->zone(), 0,
-                            +jsgraph_->HeapConstant(callable.code()));
+                            jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
         }
         break;
