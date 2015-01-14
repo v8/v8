@@ -962,7 +962,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
-      __ movsxlq(index, index);
       __ movq(Operand(object, index, times_1, 0), value);
       __ leaq(index, Operand(object, index, times_1, 0));
       SaveFPRegsMode mode =

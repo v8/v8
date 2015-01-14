@@ -720,7 +720,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
-      __ Add(index, object, Operand(index, SXTW));
+      __ Add(index, object, index);
       __ Str(value, MemOperand(index));
       SaveFPRegsMode mode =
           frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
