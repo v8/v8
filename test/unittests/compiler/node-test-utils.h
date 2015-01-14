@@ -77,6 +77,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 
 Matcher<Node*> IsAnyToBoolean(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsBooleanToNumber(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
