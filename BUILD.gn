@@ -314,6 +314,25 @@ action("run_mksnapshot") {
   }
 }
 
+action("generate_v8_version") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/push-to-trunk/generate_version.py"
+
+  sources = [
+    "src/version.cc",
+  ]
+
+  outputs = [
+    "$target_gen_dir/version.cc"
+  ]
+
+  args = [
+    rebase_path("$target_gen_dir/version.cc", root_build_dir),
+  ]
+}
+
+
 ###############################################################################
 # Source Sets (aka static libraries)
 #
@@ -398,6 +417,7 @@ source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "$target_gen_dir/version.cc",
     "src/accessors.cc",
     "src/accessors.h",
     "src/allocation.cc",
@@ -933,7 +953,6 @@ source_set("v8_base") {
     "src/v8threads.h",
     "src/variables.cc",
     "src/variables.h",
-    "src/version.cc",
     "src/version.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
@@ -1211,6 +1230,7 @@ source_set("v8_base") {
   defines = []
   deps = [
     ":v8_libbase",
+    ":generate_v8_version",
   ]
 
   if (is_win) {

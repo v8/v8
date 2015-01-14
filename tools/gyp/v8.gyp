@@ -336,6 +336,34 @@
       ],
     },
     {
+      'target_name': 'v8_version',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+      'actions': [
+        {
+          'action_name': 'generate_v8_version',
+          'inputs': [
+            '../../tools/push-to-trunk/generate_version.py',
+            '../../src/version.cc',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/version.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/push-to-trunk/generate_version.py',
+            '<(SHARED_INTERMEDIATE_DIR)/version.cc',
+          ],
+        },
+      ],
+    },
+    {
       'target_name': 'v8_base',
       'type': 'static_library',
       'dependencies': [
@@ -348,6 +376,7 @@
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
+        '<(SHARED_INTERMEDIATE_DIR)/version.cc',
         '../../src/accessors.cc',
         '../../src/accessors.h',
         '../../src/allocation.cc',
@@ -886,7 +915,6 @@
         '../../src/variables.cc',
         '../../src/variables.h',
         '../../src/vector.h',
-        '../../src/version.cc',
         '../../src/version.h',
         '../../src/vm-state-inl.h',
         '../../src/vm-state.h',
@@ -898,8 +926,14 @@
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
+          'dependencies': [
+            'v8_version#host',
+          ],
           'toolsets': ['host', 'target'],
         }, {
+          'dependencies': [
+            'v8_version',
+          ],
           'toolsets': ['target'],
         }],
         ['v8_target_arch=="arm"', {
