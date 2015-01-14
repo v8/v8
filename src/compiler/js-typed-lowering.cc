@@ -33,11 +33,10 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
     : jsgraph_(jsgraph), simplified_(graph()->zone()), conversions_(zone) {
   Handle<Object> zero = factory()->NewNumber(0.0);
   Handle<Object> one = factory()->NewNumber(1.0);
-  zero_range_ = Type::Range(zero, zero, zone);
-  one_range_ = Type::Range(one, one, zone);
-  zero_one_range_ = Type::Range(zero, one, zone);
+  zero_range_ = Type::Range(zero, zero, graph()->zone());
+  one_range_ = Type::Range(one, one, graph()->zone());
   Handle<Object> thirtyone = factory()->NewNumber(31.0);
-  zero_thirtyone_range_ = Type::Range(zero, thirtyone, zone);
+  zero_thirtyone_range_ = Type::Range(zero, thirtyone, graph()->zone());
   // TODO(jarin): Can we have a correctification of the stupid type system?
   // These stupid work-arounds are just stupid!
   shifted_int32_ranges_[0] = Type::Signed32();
@@ -46,13 +45,13 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
     for (size_t k = 2; k < arraysize(shifted_int32_ranges_); ++k) {
       Handle<Object> min = factory()->NewNumber(kMinInt / (1 << k));
       Handle<Object> max = factory()->NewNumber(kMaxInt / (1 << k));
-      shifted_int32_ranges_[k] = Type::Range(min, max, zone);
+      shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
     }
   } else {
     for (size_t k = 1; k < arraysize(shifted_int32_ranges_); ++k) {
       Handle<Object> min = factory()->NewNumber(kMinInt / (1 << k));
       Handle<Object> max = factory()->NewNumber(kMaxInt / (1 << k));
-      shifted_int32_ranges_[k] = Type::Range(min, max, zone);
+      shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
     }
   }
 }
@@ -112,11 +111,6 @@ class JSBinopReduction FINAL {
     std::swap(left_type_, right_type_);
   }
 
-  void ReplaceLeftInput(Node* l) {
-    node_->ReplaceInput(0, l);
-    left_type_ = NodeProperties::GetBounds(l).upper;
-  }
-
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
   Reduction ChangeToPureOperator(const Operator* op, bool invert = false,
@@ -124,17 +118,16 @@ class JSBinopReduction FINAL {
     DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, op->ControlInputCount());
-    DCHECK_LE(1, op->ValueInputCount());
-    DCHECK_GE(2, op->ValueInputCount());
+    DCHECK_EQ(2, op->ValueInputCount());
 
     // Remove the effects from the node, if any, and update its effect usages.
     if (node_->op()->EffectInputCount() > 0) {
       RelaxEffects(node_);
     }
-    // Finally, update the operator to the new one.
-    node_->set_op(op);
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
+    // Finally, update the operator to the new one.
+    node_->set_op(op);
 
     // TODO(jarin): Replace the explicit typing hack with a call to some method
     // that encapsulates changing the operator and re-typing.
@@ -156,18 +149,11 @@ class JSBinopReduction FINAL {
     return ChangeToPureOperator(op, false, type);
   }
 
-  Reduction ReplaceWithLeftInput() {
-    // Remove the effects from the node, if any, and update its effect usages.
-    if (node_->op()->EffectInputCount() > 0) {
-      RelaxEffects(node_);
-    }
-    return lowering_->Replace(left());
-  }
+  bool OneInputIs(Type* t) { return left_type_->Is(t) || right_type_->Is(t); }
 
-  bool LeftInputIs(Type* t) { return left_type_->Is(t); }
-  bool RightInputIs(Type* t) { return right_type_->Is(t); }
-  bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
-  bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
+  bool BothInputsAre(Type* t) {
+    return left_type_->Is(t) && right_type_->Is(t);
+  }
 
   bool OneInputCannotBe(Type* t) {
     return !left_type_->Maybe(t) || !right_type_->Maybe(t);
@@ -275,41 +261,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToPureOperator(simplified()->StringAdd());
   }
 #endif
-  return NoChange();
-}
-
-
-Reduction JSTypedLowering::ReduceJSBitwiseAnd(Node* node) {
-  JSBinopReduction r(this, node);
-  if (r.LeftInputIs(one_range_)) {
-    if (r.RightInputIs(zero_one_range_)) {
-      // JSBitwiseAnd(1, x:[0,1]) => x
-      r.SwapInputs();
-      return r.ReplaceWithLeftInput();
-    } else if (r.RightInputIs(Type::Boolean())) {
-      // JSBitwiseAnd(1, x:boolean) => BooleanToNumber(x)
-      r.SwapInputs();
-      return r.ChangeToPureOperator(simplified()->BooleanToNumber());
-    }
-  }
-  if (r.RightInputIs(one_range_)) {
-    if (r.LeftInputIs(zero_one_range_)) {
-      // JSBitwiseAnd(x:[0,1], 1) => x
-      return r.ReplaceWithLeftInput();
-    } else if (r.LeftInputIs(Type::Boolean())) {
-      // JSBitwiseAnd(x:boolean, 1) => BooleanToNumber(x)
-      return r.ChangeToPureOperator(simplified()->BooleanToNumber());
-    }
-  }
-  if (r.BothInputsAre(Type::Primitive())) {
-    // TODO(titzer): some Smi bitwise operations don't really require going
-    // all the way to int32, which can save tagging/untagging for some
-    // operations
-    // on some platforms.
-    // TODO(turbofan): make this heuristic configurable for code size.
-    r.ConvertInputsToUI32(kSigned, kSigned);
-    return r.ChangeToPureOperator(machine()->Word32And(), Type::Integral32());
-  }
   return NoChange();
 }
 
@@ -936,7 +887,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSBitwiseXor:
       return ReduceInt32Binop(node, machine()->Word32Xor());
     case IrOpcode::kJSBitwiseAnd:
-      return ReduceJSBitwiseAnd(node);
+      return ReduceInt32Binop(node, machine()->Word32And());
     case IrOpcode::kJSShiftLeft:
       return ReduceUI32Shift(node, kSigned, machine()->Word32Shl());
     case IrOpcode::kJSShiftRight:

@@ -397,51 +397,6 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
 
 
 // -----------------------------------------------------------------------------
-// JSBitwiseAnd
-
-
-TEST_F(JSTypedLoweringTest, JSBitwiseAndWithBitish) {
-  Node* const context = Parameter(Type::Any(), 2);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Handle<Object> zero = factory()->NewNumber(0);
-  Handle<Object> one = factory()->NewNumber(1);
-  {
-    Node* const lhs = Parameter(Type::Range(one, one, zone()), 0);
-    Node* const rhs = Parameter(Type::Range(zero, one, zone()), 1);
-    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(), lhs, rhs,
-                                          context, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_EQ(rhs, r.replacement());
-  }
-  {
-    Node* const lhs = Parameter(Type::Range(one, one, zone()), 0);
-    Node* const rhs = Parameter(Type::Boolean(), 1);
-    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(), lhs, rhs,
-                                          context, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsBooleanToNumber(rhs));
-  }
-  {
-    Node* const lhs = Parameter(Type::Range(zero, one, zone()), 0);
-    Node* const rhs = Parameter(Type::Range(one, one, zone()), 1);
-    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(), lhs, rhs,
-                                          context, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_EQ(lhs, r.replacement());
-  }
-  {
-    Node* const lhs = Parameter(Type::Boolean(), 0);
-    Node* const rhs = Parameter(Type::Range(one, one, zone()), 1);
-    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(), lhs, rhs,
-                                          context, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsBooleanToNumber(lhs));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
 // JSShiftLeft
 
 

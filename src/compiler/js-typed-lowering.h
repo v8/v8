@@ -32,7 +32,6 @@ class JSTypedLowering FINAL : public Reducer {
 
   Reduction ReplaceEagerly(Node* old, Node* node);
   Reduction ReduceJSAdd(Node* node);
-  Reduction ReduceJSBitwiseAnd(Node* node);
   Reduction ReduceJSBitwiseOr(Node* node);
   Reduction ReduceJSMultiply(Node* node);
   Reduction ReduceJSComparison(Node* node);
@@ -73,7 +72,6 @@ class JSTypedLowering FINAL : public Reducer {
   ZoneVector<Node*> conversions_;  // Cache inserted JSToXXX() conversions.
   Type* zero_range_;
   Type* one_range_;
-  Type* zero_one_range_;
   Type* zero_thirtyone_range_;
   Type* shifted_int32_ranges_[4];
 };
