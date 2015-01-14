@@ -173,6 +173,10 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Merge(int control_input_count);
   const Operator* Parameter(int index);
 
+  const Operator* OsrNormalEntry();
+  const Operator* OsrLoopEntry();
+  const Operator* OsrValue(int index);
+
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
   const Operator* Float32Constant(volatile float);

@@ -75,7 +75,8 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
   if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
     switch (node->opcode()) {
       case IrOpcode::kParameter:
-        // Parameters are always fixed to the start node.
+      case IrOpcode::kOsrValue:
+        // Parameters and OSR values are always fixed to the start block.
         data->placement_ = kFixed;
         break;
       case IrOpcode::kPhi:

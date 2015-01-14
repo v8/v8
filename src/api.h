@@ -368,14 +368,14 @@ MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 
 // Implementations of OpenHandle
 
-#define MAKE_OPEN_HANDLE(From, To)                                          \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                 \
-    const v8::From* that, bool allow_empty_handle) {                        \
-    EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
-    EXTRA_CHECK(that == NULL ||                                             \
-        (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
-    return v8::internal::Handle<v8::internal::To>(                          \
-        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
+#define MAKE_OPEN_HANDLE(From, To)                                             \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
+      const v8::From* that, bool allow_empty_handle) {                         \
+    DCHECK(allow_empty_handle || that != NULL);                                \
+    DCHECK(that == NULL ||                                                     \
+           (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
+    return v8::internal::Handle<v8::internal::To>(                             \
+        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
   }
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)

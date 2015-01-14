@@ -7796,8 +7796,10 @@ class Trivial2 {
 };
 
 
-void CheckInternalFields(
-    const v8::InternalFieldsCallbackData<Trivial, Trivial2>& data) {
+void CheckInternalFields(const v8::PhantomCallbackData<
+    v8::Persistent<v8::Object>, Trivial, Trivial2>& data) {
+  v8::Persistent<v8::Object>* handle = data.GetParameter();
+  handle->Reset();
   Trivial* t1 = data.GetInternalField1();
   Trivial2* t2 = data.GetInternalField2();
   CHECK_EQ(42, t1->x());
@@ -7835,7 +7837,8 @@ void InternalFieldCallback(bool global_gc) {
         reinterpret_cast<Trivial2*>(obj->GetAlignedPointerFromInternalField(1));
     CHECK_EQ(103, t2->x());
 
-    handle.SetPhantom(CheckInternalFields, 0, 1);
+    handle.SetPhantom<v8::Persistent<v8::Object>, Trivial, Trivial2>(
+        &handle, 0, 1, CheckInternalFields);
     if (!global_gc) {
       handle.MarkIndependent();
     }

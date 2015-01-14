@@ -1062,7 +1062,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       AllocateFixed(output, -1, false);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
-        DCHECK(output->index() < 0);
+        DCHECK(output->index() < frame_->GetSpillSlotCount());
         range->SetSpillOperand(output);
         range->SetSpillStartIndex(end);
         assigned = true;
@@ -1128,7 +1128,7 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
 
           // This value is produced on the stack, we never need to spill it.
           if (first_output->IsStackSlot()) {
-            DCHECK(first_output->index() < 0);
+            DCHECK(first_output->index() < frame_->GetSpillSlotCount());
             range->SetSpillOperand(first_output);
             range->SetSpillStartIndex(gap_index - 1);
             assigned = true;

@@ -15,6 +15,8 @@
   V(Merge)                       \
   V(Return)                      \
   V(Terminate)                   \
+  V(OsrNormalEntry)              \
+  V(OsrLoopEntry)                \
   V(Throw)
 
 #define CONTROL_OP_LIST(V) \
@@ -42,6 +44,7 @@
   V(StateValues)         \
   V(Call)                \
   V(Parameter)           \
+  V(OsrValue)            \
   V(Projection)
 
 #define COMMON_OP_LIST(V) \

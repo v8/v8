@@ -28,7 +28,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
       last_lazy_deopt_pc_(0),
-      ools_(nullptr) {
+      ools_(nullptr),
+      osr_pc_offset_(-1) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -236,7 +237,7 @@ void CodeGenerator::AssembleGap(GapInstruction* instr) {
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
-  if (deopt_count == 0) return;
+  if (deopt_count == 0 && !info->is_osr()) return;
   Handle<DeoptimizationInputData> data =
       DeoptimizationInputData::New(isolate(), deopt_count, TENURED);
 
@@ -266,10 +267,15 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     data->SetLiteralArray(*literals);
   }
 
-  // No OSR in Turbofan yet...
-  BailoutId osr_ast_id = BailoutId::None();
-  data->SetOsrAstId(Smi::FromInt(osr_ast_id.ToInt()));
-  data->SetOsrPcOffset(Smi::FromInt(-1));
+  if (info->is_osr()) {
+    DCHECK(osr_pc_offset_ >= 0);
+    data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
+    data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
+  } else {
+    BailoutId osr_ast_id = BailoutId::None();
+    data->SetOsrAstId(Smi::FromInt(osr_ast_id.ToInt()));
+    data->SetOsrPcOffset(Smi::FromInt(-1));
+  }
 
   // Populate deoptimization entries.
   for (int i = 0; i < deopt_count; i++) {

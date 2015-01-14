@@ -1238,7 +1238,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     } else {
       // Explicitly disable optimization for eval code. We're not yet prepared
       // to handle eval-code in the optimizing compiler.
-      shared_info->DisableOptimization(kEval);
+      if (restriction != ONLY_SINGLE_FUNCTION_LITERAL) {
+        shared_info->DisableOptimization(kEval);
+      }
 
       // If caller is strict mode, the result must be in strict mode as well.
       DCHECK(strict_mode == SLOPPY || shared_info->strict_mode() == STRICT);

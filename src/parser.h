@@ -222,15 +222,11 @@ class RegExpBuilder: public ZoneObject {
 
 class RegExpParser BASE_EMBEDDED {
  public:
-  RegExpParser(FlatStringReader* in,
-               Handle<String>* error,
-               bool multiline_mode,
-               Zone* zone);
+  RegExpParser(FlatStringReader* in, Handle<String>* error, bool multiline_mode,
+               bool unicode, Zone* zone);
 
-  static bool ParseRegExp(FlatStringReader* input,
-                          bool multiline,
-                          RegExpCompileData* result,
-                          Zone* zone);
+  static bool ParseRegExp(FlatStringReader* input, bool multiline, bool unicode,
+                          RegExpCompileData* result, Zone* zone);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();
@@ -248,6 +244,8 @@ class RegExpParser BASE_EMBEDDED {
   // Checks whether the following is a length-digit hexadecimal number,
   // and sets the value if it is.
   bool ParseHexEscape(int length, uc32* value);
+  bool ParseUnicodeEscape(uc32* value);
+  bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
 
   uc32 ParseOctalLiteral();
 
@@ -271,6 +269,8 @@ class RegExpParser BASE_EMBEDDED {
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
+
+  static bool IsSyntaxCharacter(uc32 c);
 
   static const int kMaxCaptures = 1 << 16;
   static const uc32 kEndMarker = (1 << 21);
@@ -338,6 +338,7 @@ class RegExpParser BASE_EMBEDDED {
   int capture_count_;
   bool has_more_;
   bool multiline_;
+  bool unicode_;
   bool simple_;
   bool contains_anchor_;
   bool is_scanned_for_captures_;

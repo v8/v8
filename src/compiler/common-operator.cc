@@ -103,13 +103,15 @@ std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
 }
 
 
-#define CACHED_OP_LIST(V)                     \
-  V(Dead, Operator::kFoldable, 0, 0, 0, 1)    \
-  V(End, Operator::kFoldable, 0, 0, 1, 0)     \
-  V(IfTrue, Operator::kFoldable, 0, 0, 1, 1)  \
-  V(IfFalse, Operator::kFoldable, 0, 0, 1, 1) \
-  V(Throw, Operator::kFoldable, 1, 1, 1, 1)   \
-  V(Return, Operator::kNoProperties, 1, 1, 1, 1)
+#define CACHED_OP_LIST(V)                                  \
+  V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
+  V(End, Operator::kFoldable, 0, 0, 1, 0, 0, 0)            \
+  V(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 0, 1)         \
+  V(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 0, 1)        \
+  V(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1)          \
+  V(Return, Operator::kNoProperties, 1, 1, 1, 0, 0, 1)     \
+  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
+  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
 
 
 #define CACHED_LOOP_LIST(V) \
@@ -139,14 +141,16 @@ std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
 
 
 struct CommonOperatorGlobalCache FINAL {
-#define CACHED(Name, properties, value_input_count, effect_input_count,     \
-               control_input_count, control_output_count)                   \
-  struct Name##Operator FINAL : public Operator {                           \
-    Name##Operator()                                                        \
-        : Operator(IrOpcode::k##Name, properties, #Name, value_input_count, \
-                   effect_input_count, control_input_count, 0, 0,           \
-                   control_output_count) {}                                 \
-  };                                                                        \
+#define CACHED(Name, properties, value_input_count, effect_input_count,      \
+               control_input_count, value_output_count, effect_output_count, \
+               control_output_count)                                         \
+  struct Name##Operator FINAL : public Operator {                            \
+    Name##Operator()                                                         \
+        : Operator(IrOpcode::k##Name, properties, #Name, value_input_count,  \
+                   effect_input_count, control_input_count,                  \
+                   value_output_count, effect_output_count,                  \
+                   control_output_count) {}                                  \
+  };                                                                         \
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
@@ -214,10 +218,11 @@ CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
     : cache_(kCache.Get()), zone_(zone) {}
 
 
-#define CACHED(Name, properties, value_input_count, effect_input_count, \
-               control_input_count, control_output_count)               \
-  const Operator* CommonOperatorBuilder::Name() {                       \
-    return &cache_.k##Name##Operator;                                   \
+#define CACHED(Name, properties, value_input_count, effect_input_count,      \
+               control_input_count, value_output_count, effect_output_count, \
+               control_output_count)                                         \
+  const Operator* CommonOperatorBuilder::Name() {                            \
+    return &cache_.k##Name##Operator;                                        \
   }
 CACHED_OP_LIST(CACHED)
 #undef CACHED
@@ -307,6 +312,15 @@ const Operator* CommonOperatorBuilder::Parameter(int index) {
       "Parameter",                            // name
       1, 0, 0, 1, 0, 0,                       // counts
       index);                                 // parameter
+}
+
+
+const Operator* CommonOperatorBuilder::OsrValue(int index) {
+  return new (zone()) Operator1<int>(        // --
+      IrOpcode::kOsrValue, Operator::kPure,  // opcode
+      "OsrValue",                            // name
+      0, 0, 1, 1, 0, 0,                      // counts
+      index);                                // parameter
 }
 
 

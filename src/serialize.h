@@ -482,11 +482,13 @@ class SerializedData {
 
  protected:
   void SetHeaderValue(int offset, int value) {
-    reinterpret_cast<int*>(data_)[offset] = value;
+    memcpy(reinterpret_cast<int*>(data_) + offset, &value, sizeof(value));
   }
 
   int GetHeaderValue(int offset) const {
-    return reinterpret_cast<const int*>(data_)[offset];
+    int value;
+    memcpy(&value, reinterpret_cast<int*>(data_) + offset, sizeof(value));
+    return value;
   }
 
   void AllocateData(int size);
@@ -543,6 +545,10 @@ class Deserializer: public SerializerDeserializer {
   void DecodeReservation(Vector<const SerializedData::Reservation> res);
 
   bool ReserveSpace();
+
+  void UnalignedCopy(Object** dest, Object** src) {
+    memcpy(dest, src, sizeof(*src));
+  }
 
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.

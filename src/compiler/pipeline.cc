@@ -28,6 +28,7 @@
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/move-optimizer.h"
+#include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
@@ -411,6 +412,18 @@ struct TyperPhase {
 };
 
 
+struct OsrDeconstructionPhase {
+  static const char* phase_name() { return "OSR deconstruction"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SourcePositionTable::Scope pos(data->source_positions(),
+                                   SourcePosition::Unknown());
+    OsrHelper osr_helper(data->info());
+    osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
+  }
+};
+
+
 struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
@@ -531,7 +544,7 @@ struct InstructionSelectionPhase {
   static const char* phase_name() { return "select instructions"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    InstructionSelector selector(temp_zone, data->graph(), linkage,
+    InstructionSelector selector(temp_zone, data->graph()->NodeCount(), linkage,
                                  data->sequence(), data->schedule(),
                                  data->source_positions());
     selector.SelectInstructions();
@@ -756,8 +769,8 @@ Handle<Code> Pipeline::GenerateCode() {
       info()->function()->dont_optimize_reason() == kSuperReference ||
       // TODO(turbofan): Make class literals work and remove this bailout.
       info()->function()->dont_optimize_reason() == kClassLiteral ||
-      // TODO(turbofan): Make OSR work and remove this bailout.
-      info()->is_osr()) {
+      // TODO(turbofan): Make OSR work with inner loops and remove this bailout.
+      (info()->is_osr() && !FLAG_turbo_osr)) {
     return Handle<Code>::null();
   }
 
@@ -829,6 +842,11 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
 
+    if (info()->is_osr()) {
+      Run<OsrDeconstructionPhase>();
+      RunPrintAndVerify("OSR deconstruction");
+    }
+
     // Lower simplified operators and insert changes.
     Run<SimplifiedLoweringPhase>();
     RunPrintAndVerify("Lowered simplified");
@@ -840,6 +858,11 @@ Handle<Code> Pipeline::GenerateCode() {
 
     Run<LateControlReductionPhase>();
     RunPrintAndVerify("Late Control reduced");
+  } else {
+    if (info()->is_osr()) {
+      Run<OsrDeconstructionPhase>();
+      RunPrintAndVerify("OSR deconstruction");
+    }
   }
 
   // Lower any remaining generic JSOperators.
@@ -1021,6 +1044,10 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   ZonePool::Scope zone_scope(data->zone_pool());
   data->InitializeRegisterAllocator(zone_scope.zone(), config,
                                     debug_name.get());
+  if (info()->is_osr()) {
+    OsrHelper osr_helper(info());
+    osr_helper.SetupFrame(data->frame());
+  }
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();

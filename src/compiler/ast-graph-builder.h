@@ -114,7 +114,10 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder for stack-check guards.
   Node* BuildStackCheck();
 
+  bool IsOsrLoopEntry(IterationStatement* stmt);
+
 #define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
@@ -139,6 +142,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
+
+  // The node representing the OSR entry into the loop, if any.
+  SetOncePointer<Node> osr_loop_entry_;
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;

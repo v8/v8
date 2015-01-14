@@ -6,6 +6,7 @@
 #define V8_COMPILER_LINKAGE_IMPL_H_
 
 #include "src/code-stubs.h"
+#include "src/compiler/osr.h"
 
 namespace v8 {
 namespace internal {
@@ -226,6 +227,28 @@ class LinkageHelper {
     return LinkageLocation(i);
   }
 };
+
+
+LinkageLocation Linkage::GetOsrValueLocation(int index) const {
+  CHECK(incoming_->IsJSFunctionCall());
+  int parameter_count = static_cast<int>(incoming_->JSParameterCount() - 1);
+  int first_stack_slot = OsrHelper::FirstStackSlotIndex(parameter_count);
+
+  if (index >= first_stack_slot) {
+    // Local variable stored in this (callee) stack.
+    int spill_index =
+        LinkageLocation::ANY_REGISTER + 1 + index - first_stack_slot;
+    // TODO(titzer): bailout instead of crashing here.
+    CHECK(spill_index <= LinkageLocation::MAX_STACK_SLOT);
+    return LinkageLocation(spill_index);
+  } else {
+    // Parameter. Use the assigned location from the incoming call descriptor.
+    int parameter_index = 1 + index;  // skip index 0, which is the target.
+    return incoming_->GetInputLocation(parameter_index);
+  }
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

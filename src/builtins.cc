@@ -1089,7 +1089,8 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
 
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.called_function();
-  DCHECK(function->shared()->IsApiFunction());
+  // TODO(ishell): turn this back to a DCHECK.
+  CHECK(function->shared()->IsApiFunction());
 
   Handle<FunctionTemplateInfo> fun_data(
       function->shared()->get_api_func_data(), isolate);
@@ -1118,6 +1119,8 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
 
   Object* raw_call_data = fun_data->call_code();
   if (!raw_call_data->IsUndefined()) {
+    // TODO(ishell): remove this debugging code.
+    CHECK(raw_call_data->IsCallHandlerInfo());
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* callback_obj = call_data->callback();
     v8::FunctionCallback callback =
@@ -1183,10 +1186,13 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   // used to create the called object.
   DCHECK(obj->map()->has_instance_call_handler());
   JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
-  DCHECK(constructor->shared()->IsApiFunction());
+  // TODO(ishell): turn this back to a DCHECK.
+  CHECK(constructor->shared()->IsApiFunction());
   Object* handler =
       constructor->shared()->get_api_func_data()->instance_call_handler();
   DCHECK(!handler->IsUndefined());
+  // TODO(ishell): remove this debugging code.
+  CHECK(handler->IsCallHandlerInfo());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();
   v8::FunctionCallback callback =

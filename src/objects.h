@@ -7902,7 +7902,8 @@ class JSRegExp: public JSObject {
     GLOBAL = 1,
     IGNORE_CASE = 2,
     MULTILINE = 4,
-    STICKY = 8
+    STICKY = 8,
+    UNICODE_ESCAPES = 16
   };
 
   class Flags {
@@ -7912,6 +7913,7 @@ class JSRegExp: public JSObject {
     bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
     bool is_multiline() { return (value_ & MULTILINE) != 0; }
     bool is_sticky() { return (value_ & STICKY) != 0; }
+    bool is_unicode() { return (value_ & UNICODE_ESCAPES) != 0; }
     uint32_t value() { return value_; }
    private:
     uint32_t value_;

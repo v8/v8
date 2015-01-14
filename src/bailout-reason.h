@@ -322,6 +322,8 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \
     "Wrong address or value passed to RecordWrite")                            \
+  V(kShouldNotDirectlyEnterOsrFunction,                                        \
+    "Should not directly enter OSR-compiled function")                         \
   V(kYield, "Yield")
 
 

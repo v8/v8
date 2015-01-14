@@ -2237,7 +2237,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 
 
 void Object::VerifyApiCallResultType() {
-#if ENABLE_EXTRA_CHECKS
+#if DEBUG
   if (!(IsSmi() ||
         IsString() ||
         IsSymbol() ||
@@ -2249,7 +2249,7 @@ void Object::VerifyApiCallResultType() {
         IsNull())) {
     FATAL("API call returned invalid object");
   }
-#endif  // ENABLE_EXTRA_CHECKS
+#endif  // DEBUG
 }
 
 

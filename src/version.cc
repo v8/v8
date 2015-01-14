@@ -32,9 +32,9 @@
 // These macros define the version number for the current version.
 // NOTE these macros are used by some of the tool scripts and the build
 // system so their names cannot be changed without changing the scripts.
-#define MAJOR_VERSION     3
-#define MINOR_VERSION     32
-#define BUILD_NUMBER      7
+#define MAJOR_VERSION     4
+#define MINOR_VERSION     2
+#define BUILD_NUMBER      1
 #define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)

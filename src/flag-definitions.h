@@ -183,16 +183,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_unicode, "harmony unicode escapes")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V) V(harmony_tostring, "harmony toString")
+#define HARMONY_STAGED(V)                                                 \
+  V(harmony_tostring, "harmony toString")                                 \
+  V(harmony_classes,                                                      \
+    "harmony classes (implies block scoping & object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                               \
   V(harmony_numeric_literals, "harmony numeric literals")                 \
   V(harmony_strings, "harmony string methods")                            \
   V(harmony_scoping, "harmony block scoping")                             \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
   V(harmony_templates, "harmony template literals")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
@@ -404,7 +405,8 @@ DEFINE_BOOL(turbo_delay_ssa_decon, false,
             "delay ssa deconstruction in TurboFan register allocator")
 // TODO(dcarney): this is just for debugging, remove eventually.
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
-DEFINE_BOOL(turbo_jt, true, "enable jump threading")
+DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
+DEFINE_BOOL(turbo_osr, false, "enable OSR in TurboFan")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")

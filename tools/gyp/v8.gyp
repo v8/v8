@@ -30,6 +30,8 @@
     'icu_use_data_file_flag%': 0,
     'v8_code': 1,
     'v8_random_seed%': 314159265,
+    'embed_script%': "",
+    'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
@@ -169,7 +171,8 @@
         {
           'action_name': 'run_mksnapshot',
           'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+            '<(mksnapshot_exec)',
+            '<(embed_script)',
           ],
           'outputs': [
             '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -186,9 +189,10 @@
             ],
           },
           'action': [
-            '<@(_inputs)',
+            '<(mksnapshot_exec)',
             '<@(mksnapshot_flags)',
-            '<@(INTERMEDIATE_DIR)/snapshot.cc'
+            '<@(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(embed_script)',
           ],
         },
       ],
@@ -270,7 +274,7 @@
             {
               'action_name': 'run_mksnapshot (external)',
               'inputs': [
-                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+                '<(mksnapshot_exec)',
               ],
               'variables': {
                 'mksnapshot_flags': [
@@ -292,10 +296,11 @@
                         '<(PRODUCT_DIR)/snapshot_blob_host.bin',
                       ],
                       'action': [
-                        '<@(_inputs)',
+                        '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
                         '<@(INTERMEDIATE_DIR)/snapshot.cc',
                         '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                        '<(embed_script)',
                       ],
                     }, {
                       'outputs': [
@@ -303,10 +308,11 @@
                         '<(PRODUCT_DIR)/snapshot_blob.bin',
                       ],
                       'action': [
-                        '<@(_inputs)',
+                        '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
                         '<@(INTERMEDIATE_DIR)/snapshot.cc',
                         '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                        '<(embed_script)',
                       ],
                     }],
                   ],
@@ -316,10 +322,11 @@
                     '<(PRODUCT_DIR)/snapshot_blob.bin',
                   ],
                   'action': [
-                    '<@(_inputs)',
+                    '<(mksnapshot_exec)',
                     '<@(mksnapshot_flags)',
                     '<@(INTERMEDIATE_DIR)/snapshot.cc',
                     '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                    '<(embed_script)',
                   ],
                 }],
               ],
@@ -499,6 +506,8 @@
         '../../src/compiler/operator-properties.h',
         '../../src/compiler/operator.cc',
         '../../src/compiler/operator.h',
+        '../../src/compiler/osr.cc',
+        '../../src/compiler/osr.h',
         '../../src/compiler/pipeline.cc',
         '../../src/compiler/pipeline.h',
         '../../src/compiler/pipeline-statistics.cc',

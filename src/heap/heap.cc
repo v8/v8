@@ -922,15 +922,6 @@ static void VerifyStringTable(Heap* heap) {
 #endif  // VERIFY_HEAP
 
 
-static bool AbortIncrementalMarkingAndCollectGarbage(
-    Heap* heap, AllocationSpace space, const char* gc_reason = NULL) {
-  heap->mark_compact_collector()->SetFlags(Heap::kAbortIncrementalMarkingMask);
-  bool result = heap->CollectGarbage(space, gc_reason);
-  heap->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
-  return result;
-}
-
-
 bool Heap::ReserveSpace(Reservation* reservations) {
   bool gc_performed = true;
   int counter = 0;
@@ -972,12 +963,18 @@ bool Heap::ReserveSpace(Reservation* reservations) {
       }
       if (perform_gc) {
         if (space == NEW_SPACE) {
-          Heap::CollectGarbage(NEW_SPACE,
-                               "failed to reserve space in the new space");
+          CollectGarbage(NEW_SPACE, "failed to reserve space in the new space");
         } else {
-          AbortIncrementalMarkingAndCollectGarbage(
-              this, static_cast<AllocationSpace>(space),
-              "failed to reserve space in paged or large object space");
+          if (counter > 1) {
+            CollectAllGarbage(
+                kReduceMemoryFootprintMask,
+                "failed to reserve space in paged or large "
+                "object space, trying to reduce memory footprint");
+          } else {
+            CollectAllGarbage(
+                kAbortIncrementalMarkingMask,
+                "failed to reserve space in paged or large object space");
+          }
         }
         gc_performed = true;
         break;  // Abort for-loop over spaces and retry.

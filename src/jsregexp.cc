@@ -154,7 +154,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &parse_result, &zone)) {
+                                 flags.is_unicode(), &parse_result, &zone)) {
     // Throw an exception if we fail to parse the pattern.
     return ThrowRegExpException(re,
                                 pattern,
@@ -401,8 +401,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &compile_data,
-                                 &zone)) {
+                                 flags.is_unicode(), &compile_data, &zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     USE(ThrowRegExpException(re,

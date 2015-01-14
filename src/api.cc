@@ -206,7 +206,21 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
-StartupData V8::CreateSnapshotDataBlob() {
+bool RunExtraCode(Isolate* isolate, char* utf8_source) {
+  // Run custom script if provided.
+  TryCatch try_catch;
+  Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
+  if (try_catch.HasCaught()) return false;
+  ScriptOrigin origin(String::NewFromUtf8(isolate, "<embedded script>"));
+  ScriptCompiler::Source source(source_string, origin);
+  Local<Script> script = ScriptCompiler::Compile(isolate, &source);
+  if (try_catch.HasCaught()) return false;
+  script->Run();
+  return !try_catch.HasCaught();
+}
+
+
+StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
   Isolate::CreateParams params;
   params.enable_serializer = true;
   Isolate* isolate = v8::Isolate::New(params);
@@ -217,7 +231,12 @@ StartupData V8::CreateSnapshotDataBlob() {
     Persistent<Context> context;
     {
       HandleScope handle_scope(isolate);
-      context.Reset(isolate, Context::New(isolate));
+      Handle<Context> new_context = Context::New(isolate);
+      context.Reset(isolate, new_context);
+      if (custom_source != NULL) {
+        Context::Scope context_scope(new_context);
+        if (!RunExtraCode(isolate, custom_source)) context.Reset();
+      }
     }
     if (!context.IsEmpty()) {
       // Make sure all builtin scripts are cached.
@@ -408,18 +427,22 @@ void V8::MakeWeak(i::Object** object, void* parameter,
 }
 
 
-void V8::MakePhantom(i::Object** object, void* parameter,
-                     PhantomCallbackData<void>::Callback weak_callback) {
-  i::GlobalHandles::MakePhantom(object, parameter, weak_callback);
-}
-
-
 void V8::MakePhantom(
-    i::Object** object,
-    InternalFieldsCallbackData<void, void>::Callback weak_callback,
-    int internal_field_index1, int internal_field_index2) {
-  i::GlobalHandles::MakePhantom(object, weak_callback, internal_field_index1,
-                                internal_field_index2);
+    i::Object** object, void* parameter, int internal_field_index1,
+    int internal_field_index2,
+    PhantomCallbackData<void, void, void>::Callback weak_callback) {
+  if (internal_field_index1 == 0) {
+    if (internal_field_index2 == 1) {
+      i::GlobalHandles::MakePhantom(object, parameter, 2, weak_callback);
+    } else {
+      DCHECK_EQ(internal_field_index2, Object::kNoInternalFieldIndex);
+      i::GlobalHandles::MakePhantom(object, parameter, 1, weak_callback);
+    }
+  } else {
+    DCHECK_EQ(internal_field_index1, Object::kNoInternalFieldIndex);
+    DCHECK_EQ(internal_field_index2, Object::kNoInternalFieldIndex);
+    i::GlobalHandles::MakePhantom(object, parameter, 0, weak_callback);
+  }
 }
 
 

@@ -18,19 +18,26 @@ class CallInterfaceDescriptor;
 
 namespace compiler {
 
+class OsrHelper;
+
 // Describes the location for a parameter or a return value to a call.
 class LinkageLocation {
  public:
   explicit LinkageLocation(int location) : location_(location) {}
 
-  static const int16_t ANY_REGISTER = 32767;
+  static const int16_t ANY_REGISTER = 1023;
+  static const int16_t MAX_STACK_SLOT = 32767;
 
   static LinkageLocation AnyRegister() { return LinkageLocation(ANY_REGISTER); }
 
  private:
   friend class CallDescriptor;
   friend class OperandGenerator;
-  int16_t location_;  // >= 0 implies register, otherwise stack slot.
+  //         location < 0     -> a stack slot on the caller frame
+  // 0    <= location < 1023  -> a specific machine register
+  // 1023 <= location < 1024  -> any machine register
+  // 1024 <= location         -> a stack slot in the callee frame
+  int16_t location_;
 };
 
 typedef Signature<LinkageLocation> LocationSignature;
@@ -226,6 +233,9 @@ class Linkage : public ZoneObject {
   FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0) const;
 
   static bool NeedsFrameState(Runtime::FunctionId function);
+
+  // Get the location where an incoming OSR value is stored.
+  LinkageLocation GetOsrValueLocation(int index) const;
 
  private:
   Zone* const zone_;

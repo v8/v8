@@ -82,15 +82,13 @@
     # Speeds up Debug builds:
     # 0 - Compiler optimizations off (debuggable) (default). This may
     #     be 5x slower than Release (or worse).
-    # 1 - Turn on compiler optimizations. This may be hard or impossible to
-    #     debug. This may still be 2x slower than Release (or worse).
-    # 2 - Turn on optimizations, and also #undef DEBUG / #define NDEBUG
-    #     (but leave V8_ENABLE_CHECKS and most other assertions enabled.
-    #     This may cause some v8 tests to fail in the Debug configuration.
-    #     This roughly matches the performance of a Release build and can
-    #     be used by embedders that need to build their own code as debug
-    #     but don't want or need a debug version of V8. This should produce
-    #     near-release speeds.
+    # 1 - Turn on optimizations and disable slow DCHECKs, but leave
+    #     V8_ENABLE_CHECKS and most other assertions enabled.  This may cause
+    #     some v8 tests to fail in the Debug configuration.  This roughly
+    #     matches the performance of a Release build and can be used by
+    #     embedders that need to build their own code as debug but don't want
+    #     or need a debug version of V8. This should produce near-release
+    #     speeds.
     'v8_optimized_debug%': 0,
 
     # Use external files for startup data blobs:
@@ -164,7 +162,7 @@
         ],
       },
       'Optdebug': {
-        'inherit_from': [ 'DebugBaseCommon', 'DebugBase2' ],
+        'inherit_from': [ 'DebugBaseCommon', 'DebugBase1' ],
       },
       'Debug': {
         # Xcode insists on this empty entry.
@@ -201,7 +199,7 @@
     ],
   },
   'conditions': [
-    ['asan==1', {
+    ['asan==1 and OS!="mac"', {
       'target_defaults': {
         'cflags_cc+': [
           '-fno-omit-frame-pointer',
@@ -209,7 +207,7 @@
           '-fsanitize=address',
           '-w',  # http://crbug.com/162783
         ],
-        'cflags_cc!': [
+        'cflags!': [
           '-fomit-frame-pointer',
         ],
         'ldflags': [
@@ -217,7 +215,7 @@
         ],
       },
     }],
-    ['tsan==1', {
+    ['tsan==1 and OS!="mac"', {
       'target_defaults': {
         'cflags+': [
           '-fno-omit-frame-pointer',
@@ -235,6 +233,29 @@
         ],
         'defines': [
           'THREAD_SANITIZER',
+        ],
+      },
+    }],
+    ['asan==1 and OS=="mac"', {
+      'target_defaults': {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-gline-tables-only',
+            '-fsanitize=address',
+            '-w',  # http://crbug.com/162783
+          ],
+          'OTHER_CFLAGS!': [
+            '-fomit-frame-pointer',
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+          }],
+        ],
+        'dependencies': [
+          '<(DEPTH)/build/mac/asan.gyp:asan_dynamic_runtime',
         ],
       },
     }],

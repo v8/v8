@@ -25,12 +25,14 @@ bool Snapshot::Initialize(Isolate* isolate) {
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData blob = SnapshotBlob();
-  SnapshotData snapshot_data(ExtractStartupData(&blob));
+  Vector<const byte> startup_data = ExtractStartupData(&blob);
+  SnapshotData snapshot_data(startup_data);
   Deserializer deserializer(&snapshot_data);
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
+    int bytes = startup_data.length();
+    PrintF("[Deserializing isolate (%d bytes) took %0.3f ms]\n", bytes, ms);
   }
   return success;
 }
@@ -38,13 +40,21 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
   if (!HaveASnapshotToStartFrom()) return Handle<Context>();
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData blob = SnapshotBlob();
-  SnapshotData snapshot_data(ExtractContextData(&blob));
+  Vector<const byte> context_data = ExtractContextData(&blob);
+  SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   CHECK(root->IsContext());
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    int bytes = context_data.length();
+    PrintF("[Deserializing context (%d bytes) took %0.3f ms]\n", bytes, ms);
+  }
   return Handle<Context>(Context::cast(root));
 }
 

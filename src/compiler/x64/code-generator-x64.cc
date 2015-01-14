@@ -8,6 +8,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
+#include "src/compiler/osr.h"
 #include "src/scopes.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
@@ -1201,6 +1202,23 @@ void CodeGenerator::AssemblePrologue() {
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
+
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+
+    // Unoptimized code jumps directly to this entrypoint while the unoptimized
+    // frame is still on the stack. Optimized code uses OSR values directly from
+    // the unoptimized frame. Thus, all that needs to be done is to allocate the
+    // remaining stack slots.
+    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    int unoptimized_slots =
+        static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
+    DCHECK(stack_slots >= unoptimized_slots);
+    stack_slots -= unoptimized_slots;
+  }
+
   if (stack_slots > 0) {
     __ subq(rsp, Immediate(stack_slots * kPointerSize));
   }

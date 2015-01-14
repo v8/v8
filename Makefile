@@ -85,10 +85,17 @@ ifeq ($(snapshot), external)
 endif
 # extrachecks=on/off
 ifeq ($(extrachecks), on)
-  GYPFLAGS += -Dv8_enable_extra_checks=1 -Dv8_enable_handle_zapping=1
+  GYPFLAGS += -Ddcheck_always_on=1 -Dv8_enable_handle_zapping=1
 endif
 ifeq ($(extrachecks), off)
-  GYPFLAGS += -Dv8_enable_extra_checks=0 -Dv8_enable_handle_zapping=0
+  GYPFLAGS += -Ddcheck_always_on=0 -Dv8_enable_handle_zapping=0
+endif
+# slowdchecks=on/off
+ifeq ($(slowdchecks), on)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=1
+endif
+ifeq ($(slowdchecks), off)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=0
 endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)
@@ -100,10 +107,6 @@ endif
 # vtunejit=on
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
-endif
-# optdebug=on
-ifeq ($(optdebug), on)
-  GYPFLAGS += -Dv8_optimized_debug=2
 endif
 # unalignedaccess=on
 ifeq ($(unalignedaccess), on)
@@ -149,6 +152,9 @@ ifeq ($(asan), on)
   ifeq ($(lsan), on)
     GYPFLAGS += -Dlsan=1
   endif
+endif
+ifdef embedscript
+  GYPFLAGS += -Dembed_script=$(embedscript)
 endif
 
 # arm specific flags.
@@ -423,7 +429,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
 	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
-	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
+	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=1,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)

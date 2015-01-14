@@ -34,14 +34,14 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     out << "=== Schedule before instruction selection ===" << std::endl
         << *schedule;
   }
-  EXPECT_NE(0, graph()->NodeCount());
-  int initial_node_count = graph()->NodeCount();
+  size_t const node_count = graph()->NodeCount();
+  EXPECT_NE(0u, node_count);
   Linkage linkage(test_->zone(), call_descriptor());
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), schedule);
   InstructionSequence sequence(test_->zone(), instruction_blocks);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(test_->zone(), graph(), &linkage, &sequence,
+  InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
@@ -52,19 +52,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
         << printable;
   }
   Stream s;
+  s.virtual_registers_ = selector.GetVirtualRegistersForTesting();
   // Map virtual registers.
-  {
-    const NodeToVregMap& node_map = selector.GetNodeMapForTesting();
-    for (int i = 0; i < initial_node_count; ++i) {
-      if (node_map[i] != InstructionSelector::kNodeUnmapped) {
-        s.virtual_registers_.insert(std::make_pair(i, node_map[i]));
-      }
-    }
-  }
-  std::set<int> virtual_registers;
-  for (InstructionSequence::const_iterator i = sequence.begin();
-       i != sequence.end(); ++i) {
-    Instruction* instr = *i;
+  for (Instruction* const instr : sequence) {
     if (instr->opcode() < 0) continue;
     if (mode == kTargetInstructions) {
       switch (instr->arch_opcode()) {
@@ -86,10 +76,6 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       if (output->IsConstant()) {
         s.constants_.insert(std::make_pair(
             output->index(), sequence.GetConstant(output->index())));
-        virtual_registers.insert(output->index());
-      } else if (output->IsUnallocated()) {
-        virtual_registers.insert(
-            UnallocatedOperand::cast(output)->virtual_register());
       }
     }
     for (size_t i = 0; i < instr->InputCount(); ++i) {
@@ -98,16 +84,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       if (input->IsImmediate()) {
         s.immediates_.insert(std::make_pair(
             input->index(), sequence.GetImmediate(input->index())));
-      } else if (input->IsUnallocated()) {
-        virtual_registers.insert(
-            UnallocatedOperand::cast(input)->virtual_register());
       }
     }
     s.instructions_.push_back(instr);
   }
-  for (std::set<int>::const_iterator i = virtual_registers.begin();
-       i != virtual_registers.end(); ++i) {
-    int virtual_register = *i;
+  for (auto i : s.virtual_registers_) {
+    int const virtual_register = i.second;
     if (sequence.IsDouble(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
