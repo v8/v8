@@ -229,11 +229,13 @@ StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
     Isolate::Scope isolate_scope(isolate);
     i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
     Persistent<Context> context;
+    i::Snapshot::Metadata metadata;
     {
       HandleScope handle_scope(isolate);
       Handle<Context> new_context = Context::New(isolate);
       context.Reset(isolate, new_context);
       if (custom_source != NULL) {
+        metadata.set_embeds_script(true);
         Context::Scope context_scope(new_context);
         if (!RunExtraCode(isolate, custom_source)) context.Reset();
       }
@@ -264,7 +266,8 @@ StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
       i::SnapshotData sd(snapshot_sink, ser);
       i::SnapshotData csd(context_sink, context_ser);
 
-      result = i::Snapshot::CreateSnapshotBlob(sd.RawData(), csd.RawData());
+      result = i::Snapshot::CreateSnapshotBlob(sd.RawData(), csd.RawData(),
+                                               metadata);
     }
   }
   isolate->Dispose();

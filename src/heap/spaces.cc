@@ -10,6 +10,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
+#include "src/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -1044,6 +1045,8 @@ bool PagedSpace::Expand() {
 
 
 intptr_t PagedSpace::SizeOfFirstPage() {
+  // If the snapshot contains a custom script, all size guarantees are off.
+  if (Snapshot::EmbedsScript()) return AreaSize();
   // If using an ool constant pool then transfer the constant pool allowance
   // from the code space to the old pointer space.
   static const int constant_pool_delta = FLAG_enable_ool_constant_pool ? 48 : 0;

@@ -2578,6 +2578,11 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
 
 void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                       Handle<JSObject> to) {
+  // If JSObject::AddProperty asserts due to already existing property,
+  // it is likely due to both global objects sharing property name(s).
+  // Merging those two global objects is impossible.
+  // The global template must not create properties that already exist
+  // in the snapshotted global object.
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
