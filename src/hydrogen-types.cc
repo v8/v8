@@ -24,6 +24,7 @@ HType HType::FromType(typename T::TypeHandle type) {
   if (type->Is(T::Undefined())) return HType::Undefined();
   if (type->Is(T::Array())) return HType::JSArray();
   if (type->Is(T::Object())) return HType::JSObject();
+  if (type->Is(T::Receiver())) return HType::JSReceiver();
   return HType::Tagged();
 }
 
