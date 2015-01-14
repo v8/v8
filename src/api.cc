@@ -856,11 +856,8 @@ Local<Signature> Signature::New(Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "Signature::New");
   ENTER_V8(i_isolate);
-  i::Handle<i::Struct> struct_obj =
-      i_isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
   i::Handle<i::SignatureInfo> obj =
-      i::Handle<i::SignatureInfo>::cast(struct_obj);
-  if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
+      Utils::OpenHandle(*Signature::New(isolate, receiver));
   if (argc > 0) {
     i::Handle<i::FixedArray> args = i_isolate->factory()->NewFixedArray(argc);
     for (int i = 0; i < argc; i++) {
@@ -869,6 +866,22 @@ Local<Signature> Signature::New(Isolate* isolate,
     }
     obj->set_args(*args);
   }
+  return Utils::ToLocal(obj);
+}
+
+
+Local<Signature> Signature::New(Isolate* isolate,
+                                Handle<FunctionTemplate> receiver) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "Signature::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::Struct> struct_obj =
+      i_isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
+  // TODO(jochen): Replace SignatureInfo with FunctionTemplateInfo once the
+  // deprecated API is deleted.
+  i::Handle<i::SignatureInfo> obj =
+      i::Handle<i::SignatureInfo>::cast(struct_obj);
+  if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
   return Utils::ToLocal(obj);
 }
 

@@ -4099,16 +4099,18 @@ class V8_EXPORT ObjectTemplate : public Template {
 
 
 /**
- * A Signature specifies which receivers and arguments are valid
- * parameters to a function.
+ * A Signature specifies which receiver is valid for a function.
  */
 class V8_EXPORT Signature : public Data {
  public:
-  static Local<Signature> New(Isolate* isolate,
-                              Handle<FunctionTemplate> receiver =
-                                  Handle<FunctionTemplate>(),
-                              int argc = 0,
-                              Handle<FunctionTemplate> argv[] = 0);
+  V8_DEPRECATED("An embedder needs to check the arguments itself",
+                static Local<Signature> New(
+                    Isolate* isolate, Handle<FunctionTemplate> receiver,
+                    int argc, Handle<FunctionTemplate> argv[] = 0));
+
+  static Local<Signature> New(
+      Isolate* isolate,
+      Handle<FunctionTemplate> receiver = Handle<FunctionTemplate>());
 
  private:
   Signature();
