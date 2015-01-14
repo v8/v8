@@ -700,12 +700,17 @@ void Deserializer::Deserialize(Isolate* isolate) {
 
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
-    Isolate* isolate, Handle<FixedArray>* outdated_contexts_out) {
+    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+    Handle<FixedArray>* outdated_contexts_out) {
   Initialize(isolate);
   if (!ReserveSpace()) {
     FatalProcessOutOfMemory("deserialize context");
     return MaybeHandle<Object>();
   }
+
+  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(1);
+  attached_objects[kGlobalProxyReference] = global_proxy;
+  SetAttachedObjects(attached_objects);
 
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
@@ -734,6 +739,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
   if (!ReserveSpace()) {
     return Handle<SharedFunctionInfo>();
   } else {
+    deserializing_user_code_ = true;
     DisallowHeapAllocation no_gc;
     Object* root;
     VisitPointer(&root);
@@ -749,7 +755,7 @@ Deserializer::~Deserializer() {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
   }
-  if (attached_objects_) attached_objects_->Dispose();
+  attached_objects_.Dispose();
 }
 
 
@@ -997,9 +1003,9 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         new_object = isolate->builtins()->builtin(name);                       \
         emit_write_barrier = false;                                            \
       } else if (where == kAttachedReference) {                                \
-        DCHECK(deserializing_user_code());                                     \
         int index = source_.GetInt();                                          \
-        new_object = *attached_objects_->at(index);                            \
+        DCHECK(deserializing_user_code() || index == kGlobalProxyReference);   \
+        new_object = *attached_objects_[index];                                \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \
         DCHECK(where == kBackrefWithSkip);                                     \
@@ -1396,7 +1402,11 @@ void StartupSerializer::VisitPointers(Object** start, Object** end) {
 
 
 void PartialSerializer::Serialize(Object** o) {
-  if ((*o)->IsContext()) global_object_ = Context::cast(*o)->global_object();
+  if ((*o)->IsContext()) {
+    Context* context = Context::cast(*o);
+    global_object_ = context->global_object();
+    global_proxy_ = context->global_proxy();
+  }
   VisitPointer(o);
   SerializeOutdatedContextsAsFixedArray();
   Pad();
@@ -1682,6 +1692,14 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
+
+  if (obj == global_proxy_) {
+    FlushSkip(skip);
+    DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
+    sink_->Put(kAttachedReference + how_to_code + where_to_point, "Reference");
+    sink_->PutInt(kGlobalProxyReference, "kGlobalProxyReferenceIndex");
+    return;
+  }
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
@@ -2323,16 +2341,6 @@ int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
 }
 
 
-void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
-                                           WhereToPoint where_to_point) {
-  if (FLAG_trace_serializer) PrintF(" Encoding source object\n");
-
-  DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
-  sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
-  sink_->PutInt(kSourceObjectIndex, "kSourceObjectIndex");
-}
-
-
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source) {
   base::ElapsedTimer timer;
@@ -2363,7 +2371,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   Deserializer deserializer(scd.get());
-  deserializer.SetAttachedObjects(&attached_objects);
+  deserializer.SetAttachedObjects(attached_objects);
 
   // Deserialize.
   Handle<SharedFunctionInfo> result;

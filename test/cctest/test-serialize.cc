@@ -394,10 +394,14 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       HandleScope handle_scope(isolate);
       Handle<Object> root;
       Handle<FixedArray> outdated_contexts;
+      // Intentionally empty handle. The deserializer should not come across
+      // any references to the global proxy in this test.
+      Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+        root = deserializer.DeserializePartial(isolate, global_proxy,
+                                               &outdated_contexts)
                    .ToHandleChecked();
         CHECK_EQ(0, outdated_contexts->length());
         CHECK(root->IsString());
@@ -407,7 +411,8 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        root2 = deserializer.DeserializePartial(isolate, &outdated_contexts)
+        root2 = deserializer.DeserializePartial(isolate, global_proxy,
+                                                &outdated_contexts)
                     .ToHandleChecked();
         CHECK(root2->IsString());
         CHECK(root.is_identical_to(root2));
@@ -506,12 +511,16 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       HandleScope handle_scope(isolate);
       Handle<Object> root;
       Handle<FixedArray> outdated_contexts;
+      Handle<JSGlobalProxy> global_proxy =
+          isolate->factory()->NewUninitializedJSGlobalProxy();
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+        root = deserializer.DeserializePartial(isolate, global_proxy,
+                                               &outdated_contexts)
                    .ToHandleChecked();
         CHECK(root->IsContext());
+        CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
         CHECK_EQ(1, outdated_contexts->length());
       }
 
@@ -519,7 +528,8 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        root2 = deserializer.DeserializePartial(isolate, &outdated_contexts)
+        root2 = deserializer.DeserializePartial(isolate, global_proxy,
+                                                &outdated_contexts)
                     .ToHandleChecked();
         CHECK(root2->IsContext());
         CHECK(!root.is_identical_to(root2));
@@ -554,7 +564,8 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
             "var e;"
             "(function() {"
             "  e = function(s) { eval (s); }"
-            "})();");
+            "})();"
+            "var o = this;");
       }
       // Make sure all builtin scripts are cached.
       {
@@ -625,13 +636,22 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeSerialization,
       HandleScope handle_scope(isolate);
       Handle<Object> root;
       Handle<FixedArray> outdated_contexts;
+      Handle<JSGlobalProxy> global_proxy =
+          isolate->factory()->NewUninitializedJSGlobalProxy();
       {
         SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
         Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, &outdated_contexts)
+        root = deserializer.DeserializePartial(isolate, global_proxy,
+                                               &outdated_contexts)
                    .ToHandleChecked();
         CHECK_EQ(2, outdated_contexts->length());
         CHECK(root->IsContext());
+        Handle<Context> context = Handle<Context>::cast(root);
+        CHECK(context->global_proxy() == *global_proxy);
+        Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
+        Handle<JSObject> global_object(context->global_object(), isolate);
+        Handle<Object> property = JSObject::GetDataProperty(global_object, o);
+        CHECK(property.is_identical_to(global_proxy));
       }
     }
     v8_isolate->Dispose();
