@@ -36,6 +36,7 @@
 #include "src/global-handles.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -5090,10 +5091,11 @@ TEST(Regress442710) {
 
 
 TEST(NumberStringCacheSize) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) return;
+  // Test that the number-string cache has not been resized in the snapshot.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  // Test that the number-string cache has not been resized.
   CHECK_EQ(TestHeap::kInitialNumberStringCacheSize * 2,
            heap->number_string_cache()->length());
 }
