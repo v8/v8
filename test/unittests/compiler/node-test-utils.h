@@ -85,7 +85,6 @@ Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberMultiply(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& effect_matcher,

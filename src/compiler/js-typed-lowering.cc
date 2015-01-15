@@ -537,7 +537,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     return Changed(input);  // JSToNumber(JSToNumber(x)) => JSToNumber(x)
   }
   // Check if we have a cached conversion.
-  Node* conversion = FindConversion<IrOpcode::kPlainPrimitiveToNumber>(input);
+  Node* conversion = FindConversion<IrOpcode::kJSToNumber>(input);
   if (conversion) return Replace(conversion);
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Number())) {
@@ -571,19 +571,18 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::PlainPrimitive())) {
-    RelaxEffects(node);
     if (input->opcode() == IrOpcode::kPhi) {
       // JSToNumber(phi(x1,...,xn,control):plain-primitive,context)
-      //   => phi(PlainPrimitiveToNumber(x1),
+      //   => phi(JSToNumber(x1,no-context),
       //          ...,
-      //          PlainPrimitiveToNumber(xn),
-      //          control)
+      //          JSToNumber(xn,no-context),control)
       int const input_count = input->InputCount() - 1;
       Node* const control = input->InputAt(input_count);
       DCHECK_LE(0, input_count);
       DCHECK(NodeProperties::IsControl(control));
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+      RelaxEffects(node);
       node->set_op(common()->Phi(kMachAnyTagged, input_count));
       for (int i = 0; i < input_count; ++i) {
         // We must be very careful not to introduce cycles when pushing
@@ -609,12 +608,13 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
     }
     if (input->opcode() == IrOpcode::kSelect) {
       // JSToNumber(select(c,x1,x2):plain-primitive,context)
-      //   => select(c,PlainPrimitiveToNumber(x1),PlainPrimitiveToNumber(x2))
+      //   => select(c,JSToNumber(x1,no-context),JSToNumber(x2,no-context))
       int const input_count = input->InputCount();
       BranchHint const input_hint = SelectParametersOf(input->op()).hint();
       DCHECK_EQ(3, input_count);
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
+      RelaxEffects(node);
       node->set_op(common()->Select(kMachAnyTagged, input_hint));
       node->ReplaceInput(0, input->InputAt(0));
       for (int i = 1; i < input_count; ++i) {
@@ -630,12 +630,24 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       node->TrimInputCount(input_count);
       return Changed(node);
     }
-    // JSToNumber(x:plain-primitive,context) => PlainPrimitiveToNumber(x)
-    node->set_op(simplified()->PlainPrimitiveToNumber());
-    node->TrimInputCount(1);
     // Remember this conversion.
     InsertConversion(node);
-    return Changed(node);
+    if (NodeProperties::GetContextInput(node) !=
+            jsgraph()->NoContextConstant() ||
+        NodeProperties::GetEffectInput(node) != graph()->start() ||
+        NodeProperties::GetControlInput(node) != graph()->start()) {
+      // JSToNumber(x:plain-primitive,context,effect,control)
+      //   => JSToNumber(x,no-context,start,start)
+      RelaxEffects(node);
+      NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
+      NodeProperties::ReplaceControlInput(node, graph()->start());
+      NodeProperties::ReplaceEffectInput(node, graph()->start());
+      if (OperatorProperties::HasFrameStateInput(node->op())) {
+        NodeProperties::ReplaceFrameStateInput(node,
+                                               jsgraph()->EmptyFrameState());
+      }
+      return Changed(node);
+    }
   }
   return NoChange();
 }
@@ -940,8 +952,16 @@ Node* JSTypedLowering::ConvertToNumber(Node* input) {
   // Avoid inserting too many eager ToNumber() operations.
   Reduction const reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) return reduction.replacement();
+  // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
   Node* const conversion =
-      graph()->NewNode(simplified()->PlainPrimitiveToNumber(), input);
+      FLAG_turbo_deoptimization
+          ? graph()->NewNode(javascript()->ToNumber(), input,
+                             jsgraph()->NoContextConstant(),
+                             jsgraph()->EmptyFrameState(), graph()->start(),
+                             graph()->start())
+          : graph()->NewNode(javascript()->ToNumber(), input,
+                             jsgraph()->NoContextConstant(), graph()->start(),
+                             graph()->start());
   InsertConversion(conversion);
   return conversion;
 }
@@ -961,7 +981,7 @@ Node* JSTypedLowering::FindConversion(Node* input) {
 
 
 void JSTypedLowering::InsertConversion(Node* conversion) {
-  DCHECK(conversion->opcode() == IrOpcode::kPlainPrimitiveToNumber);
+  DCHECK(conversion->opcode() == IrOpcode::kJSToNumber);
   size_t const input_id = conversion->InputAt(0)->id();
   if (input_id >= conversions_.size()) {
     conversions_.resize(2 * input_id + 1);

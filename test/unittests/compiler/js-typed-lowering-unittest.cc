@@ -372,7 +372,8 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Reduction r = Reduce(graph()->NewNode(javascript()->ToNumber(), input,
                                         context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsPlainPrimitiveToNumber(input));
+  EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(BitEq(0.0)),
+                                          graph()->start(), control));
 }
 
 

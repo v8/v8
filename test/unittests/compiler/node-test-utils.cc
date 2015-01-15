@@ -1308,7 +1308,6 @@ IS_UNOP_MATCHER(Float64RoundTruncate)
 IS_UNOP_MATCHER(Float64RoundTiesAway)
 IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
-IS_UNOP_MATCHER(PlainPrimitiveToNumber)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler
