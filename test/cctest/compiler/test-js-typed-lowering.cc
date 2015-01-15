@@ -488,7 +488,7 @@ TEST(JSToNumberOfNumberOrOtherPrimitive) {
   for (size_t i = 0; i < arraysize(others); i++) {
     Type* t = Type::Union(Type::Number(), others[i], R.main_zone());
     Node* r = R.ReduceUnop(R.javascript.ToNumber(), t);
-    CHECK_EQ(IrOpcode::kJSToNumber, r->opcode());
+    CHECK_EQ(IrOpcode::kPlainPrimitiveToNumber, r->opcode());
   }
 }
 
@@ -1033,7 +1033,8 @@ TEST(OrderCompareEffects) {
     BinopEffectsTester B(ops[j], Type::Symbol(), Type::String());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
+    Node* i0 =
+        B.CheckConvertedInput(IrOpcode::kPlainPrimitiveToNumber, 0, false);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
 
     // Inputs should be commuted.
