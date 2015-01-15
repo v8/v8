@@ -114,6 +114,11 @@ struct MaybeBoolFlag {
 };
 #endif
 
+#ifdef DEBUG
+#define DEBUG_BOOL true
+#else
+#define DEBUG_BOOL false
+#endif
 #if (defined CAN_USE_VFP3_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 #define ENABLE_VFP3_DEFAULT true
 #else
@@ -384,7 +389,7 @@ DEFINE_BOOL(trace_turbo_scheduler, false, "trace TurboFan's scheduler")
 DEFINE_BOOL(trace_turbo_reduction, false, "trace TurboFan's various reducers")
 DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
 DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
-DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
+DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
@@ -403,7 +408,8 @@ DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_delay_ssa_decon, false,
             "delay ssa deconstruction in TurboFan register allocator")
-// TODO(dcarney): this is just for debugging, remove eventually.
+DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
+            "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_osr, false, "enable OSR in TurboFan")

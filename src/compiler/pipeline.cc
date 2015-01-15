@@ -247,15 +247,6 @@ class PipelineData {
 };
 
 
-static inline bool VerifyGraphs() {
-#ifdef DEBUG
-  return true;
-#else
-  return FLAG_turbo_verify;
-#endif
-}
-
-
 struct TurboCfgFile : public std::ofstream {
   explicit TurboCfgFile(Isolate* isolate)
       : std::ofstream(isolate->GetTurboCfgFileName().c_str(),
@@ -534,7 +525,7 @@ struct ComputeSchedulePhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph());
     TraceSchedule(schedule);
-    if (VerifyGraphs()) ScheduleVerifier::Run(schedule);
+    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     data->set_schedule(schedule);
   }
 };
@@ -753,7 +744,7 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
   if (FLAG_trace_turbo) {
     Run<PrintGraphPhase>(phase);
   }
-  if (VerifyGraphs()) {
+  if (FLAG_turbo_verify) {
     Run<VerifyGraphPhase>(untyped);
   }
 }
@@ -990,10 +981,7 @@ void Pipeline::GenerateCode(Linkage* linkage) {
 
   BeginPhaseKind("register allocation");
 
-  bool run_verifier = false;
-#ifdef DEBUG
-  run_verifier = true;
-#endif
+  bool run_verifier = FLAG_turbo_verify_allocation;
   // Allocate registers.
   AllocateRegisters(RegisterConfiguration::ArchDefault(), run_verifier);
   if (data->compilation_failed()) {
