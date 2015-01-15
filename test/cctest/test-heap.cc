@@ -5089,6 +5089,16 @@ TEST(Regress442710) {
 }
 
 
+TEST(NumberStringCacheSize) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  // Test that the number-string cache has not been resized.
+  CHECK_EQ(TestHeap::kInitialNumberStringCacheSize * 2,
+           heap->number_string_cache()->length());
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();

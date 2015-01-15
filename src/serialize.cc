@@ -1665,6 +1665,9 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     DCHECK(Map::cast(obj)->code_cache() == obj->GetHeap()->empty_fixed_array());
   }
 
+  // Replace typed arrays by undefined.
+  if (obj->IsJSTypedArray()) obj = isolate_->heap()->undefined_value();
+
   int root_index = root_index_map_.Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
@@ -1831,6 +1834,9 @@ void Serializer::ObjectSerializer::Serialize() {
     object_->ShortPrint();
     PrintF("\n");
   }
+
+  // We cannot serialize typed array objects correctly.
+  DCHECK(!object_->IsJSTypedArray());
 
   if (object_->IsScript()) {
     // Clear cached line ends.

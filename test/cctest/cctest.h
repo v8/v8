@@ -99,6 +99,7 @@ class TestHeap : public i::Heap {
   using i::Heap::AllocateJSObjectFromMap;
   using i::Heap::AllocateMap;
   using i::Heap::CopyCode;
+  using i::Heap::kInitialNumberStringCacheSize;
 };
 
 

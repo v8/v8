@@ -565,7 +565,9 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
             "(function() {"
             "  e = function(s) { eval (s); }"
             "})();"
-            "var o = this;");
+            "var o = this;"
+            "var r = Math.random();"
+            "var f = (function(a, b) {}).bind(1, 2, 3);");
       }
       // Make sure all builtin scripts are cached.
       {

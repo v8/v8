@@ -261,7 +261,7 @@ TEST(BoundFunctionInSnapshot) {
       GetProperty(f, v8::HeapGraphEdge::kInternal, "bindings");
   CHECK_NE(NULL, bindings);
   CHECK_EQ(v8::HeapGraphNode::kArray, bindings->GetType());
-  CHECK_EQ(4, bindings->GetChildrenCount());
+  CHECK_EQ(3, bindings->GetChildrenCount());
 
   const v8::HeapGraphNode* bound_this = GetProperty(
       f, v8::HeapGraphEdge::kShortcut, "bound_this");
