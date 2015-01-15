@@ -25,8 +25,7 @@ namespace compiler {
 
 // A couple of reserved opcodes are used for internal use.
 const InstructionCode kGapInstruction = -1;
-const InstructionCode kBlockStartInstruction = -2;
-const InstructionCode kSourcePositionInstruction = -3;
+const InstructionCode kSourcePositionInstruction = -2;
 
 #define INSTRUCTION_OPERAND_LIST(V)                                  \
   V(Constant, CONSTANT, 0)                                           \
@@ -494,10 +493,7 @@ class Instruction : public ZoneObject {
   bool NeedsPointerMap() const { return IsCall(); }
   bool HasPointerMap() const { return pointer_map_ != NULL; }
 
-  bool IsGapMoves() const {
-    return opcode() == kGapInstruction || opcode() == kBlockStartInstruction;
-  }
-  bool IsBlockStart() const { return opcode() == kBlockStartInstruction; }
+  bool IsGapMoves() const { return opcode() == kGapInstruction; }
   bool IsSourcePosition() const {
     return opcode() == kSourcePositionInstruction;
   }
@@ -640,30 +636,6 @@ class GapInstruction : public Instruction {
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstruction& instr);
   ParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
-};
-
-
-// This special kind of gap move instruction represents the beginning of a
-// block of code.
-class BlockStartInstruction FINAL : public GapInstruction {
- public:
-  static BlockStartInstruction* New(Zone* zone) {
-    void* buffer = zone->New(sizeof(BlockStartInstruction));
-    return new (buffer) BlockStartInstruction();
-  }
-
-  static BlockStartInstruction* cast(Instruction* instr) {
-    DCHECK(instr->IsBlockStart());
-    return static_cast<BlockStartInstruction*>(instr);
-  }
-
-  static const BlockStartInstruction* cast(const Instruction* instr) {
-    DCHECK(instr->IsBlockStart());
-    return static_cast<const BlockStartInstruction*>(instr);
-  }
-
- private:
-  BlockStartInstruction() : GapInstruction(kBlockStartInstruction) {}
 };
 
 
@@ -983,7 +955,7 @@ class InstructionSequence FINAL : public ZoneObject {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  BlockStartInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
+  GapInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
 
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }

@@ -2033,51 +2033,56 @@ void CodeStubGraphBuilderBase::HandleArrayCases(HValue* array, HValue* receiver,
                                                 HValue* name, HValue* slot,
                                                 HValue* vector,
                                                 bool keyed_load) {
+  HConstant* constant_two = Add<HConstant>(2);
+  HConstant* constant_three = Add<HConstant>(3);
+
   IfBuilder if_receiver_heap_object(this);
   if_receiver_heap_object.IfNot<HIsSmiAndBranch>(receiver);
   if_receiver_heap_object.Then();
+  Push(AddLoadMap(receiver, nullptr));
+  if_receiver_heap_object.Else();
+  HConstant* heap_number_map =
+      Add<HConstant>(isolate()->factory()->heap_number_map());
+  Push(heap_number_map);
+  if_receiver_heap_object.End();
+  HValue* receiver_map = Pop();
+
+  HValue* start =
+      keyed_load ? graph()->GetConstant1() : graph()->GetConstant0();
+  HValue* weak_cell =
+      Add<HLoadKeyed>(array, start, nullptr, FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+  // Load the weak cell value. It may be Smi(0), or a map. Compare nonetheless
+  // against the receiver_map.
+  HValue* array_map = Add<HLoadNamedField>(weak_cell, nullptr,
+                                           HObjectAccess::ForWeakCellValue());
+
+  IfBuilder if_correct_map(this);
+  if_correct_map.If<HCompareObjectEqAndBranch>(receiver_map, array_map);
+  if_correct_map.Then();
+  { TailCallHandler(receiver, name, array, start, slot, vector); }
+  if_correct_map.Else();
   {
-    HConstant* constant_two = Add<HConstant>(2);
-    HConstant* constant_three = Add<HConstant>(3);
-
-    HValue* receiver_map = AddLoadMap(receiver, nullptr);
-    HValue* start =
-        keyed_load ? graph()->GetConstant1() : graph()->GetConstant0();
-    HValue* weak_cell = Add<HLoadKeyed>(array, start, nullptr, FAST_ELEMENTS,
-                                        ALLOW_RETURN_HOLE);
-    // Load the weak cell value. It may be Smi(0), or a map. Compare nonetheless
-    // against the receiver_map.
-    HValue* array_map = Add<HLoadNamedField>(weak_cell, nullptr,
-                                             HObjectAccess::ForWeakCellValue());
-
-    IfBuilder if_correct_map(this);
-    if_correct_map.If<HCompareObjectEqAndBranch>(receiver_map, array_map);
-    if_correct_map.Then();
-    { TailCallHandler(receiver, name, array, start, slot, vector); }
-    if_correct_map.Else();
+    // If our array has more elements, the ic is polymorphic. Look for the
+    // receiver map in the rest of the array.
+    HValue* length = AddLoadFixedArrayLength(array, nullptr);
+    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement,
+                        constant_two);
+    start = keyed_load ? constant_three : constant_two;
+    HValue* key = builder.BeginBody(start, length, Token::LT);
     {
-      // If our array has more elements, the ic is polymorphic. Look for the
-      // receiver map in the rest of the array.
-      HValue* length = AddLoadFixedArrayLength(array, nullptr);
-      LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement,
-                          constant_two);
-      start = keyed_load ? constant_three : constant_two;
-      HValue* key = builder.BeginBody(start, length, Token::LT);
-      {
-        HValue* weak_cell = Add<HLoadKeyed>(array, key, nullptr, FAST_ELEMENTS,
-                                            ALLOW_RETURN_HOLE);
-        HValue* array_map = Add<HLoadNamedField>(
-            weak_cell, nullptr, HObjectAccess::ForWeakCellValue());
-        IfBuilder if_correct_poly_map(this);
-        if_correct_poly_map.If<HCompareObjectEqAndBranch>(receiver_map,
-                                                          array_map);
-        if_correct_poly_map.Then();
-        { TailCallHandler(receiver, name, array, key, slot, vector); }
-      }
-      builder.EndBody();
+      HValue* weak_cell = Add<HLoadKeyed>(array, key, nullptr, FAST_ELEMENTS,
+                                          ALLOW_RETURN_HOLE);
+      HValue* array_map = Add<HLoadNamedField>(
+          weak_cell, nullptr, HObjectAccess::ForWeakCellValue());
+      IfBuilder if_correct_poly_map(this);
+      if_correct_poly_map.If<HCompareObjectEqAndBranch>(receiver_map,
+                                                        array_map);
+      if_correct_poly_map.Then();
+      { TailCallHandler(receiver, name, array, key, slot, vector); }
     }
-    if_correct_map.End();
+    builder.EndBody();
   }
+  if_correct_map.End();
 }
 
 

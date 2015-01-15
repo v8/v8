@@ -305,4 +305,62 @@ TEST(VectorLoadICStates) {
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
+
+
+TEST(VectorLoadICOnSmi) {
+  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "var o = { foo: 3 };"
+      "function f(a) { return a.foo; } f(o);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorICSlot slot(0);
+  LoadICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun("f(34)");
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  // Verify that the monomorphic map is the one we expect.
+  Map* number_map = heap->heap_number_map();
+  CHECK_EQ(number_map, nexus.FindFirstMap());
+
+  // Now go polymorphic on o.
+  CompileRun("f(o)");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+
+  MapHandleList maps;
+  nexus.FindAllMaps(&maps);
+  CHECK_EQ(2, maps.length());
+
+  // One of the maps should be the o map.
+  Handle<JSObject> o = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str("o"))));
+  bool number_map_found = false;
+  bool o_map_found = false;
+  for (int i = 0; i < maps.length(); i++) {
+    Handle<Map> current = maps[i];
+    if (*current == number_map)
+      number_map_found = true;
+    else if (*current == o->map())
+      o_map_found = true;
+  }
+  CHECK(number_map_found && o_map_found);
+
+  // The degree of polymorphism doesn't change.
+  CompileRun("f(100)");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+  MapHandleList maps2;
+  nexus.FindAllMaps(&maps2);
+  CHECK_EQ(2, maps2.length());
+}
 }

@@ -435,8 +435,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   for (int j = 0; j < argc; j++, i++) {
     new_bindings->set(i, *arguments[j + 1]);
   }
-  new_bindings->set_map_no_write_barrier(
-      isolate->heap()->fixed_cow_array_map());
+  new_bindings->set_map_no_write_barrier(isolate->heap()->fixed_array_map());
   bound_function->set_function_bindings(*new_bindings);
 
   // Update length. Have to remove the prototype first so that map migration
@@ -462,8 +461,8 @@ RUNTIME_FUNCTION(Runtime_BoundFunctionGetBindings) {
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     if (function->shared()->bound()) {
+      RUNTIME_ASSERT(function->function_bindings()->IsFixedArray());
       Handle<FixedArray> bindings(function->function_bindings());
-      RUNTIME_ASSERT(bindings->map() == isolate->heap()->fixed_cow_array_map());
       return *isolate->factory()->NewJSArrayWithElements(bindings);
     }
   }

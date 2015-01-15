@@ -6186,7 +6186,7 @@ void JSFunction::set_function_bindings(FixedArray* bindings) {
   // Bound function literal may be initialized to the empty fixed array
   // before the bindings are set.
   DCHECK(bindings == GetHeap()->empty_fixed_array() ||
-         bindings->map() == GetHeap()->fixed_cow_array_map());
+         bindings->map() == GetHeap()->fixed_array_map());
   set_literals_or_bindings(bindings);
 }
 

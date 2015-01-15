@@ -2149,12 +2149,6 @@ void Factory::SetNumberStringCache(Handle<Object> number,
   if (number_string_cache()->get(hash * 2) != *undefined_value()) {
     int full_size = isolate()->heap()->FullSizeNumberStringCacheLength();
     if (number_string_cache()->length() != full_size) {
-      // The first time we have a hash collision, we move to the full sized
-      // number string cache.  The idea is to have a small number string
-      // cache in the snapshot to keep  boot-time memory usage down.
-      // If we expand the number string cache already while creating
-      // the snapshot then that didn't work out.
-      DCHECK(!isolate()->serializer_enabled());
       Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;

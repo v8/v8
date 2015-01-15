@@ -36,6 +36,7 @@
 #include "src/global-handles.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -5086,6 +5087,17 @@ TEST(Regress442710) {
   JSReceiver::SetProperty(global, name, array, SLOPPY).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   heap->CollectGarbage(OLD_POINTER_SPACE);
+}
+
+
+TEST(NumberStringCacheSize) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) return;
+  // Test that the number-string cache has not been resized in the snapshot.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  CHECK_EQ(TestHeap::kInitialNumberStringCacheSize * 2,
+           heap->number_string_cache()->length());
 }
 
 

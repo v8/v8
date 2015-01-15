@@ -432,6 +432,40 @@ TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
 }
 
 
+TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
+  StartBlock();
+  // Fill registers.
+  VReg values[kDefaultNRegs];
+  for (size_t i = arraysize(values); i > 0; --i) {
+    values[i - 1] = Define(Reg(static_cast<int>(i - 1)));
+  }
+  auto c = DefineConstant();
+  auto to_spill = Define(Reg());
+  EndBlock(Jump(1));
+
+  {
+    StartLoop(1);
+
+    StartBlock();
+    // Create a use for c in second half of prev block's last gap
+    Phi(c);
+    for (size_t i = arraysize(values); i > 0; --i) {
+      Phi(values[i - 1]);
+    }
+    EndBlock(Jump(1));
+
+    EndLoop();
+  }
+
+  StartBlock();
+  // Force c to split within to_spill's definition.
+  EmitI(Reg(c));
+  EmitI(Reg(to_spill));
+  EndBlock(Last());
+
+  Allocate();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

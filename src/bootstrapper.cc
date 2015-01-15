@@ -2791,10 +2791,9 @@ Genesis::Genesis(Isolate* isolate,
   if (!InstallExperimentalNatives()) return;
   InitializeExperimentalGlobal();
 
-  // We can't (de-)serialize typed arrays currently, but we are lucky: The state
-  // of the random number generator needs no initialization during snapshot
-  // creation time and we don't need trigonometric functions then.
-  if (!isolate->serializer_enabled()) {
+  // The serializer cannot serialize typed arrays. Reset those typed arrays
+  // for each new context.
+  {
     // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
     const int num_elems = 2;
