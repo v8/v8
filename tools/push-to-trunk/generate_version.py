@@ -19,12 +19,6 @@ CWD = os.path.abspath(
 VERSION_CC = os.path.join(CWD, "src", "version.cc")
 
 def main():
-  if len(sys.argv) != 2:
-    print "Error: Specify the output file path for version.cc"
-    return 1
-  version_out = sys.argv[1]
-  assert os.path.exists(os.path.dirname(version_out))
-
   tag = subprocess.check_output(
       "git describe --tags",
       shell=True,
@@ -56,20 +50,21 @@ def main():
     patch = "0"
 
   # Modify version.cc with the new values.
-  output = []
   with open(VERSION_CC, "r") as f:
-    for line in f:
-      for definition, substitute in (
-          ("MAJOR_VERSION", major),
-          ("MINOR_VERSION", minor),
-          ("BUILD_NUMBER", build),
-          ("PATCH_LEVEL", patch),
-          ("IS_CANDIDATE_VERSION", candidate)):
-        if line.startswith("#define %s" % definition):
-          line =  re.sub("\d+$", substitute, line)
-      output.append(line)
-  with open(version_out, "w") as f:
-    f.write("".join(output))
+    text = f.read()
+  output = []
+  for line in text.split("\n"):
+    for definition, substitute in (
+        ("MAJOR_VERSION", major),
+        ("MINOR_VERSION", minor),
+        ("BUILD_NUMBER", build),
+        ("PATCH_LEVEL", patch),
+        ("IS_CANDIDATE_VERSION", candidate)):
+      if line.startswith("#define %s" % definition):
+        line =  re.sub("\d+$", substitute, line)
+    output.append(line)
+  with open(VERSION_CC, "w") as f:
+    f.write("\n".join(output))
 
   # Log what was done.
   candidate_txt = " (candidate)" if candidate == "1" else ""

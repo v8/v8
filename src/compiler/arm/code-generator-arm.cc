@@ -494,8 +494,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVcmpF64:
-      __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
-                               i.InputFloat64Register(1));
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
+                                 i.InputFloat64Register(1));
+      } else {
+        DCHECK(instr->InputAt(1)->IsImmediate());
+        // 0.0 is the only immediate supported by vcmp instructions.
+        DCHECK(i.InputDouble(1) == 0.0);
+        __ VFPCompareAndSetFlags(i.InputFloat64Register(0), i.InputDouble(1));
+      }
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVaddF64:

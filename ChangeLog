@@ -1,3 +1,8 @@
+2015-01-15: Version 4.2.5
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-14: Version 4.2.4
 
         Auto-generate v8 version based on tags (Chromium issue 446166).
