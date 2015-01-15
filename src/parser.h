@@ -857,8 +857,6 @@ class Parser : public ParserBase<ParserTraits> {
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
-  void RegisterTargetUse(Label* target, Target* stop);
-
   // Factory methods.
 
   Scope* NewScope(Scope* parent, ScopeType type);

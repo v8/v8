@@ -329,8 +329,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
 class Target BASE_EMBEDDED {
  public:
-  Target(Target** variable, AstNode* node)
-      : variable_(variable), node_(node), previous_(*variable) {
+  Target(Target** variable, BreakableStatement* statement)
+      : variable_(variable), statement_(statement), previous_(*variable) {
     *variable = this;
   }
 
@@ -339,11 +339,11 @@ class Target BASE_EMBEDDED {
   }
 
   Target* previous() { return previous_; }
-  AstNode* node() { return node_; }
+  BreakableStatement* statement() { return statement_; }
 
  private:
   Target** variable_;
-  AstNode* node_;
+  BreakableStatement* statement_;
   Target* previous_;
 };
 
@@ -1303,9 +1303,7 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 
   {
     BlockState block_state(&scope_, scope);
-    TargetCollector collector(zone());
-    Target target(&this->target_stack_, &collector);
-    Target target_body(&this->target_stack_, body);
+    Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseModuleElement(NULL, CHECK_OK);
@@ -2064,9 +2062,7 @@ Block* Parser::ParseScopedBlock(ZoneList<const AstRawString*>* labels,
   Expect(Token::LBRACE, CHECK_OK);
   block_scope->set_start_position(scanner()->location().beg_pos);
   { BlockState block_state(&scope_, block_scope);
-    TargetCollector collector(zone());
-    Target target(&this->target_stack_, &collector);
-    Target target_body(&this->target_stack_, body);
+    Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseBlockElement(NULL, CHECK_OK);
@@ -2762,12 +2758,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Expect(Token::TRY, CHECK_OK);
   int pos = position();
 
-  TargetCollector try_collector(zone());
-  Block* try_block;
-
-  { Target target(&this->target_stack_, &try_collector);
-    try_block = ParseBlock(NULL, CHECK_OK);
-  }
+  Block* try_block = ParseBlock(NULL, CHECK_OK);
 
   Token::Value tok = peek();
   if (tok != Token::CATCH && tok != Token::FINALLY) {
@@ -2776,11 +2767,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     return NULL;
   }
 
-  // If we can break out from the catch block and there is a finally block,
-  // then we will need to collect escaping targets from the catch
-  // block. Since we don't know yet if there will be a finally block, we
-  // always collect the targets.
-  TargetCollector catch_collector(zone());
   Scope* catch_scope = NULL;
   Variable* catch_variable = NULL;
   Block* catch_block = NULL;
@@ -2795,7 +2781,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     Expect(Token::RPAREN, CHECK_OK);
 
-    Target target(&this->target_stack_, &catch_collector);
     catch_variable = catch_scope->DeclareLocal(name, VAR, kCreatedInitialized);
     BlockState block_state(&scope_, catch_scope);
     catch_block = ParseBlock(NULL, CHECK_OK);
@@ -2823,7 +2808,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     TryCatchStatement* statement = factory()->NewTryCatchStatement(
         index, try_block, catch_scope, catch_variable, catch_block,
         RelocInfo::kNoPosition);
-    statement->set_escaping_targets(try_collector.targets());
     try_block = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
     try_block->AddStatement(statement, zone());
     catch_block = NULL;  // Clear to indicate it's been handled.
@@ -2841,11 +2825,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     int index = function_state_->NextHandlerIndex();
     result = factory()->NewTryFinallyStatement(
         index, try_block, finally_block, pos);
-    // Combine the jump targets of the try block and the possible catch block.
-    try_collector.targets()->AddAll(*catch_collector.targets(), zone());
   }
 
-  result->set_escaping_targets(try_collector.targets());
   return result;
 }
 
@@ -4153,9 +4134,7 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
 
 bool Parser::TargetStackContainsLabel(const AstRawString* label) {
   for (Target* t = target_stack_; t != NULL; t = t->previous()) {
-    BreakableStatement* stat = t->node()->AsBreakableStatement();
-    if (stat != NULL && ContainsLabel(stat->labels(), label))
-      return true;
+    if (ContainsLabel(t->statement()->labels(), label)) return true;
   }
   return false;
 }
@@ -4165,11 +4144,9 @@ BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label,
                                               bool* ok) {
   bool anonymous = label == NULL;
   for (Target* t = target_stack_; t != NULL; t = t->previous()) {
-    BreakableStatement* stat = t->node()->AsBreakableStatement();
-    if (stat == NULL) continue;
+    BreakableStatement* stat = t->statement();
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
-      RegisterTargetUse(stat->break_target(), t->previous());
       return stat;
     }
   }
@@ -4181,27 +4158,15 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
                                                  bool* ok) {
   bool anonymous = label == NULL;
   for (Target* t = target_stack_; t != NULL; t = t->previous()) {
-    IterationStatement* stat = t->node()->AsIterationStatement();
+    IterationStatement* stat = t->statement()->AsIterationStatement();
     if (stat == NULL) continue;
 
     DCHECK(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
-      RegisterTargetUse(stat->continue_target(), t->previous());
       return stat;
     }
   }
   return NULL;
-}
-
-
-void Parser::RegisterTargetUse(Label* target, Target* stop) {
-  // Register that a break target found at the given stop in the
-  // target stack has been used from the top of the target stack. Add
-  // the break target to any TargetCollectors passed on the stack.
-  for (Target* t = target_stack_; t != stop; t = t->previous()) {
-    TargetCollector* collector = t->node()->AsTargetCollector();
-    if (collector != NULL) collector->AddTarget(target, zone());
-  }
 }
 
 
