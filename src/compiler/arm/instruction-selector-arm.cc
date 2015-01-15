@@ -1073,18 +1073,16 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   Float64BinopMatcher m(node);
-  InstructionOperand* rhs = m.right().Is(0.0) ? g.UseImmediate(m.right().node())
-                                              : g.UseRegister(m.right().node());
   if (cont->IsBranch()) {
     selector->Emit(cont->Encode(kArmVcmpF64), nullptr,
-                   g.UseRegister(m.left().node()), rhs,
-                   g.Label(cont->true_block()),
+                   g.UseRegister(m.left().node()),
+                   g.UseRegister(m.right().node()), g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
-    selector->Emit(cont->Encode(kArmVcmpF64),
-                   g.DefineAsRegister(cont->result()),
-                   g.UseRegister(m.left().node()), rhs);
+    selector->Emit(
+        cont->Encode(kArmVcmpF64), g.DefineAsRegister(cont->result()),
+        g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
   }
 }
 

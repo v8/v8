@@ -1220,14 +1220,10 @@ static void VisitWord64Test(InstructionSelector* selector, Node* node,
 static void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                                 FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  Float64BinopMatcher m(node);
-  if (m.right().Is(0.0)) {
-    VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(m.left().node()),
-                 g.UseImmediate(m.right().node()), cont);
-  } else {
-    VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(m.left().node()),
-                 g.UseRegister(m.right().node()), cont);
-  }
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(left),
+               g.UseRegister(right), cont);
 }
 
 

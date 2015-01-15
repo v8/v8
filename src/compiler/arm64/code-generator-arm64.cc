@@ -624,14 +624,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Tst(i.InputRegister32(0), i.InputOperand32(1));
       break;
     case kArm64Float64Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
-        __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
-      } else {
-        DCHECK(instr->InputAt(1)->IsImmediate());
-        // 0.0 is the only immediate supported by fcmp instructions.
-        DCHECK(i.InputDouble(1) == 0.0);
-        __ Fcmp(i.InputDoubleRegister(0), i.InputDouble(1));
-      }
+      __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       break;
     case kArm64Float64Add:
       __ Fadd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
