@@ -47,6 +47,7 @@ namespace internal {
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")     \
+  V(kComputedPropertyName, "Computed property name")                           \
   V(kContextAllocatedArguments, "Context-allocated arguments")                 \
   V(kCopyBuffersOverlap, "Copy buffers overlap")                               \
   V(kCouldNotGenerateZero, "Could not generate +0.0")                          \

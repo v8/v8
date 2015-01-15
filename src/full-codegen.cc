@@ -1211,6 +1211,13 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 }
 
 
+void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property) {
+  VisitForStackValue(property->key());
+  __ InvokeBuiltin(Builtins::TO_NAME, CALL_FUNCTION);
+  __ Push(result_register());
+}
+
+
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
