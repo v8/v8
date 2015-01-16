@@ -382,8 +382,8 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
     Label do_store;
     while (true) {
       // Compare map directly within the Branch() functions.
-      it.Advance();
       __ GetWeakValue(scratch, Map::WeakCellForMap(it.Current()));
+      it.Advance();
       if (it.Done()) {
         __ Branch(miss_label, ne, map_reg, Operand(scratch));
         break;
