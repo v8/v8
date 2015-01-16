@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "789a019a832029f9a6f8d906a4bcee4736eabc90",
+    Var("git_url") + "/external/gyp.git" + "@" + "194ec65a55edf24c1976d4265f57e8c90ef5bb2f",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "4e3266f32c62d30a3f9e2232a753c60129d1e670",
   "v8/buildtools":
@@ -18,7 +18,7 @@ deps = {
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "a4a0b2db20ba74e9d928be13ff701b244cfdd0c2",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "790f3b26cdce99c8e5751893a18134afd0202ed0",
 }
 
 deps_os = {
