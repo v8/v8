@@ -106,8 +106,9 @@ class ControlReducerImpl {
     marked.Push(start);
     marked.SetReachableFromStart(start);
 
-    // We use a stack of (Node, UseIter) pairs to avoid O(n^2) traversal.
-    typedef std::pair<Node*, UseIter> FwIter;
+    // We use a stack of (Node, Node::Uses::const_iterator) pairs to avoid
+    // O(n^2) traversal.
+    typedef std::pair<Node*, Node::Uses::const_iterator> FwIter;
     ZoneVector<FwIter> fw_stack(zone_);
     fw_stack.push_back(FwIter(start, start->uses().begin()));
 
@@ -420,8 +421,8 @@ class ControlReducerImpl {
     }
 
     Node* replacement = NULL;
-    Node::Inputs inputs = node->inputs();
-    for (InputIter it = inputs.begin(); n > 1; --n, ++it) {
+    auto const inputs = node->inputs();
+    for (auto it = inputs.begin(); n > 1; --n, ++it) {
       Node* input = *it;
       if (input->opcode() == IrOpcode::kDead) continue;  // ignore dead inputs.
       if (input != node && input != replacement) {       // non-redundant input.

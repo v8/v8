@@ -103,6 +103,12 @@ std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
 }
 
 
+size_t ProjectionIndexOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kProjection, op->opcode());
+  return OpParameter<size_t>(op);
+}
+
+
 #define CACHED_OP_LIST(V)                                  \
   V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
   V(End, Operator::kFoldable, 0, 0, 1, 0, 0, 0)            \

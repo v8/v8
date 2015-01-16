@@ -105,6 +105,26 @@ Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
   return node;
 }
 
+
+namespace {
+
+const Operator kDummyOperator(0, Operator::kNoProperties, "Dummy", 0, 0, 0, 1,
+                              0, 0);
+
+}  // namespace
+
+
+TEST_F(GraphTest, NewNode) {
+  Node* n0 = graph()->NewNode(&kDummyOperator);
+  Node* n1 = graph()->NewNode(&kDummyOperator);
+  EXPECT_NE(n0, n1);
+  EXPECT_LT(0, n0->id());
+  EXPECT_LT(0, n1->id());
+  EXPECT_NE(n0->id(), n1->id());
+  EXPECT_EQ(&kDummyOperator, n0->op());
+  EXPECT_EQ(&kDummyOperator, n1->op());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

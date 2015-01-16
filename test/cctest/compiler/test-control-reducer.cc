@@ -52,10 +52,8 @@ static int CheckLoop(Node* node, Node* i0 = NULL, Node* i1 = NULL,
 
 
 bool IsUsedBy(Node* a, Node* b) {
-  for (UseIter i = a->uses().begin(); i != a->uses().end(); ++i) {
-    if (b == *i) return true;
-  }
-  return false;
+  auto const uses = a->uses();
+  return std::find(uses.begin(), uses.end(), b) != uses.end();
 }
 
 

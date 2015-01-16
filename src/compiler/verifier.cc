@@ -4,6 +4,7 @@
 
 #include "src/compiler/verifier.h"
 
+#include <algorithm>
 #include <deque>
 #include <queue>
 #include <sstream>
@@ -28,20 +29,14 @@ namespace compiler {
 
 
 static bool IsDefUseChainLinkPresent(Node* def, Node* use) {
-  Node::Uses uses = def->uses();
-  for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
-    if (*it == use) return true;
-  }
-  return false;
+  auto const uses = def->uses();
+  return std::find(uses.begin(), uses.end(), use) != uses.end();
 }
 
 
 static bool IsUseDefChainLinkPresent(Node* def, Node* use) {
-  Node::Inputs inputs = use->inputs();
-  for (Node::Inputs::iterator it = inputs.begin(); it != inputs.end(); ++it) {
-    if (*it == def) return true;
-  }
-  return false;
+  auto const inputs = use->inputs();
+  return std::find(inputs.begin(), inputs.end(), def) != inputs.end();
 }
 
 
@@ -205,13 +200,12 @@ void Verifier::Visitor::Pre(Node* node) {
       UNREACHABLE();
     case IrOpcode::kBranch: {
       // Branch uses are IfTrue and IfFalse.
-      Node::Uses uses = node->uses();
       int count_true = 0, count_false = 0;
-      for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
-        CHECK((*it)->opcode() == IrOpcode::kIfTrue ||
-              (*it)->opcode() == IrOpcode::kIfFalse);
-        if ((*it)->opcode() == IrOpcode::kIfTrue) ++count_true;
-        if ((*it)->opcode() == IrOpcode::kIfFalse) ++count_false;
+      for (auto use : node->uses()) {
+        CHECK(use->opcode() == IrOpcode::kIfTrue ||
+              use->opcode() == IrOpcode::kIfFalse);
+        if (use->opcode() == IrOpcode::kIfTrue) ++count_true;
+        if (use->opcode() == IrOpcode::kIfFalse) ++count_false;
       }
       CHECK(count_true == 1 && count_false == 1);
       // Type is empty.
@@ -314,7 +308,7 @@ void Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
-      int index = static_cast<int>(OpParameter<size_t>(node->op()));
+      int index = static_cast<int>(ProjectionIndexOf(node->op()));
       Node* input = NodeProperties::GetValueInput(node, 0);
       CHECK_GT(input->op()->ValueOutputCount(), index);
       // Type can be anything.

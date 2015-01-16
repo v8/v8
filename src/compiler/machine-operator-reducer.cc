@@ -130,7 +130,7 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kProjection:
-      return ReduceProjection(OpParameter<size_t>(node), node->InputAt(0));
+      return ReduceProjection(ProjectionIndexOf(node->op()), node->InputAt(0));
     case IrOpcode::kWord32And:
       return ReduceWord32And(node);
     case IrOpcode::kWord32Or:

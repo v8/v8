@@ -154,9 +154,11 @@ void GraphReducer::ReduceTop() {
       // Otherwise {node} was replaced by a new node. Replace all old uses of
       // {node} with {replacement}. New nodes created by this reduction can
       // use {node}.
-      node->ReplaceUsesIf(
-          [node_count](Node* const node) { return node->id() < node_count; },
-          replacement);
+      for (Edge edge : node->use_edges()) {
+        if (edge.from()->id() < node_count) {
+          edge.UpdateTo(replacement);
+        }
+      }
       // Unlink {node} if it's no longer used.
       if (node->uses().empty()) {
         node->Kill();

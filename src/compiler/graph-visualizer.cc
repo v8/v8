@@ -417,7 +417,8 @@ class GraphC1Visualizer {
   void PrintNodeId(Node* n);
   void PrintNode(Node* n);
   void PrintInputs(Node* n);
-  void PrintInputs(InputIter* i, int count, const char* prefix);
+  template <typename InputIterator>
+  void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
   void PrintLiveRange(LiveRange* range, const char* type);
@@ -516,7 +517,8 @@ void GraphC1Visualizer::PrintNode(Node* n) {
 }
 
 
-void GraphC1Visualizer::PrintInputs(InputIter* i, int count,
+template <typename InputIterator>
+void GraphC1Visualizer::PrintInputs(InputIterator* i, int count,
                                     const char* prefix) {
   if (count > 0) {
     os_ << prefix;

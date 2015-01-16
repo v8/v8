@@ -497,6 +497,7 @@
         '../../src/compiler/node-marker.h',
         '../../src/compiler/node-matchers.h',
         '../../src/compiler/node-properties-inl.h',
+        '../../src/compiler/node-properties.cc',
         '../../src/compiler/node-properties.h',
         '../../src/compiler/node.cc',
         '../../src/compiler/node.h',
