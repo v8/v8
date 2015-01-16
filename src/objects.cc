@@ -9437,9 +9437,7 @@ void JSFunction::MarkForOptimization() {
   Isolate* isolate = GetIsolate();
   DCHECK(isolate->use_crankshaft());
   DCHECK(!IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() ||
-         code()->optimizable());
-  DCHECK(!shared()->is_generator());
+  DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
@@ -9466,7 +9464,6 @@ void JSFunction::AttemptConcurrentOptimization() {
   DCHECK(is_compiled() || isolate->DebuggerHasBreakPoints());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
-  DCHECK(!shared()->is_generator());
   DCHECK(isolate->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
