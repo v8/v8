@@ -114,7 +114,6 @@ class Expression;
 class IterationStatement;
 class MaterializedLiteral;
 class Statement;
-class TargetCollector;
 class TypeFeedbackOracle;
 
 class RegExpAlternative;
@@ -225,7 +224,6 @@ class AstNode: public ZoneObject {
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
-  virtual TargetCollector* AsTargetCollector() { return NULL; }
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
@@ -1230,53 +1228,20 @@ class IfStatement FINAL : public Statement {
 };
 
 
-// NOTE: TargetCollectors are represented as nodes to fit in the target
-// stack in the compiler; this should probably be reworked.
-class TargetCollector FINAL : public AstNode {
- public:
-  explicit TargetCollector(Zone* zone)
-      : AstNode(RelocInfo::kNoPosition), targets_(0, zone) { }
-
-  // Adds a jump target to the collector. The collector stores a pointer not
-  // a copy of the target to make binding work, so make sure not to pass in
-  // references to something on the stack.
-  void AddTarget(Label* target, Zone* zone);
-
-  // Virtual behaviour. TargetCollectors are never part of the AST.
-  void Accept(AstVisitor* v) OVERRIDE { UNREACHABLE(); }
-  NodeType node_type() const OVERRIDE { return kInvalid; }
-  TargetCollector* AsTargetCollector() OVERRIDE { return this; }
-
-  ZoneList<Label*>* targets() { return &targets_; }
-
- private:
-  ZoneList<Label*> targets_;
-};
-
-
 class TryStatement : public Statement {
  public:
-  void set_escaping_targets(ZoneList<Label*>* targets) {
-    escaping_targets_ = targets;
-  }
-
   int index() const { return index_; }
   Block* try_block() const { return try_block_; }
-  ZoneList<Label*>* escaping_targets() const { return escaping_targets_; }
 
  protected:
   TryStatement(Zone* zone, int index, Block* try_block, int pos)
-      : Statement(zone, pos),
-        index_(index),
-        try_block_(try_block),
-        escaping_targets_(NULL) { }
+      : Statement(zone, pos), index_(index), try_block_(try_block) {}
 
  private:
   // Unique (per-function) index of this handler.  This is not an AST ID.
   int index_;
 
   Block* try_block_;
-  ZoneList<Label*>* escaping_targets_;
 };
 
 

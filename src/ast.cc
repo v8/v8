@@ -417,16 +417,6 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
 }
 
 
-void TargetCollector::AddTarget(Label* target, Zone* zone) {
-  // Add the label to the collector, but discard duplicates.
-  int length = targets_.length();
-  for (int i = 0; i < length; i++) {
-    if (targets_[i] == target) return;
-  }
-  targets_.Add(target, zone);
-}
-
-
 void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   // TODO(olivf) If this Operation is used in a test context, then the
   // expression has a ToBoolean stub and we want to collect the type
