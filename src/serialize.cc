@@ -1405,7 +1405,7 @@ void PartialSerializer::Serialize(Object** o) {
   if ((*o)->IsContext()) {
     Context* context = Context::cast(*o);
     global_object_ = context->global_object();
-    global_proxy_ = context->global_proxy();
+    back_reference_map()->AddGlobalProxy(context->global_proxy());
   }
   VisitPointer(o);
   SerializeOutdatedContextsAsFixedArray();
@@ -1562,8 +1562,14 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
       FlushSkip(skip);
       if (FLAG_trace_serializer) PrintF(" Encoding source object\n");
       DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
-      sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
-      sink_->PutInt(kSourceObjectReference, "kSourceObjectIndex");
+      sink_->Put(kAttachedReference + kPlain + kStartOfObject, "Source");
+      sink_->PutInt(kSourceObjectReference, "kSourceObjectReference");
+    } else if (back_reference.is_global_proxy()) {
+      FlushSkip(skip);
+      if (FLAG_trace_serializer) PrintF(" Encoding global proxy\n");
+      DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
+      sink_->Put(kAttachedReference + kPlain + kStartOfObject, "Global Proxy");
+      sink_->PutInt(kGlobalProxyReference, "kGlobalProxyReference");
     } else {
       if (FLAG_trace_serializer) {
         PrintF(" Encoding back reference to: ");
@@ -1695,14 +1701,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
-
-  if (obj == global_proxy_) {
-    FlushSkip(skip);
-    DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
-    sink_->Put(kAttachedReference + how_to_code + where_to_point, "Reference");
-    sink_->PutInt(kGlobalProxyReference, "kGlobalProxyReferenceIndex");
-    return;
-  }
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
