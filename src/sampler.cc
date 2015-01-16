@@ -256,6 +256,12 @@ class SimulatorHelper {
         Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
+#elif V8_TARGET_ARCH_PPC
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
+    state->fp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
 #endif
   }
 
@@ -361,7 +367,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !V8_OS_OPENBSD
+#if !(V8_OS_OPENBSD || (V8_OS_LINUX && V8_HOST_ARCH_PPC))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
 #if V8_OS_LINUX
@@ -398,6 +404,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+#elif V8_HOST_ARCH_PPC
+  state.pc = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->nip);
+  state.sp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
+  state.fp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64

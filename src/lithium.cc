@@ -18,6 +18,9 @@
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/lithium-arm.h"  // NOLINT
 #include "src/arm/lithium-codegen-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/lithium-ppc.h"          // NOLINT
+#include "src/ppc/lithium-codegen-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/lithium-mips.h"  // NOLINT
 #include "src/mips/lithium-codegen-mips.h"  // NOLINT

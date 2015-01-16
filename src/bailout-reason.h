@@ -8,6 +8,7 @@
 namespace v8 {
 namespace internal {
 
+// TODO(svenpanne) introduce an AbortReason and partition this list
 #define ERROR_MESSAGES_LIST(V)                                                 \
   V(kNoReason, "no reason")                                                    \
                                                                                \
@@ -227,12 +228,18 @@ namespace internal {
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
+  V(kTheInstructionShouldBeALis, "The instruction should be a lis")            \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")            \
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")          \
+  V(kTheInstructionShouldBeAnOris, "The instruction should be an oris")        \
+  V(kTheInstructionShouldBeALi, "The instruction should be a li")              \
+  V(kTheInstructionShouldBeASldi, "The instruction should be a sldi")          \
   V(kTheInstructionToPatchShouldBeALoadFromConstantPool,                       \
     "The instruction to patch should be a load from the constant pool")        \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                                \
     "The instruction to patch should be a ldr literal")                        \
+  V(kTheInstructionToPatchShouldBeALis,                                        \
+    "The instruction to patch should be a lis")                                \
   V(kTheInstructionToPatchShouldBeALui,                                        \
     "The instruction to patch should be a lui")                                \
   V(kTheInstructionToPatchShouldBeAnOri,                                       \

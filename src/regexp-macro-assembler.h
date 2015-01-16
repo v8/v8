@@ -32,6 +32,7 @@ class RegExpMacroAssembler {
     kARMImplementation,
     kARM64Implementation,
     kMIPSImplementation,
+    kPPCImplementation,
     kX64Implementation,
     kX87Implementation,
     kBytecodeImplementation

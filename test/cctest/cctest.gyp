@@ -212,6 +212,20 @@
             'test-js-arm64-variables.cc'
           ],
         }],
+        ['v8_target_arch=="ppc"', {
+          'sources': [  ### gcmole(arch:ppc) ###
+            'test-assembler-ppc.cc',
+            'test-code-stubs.cc',
+            'test-disasm-ppc.cc'
+          ],
+        }],
+        ['v8_target_arch=="ppc64"', {
+          'sources': [  ### gcmole(arch:ppc64) ###
+            'test-assembler-ppc.cc',
+            'test-code-stubs.cc',
+            'test-disasm-ppc.cc'
+          ],
+        }],
         ['v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             'test-assembler-mips.cc',
