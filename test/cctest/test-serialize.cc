@@ -563,11 +563,12 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
         CompileRun(
             "var e;"
             "(function() {"
-            "  e = function(s) { eval (s); }"
+            "  e = function(s) { return eval (s); }"
             "})();"
             "var o = this;"
-            "var r = Math.random();"
-            "var f = (function(a, b) {}).bind(1, 2, 3);");
+            "var r = Math.random() + Math.cos(0);"
+            "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
+            "var s = parseInt('12345');");
       }
       // Make sure all builtin scripts are cached.
       {
@@ -616,8 +617,9 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
 }
 
 
-UNINITIALIZED_DEPENDENT_TEST(CustomContextDeSerialization,
+UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
                              CustomContextSerialization) {
+  FLAG_crankshaft = false;
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -654,6 +656,17 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeSerialization,
         Handle<JSObject> global_object(context->global_object(), isolate);
         Handle<Object> property = JSObject::GetDataProperty(global_object, o);
         CHECK(property.is_identical_to(global_proxy));
+
+        v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
+        v8::Context::Scope context_scope(v8_context);
+        double r = CompileRun("r")->ToNumber(v8_isolate)->Value();
+        CHECK(r >= 1 && r <= 2);
+        int f = CompileRun("f()")->ToNumber(v8_isolate)->Int32Value();
+        CHECK_EQ(5, f);
+        f = CompileRun("e('f()')")->ToNumber(v8_isolate)->Int32Value();
+        CHECK_EQ(5, f);
+        v8::Handle<v8::String> s = CompileRun("s")->ToString(v8_isolate);
+        CHECK(s->Equals(v8_str("12345")));
       }
     }
     v8_isolate->Dispose();
