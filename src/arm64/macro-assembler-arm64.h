@@ -1137,8 +1137,8 @@ class MacroAssembler : public Assembler {
   // 'spill_offset' is the offset from the stack pointer where
   // CallApiFunctionAndReturn can spill registers.
   void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                int stack_space,
+                                ExternalReference thunk_ref, int stack_space,
+                                MemOperand* stack_space_operand,
                                 int spill_offset,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);

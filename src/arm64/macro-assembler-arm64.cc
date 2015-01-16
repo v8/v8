@@ -1754,12 +1754,9 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    int stack_space,
-    int spill_offset,
-    MemOperand return_value_operand,
-    MemOperand* context_restore_operand) {
+    Register function_address, ExternalReference thunk_ref, int stack_space,
+    MemOperand* stack_space_operand, int spill_offset,
+    MemOperand return_value_operand, MemOperand* context_restore_operand) {
   ASM_LOCATION("CallApiFunctionAndReturn");
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -1871,8 +1868,16 @@ void MacroAssembler::CallApiFunctionAndReturn(
     Ldr(cp, *context_restore_operand);
   }
 
+  if (stack_space_operand != NULL) {
+    Ldr(w2, *stack_space_operand);
+  }
+
   LeaveExitFrame(false, x1, !restore_context);
-  Drop(stack_space);
+  if (stack_space_operand != NULL) {
+    Drop(x2, 1);
+  } else {
+    Drop(stack_space);
+  }
   Ret();
 
   Bind(&promote_scheduled_exception);

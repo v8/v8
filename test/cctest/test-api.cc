@@ -23618,10 +23618,33 @@ Local<Object> ApiCallOptimizationChecker::callee;
 int ApiCallOptimizationChecker::count = 0;
 
 
-TEST(TestFunctionCallOptimization) {
+TEST(FunctionCallOptimization) {
   i::FLAG_allow_natives_syntax = true;
   ApiCallOptimizationChecker checker;
   checker.RunAll();
+}
+
+
+static void EmptyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {}
+
+
+TEST(FunctionCallOptimizationMultipleArgs) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global = context->Global();
+  Local<v8::Function> function = Function::New(isolate, EmptyCallback);
+  global->Set(v8_str("x"), function);
+  CompileRun(
+      "function x_wrap() {\n"
+      "  for (var i = 0; i < 5; i++) {\n"
+      "    x(1,2,3);\n"
+      "  }\n"
+      "}\n"
+      "x_wrap();\n"
+      "%OptimizeFunctionOnNextCall(x_wrap);"
+      "x_wrap();\n");
 }
 
 

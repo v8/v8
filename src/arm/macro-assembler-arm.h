@@ -555,9 +555,9 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(bool save_doubles,
-                      Register argument_count,
-                      bool restore_context);
+  void LeaveExitFrame(bool save_doubles, Register argument_count,
+                      bool restore_context,
+                      bool argument_count_is_length = false);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1119,8 +1119,8 @@ class MacroAssembler: public Assembler {
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                int stack_space,
+                                ExternalReference thunk_ref, int stack_space,
+                                MemOperand* stack_space_operand,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
 

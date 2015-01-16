@@ -146,19 +146,19 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-void PropertyHandlerCompiler::GenerateFastApiCall(
+void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
     Handle<Map> receiver_map, Register receiver, Register scratch,
-    bool is_store, int argc, Register* values) {
+    bool is_store, Register store_parameter) {
   DCHECK(!AreAliased(receiver, scratch));
 
   MacroAssembler::PushPopQueue queue(masm);
   queue.Queue(receiver);
   // Write the arguments to the stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc - 1 - i];
-    DCHECK(!AreAliased(receiver, scratch, arg));
-    queue.Queue(arg);
+  if (is_store) {
+    DCHECK(!receiver.is(store_parameter));
+    DCHECK(!scratch.is(store_parameter));
+    queue.Queue(store_parameter);
   }
   queue.PushQueued();
 
@@ -214,7 +214,7 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   __ Mov(api_function_address, ref);
 
   // Jump to stub.
-  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
   __ TailCallStub(&stub);
 }
 

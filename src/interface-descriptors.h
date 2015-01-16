@@ -47,8 +47,9 @@ class PlatformInterfaceDescriptor;
   V(Named)                                    \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
-  V(ApiGetter)                                \
   V(ApiFunction)                              \
+  V(ApiAccessor)                              \
+  V(ApiGetter)                                \
   V(ArgumentsAccessRead)                      \
   V(StoreArrayLiteralElement)                 \
   V(MathPowTagged)                            \
@@ -440,6 +441,12 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
 class ApiFunctionDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ApiFunctionDescriptor, CallInterfaceDescriptor)
+};
+
+
+class ApiAccessorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ApiAccessorDescriptor, CallInterfaceDescriptor)
 };
 
 

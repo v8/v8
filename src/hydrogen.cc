@@ -8702,7 +8702,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     PrintF("\n");
   }
 
-  bool drop_extra = false;
+  bool is_function = false;
   bool is_store = false;
   switch (call_type) {
     case kCallApiFunction:
@@ -8717,8 +8717,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
       }
       // Includes receiver.
       PushArgumentsFromEnvironment(argc + 1);
-      // Drop function after call.
-      drop_extra = true;
+      is_function = true;
       break;
     case kCallApiGetter:
       // Receiver and prototype chain cannot have changed.
@@ -8756,7 +8755,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   }
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data_obj(api_call_info->data(), isolate());
-  bool call_data_is_undefined = call_data_obj->IsUndefined();
+  bool call_data_undefined = call_data_obj->IsUndefined();
   HValue* call_data = Add<HConstant>(call_data_obj);
   ApiFunction fun(v8::ToCData<Address>(api_call_info->callback()));
   ExternalReference ref = ExternalReference(&fun,
@@ -8764,26 +8763,32 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
                                             isolate());
   HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
 
-  HValue* op_vals[] = {
-    context(),
-    Add<HConstant>(function),
-    call_data,
-    holder,
-    api_function_address
-  };
+  HValue* op_vals[] = {context(), Add<HConstant>(function), call_data, holder,
+                       api_function_address, nullptr};
 
-  ApiFunctionDescriptor descriptor(isolate());
-  CallApiFunctionStub stub(isolate(), is_store, call_data_is_undefined, argc);
-  Handle<Code> code = stub.GetCode();
-  HConstant* code_value = Add<HConstant>(code);
+  HInstruction* call = nullptr;
+  if (!is_function) {
+    CallApiAccessorStub stub(isolate(), is_store, call_data_undefined);
+    Handle<Code> code = stub.GetCode();
+    HConstant* code_value = Add<HConstant>(code);
+    ApiAccessorDescriptor descriptor(isolate());
+    DCHECK(arraysize(op_vals) - 1 == descriptor.GetEnvironmentLength());
+    call = New<HCallWithDescriptor>(
+        code_value, argc + 1, descriptor,
+        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+  } else {
+    op_vals[arraysize(op_vals) - 1] = Add<HConstant>(argc);
+    CallApiFunctionStub stub(isolate(), call_data_undefined);
+    Handle<Code> code = stub.GetCode();
+    HConstant* code_value = Add<HConstant>(code);
+    ApiFunctionDescriptor descriptor(isolate());
+    DCHECK(arraysize(op_vals) == descriptor.GetEnvironmentLength());
+    call = New<HCallWithDescriptor>(
+        code_value, argc + 1, descriptor,
+        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+    Drop(1);  // Drop function.
+  }
 
-  DCHECK((sizeof(op_vals) / kPointerSize) == descriptor.GetEnvironmentLength());
-
-  HInstruction* call = New<HCallWithDescriptor>(
-      code_value, argc + 1, descriptor,
-      Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
-
-  if (drop_extra) Drop(1);  // Drop function.
   ast_context()->ReturnInstruction(call, ast_id);
   return true;
 }

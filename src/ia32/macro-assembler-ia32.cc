@@ -2098,12 +2098,9 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    Operand thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
+    Register function_address, ExternalReference thunk_ref,
+    Operand thunk_last_arg, int stack_space, Operand* stack_space_operand,
+    Operand return_value_operand, Operand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
@@ -2222,8 +2219,18 @@ void MacroAssembler::CallApiFunctionAndReturn(
   if (restore_context) {
     mov(esi, *context_restore_operand);
   }
+  if (stack_space_operand != nullptr) {
+    mov(ebx, *stack_space_operand);
+  }
   LeaveApiExitFrame(!restore_context);
-  ret(stack_space * kPointerSize);
+  if (stack_space_operand != nullptr) {
+    DCHECK_EQ(0, stack_space);
+    pop(ecx);
+    add(esp, ebx);
+    jmp(ecx);
+  } else {
+    ret(stack_space * kPointerSize);
+  }
 
   bind(&promote_scheduled_exception);
   {
