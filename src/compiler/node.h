@@ -168,13 +168,12 @@ class Node FINAL {
 
   inline void EnsureAppendableInputs(Zone* zone);
 
-  Input* GetInputRecordPtr(int index) {
-    return has_appendable_inputs() ? &((*inputs_.appendable_)[index])
-                                   : &inputs_.static_[index];
-  }
-  const Input* GetInputRecordPtr(int index) const {
-    return has_appendable_inputs() ? &((*inputs_.appendable_)[index])
-                                   : &inputs_.static_[index];
+  Input* GetInputRecordPtr(int index) const {
+    if (has_appendable_inputs()) {
+      return &((*inputs_.appendable_)[index]);
+    } else {
+      return &inputs_.static_[index];
+    }
   }
 
   inline void AppendUse(Use* const use);
@@ -225,16 +224,16 @@ class Node FINAL {
   Mark mark_;
   NodeId const id_;
   unsigned bit_field_;
-  Use* first_use_;
-  Use* last_use_;
   union {
     // When a node is initially allocated, it uses a static buffer to hold its
     // inputs under the assumption that the number of outputs will not increase.
     // When the first input is appended, the static buffer is converted into a
     // deque to allow for space-efficient growing.
-    Input static_[1];
+    Input* static_;
     InputDeque* appendable_;
   } inputs_;
+  Use* first_use_;
+  Use* last_use_;
 
   friend class Edge;
   friend class NodeMarkerBase;
