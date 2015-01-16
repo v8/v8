@@ -452,7 +452,7 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
-  DisableTurbofan(kClassLiteral);
+  DisableCrankshaft(kClassLiteral);
   node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());

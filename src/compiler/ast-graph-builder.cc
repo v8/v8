@@ -320,6 +320,14 @@ void AstGraphBuilder::VisitForValueOrNull(Expression* expr) {
 }
 
 
+void AstGraphBuilder::VisitForValueOrTheHole(Expression* expr) {
+  if (expr == NULL) {
+    return environment()->Push(jsgraph()->TheHoleConstant());
+  }
+  VisitForValue(expr);
+}
+
+
 void AstGraphBuilder::VisitForValues(ZoneList<Expression*>* exprs) {
   for (int i = 0; i < exprs->length(); ++i) {
     VisitForValue(exprs->at(i));
@@ -469,12 +477,9 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(stmt->statements());
   } else {
-    const Operator* op = javascript()->CreateBlockContext();
-    Node* scope_info = jsgraph()->Constant(stmt->scope()->GetScopeInfo());
-    Node* context = NewNode(op, scope_info, GetFunctionClosure());
-    ContextScope scope(this, stmt->scope(), context);
-
     // Visit declarations and statements in a block scope.
+    Node* context = BuildLocalBlockContext(stmt->scope());
+    ContextScope scope(this, stmt->scope(), context);
     VisitDeclarations(stmt->scope()->declarations());
     VisitStatements(stmt->statements());
   }
@@ -842,7 +847,105 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
-  UNREACHABLE();
+  if (expr->scope() == NULL) {
+    // Visit class literal in the same scope, no declarations.
+    VisitClassLiteralContents(expr);
+  } else {
+    // Visit declarations and class literal in a block scope.
+    Node* context = BuildLocalBlockContext(expr->scope());
+    ContextScope scope(this, expr->scope(), context);
+    VisitDeclarations(expr->scope()->declarations());
+    VisitClassLiteralContents(expr);
+  }
+}
+
+
+void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
+  Node* class_name = expr->raw_name() ? jsgraph()->Constant(expr->name())
+                                      : jsgraph()->UndefinedConstant();
+
+  // The class name is expected on the operand stack.
+  environment()->Push(class_name);
+  VisitForValueOrTheHole(expr->extends());
+  VisitForValue(expr->constructor());
+
+  // Create node to instantiate a new class.
+  Node* constructor = environment()->Pop();
+  Node* extends = environment()->Pop();
+  Node* name = environment()->Pop();
+  Node* script = jsgraph()->Constant(info()->script());
+  Node* start = jsgraph()->Constant(expr->start_position());
+  Node* end = jsgraph()->Constant(expr->end_position());
+  const Operator* opc = javascript()->CallRuntime(Runtime::kDefineClass, 6);
+  Node* literal = NewNode(opc, name, extends, constructor, script, start, end);
+
+  // The prototype is ensured to exist by Runtime_DefineClass. No access check
+  // is needed here since the constructor is created by the class literal.
+  Node* proto =
+      BuildLoadObjectField(literal, JSFunction::kPrototypeOrInitialMapOffset);
+
+  // The class literal and the prototype are both expected on the operand stack
+  // during evaluation of the method values.
+  environment()->Push(literal);
+  environment()->Push(proto);
+
+  // Create nodes to store method values into the literal.
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+    environment()->Push(property->is_static() ? literal : proto);
+
+    VisitForValue(property->key());
+    VisitForValue(property->value());
+    Node* value = environment()->Pop();
+    Node* key = environment()->Pop();
+    Node* receiver = environment()->Pop();
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        UNREACHABLE();
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::PROTOTYPE: {
+        const Operator* op =
+            javascript()->CallRuntime(Runtime::kDefineClassMethod, 3);
+        NewNode(op, receiver, key, value);
+        break;
+      }
+      case ObjectLiteral::Property::GETTER: {
+        const Operator* op = javascript()->CallRuntime(
+            Runtime::kDefineGetterPropertyUnchecked, 3);
+        NewNode(op, receiver, key, value);
+        break;
+      }
+      case ObjectLiteral::Property::SETTER: {
+        const Operator* op = javascript()->CallRuntime(
+            Runtime::kDefineSetterPropertyUnchecked, 3);
+        NewNode(op, receiver, key, value);
+        break;
+      }
+    }
+
+    // TODO(mstarzinger): This is temporary to make "super" work and replicates
+    // the existing FullCodeGenerator::NeedsHomeObject predicate.
+    if (FunctionLiteral::NeedsHomeObject(property->value())) {
+      Unique<Name> name =
+          MakeUnique(isolate()->factory()->home_object_symbol());
+      NewNode(javascript()->StoreNamed(strict_mode(), name), value, receiver);
+    }
+  }
+
+  // Transform both the class literal and the prototype to fast properties.
+  const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties, 1);
+  NewNode(op, environment()->Pop());  // prototype
+  NewNode(op, environment()->Pop());  // literal
+
+  // Assign to class variable.
+  if (expr->scope() != NULL) {
+    DCHECK_NOT_NULL(expr->class_variable_proxy());
+    Variable* var = expr->class_variable_proxy()->var();
+    BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None());
+  }
+
+  ast_context()->ProduceValue(literal);
 }
 
 
@@ -1824,6 +1927,18 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
     const Operator* op = javascript()->StoreContext(0, variable->index());
     NewNode(op, local_context, parameter);
   }
+
+  return local_context;
+}
+
+
+Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
+  Node* closure = GetFunctionClosure();
+
+  // Allocate a new local context.
+  const Operator* op = javascript()->CreateBlockContext();
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo());
+  Node* local_context = NewNode(op, scope_info, closure);
 
   return local_context;
 }

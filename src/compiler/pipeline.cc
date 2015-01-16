@@ -756,8 +756,6 @@ Handle<Code> Pipeline::GenerateCode() {
       info()->function()->dont_optimize_reason() == kTryFinallyStatement ||
       // TODO(turbofan): Make super work and remove this bailout.
       info()->function()->dont_optimize_reason() == kSuperReference ||
-      // TODO(turbofan): Make class literals work and remove this bailout.
-      info()->function()->dont_optimize_reason() == kClassLiteral ||
       // TODO(turbofan): Make OSR work with inner loops and remove this bailout.
       (info()->is_osr() && !FLAG_turbo_osr)) {
     return Handle<Code>::null();

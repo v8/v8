@@ -72,8 +72,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder to create a receiver check for sloppy mode.
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
 
-  // Builder to create a local function context.
+  // Builders to create local function and block contexts.
   Node* BuildLocalFunctionContext(Node* context, Node* closure);
+  Node* BuildLocalBlockContext(Scope* scope);
 
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
@@ -174,6 +175,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitForEffect(Expression* expr);
   void VisitForValue(Expression* expr);
   void VisitForValueOrNull(Expression* expr);
+  void VisitForValueOrTheHole(Expression* expr);
   void VisitForValues(ZoneList<Expression*>* exprs);
 
   // Common for all IterationStatement bodies.
@@ -195,6 +197,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value);
+
+  // Dispatched from VisitClassLiteral.
+  void VisitClassLiteralContents(ClassLiteral* expr);
 
   // Builds deoptimization for a given node.
   void PrepareFrameState(
