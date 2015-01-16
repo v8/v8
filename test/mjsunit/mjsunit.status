@@ -512,9 +512,6 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
-
-  # BUG(v8:3815). TODO(arv): Investigate.
-  'harmony/computed-property-names': [SKIP]
 }],  # 'system == windows'
 
 ##############################################################################
