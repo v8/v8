@@ -151,63 +151,77 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
 
 // Loads an indexed element from a fast case array.
-// If not_fast_array is NULL, doesn't perform the elements map check.
 //
-// receiver     - holds the receiver on entry.
-//                Unchanged unless 'result' is the same register.
+// receiver - holds the receiver on entry.
+//            Unchanged unless 'result' is the same register.
 //
-// key          - holds the smi key on entry.
-//                Unchanged unless 'result' is the same register.
+// key      - holds the smi key on entry.
+//            Unchanged unless 'result' is the same register.
 //
-// elements     - holds the elements of the receiver on exit.
+// elements - holds the elements of the receiver and its prototypes. Clobbered.
 //
-// elements_map - holds the elements map on exit if the not_fast_array branch is
-//                taken. Otherwise, this is used as a scratch register.
-//
-// result       - holds the result on exit if the load succeeded.
-//                Allowed to be the the same as 'receiver' or 'key'.
-//                Unchanged on bailout so 'receiver' and 'key' can be safely
-//                used by further computation.
+// result   - holds the result on exit if the load succeeded.
+//            Allowed to be the the same as 'receiver' or 'key'.
+//            Unchanged on bailout so 'receiver' and 'key' can be safely
+//            used by further computation.
 static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
                                   Register key, Register elements,
-                                  Register elements_map, Register scratch2,
-                                  Register result, Label* not_fast_array,
-                                  Label* slow) {
-  DCHECK(!AreAliased(receiver, key, elements, elements_map, scratch2));
+                                  Register scratch1, Register scratch2,
+                                  Register result, Label* slow) {
+  DCHECK(!AreAliased(receiver, key, elements, scratch1, scratch2));
+
+  Label check_prototypes, check_next_prototype;
+  Label done, in_bounds, return_undefined;
 
   // Check for fast array.
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  if (not_fast_array != NULL) {
-    // Check that the object is in fast mode and writable.
-    __ Ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-    __ JumpIfNotRoot(elements_map, Heap::kFixedArrayMapRootIndex,
-                     not_fast_array);
-  } else {
-    __ AssertFastElements(elements);
-  }
-
-  // The elements_map register is only used for the not_fast_array path, which
-  // was handled above. From this point onward it is a scratch register.
-  Register scratch1 = elements_map;
+  __ AssertFastElements(elements);
 
   // Check that the key (index) is within bounds.
   __ Ldr(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ Cmp(key, scratch1);
-  __ B(hs, slow);
+  __ B(lo, &in_bounds);
 
+  // Out of bounds. Check the prototype chain to see if we can just return
+  // 'undefined'.
+  __ Cmp(key, Operand(Smi::FromInt(0)));
+  __ B(lt, slow);  // Negative keys can't take the fast OOB path.
+  __ Bind(&check_prototypes);
+  __ Ldr(scratch2, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ Bind(&check_next_prototype);
+  __ Ldr(scratch2, FieldMemOperand(scratch2, Map::kPrototypeOffset));
+  // scratch2: current prototype
+  __ JumpIfRoot(scratch2, Heap::kNullValueRootIndex, &return_undefined);
+  __ Ldr(elements, FieldMemOperand(scratch2, JSObject::kElementsOffset));
+  __ Ldr(scratch2, FieldMemOperand(scratch2, HeapObject::kMapOffset));
+  // elements: elements of current prototype
+  // scratch2: map of current prototype
+  __ CompareInstanceType(scratch2, scratch1, JS_OBJECT_TYPE);
+  __ B(lo, slow);
+  __ Ldrb(scratch1, FieldMemOperand(scratch2, Map::kBitFieldOffset));
+  __ Tbnz(scratch1, Map::kIsAccessCheckNeeded, slow);
+  __ Tbnz(scratch1, Map::kHasIndexedInterceptor, slow);
+  __ JumpIfNotRoot(elements, Heap::kEmptyFixedArrayRootIndex, slow);
+  __ B(&check_next_prototype);
+
+  __ Bind(&return_undefined);
+  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+  __ B(&done);
+
+  __ Bind(&in_bounds);
   // Fast case: Do the load.
   __ Add(scratch1, elements, FixedArray::kHeaderSize - kHeapObjectTag);
   __ SmiUntag(scratch2, key);
   __ Ldr(scratch2, MemOperand(scratch1, scratch2, LSL, kPointerSizeLog2));
 
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ JumpIfRoot(scratch2, Heap::kTheHoleValueRootIndex, slow);
+  // In case the loaded value is the_hole we have to check the prototype chain.
+  __ JumpIfRoot(scratch2, Heap::kTheHoleValueRootIndex, &check_prototypes);
 
   // Move the value to the result register.
   // 'result' can alias with 'receiver' or 'key' but these two must be
   // preserved if we jump to 'slow'.
   __ Mov(result, scratch2);
+  __ Bind(&done);
 }
 
 
@@ -480,7 +494,7 @@ static void GenerateKeyedLoadWithSmiKey(MacroAssembler* masm, Register key,
   __ CheckFastElements(scratch1, scratch2, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm, receiver, key, scratch3, scratch2, scratch1,
-                        result, NULL, slow);
+                        result, slow);
   __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1,
                       scratch1, scratch2);
   __ Ret();
