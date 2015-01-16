@@ -1014,8 +1014,9 @@ class RepresentationSelector {
       case IrOpcode::kLoadStackPointer:
         return VisitLeaf(node, kMachPtr);
       case IrOpcode::kStateValues:
+        // State values declare tagged use so that we do not conflate values.
         for (int i = 0; i < node->InputCount(); i++) {
-          ProcessInput(node, i, kTypeAny);
+          Enqueue(node->InputAt(i), kMachAnyTagged);
         }
         SetOutput(node, kMachAnyTagged);
         break;
