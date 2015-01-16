@@ -12,15 +12,15 @@ namespace compiler {
 
 Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
                 Node** inputs, bool has_extensible_inputs) {
-  size_t node_size = sizeof(Node);
+  size_t node_size = sizeof(Node) - sizeof(Input);
   int reserve_input_count = has_extensible_inputs ? kDefaultReservedInputs : 0;
-  size_t inputs_size = (input_count + reserve_input_count) * sizeof(Input);
+  size_t inputs_size = std::max<size_t>(
+      (input_count + reserve_input_count) * sizeof(Input), sizeof(InputDeque*));
   size_t uses_size = input_count * sizeof(Use);
   int size = static_cast<int>(node_size + inputs_size + uses_size);
   void* buffer = zone->New(size);
   Node* result = new (buffer) Node(id, op, input_count, reserve_input_count);
-  Input* input =
-      reinterpret_cast<Input*>(reinterpret_cast<char*>(buffer) + node_size);
+  Input* input = result->inputs_.static_;
   Use* use =
       reinterpret_cast<Use*>(reinterpret_cast<char*>(input) + inputs_size);
 
@@ -175,9 +175,7 @@ Node::Node(NodeId id, const Operator* op, int input_count,
                  ReservedInputCountField::encode(reserved_input_count) |
                  HasAppendableInputsField::encode(false)),
       first_use_(nullptr),
-      last_use_(nullptr) {
-  inputs_.static_ = reinterpret_cast<Input*>(this + 1);
-}
+      last_use_(nullptr) {}
 
 
 void Node::EnsureAppendableInputs(Zone* zone) {
