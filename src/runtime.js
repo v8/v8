@@ -468,6 +468,12 @@ function TO_STRING() {
 }
 
 
+// Convert the receiver to a string or symbol - forward to ToName.
+function TO_NAME() {
+  return %ToName(this);
+}
+
+
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------

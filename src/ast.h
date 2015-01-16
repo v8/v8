@@ -1432,10 +1432,7 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
     PROTOTYPE              // Property is __proto__.
   };
 
-  ObjectLiteralProperty(Zone* zone, AstValueFactory* ast_value_factory,
-                        Literal* key, Expression* value, bool is_static);
-
-  Literal* key() { return key_; }
+  Expression* key() { return key_; }
   Expression* value() { return value_; }
   Kind kind() { return kind_; }
 
@@ -1450,20 +1447,26 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
   bool emit_store();
 
   bool is_static() const { return is_static_; }
+  bool is_computed_name() const { return is_computed_name_; }
 
  protected:
   friend class AstNodeFactory;
 
-  ObjectLiteralProperty(Zone* zone, bool is_getter, FunctionLiteral* value,
-                        bool is_static);
-  void set_key(Literal* key) { key_ = key; }
+  ObjectLiteralProperty(Zone* zone, AstValueFactory* ast_value_factory,
+                        Expression* key, Expression* value, bool is_static,
+                        bool is_computed_name);
+
+  ObjectLiteralProperty(Zone* zone, bool is_getter, Expression* key,
+                        FunctionLiteral* value, bool is_static,
+                        bool is_computed_name);
 
  private:
-  Literal* key_;
+  Expression* key_;
   Expression* value_;
   Kind kind_;
   bool emit_store_;
   bool is_static_;
+  bool is_computed_name_;
   Handle<Map> receiver_type_;
 };
 
@@ -3344,20 +3347,21 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                      boilerplate_properties, has_function, pos);
   }
 
-  ObjectLiteral::Property* NewObjectLiteralProperty(Literal* key,
+  ObjectLiteral::Property* NewObjectLiteralProperty(Expression* key,
                                                     Expression* value,
-                                                    bool is_static) {
-    return new (zone_) ObjectLiteral::Property(zone_, ast_value_factory_, key,
-                                               value, is_static);
+                                                    bool is_static,
+                                                    bool is_computed_name) {
+    return new (zone_) ObjectLiteral::Property(
+        zone_, ast_value_factory_, key, value, is_static, is_computed_name);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(bool is_getter,
+                                                    Expression* key,
                                                     FunctionLiteral* value,
-                                                    int pos, bool is_static) {
-    ObjectLiteral::Property* prop =
-        new (zone_) ObjectLiteral::Property(zone_, is_getter, value, is_static);
-    prop->set_key(NewStringLiteral(value->raw_name(), pos));
-    return prop;
+                                                    int pos, bool is_static,
+                                                    bool is_computed_name) {
+    return new (zone_) ObjectLiteral::Property(zone_, is_getter, key, value,
+                                               is_static, is_computed_name);
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern,

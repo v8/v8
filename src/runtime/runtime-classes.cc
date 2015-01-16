@@ -153,18 +153,10 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
 
   uint32_t index;
-  if (key->ToArrayIndex(&index)) {
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSObject::SetOwnElement(object, index, function, STRICT));
-  }
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
   if (name->AsArrayIndex(&index)) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, JSObject::SetOwnElement(object, index, function, STRICT));
@@ -173,42 +165,6 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
         isolate,
         JSObject::SetOwnPropertyIgnoreAttributes(object, name, function, NONE));
   }
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_DefineClassGetter) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, getter,
-                               isolate->factory()->null_value(), NONE));
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_DefineClassSetter) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, isolate->factory()->null_value(),
-                               setter, NONE));
   return isolate->heap()->undefined_value();
 }
 

@@ -187,8 +187,6 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                                \
   F(DefineClass, 6, 1)                                     \
   F(DefineClassMethod, 3, 1)                               \
-  F(DefineClassGetter, 3, 1)                               \
-  F(DefineClassSetter, 3, 1)                               \
   F(ClassGetSourceCode, 1, 1)                              \
   F(ThrowNonMethodError, 0, 1)                             \
   F(ThrowUnsupportedSuperError, 0, 1)                      \
@@ -262,6 +260,8 @@ namespace internal {
   F(DefineDataPropertyUnchecked, 4, 1)                 \
   F(DefineAccessorPropertyUnchecked, 5, 1)             \
   F(GetDataProperty, 2, 1)                             \
+  F(DefineGetterPropertyUnchecked, 3, 1)               \
+  F(DefineSetterPropertyUnchecked, 3, 1)               \
                                                        \
   /* Arrays */                                         \
   F(RemoveArrayHoles, 2, 1)                            \
