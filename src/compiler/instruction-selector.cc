@@ -701,9 +701,12 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat64Constant:
       return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
-    case IrOpcode::kNumberConstant:
-      // TODO(turbofan): only mark non-smis as references.
       return MarkAsReference(node), VisitConstant(node);
+    case IrOpcode::kNumberConstant: {
+      double value = OpParameter<double>(node);
+      if (!IsSmiDouble(value)) MarkAsReference(node);
+      return VisitConstant(node);
+    }
     case IrOpcode::kCall:
       return VisitCall(node);
     case IrOpcode::kFrameState:

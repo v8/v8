@@ -28,7 +28,7 @@
 
 #if V8_TARGET_ARCH_IA32 || (V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_32_BIT) || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||     \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC
 #define V8_TURBOFAN_BACKEND 1
 #else
 #define V8_TURBOFAN_BACKEND 0
@@ -59,6 +59,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_ARM && !V8_HOST_ARCH_ARM)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_PPC && !V8_HOST_ARCH_PPC)
+#define USE_SIMULATOR 1
+#endif
 #if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
 #define USE_SIMULATOR 1
 #endif
@@ -83,7 +86,7 @@ namespace internal {
 
 
 // Determine whether double field unboxing feature is enabled.
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_TARGET_ARCH_64_BIT
 #define V8_DOUBLE_FIELDS_UNBOXING 1
 #else
 #define V8_DOUBLE_FIELDS_UNBOXING 0
@@ -625,6 +628,10 @@ enum CpuFeature {
   // ARM64
   ALWAYS_ALIGN_CSP,
   COHERENT_CACHE,
+  // PPC
+  FPR_GPR_MOV,
+  LWSYNC,
+  ISELECT,
   NUMBER_OF_CPU_FEATURES
 };
 

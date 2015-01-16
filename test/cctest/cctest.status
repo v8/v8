@@ -117,6 +117,9 @@
   # TODO(titzer): Triggers bug in late control reduction.
   'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
 
+  # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
+  'test-mark-compact/MarkingDeque': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

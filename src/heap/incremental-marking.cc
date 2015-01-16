@@ -655,10 +655,7 @@ intptr_t IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
     int size = obj->SizeFromMap(map);
     unscanned_bytes_of_large_object_ = 0;
     VisitObject(map, obj, size);
-    int delta = (size - unscanned_bytes_of_large_object_);
-    // TODO(jochen): remove after http://crbug.com/381820 is resolved.
-    CHECK_LT(0, delta);
-    bytes_processed += delta;
+    bytes_processed += size - unscanned_bytes_of_large_object_;
   }
   return bytes_processed;
 }

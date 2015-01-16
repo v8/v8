@@ -46,9 +46,7 @@ UnaryMathFunction CreateExpFunction() {
     Register temp3 = r9;
 
 // Called from C
-#if ABI_USES_FUNCTION_DESCRIPTORS
     __ function_descriptor();
-#endif
 
     __ Push(temp3, temp2, temp1);
     MathExpGenerator::EmitMathExp(&masm, input, result, double_scratch1,
@@ -88,9 +86,7 @@ UnaryMathFunction CreateSqrtFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
 // Called from C
-#if ABI_USES_FUNCTION_DESCRIPTORS
   __ function_descriptor();
-#endif
 
   __ MovFromFloatParameter(d1);
   __ fsqrt(d1, d1);

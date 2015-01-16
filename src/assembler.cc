@@ -65,6 +65,8 @@
 #include "src/arm64/assembler-arm64-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/assembler-arm-inl.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/assembler-ppc-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/assembler-mips-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
@@ -85,6 +87,8 @@
 #include "src/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/regexp-macro-assembler-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
@@ -1297,6 +1301,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
+#elif V8_TARGET_ARCH_PPC
+  function = FUNCTION_ADDR(RegExpMacroAssemblerPPC::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS64

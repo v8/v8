@@ -109,6 +109,8 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mips64el",
                    "nacl_ia32",
                    "nacl_x64",
+                   "ppc",
+                   "ppc64",
                    "x64",
                    "x32",
                    "arm64"]

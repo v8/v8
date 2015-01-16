@@ -19,6 +19,8 @@
 #include "src/compiler/mips64/instruction-codes-mips64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/x64/instruction-codes-x64.h"
+#elif V8_TARGET_ARCH_PPC
+#include "src/compiler/ppc/instruction-codes-ppc.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)

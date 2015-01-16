@@ -464,7 +464,7 @@ DEFINE_BOOL(enable_32dregs, ENABLE_32DREGS_DEFAULT,
 DEFINE_BOOL(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_BOOL(force_long_branches, false,
-            "force all emitted branches to be in long mode (MIPS only)")
+            "force all emitted branches to be in long mode (MIPS/PPC only)")
 
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")
@@ -667,7 +667,8 @@ DEFINE_BOOL(debug_sim, false, "Enable debugging the simulator")
 DEFINE_BOOL(check_icache, false,
             "Check icache flushes in ARM and MIPS simulator")
 DEFINE_INT(stop_sim_at, 0, "Simulator stop after x number of instructions")
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC64)
 DEFINE_INT(sim_stack_alignment, 16,
            "Stack alignment in bytes in simulator. This must be a power of two "
            "and it must be at least 16. 16 is default.")

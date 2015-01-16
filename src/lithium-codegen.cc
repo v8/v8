@@ -29,6 +29,9 @@
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/lithium-x87.h"  // NOLINT
 #include "src/x87/lithium-codegen-x87.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/lithium-ppc.h"          // NOLINT
+#include "src/ppc/lithium-codegen-ppc.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
