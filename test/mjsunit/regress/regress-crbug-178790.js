@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --stack-size=1800
-
 // Create a regexp in the form of a?a?...a? so that fully
 // traversing the entire graph would be prohibitively expensive.
 // This should not cause time out.
