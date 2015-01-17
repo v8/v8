@@ -4940,7 +4940,8 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   int stack_space = 0;
-  MemOperand is_construct_call_operand = MemOperand(sp, 4 * kPointerSize);
+  MemOperand is_construct_call_operand =
+      MemOperand(sp, 4 * kPointerSize + kCArgsSlotsSize);
   MemOperand* stack_space_operand = &is_construct_call_operand;
   if (argc.is_immediate()) {
     stack_space = argc.immediate() + FCA::kArgsLength + 1;
