@@ -90,29 +90,13 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # Support for %GetFrameDetails is missing and requires checkpoints.
-  'test-api/Regress385349': [PASS, NO_VARIANTS],
-  'test-debug/DebuggerStatement': [PASS, NO_VARIANTS],
-  'test-debug/DebuggerStatementBreakpoint': [PASS, NO_VARIANTS],
-  'test-debug/DebugEvaluateWithCodeGenerationDisallowed': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/ScriptNameAndData': [PASS, NO_VARIANTS],
-  'test-debug/ContextData': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakInMessageHandler': [PASS, NO_VARIANTS],
-  'test-debug/CallFunctionInDebugger': [PASS, NO_VARIANTS],
-  'test-debug/CallingContextIsNotDebugContext': [PASS, NO_VARIANTS],
-  'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
-  'test-debug/BreakMessageWhenMessageHandlerIsReset': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakStackInspection': [PASS, NO_VARIANTS],
-  'test-debug/DeoptimizeDuringDebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DisableBreak': [PASS, NO_VARIANTS],
-  'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
-  'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
+  # TODO(jarin): Some tests don't like --turbo-deoptimzation very much.
+  'test-api/ApiUncaughtExceptionInObjectObserve': [PASS, NO_VARIANTS],
+  'test-api/GetPrototypeAccessControl': [PASS, NO_VARIANTS],
+  'test-api/Regress93759': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakOnExceptionInObserveCallback': [PASS, NO_VARIANTS],
+  'test-object-observe/DeliveryCallbackThrows': [PASS, NO_VARIANTS],
+  'test-js-typed-lowering/JSToNumberOfNumberOrOtherPrimitive': [PASS, NO_VARIANTS],
 
   # TODO(titzer): Triggers bug in late control reduction.
   'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],

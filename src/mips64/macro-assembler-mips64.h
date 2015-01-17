@@ -901,10 +901,9 @@ class MacroAssembler: public Assembler {
                       int stack_space = 0);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(bool save_doubles,
-                      Register arg_count,
-                      bool restore_context,
-                      bool do_return = NO_EMIT_RETURN);
+  void LeaveExitFrame(bool save_doubles, Register arg_count,
+                      bool restore_context, bool do_return = NO_EMIT_RETURN,
+                      bool argument_count_is_length = false);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1321,8 +1320,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                int stack_space,
+                                ExternalReference thunk_ref, int stack_space,
+                                MemOperand* stack_space_operand,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
 

@@ -2628,6 +2628,11 @@ class ClassLiteral FINAL : public Expression {
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
 
+  static int num_ids() { return parent_num_ids() + 3; }
+  BailoutId EntryId() const { return BailoutId(local_id(0)); }
+  BailoutId DeclsId() const { return BailoutId(local_id(1)); }
+  BailoutId ExitId() { return BailoutId(local_id(2)); }
+
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,
                VariableProxy* class_variable_proxy, Expression* extends,
@@ -2641,8 +2646,11 @@ class ClassLiteral FINAL : public Expression {
         constructor_(constructor),
         properties_(properties),
         end_position_(end_position) {}
+  static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
   const AstRawString* raw_name_;
   Scope* scope_;
   VariableProxy* class_variable_proxy_;

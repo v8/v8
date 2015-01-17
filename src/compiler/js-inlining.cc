@@ -407,10 +407,8 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
           CreateArgumentsAdaptorFrameState(&call, function, info.zone());
     }
 
-    for (NodeVectorConstIter it = visitor.copies().begin();
-         it != visitor.copies().end(); ++it) {
-      Node* node = *it;
-      if (node != NULL && node->opcode() == IrOpcode::kFrameState) {
+    for (Node* node : visitor.copies()) {
+      if (node && node->opcode() == IrOpcode::kFrameState) {
         AddClosureToFrameState(node, function);
         NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
       }

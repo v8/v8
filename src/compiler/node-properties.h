@@ -39,7 +39,9 @@ class NodeProperties {
   static inline void ReplaceFrameStateInput(Node* node, Node* frame_state);
   static inline void RemoveNonValueInputs(Node* node);
   static inline void ReplaceWithValue(Node* node, Node* value,
-                                      Node* effect = NULL);
+                                      Node* effect = nullptr);
+
+  static Node* FindProjection(Node* node, size_t projection_index);
 
   static inline bool IsTyped(Node* node);
   static inline Bounds GetBounds(Node* node);

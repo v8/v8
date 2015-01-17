@@ -1589,8 +1589,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
   {
     EnterBlockScopeIfNeeded block_scope_state(
-        this, lit->scope(), BailoutId::None(), BailoutId::None(),
-        BailoutId::None());
+        this, lit->scope(), lit->EntryId(), lit->DeclsId(), lit->ExitId());
 
     if (lit->raw_name() != NULL) {
       __ Push(lit->name());

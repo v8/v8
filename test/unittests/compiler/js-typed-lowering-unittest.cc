@@ -80,6 +80,12 @@ class JSTypedLoweringTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
+  Node* EmptyFrameState() {
+    MachineOperatorBuilder machine(zone());
+    JSGraph jsgraph(graph(), common(), javascript(), &machine);
+    return jsgraph.EmptyFrameState();
+  }
+
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
     Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
     Runtime::SetupArrayBuffer(isolate(), buffer, true, bytes, byte_length);
@@ -369,8 +375,12 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Node* const context = Parameter(Type::Any(), 1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToNumber(), input,
-                                        context, effect, control));
+  Reduction r =
+      FLAG_turbo_deoptimization
+          ? Reduce(graph()->NewNode(javascript()->ToNumber(), input, context,
+                                    EmptyFrameState(), effect, control))
+          : Reduce(graph()->NewNode(javascript()->ToNumber(), input, context,
+                                    effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(BitEq(0.0)),
                                           graph()->start(), control));

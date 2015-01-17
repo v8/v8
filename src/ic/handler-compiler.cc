@@ -233,8 +233,8 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   DCHECK(call_optimization.is_simple_api_call());
   Frontend(name);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
-  GenerateFastApiCall(masm(), call_optimization, receiver_map, receiver(),
-                      scratch1(), false, 0, NULL);
+  GenerateApiAccessorCall(masm(), call_optimization, receiver_map, receiver(),
+                          scratch1(), false, no_reg);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -453,9 +453,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization) {
   Frontend(name);
-  Register values[] = {value()};
-  GenerateFastApiCall(masm(), call_optimization, handle(object->map()),
-                      receiver(), scratch1(), true, 1, values);
+  GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
+                          receiver(), scratch1(), true, value());
   return GetCode(kind(), Code::FAST, name);
 }
 

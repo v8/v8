@@ -223,20 +223,17 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-void PropertyHandlerCompiler::GenerateFastApiCall(
+void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
     Handle<Map> receiver_map, Register receiver, Register scratch_in,
-    bool is_store, int argc, Register* values) {
+    bool is_store, Register store_parameter) {
   DCHECK(!receiver.is(scratch_in));
-  // Preparing to push, adjust sp.
-  __ Dsubu(sp, sp, Operand((argc + 1) * kPointerSize));
-  __ sd(receiver, MemOperand(sp, argc * kPointerSize));  // Push receiver.
+  __ push(receiver);
   // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc - 1 - i];
-    DCHECK(!receiver.is(arg));
-    DCHECK(!scratch_in.is(arg));
-    __ sd(arg, MemOperand(sp, (argc - 1 - i) * kPointerSize));  // Push arg.
+  if (is_store) {
+    DCHECK(!receiver.is(store_parameter));
+    DCHECK(!scratch_in.is(store_parameter));
+    __ push(store_parameter);
   }
   DCHECK(optimization.is_simple_api_call());
 
@@ -289,7 +286,7 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
   __ TailCallStub(&stub);
 }
 
@@ -382,8 +379,8 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
     Label do_store;
     while (true) {
       // Compare map directly within the Branch() functions.
-      it.Advance();
       __ GetWeakValue(scratch, Map::WeakCellForMap(it.Current()));
+      it.Advance();
       if (it.Done()) {
         __ Branch(miss_label, ne, map_reg, Operand(scratch));
         break;

@@ -142,6 +142,7 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus,
        bool for_queries_only)
     : isolate_(isolate),
       target_set_(false),
+      vector_set_(false),
       target_maps_set_(false),
       nexus_(nexus) {
   // To improve the performance of the (much used) IC code, we unfold a few
@@ -636,6 +637,7 @@ void IC::ConfigureVectorState(IC::State new_state) {
     UNREACHABLE();
   }
 
+  vector_set_ = true;
   OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
                         new_state);
 }
@@ -653,6 +655,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<HeapType> type,
     nexus->ConfigureMonomorphic(name, type, handler);
   }
 
+  vector_set_ = true;
   OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
                         MONOMORPHIC);
 }
@@ -670,6 +673,7 @@ void IC::ConfigureVectorState(Handle<Name> name, TypeHandleList* types,
     nexus->ConfigurePolymorphic(name, types, handlers);
   }
 
+  vector_set_ = true;
   OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
                         POLYMORPHIC);
 }
@@ -945,7 +949,11 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
     case MEGAMORPHIC:
       UpdateMegamorphicCache(*receiver_type(), *name, *code);
       // Indicate that we've handled this case.
-      target_set_ = true;
+      if (UseVector()) {
+        vector_set_ = true;
+      } else {
+        target_set_ = true;
+      }
       break;
     case DEBUG_STUB:
       break;
@@ -1349,10 +1357,6 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
-    if (FLAG_vector_ics) {
-      ConfigureVectorState(GENERIC);
-      return null_handle;
-    }
     return generic_stub();
   }
 
@@ -1360,10 +1364,6 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
-    if (FLAG_vector_ics) {
-      ConfigureVectorState(GENERIC);
-      return null_handle;
-    }
     return generic_stub();
   }
 
@@ -1413,16 +1413,26 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   }
 
-  if (!is_target_set()) {
-    if (!FLAG_vector_ics) {
+  if (!UseVector()) {
+    if (!is_target_set()) {
       Code* generic = *generic_stub();
       if (*stub == generic) {
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
 
       set_target(*stub);
+      TRACE_IC("LoadIC", key);
     }
-    TRACE_IC("LoadIC", key);
+  } else {
+    if (!is_vector_set() || stub.is_null()) {
+      Code* generic = *generic_stub();
+      if (!stub.is_null() && *stub == generic) {
+        ConfigureVectorState(GENERIC);
+        TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
+      }
+
+      TRACE_IC("LoadIC", key);
+    }
   }
 
   if (!load_handle.is_null()) return load_handle;

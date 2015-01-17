@@ -1339,8 +1339,8 @@ class MacroAssembler: public Assembler {
   // stack_space * kPointerSize (GCed).
   void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
-                                int stack_space,
+                                Register thunk_last_arg, int stack_space,
+                                Operand* stack_space_operand,
                                 Operand return_value_operand,
                                 Operand* context_restore_operand);
 

@@ -967,7 +967,6 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
                              Code);
 
   if (FLAG_always_opt && isolate->use_crankshaft() &&
-      !info.shared_info()->optimization_disabled() &&
       !isolate->DebuggerHasBreakPoints()) {
     Handle<Code> opt_code;
     if (Compiler::GetOptimizedCode(

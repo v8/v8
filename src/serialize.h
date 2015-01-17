@@ -193,6 +193,10 @@ class BackReference {
 
   static BackReference SourceReference() { return BackReference(kSourceValue); }
 
+  static BackReference GlobalProxyReference() {
+    return BackReference(kGlobalProxyValue);
+  }
+
   static BackReference LargeObjectReference(uint32_t index) {
     return BackReference(SpaceBits::encode(LO_SPACE) |
                          ChunkOffsetBits::encode(index));
@@ -209,6 +213,7 @@ class BackReference {
 
   bool is_valid() const { return bitfield_ != kInvalidValue; }
   bool is_source() const { return bitfield_ == kSourceValue; }
+  bool is_global_proxy() const { return bitfield_ == kGlobalProxyValue; }
 
   AllocationSpace space() const {
     DCHECK(is_valid());
@@ -235,6 +240,7 @@ class BackReference {
  private:
   static const uint32_t kInvalidValue = 0xFFFFFFFF;
   static const uint32_t kSourceValue = 0xFFFFFFFE;
+  static const uint32_t kGlobalProxyValue = 0xFFFFFFFD;
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
 
@@ -276,6 +282,10 @@ class BackReferenceMap : public AddressMapBase {
 
   void AddSourceString(String* string) {
     Add(string, BackReference::SourceReference());
+  }
+
+  void AddGlobalProxy(HeapObject* global_proxy) {
+    Add(global_proxy, BackReference::GlobalProxyReference());
   }
 
  private:
@@ -751,8 +761,7 @@ class PartialSerializer : public Serializer {
       : Serializer(isolate, sink),
         startup_serializer_(startup_snapshot_serializer),
         outdated_contexts_(0),
-        global_object_(NULL),
-        global_proxy_(NULL) {
+        global_object_(NULL) {
     InitializeCodeAddressMap();
   }
 
@@ -781,7 +790,6 @@ class PartialSerializer : public Serializer {
   Serializer* startup_serializer_;
   List<BackReference> outdated_contexts_;
   Object* global_object_;
-  Object* global_proxy_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

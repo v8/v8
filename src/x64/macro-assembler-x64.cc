@@ -706,12 +706,9 @@ void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    Register thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
+    Register function_address, ExternalReference thunk_ref,
+    Register thunk_last_arg, int stack_space, Operand* stack_space_operand,
+    Operand return_value_operand, Operand* context_restore_operand) {
   Label prologue;
   Label promote_scheduled_exception;
   Label exception_handled;
@@ -838,8 +835,18 @@ void MacroAssembler::CallApiFunctionAndReturn(
   if (restore_context) {
     movp(rsi, *context_restore_operand);
   }
+  if (stack_space_operand != nullptr) {
+    movp(rbx, *stack_space_operand);
+  }
   LeaveApiExitFrame(!restore_context);
-  ret(stack_space * kPointerSize);
+  if (stack_space_operand != nullptr) {
+    DCHECK_EQ(stack_space, 0);
+    PopReturnAddressTo(rcx);
+    addq(rsp, rbx);
+    jmp(rcx);
+  } else {
+    ret(stack_space * kPointerSize);
+  }
 
   bind(&promote_scheduled_exception);
   {

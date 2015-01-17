@@ -4621,14 +4621,17 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+static void CallApiFunctionStubHelper(MacroAssembler* masm,
+                                      const ParameterCount& argc,
+                                      bool return_first_arg,
+                                      bool call_data_undefined) {
   // ----------- S t a t e -------------
   //  -- rax                 : callee
   //  -- rbx                 : call_data
   //  -- rcx                 : holder
   //  -- rdx                 : api_function_address
   //  -- rsi                 : context
-  //  --
+  //  -- rdi                 : number of arguments if argc is a register
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : last argument
   //  -- ...
@@ -4640,12 +4643,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register call_data = rbx;
   Register holder = rcx;
   Register api_function_address = rdx;
-  Register return_address = rdi;
   Register context = rsi;
-
-  int argc = this->argc();
-  bool is_store = this->is_store();
-  bool call_data_undefined = this->call_data_undefined();
 
   typedef FunctionCallbackArguments FCA;
 
@@ -4658,12 +4656,17 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  __ PopReturnAddressTo(return_address);
+  DCHECK(argc.is_immediate() || rdi.is(argc.reg()));
 
-  // context save
-  __ Push(context);
-  // load context from callee
-  __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
+  if (kPointerSize == kInt64Size) {
+    //  pop return address and save context
+    __ xchgq(context, Operand(rsp, 0));
+  } else {
+    // x32 handling.
+    __ PopReturnAddressTo(kScratchRegister);
+    __ Push(context);
+    __ movq(context, kScratchRegister);
+  }
 
   // callee
   __ Push(callee);
@@ -4679,15 +4682,17 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // return value default
   __ Push(scratch);
   // isolate
-  __ Move(scratch,
-          ExternalReference::isolate_address(isolate()));
+  __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ Push(scratch);
   // holder
   __ Push(holder);
 
   __ movp(scratch, rsp);
   // Push return address back on stack.
-  __ PushReturnAddressFrom(return_address);
+  __ PushReturnAddressFrom(context);
+
+  // load context from callee
+  __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -4697,11 +4702,27 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::implicit_args_.
   __ movp(StackSpaceOperand(0), scratch);
-  __ addp(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
-  __ movp(StackSpaceOperand(1), scratch);  // FunctionCallbackInfo::values_.
-  __ Set(StackSpaceOperand(2), argc);  // FunctionCallbackInfo::length_.
-  // FunctionCallbackInfo::is_construct_call_.
-  __ Set(StackSpaceOperand(3), 0);
+  if (argc.is_immediate()) {
+    __ addp(scratch, Immediate((argc.immediate() + FCA::kArgsLength - 1) *
+                               kPointerSize));
+    // FunctionCallbackInfo::values_.
+    __ movp(StackSpaceOperand(1), scratch);
+    // FunctionCallbackInfo::length_.
+    __ Set(StackSpaceOperand(2), argc.immediate());
+    // FunctionCallbackInfo::is_construct_call_.
+    __ Set(StackSpaceOperand(3), 0);
+  } else {
+    __ leap(scratch, Operand(scratch, argc.reg(), times_pointer_size,
+                             (FCA::kArgsLength - 1) * kPointerSize));
+    // FunctionCallbackInfo::values_.
+    __ movp(StackSpaceOperand(1), scratch);
+    // FunctionCallbackInfo::length_.
+    __ movp(StackSpaceOperand(2), argc.reg());
+    // FunctionCallbackInfo::is_construct_call_.
+    __ leap(argc.reg(), Operand(argc.reg(), times_pointer_size,
+                                (FCA::kArgsLength + 1) * kPointerSize));
+    __ movp(StackSpaceOperand(3), argc.reg());
+  }
 
 #if defined(__MINGW64__) || defined(_WIN64)
   Register arguments_arg = rcx;
@@ -4719,23 +4740,42 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   __ leap(arguments_arg, StackSpaceOperand(0));
 
   ExternalReference thunk_ref =
-      ExternalReference::invoke_function_callback(isolate());
+      ExternalReference::invoke_function_callback(masm->isolate());
 
   // Accessor for FunctionCallbackInfo and first js arg.
   StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength + 1,
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand context_restore_operand = args_from_rbp.GetArgumentOperand(
       FCA::kArgsLength - FCA::kContextSaveIndex);
-  // Stores return the first js argument
+  Operand is_construct_call_operand = StackSpaceOperand(3);
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
-      is_store ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
-  __ CallApiFunctionAndReturn(
-      api_function_address,
-      thunk_ref,
-      callback_arg,
-      argc + FCA::kArgsLength + 1,
-      return_value_operand,
-      &context_restore_operand);
+      return_first_arg ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
+  int stack_space = 0;
+  Operand* stack_space_operand = &is_construct_call_operand;
+  if (argc.is_immediate()) {
+    stack_space = argc.immediate() + FCA::kArgsLength + 1;
+    stack_space_operand = nullptr;
+  }
+  __ CallApiFunctionAndReturn(api_function_address, thunk_ref, callback_arg,
+                              stack_space, stack_space_operand,
+                              return_value_operand, &context_restore_operand);
+}
+
+
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  // TODO(dcarney): make rax contain the function address.
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(rdi), false,
+                            call_data_undefined);
+}
+
+
+void CallApiAccessorStub::Generate(MacroAssembler* masm) {
+  bool is_store = this->is_store();
+  int argc = is_store ? 1 : 0;
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
+                            call_data_undefined);
 }
 
 
@@ -4792,12 +4832,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   Operand return_value_operand = args.GetArgumentOperand(
       PropertyCallbackArguments::kArgsLength - 1 -
       PropertyCallbackArguments::kReturnValueOffset);
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_ref,
-                              getter_arg,
-                              kStackSpace,
-                              return_value_operand,
-                              NULL);
+  __ CallApiFunctionAndReturn(api_function_address, thunk_ref, getter_arg,
+                              kStackSpace, nullptr, return_value_operand, NULL);
 }
 
 

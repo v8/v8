@@ -251,6 +251,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case FIXED_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case FOREIGN_TYPE:
+    case SCRIPT_TYPE:
     case CODE_TYPE:
       return kInternal & kTaggedPointer;
     default:

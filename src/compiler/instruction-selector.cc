@@ -337,8 +337,14 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     if (buffer->descriptor->ReturnCount() == 1) {
       buffer->output_nodes.push_back(call);
     } else {
-      buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), NULL);
-      call->CollectProjections(&buffer->output_nodes);
+      buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), nullptr);
+      for (auto use : call->uses()) {
+        if (use->opcode() != IrOpcode::kProjection) continue;
+        size_t const index = ProjectionIndexOf(use->op());
+        DCHECK_LT(index, buffer->output_nodes.size());
+        DCHECK_EQ(nullptr, buffer->output_nodes[index]);
+        buffer->output_nodes[index] = use;
+      }
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -1000,10 +1006,10 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
-      if (OpParameter<size_t>(node) == 0) {
+      if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
-        DCHECK(OpParameter<size_t>(node) == 1u);
+        DCHECK(ProjectionIndexOf(node->op()) == 1u);
         MarkAsUsed(value);
       }
       break;

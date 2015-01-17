@@ -153,6 +153,9 @@ size_t hash_value(FrameStateCallInfo const&);
 std::ostream& operator<<(std::ostream&, FrameStateCallInfo const&);
 
 
+size_t ProjectionIndexOf(const Operator* const);
+
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class CommonOperatorBuilder FINAL : public ZoneObject {

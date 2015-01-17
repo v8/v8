@@ -54,11 +54,11 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   void DiscardVectorAndSlot();
 
   // TODO(verwaest): Make non-static.
-  static void GenerateFastApiCall(MacroAssembler* masm,
-                                  const CallOptimization& optimization,
-                                  Handle<Map> receiver_map, Register receiver,
-                                  Register scratch, bool is_store, int argc,
-                                  Register* values);
+  static void GenerateApiAccessorCall(MacroAssembler* masm,
+                                      const CallOptimization& optimization,
+                                      Handle<Map> receiver_map,
+                                      Register receiver, Register scratch,
+                                      bool is_store, Register store_parameter);
 
   // Helper function used to check that the dictionary doesn't contain
   // the property. This function may return false negatives, so miss_label

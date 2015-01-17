@@ -149,6 +149,7 @@ class IC {
   // Set the call-site target.
   inline void set_target(Code* code);
   bool is_target_set() { return target_set_; }
+  bool is_vector_set() { return vector_set_; }
 
   bool UseVector() const {
     bool use = ICUseVector(kind());
@@ -302,6 +303,7 @@ class IC {
   // The original code target that missed.
   Handle<Code> target_;
   bool target_set_;
+  bool vector_set_;
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
   Code::Kind kind_;

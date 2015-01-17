@@ -2785,7 +2785,7 @@ class FunctionCallbackInfo {
   internal::Object** implicit_args_;
   internal::Object** values_;
   int length_;
-  bool is_construct_call_;
+  int is_construct_call_;
 };
 
 
@@ -6730,7 +6730,7 @@ ReturnValue<T> FunctionCallbackInfo<T>::GetReturnValue() const {
 
 template<typename T>
 bool FunctionCallbackInfo<T>::IsConstructCall() const {
-  return is_construct_call_;
+  return is_construct_call_ & 0x1;
 }
 
 

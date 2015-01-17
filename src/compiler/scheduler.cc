@@ -127,11 +127,10 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
 #undef DEFINE_CONTROL_CASE
       {
         // Control nodes force coupled uses to be placed.
-        Node::Uses uses = node->uses();
-        for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
-          if (GetPlacement(*i) == Scheduler::kCoupled) {
-            DCHECK_EQ(node, NodeProperties::GetControlInput(*i));
-            UpdatePlacement(*i, placement);
+        for (auto use : node->uses()) {
+          if (GetPlacement(use) == Scheduler::kCoupled) {
+            DCHECK_EQ(node, NodeProperties::GetControlInput(use));
+            UpdatePlacement(use, placement);
           }
         }
         break;
@@ -1131,8 +1130,8 @@ class ScheduleEarlyNodeVisitor {
 
   // Run the schedule early algorithm on a set of fixed root nodes.
   void Run(NodeVector* roots) {
-    for (NodeVectorIter i = roots->begin(); i != roots->end(); ++i) {
-      queue_.push(*i);
+    for (Node* const root : *roots) {
+      queue_.push(root);
       while (!queue_.empty()) {
         VisitNode(queue_.front());
         queue_.pop();
@@ -1160,9 +1159,8 @@ class ScheduleEarlyNodeVisitor {
 
     // Propagate schedule early position.
     DCHECK(data->minimum_block_ != NULL);
-    Node::Uses uses = node->uses();
-    for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
-      PropagateMinimumPositionToNode(data->minimum_block_, *i);
+    for (auto use : node->uses()) {
+      PropagateMinimumPositionToNode(data->minimum_block_, use);
     }
   }
 
@@ -1236,8 +1234,8 @@ class ScheduleLateNodeVisitor {
 
   // Run the schedule late algorithm on a set of fixed root nodes.
   void Run(NodeVector* roots) {
-    for (NodeVectorIter i = roots->begin(); i != roots->end(); ++i) {
-      ProcessQueue(*i);
+    for (Node* const root : *roots) {
+      ProcessQueue(root);
     }
   }
 
@@ -1404,7 +1402,7 @@ void Scheduler::SealFinalSchedule() {
   for (NodeVector& nodes : scheduled_nodes_) {
     BasicBlock::Id id = BasicBlock::Id::FromInt(block_num++);
     BasicBlock* block = schedule_->GetBlockById(id);
-    for (NodeVectorRIter i = nodes.rbegin(); i != nodes.rend(); ++i) {
+    for (auto i = nodes.rbegin(); i != nodes.rend(); ++i) {
       schedule_->AddNode(block, *i);
     }
   }
@@ -1472,9 +1470,9 @@ void Scheduler::MovePlannedNodes(BasicBlock* from, BasicBlock* to) {
   Trace("Move planned nodes from B%d to B%d\n", from->id().ToInt(),
         to->id().ToInt());
   NodeVector* nodes = &(scheduled_nodes_[from->id().ToSize()]);
-  for (NodeVectorIter i = nodes->begin(); i != nodes->end(); ++i) {
-    schedule_->SetBlockForNode(to, *i);
-    scheduled_nodes_[to->id().ToSize()].push_back(*i);
+  for (Node* const node : *nodes) {
+    schedule_->SetBlockForNode(to, node);
+    scheduled_nodes_[to->id().ToSize()].push_back(node);
   }
   nodes->clear();
 }
