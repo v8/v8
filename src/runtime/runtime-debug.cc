@@ -2202,56 +2202,46 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
-  Handle<JSFunction> function;
-  Handle<SharedFunctionInfo> outer_info;
-  Handle<JSObject> materialized;
-  Handle<Context> eval_context;
-  {
-    // We need a short scope for re-entrancy as we cannot have two frame
-    // inspectors at the same time (because they are using a global variable).
-    FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-    function =
-        Handle<JSFunction>(JSFunction::cast(frame_inspector.GetFunction()));
-    outer_info = Handle<SharedFunctionInfo>(function->shared());
+  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
+  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  Handle<SharedFunctionInfo> outer_info(function->shared());
 
-    // Traverse the saved contexts chain to find the active context for the
-    // selected frame.
-    SaveContext* save = FindSavedContextForFrame(isolate, frame);
+  // Traverse the saved contexts chain to find the active context for the
+  // selected frame.
+  SaveContext* save = FindSavedContextForFrame(isolate, frame);
 
-    SaveContext savex(isolate);
-    isolate->set_context(*(save->context()));
+  SaveContext savex(isolate);
+  isolate->set_context(*(save->context()));
 
-    // Materialize stack locals and the arguments object.
-    materialized = NewJSObjectWithNullProto(isolate);
+  // Materialize stack locals and the arguments object.
+  Handle<JSObject> materialized = NewJSObjectWithNullProto(isolate);
 
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, materialized,
-        MaterializeStackLocalsWithFrameInspector(isolate, materialized,
-                                                 function, &frame_inspector));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, materialized,
+      MaterializeStackLocalsWithFrameInspector(isolate, materialized, function,
+                                               &frame_inspector));
 
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, materialized,
-        MaterializeArgumentsObject(isolate, materialized, function));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, materialized,
+      MaterializeArgumentsObject(isolate, materialized, function));
 
-    // At this point, the lookup chain may look like this:
-    // [inner context] -> [function stack]+[function context] -> [outer context]
-    // The function stack is not an actual context, it complements the function
-    // context. In order to have the same lookup chain when debug-evaluating,
-    // we materialize the stack and insert it into the context chain as a
-    // with-context before the function context.
-    // [inner context] -> [with context] -> [function context] -> [outer
-    // context]
-    // Ordering the with-context before the function context forces a dynamic
-    // lookup instead of a static lookup that could fail as the scope info is
-    // outdated and may expect variables to still be stack-allocated.
-    // Afterwards, we write changes to the with-context back to the stack
-    // and remove it from the context chain.
-    // This could cause lookup failures if debug-evaluate creates a closure that
-    // uses this temporary context chain.
+  // At this point, the lookup chain may look like this:
+  // [inner context] -> [function stack]+[function context] -> [outer context]
+  // The function stack is not an actual context, it complements the function
+  // context. In order to have the same lookup chain when debug-evaluating,
+  // we materialize the stack and insert it into the context chain as a
+  // with-context before the function context.
+  // [inner context] -> [with context] -> [function context] -> [outer context]
+  // Ordering the with-context before the function context forces a dynamic
+  // lookup instead of a static lookup that could fail as the scope info is
+  // outdated and may expect variables to still be stack-allocated.
+  // Afterwards, we write changes to the with-context back to the stack
+  // and remove it from the context chain.
+  // This could cause lookup failures if debug-evaluate creates a closure that
+  // uses this temporary context chain.
 
-    eval_context = Handle<Context>(Context::cast(frame_inspector.GetContext()));
-    DCHECK(!eval_context.is_null());
-  }
+  Handle<Context> eval_context(Context::cast(frame_inspector.GetContext()));
+  DCHECK(!eval_context.is_null());
   Handle<Context> function_context = eval_context;
   Handle<Context> outer_context(function->context(), isolate);
   Handle<Context> inner_context;
