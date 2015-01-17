@@ -4833,12 +4833,16 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+static void CallApiFunctionStubHelper(MacroAssembler* masm,
+                                      const ParameterCount& argc,
+                                      bool return_first_arg,
+                                      bool call_data_undefined) {
   // ----------- S t a t e -------------
   //  -- a0                  : callee
   //  -- t0                  : call_data
   //  -- a2                  : holder
   //  -- a1                  : api_function_address
+  //  -- a3                  : number of arguments if argc is a register
   //  -- cp                  : context
   //  --
   //  -- sp[0]               : last argument
@@ -4853,10 +4857,6 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register api_function_address = a1;
   Register context = cp;
 
-  int argc = this->argc();
-  bool is_store = this->is_store();
-  bool call_data_undefined = this->call_data_undefined();
-
   typedef FunctionCallbackArguments FCA;
 
   STATIC_ASSERT(FCA::kContextSaveIndex == 6);
@@ -4867,6 +4867,8 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
+
+  DCHECK(argc.is_immediate() || a3.is(argc.reg()));
 
   // Save context, callee and call data.
   __ Push(context, callee, call_data);
@@ -4879,8 +4881,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   }
   // Push return value and default return value.
   __ Push(scratch, scratch);
-  __ li(scratch,
-        Operand(ExternalReference::isolate_address(isolate())));
+  __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Push isolate and holder.
   __ Push(scratch, holder);
 
@@ -4900,36 +4901,70 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   __ Addu(a0, sp, Operand(1 * kPointerSize));
   // FunctionCallbackInfo::implicit_args_
   __ sw(scratch, MemOperand(a0, 0 * kPointerSize));
-  // FunctionCallbackInfo::values_
-  __ Addu(at, scratch, Operand((FCA::kArgsLength - 1 + argc) * kPointerSize));
-  __ sw(at, MemOperand(a0, 1 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc
-  __ li(at, Operand(argc));
-  __ sw(at, MemOperand(a0, 2 * kPointerSize));
-  // FunctionCallbackInfo::is_construct_call = 0
-  __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
+  if (argc.is_immediate()) {
+    // FunctionCallbackInfo::values_
+    __ Addu(at, scratch,
+            Operand((FCA::kArgsLength - 1 + argc.immediate()) * kPointerSize));
+    __ sw(at, MemOperand(a0, 1 * kPointerSize));
+    // FunctionCallbackInfo::length_ = argc
+    __ li(at, Operand(argc.immediate()));
+    __ sw(at, MemOperand(a0, 2 * kPointerSize));
+    // FunctionCallbackInfo::is_construct_call_ = 0
+    __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
+  } else {
+    // FunctionCallbackInfo::values_
+    __ sll(at, argc.reg(), kPointerSizeLog2);
+    __ Addu(at, at, scratch);
+    __ Addu(at, at, Operand((FCA::kArgsLength - 1) * kPointerSize));
+    __ sw(at, MemOperand(a0, 1 * kPointerSize));
+    // FunctionCallbackInfo::length_ = argc
+    __ sw(argc.reg(), MemOperand(a0, 2 * kPointerSize));
+    // FunctionCallbackInfo::is_construct_call_
+    __ Addu(argc.reg(), argc.reg(), Operand(FCA::kArgsLength + 1));
+    __ sll(at, argc.reg(), kPointerSizeLog2);
+    __ sw(at, MemOperand(a0, 3 * kPointerSize));
+  }
 
-  const int kStackUnwindSpace = argc + FCA::kArgsLength + 1;
   ExternalReference thunk_ref =
-      ExternalReference::invoke_function_callback(isolate());
+      ExternalReference::invoke_function_callback(masm->isolate());
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
       fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
   // Stores return the first js argument.
   int return_value_offset = 0;
-  if (is_store) {
+  if (return_first_arg) {
     return_value_offset = 2 + FCA::kArgsLength;
   } else {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_ref,
-                              kStackUnwindSpace,
-                              return_value_operand,
+  int stack_space = 0;
+  MemOperand is_construct_call_operand = MemOperand(sp, 4 * kPointerSize);
+  MemOperand* stack_space_operand = &is_construct_call_operand;
+  if (argc.is_immediate()) {
+    stack_space = argc.immediate() + FCA::kArgsLength + 1;
+    stack_space_operand = NULL;
+  }
+  __ CallApiFunctionAndReturn(api_function_address, thunk_ref, stack_space,
+                              stack_space_operand, return_value_operand,
                               &context_restore_operand);
+}
+
+
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(a3), false,
+                            call_data_undefined);
+}
+
+
+void CallApiAccessorStub::Generate(MacroAssembler* masm) {
+  bool is_store = this->is_store();
+  int argc = is_store ? 1 : 0;
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
+                            call_data_undefined);
 }
 
 
@@ -4960,11 +4995,9 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_ref,
-                              kStackUnwindSpace,
-                              MemOperand(fp, 6 * kPointerSize),
-                              NULL);
+  __ CallApiFunctionAndReturn(api_function_address, thunk_ref,
+                              kStackUnwindSpace, NULL,
+                              MemOperand(fp, 6 * kPointerSize), NULL);
 }
 
 

@@ -4419,10 +4419,8 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    int stack_space,
-    MemOperand return_value_operand,
+    Register function_address, ExternalReference thunk_ref, int stack_space,
+    MemOperand* stack_space_operand, MemOperand return_value_operand,
     MemOperand* context_restore_operand) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -4516,8 +4514,13 @@ void MacroAssembler::CallApiFunctionAndReturn(
   if (restore_context) {
     lw(cp, *context_restore_operand);
   }
-  li(s0, Operand(stack_space));
-  LeaveExitFrame(false, s0, !restore_context, EMIT_RETURN);
+  if (stack_space_operand != NULL) {
+    lw(s0, *stack_space_operand);
+  } else {
+    li(s0, Operand(stack_space));
+  }
+  LeaveExitFrame(false, s0, !restore_context, EMIT_RETURN,
+                 stack_space_operand != NULL);
 
   bind(&promote_scheduled_exception);
   {
@@ -5166,10 +5169,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count,
-                                    bool restore_context,
-                                    bool do_return) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
+                                    bool restore_context, bool do_return,
+                                    bool argument_count_is_length) {
   // Optionally restore all double registers.
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
@@ -5200,8 +5202,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   lw(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
 
   if (argument_count.is_valid()) {
-    sll(t8, argument_count, kPointerSizeLog2);
-    addu(sp, sp, t8);
+    if (argument_count_is_length) {
+      addu(sp, sp, argument_count);
+    } else {
+      sll(t8, argument_count, kPointerSizeLog2);
+      addu(sp, sp, t8);
+    }
   }
 
   if (do_return) {
