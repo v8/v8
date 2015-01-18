@@ -27,6 +27,7 @@
 .project
 .pydevproject
 .settings
+.version.cc
 .*.sw?
 bsuite
 d8
