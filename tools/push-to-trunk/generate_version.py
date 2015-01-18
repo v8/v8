@@ -5,23 +5,9 @@
 
 """
 Script to set v8's version file to the version given by the latest tag.
-
-The script can be run in two modes:
-1) As a gclient hook with the option --hook.
-   The script will write a temporary version file into the checkout.
-2) During compilation as an action.
-   The script will write version.cc in the output folder based on the
-   tag info. In case of a failure it will fall back to the temporary file
-   from the hook call.
-
-In most cases, 2) will succeed and the temporary information from 1) won't
-be used. In case the checkout is copied somewhere and the git context is
-lost (e.g. on the android_aosp builder), the temporary file from 1) is
-required.
 """
 
 
-import optparse
 import os
 import re
 import subprocess
@@ -31,10 +17,8 @@ import sys
 CWD = os.path.abspath(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 VERSION_CC = os.path.join(CWD, "src", "version.cc")
-TMP_VERSION_CC = os.path.join(CWD, ".version.cc")
 
-
-def generate_version_file():
+def main():
   tag = subprocess.check_output(
       "git describe --tags",
       shell=True,
@@ -66,68 +50,28 @@ def generate_version_file():
     patch = "0"
 
   # Modify version.cc with the new values.
-  output = []
   with open(VERSION_CC, "r") as f:
-    for line in f:
-      for definition, substitute in (
-          ("MAJOR_VERSION", major),
-          ("MINOR_VERSION", minor),
-          ("BUILD_NUMBER", build),
-          ("PATCH_LEVEL", patch),
-          ("IS_CANDIDATE_VERSION", candidate)):
-        if line.startswith("#define %s" % definition):
-          line =  re.sub("\d+$", substitute, line)
-      output.append(line)
-  # Log what was calculated.
+    text = f.read()
+  output = []
+  for line in text.split("\n"):
+    for definition, substitute in (
+        ("MAJOR_VERSION", major),
+        ("MINOR_VERSION", minor),
+        ("BUILD_NUMBER", build),
+        ("PATCH_LEVEL", patch),
+        ("IS_CANDIDATE_VERSION", candidate)):
+      if line.startswith("#define %s" % definition):
+        line =  re.sub("\d+$", substitute, line)
+    output.append(line)
+  with open(VERSION_CC, "w") as f:
+    f.write("\n".join(output))
+
+  # Log what was done.
   candidate_txt = " (candidate)" if candidate == "1" else ""
   patch_txt = ".%s" % patch if patch != "0" else ""
   version_txt = ("%s.%s.%s%s%s" %
                  (major, minor, build, patch_txt, candidate_txt))
-  print "Modifying version.cc. Set V8 version to %s" %  version_txt
-  return "".join(output)
-
-
-def delete_tmp_version_file():
-  # Make sure a subsequent call to this script doesn't use an outdated
-  # version file.
-  if os.path.exists(TMP_VERSION_CC):
-    os.remove(TMP_VERSION_CC)
-
-
-def main():
-  parser = optparse.OptionParser()
-  parser.add_option("--hook",
-                    help="Run as a gclient hook",
-                    default=False, action="store_true")
-  (options, args) = parser.parse_args()
-
-  if options.hook:
-    version_out = TMP_VERSION_CC
-  else:
-    if len(args) != 1:
-      print "Error: Specify the output file path for version.cc"
-      return 1
-    version_out = args[0]
-
-  assert os.path.exists(os.path.dirname(version_out))
-
-  try:
-    version_file_content = generate_version_file()
-  except Exception as e:
-    # Allow exceptions when run during compilation. E.g. there might be no git
-    # context availabe. When run as a gclient hook, generation must succeed.
-    if options.hook:
-      delete_tmp_version_file()
-      raise e
-    # Assume the script already ran as a hook.
-    print "No git context available. Using V8 version from hook."
-    assert os.path.exists(TMP_VERSION_CC)
-    with open(TMP_VERSION_CC, "r") as f:
-      version_file_content = f.read()
-
-  delete_tmp_version_file()
-  with open(version_out, "w") as f:
-    f.write(version_file_content)
+  print "Modified version.cc. Set V8 version to %s" %  version_txt
   return 0
 
 if __name__ == "__main__":

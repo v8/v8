@@ -88,13 +88,6 @@ hooks = [
     'action': ['python', 'v8/tools/clang/scripts/update.py', '--if-needed'],
   },
   {
-    # Generate v8 version based on the last git tag.
-    "pattern": ".",
-    "action": ["python",
-               "v8/tools/push-to-trunk/generate_version.py",
-               "--hook"],
-  },
-  {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",
     "action": ["python", "v8/build/gyp_v8"],
