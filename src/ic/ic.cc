@@ -1259,7 +1259,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       }
 
       // -------------- Fields --------------
-      if (lookup->property_details().type() == FIELD) {
+      if (lookup->property_details().type() == DATA) {
         FieldIndex field = lookup->GetFieldIndex();
         if (receiver_is_holder) {
           return SimpleFieldLoad(field);
@@ -1270,7 +1270,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       }
 
       // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == CONSTANT);
+      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
       if (receiver_is_holder) {
         LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
         return stub.GetCode();
@@ -1761,7 +1761,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       }
 
       // -------------- Fields --------------
-      if (lookup->property_details().type() == FIELD) {
+      if (lookup->property_details().type() == DATA) {
         bool use_stub = true;
         if (lookup->representation().IsHeapObject()) {
           // Only use a generic stub if no types need to be tracked.
@@ -1779,7 +1779,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       }
 
       // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == CONSTANT);
+      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
       TRACE_GENERIC_IC(isolate(), "StoreIC", "constant property");
       break;
     }
@@ -1795,7 +1795,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
 Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
                                             KeyedAccessStoreMode store_mode) {
-  // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
+  // Don't handle megamorphic property accesses for INTERCEPTORS or
+  // ACCESSOR_CONSTANT
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {

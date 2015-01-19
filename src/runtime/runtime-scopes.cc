@@ -65,10 +65,11 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
       // Check whether we can reconfigure the existing property into a
       // function.
       PropertyDetails old_details = it.property_details();
-      // TODO(verwaest): CALLBACKS invalidly includes ExecutableAccessInfo,
+      // TODO(verwaest): ACCESSOR_CONSTANT invalidly includes
+      // ExecutableAccessInfo,
       // which are actually data properties, not accessor properties.
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
-          old_details.type() == CALLBACKS) {
+          old_details.type() == ACCESSOR_CONSTANT) {
         return ThrowRedeclarationError(isolate, name);
       }
       // If the existing property is not configurable, keep its attributes. Do

@@ -1622,7 +1622,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     for (int i = 0; i < real_size; i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.location()) {
-        case IN_OBJECT: {
+        case kField: {
           Representation r = details.representation();
           if (r.IsSmi() || r.IsDouble()) break;
 
@@ -1642,7 +1642,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           }
           break;
         }
-        case IN_DESCRIPTOR:
+        case kDescriptor:
           SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                              descs->GetKey(i),
                                              descs->GetValue(i));
@@ -2031,7 +2031,7 @@ void V8HeapExplorer::SetDataOrAccessorPropertyReference(
     PropertyKind kind, JSObject* parent_obj, int parent_entry,
     Name* reference_name, Object* child_obj, const char* name_format_string,
     int field_offset) {
-  if (kind == ACCESSOR) {
+  if (kind == kAccessor) {
     ExtractAccessorPairProperty(parent_obj, parent_entry, reference_name,
                                 child_obj, field_offset);
   } else {

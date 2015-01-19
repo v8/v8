@@ -5543,7 +5543,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     int limit = boilerplate->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
-      if (details.type() != FIELD) continue;
+      if (details.type() != DATA) continue;
       if ((*max_properties)-- == 0) return false;
       FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
       if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
@@ -5662,7 +5662,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               PropertyAccessInfo info(this, STORE, ToType(map), name);
               if (info.CanAccessMonomorphic()) {
                 HValue* checked_literal = Add<HCheckMaps>(literal, map);
-                DCHECK(!info.IsAccessor());
+                DCHECK(!info.IsAccessorConstant());
                 store = BuildMonomorphicAccess(
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
@@ -5974,17 +5974,17 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
   // chain.
   if (info->has_holder()) return false;
 
-  if (IsAccessor()) {
+  if (IsAccessorConstant()) {
     return accessor_.is_identical_to(info->accessor_) &&
         api_holder_.is_identical_to(info->api_holder_);
   }
 
-  if (IsConstant()) {
+  if (IsDataConstant()) {
     return constant_.is_identical_to(info->constant_);
   }
 
-  DCHECK(IsField());
-  if (!info->IsField()) return false;
+  DCHECK(IsData());
+  if (!info->IsData()) return false;
 
   Representation r = access_.representation();
   if (IsLoad()) {
@@ -6031,14 +6031,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     return false;
   }
 
-  if (IsField()) {
+  if (IsData()) {
     // Construct the object field access.
     int index = GetLocalFieldIndexFromMap(map);
     access_ = HObjectAccess::ForField(map, index, representation(), name_);
 
     // Load field map for heap objects.
     LoadFieldMaps(map);
-  } else if (IsAccessor()) {
+  } else if (IsAccessorConstant()) {
     Handle<Object> accessors = GetAccessorsFromMap(map);
     if (!accessors->IsAccessorPair()) return false;
     Object* raw_accessor =
@@ -6056,7 +6056,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
       }
     }
     accessor_ = accessor;
-  } else if (IsConstant()) {
+  } else if (IsDataConstant()) {
     constant_ = GetConstantFromMap(map);
   }
 
@@ -6135,10 +6135,10 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!LookupInPrototypes()) return false;
   if (IsLoad()) return true;
 
-  if (IsAccessor()) return true;
+  if (IsAccessorConstant()) return true;
   Handle<Map> map = this->map();
   map->LookupTransition(NULL, *name_, NONE, &lookup_);
-  if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
+  if (lookup_.IsTransitionToData() && map->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();
     int index =
@@ -6242,7 +6242,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     return graph()->GetConstantUndefined();
   }
 
-  if (info->IsField()) {
+  if (info->IsData()) {
     if (info->IsLoad()) {
       return BuildLoadNamedField(info, checked_holder);
     } else {
@@ -6255,7 +6255,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     return BuildStoreNamedField(info, checked_object, value);
   }
 
-  if (info->IsAccessor()) {
+  if (info->IsAccessorConstant()) {
     Push(checked_object);
     int argument_count = 1;
     if (!info->IsLoad()) {
@@ -6279,7 +6279,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     return BuildCallConstantFunction(info->accessor(), argument_count);
   }
 
-  DCHECK(info->IsConstant());
+  DCHECK(info->IsDataConstant());
   if (info->IsLoad()) {
     return New<HConstant>(info->constant());
   } else {
@@ -7615,7 +7615,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   for (i = 0; i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
-    if (info.CanAccessMonomorphic() && info.IsConstant() &&
+    if (info.CanAccessMonomorphic() && info.IsDataConstant() &&
         info.constant()->IsJSFunction()) {
       if (info.type()->Is(Type::String())) {
         if (handled_string) continue;
@@ -11250,7 +11250,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
   int copied_fields = 0;
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != FIELD) continue;
+    if (details.type() != DATA) continue;
     copied_fields++;
     FieldIndex field_index = FieldIndex::ForDescriptor(*boilerplate_map, i);
 

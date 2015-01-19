@@ -58,7 +58,7 @@ PropertyDetails PropertyDetails::AsDeleted() const {
 
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK(type() == FIELD);
+  DCHECK(type() == DATA);
   if (!FLAG_unbox_double_fields) return 1;
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
@@ -1879,7 +1879,7 @@ Handle<String> Map::ExpectedTransitionKey(Handle<Map> map) {
   int transition = TransitionArray::kSimpleTransitionIndex;
   PropertyDetails details = transitions->GetTargetDetails(transition);
   Name* name = transitions->GetKey(transition);
-  if (details.type() != FIELD) return Handle<String>::null();
+  if (details.type() != DATA) return Handle<String>::null();
   if (details.attributes() != NONE) return Handle<String>::null();
   if (!name->IsString()) return Handle<String>::null();
   return Handle<String>(String::cast(name));
@@ -1897,10 +1897,10 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
-  int transition = transitions->Search(DATA, *key, NONE);
+  int transition = transitions->Search(kData, *key, NONE);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
   PropertyDetails details = transitions->GetTargetDetails(transition);
-  if (details.type() != FIELD) return Handle<Map>::null();
+  if (details.type() != DATA) return Handle<Map>::null();
   DCHECK_EQ(NONE, details.attributes());
   return Handle<Map>(transitions->GetTarget(transition));
 }
@@ -3038,7 +3038,7 @@ void Map::LookupDescriptor(JSObject* holder,
 void Map::LookupTransition(JSObject* holder, Name* name,
                            PropertyAttributes attributes,
                            LookupResult* result) {
-  int transition_index = this->SearchTransition(DATA, name, attributes);
+  int transition_index = this->SearchTransition(kData, name, attributes);
   if (transition_index == TransitionArray::kNotFound) return result->NotFound();
   result->TransitionResult(holder, this->GetTransition(transition_index));
 }
@@ -3147,13 +3147,13 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == FIELD);
+  DCHECK(GetDetails(descriptor_number).type() == DATA);
   return GetDetails(descriptor_number).field_index();
 }
 
 
 HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == FIELD);
+  DCHECK(GetDetails(descriptor_number).type() == DATA);
   return HeapType::cast(GetValue(descriptor_number));
 }
 
@@ -3164,13 +3164,13 @@ Object* DescriptorArray::GetConstant(int descriptor_number) {
 
 
 Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == CALLBACKS);
+  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
   return GetValue(descriptor_number);
 }
 
 
 AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == CALLBACKS);
+  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
   Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
   return reinterpret_cast<AccessorDescriptor*>(p->foreign_address());
 }
@@ -4693,7 +4693,7 @@ bool Map::CanBeDeprecated() {
     if (details.representation().IsSmi()) return true;
     if (details.representation().IsDouble()) return true;
     if (details.representation().IsHeapObject()) return true;
-    if (details.type() == CONSTANT) return true;
+    if (details.type() == DATA_CONSTANT) return true;
   }
   return false;
 }
@@ -5313,7 +5313,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
   PropertyDetails details = desc->GetDetails();
-  CHECK(details.type() != FIELD || !details.representation().IsDouble());
+  CHECK(details.type() != DATA || !details.representation().IsDouble());
 #endif
 }
 

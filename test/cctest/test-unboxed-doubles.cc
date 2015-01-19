@@ -67,11 +67,11 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     TestPropertyKind kind = props[i];
 
     if (kind == PROP_CONSTANT) {
-      ConstantDescriptor d(name, func, NONE);
+      DataConstantDescriptor d(name, func, NONE);
       descriptors->Append(&d);
 
     } else {
-      FieldDescriptor f(name, next_field_offset, NONE, representations[kind]);
+      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
       next_field_offset += f.GetDetails().field_width_in_words();
       descriptors->Append(&f);
     }
@@ -541,7 +541,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(layout_descriptor->IsSlowLayout());
     for (int i = 0; i < inobject_properties; i++) {
-      // PROP_DOUBLE has index 1 among FIELD properties.
+      // PROP_DOUBLE has index 1 among DATA properties.
       const bool tagged = (i % (PROP_KIND_NUMBER - 1)) != 1;
       CHECK_EQ(tagged, layout_descriptor->IsTagged(i));
     }
@@ -600,12 +600,12 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Handle<LayoutDescriptor> layout_descriptor;
     TestPropertyKind kind = props[i];
     if (kind == PROP_CONSTANT) {
-      ConstantDescriptor d(name, func, NONE);
+      DataConstantDescriptor d(name, func, NONE);
       layout_descriptor = LayoutDescriptor::Append(map, d.GetDetails());
       descriptors->Append(&d);
 
     } else {
-      FieldDescriptor f(name, next_field_offset, NONE, representations[kind]);
+      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
       int field_width_in_words = f.GetDetails().field_width_in_words();
       next_field_offset += field_width_in_words;
       layout_descriptor = LayoutDescriptor::Append(map, f.GetDetails());
@@ -736,7 +736,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
       CHECK_EQ(*full_layout_descriptor, layout_desc);
     } else {
       CHECK(!switched_to_slow_mode);
-      if (details.type() == FIELD) {
+      if (details.type() == DATA) {
         nof++;
         int field_index = details.field_index();
         int field_width_in_words = details.field_width_in_words();
@@ -971,7 +971,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
   int first_non_tagged_field_offset = end_offset;
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != FIELD) continue;
+    if (details.type() != DATA) continue;
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (!index.is_inobject()) continue;
     all_fields_tagged &= !details.representation().IsDouble();

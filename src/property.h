@@ -73,40 +73,33 @@ class Descriptor BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 
 
-class FieldDescriptor FINAL : public Descriptor {
+class DataDescriptor FINAL : public Descriptor {
  public:
-  FieldDescriptor(Handle<Name> key,
-                  int field_index,
-                  PropertyAttributes attributes,
-                  Representation representation)
-      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes,
-                   FIELD, representation, field_index) {}
-  FieldDescriptor(Handle<Name> key,
-                  int field_index,
-                  Handle<HeapType> field_type,
-                  PropertyAttributes attributes,
-                  Representation representation)
-      : Descriptor(key, field_type, attributes, FIELD,
-                   representation, field_index) { }
+  DataDescriptor(Handle<Name> key, int field_index,
+                 PropertyAttributes attributes, Representation representation)
+      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes, DATA,
+                   representation, field_index) {}
+  DataDescriptor(Handle<Name> key, int field_index, Handle<HeapType> field_type,
+                 PropertyAttributes attributes, Representation representation)
+      : Descriptor(key, field_type, attributes, DATA, representation,
+                   field_index) {}
 };
 
 
-class ConstantDescriptor FINAL : public Descriptor {
+class DataConstantDescriptor FINAL : public Descriptor {
  public:
-  ConstantDescriptor(Handle<Name> key,
-                     Handle<Object> value,
-                     PropertyAttributes attributes)
-      : Descriptor(key, value, attributes, CONSTANT,
+  DataConstantDescriptor(Handle<Name> key, Handle<Object> value,
+                         PropertyAttributes attributes)
+      : Descriptor(key, value, attributes, DATA_CONSTANT,
                    value->OptimalRepresentation()) {}
 };
 
 
-class CallbacksDescriptor FINAL : public Descriptor {
+class AccessorConstantDescriptor FINAL : public Descriptor {
  public:
-  CallbacksDescriptor(Handle<Name> key,
-                      Handle<Object> foreign,
-                      PropertyAttributes attributes)
-      : Descriptor(key, foreign, attributes, CALLBACKS,
+  AccessorConstantDescriptor(Handle<Name> key, Handle<Object> foreign,
+                             PropertyAttributes attributes)
+      : Descriptor(key, foreign, attributes, ACCESSOR_CONSTANT,
                    Representation::Tagged()) {}
 };
 
@@ -119,7 +112,7 @@ class LookupResult FINAL BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         transition_(NULL),
-        details_(NONE, FIELD, Representation::None()) {
+        details_(NONE, DATA, Representation::None()) {
     isolate->set_top_lookup_result(this);
   }
 
@@ -148,7 +141,7 @@ class LookupResult FINAL BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, FIELD, 0);
+    details_ = PropertyDetails(NONE, DATA, 0);
     holder_ = NULL;
     transition_ = NULL;
   }
@@ -159,8 +152,8 @@ class LookupResult FINAL BASE_EMBEDDED {
   }
 
   // Property callbacks does not include transitions to callbacks.
-  bool IsPropertyCallbacks() const {
-    return !IsTransition() && details_.type() == CALLBACKS;
+  bool IsAccessorConstant() const {
+    return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
   }
 
   bool IsReadOnly() const {
@@ -168,12 +161,12 @@ class LookupResult FINAL BASE_EMBEDDED {
     return details_.IsReadOnly();
   }
 
-  bool IsField() const {
-    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == FIELD;
+  bool IsData() const {
+    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
   }
 
-  bool IsConstant() const {
-    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == CONSTANT;
+  bool IsDataConstant() const {
+    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA_CONSTANT;
   }
 
   bool IsConfigurable() const { return details_.IsConfigurable(); }
@@ -190,8 +183,8 @@ class LookupResult FINAL BASE_EMBEDDED {
     return transition_;
   }
 
-  bool IsTransitionToField() const {
-    return IsTransition() && details_.type() == FIELD;
+  bool IsTransitionToData() const {
+    return IsTransition() && details_.type() == DATA;
   }
 
   int GetLocalFieldIndexFromMap(Map* map) const {
@@ -199,7 +192,7 @@ class LookupResult FINAL BASE_EMBEDDED {
   }
 
   Object* GetConstantFromMap(Map* map) const {
-    DCHECK(details_.type() == CONSTANT);
+    DCHECK(details_.type() == DATA_CONSTANT);
     return GetValueFromMap(map);
   }
 

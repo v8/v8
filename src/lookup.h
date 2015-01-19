@@ -46,7 +46,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_details_(NONE, FIELD, 0),
+        property_details_(NONE, v8::internal::DATA, 0),
         isolate_(name->GetIsolate()),
         name_(name),
         receiver_(receiver),
@@ -61,7 +61,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_details_(NONE, FIELD, 0),
+        property_details_(NONE, v8::internal::DATA, 0),
         isolate_(name->GetIsolate()),
         name_(name),
         holder_map_(holder->map(), isolate_),
