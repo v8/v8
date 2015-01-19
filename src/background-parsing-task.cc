@@ -25,6 +25,11 @@ BackgroundParsingTask::BackgroundParsingTask(
          options == ScriptCompiler::kNoCompileOptions);
   source->allow_lazy =
       !i::Compiler::DebuggerWantsEagerCompilation(source->info.get());
+
+  if (!source->allow_lazy && options_ == ScriptCompiler::kProduceParserCache) {
+    // Producing cached data while parsing eagerly is not supported.
+    options_ = ScriptCompiler::kNoCompileOptions;
+  }
   source->hash_seed = isolate->heap()->HashSeed();
 }
 
