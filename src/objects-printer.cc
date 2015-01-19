@@ -941,14 +941,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void SignatureInfo::SignatureInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "SignatureInfo");
-  os << "\n - receiver: " << Brief(receiver());
-  os << "\n - args: " << Brief(args());
-  os << "\n";
-}
-
-
 void TypeSwitchInfo::TypeSwitchInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeSwitchInfo");
   os << "\n - types: " << Brief(types());

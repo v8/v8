@@ -5540,9 +5540,6 @@ ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
           kInternalFieldCountOffset)
 
-ACCESSORS(SignatureInfo, receiver, Object, kReceiverOffset)
-ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
-
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)

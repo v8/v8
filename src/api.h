@@ -139,7 +139,7 @@ class RegisteredExtension {
   V(Template, TemplateInfo)                  \
   V(FunctionTemplate, FunctionTemplateInfo)  \
   V(ObjectTemplate, ObjectTemplateInfo)      \
-  V(Signature, SignatureInfo)                \
+  V(Signature, FunctionTemplateInfo)         \
   V(AccessorSignature, FunctionTemplateInfo) \
   V(TypeSwitch, TypeSwitchInfo)              \
   V(Data, Object)                            \
@@ -247,8 +247,8 @@ class Utils {
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<ObjectTemplate> ToLocal(
       v8::internal::Handle<v8::internal::ObjectTemplateInfo> obj);
-  static inline Local<Signature> ToLocal(
-      v8::internal::Handle<v8::internal::SignatureInfo> obj);
+  static inline Local<Signature> SignatureToLocal(
+      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<AccessorSignature> AccessorSignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<TypeSwitch> ToLocal(
@@ -350,7 +350,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
-MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
+MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(ToLocal, TypeSwitchInfo, TypeSwitch)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
