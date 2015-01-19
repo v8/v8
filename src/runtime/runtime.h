@@ -73,6 +73,7 @@ namespace internal {
   F(CompileForOnStackReplacement, 1, 1)                    \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)              \
   F(SetNativeFlag, 1, 1)                                   \
+  F(IsConstructor, 1, 1)                                   \
   F(SetInlineBuiltinFlag, 1, 1)                            \
   F(StoreArrayLiteralElement, 5, 1)                        \
   F(DebugPrepareStepInIfStepping, 1, 1)                    \
