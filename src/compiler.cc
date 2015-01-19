@@ -345,7 +345,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(!info()->IsCompilingForDebugging());
 
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
-  if (isolate()->DebuggerHasBreakPoints()) {
+  if (isolate()->debug()->has_break_points()) {
     return RetryOptimization(kDebuggerHasBreakPoints);
   }
 
@@ -967,8 +967,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCodeCommon(&info),
                              Code);
 
-  if (FLAG_always_opt && isolate->use_crankshaft() &&
-      !isolate->DebuggerHasBreakPoints()) {
+  if (FLAG_always_opt && isolate->use_crankshaft()) {
     Handle<Code> opt_code;
     if (Compiler::GetOptimizedCode(
             function, result,
@@ -1520,7 +1519,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
       job->RetryOptimization(kOptimizationDisabled);
     } else if (info->HasAbortedDueToDependencyChange()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
-    } else if (isolate->DebuggerHasBreakPoints()) {
+    } else if (isolate->debug()->has_break_points()) {
       job->RetryOptimization(kDebuggerHasBreakPoints);
     } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);

@@ -1361,8 +1361,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 static bool ShouldOptimizeNewClosure(Isolate* isolate,
                                      Handle<SharedFunctionInfo> info) {
   return isolate->use_crankshaft() && !info->is_toplevel() &&
-         info->is_compiled() && info->allows_lazy_compilation() &&
-         !isolate->DebuggerHasBreakPoints();
+         info->is_compiled() && info->allows_lazy_compilation();
 }
 
 

@@ -50,16 +50,13 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   DCHECK(isolate->use_crankshaft());
 
   Handle<Code> unoptimized(function->shared()->code());
-  if (function->shared()->optimization_disabled() ||
-      isolate->DebuggerHasBreakPoints()) {
-    // If the function is not optimizable or debugger is active continue
-    // using the code from the full compiler.
+  if (function->shared()->optimization_disabled()) {
+    // If the function is not optimizable continue using the code from the full
+    // compiler.
     if (FLAG_trace_opt) {
-      PrintF("[failed to optimize ");
-      function->PrintName();
-      PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
-             function->shared()->optimization_disabled() ? "F" : "T",
-             isolate->DebuggerHasBreakPoints() ? "T" : "F");
+      OFStream os(stdout);
+      os << "[failed to optimize " << Brief(*function)
+         << ", code is not optimizable]" << std::endl;
     }
     function->ReplaceCode(*unoptimized);
     return function->code();

@@ -9461,7 +9461,7 @@ void JSFunction::AttemptConcurrentOptimization() {
   }
   DCHECK(isolate->use_crankshaft());
   DCHECK(!IsInOptimizationQueue());
-  DCHECK(is_compiled() || isolate->DebuggerHasBreakPoints());
+  DCHECK(is_compiled() || isolate->debug()->has_break_points());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
   DCHECK(isolate->concurrent_recompilation_enabled());
