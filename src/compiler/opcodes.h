@@ -24,14 +24,14 @@
   V(Start)                 \
   V(End)
 
-// Opcodes for common operators.
-#define LEAF_OP_LIST(V) \
-  V(Int32Constant)      \
-  V(Int64Constant)      \
-  V(Float32Constant)    \
-  V(Float64Constant)    \
-  V(ExternalConstant)   \
-  V(NumberConstant)     \
+// Opcodes for constant operators.
+#define CONSTANT_OP_LIST(V) \
+  V(Int32Constant)          \
+  V(Int64Constant)          \
+  V(Float32Constant)        \
+  V(Float64Constant)        \
+  V(ExternalConstant)       \
+  V(NumberConstant)         \
   V(HeapConstant)
 
 #define INNER_OP_LIST(V) \
@@ -48,7 +48,7 @@
   V(Projection)
 
 #define COMMON_OP_LIST(V) \
-  LEAF_OP_LIST(V)         \
+  CONSTANT_OP_LIST(V)     \
   INNER_OP_LIST(V)
 
 // Opcodes for JavaScript operators.
@@ -290,8 +290,8 @@ class IrOpcode {
     return kJSEqual <= value && value <= kJSDebugger;
   }
 
-  // Returns true if opcode for leaf operator.
-  static bool IsLeafOpcode(Value value) {
+  // Returns true if opcode for constant operator.
+  static bool IsConstantOpcode(Value value) {
     return kInt32Constant <= value && value <= kHeapConstant;
   }
 };

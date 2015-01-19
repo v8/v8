@@ -51,12 +51,12 @@ bool IsJsOpcode(IrOpcode::Value opcode) {
 }
 
 
-bool IsLeafOpcode(IrOpcode::Value opcode) {
+bool IsConstantOpcode(IrOpcode::Value opcode) {
   switch (opcode) {
 #define OPCODE(Opcode)      \
   case IrOpcode::k##Opcode: \
     return true;
-    LEAF_OP_LIST(OPCODE)
+    CONSTANT_OP_LIST(OPCODE)
 #undef OPCODE
     default:
       return false;
@@ -99,11 +99,11 @@ TEST(IrOpcodeTest, IsJsOpcode) {
 }
 
 
-TEST(IrOpcodeTest, IsLeafOpcode) {
-  EXPECT_FALSE(IrOpcode::IsLeafOpcode(kInvalidOpcode));
-#define OPCODE(Opcode)                         \
-  EXPECT_EQ(IsLeafOpcode(IrOpcode::k##Opcode), \
-            IrOpcode::IsLeafOpcode(IrOpcode::k##Opcode));
+TEST(IrOpcodeTest, IsConstantOpcode) {
+  EXPECT_FALSE(IrOpcode::IsConstantOpcode(kInvalidOpcode));
+#define OPCODE(Opcode)                             \
+  EXPECT_EQ(IsConstantOpcode(IrOpcode::k##Opcode), \
+            IrOpcode::IsConstantOpcode(IrOpcode::k##Opcode));
   ALL_OP_LIST(OPCODE)
 #undef OPCODE
 }
