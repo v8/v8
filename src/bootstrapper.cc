@@ -2164,7 +2164,9 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef VERIFY_HEAP
-  builtins->ObjectVerify();
+  if (FLAG_verify_heap) {
+    builtins->ObjectVerify();
+  }
 #endif
 
   return true;

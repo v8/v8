@@ -109,7 +109,9 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   }
 
 #ifdef VERIFY_HEAP
-  value->ObjectVerify();
+  if (FLAG_verify_heap) {
+    value->ObjectVerify();
+  }
 #endif
 
   // Update the pending exception flag and return the value.

@@ -409,7 +409,9 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
-  (*obj)->ObjectVerify();
+  if (i::FLAG_verify_heap) {
+    (*obj)->ObjectVerify();
+  }
 #endif  // VERIFY_HEAP
   return result.location();
 }
@@ -418,7 +420,9 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 i::Object** V8::CopyPersistent(i::Object** obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
 #ifdef VERIFY_HEAP
-  (*obj)->ObjectVerify();
+  if (i::FLAG_verify_heap) {
+    (*obj)->ObjectVerify();
+  }
 #endif  // VERIFY_HEAP
   return result.location();
 }

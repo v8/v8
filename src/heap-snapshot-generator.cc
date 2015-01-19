@@ -2551,13 +2551,17 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
-  debug_heap->Verify();
+  if (FLAG_verify_heap) {
+    debug_heap->Verify();
+  }
 #endif
 
   SetProgressTotal(2);  // 2 passes.
 
 #ifdef VERIFY_HEAP
-  debug_heap->Verify();
+  if (FLAG_verify_heap) {
+    debug_heap->Verify();
+  }
 #endif
 
   snapshot_->AddSyntheticRootEntries();
