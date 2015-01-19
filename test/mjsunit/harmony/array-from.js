@@ -118,6 +118,7 @@ testArrayFrom({}, Array);
 testArrayFrom(Object, Object);
 testArrayFrom(Other, Other);
 testArrayFrom(Math.cos, Array);
-testArrayFrom(boundFn, Array);
+testArrayFrom(Math.cos.bind(Math), Array);
+testArrayFrom(boundFn, boundFn);
 
 })();

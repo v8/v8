@@ -146,6 +146,7 @@ class LoopFinderTester : HandleAndZoneScope {
     }
 
     CHECK_EQ(body_count, static_cast<int>(loop->BodySize()));
+    // TODO(turbofan): O(n^2) set equivalence in this test.
     for (int i = 0; i < body_count; i++) {
       // Each body node should be contained in the loop.
       CHECK(tree->Contains(loop, body[i]));
@@ -154,7 +155,6 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   void CheckRangeContains(NodeRange range, Node* node) {
-    // O(n) ftw.
     CHECK_NE(range.end(), std::find(range.begin(), range.end(), node));
   }
 
@@ -178,6 +178,8 @@ class LoopFinderTester : HandleAndZoneScope {
       }
     }
   }
+
+  Zone* zone() { return main_zone(); }
 };
 
 
@@ -839,7 +841,7 @@ void RunEdgeMatrix3(int c1a, int c1b, int c1c,    // line break
 
 
 // Runs all combinations with a fixed {i}.
-void RunEdgeMatrix3_i(int i) {
+static void RunEdgeMatrix3_i(int i) {
   for (int a = 0; a < 1; a++) {
     for (int b = 0; b < 1; b++) {
       for (int c = 0; c < 4; c++) {
@@ -877,3 +879,99 @@ TEST(LaEdgeMatrix3_4) { RunEdgeMatrix3_i(4); }
 
 
 TEST(LaEdgeMatrix3_5) { RunEdgeMatrix3_i(5); }
+
+
+static void RunManyChainedLoops_i(int count) {
+  LoopFinderTester t;
+  Node** nodes = t.zone()->NewArray<Node*>(count * 4);
+  Node* k11 = t.jsgraph.Int32Constant(11);
+  Node* k12 = t.jsgraph.Int32Constant(12);
+  Node* last = t.start;
+
+  // Build loops.
+  for (int i = 0; i < count; i++) {
+    Node* loop = t.graph.NewNode(t.common.Loop(2), last, t.start);
+    Node* phi = t.graph.NewNode(t.common.Phi(kMachInt32, 2), k11, k12, loop);
+    Node* branch = t.graph.NewNode(t.common.Branch(), phi, loop);
+    Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
+    Node* exit = t.graph.NewNode(t.common.IfFalse(), branch);
+    loop->ReplaceInput(1, if_true);
+
+    nodes[i * 4 + 0] = loop;
+    nodes[i * 4 + 1] = phi;
+    nodes[i * 4 + 2] = branch;
+    nodes[i * 4 + 3] = if_true;
+
+    last = exit;
+  }
+
+  Node* ret = t.graph.NewNode(t.common.Return(), t.p0, t.start, last);
+  t.graph.SetEnd(ret);
+
+  // Verify loops.
+  for (int i = 0; i < count; i++) {
+    t.CheckLoop(nodes + i * 4, 2, nodes + i * 4 + 2, 2);
+  }
+}
+
+
+static void RunManyNestedLoops_i(int count) {
+  LoopFinderTester t;
+  Node** nodes = t.zone()->NewArray<Node*>(count * 5);
+  Node* k11 = t.jsgraph.Int32Constant(11);
+  Node* k12 = t.jsgraph.Int32Constant(12);
+  Node* outer = nullptr;
+  Node* entry = t.start;
+
+  // Build loops.
+  for (int i = 0; i < count; i++) {
+    Node* loop = t.graph.NewNode(t.common.Loop(2), entry, t.start);
+    Node* phi = t.graph.NewNode(t.common.Phi(kMachInt32, 2), k11, k12, loop);
+    Node* branch = t.graph.NewNode(t.common.Branch(), phi, loop);
+    Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
+    Node* exit = t.graph.NewNode(t.common.IfFalse(), branch);
+
+    nodes[i * 5 + 0] = exit;     // outside
+    nodes[i * 5 + 1] = loop;     // header
+    nodes[i * 5 + 2] = phi;      // header
+    nodes[i * 5 + 3] = branch;   // body
+    nodes[i * 5 + 4] = if_true;  // body
+
+    if (outer != nullptr) {
+      // inner loop.
+      outer->ReplaceInput(1, exit);
+    } else {
+      // outer loop.
+      Node* ret = t.graph.NewNode(t.common.Return(), t.p0, t.start, exit);
+      t.graph.SetEnd(ret);
+    }
+    outer = loop;
+    entry = if_true;
+  }
+  outer->ReplaceInput(1, entry);  // innermost loop.
+
+  // Verify loops.
+  for (int i = 0; i < count; i++) {
+    int k = i * 5;
+    t.CheckLoop(nodes + k + 1, 2, nodes + k + 3, count * 5 - k - 3);
+  }
+}
+
+
+TEST(LaManyChained_30) { RunManyChainedLoops_i(30); }
+TEST(LaManyChained_31) { RunManyChainedLoops_i(31); }
+TEST(LaManyChained_32) { RunManyChainedLoops_i(32); }
+TEST(LaManyChained_33) { RunManyChainedLoops_i(33); }
+TEST(LaManyChained_34) { RunManyChainedLoops_i(34); }
+TEST(LaManyChained_62) { RunManyChainedLoops_i(62); }
+TEST(LaManyChained_63) { RunManyChainedLoops_i(63); }
+TEST(LaManyChained_64) { RunManyChainedLoops_i(64); }
+
+TEST(LaManyNested_30) { RunManyNestedLoops_i(30); }
+TEST(LaManyNested_31) { RunManyNestedLoops_i(31); }
+TEST(LaManyNested_32) { RunManyNestedLoops_i(32); }
+TEST(LaManyNested_33) { RunManyNestedLoops_i(33); }
+TEST(LaManyNested_34) { RunManyNestedLoops_i(34); }
+TEST(LaManyNested_62) { RunManyNestedLoops_i(62); }
+TEST(LaManyNested_63) { RunManyNestedLoops_i(63); }
+TEST(LaManyNested_64) { RunManyNestedLoops_i(64); }

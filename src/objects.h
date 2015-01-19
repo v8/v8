@@ -140,7 +140,6 @@
 //         - FunctionTemplateInfo
 //         - ObjectTemplateInfo
 //       - Script
-//       - SignatureInfo
 //       - TypeSwitchInfo
 //       - DebugInfo
 //       - BreakPointInfo
@@ -527,7 +526,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                     \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)      \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)            \
-  V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                          \
@@ -10681,26 +10679,6 @@ class ObjectTemplateInfo: public TemplateInfo {
   static const int kInternalFieldCountOffset =
       kConstructorOffset + kPointerSize;
   static const int kSize = kInternalFieldCountOffset + kPointerSize;
-};
-
-
-class SignatureInfo: public Struct {
- public:
-  DECL_ACCESSORS(receiver, Object)
-  DECL_ACCESSORS(args, Object)
-
-  DECLARE_CAST(SignatureInfo)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(SignatureInfo)
-  DECLARE_VERIFIER(SignatureInfo)
-
-  static const int kReceiverOffset = Struct::kHeaderSize;
-  static const int kArgsOffset     = kReceiverOffset + kPointerSize;
-  static const int kSize           = kArgsOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SignatureInfo);
 };
 
 

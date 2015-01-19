@@ -24422,6 +24422,45 @@ TEST(StreamingProducesParserCache) {
 }
 
 
+TEST(StreamingWithDebuggingDoesNotProduceParserCache) {
+  // If the debugger is active, we should just not produce parser cache at
+  // all. This is a regeression test: We used to produce a parser cache without
+  // any data in it (just headers).
+  i::FLAG_min_preparse_length = 0;
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+                          NULL};
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Make the debugger active by setting a breakpoint.
+  CompileRun("function break_here() { }");
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*env->Global()->Get(v8_str("break_here"))));
+  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+  int position = 0;
+  debug->SetBreakPoint(func, i::Handle<i::Object>(v8::internal::Smi::FromInt(1),
+                                                  CcTest::i_isolate()),
+                       &position);
+
+  v8::ScriptCompiler::StreamedSource source(
+      new TestSourceStream(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(
+          isolate, &source, v8::ScriptCompiler::kProduceParserCache);
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
+  // task here in the main thread.
+  task->Run();
+  delete task;
+
+  // Check that we got no cached data.
+  CHECK(source.GetCachedData() == NULL);
+}
+
+
 TEST(StreamingScriptWithInvalidUtf8) {
   // Regression test for a crash: test that invalid UTF-8 bytes in the end of a
   // chunk don't produce a crash.

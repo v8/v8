@@ -149,7 +149,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   var nextValue;
 
   if (!IS_UNDEFINED(iterable)) {
-    result = IS_SPEC_FUNCTION(this) && this.prototype ? new this() : [];
+    result = %IsConstructor(this) ? new this() : [];
 
     k = 0;
     for (nextValue of items) {
@@ -162,8 +162,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     return result;
   } else {
     var len = ToLength(items.length);
-    result = IS_SPEC_FUNCTION(this) && this.prototype ? new this(len) :
-        new $Array(len);
+    result = %IsConstructor(this) ? new this(len) : new $Array(len);
 
     for (k = 0; k < len; ++k) {
       nextValue = items[k];
@@ -182,7 +181,7 @@ function ArrayOf() {
   var length = %_ArgumentsLength();
   var constructor = this;
   // TODO: Implement IsConstructor (ES6 section 7.2.5)
-  var array = IS_SPEC_FUNCTION(constructor) ? new constructor(length) : [];
+  var array = %IsConstructor(constructor) ? new constructor(length) : [];
   for (var i = 0; i < length; i++) {
     %AddElement(array, i, %_Arguments(i), NONE);
   }

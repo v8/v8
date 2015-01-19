@@ -92,19 +92,11 @@ void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
 
   // Require a C++ callback.
   if (info->call_code()->IsUndefined()) return;
-  api_call_info_ =
-      Handle<CallHandlerInfo>(CallHandlerInfo::cast(info->call_code()));
+  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()));
 
-  // Accept signatures that either have no restrictions at all or
-  // only have restrictions on the receiver.
   if (!info->signature()->IsUndefined()) {
-    Handle<SignatureInfo> signature =
-        Handle<SignatureInfo>(SignatureInfo::cast(info->signature()));
-    if (!signature->args()->IsUndefined()) return;
-    if (!signature->receiver()->IsUndefined()) {
-      expected_receiver_type_ = Handle<FunctionTemplateInfo>(
-          FunctionTemplateInfo::cast(signature->receiver()));
-    }
+    expected_receiver_type_ =
+        handle(FunctionTemplateInfo::cast(info->signature()));
   }
 
   is_simple_api_call_ = true;

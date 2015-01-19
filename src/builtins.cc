@@ -1045,37 +1045,17 @@ static inline Object* FindHidden(Heap* heap,
 // overwritten with undefined.  Note that holder and the arguments are
 // implicitly rewritten with the first object in the hidden prototype
 // chain that actually has the expected type.
-static inline Object* TypeCheck(Heap* heap,
-                                int argc,
-                                Object** argv,
+static inline Object* TypeCheck(Heap* heap, Object* recv,
                                 FunctionTemplateInfo* info) {
-  Object* recv = argv[0];
   // API calls are only supported with JSObject receivers.
   if (!recv->IsJSObject()) return heap->null_value();
-  Object* sig_obj = info->signature();
-  if (sig_obj->IsUndefined()) return recv;
-  SignatureInfo* sig = SignatureInfo::cast(sig_obj);
+  Object* recv_type = info->signature();
+  if (recv_type->IsUndefined()) return recv;
   // If necessary, check the receiver
-  Object* recv_type = sig->receiver();
   Object* holder = recv;
   if (!recv_type->IsUndefined()) {
     holder = FindHidden(heap, holder, FunctionTemplateInfo::cast(recv_type));
     if (holder == heap->null_value()) return heap->null_value();
-  }
-  Object* args_obj = sig->args();
-  // If there is no argument signature we're done
-  if (args_obj->IsUndefined()) return holder;
-  FixedArray* args = FixedArray::cast(args_obj);
-  int length = args->length();
-  if (argc <= length) length = argc - 1;
-  for (int i = 0; i < length; i++) {
-    Object* argtype = args->get(i);
-    if (argtype->IsUndefined()) continue;
-    Object** arg = &argv[-1 - i];
-    Object* current = *arg;
-    current = FindHidden(heap, current, FunctionTemplateInfo::cast(argtype));
-    if (current == heap->null_value()) current = heap->undefined_value();
-    *arg = current;
   }
   return holder;
 }
@@ -1101,14 +1081,10 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
             fun_data, Handle<JSObject>::cast(args.receiver())));
   }
 
-  SharedFunctionInfo* shared = function->shared();
-  if (shared->strict_mode() == SLOPPY && !shared->native()) {
-    Object* recv = args[0];
-    DCHECK(!recv->IsNull());
-    if (recv->IsUndefined()) args[0] = function->global_proxy();
-  }
+  DCHECK(!args[0]->IsNull());
+  if (args[0]->IsUndefined()) args[0] = function->global_proxy();
 
-  Object* raw_holder = TypeCheck(heap, args.length(), &args[0], *fun_data);
+  Object* raw_holder = TypeCheck(heap, args[0], *fun_data);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!

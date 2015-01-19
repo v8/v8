@@ -25,7 +25,7 @@ class LoopTree : public ZoneObject {
       : zone_(zone),
         outer_loops_(zone),
         all_loops_(zone),
-        node_to_loop_num_(static_cast<int>(num_nodes), 0, zone),
+        node_to_loop_num_(static_cast<int>(num_nodes), -1, zone),
         loop_nodes_(zone) {}
 
   // Represents a loop in the tree of loops, including the header nodes,
@@ -61,7 +61,7 @@ class LoopTree : public ZoneObject {
   Loop* ContainingLoop(Node* node) {
     if (node->id() >= static_cast<int>(node_to_loop_num_.size()))
       return nullptr;
-    uint8_t num = node_to_loop_num_[node->id()];
+    int num = node_to_loop_num_[node->id()];
     return num > 0 ? &all_loops_[num - 1] : nullptr;
   }
 
@@ -116,8 +116,7 @@ class LoopTree : public ZoneObject {
   Zone* zone_;
   ZoneVector<Loop*> outer_loops_;
   ZoneVector<Loop> all_loops_;
-  // TODO(titzer): lift loop count restriction.
-  ZoneVector<uint8_t> node_to_loop_num_;
+  ZoneVector<int> node_to_loop_num_;
   ZoneVector<Node*> loop_nodes_;
 };
 

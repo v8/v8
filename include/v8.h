@@ -4103,11 +4103,6 @@ class V8_EXPORT ObjectTemplate : public Template {
  */
 class V8_EXPORT Signature : public Data {
  public:
-  V8_DEPRECATED("An embedder needs to check the arguments itself",
-                static Local<Signature> New(
-                    Isolate* isolate, Handle<FunctionTemplate> receiver,
-                    int argc, Handle<FunctionTemplate> argv[] = 0));
-
   static Local<Signature> New(
       Isolate* isolate,
       Handle<FunctionTemplate> receiver = Handle<FunctionTemplate>());

@@ -17,7 +17,7 @@ OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 OFStreamBase::~OFStreamBase() {}
 
 
-OFStreamBase::int_type OFStreamBase::sync() {
+int OFStreamBase::sync() {
   std::fflush(f_);
   return 0;
 }
@@ -28,8 +28,15 @@ OFStreamBase::int_type OFStreamBase::overflow(int_type c) {
 }
 
 
-OFStream::OFStream(FILE* f) : OFStreamBase(f), std::ostream(this) {
+std::streamsize OFStreamBase::xsputn(const char* s, std::streamsize n) {
+  return static_cast<std::streamsize>(
+      std::fwrite(s, 1, static_cast<size_t>(n), f_));
+}
+
+
+OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
   DCHECK_NOT_NULL(f);
+  rdbuf(&buf_);
 }
 
 

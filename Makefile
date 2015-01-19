@@ -213,8 +213,6 @@ ifeq ($(arm_test_noprobe), on)
 endif
 
 # ----------------- available targets: --------------------
-# - "builddeps": pulls in external dependencies for building
-# - "dependencies": pulls in all external dependencies
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
@@ -268,7 +266,7 @@ NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean builddeps dependencies $(ENVFILE).new native \
+.PHONY: all check clean builddeps dependencies $(ENVFILE).new native version \
         qc quickcheck $(QUICKCHECKS) turbocheck \
         $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
@@ -281,9 +279,13 @@ ENVFILE = $(OUTDIR)/environment
 # Target definitions. "all" is the default.
 all: $(DEFAULT_MODES)
 
+# Target for generating the v8 version file from git tags.
+version:
+	build/generate_version.py
+
 # Special target for the buildbots to use. Depends on $(OUTDIR)/Makefile
 # having been created before.
-buildbot:
+buildbot: version
 	$(MAKE) -C "$(OUTDIR)" BUILDTYPE=$(BUILDTYPE) \
 	        builddir="$(abspath $(OUTDIR))/$(BUILDTYPE)"
 
@@ -294,14 +296,14 @@ $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 $(ARCHES): $(addprefix $$@.,$(DEFAULT_MODES))
 
 # Defines how to build a particular target (e.g. ia32.release).
-$(BUILDS): $(OUTDIR)/Makefile.$$@
+$(BUILDS): $(OUTDIR)/Makefile.$$@ version
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print \
 	                     raw_input().replace('opt', '').capitalize()") \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-native: $(OUTDIR)/Makefile.native
+native: $(OUTDIR)/Makefile.native version
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \
 	         BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
@@ -309,7 +311,8 @@ native: $(OUTDIR)/Makefile.native
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
+                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android \
+                   version
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -319,7 +322,7 @@ $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
 $(NACL_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(NACL_BUILDS): $(GYPFILES) $(ENVFILE) \
-		   Makefile.nacl must-set-NACL_SDK_ROOT
+		   Makefile.nacl must-set-NACL_SDK_ROOT version
 	@$(MAKE) -f Makefile.nacl $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -419,7 +422,10 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean
+version.clean:
+	rm -f src/version_gen.cc
+
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean version.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
@@ -497,26 +503,5 @@ GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
 gtags.clean:
 	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
 
-# Dependencies. "builddeps" are dependencies required solely for building,
-# "dependencies" includes also dependencies required for development.
-# Remember to keep these in sync with the DEPS file.
-builddeps:
-	svn checkout --force https://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1831
-	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
-	  svn switch --force \
-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
-	      third_party/icu --revision 277999 ; \
-	else \
-	  svn checkout --force \
-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
-	      third_party/icu --revision 277999 ; \
-	fi
-	svn checkout --force https://googletest.googlecode.com/svn/trunk \
-	    testing/gtest --revision 692
-	svn checkout --force https://googlemock.googlecode.com/svn/trunk \
-	    testing/gmock --revision 485
-
-dependencies: builddeps
-	# The spec is a copy of the hooks in v8's DEPS file.
-	gclient sync -r fb782d4369d5ae04f17a2fceef7de5a63e50f07b --spec="solutions = [{u'managed': False, u'name': u'buildtools', u'url': u'https://chromium.googlesource.com/chromium/buildtools.git', u'custom_deps': {}, u'custom_hooks': [{u'name': u'clang_format_win',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=win32',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/win/clang-format.exe.sha1']},{u'name': u'clang_format_mac',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=darwin',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/mac/clang-format.sha1']},{u'name': u'clang_format_linux',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=linux*',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/linux64/clang-format.sha1']}],u'deps_file': u'.DEPS.git', u'safesync_url': u''}]"
+dependencies builddeps:
+	$(error Use 'gclient sync' instead)

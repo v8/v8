@@ -2164,7 +2164,9 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef VERIFY_HEAP
-  builtins->ObjectVerify();
+  if (FLAG_verify_heap) {
+    builtins->ObjectVerify();
+  }
 #endif
 
   return true;
@@ -2507,11 +2509,6 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
         isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
     builtins->set_javascript_builtin(id, *function);
-    // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
-    // the correct solution is to restore the context register after invoking
-    // builtins from full-codegen.
-    function->shared()->set_disable_optimization_reason(kOptimizationDisabled);
-    function->shared()->set_optimization_disabled(true);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
     }
@@ -2813,9 +2810,13 @@ Genesis::Genesis(Isolate* isolate,
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    Runtime::DefineObjectProperty(builtins, factory()->InternalizeOneByteString(
-                                                STATIC_CHAR_VECTOR("rngstate")),
-                                  Utils::OpenHandle(*ta), NONE).Assert();
+
+    Handle<String> rngstate =
+        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("rngstate"));
+    // Reset property cell type before (re)initializing.
+    JSBuiltinsObject::InvalidatePropertyCell(builtins, rngstate);
+    JSObject::SetOwnPropertyIgnoreAttributes(
+        builtins, rngstate, Utils::OpenHandle(*ta), DONT_DELETE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
     const int constants_size = arraysize(fdlibm::MathConstants::constants);
@@ -2826,10 +2827,12 @@ Genesis::Genesis(Isolate* isolate,
     v8::Local<v8::Float64Array> trig_table =
         v8::Float64Array::New(trig_buffer, 0, constants_size);
 
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath")),
-        Utils::OpenHandle(*trig_table), NONE).Assert();
+    Handle<String> kmath =
+        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath"));
+    // Reset property cell type before (re)initializing.
+    JSBuiltinsObject::InvalidatePropertyCell(builtins, kmath);
+    JSObject::SetOwnPropertyIgnoreAttributes(
+        builtins, kmath, Utils::OpenHandle(*trig_table), DONT_DELETE).Assert();
   }
 
   result_ = native_context();

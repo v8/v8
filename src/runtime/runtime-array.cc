@@ -1170,7 +1170,8 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   RUNTIME_ASSERT(!array->HasExternalArrayElements() &&
-                 !array->HasFixedTypedArrayElements());
+                 !array->HasFixedTypedArrayElements() &&
+                 !array->IsJSGlobalProxy());
   JSObject::NormalizeElements(array);
   return *array;
 }

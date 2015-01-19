@@ -957,13 +957,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
 }
 
 
-void SignatureInfo::SignatureInfoVerify() {
-  CHECK(IsSignatureInfo());
-  VerifyPointer(receiver());
-  VerifyPointer(args());
-}
-
-
 void TypeSwitchInfo::TypeSwitchInfoVerify() {
   CHECK(IsTypeSwitchInfo());
   VerifyPointer(types());

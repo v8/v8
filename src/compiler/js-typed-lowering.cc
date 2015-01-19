@@ -858,8 +858,8 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
-  if (NodeProperties::IsTyped(node) &&
-      !IrOpcode::IsLeafOpcode(node->opcode()) &&
+  if (!IrOpcode::IsConstantOpcode(node->opcode()) &&
+      NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable)) {
     Type* upper = NodeProperties::GetBounds(node).upper;
     if (upper->IsConstant()) {

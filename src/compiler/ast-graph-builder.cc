@@ -809,12 +809,14 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
 
 
 void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  UNREACHABLE();
+  // TODO(turbofan): Implement try-catch here.
+  SetStackOverflow();
 }
 
 
 void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  UNREACHABLE();
+  // TODO(turbofan): Implement try-catch here.
+  SetStackOverflow();
 }
 
 
@@ -1305,11 +1307,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
 
 
 void AstGraphBuilder::VisitYield(Yield* expr) {
-  VisitForValue(expr->generator_object());
-  VisitForValue(expr->expression());
-  environment()->Pop();
-  environment()->Pop();
-  // TODO(turbofan): VisitYield
+  // TODO(turbofan): Implement yield here.
+  SetStackOverflow();
   ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
 }
 
@@ -1402,7 +1401,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       break;
     }
     case Call::SUPER_CALL: {
-      // todo(dslomov): implement super calls in turbofan.
+      // TODO(dslomov): Implement super calls.
       UNIMPLEMENTED();
       break;
     }
@@ -1726,7 +1725,9 @@ void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void AstGraphBuilder::VisitSuperReference(SuperReference* expr) {
-  UNREACHABLE();
+  // TODO(turbofan): Implement super here.
+  SetStackOverflow();
+  ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
 }
 
 

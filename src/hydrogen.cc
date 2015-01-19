@@ -8776,6 +8776,16 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, descriptor,
         Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+  } else if (argc <= CallApiFunctionWithFixedArgsStub::kMaxFixedArgs) {
+    CallApiFunctionWithFixedArgsStub stub(isolate(), argc, call_data_undefined);
+    Handle<Code> code = stub.GetCode();
+    HConstant* code_value = Add<HConstant>(code);
+    ApiFunctionWithFixedArgsDescriptor descriptor(isolate());
+    DCHECK(arraysize(op_vals) - 1 == descriptor.GetEnvironmentLength());
+    call = New<HCallWithDescriptor>(
+        code_value, argc + 1, descriptor,
+        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+    Drop(1);  // Drop function.
   } else {
     op_vals[arraysize(op_vals) - 1] = Add<HConstant>(argc);
     CallApiFunctionStub stub(isolate(), call_data_undefined);
