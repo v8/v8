@@ -169,13 +169,10 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
 ['no_snap == True', {
-  # BUG(3215)
-  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL, TIMEOUT],
 }],  # 'no_snap == True'
 
 ##############################################################################
@@ -194,9 +191,6 @@
 
   # BUG(3005).
   'test-alloc/CodeRange': [PASS, FAIL],
-
-  # BUG(3215). Crashes on windows.
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
 
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
@@ -315,7 +309,6 @@
   # NaCl builds have problems with threaded tests since Pepper_28.
   # V8 Issue 2786
   'test-api/Threading1': [SKIP],
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
   'test-lockers/ExtensionsRegistration': [SKIP],
 
   # These tests fail as there is no /tmp directory in Native Client.
