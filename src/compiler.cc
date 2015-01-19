@@ -344,13 +344,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->IsOptimizing());
   DCHECK(!info()->IsCompilingForDebugging());
 
-  // Optimization could have been disabled by the parser.
-  if (info()->shared_info()->optimization_disabled()) {
-    return AbortOptimization(
-        info()->shared_info()->disable_optimization_reason());
-  }
-
-  // Do not use crankshaft if we need to be able to set break points.
+  // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (isolate()->DebuggerHasBreakPoints()) {
     return RetryOptimization(kDebuggerHasBreakPoints);
   }
@@ -440,6 +434,13 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   // Type-check the function.
   AstTyper::Run(info());
+
+  // Optimization could have been disabled by the parser. Note that this check
+  // is only needed because the Hydrogen graph builder is missing some bailouts.
+  if (info()->shared_info()->optimization_disabled()) {
+    return AbortOptimization(
+        info()->shared_info()->disable_optimization_reason());
+  }
 
   graph_builder_ = (FLAG_hydrogen_track_positions || FLAG_trace_ic)
       ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())

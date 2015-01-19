@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "src/base/platform/elapsed-timer.h"
+#include "src/bootstrapper.h"  // TODO(mstarzinger): Only temporary.
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
@@ -753,6 +754,11 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 Handle<Code> Pipeline::GenerateCode() {
   // TODO(turbofan): Make OSR work with inner loops and remove this bailout.
   if (info()->is_osr() && !FLAG_turbo_osr) return Handle<Code>::null();
+
+  // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
+  // the correct solution is to restore the context register after invoking
+  // builtins from full-codegen.
+  if (isolate()->bootstrapper()->IsActive()) return Handle<Code>::null();
 
   ZonePool zone_pool(isolate());
   SmartPointer<PipelineStatistics> pipeline_statistics;
