@@ -137,20 +137,19 @@ void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
 // This function uses push() to generate smaller, faster code than
 // the version above. It is an optimization that should will be removed
 // when api call ICs are generated in hydrogen.
-void PropertyHandlerCompiler::GenerateFastApiCall(
+void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
     Handle<Map> receiver_map, Register receiver, Register scratch_in,
-    bool is_store, int argc, Register* values) {
+    bool is_store, Register store_parameter) {
   // Copy return value.
   __ pop(scratch_in);
   // receiver
   __ push(receiver);
   // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc - 1 - i];
-    DCHECK(!receiver.is(arg));
-    DCHECK(!scratch_in.is(arg));
-    __ push(arg);
+  if (is_store) {
+    DCHECK(!receiver.is(store_parameter));
+    DCHECK(!scratch_in.is(store_parameter));
+    __ push(store_parameter);
   }
   __ push(scratch_in);
   // Stack now matches JSFunction abi.
@@ -204,7 +203,7 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
   __ TailCallStub(&stub);
 }
 
