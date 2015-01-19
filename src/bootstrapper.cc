@@ -2810,9 +2810,13 @@ Genesis::Genesis(Isolate* isolate,
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    Runtime::DefineObjectProperty(builtins, factory()->InternalizeOneByteString(
-                                                STATIC_CHAR_VECTOR("rngstate")),
-                                  Utils::OpenHandle(*ta), NONE).Assert();
+
+    Handle<String> rngstate =
+        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("rngstate"));
+    // Reset property cell type before (re)initializing.
+    JSBuiltinsObject::InvalidatePropertyCell(builtins, rngstate);
+    JSObject::SetOwnPropertyIgnoreAttributes(
+        builtins, rngstate, Utils::OpenHandle(*ta), DONT_DELETE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
     const int constants_size = arraysize(fdlibm::MathConstants::constants);
@@ -2823,10 +2827,12 @@ Genesis::Genesis(Isolate* isolate,
     v8::Local<v8::Float64Array> trig_table =
         v8::Float64Array::New(trig_buffer, 0, constants_size);
 
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath")),
-        Utils::OpenHandle(*trig_table), NONE).Assert();
+    Handle<String> kmath =
+        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath"));
+    // Reset property cell type before (re)initializing.
+    JSBuiltinsObject::InvalidatePropertyCell(builtins, kmath);
+    JSObject::SetOwnPropertyIgnoreAttributes(
+        builtins, kmath, Utils::OpenHandle(*trig_table), DONT_DELETE).Assert();
   }
 
   result_ = native_context();
