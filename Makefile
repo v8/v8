@@ -266,7 +266,7 @@ NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean builddeps dependencies $(ENVFILE).new native \
+.PHONY: all check clean builddeps dependencies $(ENVFILE).new native version \
         qc quickcheck $(QUICKCHECKS) turbocheck \
         $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
@@ -279,9 +279,13 @@ ENVFILE = $(OUTDIR)/environment
 # Target definitions. "all" is the default.
 all: $(DEFAULT_MODES)
 
+# Target for generating the v8 version file from git tags.
+version:
+	build/generate_version.py
+
 # Special target for the buildbots to use. Depends on $(OUTDIR)/Makefile
 # having been created before.
-buildbot:
+buildbot: version
 	$(MAKE) -C "$(OUTDIR)" BUILDTYPE=$(BUILDTYPE) \
 	        builddir="$(abspath $(OUTDIR))/$(BUILDTYPE)"
 
@@ -292,14 +296,14 @@ $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 $(ARCHES): $(addprefix $$@.,$(DEFAULT_MODES))
 
 # Defines how to build a particular target (e.g. ia32.release).
-$(BUILDS): $(OUTDIR)/Makefile.$$@
+$(BUILDS): $(OUTDIR)/Makefile.$$@ version
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print \
 	                     raw_input().replace('opt', '').capitalize()") \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-native: $(OUTDIR)/Makefile.native
+native: $(OUTDIR)/Makefile.native version
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \
 	         BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
@@ -307,7 +311,8 @@ native: $(OUTDIR)/Makefile.native
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
+                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android \
+                   version
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -317,7 +322,7 @@ $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
 $(NACL_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(NACL_BUILDS): $(GYPFILES) $(ENVFILE) \
-		   Makefile.nacl must-set-NACL_SDK_ROOT
+		   Makefile.nacl must-set-NACL_SDK_ROOT version
 	@$(MAKE) -f Makefile.nacl $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -417,7 +422,10 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean
+version.clean:
+	rm -f src/version_gen.cc
+
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean version.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
