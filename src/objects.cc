@@ -11631,9 +11631,12 @@ MaybeHandle<Object> JSArray::SetElementsLength(
                               SLOPPY).Assert();
     }
 
-    SetProperty(deleted, isolate->factory()->length_string(),
-                isolate->factory()->NewNumberFromUint(delete_count),
-                STRICT).Assert();
+    RETURN_ON_EXCEPTION(
+        isolate,
+        SetProperty(deleted, isolate->factory()->length_string(),
+                    isolate->factory()->NewNumberFromUint(delete_count),
+                    STRICT),
+        Object);
   }
 
   RETURN_ON_EXCEPTION(
