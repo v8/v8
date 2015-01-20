@@ -2469,8 +2469,9 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
+        UNREACHABLE();
+      case ObjectLiteral::Property::COMPUTED:
         __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 
@@ -2481,9 +2482,6 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
       case ObjectLiteral::Property::SETTER:
         __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
         break;
-
-      default:
-        UNREACHABLE();
     }
   }
 

@@ -905,9 +905,9 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED:
-      case ObjectLiteral::Property::PROTOTYPE: {
+      case ObjectLiteral::Property::COMPUTED: {
         const Operator* op =
             javascript()->CallRuntime(Runtime::kDefineClassMethod, 3);
         NewNode(op, receiver, key, value);
