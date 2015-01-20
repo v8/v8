@@ -188,18 +188,11 @@ class LCodeGen: public LCodeGenBase {
 
   void LoadContextFromDeferred(LOperand* context);
 
-  enum RDIState {
-    RDI_UNINITIALIZED,
-    RDI_CONTAINS_TARGET
-  };
-
   // Generate a direct call to a known function.  Expects the function
   // to be in rdi.
   void CallKnownFunction(Handle<JSFunction> function,
-                         int formal_parameter_count,
-                         int arity,
-                         LInstruction* instr,
-                         RDIState rdi_state);
+                         int formal_parameter_count, int arity,
+                         LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode,

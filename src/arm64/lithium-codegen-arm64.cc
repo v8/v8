@@ -1980,26 +1980,18 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
-                                 int formal_parameter_count,
-                                 int arity,
-                                 LInstruction* instr,
-                                 Register function_reg) {
+                                 int formal_parameter_count, int arity,
+                                 LInstruction* instr) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
 
   // The function interface relies on the following register assignments.
-  DCHECK(function_reg.Is(x1) || function_reg.IsNone());
+  Register function_reg = x1;
   Register arity_reg = x0;
 
   LPointerMap* pointers = instr->pointer_map();
-
-  // If necessary, load the function object.
-  if (function_reg.IsNone()) {
-    function_reg = x1;
-    __ LoadObject(function_reg, function);
-  }
 
   if (FLAG_debug_code) {
     Label is_not_smi;
@@ -3216,9 +3208,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
-                      instr->arity(),
-                      instr,
-                      x1);
+                      instr->arity(), instr);
   }
   after_push_argument_ = false;
 }
