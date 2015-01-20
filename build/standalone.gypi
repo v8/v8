@@ -122,7 +122,7 @@
       }, {
         'v8_enable_gdbjit%': 0,
       }],
-      ['OS=="linux" or OS=="mac"', {
+      ['OS=="mac"', {
         'clang%': 1,
       }, {
         'clang%': 0,
