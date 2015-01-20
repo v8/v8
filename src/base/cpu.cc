@@ -315,6 +315,7 @@ CPU::CPU()
       has_ssse3_(false),
       has_sse41_(false),
       has_sse42_(false),
+      is_atom_(false),
       has_avx_(false),
       has_fma3_(false),
       has_idiva_(false),
@@ -365,6 +366,20 @@ CPU::CPU()
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     if (has_avx_) has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+
+    if (family_ == 0x6) {
+      switch (model_) {
+        case 0x1c:  // SLT
+        case 0x26:
+        case 0x36:
+        case 0x27:
+        case 0x35:
+        case 0x37:  // SLM
+        case 0x4a:
+        case 0x4d:
+          is_atom_ = true;
+      }
+    }
   }
 
 #if V8_HOST_ARCH_IA32

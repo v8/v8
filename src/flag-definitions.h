@@ -467,6 +467,7 @@ DEFINE_BOOL(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
+DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
 
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")

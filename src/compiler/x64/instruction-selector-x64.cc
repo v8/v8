@@ -942,8 +942,11 @@ void InstructionSelector::VisitCall(Node* node) {
   for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
        ++i) {
     // TODO(titzer): handle pushing double parameters.
-    Emit(kX64Push, nullptr,
-         g.CanBeImmediate(*i) ? g.UseImmediate(*i) : g.Use(*i));
+    InstructionOperand* value =
+        g.CanBeImmediate(*i) ? g.UseImmediate(*i) : IsSupported(ATOM)
+                                                        ? g.UseRegister(*i)
+                                                        : g.Use(*i);
+    Emit(kX64Push, nullptr, value);
   }
 
   // Select the appropriate opcode based on the call type.

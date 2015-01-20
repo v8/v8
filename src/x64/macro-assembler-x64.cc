@@ -3068,7 +3068,7 @@ void MacroAssembler::Call(ExternalReference ext) {
 
 
 void MacroAssembler::Call(const Operand& op) {
-  if (kPointerSize == kInt64Size) {
+  if (kPointerSize == kInt64Size && !CpuFeatures::IsSupported(ATOM)) {
     call(op);
   } else {
     movp(kScratchRegister, op);
