@@ -897,6 +897,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     environment()->Push(property->is_static() ? literal : proto);
 
     VisitForValue(property->key());
+    environment()->Push(BuildToName(environment()->Pop()));
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -2232,7 +2233,7 @@ Node* AstGraphBuilder::BuildLoadGlobalProxy() {
 
 
 Node* AstGraphBuilder::BuildToBoolean(Node* input) {
-  // TODO(titzer): this should be in a JSOperatorReducer.
+  // TODO(titzer): This should be in a JSOperatorReducer.
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
       return jsgraph_->BooleanConstant(!Int32Matcher(input).Is(0));
@@ -2253,6 +2254,14 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
   }
 
   return NewNode(javascript()->ToBoolean(), input);
+}
+
+
+Node* AstGraphBuilder::BuildToName(Node* input) {
+  // TODO(turbofan): Possible optimization is to NOP on name constants. But the
+  // same caveat as with BuildToBoolean applies, and it should be factored out
+  // into a JSOperatorReducer.
+  return NewNode(javascript()->ToName(), input);
 }
 
 

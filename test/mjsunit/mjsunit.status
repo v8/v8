@@ -87,7 +87,6 @@
   # TODO(mstarzinger): Investigate failures with computed property names.
   # Note that this happens in GC-stress mode only.
   'harmony/computed-property-names': [PASS, NO_VARIANTS],
-  'harmony/computed-property-names-classes': [PASS, NO_VARIANTS],
   'harmony/computed-property-names-object-literals-methods': [PASS, NO_VARIANTS],
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.

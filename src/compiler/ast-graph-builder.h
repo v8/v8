@@ -99,6 +99,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* value);
+  Node* BuildToName(Node* value);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
