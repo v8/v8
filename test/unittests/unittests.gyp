@@ -54,6 +54,7 @@
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/load-elimination-unittest.cc',
+        'compiler/loop-peeling-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
         'compiler/move-optimizer-unittest.cc',

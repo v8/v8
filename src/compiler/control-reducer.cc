@@ -457,10 +457,7 @@ class ControlReducerImpl {
     // Gather phis and effect phis to be edited.
     ZoneVector<Node*> phis(zone_);
     for (Node* const use : node->uses()) {
-      if (use->opcode() == IrOpcode::kPhi ||
-          use->opcode() == IrOpcode::kEffectPhi) {
-        phis.push_back(use);
-      }
+      if (IrOpcode::IsPhiOpcode(use->opcode())) phis.push_back(use);
     }
 
     if (live == 1) {

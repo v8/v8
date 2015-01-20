@@ -284,7 +284,7 @@ class Edge FINAL {
 
   explicit Edge(Node::Input* input) : input_(input) { DCHECK_NOT_NULL(input); }
 
-  Node::Input* const input_;
+  Node::Input* input_;
 };
 
 

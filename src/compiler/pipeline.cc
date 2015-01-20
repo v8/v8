@@ -27,6 +27,8 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/load-elimination.h"
+#include "src/compiler/loop-analysis.h"
+#include "src/compiler/loop-peeling.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
@@ -504,6 +506,23 @@ struct LateControlReductionPhase : ControlReductionPhase {
 };
 
 
+struct StressLoopPeelingPhase {
+  static const char* phase_name() { return "stress loop peeling"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SourcePositionTable::Scope pos(data->source_positions(),
+                                   SourcePosition::Unknown());
+    // Peel the first outer loop for testing.
+    // TODO(titzer): peel all loops? the N'th loop? Innermost loops?
+    LoopTree* loop_tree = LoopFinder::BuildLoopTree(data->graph(), temp_zone);
+    if (loop_tree != NULL && loop_tree->outer_loops().size() > 0) {
+      LoopPeeler::Peel(data->graph(), data->common(), loop_tree,
+                       loop_tree->outer_loops()[0], temp_zone);
+    }
+  }
+};
+
+
 struct GenericLoweringPhase {
   static const char* phase_name() { return "generic lowering"; }
 
@@ -827,6 +846,11 @@ Handle<Code> Pipeline::GenerateCode() {
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
+
+    if (FLAG_turbo_stress_loop_peeling) {
+      Run<StressLoopPeelingPhase>();
+      RunPrintAndVerify("Loop peeled", true);
+    }
 
     if (info()->is_osr()) {
       Run<OsrDeconstructionPhase>();

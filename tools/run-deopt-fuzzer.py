@@ -379,7 +379,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         True,  # No sorting of test cases.
                         0,  # Don't rerun failing tests.
                         0,  # No use of a rerun-failing-tests maximum.
-                        False)  # No predictable mode.
+                        False,  # No predictable mode.
+                        False)  # No no_harness mode.
 
   # Find available test suites and read test cases from them.
   variables = {

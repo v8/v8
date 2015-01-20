@@ -129,7 +129,7 @@ class JSONGraphNodeWriter {
     os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
         << "\"";
     IrOpcode::Value opcode = node->opcode();
-    if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
+    if (IrOpcode::IsPhiOpcode(opcode)) {
       os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
           << "]";
       os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
@@ -325,8 +325,7 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
 
 
 static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
-  if (from->opcode() == IrOpcode::kPhi ||
-      from->opcode() == IrOpcode::kEffectPhi) {
+  if (IrOpcode::IsPhiOpcode(from->opcode())) {
     Node* control = NodeProperties::GetControlInput(from, 0);
     return control != NULL && control->opcode() != IrOpcode::kMerge &&
            control != to && index != 0;
