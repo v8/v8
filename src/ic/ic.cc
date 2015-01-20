@@ -1865,9 +1865,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
 
   if (!map_added) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
-    // won't help, use the generic stub.
+    // won't help. In theory we should use the generic stub, but in
+    // practice there are a number of hard-to-avoid reasons why this
+    // can happen occasionally, and where the additional logic in the
+    // megamorphic stub is beneficial because it can handle most cases
+    // without calling into the runtime.
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "same map added twice");
-    return generic_stub();
+    return megamorphic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the
