@@ -2115,19 +2115,6 @@ bool Isolate::Init(Deserializer* des) {
     std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
   }
 
-  // If we are deserializing, log non-function code objects and compiled
-  // functions found in the snapshot.
-  if (!create_heap_objects &&
-      (FLAG_log_code ||
-       FLAG_ll_prof ||
-       FLAG_perf_jit_prof ||
-       FLAG_perf_basic_prof ||
-       logger_->is_logging_code_events())) {
-    HandleScope scope(this);
-    LOG(this, LogCodeObjects());
-    LOG(this, LogCompiledFunctions());
-  }
-
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),

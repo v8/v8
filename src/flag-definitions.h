@@ -860,6 +860,8 @@ DEFINE_BOOL(log_snapshot_positions, false,
 DEFINE_BOOL(log_suspect, false, "Log suspect operations.")
 DEFINE_BOOL(prof, false,
             "Log statistical profiling information (implies --log-code).")
+DEFINE_BOOL(prof_cpp, false, "Like --prof, but ignore generated code.")
+DEFINE_IMPLICATION(prof, prof_cpp)
 DEFINE_BOOL(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_BOOL(log_regexp, false, "Log regular expression execution.")
