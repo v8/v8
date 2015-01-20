@@ -978,8 +978,6 @@ class Isolate {
 
   Debug* debug() { return debug_; }
 
-  inline bool DebuggerHasBreakPoints();
-
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 

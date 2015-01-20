@@ -2518,9 +2518,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     bool IsFound() const { return lookup_.IsFound(); }
     bool IsProperty() const { return lookup_.IsProperty(); }
-    bool IsField() const { return lookup_.IsField(); }
-    bool IsConstant() const { return lookup_.IsConstant(); }
-    bool IsAccessor() const { return lookup_.IsPropertyCallbacks(); }
+    bool IsData() const { return lookup_.IsData(); }
+    bool IsDataConstant() const { return lookup_.IsDataConstant(); }
+    bool IsAccessorConstant() const { return lookup_.IsAccessorConstant(); }
     bool IsTransition() const { return lookup_.IsTransition(); }
 
     bool IsConfigurable() const { return lookup_.IsConfigurable(); }

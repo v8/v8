@@ -242,7 +242,7 @@ enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 
 
 // Indicates whether a value can be loaded as a constant.
-enum StoreMode { ALLOW_IN_DESCRIPTOR, FORCE_IN_OBJECT };
+enum StoreMode { ALLOW_IN_DESCRIPTOR, FORCE_FIELD };
 
 
 // PropertyNormalizationMode is used to specify whether to keep

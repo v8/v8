@@ -4391,7 +4391,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a field property.
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  DCHECK_EQ(FIELD, 0);
+  DCHECK_EQ(DATA, 0);
   Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
        Smi::FromInt(PropertyDetails::TypeField::kMask));
   j(not_zero, miss);

@@ -180,9 +180,9 @@ PropertyKind.Indexed = 2;
 
 // A copy of the PropertyType enum from property-details.h
 var PropertyType = {};
-PropertyType.Field                   = 0;
-PropertyType.Constant                = 1;
-PropertyType.Callbacks               = 3;
+PropertyType.Data                        = 0;
+PropertyType.DataConstant                = 2;
+PropertyType.AccessorConstant            = 3;
 
 
 // Different attributes for a property.
@@ -848,7 +848,7 @@ ObjectMirror.prototype.lookupProperty = function(value) {
 
     // Skip properties which are defined through assessors.
     var property = properties[i];
-    if (property.propertyType() != PropertyType.Callbacks) {
+    if (property.propertyType() != PropertyType.AccessorConstant) {
       if (%_ObjectEquals(property.value_, value.value_)) {
         return property;
       }
@@ -1659,7 +1659,7 @@ PropertyMirror.prototype.setter = function() {
  */
 PropertyMirror.prototype.isNative = function() {
   return this.is_interceptor_ ||
-         ((this.propertyType() == PropertyType.Callbacks) &&
+         ((this.propertyType() == PropertyType.AccessorConstant) &&
           !this.hasGetter() && !this.hasSetter());
 };
 

@@ -1,3 +1,8 @@
+2015-01-20: Version 4.2.16
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-19: Version 4.2.15
 
         Unobscurified OFStream (Chromium issue 448102).

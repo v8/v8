@@ -418,29 +418,29 @@ void Genesis::SetFunctionInstanceDescriptor(
   Handle<AccessorInfo> length =
       Accessors::FunctionLengthInfo(isolate(), attribs);
   {  // Add length.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
-                          length, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                 length, attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), attribs);
   {  // Add name.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                 attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> args =
       Accessors::FunctionArgumentsInfo(isolate(), attribs);
   {  // Add arguments.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(args->name())),
-                          args, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(args->name())), args,
+                                 attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> caller =
       Accessors::FunctionCallerInfo(isolate(), attribs);
   {  // Add caller.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(caller->name())),
-                          caller, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(caller->name())),
+                                 caller, attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -449,8 +449,8 @@ void Genesis::SetFunctionInstanceDescriptor(
     }
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                          prototype, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -574,7 +574,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   // Add length.
   if (function_mode == BOUND_FUNCTION) {
     Handle<String> length_string = isolate()->factory()->length_string();
-    FieldDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
+    DataDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
     map->AppendDescriptor(&d);
   } else {
     DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
@@ -582,24 +582,25 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
            function_mode == FUNCTION_WITHOUT_PROTOTYPE);
     Handle<AccessorInfo> length =
         Accessors::FunctionLengthInfo(isolate(), ro_attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
-                          length, ro_attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                 length, ro_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, ro_attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                 ro_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add arguments.
-    CallbacksDescriptor d(factory()->arguments_string(), arguments,
-                          rw_attribs);
+    AccessorConstantDescriptor d(factory()->arguments_string(), arguments,
+                                 rw_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add caller.
-    CallbacksDescriptor d(factory()->caller_string(), caller, rw_attribs);
+    AccessorConstantDescriptor d(factory()->caller_string(), caller,
+                                 rw_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -609,8 +610,8 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
                                                            : ro_attribs;
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                          prototype, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -709,7 +710,7 @@ static void ReplaceAccessors(Handle<Map> map,
                              Handle<AccessorPair> accessor_pair) {
   DescriptorArray* descriptors = map->instance_descriptors();
   int idx = descriptors->SearchWithCache(*name, *map);
-  CallbacksDescriptor descriptor(name, accessor_pair, attributes);
+  AccessorConstantDescriptor descriptor(name, accessor_pair, attributes);
   descriptors->Replace(idx, &descriptor);
 }
 
@@ -949,9 +950,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<AccessorInfo> array_length =
         Accessors::ArrayLengthInfo(isolate, attribs);
     {  // Add length.
-      CallbacksDescriptor d(
-          Handle<Name>(Name::cast(array_length->name())),
-          array_length, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(array_length->name())), array_length,
+          attribs);
       initial_map->AppendDescriptor(&d);
     }
 
@@ -1003,7 +1004,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
         Accessors::StringLengthInfo(isolate, attribs));
 
     {  // Add length.
-      CallbacksDescriptor d(factory->length_string(), string_length, attribs);
+      AccessorConstantDescriptor d(factory->length_string(), string_length,
+                                   attribs);
       string_map->AppendDescriptor(&d);
     }
   }
@@ -1048,41 +1050,38 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
       // ECMA-262, section 15.10.7.1.
       Handle<AccessorInfo> regexp_source(
           Accessors::RegExpSourceInfo(isolate, final));
-      CallbacksDescriptor d(factory->source_string(), regexp_source, final);
+      AccessorConstantDescriptor d(factory->source_string(), regexp_source,
+                                   final);
       initial_map->AppendDescriptor(&d);
     }
     {
       // ECMA-262, section 15.10.7.2.
-      FieldDescriptor field(factory->global_string(),
-                            JSRegExp::kGlobalFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->global_string(),
+                           JSRegExp::kGlobalFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.3.
-      FieldDescriptor field(factory->ignore_case_string(),
-                            JSRegExp::kIgnoreCaseFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->ignore_case_string(),
+                           JSRegExp::kIgnoreCaseFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.4.
-      FieldDescriptor field(factory->multiline_string(),
-                            JSRegExp::kMultilineFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->multiline_string(),
+                           JSRegExp::kMultilineFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.5.
       PropertyAttributes writable =
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-      FieldDescriptor field(factory->last_index_string(),
-                            JSRegExp::kLastIndexFieldIndex,
-                            writable,
-                            Representation::Tagged());
+      DataDescriptor field(factory->last_index_string(),
+                           JSRegExp::kLastIndexFieldIndex, writable,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
 
@@ -1179,14 +1178,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
-    FieldDescriptor value_descr(factory->value_string(),
-                                JSGeneratorObject::kResultValuePropertyIndex,
-                                NONE, Representation::Tagged());
+    DataDescriptor value_descr(factory->value_string(),
+                               JSGeneratorObject::kResultValuePropertyIndex,
+                               NONE, Representation::Tagged());
     iterator_result_map->AppendDescriptor(&value_descr);
 
-    FieldDescriptor done_descr(factory->done_string(),
-                               JSGeneratorObject::kResultDonePropertyIndex,
-                               NONE, Representation::Tagged());
+    DataDescriptor done_descr(factory->done_string(),
+                              JSGeneratorObject::kResultDonePropertyIndex, NONE,
+                              Representation::Tagged());
     iterator_result_map->AppendDescriptor(&done_descr);
 
     iterator_result_map->set_unused_property_fields(0);
@@ -1220,13 +1219,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
-      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      FieldDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -1277,16 +1276,18 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 3);
 
     {  // length
-      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      CallbacksDescriptor d(factory->callee_string(), callee, attributes);
+      AccessorConstantDescriptor d(factory->callee_string(), callee,
+                                   attributes);
       map->AppendDescriptor(&d);
     }
     {  // caller
-      CallbacksDescriptor d(factory->caller_string(), caller, attributes);
+      AccessorConstantDescriptor d(factory->caller_string(), caller,
+                                   attributes);
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -1688,8 +1689,8 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Handle<AccessorInfo> array_length =
       Accessors::ArrayLengthInfo(isolate(), attribs);
   {  // Add length.
-    CallbacksDescriptor d(
-        Handle<Name>(Name::cast(array_length->name())), array_length, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(array_length->name())),
+                                 array_length, attribs);
     initial_map->AppendDescriptor(&d);
   }
 
@@ -1771,16 +1772,17 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_column =
         Accessors::ScriptColumnOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_column->name())),
-                           script_column, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_column->name())), script_column,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_id =
         Accessors::ScriptIdInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_id->name())),
-                            script_id, attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(script_id->name())),
+                                   script_id, attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -1788,39 +1790,40 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_name =
         Accessors::ScriptNameInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_name->name())),
-                            script_name, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_name->name())), script_name, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_line =
         Accessors::ScriptLineOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line->name())),
-                           script_line, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line->name())), script_line, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_source =
         Accessors::ScriptSourceInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source->name())),
-                            script_source, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source->name())), script_source,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_type =
         Accessors::ScriptTypeInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_type->name())),
-                            script_type, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_type->name())), script_type, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_compilation_type =
         Accessors::ScriptCompilationTypeInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_compilation_type->name())),
           script_compilation_type, attribs);
       script_map->AppendDescriptor(&d);
@@ -1829,15 +1832,16 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_line_ends =
         Accessors::ScriptLineEndsInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line_ends->name())),
-                            script_line_ends, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line_ends->name())), script_line_ends,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_context_data =
         Accessors::ScriptContextDataInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_context_data->name())),
           script_context_data, attribs);
       script_map->AppendDescriptor(&d);
@@ -1846,7 +1850,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_script =
         Accessors::ScriptEvalFromScriptInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_script->name())),
           script_eval_from_script, attribs);
       script_map->AppendDescriptor(&d);
@@ -1855,7 +1859,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_script_position =
         Accessors::ScriptEvalFromScriptPositionInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_script_position->name())),
           script_eval_from_script_position, attribs);
       script_map->AppendDescriptor(&d);
@@ -1864,7 +1868,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_function_name =
         Accessors::ScriptEvalFromFunctionNameInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_function_name->name())),
           script_eval_from_function_name, attribs);
       script_map->AppendDescriptor(&d);
@@ -1873,15 +1877,16 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_source_url =
         Accessors::ScriptSourceUrlInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source_url->name())),
-                            script_source_url, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source_url->name())),
+          script_source_url, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_source_mapping_url =
         Accessors::ScriptSourceMappingUrlInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_source_mapping_url->name())),
           script_source_mapping_url, attribs);
       script_map->AppendDescriptor(&d);
@@ -2106,25 +2111,22 @@ bool Genesis::InstallNatives() {
       int old = array_descriptors->SearchWithCache(
           *length, array_function->initial_map());
       DCHECK(old != DescriptorArray::kNotFound);
-      CallbacksDescriptor desc(length,
-                               handle(array_descriptors->GetValue(old),
-                                      isolate()),
-                               array_descriptors->GetDetails(old).attributes());
+      AccessorConstantDescriptor desc(
+          length, handle(array_descriptors->GetValue(old), isolate()),
+          array_descriptors->GetDetails(old).attributes());
       initial_map->AppendDescriptor(&desc);
     }
     {
-      FieldDescriptor index_field(factory()->index_string(),
-                                  JSRegExpResult::kIndexIndex,
-                                  NONE,
-                                  Representation::Tagged());
+      DataDescriptor index_field(factory()->index_string(),
+                                 JSRegExpResult::kIndexIndex, NONE,
+                                 Representation::Tagged());
       initial_map->AppendDescriptor(&index_field);
     }
 
     {
-      FieldDescriptor input_field(factory()->input_string(),
-                                  JSRegExpResult::kInputIndex,
-                                  NONE,
-                                  Representation::Tagged());
+      DataDescriptor input_field(factory()->input_string(),
+                                 JSRegExpResult::kInputIndex, NONE,
+                                 Representation::Tagged());
       initial_map->AppendDescriptor(&input_field);
     }
 
@@ -2141,22 +2143,22 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> arguments_iterator =
         Accessors::ArgumentsIteratorInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->sloppy_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
     }
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->aliased_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
     }
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->strict_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
@@ -2582,7 +2584,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     for (int i = 0; i < from->map()->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
-        case FIELD: {
+        case DATA: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
@@ -2592,16 +2594,16 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::AddProperty(to, key, value, details.attributes());
           break;
         }
-        case CONSTANT: {
+        case DATA_CONSTANT: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
           JSObject::AddProperty(to, key, constant, details.attributes());
           break;
         }
-        case ACCESSOR_FIELD:
+        case ACCESSOR:
           UNREACHABLE();
-        case CALLBACKS: {
+        case ACCESSOR_CONSTANT: {
           Handle<Name> key(descs->GetKey(i));
           LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
           CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
@@ -2611,7 +2613,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
-          PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
+          PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
@@ -2639,7 +2641,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        DCHECK_EQ(DATA, details.kind());
+        DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());
       }
     }

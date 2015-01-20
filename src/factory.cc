@@ -1361,8 +1361,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 static bool ShouldOptimizeNewClosure(Isolate* isolate,
                                      Handle<SharedFunctionInfo> info) {
   return isolate->use_crankshaft() && !info->is_toplevel() &&
-         info->is_compiled() && info->allows_lazy_compilation() &&
-         !isolate->DebuggerHasBreakPoints();
+         info->is_compiled() && info->allows_lazy_compilation();
 }
 
 
@@ -1576,8 +1575,9 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
-    DCHECK(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
+    // Only accessors are expected.
+    DCHECK_EQ(ACCESSOR_CONSTANT, details.type());
+    PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1);
     Handle<Name> name(descs->GetKey(i));
     Handle<Object> value(descs->GetCallbacksObject(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(value);

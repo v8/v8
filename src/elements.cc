@@ -1466,7 +1466,7 @@ class DictionaryElementsAccessor
     if (entry != SeededNumberDictionary::kNotFound) {
       Handle<Object> element(backing_store->ValueAt(entry), isolate);
       PropertyDetails details = backing_store->DetailsAt(entry);
-      if (details.type() == CALLBACKS) {
+      if (details.type() == ACCESSOR_CONSTANT) {
         return JSObject::GetElementWithCallback(
             obj, receiver, element, key, obj);
       } else {
@@ -1499,7 +1499,7 @@ class DictionaryElementsAccessor
         Handle<SeededNumberDictionary>::cast(store);
     int entry = backing_store->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound &&
-        backing_store->DetailsAt(entry).type() == CALLBACKS &&
+        backing_store->DetailsAt(entry).type() == ACCESSOR_CONSTANT &&
         backing_store->ValueAt(entry)->IsAccessorPair()) {
       return handle(AccessorPair::cast(backing_store->ValueAt(entry)));
     }

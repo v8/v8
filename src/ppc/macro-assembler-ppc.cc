@@ -1515,7 +1515,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss, Register elements,
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   LoadP(t1, FieldMemOperand(t2, kDetailsOffset));
   LoadSmiLiteral(ip, Smi::FromInt(PropertyDetails::TypeField::kMask));
-  DCHECK_EQ(FIELD, 0);
+  DCHECK_EQ(DATA, 0);
   and_(r0, t1, ip, SetRC);
   bne(miss, cr0);
 
