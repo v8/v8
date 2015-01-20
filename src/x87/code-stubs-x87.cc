@@ -4489,7 +4489,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
 
 void CallApiAccessorStub::Generate(MacroAssembler* masm) {
   bool is_store = this->is_store();
-  int argc = is_store ? 1 : 0;
+  int argc = this->argc();
   bool call_data_undefined = this->call_data_undefined();
   CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
                             call_data_undefined);
