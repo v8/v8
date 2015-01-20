@@ -2976,7 +2976,7 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     Handle<Object> value,
     bool* found,
     StrictMode strict_mode) {
-  Isolate *isolate = object->GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   for (PrototypeIterator iter(isolate, object); !iter.IsAtEnd();
        iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
@@ -2987,9 +2987,20 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     }
     Handle<JSObject> js_proto =
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+
+    if (js_proto->IsAccessCheckNeeded()) {
+      if (!isolate->MayIndexedAccess(js_proto, index, v8::ACCESS_SET)) {
+        *found = true;
+        isolate->ReportFailedAccessCheck(js_proto, v8::ACCESS_SET);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return MaybeHandle<Object>();
+      }
+    }
+
     if (!js_proto->HasDictionaryElements()) {
       continue;
     }
+
     Handle<SeededNumberDictionary> dictionary(js_proto->element_dictionary());
     int entry = dictionary->FindEntry(index);
     if (entry != SeededNumberDictionary::kNotFound) {
