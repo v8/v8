@@ -31,6 +31,12 @@
   'variables': {
     'msvs_use_common_release': 0,
     'clang%': 0,
+    'asan%': 0,
+    'lsan%': 0,
+    'msan%': 0,
+    'tsan%': 0,
+    'ubsan%': 0,
+    'ubsan_vptr%': 0,
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     # Native Client builds currently use the V8 ARM JIT and
@@ -1020,7 +1026,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
                 }, {
@@ -1105,7 +1113,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
               }, {
