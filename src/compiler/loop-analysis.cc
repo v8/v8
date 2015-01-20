@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -196,8 +196,7 @@ class LoopFinderImpl {
       if (node->opcode() == IrOpcode::kLoop) {
         // found the loop node first.
         loop_num = CreateLoopInfo(node);
-      } else if (node->opcode() == IrOpcode::kPhi ||
-                 node->opcode() == IrOpcode::kEffectPhi) {
+      } else if (IrOpcode::IsPhiOpcode(node->opcode())) {
         // found a phi first.
         Node* merge = node->InputAt(node->InputCount() - 1);
         if (merge->opcode() == IrOpcode::kLoop) {
@@ -235,8 +234,7 @@ class LoopFinderImpl {
 
     // Setup loop mark for phis attached to loop header.
     for (Node* use : node->uses()) {
-      if (use->opcode() == IrOpcode::kPhi ||
-          use->opcode() == IrOpcode::kEffectPhi) {
+      if (IrOpcode::IsPhiOpcode(use->opcode())) {
         SetBackwardMark(use, loop_num);
         loop_tree_->node_to_loop_num_[use->id()] = loop_num;
       }
@@ -291,8 +289,7 @@ class LoopFinderImpl {
   bool IsBackedge(Node* use, Edge& edge) {
     if (LoopNum(use) <= 0) return false;
     if (edge.index() == kAssumedLoopEntryIndex) return false;
-    if (use->opcode() == IrOpcode::kPhi ||
-        use->opcode() == IrOpcode::kEffectPhi) {
+    if (IrOpcode::IsPhiOpcode(use->opcode())) {
       return !NodeProperties::IsControlEdge(edge);
     }
     return true;

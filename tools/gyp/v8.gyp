@@ -481,6 +481,8 @@
         '../../src/compiler/load-elimination.h',
         '../../src/compiler/loop-analysis.cc',
         '../../src/compiler/loop-analysis.h',
+        '../../src/compiler/loop-peeling.cc',
+        '../../src/compiler/loop-peeling.h',
         '../../src/compiler/machine-operator-reducer.cc',
         '../../src/compiler/machine-operator-reducer.h',
         '../../src/compiler/machine-operator.cc',

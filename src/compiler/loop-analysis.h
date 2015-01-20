@@ -37,6 +37,7 @@ class LoopTree : public ZoneObject {
     size_t HeaderSize() const { return body_start_ - header_start_; }
     size_t BodySize() const { return body_end_ - body_start_; }
     size_t TotalSize() const { return body_end_ - header_start_; }
+    size_t depth() const { return static_cast<size_t>(depth_); }
 
    private:
     friend class LoopTree;
@@ -94,6 +95,22 @@ class LoopTree : public ZoneObject {
                      &loop_nodes_[0] + loop->body_end_);
   }
 
+  // Return a range which can iterate over the nodes of {loop}.
+  NodeRange LoopNodes(Loop* loop) {
+    return NodeRange(&loop_nodes_[0] + loop->header_start_,
+                     &loop_nodes_[0] + loop->body_end_);
+  }
+
+  // Return the node that represents the control, i.e. the loop node itself.
+  Node* GetLoopControl(Loop* loop) {
+    // TODO(turbofan): make the loop control node always first?
+    for (Node* node : HeaderNodes(loop)) {
+      if (node->opcode() == IrOpcode::kLoop) return node;
+    }
+    UNREACHABLE();
+    return NULL;
+  }
+
  private:
   friend class LoopFinderImpl;
 
@@ -126,6 +143,7 @@ class LoopFinder {
   // Build a loop tree for the entire graph.
   static LoopTree* BuildLoopTree(Graph* graph, Zone* temp_zone);
 };
+
 
 }  // namespace compiler
 }  // namespace internal

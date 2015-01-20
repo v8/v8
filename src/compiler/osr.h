@@ -9,12 +9,10 @@
 
 // TurboFan structures OSR graphs in a way that separates almost all phases of
 // compilation from OSR implementation details. This is accomplished with
-// special
-// control nodes that are added at graph building time. In particular, the graph
-// is built in such a way that typing still computes the best types and
-// optimizations and lowering work unchanged. All that remains is to deconstruct
-// the OSR artifacts before scheduling. The helper class below performs the
-// necessary graph rewriting.
+// special control nodes that are added at graph building time. In particular,
+// the graph is built in such a way that typing still computes the best types
+// and optimizations and lowering work unchanged. All that remains is to
+// deconstruct the OSR artifacts before scheduling and code generation.
 
 // Graphs built for OSR from the AstGraphBuilder are structured as follows:
 //                             Start
@@ -36,20 +34,20 @@
 //         end
 
 // The control structure expresses the relationship that the loop has a separate
-// entrypoint which corresponds to entering the loop directly from start.
+// entrypoint which corresponds to entering the loop directly from the middle
+// of unoptimized code.
 // Similarly, the values that come in from unoptimized code are represented with
 // {OsrValue} nodes that merge into any phis associated with the OSR loop.
-// The nodes {A} and {B} represent values in the "normal" graph that correspond
-// to the values of those phis before the loop and on any backedges,
-// respectively.
+// In the above diagram, nodes {A} and {B} represent values in the "normal"
+// graph that correspond to the values of those phis before the loop and on any
+// backedges, respectively.
 
 // To deconstruct OSR, we simply replace the uses of the {OsrNormalEntry}
-// control
-// node with {Dead} and {OsrLoopEntry} with start and run the {ControlReducer}.
-// Control reduction propagates the dead control forward, essentially "killing"
-// all the code before the OSR loop. The entrypoint to the loop corresponding
-// to the "normal" entry path will also be removed, as well as the inputs to
-// the loop phis, resulting in the reduced graph:
+// control node with {Dead} and {OsrLoopEntry} with start and run the
+// {ControlReducer}. Control reduction propagates the dead control forward,
+// essentially "killing" all the code before the OSR loop. The entrypoint to the
+// loop corresponding to the "normal" entry path will also be removed, as well
+// as the inputs to the loop phis, resulting in the reduced graph:
 
 //                             Start
 //         Dead                  |^-------------------------+

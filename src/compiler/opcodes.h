@@ -294,6 +294,10 @@ class IrOpcode {
   static bool IsConstantOpcode(Value value) {
     return kInt32Constant <= value && value <= kHeapConstant;
   }
+
+  static bool IsPhiOpcode(Value val) {
+    return val == kPhi || val == kEffectPhi;
+  }
 };
 
 }  // namespace compiler
