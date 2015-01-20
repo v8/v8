@@ -28,6 +28,7 @@
 #include "test/cctest/trace-extension.h"
 
 #include "src/sampler.h"
+#include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -97,6 +98,11 @@ void TraceExtension::DoTrace(Address fp) {
 
 
 void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+  i::VMState<EXTERNAL> state(isolate);
+  Address address = reinterpret_cast<Address>(
+      reinterpret_cast<intptr_t>(&TraceExtension::Trace));
+  i::ExternalCallbackScope call_scope(isolate, address);
   DoTrace(GetFP(args));
 }
 
@@ -114,6 +120,11 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 
 
 void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+  i::VMState<EXTERNAL> state(isolate);
+  Address address = reinterpret_cast<Address>(
+      reinterpret_cast<intptr_t>(&TraceExtension::JSTrace));
+  i::ExternalCallbackScope call_scope(isolate, address);
   DoTraceHideCEntryFPAddress(GetFP(args));
 }
 
