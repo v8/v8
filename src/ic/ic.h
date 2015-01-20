@@ -561,11 +561,8 @@ class StoreIC : public IC {
                       JSReceiver::StoreFromKeyed store_mode);
 
  protected:
-  Handle<Code> megamorphic_stub() OVERRIDE;
-
   // Stub accessors.
-  Handle<Code> generic_stub() const;
-
+  Handle<Code> megamorphic_stub() OVERRIDE;
   Handle<Code> slow_stub() const;
 
   virtual Handle<Code> pre_monomorphic_stub() const {
@@ -640,7 +637,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm, StrictMode strict_mode);
-  static void GenerateGeneric(MacroAssembler* masm, StrictMode strict_mode);
   static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:

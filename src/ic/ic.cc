@@ -1619,21 +1619,6 @@ Handle<Code> StoreIC::megamorphic_stub() {
 }
 
 
-Handle<Code> StoreIC::generic_stub() const {
-  if (kind() == Code::STORE_IC) {
-    return PropertyICCompiler::ComputeStore(isolate(), GENERIC,
-                                            extra_ic_state());
-  } else {
-    DCHECK(kind() == Code::KEYED_STORE_IC);
-    if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
-    }
-  }
-}
-
-
 Handle<Code> StoreIC::slow_stub() const {
   if (kind() == Code::STORE_IC) {
     return isolate()->builtins()->StoreIC_Slow();
@@ -1801,7 +1786,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-NORMAL target type");
-    return generic_stub();
+    return megamorphic_stub();
   }
 
   Handle<Map> receiver_map(receiver->map(), isolate());
@@ -1865,11 +1850,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
 
   if (!map_added) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
-    // won't help. In theory we should use the generic stub, but in
-    // practice there are a number of hard-to-avoid reasons why this
-    // can happen occasionally, and where the additional logic in the
-    // megamorphic stub is beneficial because it can handle most cases
-    // without calling into the runtime.
+    // won't help, use the megamorphic stub which can handle everything.
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "same map added twice");
     return megamorphic_stub();
   }
@@ -1881,20 +1862,20 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
-  // generic stub must be used.
+  // megamorphic stub must be used.
   store_mode = GetNonTransitioningStoreMode(store_mode);
   if (old_store_mode != STANDARD_STORE) {
     if (store_mode == STANDARD_STORE) {
       store_mode = old_store_mode;
     } else if (store_mode != old_store_mode) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "store mode mismatch");
-      return generic_stub();
+      return megamorphic_stub();
     }
   }
 
   // If the store mode isn't the standard mode, make sure that all polymorphic
   // receivers are either external arrays, or all "normal" arrays. Otherwise,
-  // use the generic stub.
+  // use the megamorphic stub.
   if (store_mode != STANDARD_STORE) {
     int external_arrays = 0;
     for (int i = 0; i < target_receiver_maps.length(); ++i) {
@@ -1907,7 +1888,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
         external_arrays != target_receiver_maps.length()) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
                        "unsupported combination of external and normal arrays");
-      return generic_stub();
+      return megamorphic_stub();
     }
   }
 
@@ -2052,7 +2033,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   key = TryConvertKey(key, isolate());
 
   Handle<Object> store_handle;
-  Handle<Code> stub = generic_stub();
+  Handle<Code> stub = megamorphic_stub();
 
   if (key->IsInternalizedString()) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -2126,8 +2107,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   DCHECK(!is_target_set());
-  Code* generic = *generic_stub();
-  if (*stub == generic) {
+  Code* megamorphic = *megamorphic_stub();
+  if (*stub == megamorphic) {
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
   }
   if (*stub == *slow_stub()) {
@@ -2138,13 +2119,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   TRACE_IC("StoreIC", key);
 
   return store_handle;
-}
-
-
-// static
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictMode strict_mode) {
-  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
 }
 
 
