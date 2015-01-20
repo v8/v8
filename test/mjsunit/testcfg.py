@@ -77,7 +77,9 @@ class MjsunitTestSuite(testsuite.TestSuite):
     if SELF_SCRIPT_PATTERN.search(source):
       env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
       files = env + files
-    files.append(os.path.join(self.root, "mjsunit.js"))
+
+    if not context.no_harness:
+      files.append(os.path.join(self.root, "mjsunit.js"))
     files.append(testfilename)
 
     flags += files

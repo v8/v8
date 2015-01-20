@@ -175,6 +175,9 @@ def BuildOptions():
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated)",
                     default="release,debug")
+  result.add_option("--no-harness", "--noharness",
+                    help="Run without test harness of a given suite",
+                    default=False, action="store_true")
   result.add_option("--no-i18n", "--noi18n",
                     help="Skip internationalization tests",
                     default=False, action="store_true")
@@ -492,7 +495,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.no_sorting,
                         options.rerun_failures_count,
                         options.rerun_failures_max,
-                        options.predictable)
+                        options.predictable,
+                        options.no_harness)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
