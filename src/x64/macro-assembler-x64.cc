@@ -805,8 +805,8 @@ void MacroAssembler::CallApiFunctionAndReturn(
   JumpIfSmi(return_value, &ok, Label::kNear);
   movp(map, FieldOperand(return_value, HeapObject::kMapOffset));
 
-  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-  j(below, &ok, Label::kNear);
+  CmpInstanceType(map, LAST_NAME_TYPE);
+  j(below_equal, &ok, Label::kNear);
 
   CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
   j(above_equal, &ok, Label::kNear);

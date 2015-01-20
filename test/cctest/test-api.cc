@@ -23648,6 +23648,32 @@ TEST(FunctionCallOptimizationMultipleArgs) {
 }
 
 
+static void ReturnsSymbolCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8::Symbol::New(info.GetIsolate()));
+}
+
+
+TEST(ApiCallbackCanReturnSymbols) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global = context->Global();
+  Local<v8::Function> function = Function::New(isolate, ReturnsSymbolCallback);
+  global->Set(v8_str("x"), function);
+  CompileRun(
+      "function x_wrap() {\n"
+      "  for (var i = 0; i < 5; i++) {\n"
+      "    x();\n"
+      "  }\n"
+      "}\n"
+      "x_wrap();\n"
+      "%OptimizeFunctionOnNextCall(x_wrap);"
+      "x_wrap();\n");
+}
+
+
 static const char* last_event_message;
 static int last_event_status;
 void StoringEventLoggerCallback(const char* message, int status) {
