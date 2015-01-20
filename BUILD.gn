@@ -96,8 +96,34 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm, mips, mipsel.
+  # TODO(jochen): Add support for arm subarchs, mips, mipsel.
 
+  if (v8_target_arch == "arm") {
+    defines += [ "V8_TARGET_ARCH_ARM" ]
+    if (arm_verson == 7) {
+      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3-d16") {
+      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+      ]
+    }
+    if (arm_fpu == "neon") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+        "CAN_USE_NEON",
+      ]
+    }
+
+    # TODO(jochen): Add support for arm_test_noprobe.
+
+    # TODO(jochen): Add support for cpu_arch != v8_target_arch/
+  }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
