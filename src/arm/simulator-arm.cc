@@ -3069,7 +3069,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
         // vsqrt
         double dm_value = get_double_from_d_register(vm);
-        double dd_value = std::sqrt(dm_value);
+        double dd_value = fast_sqrt(dm_value);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if (instr->Opc3Value() == 0x0) {
