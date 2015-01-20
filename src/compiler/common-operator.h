@@ -201,6 +201,10 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Call(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
 
+  // Constructs a new merge or phi operator with the same opcode as {op}, but
+  // with {size} inputs.
+  const Operator* ResizeMergeOrPhi(const Operator* op, int size);
+
  private:
   Zone* zone() const { return zone_; }
 

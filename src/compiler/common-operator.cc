@@ -492,6 +492,24 @@ const Operator* CommonOperatorBuilder::Projection(size_t index) {
       index);                                  // parameter
 }
 
+
+const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
+                                                        int size) {
+  if (op->opcode() == IrOpcode::kPhi) {
+    return Phi(OpParameter<MachineType>(op), size);
+  } else if (op->opcode() == IrOpcode::kEffectPhi) {
+    return EffectPhi(size);
+  } else if (op->opcode() == IrOpcode::kMerge) {
+    return Merge(size);
+  } else if (op->opcode() == IrOpcode::kLoop) {
+    return Loop(size);
+  } else {
+    UNREACHABLE();
+    return nullptr;
+  }
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

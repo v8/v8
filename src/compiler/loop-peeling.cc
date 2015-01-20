@@ -161,23 +161,6 @@ Node* PeeledIteration::map(Node* node) {
 }
 
 
-static const Operator* ResizeMergeOrPhi(CommonOperatorBuilder* common,
-                                        const Operator* op, int size) {
-  if (op->opcode() == IrOpcode::kPhi) {
-    return common->Phi(OpParameter<MachineType>(op), size);
-  } else if (op->opcode() == IrOpcode::kEffectPhi) {
-    return common->EffectPhi(size);
-  } else if (op->opcode() == IrOpcode::kMerge) {
-    return common->Merge(size);
-  } else if (op->opcode() == IrOpcode::kLoop) {
-    return common->Loop(size);
-  } else {
-    UNREACHABLE();
-    return nullptr;
-  }
-}
-
-
 PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
                                   LoopTree* loop_tree, LoopTree::Loop* loop,
                                   Zone* tmp_zone) {
@@ -225,7 +208,7 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
       for (Node* input : inputs) {
         if (input != inputs[0]) {  // Non-redundant phi.
           inputs.push_back(merge);
-          const Operator* op = ResizeMergeOrPhi(common, node->op(), backedges);
+          const Operator* op = common->ResizeMergeOrPhi(node->op(), backedges);
           Node* phi = graph->NewNode(op, backedges + 1, &inputs[0]);
           node->ReplaceInput(0, phi);
           break;

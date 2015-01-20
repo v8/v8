@@ -509,28 +509,24 @@ class ControlReducerImpl {
   // Remove inputs to {node} corresponding to the dead inputs to {merge}
   // and compact the remaining inputs, updating the operator.
   void RemoveDeadInputs(Node* merge, Node* node) {
-    int pos = 0;
-    for (int i = 0; i < node->InputCount(); i++) {
+    int live = 0;
+    for (int i = 0; i < merge->InputCount(); i++) {
       // skip dead inputs.
-      if (i < merge->InputCount() &&
-          merge->InputAt(i)->opcode() == IrOpcode::kDead)
-        continue;
+      if (merge->InputAt(i)->opcode() == IrOpcode::kDead) continue;
       // compact live inputs.
-      if (pos != i) node->ReplaceInput(pos, node->InputAt(i));
-      pos++;
+      if (live != i) node->ReplaceInput(live, node->InputAt(i));
+      live++;
     }
-    node->TrimInputCount(pos);
-    if (node->opcode() == IrOpcode::kPhi) {
-      node->set_op(common_->Phi(OpParameter<MachineType>(node->op()), pos - 1));
-    } else if (node->opcode() == IrOpcode::kEffectPhi) {
-      node->set_op(common_->EffectPhi(pos - 1));
-    } else if (node->opcode() == IrOpcode::kMerge) {
-      node->set_op(common_->Merge(pos));
-    } else if (node->opcode() == IrOpcode::kLoop) {
-      node->set_op(common_->Loop(pos));
-    } else {
-      UNREACHABLE();
+    // compact remaining inputs.
+    int total = live;
+    for (int i = merge->InputCount(); i < node->InputCount(); i++) {
+      if (total != i) node->ReplaceInput(total, node->InputAt(i));
+      total++;
     }
+    DCHECK_EQ(total, live + node->InputCount() - merge->InputCount());
+    DCHECK_NE(total, node->InputCount());
+    node->TrimInputCount(total);
+    node->set_op(common_->ResizeMergeOrPhi(node->op(), live));
   }
 
   // Replace uses of {node} with {replacement} and revisit the uses.
