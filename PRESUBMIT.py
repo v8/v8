@@ -243,16 +243,17 @@ def CheckChangeOnCommit(input_api, output_api):
 def GetPreferredTryMasters(project, change):
   return {
     'tryserver.v8': {
+      'v8_presubmit': set(['defaulttests']),
       'v8_linux_rel': set(['defaulttests']),
-      'v8_linux_dbg': set(['defaulttests']),
-      'v8_linux_nosnap_rel': set(['defaulttests']),
       'v8_linux64_rel': set(['defaulttests']),
-      'v8_linux_arm_dbg': set(['defaulttests']),
-      'v8_linux_arm64_rel': set(['defaulttests']),
-      'v8_linux_layout_dbg': set(['defaulttests']),
-      'v8_linux_chromium_gn_rel': set(['defaulttests']),
-      'v8_mac_rel': set(['defaulttests']),
+      'v8_linux64_asan_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
-      'v8_win64_compile_rel': set(['defaulttests']),
+      'v8_win_compile_dbg': set(['defaulttests']),
+      'v8_win64_rel': set(['defaulttests']),
+      'v8_mac_rel': set(['defaulttests']),
+      'v8_linux_arm_rel': set(['defaulttests']),
+      'v8_linux_arm64_rel': set(['defaulttests']),
+      'v8_android_arm_compile_rel': set(['defaulttests']),
+      'v8_linux_chromium_gn_rel': set(['defaulttests']),
     },
   }
