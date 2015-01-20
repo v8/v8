@@ -765,12 +765,9 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 2);
-  JSReceiver::DeleteMode delete_mode = strict_mode == STRICT
-                                           ? JSReceiver::STRICT_DELETION
-                                           : JSReceiver::NORMAL_DELETION;
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::DeleteProperty(object, key, delete_mode));
+      isolate, result, JSReceiver::DeleteProperty(object, key, strict_mode));
   return *result;
 }
 

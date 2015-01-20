@@ -1589,12 +1589,6 @@ enum AccessorComponent {
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
  public:
-  enum DeleteMode {
-    NORMAL_DELETION,
-    STRICT_DELETION,
-    FORCE_DELETION
-  };
-
   DECLARE_CAST(JSReceiver)
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
@@ -1616,13 +1610,11 @@ class JSReceiver: public HeapObject {
 
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
-      Handle<JSReceiver> object,
-      Handle<Name> name,
-      DeleteMode mode = NORMAL_DELETION);
+      Handle<JSReceiver> object, Handle<Name> name,
+      StrictMode strict_mode = SLOPPY);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
-      Handle<JSReceiver> object,
-      uint32_t index,
-      DeleteMode mode = NORMAL_DELETION);
+      Handle<JSReceiver> object, uint32_t index,
+      StrictMode strict_mode = SLOPPY);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -2341,21 +2333,16 @@ class JSObject: public JSReceiver {
                               PropertyAttributes attributes);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      DeleteMode mode);
+      Handle<JSObject> object, Handle<Name> name, StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
       Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name);
 
-  // Deletes the named property in a normalized object.
-  static Handle<Object> DeleteNormalizedProperty(Handle<JSObject> object,
-                                                 Handle<Name> name,
-                                                 DeleteMode mode);
+  // Deletes an existing named property in a normalized object.
+  static void DeleteNormalizedProperty(Handle<JSObject> object,
+                                       Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      DeleteMode mode);
+      Handle<JSObject> object, uint32_t index, StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithInterceptor(
       Handle<JSObject> object,
       uint32_t index);
@@ -3556,10 +3543,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   void CopyValuesTo(FixedArray* elements);
 
   // Delete a property from the dictionary.
-  static Handle<Object> DeleteProperty(
-      Handle<Derived> dictionary,
-      int entry,
-      JSObject::DeleteMode mode);
+  static Handle<Object> DeleteProperty(Handle<Derived> dictionary, int entry);
 
   // Attempt to shrink the dictionary after deletion of key.
   MUST_USE_RESULT static inline Handle<Derived> Shrink(
@@ -9843,13 +9827,9 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Name> name,
-      DeleteMode mode);
+      Handle<JSProxy> proxy, Handle<Name> name, StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithHandler(
-      Handle<JSProxy> proxy,
-      uint32_t index,
-      DeleteMode mode);
+      Handle<JSProxy> proxy, uint32_t index, StrictMode strict_mode);
 
   MUST_USE_RESULT Object* GetIdentityHash();
 

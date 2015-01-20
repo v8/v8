@@ -650,7 +650,7 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete first
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);
@@ -666,11 +666,11 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete first and then second
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, second);
   CHECK(maybe.has_value);
   CHECK(maybe.value);
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);
@@ -689,11 +689,11 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete second and then first
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(maybe.value);
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);

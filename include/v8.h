@@ -2432,10 +2432,6 @@ class V8_EXPORT Object : public Value {
 
   bool Delete(Handle<Value> key);
 
-  // Delete a property on this object bypassing interceptors and
-  // ignoring dont-delete attributes.
-  bool ForceDelete(Handle<Value> key);
-
   bool Has(uint32_t index);
 
   bool Delete(uint32_t index);
