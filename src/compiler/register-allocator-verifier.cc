@@ -242,9 +242,10 @@ class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
                const InstructionBlock* block, size_t phi_index) {
     // This operation is only valid in edge split form.
     size_t predecessor_index = block->predecessors()[phi_index].ToSize();
-    CHECK(sequence->instruction_blocks()[predecessor_index]->SuccessorCount() ==
-          1);
     for (const auto* phi : block->phis()) {
+      CHECK(
+          sequence->instruction_blocks()[predecessor_index]->SuccessorCount() ==
+          1);
       auto input = phi->inputs()[phi_index];
       CHECK(locations()->find(input) != locations()->end());
       auto it = locations()->find(phi->output());
@@ -317,7 +318,7 @@ class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
     size_t predecessor_index = block->predecessors()[0].ToSize();
     CHECK(predecessor_index < block->rpo_number().ToSize());
     auto* incoming = outgoing_mappings->at(predecessor_index);
-    if (block->PredecessorCount() > 1) {
+    if (block->PredecessorCount() >= 1) {
       // Update incoming map with phis. The remaining phis will be checked later
       // as their mappings are not guaranteed to exist yet.
       incoming->RunPhis(sequence, block, 0);
