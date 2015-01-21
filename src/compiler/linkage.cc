@@ -155,6 +155,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kDefineAccessorPropertyUnchecked:
     case Runtime::kDefineDataPropertyUnchecked:
     case Runtime::kDeleteProperty:
+    case Runtime::kDeliverObservationChangeRecords:
     case Runtime::kDeoptimizeFunction:
     case Runtime::kFunctionBindArguments:
     case Runtime::kGetDefaultReceiver:
