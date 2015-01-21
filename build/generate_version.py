@@ -28,11 +28,16 @@ VERSION_GEN_CC = os.path.join(CWD, "src", "version_gen.cc")
 
 
 def generate_version_file():
-  # Make sure the tags are fetched.
-  subprocess.check_output(
-      "git fetch origin +refs/tags/*:refs/tags/*",
+  # Make sure the tags are fetched from cached git repos.
+  url = subprocess.check_output(
+      "git config --get remote.origin.url",
       shell=True,
-      cwd=CWD)
+      cwd=CWD).strip()
+  if not url.startswith("http"):
+    subprocess.check_output(
+        "git fetch origin +refs/tags/*:refs/tags/*",
+        shell=True,
+        cwd=CWD)
   tag = subprocess.check_output(
       "git describe --tags",
       shell=True,
