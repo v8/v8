@@ -893,6 +893,12 @@
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mips'
 
+['arch == arm and simulator_run == True', {
+
+  #BUG(3837): Avoid C stack overflow.
+  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+}],  # 'arch == arm and simulator_run == True'
+
 ['arch == arm64 and simulator_run == True', {
 
   'js1_5/GC/regress-203278-2': [SKIP],
