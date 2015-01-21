@@ -1063,7 +1063,7 @@ void Isolate::ComputeLocation(MessageLocation* target) {
       int pos = frame->LookupCode()->SourcePosition(frame->pc());
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
-      *target = MessageLocation(casted_script, pos, pos + 1);
+      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
     }
   }
 }

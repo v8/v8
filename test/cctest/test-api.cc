@@ -11353,7 +11353,7 @@ THREADED_TEST(ConstructorForObject) {
     value = CompileRun("new obj2(28)");
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
-    CHECK_EQ("TypeError: object is not a function", *exception_value1);
+    CHECK_EQ("TypeError: obj2 is not a function", *exception_value1);
     try_catch.Reset();
 
     Local<Value> args[] = { v8_num(29) };
@@ -11714,8 +11714,7 @@ THREADED_TEST(CallAsFunction) {
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
     // TODO(verwaest): Better message
-    CHECK_EQ("TypeError: object is not a function",
-             *exception_value1);
+    CHECK_EQ("TypeError: obj2 is not a function", *exception_value1);
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
@@ -13095,7 +13094,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  CHECK_EQ(v8_str("TypeError: undefined is not a function"),
+  CHECK_EQ(v8_str("TypeError: receiver.method is not a function"),
            try_catch.Exception()->ToString(isolate));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
@@ -13270,7 +13269,7 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  CHECK_EQ(v8_str("TypeError: undefined is not a function"),
+  CHECK_EQ(v8_str("TypeError: receiver.method is not a function"),
            try_catch.Exception()->ToString(isolate));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }

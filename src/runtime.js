@@ -377,7 +377,9 @@ function FILTER_KEY(key) {
 function CALL_NON_FUNCTION() {
   var delegate = %GetFunctionDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof this]);
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
@@ -386,7 +388,9 @@ function CALL_NON_FUNCTION() {
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   var delegate = %GetConstructorDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof this]);
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }

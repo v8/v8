@@ -11,6 +11,43 @@
 namespace v8 {
 namespace internal {
 
+class CallPrinter : public AstVisitor {
+ public:
+  explicit CallPrinter(Zone* zone);
+  virtual ~CallPrinter();
+
+  // The following routine prints the node with position |position| into a
+  // string. The result string is alive as long as the CallPrinter is alive.
+  const char* Print(FunctionLiteral* program, int position);
+
+  void Print(const char* format, ...);
+
+  void Find(AstNode* node, bool print = false);
+
+// Individual nodes
+#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+ private:
+  void Init();
+  char* output_;  // output string buffer
+  int size_;      // output_ size
+  int pos_;       // current printing position
+  int position_;  // position of ast node to print
+  bool found_;
+  bool done_;
+
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+
+ protected:
+  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(const AstRawString* value, bool quote);
+  void FindStatements(ZoneList<Statement*>* statements);
+  void FindArguments(ZoneList<Expression*>* arguments);
+};
+
+
 #ifdef DEBUG
 
 class PrettyPrinter: public AstVisitor {
