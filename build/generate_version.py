@@ -28,6 +28,11 @@ VERSION_GEN_CC = os.path.join(CWD, "src", "version_gen.cc")
 
 
 def generate_version_file():
+  # Make sure the tags are fetched.
+  subprocess.check_output(
+      "git fetch origin +refs/tags/*:refs/tags/*",
+      shell=True,
+      cwd=CWD)
   tag = subprocess.check_output(
       "git describe --tags",
       shell=True,
