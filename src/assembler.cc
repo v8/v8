@@ -111,7 +111,6 @@ double min_int;
 double one_half;
 double minus_one_half;
 double negative_infinity;
-double canonical_non_hole_nan;
 double the_hole_nan;
 double uint32_bias;
 };
@@ -888,7 +887,6 @@ void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
-  double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = bit_cast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
@@ -1243,12 +1241,6 @@ ExternalReference ExternalReference::address_of_minus_one_half() {
 ExternalReference ExternalReference::address_of_negative_infinity() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.negative_infinity));
-}
-
-
-ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.canonical_non_hole_nan));
 }
 
 

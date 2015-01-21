@@ -2578,21 +2578,8 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     xorps(dst, dst);
   } else {
-    unsigned cnt = base::bits::CountPopulation32(src);
-    unsigned nlz = base::bits::CountLeadingZeros32(src);
-    unsigned ntz = base::bits::CountTrailingZeros32(src);
-    if (nlz + cnt + ntz == 32) {
-      pcmpeqd(dst, dst);
-      if (ntz == 0) {
-        psrld(dst, 32 - cnt);
-      } else {
-        pslld(dst, 32 - cnt);
-        if (nlz != 0) psrld(dst, nlz);
-      }
-    } else {
-      movl(kScratchRegister, Immediate(src));
-      movq(dst, kScratchRegister);
-    }
+    movl(kScratchRegister, Immediate(src));
+    movq(dst, kScratchRegister);
   }
 }
 
@@ -2603,18 +2590,7 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
   if (upper == 0) {
     Move(dst, lower);
   } else {
-    unsigned cnt = base::bits::CountPopulation64(src);
-    unsigned nlz = base::bits::CountLeadingZeros64(src);
-    unsigned ntz = base::bits::CountTrailingZeros64(src);
-    if (nlz + cnt + ntz == 64) {
-      pcmpeqd(dst, dst);
-      if (ntz == 0) {
-        psrlq(dst, 64 - cnt);
-      } else {
-        psllq(dst, 64 - cnt);
-        if (nlz != 0) psrlq(dst, nlz);
-      }
-    } else if (lower == 0) {
+    if (lower == 0) {
       Move(dst, upper);
       psllq(dst, 32);
     } else {
@@ -3251,7 +3227,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
     XMMRegister xmm_scratch,
     Label* fail,
     int elements_offset) {
-  Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
+  Label smi_value, done;
 
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
 
@@ -3260,44 +3236,20 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  cmpl(FieldOperand(maybe_number, offset),
-       Immediate(kNaNOrInfinityLowerBoundUpper32));
-  j(greater_equal, &maybe_nan, Label::kNear);
-
-  bind(&not_nan);
-  movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  bind(&have_double_value);
-  movsd(FieldOperand(elements, index, times_8,
-                     FixedDoubleArray::kHeaderSize - elements_offset),
-        xmm_scratch);
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  j(greater, &is_nan, Label::kNear);
-  cmpl(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
-  j(zero, &not_nan);
-  bind(&is_nan);
-  // Convert all NaNs to the same canonical NaN value when they are stored in
-  // the double array.
-  Set(kScratchRegister,
-      bit_cast<uint64_t>(
-          FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-  movq(xmm_scratch, kScratchRegister);
-  jmp(&have_double_value, Label::kNear);
+  // Double value, turn potential sNaN into qNaN.
+  Move(xmm_scratch, 1.0);
+  mulsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+  jmp(&done, Label::kNear);
 
   bind(&smi_value);
   // Value is a smi. convert to a double and store.
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
   Cvtlsi2sd(xmm_scratch, kScratchRegister);
+  bind(&done);
   movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
-  bind(&done);
 }
 
 

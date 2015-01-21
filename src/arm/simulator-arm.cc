@@ -1917,8 +1917,13 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 
 
 double Simulator::canonicalizeNaN(double value) {
-  return (FPSCR_default_NaN_mode_ && std::isnan(value)) ?
-    FixedDoubleArray::canonical_not_the_hole_nan_as_double() : value;
+  // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
+  // choices" of the ARM Reference Manual.
+  const uint64_t kDefaultNaN = V8_UINT64_C(0x7FF8000000000000);
+  if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
+    value = bit_cast<double>(kDefaultNaN);
+  }
+  return value;
 }
 
 

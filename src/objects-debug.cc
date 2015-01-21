@@ -389,11 +389,10 @@ void FixedArray::FixedArrayVerify() {
 void FixedDoubleArray::FixedDoubleArrayVerify() {
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
-      double value = get_scalar(i);
-      CHECK(!std::isnan(value) ||
-            (bit_cast<uint64_t>(value) ==
-             bit_cast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
-            ((bit_cast<uint64_t>(value) & Double::kSignMask) != 0));
+      uint64_t value = get_representation(i);
+      CHECK((value & V8_UINT64_C(0x7FF8000000000000)) !=
+                V8_UINT64_C(0x7FF0000000000000) ||
+            (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
   }
 }

@@ -1717,19 +1717,7 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  DCHECK(instr->result()->IsDoubleRegister());
-  XMMRegister res = ToDoubleRegister(instr->result());
-  double v = instr->value();
-  uint64_t int_val = bit_cast<uint64_t, double>(v);
-  // Use xor to produce +0.0 in a fast and compact way, but avoid to
-  // do so if the constant is -0.0.
-  if (int_val == 0) {
-    __ xorps(res, res);
-  } else {
-    Register tmp = ToRegister(instr->temp());
-    __ Set(tmp, int_val);
-    __ movq(res, tmp);
-  }
+  __ Move(ToDoubleRegister(instr->result()), instr->bits());
 }
 
 
@@ -3985,10 +3973,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
   __ j(not_carry, &zero, Label::kNear);
-  ExternalReference nan =
-      ExternalReference::address_of_canonical_non_hole_nan();
-  Operand nan_operand = masm()->ExternalOperand(nan);
-  __ movsd(input_reg, nan_operand);
+  __ pcmpeqd(input_reg, input_reg);
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
   ExternalReference ninf =
@@ -4412,17 +4397,10 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     __ movsxlq(ToRegister(key), ToRegister(key));
   }
   if (instr->NeedsCanonicalization()) {
-    Label have_value;
-
-    __ ucomisd(value, value);
-    __ j(parity_odd, &have_value, Label::kNear);  // NaN.
-
-    __ Set(kScratchRegister,
-           bit_cast<uint64_t>(
-               FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-    __ movq(value, kScratchRegister);
-
-    __ bind(&have_value);
+    XMMRegister xmm_scratch = double_scratch0();
+    // Turn potential sNaN value into qNaN.
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ subsd(value, xmm_scratch);
   }
 
   Operand double_store_operand = BuildFastArrayOperand(
@@ -4960,8 +4938,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
       DeoptimizeIf(not_equal, instr, "not a heap number/undefined");
 
-      __ xorps(result_reg, result_reg);
-      __ divsd(result_reg, result_reg);
+      __ pcmpeqd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
     }
   } else {

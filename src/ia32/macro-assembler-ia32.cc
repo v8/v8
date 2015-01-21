@@ -675,7 +675,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
     XMMRegister scratch2,
     Label* fail,
     int elements_offset) {
-  Label smi_value, done, maybe_nan, not_nan, is_nan, have_double_value;
+  Label smi_value, done;
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
 
   CheckMap(maybe_number,
@@ -683,31 +683,10 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  cmp(FieldOperand(maybe_number, offset),
-      Immediate(kNaNOrInfinityLowerBoundUpper32));
-  j(greater_equal, &maybe_nan, Label::kNear);
-
-  bind(&not_nan);
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
-  movsd(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  bind(&have_double_value);
-  movsd(FieldOperand(elements, key, times_4,
-                     FixedDoubleArray::kHeaderSize - elements_offset),
-        scratch2);
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  j(greater, &is_nan, Label::kNear);
-  cmp(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
-  j(zero, &not_nan);
-  bind(&is_nan);
-  movsd(scratch2, Operand::StaticVariable(canonical_nan_reference));
-  jmp(&have_double_value, Label::kNear);
+  // Double value, turn potential sNaN into qNaN.
+  Move(scratch2, 1.0);
+  mulsd(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+  jmp(&done, Label::kNear);
 
   bind(&smi_value);
   // Value is a smi. Convert to a double and store.
@@ -715,10 +694,10 @@ void MacroAssembler::StoreNumberToDoubleElements(
   mov(scratch1, maybe_number);
   SmiUntag(scratch1);
   Cvtsi2sd(scratch2, scratch1);
+  bind(&done);
   movsd(FieldOperand(elements, key, times_4,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         scratch2);
-  bind(&done);
 }
 
 

@@ -3605,12 +3605,9 @@ void LCodeGen::DoLoadKeyedFixedDouble(LLoadKeyedFixedDouble* instr) {
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
     Register scratch = ToRegister(instr->temp());
-    // Detect the hole NaN by adding one to the integer representation of the
-    // result, and checking for overflow.
-    STATIC_ASSERT(kHoleNanInt64 == 0x7fffffffffffffff);
-    __ Ldr(scratch, mem_op);
-    __ Cmn(scratch, 1);
-    DeoptimizeIf(vs, instr, "hole");
+    __ Fmov(scratch, result);
+    __ Eor(scratch, scratch, kHoleNanInt64);
+    DeoptimizeIfZero(scratch, instr, "hole");
   }
 }
 

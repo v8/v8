@@ -5,6 +5,7 @@
 #ifndef V8_HYDROGEN_INSTRUCTIONS_H_
 #define V8_HYDROGEN_INSTRUCTIONS_H_
 
+#include <cstring>
 #include <iosfwd>
 
 #include "src/v8.h"
@@ -3483,6 +3484,9 @@ class HCapturedObject FINAL : public HDematerializedObject {
 
 class HConstant FINAL : public HTemplateInstruction<0> {
  public:
+  enum Special { kHoleNaN };
+
+  DECLARE_INSTRUCTION_FACTORY_P1(HConstant, Special);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, int32_t);
   DECLARE_INSTRUCTION_FACTORY_P2(HConstant, int32_t, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, double);
@@ -3550,7 +3554,6 @@ class HConstant FINAL : public HTemplateInstruction<0> {
   bool IsSpecialDouble() const {
     return HasDoubleValue() &&
            (bit_cast<int64_t>(double_value_) == bit_cast<int64_t>(-0.0) ||
-            FixedDoubleArray::is_the_hole_nan(double_value_) ||
             std::isnan(double_value_));
   }
 
@@ -3597,8 +3600,15 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     DCHECK(HasDoubleValue());
     return double_value_;
   }
+  uint64_t DoubleValueAsBits() const {
+    uint64_t bits;
+    DCHECK(HasDoubleValue());
+    STATIC_ASSERT(sizeof(bits) == sizeof(double_value_));
+    std::memcpy(&bits, &double_value_, sizeof(bits));
+    return bits;
+  }
   bool IsTheHole() const {
-    if (HasDoubleValue() && FixedDoubleArray::is_the_hole_nan(double_value_)) {
+    if (HasDoubleValue() && DoubleValueAsBits() == kHoleNanInt64) {
       return true;
     }
     return object_.IsInitialized() &&
@@ -3661,7 +3671,11 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     if (HasInteger32Value()) {
       return static_cast<intptr_t>(int32_value_);
     } else if (HasDoubleValue()) {
-      return static_cast<intptr_t>(bit_cast<int64_t>(double_value_));
+      uint64_t bits = DoubleValueAsBits();
+      if (sizeof(bits) > sizeof(intptr_t)) {
+        bits ^= (bits >> 32);
+      }
+      return static_cast<intptr_t>(bits);
     } else if (HasExternalReferenceValue()) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
@@ -3692,8 +3706,8 @@ class HConstant FINAL : public HTemplateInstruction<0> {
              int32_value_ == other_constant->int32_value_;
     } else if (HasDoubleValue()) {
       return other_constant->HasDoubleValue() &&
-             bit_cast<int64_t>(double_value_) ==
-                 bit_cast<int64_t>(other_constant->double_value_);
+             std::memcmp(&double_value_, &other_constant->double_value_,
+                         sizeof(double_value_)) == 0;
     } else if (HasExternalReferenceValue()) {
       return other_constant->HasExternalReferenceValue() &&
              external_reference_value_ ==
@@ -3720,6 +3734,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
  private:
   friend class HGraph;
+  explicit HConstant(Special special);
   explicit HConstant(Handle<Object> handle,
                      Representation r = Representation::None());
   HConstant(int32_t value,
