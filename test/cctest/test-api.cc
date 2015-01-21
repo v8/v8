@@ -23435,7 +23435,9 @@ TEST(FunctionCallOptimization) {
 }
 
 
-static void EmptyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {}
+static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(42);
+}
 
 
 TEST(FunctionCallOptimizationMultipleArgs) {
@@ -23444,7 +23446,7 @@ TEST(FunctionCallOptimizationMultipleArgs) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   Handle<Object> global = context->Global();
-  Local<v8::Function> function = Function::New(isolate, EmptyCallback);
+  Local<v8::Function> function = Function::New(isolate, Returns42);
   global->Set(v8_str("x"), function);
   CompileRun(
       "function x_wrap() {\n"
@@ -23481,6 +23483,150 @@ TEST(ApiCallbackCanReturnSymbols) {
       "x_wrap();\n"
       "%OptimizeFunctionOnNextCall(x_wrap);"
       "x_wrap();\n");
+}
+
+
+TEST(EmptyApiCallback) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto function = FunctionTemplate::New(isolate)->GetFunction();
+  global->Set(v8_str("x"), function);
+
+  auto result = CompileRun("x()");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
+  result = CompileRun("x(1,2,3)");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
+  result = CompileRun("7 + x.call(3) + 11");
+  CHECK(result->IsInt32());
+  CHECK_EQ(21, result->Int32Value());
+
+  result = CompileRun("7 + x.call(3, 101, 102, 103, 104) + 11");
+  CHECK(result->IsInt32());
+  CHECK_EQ(21, result->Int32Value());
+
+  result = CompileRun("var y = []; x.call(y)");
+  CHECK(result->IsArray());
+
+  result = CompileRun("x.call(y, 1, 2, 3, 4)");
+  CHECK(result->IsArray());
+}
+
+
+TEST(SimpleSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("var s = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+}
+
+
+TEST(ChainSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  for (int i = 0; i < 4; ++i) {
+    auto temp = FunctionTemplate::New(isolate);
+    temp->Inherit(sig_obj);
+    sig_obj = temp;
+  }
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("var s = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+}
+
+
+TEST(PrototypeSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  sig_obj->SetHiddenPrototype(true);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("s = {}; s.__proto__ = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
 }
 
 
