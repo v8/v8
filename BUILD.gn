@@ -20,6 +20,7 @@ v8_postmortem_support = false
 v8_use_snapshot = true
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
+v8_toolset_for_d8 = "host"
 
 ###############################################################################
 # Configurations
@@ -95,8 +96,34 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm, mips, mipsel.
+  # TODO(jochen): Add support for arm subarchs, mips, mipsel.
 
+  if (v8_target_arch == "arm") {
+    defines += [ "V8_TARGET_ARCH_ARM" ]
+    if (arm_verson == 7) {
+      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3-d16") {
+      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+      ]
+    }
+    if (arm_fpu == "neon") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+        "CAN_USE_NEON",
+      ]
+    }
+
+    # TODO(jochen): Add support for arm_test_noprobe.
+
+    # TODO(jochen): Add support for cpu_arch != v8_target_arch/
+  }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
@@ -231,6 +258,24 @@ action("js2c_experimental") {
       rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir),
     ]
   }
+}
+
+action("d8_js2c") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/js2c.py"
+
+  inputs = [
+    "src/d8.js",
+    "src/macros.py",
+  ]
+
+  outputs = [
+    "$target_gen_dir/d8-js.cc",
+  ]
+
+  args = rebase_path(outputs, root_build_dir) + [ "D8" ] +
+         rebase_path(inputs, root_build_dir)
 }
 
 if (v8_use_external_startup_data) {
@@ -1472,5 +1517,48 @@ if (component_mode == "shared_library") {
     }
 
     direct_dependent_configs = [ ":external_config" ]
+  }
+}
+
+if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
+  executable("d8") {
+    sources = [
+      "src/d8.cc",
+      "src/d8.h",
+    ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":internal_config",
+      ":features",
+      ":toolchain",
+    ]
+
+    deps = [
+      ":d8_js2c",
+      ":v8",
+      ":v8_libplatform",
+      "//build/config/sanitizers:deps",
+    ]
+
+    # TODO(jochen): Add support for readline and vtunejit.
+
+    if (is_posix) {
+      sources += [ "src/d8-posix.cc" ]
+    } else if (is_win) {
+      sources += [ "src/d8-windows.cc" ]
+    }
+
+    if (component_mode != "shared_library") {
+      sources += [
+        "src/d8-debug.cc",
+        "$target_gen_dir/d8-js.cc",
+      ]
+    }
+    if (v8_enable_i18n_support) {
+      deps += [ "//third_party/icu" ]
+    }
   }
 }

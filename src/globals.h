@@ -609,6 +609,7 @@ enum CpuFeature {
   SAHF,
   AVX,
   FMA3,
+  ATOM,
   // ARM
   VFP3,
   ARMv7,

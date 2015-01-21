@@ -263,10 +263,17 @@ function ID(x) {
   };
   assertEquals(proto, Object.getPrototypeOf(object));
 
-  var object = {
+  object = {
     ['__proto__']: proto
   };
   assertEquals(Object.prototype, Object.getPrototypeOf(object));
   assertEquals(proto, object.__proto__);
   assertTrue(object.hasOwnProperty('__proto__'));
+
+  object = {
+    [ID('x')]: 'X',
+    __proto__: proto
+  };
+  assertEquals('X', object.x);
+  assertEquals(proto, Object.getPrototypeOf(object));
 })();

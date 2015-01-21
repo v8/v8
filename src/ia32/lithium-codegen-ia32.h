@@ -191,18 +191,11 @@ class LCodeGen: public LCodeGenBase {
 
   void LoadContextFromDeferred(LOperand* context);
 
-  enum EDIState {
-    EDI_UNINITIALIZED,
-    EDI_CONTAINS_TARGET
-  };
-
-  // Generate a direct call to a known function.  Expects the function
+  // Generate a direct call to a known function. Expects the function
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
-                         int formal_parameter_count,
-                         int arity,
-                         LInstruction* instr,
-                         EDIState edi_state);
+                         int formal_parameter_count, int arity,
+                         LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);

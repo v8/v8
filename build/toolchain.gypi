@@ -31,6 +31,12 @@
   'variables': {
     'msvs_use_common_release': 0,
     'clang%': 0,
+    'asan%': 0,
+    'lsan%': 0,
+    'msan%': 0,
+    'tsan%': 0,
+    'ubsan%': 0,
+    'ubsan_vptr%': 0,
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     # Native Client builds currently use the V8 ARM JIT and
@@ -811,6 +817,45 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
+        v8_target_arch=="ia32"', {
+        # All floating-point computations on x87 happens in 80-bit
+        # precision.  Because the C and C++ language standards allow
+        # the compiler to keep the floating-point values in higher
+        # precision than what's specified in the source and doing so
+        # is more efficient than constantly rounding up to 64-bit or
+        # 32-bit precision as specified in the source, the compiler,
+        # especially in the optimized mode, tries very hard to keep
+        # values in x87 floating-point stack (in 80-bit precision)
+        # as long as possible. This has important side effects, that
+        # the real value used in computation may change depending on
+        # how the compiler did the optimization - that is, the value
+        # kept in 80-bit is different than the value rounded down to
+        # 64-bit or 32-bit. There are possible compiler options to
+        # make this behavior consistent (e.g. -ffloat-store would keep
+        # all floating-values in the memory, thus force them to be
+        # rounded to its original precision) but they have significant
+        # runtime performance penalty.
+        #
+        # -mfpmath=sse -msse2 makes the compiler use SSE instructions
+        # which keep floating-point values in SSE registers in its
+        # native precision (32-bit for single precision, and 64-bit
+        # for double precision values). This means the floating-point
+        # value used during computation does not change depending on
+        # how the compiler optimized the code, since the value is
+        # always kept in its specified precision.
+        #
+        # Refer to http://crbug.com/348761 for rationale behind SSE2
+        # being a minimum requirement for 32-bit Linux builds and
+        # http://crbug.com/313032 for an example where this has "bit"
+        # us in the past.
+        'cflags': [
+          '-msse2',
+          '-mfpmath=sse',
+          '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
+        ],
+      }],
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="x87" or v8_target_arch=="mips" or \
          v8_target_arch=="mipsel" or v8_target_arch=="ppc")', {
@@ -981,7 +1026,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
                 }, {
@@ -1066,7 +1113,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
               }, {

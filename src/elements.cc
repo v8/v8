@@ -691,9 +691,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj,
-      uint32_t key,
-      JSReceiver::DeleteMode mode) OVERRIDE = 0;
+      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) OVERRIDE = 0;
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
                                FixedArrayBase* to, ElementsKind from_kind,
@@ -915,9 +913,8 @@ class FastElementsAccessor
     return length_object;
   }
 
-  static Handle<Object> DeleteCommon(Handle<JSObject> obj,
-                                     uint32_t key,
-                                     JSReceiver::DeleteMode mode) {
+  static Handle<Object> DeleteCommon(Handle<JSObject> obj, uint32_t key,
+                                     StrictMode strict_mode) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
@@ -975,8 +972,8 @@ class FastElementsAccessor
   }
 
   virtual MaybeHandle<Object> Delete(Handle<JSObject> obj, uint32_t key,
-                                     JSReceiver::DeleteMode mode) FINAL {
-    return DeleteCommon(obj, key, mode);
+                                     StrictMode strict_mode) FINAL {
+    return DeleteCommon(obj, key, strict_mode);
   }
 
   static bool HasElementImpl(
@@ -1298,7 +1295,7 @@ class TypedElementsAccessor
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, JSReceiver::DeleteMode mode) FINAL {
+      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
     // External arrays always ignore deletes.
     return obj->GetIsolate()->factory()->true_value();
   }
@@ -1397,9 +1394,7 @@ class DictionaryElementsAccessor
   }
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteCommon(
-      Handle<JSObject> obj,
-      uint32_t key,
-      JSReceiver::DeleteMode mode) {
+      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> backing_store(FixedArray::cast(obj->elements()),
                                      isolate);
@@ -1413,9 +1408,9 @@ class DictionaryElementsAccessor
     int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
       Handle<Object> result =
-          SeededNumberDictionary::DeleteProperty(dictionary, entry, mode);
+          SeededNumberDictionary::DeleteProperty(dictionary, entry);
       if (*result == *isolate->factory()->false_value()) {
-        if (mode == JSObject::STRICT_DELETION) {
+        if (strict_mode == STRICT) {
           // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
           Handle<Object> args[2] = { name, obj };
@@ -1450,8 +1445,8 @@ class DictionaryElementsAccessor
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, JSReceiver::DeleteMode mode) FINAL {
-    return DeleteCommon(obj, key, mode);
+      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
+    return DeleteCommon(obj, key, strict_mode);
   }
 
   MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
@@ -1622,7 +1617,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, JSReceiver::DeleteMode mode) FINAL {
+      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map(FixedArray::cast(obj->elements()));
     Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
@@ -1634,12 +1629,13 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       if (arguments->IsDictionary()) {
-        return DictionaryElementsAccessor::DeleteCommon(obj, key, mode);
+        return DictionaryElementsAccessor::DeleteCommon(obj, key, strict_mode);
       } else {
         // It's difficult to access the version of DeleteCommon that is declared
         // in the templatized super class, call the concrete implementation in
         // the class for the most generalized ElementsKind subclass.
-        return FastHoleyObjectElementsAccessor::DeleteCommon(obj, key, mode);
+        return FastHoleyObjectElementsAccessor::DeleteCommon(obj, key,
+                                                             strict_mode);
       }
     }
     return isolate->factory()->true_value();

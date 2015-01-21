@@ -1049,10 +1049,10 @@ class PreParserFactory {
                                       int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewObjectLiteralProperty(bool is_getter,
-                                               PreParserExpression key,
+  PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
                                                PreParserExpression value,
-                                               int pos, bool is_static,
+                                               ObjectLiteralProperty::Kind kind,
+                                               bool is_static,
                                                bool is_computed_name) {
     return PreParserExpression::Default();
   }
@@ -2141,6 +2141,10 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
         FunctionLiteral::NORMAL_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
+    return factory()->NewObjectLiteralProperty(name_expression, value,
+                                               ObjectLiteralProperty::COMPUTED,
+                                               is_static, *is_computed_name);
+
   } else if (in_class && name_is_static && !is_static) {
     // static MethodDefinition
     return ParsePropertyDefinition(checker, true, true, is_computed_name, NULL,
@@ -2189,12 +2193,18 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
     }
 
     return factory()->NewObjectLiteralProperty(
-        is_get, name_expression, value, next_pos, is_static, *is_computed_name);
+        name_expression, value,
+        is_get ? ObjectLiteralProperty::GETTER : ObjectLiteralProperty::SETTER,
+        is_static, *is_computed_name);
 
   } else if (!in_class && allow_harmony_object_literals_ &&
              Token::IsIdentifier(name_token, strict_mode(),
                                  this->is_generator())) {
+    DCHECK(!*is_computed_name);
+    DCHECK(!is_static);
     value = this->ExpressionFromIdentifier(name, next_pos, scope_, factory());
+    return factory()->NewObjectLiteralProperty(
+        name_expression, value, ObjectLiteralProperty::COMPUTED, false, false);
 
   } else {
     Token::Value next = Next();

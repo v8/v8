@@ -1295,16 +1295,6 @@ static void Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, STRICT);
-}
-
-
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
 }

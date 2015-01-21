@@ -897,6 +897,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     environment()->Push(property->is_static() ? literal : proto);
 
     VisitForValue(property->key());
+    environment()->Push(BuildToName(environment()->Pop()));
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -904,9 +905,9 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED:
-      case ObjectLiteral::Property::PROTOTYPE: {
+      case ObjectLiteral::Property::COMPUTED: {
         const Operator* op =
             javascript()->CallRuntime(Runtime::kDefineClassMethod, 3);
         NewNode(op, receiver, key, value);
@@ -1026,9 +1027,11 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   expr->CalculateEmitStore(zone());
 
   // Create nodes to store computed values into the literal.
+  int property_index = 0;
   AccessorTable accessor_table(zone());
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+    if (property->is_computed_name()) break;
     if (property->IsCompileTimeValue()) continue;
 
     Literal* key = property->key()->AsLiteral();
@@ -1108,6 +1111,64 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* call = NewNode(op, literal, name, getter, setter, attr);
     // This should not lazy deopt on a new literal.
     PrepareFrameState(call, BailoutId::None());
+  }
+
+  // Object literals have two parts. The "static" part on the left contains no
+  // computed property names, and so we can compute its map ahead of time; see
+  // Runtime_CreateObjectLiteralBoilerplate. The second "dynamic" part starts
+  // with the first computed property name and continues with all properties to
+  // its right. All the code from above initializes the static component of the
+  // object literal, and arranges for the map of the result to reflect the
+  // static order in which the keys appear. For the dynamic properties, we
+  // compile them into a series of "SetOwnProperty" runtime calls. This will
+  // preserve insertion order.
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+
+    environment()->Push(literal);  // Duplicate receiver.
+    VisitForValue(property->key());
+    environment()->Push(BuildToName(environment()->Pop()));
+    // TODO(mstarzinger): For ObjectLiteral::Property::PROTOTYPE the key should
+    // not be on the operand stack while the value is being evaluated. Come up
+    // with a repro for this and fix it. Also find a nice way to do so. :)
+    VisitForValue(property->value());
+    Node* value = environment()->Pop();
+    Node* key = environment()->Pop();
+    Node* receiver = environment()->Pop();
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
+        Node* attr = jsgraph()->Constant(NONE);
+        const Operator* op =
+            javascript()->CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+        Node* call = NewNode(op, receiver, key, value, attr);
+        PrepareFrameState(call, BailoutId::None());
+        break;
+      }
+      case ObjectLiteral::Property::PROTOTYPE: {
+        const Operator* op =
+            javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
+        Node* call = NewNode(op, receiver, value);
+        PrepareFrameState(call, BailoutId::None());
+        break;
+      }
+      case ObjectLiteral::Property::GETTER: {
+        const Operator* op = javascript()->CallRuntime(
+            Runtime::kDefineGetterPropertyUnchecked, 3);
+        Node* call = NewNode(op, receiver, key, value);
+        PrepareFrameState(call, BailoutId::None());
+        break;
+      }
+      case ObjectLiteral::Property::SETTER: {
+        const Operator* op = javascript()->CallRuntime(
+            Runtime::kDefineSetterPropertyUnchecked, 3);
+        Node* call = NewNode(op, receiver, key, value);
+        PrepareFrameState(call, BailoutId::None());
+        break;
+      }
+    }
   }
 
   // Transform literals that contain functions to fast properties.
@@ -2232,7 +2293,7 @@ Node* AstGraphBuilder::BuildLoadGlobalProxy() {
 
 
 Node* AstGraphBuilder::BuildToBoolean(Node* input) {
-  // TODO(titzer): this should be in a JSOperatorReducer.
+  // TODO(titzer): This should be in a JSOperatorReducer.
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
       return jsgraph_->BooleanConstant(!Int32Matcher(input).Is(0));
@@ -2253,6 +2314,14 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
   }
 
   return NewNode(javascript()->ToBoolean(), input);
+}
+
+
+Node* AstGraphBuilder::BuildToName(Node* input) {
+  // TODO(turbofan): Possible optimization is to NOP on name constants. But the
+  // same caveat as with BuildToBoolean applies, and it should be factored out
+  // into a JSOperatorReducer.
+  return NewNode(javascript()->ToName(), input);
 }
 
 

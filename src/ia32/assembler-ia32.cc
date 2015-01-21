@@ -92,14 +92,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   if (cpu.has_avx() && EnableAVX()) supported_ |= 1u << AVX;
   if (cpu.has_fma3() && FLAG_enable_fma3) supported_ |= 1u << FMA3;
+  if (strcmp(FLAG_mcpu, "auto") == 0) {
+    if (cpu.is_atom()) supported_ |= 1u << ATOM;
+  } else if (strcmp(FLAG_mcpu, "atom") == 0) {
+    supported_ |= 1u << ATOM;
+  }
 }
 
 
 void CpuFeatures::PrintTarget() { }
 void CpuFeatures::PrintFeatures() {
-  printf("SSE3=%d SSE4_1=%d AVX=%d FMA3=%d\n", CpuFeatures::IsSupported(SSE3),
-         CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(AVX),
-         CpuFeatures::IsSupported(FMA3));
+  printf("SSE3=%d SSE4_1=%d AVX=%d FMA3=%d ATOM=%d\n",
+         CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSE4_1),
+         CpuFeatures::IsSupported(AVX), CpuFeatures::IsSupported(FMA3),
+         CpuFeatures::IsSupported(ATOM));
 }
 
 

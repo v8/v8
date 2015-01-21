@@ -1130,24 +1130,6 @@ class MacroAssembler : public Assembler {
                      int num_reg_arguments,
                      int num_double_arguments);
 
-  // Calls an API function. Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions.
-  // 'stack_space' is the space to be unwound on exit (includes the call JS
-  // arguments space and the additional space allocated for the fast call).
-  // 'spill_offset' is the offset from the stack pointer where
-  // CallApiFunctionAndReturn can spill registers.
-  void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref, int stack_space,
-                                MemOperand* stack_space_operand,
-                                int spill_offset,
-                                MemOperand return_value_operand,
-                                MemOperand* context_restore_operand);
-
-  // The number of register that CallApiFunctionAndReturn will need to save on
-  // the stack. The space for these registers need to be allocated in the
-  // ExitFrame before calling CallApiFunctionAndReturn.
-  static const int kCallApiFunctionSpillSpace = 4;
-
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
   // Tail call of a runtime routine (jump).

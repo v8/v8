@@ -1452,12 +1452,10 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
  protected:
   friend class AstNodeFactory;
 
-  ObjectLiteralProperty(Zone* zone, AstValueFactory* ast_value_factory,
-                        Expression* key, Expression* value, bool is_static,
-                        bool is_computed_name);
-
-  ObjectLiteralProperty(Zone* zone, bool is_getter, Expression* key,
-                        FunctionLiteral* value, bool is_static,
+  ObjectLiteralProperty(Expression* key, Expression* value, Kind kind,
+                        bool is_static, bool is_computed_name);
+  ObjectLiteralProperty(AstValueFactory* ast_value_factory, Expression* key,
+                        Expression* value, bool is_static,
                         bool is_computed_name);
 
  private:
@@ -3355,20 +3353,18 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                      boilerplate_properties, has_function, pos);
   }
 
+  ObjectLiteral::Property* NewObjectLiteralProperty(
+      Expression* key, Expression* value, ObjectLiteralProperty::Kind kind,
+      bool is_static, bool is_computed_name) {
+    return new (zone_)
+        ObjectLiteral::Property(key, value, kind, is_static, is_computed_name);
+  }
+
   ObjectLiteral::Property* NewObjectLiteralProperty(Expression* key,
                                                     Expression* value,
                                                     bool is_static,
                                                     bool is_computed_name) {
-    return new (zone_) ObjectLiteral::Property(
-        zone_, ast_value_factory_, key, value, is_static, is_computed_name);
-  }
-
-  ObjectLiteral::Property* NewObjectLiteralProperty(bool is_getter,
-                                                    Expression* key,
-                                                    FunctionLiteral* value,
-                                                    int pos, bool is_static,
-                                                    bool is_computed_name) {
-    return new (zone_) ObjectLiteral::Property(zone_, is_getter, key, value,
+    return new (zone_) ObjectLiteral::Property(ast_value_factory_, key, value,
                                                is_static, is_computed_name);
   }
 

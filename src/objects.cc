@@ -530,56 +530,6 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
-                                                  Handle<Name> name,
-                                                  DeleteMode mode) {
-  DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
-  Handle<NameDictionary> dictionary(object->property_dictionary());
-  int entry = dictionary->FindEntry(name);
-  if (entry != NameDictionary::kNotFound) {
-    // If we have a global object set the cell to the hole.
-    if (object->IsGlobalObject()) {
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      if (!details.IsConfigurable()) {
-        if (mode != FORCE_DELETION) return isolate->factory()->false_value();
-        // When forced to delete global properties, we have to make a
-        // map change to invalidate any ICs that think they can load
-        // from the non-configurable cell without checking if it contains
-        // the hole value.
-        Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
-        DCHECK(new_map->is_dictionary_map());
-#if TRACE_MAPS
-        if (FLAG_trace_maps) {
-          PrintF("[TraceMaps: GlobalDeleteNormalized from= %p to= %p ]\n",
-                 reinterpret_cast<void*>(object->map()),
-                 reinterpret_cast<void*>(*new_map));
-        }
-#endif
-        JSObject::MigrateToMap(object, new_map);
-        // Optimized code does not check for the hole value for non-configurable
-        // properties.
-        Deoptimizer::DeoptimizeGlobalObject(*object);
-      }
-      Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
-      Handle<Object> value = isolate->factory()->the_hole_value();
-      PropertyCell::SetValueInferType(cell, value);
-      dictionary->DetailsAtPut(entry, details.AsDeleted());
-    } else {
-      Handle<Object> deleted(
-          NameDictionary::DeleteProperty(dictionary, entry, mode));
-      if (*deleted == isolate->heap()->true_value()) {
-        Handle<NameDictionary> new_properties =
-            NameDictionary::Shrink(dictionary, name);
-        object->set_properties(*new_properties);
-      }
-      return deleted;
-    }
-  }
-  return isolate->factory()->true_value();
-}
-
-
 MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
                                                    Handle<Object> object,
                                                    Handle<Object> receiver,
@@ -3026,7 +2976,7 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     Handle<Object> value,
     bool* found,
     StrictMode strict_mode) {
-  Isolate *isolate = object->GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   for (PrototypeIterator iter(isolate, object); !iter.IsAtEnd();
        iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
@@ -3037,9 +2987,20 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     }
     Handle<JSObject> js_proto =
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+
+    if (js_proto->IsAccessCheckNeeded()) {
+      if (!isolate->MayIndexedAccess(js_proto, index, v8::ACCESS_SET)) {
+        *found = true;
+        isolate->ReportFailedAccessCheck(js_proto, v8::ACCESS_SET);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return MaybeHandle<Object>();
+      }
+    }
+
     if (!js_proto->HasDictionaryElements()) {
       continue;
     }
+
     Handle<SeededNumberDictionary> dictionary(js_proto->element_dictionary());
     int entry = dictionary->FindEntry(index);
     if (entry != SeededNumberDictionary::kNotFound) {
@@ -3551,8 +3512,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
 }
 
 
-MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
-    Handle<JSProxy> proxy, Handle<Name> name, DeleteMode mode) {
+MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(Handle<JSProxy> proxy,
+                                                       Handle<Name> name,
+                                                       StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
@@ -3570,7 +3532,7 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
       Object);
 
   bool result_bool = result->BooleanValue();
-  if (mode == STRICT_DELETION && !result_bool) {
+  if (strict_mode == STRICT && !result_bool) {
     Handle<Object> handler(proxy->handler(), isolate);
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("delete"));
@@ -3583,11 +3545,12 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
 }
 
 
-MaybeHandle<Object> JSProxy::DeleteElementWithHandler(
-    Handle<JSProxy> proxy, uint32_t index, DeleteMode mode) {
+MaybeHandle<Object> JSProxy::DeleteElementWithHandler(Handle<JSProxy> proxy,
+                                                      uint32_t index,
+                                                      StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return JSProxy::DeletePropertyWithHandler(proxy, name, mode);
+  return JSProxy::DeletePropertyWithHandler(proxy, name, strict_mode);
 }
 
 
@@ -4867,15 +4830,16 @@ MaybeHandle<Object> JSObject::DeleteElementWithInterceptor(
     // Rebox CustomArguments::kReturnValueOffset before returning.
     return handle(*result_internal, isolate);
   }
-  MaybeHandle<Object> delete_result = object->GetElementsAccessor()->Delete(
-      object, index, NORMAL_DELETION);
+  // TODO(verwaest): Shouldn't this be the mode that was passed in?
+  MaybeHandle<Object> delete_result =
+      object->GetElementsAccessor()->Delete(object, index, SLOPPY);
   return delete_result;
 }
 
 
 MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
                                             uint32_t index,
-                                            DeleteMode mode) {
+                                            StrictMode strict_mode) {
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
 
@@ -4888,7 +4852,7 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   }
 
   if (object->IsStringObjectWithCharacterAt(index)) {
-    if (mode == STRICT_DELETION) {
+    if (strict_mode == STRICT) {
       // Deleting a non-configurable property in strict mode.
       Handle<Object> name = factory->NewNumberFromUint(index);
       Handle<Object> args[2] = { name, object };
@@ -4905,7 +4869,7 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return DeleteElement(
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index,
-        mode);
+        strict_mode);
   }
 
   Handle<Object> old_value;
@@ -4926,10 +4890,11 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   // Skip interceptor if forcing deletion.
   MaybeHandle<Object> maybe_result;
-  if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
+  if (object->HasIndexedInterceptor()) {
     maybe_result = DeleteElementWithInterceptor(object, index);
   } else {
-    maybe_result = object->GetElementsAccessor()->Delete(object, index, mode);
+    maybe_result =
+        object->GetElementsAccessor()->Delete(object, index, strict_mode);
   }
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, maybe_result, Object);
@@ -4949,23 +4914,44 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 }
 
 
+void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
+                                        Handle<Name> name) {
+  DCHECK(!object->HasFastProperties());
+  Isolate* isolate = object->GetIsolate();
+  Handle<NameDictionary> dictionary(object->property_dictionary());
+  int entry = dictionary->FindEntry(name);
+  DCHECK_NE(NameDictionary::kNotFound, entry);
+
+  // If we have a global object set the cell to the hole.
+  if (object->IsGlobalObject()) {
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    DCHECK(details.IsConfigurable());
+    Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
+    Handle<Object> value = isolate->factory()->the_hole_value();
+    PropertyCell::SetValueInferType(cell, value);
+    dictionary->DetailsAtPut(entry, details.AsDeleted());
+    return;
+  }
+
+  NameDictionary::DeleteProperty(dictionary, entry);
+  Handle<NameDictionary> new_properties =
+      NameDictionary::Shrink(dictionary, name);
+  object->set_properties(*new_properties);
+}
+
+
 MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
                                              Handle<Name> name,
-                                             DeleteMode delete_mode) {
+                                             StrictMode strict_mode) {
   // ECMA-262, 3rd, 8.6.2.5
   DCHECK(name->IsName());
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return DeleteElement(object, index, delete_mode);
+    return DeleteElement(object, index, strict_mode);
   }
 
-  // Skip interceptors on FORCE_DELETION.
-  LookupIterator::Configuration config =
-      delete_mode == FORCE_DELETION ? LookupIterator::HIDDEN_SKIP_INTERCEPTOR
-                                    : LookupIterator::HIDDEN;
-
-  LookupIterator it(object, name, config);
+  LookupIterator it(object, name, LookupIterator::HIDDEN);
 
   bool is_observed = object->map()->is_observed() &&
                      !it.isolate()->IsInternallyUsedPropertyName(name);
@@ -4999,9 +4985,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         }
       // Fall through.
       case LookupIterator::ACCESSOR: {
-        if (delete_mode != FORCE_DELETION && !it.IsConfigurable()) {
+        if (!it.IsConfigurable()) {
           // Fail if the property is not configurable.
-          if (delete_mode == STRICT_DELETION) {
+          if (strict_mode == STRICT) {
             Handle<Object> args[2] = {name, object};
             THROW_NEW_ERROR(it.isolate(),
                             NewTypeError("strict_delete_property",
@@ -5021,9 +5007,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
             !(object->IsJSGlobalProxy() && holder->IsJSGlobalObject())) {
           return it.isolate()->factory()->true_value();
         }
+
         NormalizeProperties(holder, mode, 0, "DeletingProperty");
-        Handle<Object> result =
-            DeleteNormalizedProperty(holder, name, delete_mode);
+        DeleteNormalizedProperty(holder, name);
         ReoptimizeIfPrototype(holder);
 
         if (is_observed) {
@@ -5032,7 +5018,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
               EnqueueChangeRecord(object, "delete", name, old_value), Object);
         }
 
-        return result;
+        return it.isolate()->factory()->true_value();
       }
     }
   }
@@ -5043,23 +5029,25 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
 MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
                                               uint32_t index,
-                                              DeleteMode mode) {
+                                              StrictMode strict_mode) {
   if (object->IsJSProxy()) {
-    return JSProxy::DeleteElementWithHandler(
-        Handle<JSProxy>::cast(object), index, mode);
+    return JSProxy::DeleteElementWithHandler(Handle<JSProxy>::cast(object),
+                                             index, strict_mode);
   }
-  return JSObject::DeleteElement(Handle<JSObject>::cast(object), index, mode);
+  return JSObject::DeleteElement(Handle<JSObject>::cast(object), index,
+                                 strict_mode);
 }
 
 
 MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
                                                Handle<Name> name,
-                                               DeleteMode mode) {
+                                               StrictMode strict_mode) {
   if (object->IsJSProxy()) {
-    return JSProxy::DeletePropertyWithHandler(
-        Handle<JSProxy>::cast(object), name, mode);
+    return JSProxy::DeletePropertyWithHandler(Handle<JSProxy>::cast(object),
+                                              name, strict_mode);
   }
-  return JSObject::DeleteProperty(Handle<JSObject>::cast(object), name, mode);
+  return JSObject::DeleteProperty(Handle<JSObject>::cast(object), name,
+                                  strict_mode);
 }
 
 
@@ -11654,9 +11642,12 @@ MaybeHandle<Object> JSArray::SetElementsLength(
                               SLOPPY).Assert();
     }
 
-    SetProperty(deleted, isolate->factory()->length_string(),
-                isolate->factory()->NewNumberFromUint(delete_count),
-                STRICT).Assert();
+    RETURN_ON_EXCEPTION(
+        isolate,
+        SetProperty(deleted, isolate->factory()->length_string(),
+                    isolate->factory()->NewNumberFromUint(delete_count),
+                    STRICT),
+        Object);
   }
 
   RETURN_ON_EXCEPTION(
@@ -14473,11 +14464,11 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
 
 template Handle<Object>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::DeleteProperty(
-    Handle<NameDictionary>, int, JSObject::DeleteMode);
+    Handle<NameDictionary>, int);
 
 template Handle<Object>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    DeleteProperty(Handle<SeededNumberDictionary>, int, JSObject::DeleteMode);
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
+           uint32_t>::DeleteProperty(Handle<SeededNumberDictionary>, int);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape, Handle<Name> >::
@@ -15455,17 +15446,12 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape, typename Key>
 Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
-    Handle<Derived> dictionary,
-    int entry,
-    JSObject::DeleteMode mode) {
+    Handle<Derived> dictionary, int entry) {
   Factory* factory = dictionary->GetIsolate()->factory();
   PropertyDetails details = dictionary->DetailsAt(entry);
-  // Ignore attributes if forcing a deletion.
-  if (!details.IsConfigurable() && mode != JSReceiver::FORCE_DELETION) {
-    return factory->false_value();
-  }
+  if (!details.IsConfigurable()) return factory->false_value();
 
   dictionary->SetEntry(
       entry, factory->the_hole_value(), factory->the_hole_value());

@@ -49,22 +49,10 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
   DCHECK(isolate->use_crankshaft());
 
-  Handle<Code> unoptimized(function->shared()->code());
-  if (function->shared()->optimization_disabled()) {
-    // If the function is not optimizable continue using the code from the full
-    // compiler.
-    if (FLAG_trace_opt) {
-      OFStream os(stdout);
-      os << "[failed to optimize " << Brief(*function)
-         << ", code is not optimizable]" << std::endl;
-    }
-    function->ReplaceCode(*unoptimized);
-    return function->code();
-  }
-
   Compiler::ConcurrencyMode mode =
       concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> code;
+  Handle<Code> unoptimized(function->shared()->code());
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
     // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);

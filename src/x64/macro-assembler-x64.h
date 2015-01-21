@@ -1326,24 +1326,6 @@ class MacroAssembler: public Assembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext, int result_size);
 
-  // Prepares stack to put arguments (aligns and so on).  WIN64 calling
-  // convention requires to put the pointer to the return value slot into
-  // rcx (rcx must be preserverd until CallApiFunctionAndReturn).  Saves
-  // context (rsi).  Clobbers rax.  Allocates arg_stack_space * kPointerSize
-  // inside the exit frame (not GCed) accessible via StackSpaceOperand.
-  void PrepareCallApiFunction(int arg_stack_space);
-
-  // Calls an API function.  Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
-  // caller-save registers.  Restores context.  On return removes
-  // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                Register thunk_last_arg, int stack_space,
-                                Operand* stack_space_operand,
-                                Operand return_value_operand,
-                                Operand* context_restore_operand);
-
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
   // etc., not pushed. The argument count assumes all arguments are word sized.

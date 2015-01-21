@@ -183,8 +183,18 @@ void FunctionLiteral::InitializeSharedInfo(
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
-                                             AstValueFactory* ast_value_factory,
+ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
+                                             Kind kind, bool is_static,
+                                             bool is_computed_name)
+    : key_(key),
+      value_(value),
+      kind_(kind),
+      emit_store_(true),
+      is_static_(is_static),
+      is_computed_name_(is_computed_name) {}
+
+
+ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              Expression* key, Expression* value,
                                              bool is_static,
                                              bool is_computed_name)
@@ -205,19 +215,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
     kind_ = COMPUTED;
   }
 }
-
-
-ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone, bool is_getter,
-                                             Expression* key,
-                                             FunctionLiteral* value,
-                                             bool is_static,
-                                             bool is_computed_name)
-    : key_(key),
-      value_(value),
-      kind_(is_getter ? GETTER : SETTER),
-      emit_store_(true),
-      is_static_(is_static),
-      is_computed_name_(is_computed_name) {}
 
 
 bool ObjectLiteral::Property::IsCompileTimeValue() {
@@ -242,6 +239,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
 
   ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
                     allocator);
+  bool seen_prototype = false;
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;
@@ -254,6 +252,12 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
          property->kind() == ObjectLiteral::Property::COMPUTED) &&
         table.Lookup(literal, hash, false, allocator) != NULL) {
       property->set_emit_store(false);
+    } else if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
+      // Only emit a store for the last prototype property. Make sure we do not
+      // clobber the "__proto__" name for instance properties (using method or
+      // literal shorthand syntax).
+      property->set_emit_store(!seen_prototype);
+      seen_prototype = true;
     } else {
       // Add key to the table.
       table.Lookup(literal, hash, true, allocator);

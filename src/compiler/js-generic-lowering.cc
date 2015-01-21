@@ -111,7 +111,6 @@ REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kAbort)
 
 #define REPLACE_UNIMPLEMENTED(op) \
   void JSGenericLowering::Lower##op(Node* node) { UNIMPLEMENTED(); }
-REPLACE_UNIMPLEMENTED(JSToName)
 REPLACE_UNIMPLEMENTED(JSYield)
 REPLACE_UNIMPLEMENTED(JSDebugger)
 #undef REPLACE_UNIMPLEMENTED
@@ -238,6 +237,11 @@ void JSGenericLowering::LowerJSToNumber(Node* node) {
 
 void JSGenericLowering::LowerJSToString(Node* node) {
   ReplaceWithBuiltinCall(node, Builtins::TO_STRING, 1);
+}
+
+
+void JSGenericLowering::LowerJSToName(Node* node) {
+  ReplaceWithBuiltinCall(node, Builtins::TO_NAME, 1);
 }
 
 

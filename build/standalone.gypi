@@ -35,8 +35,6 @@
     'component%': 'static_library',
     'make_clang_dir%': '../third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
-    'asan%': 0,
-    'tsan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,

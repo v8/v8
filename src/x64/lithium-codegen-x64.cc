@@ -2015,23 +2015,45 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   XMMRegister left = ToDoubleRegister(instr->left());
   XMMRegister right = ToDoubleRegister(instr->right());
   XMMRegister result = ToDoubleRegister(instr->result());
-  // All operations except MOD are computed in-place.
-  DCHECK(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vaddsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ addsd(left, right);
+      }
       break;
     case Token::SUB:
-       __ subsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vsubsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ subsd(left, right);
+      }
        break;
     case Token::MUL:
-      __ mulsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vmulsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ mulsd(left, right);
+      }
       break;
     case Token::DIV:
-      __ divsd(left, right);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a mulsd depending on the result
-      __ movaps(left, left);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vdivsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ divsd(left, right);
+        // Don't delete this mov. It may improve performance on some CPUs,
+        // when there is a mulsd depending on the result
+        __ movaps(left, left);
+      }
       break;
     case Token::MOD: {
       XMMRegister xmm_scratch = double_scratch0();
@@ -3490,24 +3512,19 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
-                                 int formal_parameter_count,
-                                 int arity,
-                                 LInstruction* instr,
-                                 RDIState rdi_state) {
+                                 int formal_parameter_count, int arity,
+                                 LInstruction* instr) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
 
+  Register function_reg = rdi;
   LPointerMap* pointers = instr->pointer_map();
 
   if (can_invoke_directly) {
-    if (rdi_state == RDI_UNINITIALIZED) {
-      __ Move(rdi, function);
-    }
-
     // Change context.
-    __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    __ movp(rsi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
     // Set rax to arguments count if adaption is not needed. Assumes that rax
     // is available to write to at this point.
@@ -3519,7 +3536,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     if (function.is_identical_to(info()->closure())) {
       __ CallSelf();
     } else {
-      __ Call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+      __ Call(FieldOperand(function_reg, JSFunction::kCodeEntryOffset));
     }
 
     // Set up deoptimization.
@@ -3530,7 +3547,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
+    __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
 }
 
@@ -4020,9 +4037,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
-                      instr->arity(),
-                      instr,
-                      RDI_CONTAINS_TARGET);
+                      instr->arity(), instr);
   }
 }
 

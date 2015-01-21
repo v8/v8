@@ -3553,24 +3553,19 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
-                                 int formal_parameter_count,
-                                 int arity,
-                                 LInstruction* instr,
-                                 A1State a1_state) {
+                                 int formal_parameter_count, int arity,
+                                 LInstruction* instr) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
 
+  Register function_reg = a1;
   LPointerMap* pointers = instr->pointer_map();
 
   if (can_invoke_directly) {
-    if (a1_state == A1_UNINITIALIZED) {
-      __ li(a1, function);
-    }
-
     // Change context.
-    __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+    __ lw(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
 
     // Set r0 to arguments count if adaption is not needed. Assumes that r0
     // is available to write to at this point.
@@ -3579,7 +3574,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     }
 
     // Invoke function.
-    __ lw(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    __ lw(at, FieldMemOperand(function_reg, JSFunction::kCodeEntryOffset));
     __ Call(at);
 
     // Set up deoptimization.
@@ -3588,7 +3583,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
+    __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
 }
 
@@ -3935,9 +3930,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
-                      instr->arity(),
-                      instr,
-                      A1_CONTAINS_TARGET);
+                      instr->arity(), instr);
   }
 }
 

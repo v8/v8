@@ -1983,19 +1983,43 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   XMMRegister result = ToDoubleRegister(instr->result());
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vaddsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ addsd(left, right);
+      }
       break;
     case Token::SUB:
-      __ subsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vsubsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ subsd(left, right);
+      }
       break;
     case Token::MUL:
-      __ mulsd(left, right);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vmulsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ mulsd(left, right);
+      }
       break;
     case Token::DIV:
-      __ divsd(left, right);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a mulsd depending on the result
-      __ movaps(left, left);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(masm(), AVX);
+        __ vdivsd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ divsd(left, right);
+        // Don't delete this mov. It may improve performance on some CPUs,
+        // when there is a mulsd depending on the result
+        __ movaps(left, left);
+      }
       break;
     case Token::MOD: {
       // Pass two doubles as arguments on the stack.
@@ -3407,22 +3431,18 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
-                                 int formal_parameter_count,
-                                 int arity,
-                                 LInstruction* instr,
-                                 EDIState edi_state) {
+                                 int formal_parameter_count, int arity,
+                                 LInstruction* instr) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
 
-  if (can_invoke_directly) {
-    if (edi_state == EDI_UNINITIALIZED) {
-      __ LoadHeapObject(edi, function);
-    }
+  Register function_reg = edi;
 
+  if (can_invoke_directly) {
     // Change context.
-    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+    __ mov(esi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
     // Set eax to arguments count if adaption is not needed. Assumes that eax
     // is available to write to at this point.
@@ -3434,7 +3454,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     if (function.is_identical_to(info()->closure())) {
       __ CallSelf();
     } else {
-      __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
+      __ call(FieldOperand(function_reg, JSFunction::kCodeEntryOffset));
     }
     RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
   } else {
@@ -3444,7 +3464,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
         this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
+    __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
 }
 
@@ -3936,9 +3956,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   } else {
     CallKnownFunction(known_function,
                       instr->hydrogen()->formal_parameter_count(),
-                      instr->arity(),
-                      instr,
-                      EDI_CONTAINS_TARGET);
+                      instr->arity(), instr);
   }
 }
 

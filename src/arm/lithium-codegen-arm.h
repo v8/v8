@@ -216,18 +216,11 @@ class LCodeGen: public LCodeGenBase {
                                LInstruction* instr,
                                LOperand* context);
 
-  enum R1State {
-    R1_UNINITIALIZED,
-    R1_CONTAINS_TARGET
-  };
-
   // Generate a direct call to a known function.  Expects the function
   // to be in r1.
   void CallKnownFunction(Handle<JSFunction> function,
-                         int formal_parameter_count,
-                         int arity,
-                         LInstruction* instr,
-                         R1State r1_state);
+                         int formal_parameter_count, int arity,
+                         LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
