@@ -22,8 +22,6 @@ namespace internal {
 // Reference implementation for inlined runtime functions.  Only used when the
 // compiler does not support a certain intrinsic.  Don't optimize these, but
 // implement the intrinsic in the respective compiler instead.
-// TODO(mstarzinger): These are place-holder stubs for TurboFan and will
-// eventually all have a C++ implementation and this macro will be gone.
 #define I(name, number_of_args, result_size)                             \
   Object* RuntimeReference_##name(int args_length, Object** args_object, \
                                   Isolate* isolate);
