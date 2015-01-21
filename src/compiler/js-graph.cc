@@ -85,7 +85,7 @@ Node* JSGraph::OneConstant() {
 
 Node* JSGraph::NaNConstant() {
   if (!nan_constant_.is_set()) {
-    nan_constant_.set(NumberConstant(base::OS::nan_value()));
+    nan_constant_.set(NumberConstant(std::numeric_limits<double>::quiet_NaN()));
   }
   return nan_constant_.get();
 }

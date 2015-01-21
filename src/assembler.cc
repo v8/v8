@@ -1463,7 +1463,7 @@ double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return base::OS::nan_value();
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return std::pow(x, y);
 }

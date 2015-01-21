@@ -17,7 +17,7 @@ TEST(CheckEqualsZeroAndMinusZero) {
 
 TEST(CheckEqualsReflexivity) {
   double inf = V8_INFINITY;
-  double nan = v8::base::OS::nan_value();
+  double nan = std::numeric_limits<double>::quiet_NaN();
   double constants[] = {-nan, -inf, -3.1415, -1.0,   -0.1, -0.0,
                         0.0,  0.1,  1.0,     3.1415, inf,  nan};
   for (size_t i = 0; i < arraysize(constants); ++i) {

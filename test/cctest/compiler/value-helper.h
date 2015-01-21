@@ -100,7 +100,7 @@ class ValueHelper {
   }
 
   static std::vector<double> float64_vector() {
-    static const double nan = v8::base::OS::nan_value();
+    static const double nan = std::numeric_limits<double>::quiet_NaN();
     static const double values[] = {
         0.125,           0.25,            0.375,          0.5,
         1.25,            -1.75,           2,              5.125,
@@ -134,7 +134,7 @@ class ValueHelper {
   }
 
   static const std::vector<double> nan_vector(size_t limit = 0) {
-    static const double nan = v8::base::OS::nan_value();
+    static const double nan = std::numeric_limits<double>::quiet_NaN();
     static const double values[] = {-nan,               -V8_INFINITY * -0.0,
                                     -V8_INFINITY * 0.0, V8_INFINITY * -0.0,
                                     V8_INFINITY * 0.0,  nan};

@@ -2735,7 +2735,7 @@ double Value::NumberValue() const {
     EXCEPTION_PREAMBLE(isolate);
     has_pending_exception = !i::Execution::ToNumber(
         isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, base::OS::nan_value());
+    EXCEPTION_BAILOUT_CHECK(isolate, std::numeric_limits<double>::quiet_NaN());
   }
   return num->Number();
 }
@@ -5581,7 +5581,7 @@ Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
   LOG_API(i_isolate, "Date::New");
   if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
-    time = base::OS::nan_value();
+    time = std::numeric_limits<double>::quiet_NaN();
   }
   ENTER_V8(i_isolate);
   EXCEPTION_PREAMBLE(i_isolate);
@@ -6102,7 +6102,7 @@ Local<Number> v8::Number::New(Isolate* isolate, double value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
-    value = base::OS::nan_value();
+    value = std::numeric_limits<double>::quiet_NaN();
   }
   ENTER_V8(internal_isolate);
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);

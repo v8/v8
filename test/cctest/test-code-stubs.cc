@@ -92,7 +92,7 @@ int32_t DefaultCallWrapper(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN (v8::base::OS::nan_value())
+#define NaN (std::numeric_limits<double>::quiet_NaN())
 #define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) \
     RunOneTruncationTestWithTest(callWrapper, func, p1, p2)

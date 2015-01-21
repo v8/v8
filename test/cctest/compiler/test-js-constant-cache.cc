@@ -65,7 +65,7 @@ TEST(ZeroConstant1) {
   CHECK_EQ(zero, T.Constant(0));
   CHECK_NE(zero, T.Constant(-0.0));
   CHECK_NE(zero, T.Constant(1.0));
-  CHECK_NE(zero, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(zero, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(zero, T.Float64Constant(0));
   CHECK_NE(zero, T.Int32Constant(0));
 
@@ -119,7 +119,7 @@ TEST(ZeroConstant2) {
   CHECK_EQ(zero, T.ZeroConstant());
   CHECK_NE(zero, T.Constant(-0.0));
   CHECK_NE(zero, T.Constant(1.0));
-  CHECK_NE(zero, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(zero, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(zero, T.Float64Constant(0));
   CHECK_NE(zero, T.Int32Constant(0));
 
@@ -144,7 +144,7 @@ TEST(OneConstant1) {
   CHECK_EQ(one, T.Constant(1.0));
   CHECK_NE(one, T.Constant(1.01));
   CHECK_NE(one, T.Constant(-1.01));
-  CHECK_NE(one, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(one, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(one, T.Float64Constant(1.0));
   CHECK_NE(one, T.Int32Constant(1));
 
@@ -169,7 +169,7 @@ TEST(OneConstant2) {
   CHECK_EQ(one, T.Constant(1.0));
   CHECK_NE(one, T.Constant(1.01));
   CHECK_NE(one, T.Constant(-1.01));
-  CHECK_NE(one, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(one, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(one, T.Float64Constant(1.0));
   CHECK_NE(one, T.Int32Constant(1));
 

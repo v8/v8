@@ -415,7 +415,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
 
 TEST(BranchCombineFloat64Compares) {
   double inf = V8_INFINITY;
-  double nan = v8::base::OS::nan_value();
+  double nan = std::numeric_limits<double>::quiet_NaN();
   double inputs[] = {0.0, 1.0, -1.0, -inf, inf, nan};
 
   int32_t eq_constant = -1733;

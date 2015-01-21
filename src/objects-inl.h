@@ -4226,11 +4226,13 @@ int32_t Int32ArrayTraits::defaultValue() { return 0; }
 
 
 float Float32ArrayTraits::defaultValue() {
-  return static_cast<float>(base::OS::nan_value());
+  return std::numeric_limits<float>::quiet_NaN();
 }
 
 
-double Float64ArrayTraits::defaultValue() { return base::OS::nan_value(); }
+double Float64ArrayTraits::defaultValue() {
+  return std::numeric_limits<double>::quiet_NaN();
+}
 
 
 template <class Traits>

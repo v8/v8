@@ -844,7 +844,7 @@ TEST(ReduceFloat64Mod) {
   Node* x = R.Parameter();
   Node* zero = R.Constant<double>(0.0);
 
-  R.CheckFoldBinop<double>(v8::base::OS::nan_value(), x, zero);
+  R.CheckFoldBinop<double>(std::numeric_limits<double>::quiet_NaN(), x, zero);
 
   CheckNans(&R);
 }

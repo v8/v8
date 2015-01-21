@@ -10281,7 +10281,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       int32_t i = c_index->NumberValueAsInteger32();
       Handle<String> s = c_string->StringValue();
       if (i < 0 || i >= s->length()) {
-        return New<HConstant>(base::OS::nan_value());
+        return New<HConstant>(std::numeric_limits<double>::quiet_NaN());
       }
       return New<HConstant>(s->Get(i));
     }

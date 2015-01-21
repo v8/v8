@@ -2911,8 +2911,8 @@ void Heap::CreateInitialObjects() {
   set_minus_zero_value(*factory->NewHeapNumber(-0.0, IMMUTABLE, TENURED));
   DCHECK(std::signbit(minus_zero_value()->Number()) != 0);
 
-  set_nan_value(
-      *factory->NewHeapNumber(base::OS::nan_value(), IMMUTABLE, TENURED));
+  set_nan_value(*factory->NewHeapNumber(
+      std::numeric_limits<double>::quiet_NaN(), IMMUTABLE, TENURED));
   set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED));
 
   // The hole has not been created yet, but we want to put something

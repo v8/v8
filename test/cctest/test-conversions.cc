@@ -172,12 +172,12 @@ TEST(TrailingJunk) {
 
 TEST(NonStrDecimalLiteral) {
   UnicodeCache uc;
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(
-      std::isnan(StringToDouble(&uc, "", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
   CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }

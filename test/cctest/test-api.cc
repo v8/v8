@@ -5844,7 +5844,7 @@ THREADED_TEST(Equality) {
   CHECK(v8_num(1)->StrictEquals(v8_num(1)));
   CHECK(!v8_num(1)->StrictEquals(v8_num(2)));
   CHECK(v8_num(0.0)->StrictEquals(v8_num(-0.0)));
-  Local<Value> not_a_number = v8_num(v8::base::OS::nan_value());
+  Local<Value> not_a_number = v8_num(std::numeric_limits<double>::quiet_NaN());
   CHECK(!not_a_number->StrictEquals(not_a_number));
   CHECK(v8::False(isolate)->StrictEquals(v8::False(isolate)));
   CHECK(!v8::False(isolate)->StrictEquals(v8::Undefined(isolate)));
@@ -16971,10 +16971,8 @@ static void ObjectWithExternalArrayTestHelper(
   CHECK_EQ(0, result->Int32Value());
   if (array_type == v8::kExternalFloat64Array ||
       array_type == v8::kExternalFloat32Array) {
-    CHECK_EQ(static_cast<int>(v8::base::OS::nan_value()),
-             static_cast<int>(
-                 i::Object::GetElement(
-                     isolate, jsobj, 7).ToHandleChecked()->Number()));
+    CHECK(std::isnan(
+        i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()->Number()));
   } else {
     CheckElementValue(isolate, 0, jsobj, 7);
   }
@@ -19088,7 +19086,7 @@ static uint64_t DoubleToBits(double value) {
 static double DoubleToDateTime(double input) {
   double date_limit = 864e13;
   if (std::isnan(input) || input < -date_limit || input > date_limit) {
-    return v8::base::OS::nan_value();
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return (input < 0) ? -(std::floor(-input)) : std::floor(input);
 }
