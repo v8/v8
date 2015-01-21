@@ -176,20 +176,17 @@ static Type* kStringTypes[] = {Type::InternalizedString(), Type::OtherString(),
                                Type::String()};
 
 
-static Type* kInt32Types[] = {
-    Type::UnsignedSmall(),       Type::NegativeSigned32(),
-    Type::NonNegativeSigned32(), Type::SignedSmall(),
-    Type::Signed32(),            Type::Unsigned32(),
-    Type::Integral32()};
+static Type* kInt32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
+                              Type::Unsigned31(),    Type::SignedSmall(),
+                              Type::Signed32(),      Type::Unsigned32(),
+                              Type::Integral32()};
 
 
 static Type* kNumberTypes[] = {
-    Type::UnsignedSmall(),       Type::NegativeSigned32(),
-    Type::NonNegativeSigned32(), Type::SignedSmall(),
-    Type::Signed32(),            Type::Unsigned32(),
-    Type::Integral32(),          Type::MinusZero(),
-    Type::NaN(),                 Type::OrderedNumber(),
-    Type::PlainNumber(),         Type::Number()};
+    Type::UnsignedSmall(), Type::Negative32(),  Type::Unsigned31(),
+    Type::SignedSmall(),   Type::Signed32(),    Type::Unsigned32(),
+    Type::Integral32(),    Type::MinusZero(),   Type::NaN(),
+    Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
 
 
 static Type* kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
@@ -316,13 +313,12 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
 TEST(Int32BitwiseShifts) {
   JSBitwiseShiftTypedLoweringTester R;
 
-  Type* types[] = {Type::SignedSmall(),      Type::UnsignedSmall(),
-                   Type::NegativeSigned32(), Type::NonNegativeSigned32(),
-                   Type::Unsigned32(),       Type::Signed32(),
-                   Type::MinusZero(),        Type::NaN(),
-                   Type::Undefined(),        Type::Null(),
-                   Type::Boolean(),          Type::Number(),
-                   Type::PlainNumber(),      Type::String()};
+  Type* types[] = {
+      Type::SignedSmall(), Type::UnsignedSmall(), Type::Negative32(),
+      Type::Unsigned31(),  Type::Unsigned32(),    Type::Signed32(),
+      Type::MinusZero(),   Type::NaN(),           Type::Undefined(),
+      Type::Null(),        Type::Boolean(),       Type::Number(),
+      Type::PlainNumber(), Type::String()};
 
   for (size_t i = 0; i < arraysize(types); ++i) {
     Node* p0 = R.Parameter(types[i], 0);

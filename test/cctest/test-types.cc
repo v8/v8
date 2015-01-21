@@ -136,6 +136,14 @@ struct Tests : Rep {
     }
   }
 
+  void CheckSubOrEqual(TypeHandle type1, TypeHandle type2) {
+    CHECK(type1->Is(type2));
+    if (this->IsBitset(type1) && this->IsBitset(type2)) {
+      CHECK((this->AsBitset(type1) | this->AsBitset(type2))
+            == this->AsBitset(type2));
+    }
+  }
+
   void CheckUnordered(TypeHandle type1, TypeHandle type2) {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
@@ -294,39 +302,33 @@ struct Tests : Rep {
     CHECK(T.Constant(fac->NewNumber(0))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(1))->Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.NegativeSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.NegativeSignedSmall));
-    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.NegativeSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.Unsigned31));
+    CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.Unsigned30));
+    CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.Unsigned31));
+    CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.Unsigned30));
+    CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.Negative32));
+    CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.Negative32));
+    CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.Negative31));
     if (SmiValuesAre31Bits()) {
-      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
       CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
-      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
       CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
-      CHECK(
-          !T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
-      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 1))
-                 ->Is(T.NegativeSignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.SignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.SignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
       CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
       CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
-      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.NonNegativeSigned32));
-      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.NonNegativeSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 1))
-                ->Is(T.NegativeSignedSmall));
-      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.NegativeSigned32));
-      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.NegativeSigned32));
-      CHECK(
-          T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.NegativeSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.SignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 1))->Is(T.SignedSmall));
     }
     CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.Unsigned32));
-    CHECK(!T.Constant(fac->NewNumber(0x80000000u))->Is(T.NonNegativeSigned32));
+    CHECK(!T.Constant(fac->NewNumber(0x80000000u))->Is(T.Unsigned31));
     CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned32));
-    CHECK(!T.Constant(fac->NewNumber(0xffffffffu))->Is(T.NonNegativeSigned32));
+    CHECK(!T.Constant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned31));
     CHECK(T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.PlainNumber));
     CHECK(!T.Constant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.Integral32));
     CHECK(T.Constant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.PlainNumber));
@@ -796,6 +798,7 @@ struct Tests : Rep {
               (type1->IsClass() && type2->IsClass()) ||
               (type1->IsConstant() && type2->IsConstant()) ||
               (type1->IsConstant() && type2->IsRange()) ||
+              (this->IsBitset(type1) && type2->IsRange()) ||
               (type1->IsRange() && type2->IsRange()) ||
               (type1->IsContext() && type2->IsContext()) ||
               (type1->IsArray() && type2->IsArray()) ||
@@ -934,7 +937,7 @@ struct Tests : Rep {
 
     CheckSub(T.SignedSmall, T.Number);
     CheckSub(T.Signed32, T.Number);
-    CheckSub(T.SignedSmall, T.Signed32);
+    CheckSubOrEqual(T.SignedSmall, T.Signed32);
     CheckUnordered(T.SignedSmall, T.MinusZero);
     CheckUnordered(T.Signed32, T.Unsigned32);
 
@@ -1478,8 +1481,8 @@ struct Tests : Rep {
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number);
 
     // Bitset-class
-    CheckSub(
-        T.Union(T.ObjectClass, T.SignedSmall), T.Union(T.Object, T.Number));
+    CheckSub(T.Union(T.ObjectClass, T.SignedSmall),
+             T.Union(T.Object, T.Number));
     CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
     CheckUnordered(T.Union(T.ObjectClass, T.String), T.Array);
     CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
@@ -1549,11 +1552,9 @@ struct Tests : Rep {
             T.Union(T.ObjectConstant2, T.ObjectConstant1),
             T.Union(T.ObjectConstant1, T.ObjectConstant2)),
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(
-        T.Union(
-            T.Union(T.Number, T.ArrayClass),
-            T.Union(T.SignedSmall, T.Array)),
-        T.Union(T.Number, T.Array));
+    CheckEqual(T.Union(T.Union(T.Number, T.ArrayClass),
+                       T.Union(T.SignedSmall, T.Array)),
+               T.Union(T.Number, T.Array));
   }
 
   void Intersect() {
@@ -1767,11 +1768,9 @@ struct Tests : Rep {
                 ->IsInhabited());  // !!!
 
     // Union-union
-    CheckEqual(
-        T.Intersect(
-            T.Union(T.Number, T.ArrayClass),
-            T.Union(T.SignedSmall, T.Array)),
-        T.Union(T.SignedSmall, T.ArrayClass));
+    CheckEqual(T.Intersect(T.Union(T.Number, T.ArrayClass),
+                           T.Union(T.SignedSmall, T.Array)),
+               T.Union(T.SignedSmall, T.ArrayClass));
     CheckEqual(
         T.Intersect(
             T.Union(T.Number, T.ObjectClass),

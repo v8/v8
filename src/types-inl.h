@@ -16,6 +16,20 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // TypeImpl
 
+template <class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::SignedSmall() {
+  return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
+}
+
+
+template <class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::UnsignedSmall() {
+  return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
+}
+
+
 template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
@@ -201,6 +215,9 @@ void ZoneTypeConfig::struct_set_value(
 }
 
 
+// static
+i::Isolate* ZoneTypeConfig::isolate(Zone* zone) { return zone->isolate(); }
+
 // -----------------------------------------------------------------------------
 // HeapTypeConfig
 
@@ -348,6 +365,8 @@ void HeapTypeConfig::struct_set_value(
   structure->set(i + 1, *x);
 }
 
+// static
+i::Isolate* HeapTypeConfig::isolate(Isolate* isolate) { return isolate; }
 } }  // namespace v8::internal
 
 #endif  // V8_TYPES_INL_H_
