@@ -1,3 +1,8 @@
+2015-01-21: Version 4.2.19
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-20: Version 4.2.18
 
         Fix issue with __proto__ when using ES6 object literals (issue 3818).
