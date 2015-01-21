@@ -152,7 +152,9 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kDebugGetLoadedScripts:
     case Runtime::kDebugGetPropertyDetails:
     case Runtime::kDebugPromiseEvent:
+    case Runtime::kDefaultConstructorSuperCall:
     case Runtime::kDefineAccessorPropertyUnchecked:
+    case Runtime::kDefineClass:
     case Runtime::kDefineDataPropertyUnchecked:
     case Runtime::kDeleteProperty:
     case Runtime::kDeliverObservationChangeRecords:
