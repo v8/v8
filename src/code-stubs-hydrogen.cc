@@ -702,7 +702,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
       // smi check is being emitted.
       HValue* the_context = Add<HLoadKeyed>(elements, graph()->GetConstant0(),
                                             nullptr, FAST_ELEMENTS);
-      DCHECK(Context::kHeaderSize == FixedArray::kHeaderSize);
+      STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
       HValue* result = Add<HLoadKeyed>(the_context, mapped_index, nullptr,
                                        FAST_ELEMENTS, ALLOW_RETURN_HOLE);
       environment()->Push(result);
