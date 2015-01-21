@@ -1635,13 +1635,10 @@ void Simulator::HandleVList(Instruction* instr) {
           ReadW(reinterpret_cast<int32_t>(address), instr),
           ReadW(reinterpret_cast<int32_t>(address + 1), instr)
         };
-        double d;
-        memcpy(&d, data, 8);
-        set_d_register_from_double(reg, d);
+        set_d_register(reg, reinterpret_cast<uint32_t*>(data));
       } else {
-        int32_t data[2];
-        double d = get_double_from_d_register(reg);
-        memcpy(data, &d, 8);
+        uint32_t data[2];
+        get_d_register(reg, data);
         WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
         WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
       }
@@ -3036,7 +3033,9 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           int m = instr->VFPMRegValue(kDoublePrecision);
           int d = instr->VFPDRegValue(kDoublePrecision);
-          set_d_register_from_double(d, get_double_from_d_register(m));
+          uint32_t data[2];
+          get_d_register(m, data);
+          set_d_register(d, data);
         } else {
           int m = instr->VFPMRegValue(kSinglePrecision);
           int d = instr->VFPDRegValue(kSinglePrecision);
@@ -3172,12 +3171,10 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
                (instr->Bit(23) == 0x0)) {
       // vmov (ARM core register to scalar)
       int vd = instr->Bits(19, 16) | (instr->Bit(7) << 4);
-      double dd_value = get_double_from_d_register(vd);
-      int32_t data[2];
-      memcpy(data, &dd_value, 8);
+      uint32_t data[2];
+      get_d_register(vd, data);
       data[instr->Bit(21)] = get_register(instr->RtValue());
-      memcpy(&dd_value, data, 8);
-      set_d_register_from_double(vd, dd_value);
+      set_d_register(vd, data);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x1) &&
                (instr->Bit(23) == 0x0)) {
@@ -3534,16 +3531,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           int rn = instr->RnValue();
           int vm = instr->VFPMRegValue(kDoublePrecision);
           if (instr->HasL()) {
-            int32_t data[2];
-            double d = get_double_from_d_register(vm);
-            memcpy(data, &d, 8);
+            uint32_t data[2];
+            get_d_register(vm, data);
             set_register(rt, data[0]);
             set_register(rn, data[1]);
           } else {
             int32_t data[] = { get_register(rt), get_register(rn) };
-            double d;
-            memcpy(&d, data, 8);
-            set_d_register_from_double(vm, d);
+            set_d_register(vm, reinterpret_cast<uint32_t*>(data));
           }
         }
         break;
@@ -3564,14 +3558,11 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
             ReadW(address, instr),
             ReadW(address + 4, instr)
           };
-          double val;
-          memcpy(&val, data, 8);
-          set_d_register_from_double(vd, val);
+          set_d_register(vd, reinterpret_cast<uint32_t*>(data));
         } else {
           // Store double to memory: vstr.
-          int32_t data[2];
-          double val = get_double_from_d_register(vd);
-          memcpy(data, &val, 8);
+          uint32_t data[2];
+          get_d_register(vd, data);
           WriteW(address, data[0], instr);
           WriteW(address + 4, data[1], instr);
         }
