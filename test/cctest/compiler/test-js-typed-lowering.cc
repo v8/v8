@@ -118,7 +118,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Unop(const Operator* op, Node* input) {
     // JS unops also require context, effect, and control
-    return graph.NewNode(op, input, context(), start(), control());
+    if (OperatorProperties::HasFrameStateInput(op)) {
+      return graph.NewNode(op, input, context(), EmptyFrameState(context()),
+                           start(), control());
+    } else {
+      return graph.NewNode(op, input, context(), start(), control());
+    }
   }
 
   Node* UseForEffect(Node* node) {
