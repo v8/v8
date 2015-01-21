@@ -895,8 +895,8 @@
 
 ['arch == arm and simulator_run == True', {
 
-  #BUG(3837): Avoid C stack overflow.
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+  #BUG(3837): Crashes due to C stack overflow.
+  'js1_5/extensions/regress-355497': [SKIP],
 }],  # 'arch == arm and simulator_run == True'
 
 ['arch == arm64 and simulator_run == True', {
