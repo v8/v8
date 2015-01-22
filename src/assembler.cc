@@ -111,7 +111,6 @@ double min_int;
 double one_half;
 double minus_one_half;
 double negative_infinity;
-double canonical_non_hole_nan;
 double the_hole_nan;
 double uint32_bias;
 };
@@ -888,7 +887,6 @@ void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
-  double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = bit_cast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
@@ -1246,12 +1244,6 @@ ExternalReference ExternalReference::address_of_negative_infinity() {
 }
 
 
-ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.canonical_non_hole_nan));
-}
-
-
 ExternalReference ExternalReference::address_of_the_hole_nan() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.the_hole_nan));
@@ -1471,7 +1463,7 @@ double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return base::OS::nan_value();
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return std::pow(x, y);
 }

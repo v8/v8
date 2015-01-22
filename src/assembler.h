@@ -925,7 +925,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_one_half();
   static ExternalReference address_of_negative_infinity();
-  static ExternalReference address_of_canonical_non_hole_nan();
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
 

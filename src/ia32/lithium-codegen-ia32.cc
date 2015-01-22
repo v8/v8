@@ -1709,38 +1709,37 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  double v = instr->value();
-  uint64_t int_val = bit_cast<uint64_t, double>(v);
-  int32_t lower = static_cast<int32_t>(int_val);
-  int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+  uint64_t const bits = instr->bits();
+  uint32_t const lower = static_cast<uint32_t>(bits);
+  uint32_t const upper = static_cast<uint32_t>(bits >> 32);
   DCHECK(instr->result()->IsDoubleRegister());
 
-  XMMRegister res = ToDoubleRegister(instr->result());
-  if (int_val == 0) {
-    __ xorps(res, res);
+  XMMRegister result = ToDoubleRegister(instr->result());
+  if (bits == 0u) {
+    __ xorps(result, result);
   } else {
     Register temp = ToRegister(instr->temp());
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope2(masm(), SSE4_1);
       if (lower != 0) {
         __ Move(temp, Immediate(lower));
-        __ movd(res, Operand(temp));
+        __ movd(result, Operand(temp));
         __ Move(temp, Immediate(upper));
-        __ pinsrd(res, Operand(temp), 1);
+        __ pinsrd(result, Operand(temp), 1);
       } else {
-        __ xorps(res, res);
+        __ xorps(result, result);
         __ Move(temp, Immediate(upper));
-        __ pinsrd(res, Operand(temp), 1);
+        __ pinsrd(result, Operand(temp), 1);
       }
     } else {
       __ Move(temp, Immediate(upper));
-      __ movd(res, Operand(temp));
-      __ psllq(res, 32);
-      if (lower != 0) {
+      __ movd(result, Operand(temp));
+      __ psllq(result, 32);
+      if (lower != 0u) {
         XMMRegister xmm_scratch = double_scratch0();
         __ Move(temp, Immediate(lower));
         __ movd(xmm_scratch, Operand(temp));
-        __ orps(res, xmm_scratch);
+        __ orps(result, xmm_scratch);
       }
     }
   }
@@ -3894,9 +3893,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
   __ j(not_carry, &zero, Label::kNear);
-  ExternalReference nan =
-      ExternalReference::address_of_canonical_non_hole_nan();
-  __ movsd(input_reg, Operand::StaticVariable(nan));
+  __ pcmpeqd(input_reg, input_reg);
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
   ExternalReference ninf =
@@ -4250,8 +4247,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   Operand double_store_operand = BuildFastArrayOperand(
       instr->elements(),
       instr->key(),
@@ -4262,13 +4257,10 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
 
   if (instr->NeedsCanonicalization()) {
-    Label have_value;
-
-    __ ucomisd(value, value);
-    __ j(parity_odd, &have_value, Label::kNear);  // NaN.
-
-    __ movsd(value, Operand::StaticVariable(canonical_nan_reference));
-    __ bind(&have_value);
+    XMMRegister xmm_scratch = double_scratch0();
+    // Turn potential sNaN value into qNaN.
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ subsd(value, xmm_scratch);
   }
 
   __ movsd(double_store_operand, value);
@@ -4757,13 +4749,11 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
     if (can_convert_undefined_to_nan) {
       __ bind(&convert);
 
-      // Convert undefined (and hole) to NaN.
+      // Convert undefined to NaN.
       __ cmp(input_reg, factory()->undefined_value());
       DeoptimizeIf(not_equal, instr, "not a heap number/undefined");
 
-      ExternalReference nan =
-          ExternalReference::address_of_canonical_non_hole_nan();
-      __ movsd(result_reg, Operand::StaticVariable(nan));
+      __ pcmpeqd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
     }
   } else {

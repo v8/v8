@@ -553,10 +553,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   double number;
   if (seq_one_byte) {
     Vector<const uint8_t> chars(seq_source_->GetChars() +  beg_pos, length);
-    number = StringToDouble(isolate()->unicode_cache(),
-                            chars,
+    number = StringToDouble(isolate()->unicode_cache(), chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
-                            base::OS::nan_value());
+                            std::numeric_limits<double>::quiet_NaN());
   } else {
     Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);

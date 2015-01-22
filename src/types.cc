@@ -343,7 +343,7 @@ double TypeImpl<Config>::BitsetType::Min(bitset bits) {
     }
   }
   if (mz) return 0;
-  return base::OS::nan_value();
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 
@@ -363,7 +363,7 @@ double TypeImpl<Config>::BitsetType::Max(bitset bits) {
     }
   }
   if (mz) return 0;
-  return base::OS::nan_value();
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 

@@ -1323,6 +1323,12 @@ Maybe<bool> JSProxy::HasElementWithHandler(Handle<JSProxy> proxy,
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_UINT64_FIELD(p, offset) \
+  (*reinterpret_cast<const uint64_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_UINT64_FIELD(p, offset, value) \
+  (*reinterpret_cast<uint64_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_INT64_FIELD(p, offset) \
   (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
 
@@ -2288,37 +2294,21 @@ void FixedArray::set(int index, Object* value) {
 }
 
 
-inline bool FixedDoubleArray::is_the_hole_nan(double value) {
-  return bit_cast<uint64_t, double>(value) == kHoleNanInt64;
-}
-
-
-inline double FixedDoubleArray::hole_nan_as_double() {
-  return bit_cast<double, uint64_t>(kHoleNanInt64);
-}
-
-
-inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
-  DCHECK(bit_cast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
-  DCHECK((bit_cast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
-  return base::OS::nan_value();
-}
-
-
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
-  double result = READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
-  DCHECK(!is_the_hole_nan(result));
-  return result;
+  DCHECK(!is_the_hole(index));
+  return READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
 }
 
-int64_t FixedDoubleArray::get_representation(int index) {
+
+uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
-  return READ_INT64_FIELD(this, kHeaderSize + index * kDoubleSize);
+  int offset = kHeaderSize + index * kDoubleSize;
+  return READ_UINT64_FIELD(this, offset);
 }
 
 
@@ -2336,8 +2326,12 @@ void FixedDoubleArray::set(int index, double value) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  if (std::isnan(value)) value = canonical_not_the_hole_nan_as_double();
-  WRITE_DOUBLE_FIELD(this, offset, value);
+  if (std::isnan(value)) {
+    WRITE_UINT64_FIELD(this, offset, V8_UINT64_C(0xFFFFFFFFFFFFFFFF));
+  } else {
+    WRITE_DOUBLE_FIELD(this, offset, value);
+  }
+  DCHECK(!is_the_hole(index));
 }
 
 
@@ -2345,13 +2339,12 @@ void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+  WRITE_UINT64_FIELD(this, offset, kHoleNanInt64);
 }
 
 
 bool FixedDoubleArray::is_the_hole(int index) {
-  int offset = kHeaderSize + index * kDoubleSize;
-  return is_the_hole_nan(READ_DOUBLE_FIELD(this, offset));
+  return get_representation(index) == kHoleNanInt64;
 }
 
 
@@ -4233,11 +4226,13 @@ int32_t Int32ArrayTraits::defaultValue() { return 0; }
 
 
 float Float32ArrayTraits::defaultValue() {
-  return static_cast<float>(base::OS::nan_value());
+  return std::numeric_limits<float>::quiet_NaN();
 }
 
 
-double Float64ArrayTraits::defaultValue() { return base::OS::nan_value(); }
+double Float64ArrayTraits::defaultValue() {
+  return std::numeric_limits<double>::quiet_NaN();
+}
 
 
 template <class Traits>

@@ -5844,7 +5844,7 @@ THREADED_TEST(Equality) {
   CHECK(v8_num(1)->StrictEquals(v8_num(1)));
   CHECK(!v8_num(1)->StrictEquals(v8_num(2)));
   CHECK(v8_num(0.0)->StrictEquals(v8_num(-0.0)));
-  Local<Value> not_a_number = v8_num(v8::base::OS::nan_value());
+  Local<Value> not_a_number = v8_num(std::numeric_limits<double>::quiet_NaN());
   CHECK(!not_a_number->StrictEquals(not_a_number));
   CHECK(v8::False(isolate)->StrictEquals(v8::False(isolate)));
   CHECK(!v8::False(isolate)->StrictEquals(v8::Undefined(isolate)));
@@ -11353,7 +11353,7 @@ THREADED_TEST(ConstructorForObject) {
     value = CompileRun("new obj2(28)");
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
-    CHECK_EQ("TypeError: object is not a function", *exception_value1);
+    CHECK_EQ("TypeError: obj2 is not a function", *exception_value1);
     try_catch.Reset();
 
     Local<Value> args[] = { v8_num(29) };
@@ -11714,8 +11714,7 @@ THREADED_TEST(CallAsFunction) {
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
     // TODO(verwaest): Better message
-    CHECK_EQ("TypeError: object is not a function",
-             *exception_value1);
+    CHECK_EQ("TypeError: obj2 is not a function", *exception_value1);
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
@@ -13095,7 +13094,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  CHECK_EQ(v8_str("TypeError: undefined is not a function"),
+  CHECK_EQ(v8_str("TypeError: receiver.method is not a function"),
            try_catch.Exception()->ToString(isolate));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
@@ -13270,7 +13269,7 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  CHECK_EQ(v8_str("TypeError: undefined is not a function"),
+  CHECK_EQ(v8_str("TypeError: receiver.method is not a function"),
            try_catch.Exception()->ToString(isolate));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
@@ -16972,10 +16971,8 @@ static void ObjectWithExternalArrayTestHelper(
   CHECK_EQ(0, result->Int32Value());
   if (array_type == v8::kExternalFloat64Array ||
       array_type == v8::kExternalFloat32Array) {
-    CHECK_EQ(static_cast<int>(v8::base::OS::nan_value()),
-             static_cast<int>(
-                 i::Object::GetElement(
-                     isolate, jsobj, 7).ToHandleChecked()->Number()));
+    CHECK(std::isnan(
+        i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()->Number()));
   } else {
     CheckElementValue(isolate, 0, jsobj, 7);
   }
@@ -19089,7 +19086,7 @@ static uint64_t DoubleToBits(double value) {
 static double DoubleToDateTime(double input) {
   double date_limit = 864e13;
   if (std::isnan(input) || input < -date_limit || input > date_limit) {
-    return v8::base::OS::nan_value();
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return (input < 0) ? -(std::floor(-input)) : std::floor(input);
 }
@@ -23436,7 +23433,9 @@ TEST(FunctionCallOptimization) {
 }
 
 
-static void EmptyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {}
+static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(42);
+}
 
 
 TEST(FunctionCallOptimizationMultipleArgs) {
@@ -23445,7 +23444,7 @@ TEST(FunctionCallOptimizationMultipleArgs) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   Handle<Object> global = context->Global();
-  Local<v8::Function> function = Function::New(isolate, EmptyCallback);
+  Local<v8::Function> function = Function::New(isolate, Returns42);
   global->Set(v8_str("x"), function);
   CompileRun(
       "function x_wrap() {\n"
@@ -23482,6 +23481,150 @@ TEST(ApiCallbackCanReturnSymbols) {
       "x_wrap();\n"
       "%OptimizeFunctionOnNextCall(x_wrap);"
       "x_wrap();\n");
+}
+
+
+TEST(EmptyApiCallback) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto function = FunctionTemplate::New(isolate)->GetFunction();
+  global->Set(v8_str("x"), function);
+
+  auto result = CompileRun("x()");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
+  result = CompileRun("x(1,2,3)");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
+  result = CompileRun("7 + x.call(3) + 11");
+  CHECK(result->IsInt32());
+  CHECK_EQ(21, result->Int32Value());
+
+  result = CompileRun("7 + x.call(3, 101, 102, 103, 104) + 11");
+  CHECK(result->IsInt32());
+  CHECK_EQ(21, result->Int32Value());
+
+  result = CompileRun("var y = []; x.call(y)");
+  CHECK(result->IsArray());
+
+  result = CompileRun("x.call(y, 1, 2, 3, 4)");
+  CHECK(result->IsArray());
+}
+
+
+TEST(SimpleSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("var s = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+}
+
+
+TEST(ChainSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  for (int i = 0; i < 4; ++i) {
+    auto temp = FunctionTemplate::New(isolate);
+    temp->Inherit(sig_obj);
+    sig_obj = temp;
+  }
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("var s = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+}
+
+
+TEST(PrototypeSignatureCheck) {
+  LocalContext context;
+  auto isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto global = context->Global();
+  auto sig_obj = FunctionTemplate::New(isolate);
+  sig_obj->SetHiddenPrototype(true);
+  auto sig = v8::Signature::New(isolate, sig_obj);
+  auto x = FunctionTemplate::New(isolate, Returns42, Handle<Value>(), sig);
+  global->Set(v8_str("sig_obj"), sig_obj->GetFunction());
+  global->Set(v8_str("x"), x->GetFunction());
+  CompileRun("s = {}; s.__proto__ = new sig_obj();");
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x()");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    CompileRun("x.call(1)");
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("s.x = x; s.x()");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
+  {
+    TryCatch try_catch(isolate);
+    auto result = CompileRun("x.call(s)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, result->Int32Value());
+  }
 }
 
 

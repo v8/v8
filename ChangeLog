@@ -1,3 +1,14 @@
+2015-01-22: Version 4.2.20
+
+        Add a pretty printer to improve the error message non-function calls
+        (Chromium issue 259443).
+
+        Remove implicit uint8_t to char cast in string replace (Chromium issue
+        446196).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-21: Version 4.2.19
 
         Performance and stability improvements on all platforms.

@@ -390,7 +390,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Mod: {
       Float64BinopMatcher m(node);
       if (m.right().Is(0)) {  // x % 0 => NaN
-        return ReplaceFloat64(base::OS::nan_value());
+        return ReplaceFloat64(std::numeric_limits<double>::quiet_NaN());
       }
       if (m.right().IsNaN()) {  // x % NaN => NaN
         return Replace(m.right().node());

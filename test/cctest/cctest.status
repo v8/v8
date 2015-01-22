@@ -95,14 +95,6 @@
   'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
   'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
 
-  # TODO(jarin): Some tests don't like --turbo-deoptimzation very much.
-  'test-api/ApiUncaughtExceptionInObjectObserve': [PASS, NO_VARIANTS],
-  'test-api/GetPrototypeAccessControl': [PASS, NO_VARIANTS],
-  'test-api/Regress93759': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakOnExceptionInObserveCallback': [PASS, NO_VARIANTS],
-  'test-object-observe/DeliveryCallbackThrows': [PASS, NO_VARIANTS],
-  'test-js-typed-lowering/JSToNumberOfNumberOrOtherPrimitive': [PASS, NO_VARIANTS],
-
   # TODO(titzer): Triggers bug in late control reduction.
   'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
 

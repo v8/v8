@@ -2050,8 +2050,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
-    LOperand* temp = TempRegister();
-    return DefineAsRegister(new(zone()) LConstantD(temp));
+    return DefineAsRegister(new (zone()) LConstantD);
   } else if (r.IsExternal()) {
     return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {

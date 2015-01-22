@@ -2552,7 +2552,7 @@ class FixedDoubleArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
-  inline int64_t get_representation(int index);
+  inline uint64_t get_representation(int index);
   static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
@@ -2572,10 +2572,6 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
-
-  inline static bool is_the_hole_nan(double value);
-  inline static double hole_nan_as_double();
-  inline static double canonical_not_the_hole_nan_as_double();
 
   DECLARE_CAST(FixedDoubleArray)
 

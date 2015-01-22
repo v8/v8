@@ -93,6 +93,7 @@ class CompilationInfo {
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
+  CompilationInfo(Handle<Script> script, Zone* zone);
   CompilationInfo(Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
@@ -398,8 +399,6 @@ class CompilationInfo {
   }
 
  protected:
-  CompilationInfo(Handle<Script> script,
-                  Zone* zone);
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                   Zone* zone);
   CompilationInfo(HydrogenCodeStub* stub,

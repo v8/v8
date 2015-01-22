@@ -228,7 +228,7 @@ TEST_F(JSTypedLoweringTest, ParameterWithNull) {
 
 
 TEST_F(JSTypedLoweringTest, ParameterWithNaN) {
-  const double kNaNs[] = {base::OS::nan_value(),
+  const double kNaNs[] = {-std::numeric_limits<double>::quiet_NaN(),
                           std::numeric_limits<double>::quiet_NaN(),
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {

@@ -2801,12 +2801,10 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
                                               HValue* to) {
   // Fast elements kinds need to be initialized in case statements below cause a
   // garbage collection.
-  Factory* factory = isolate()->factory();
 
-  double nan_double = FixedDoubleArray::hole_nan_as_double();
   HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
-      ? Add<HConstant>(factory->the_hole_value())
-      : Add<HConstant>(nan_double);
+                     ? graph()->GetConstantHole()
+                     : Add<HConstant>(HConstant::kHoleNaN);
 
   // Since we're about to store a hole value, the store instruction below must
   // assume an elements kind that supports heap object values.
@@ -2904,8 +2902,8 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
       if_hole.If<HCompareHoleAndBranch>(element);
       if_hole.Then();
       HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
-        ? Add<HConstant>(FixedDoubleArray::hole_nan_as_double())
-        : graph()->GetConstantHole();
+                                     ? Add<HConstant>(HConstant::kHoleNaN)
+                                     : graph()->GetConstantHole();
       Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
       if_hole.Else();
       HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
@@ -8379,11 +8377,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
         result = AddElementAccess(elements, reduced_length, NULL,
                                   bounds_check, elements_kind, LOAD);
-        Factory* factory = isolate()->factory();
-        double nan_double = FixedDoubleArray::hole_nan_as_double();
         HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
-            ? Add<HConstant>(factory->the_hole_value())
-            : Add<HConstant>(nan_double);
+                           ? graph()->GetConstantHole()
+                           : Add<HConstant>(HConstant::kHoleNaN);
         if (IsFastSmiOrObjectElementsKind(elements_kind)) {
           elements_kind = FAST_HOLEY_ELEMENTS;
         }
@@ -8545,8 +8541,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
             // Put a hole at the end.
             HValue* hole = IsFastSmiOrObjectElementsKind(kind)
-                ? Add<HConstant>(isolate()->factory()->the_hole_value())
-                : Add<HConstant>(FixedDoubleArray::hole_nan_as_double());
+                               ? graph()->GetConstantHole()
+                               : Add<HConstant>(HConstant::kHoleNaN);
             if (IsFastSmiOrObjectElementsKind(kind)) kind = FAST_HOLEY_ELEMENTS;
             Add<HStoreKeyed>(
                 elements, new_length, hole, kind, INITIALIZING_STORE);
@@ -10285,7 +10281,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       int32_t i = c_index->NumberValueAsInteger32();
       Handle<String> s = c_string->StringValue();
       if (i < 0 || i >= s->length()) {
-        return New<HConstant>(base::OS::nan_value());
+        return New<HConstant>(std::numeric_limits<double>::quiet_NaN());
       }
       return New<HConstant>(s->Get(i));
     }

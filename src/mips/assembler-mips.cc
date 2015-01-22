@@ -2575,7 +2575,7 @@ Address Assembler::target_address_at(Address pc) {
 // snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
 // OS::nan_value() returns a qNaN.
 void Assembler::QuietNaN(HeapObject* object) {
-  HeapNumber::cast(object)->set_value(base::OS::nan_value());
+  HeapNumber::cast(object)->set_value(std::numeric_limits<double>::quiet_NaN());
 }
 
 

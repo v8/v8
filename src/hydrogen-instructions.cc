@@ -2683,6 +2683,19 @@ static bool IsInteger32(double value) {
 }
 
 
+HConstant::HConstant(Special special)
+    : HTemplateInstruction<0>(HType::TaggedNumber()),
+      object_(Handle<Object>::null()),
+      object_map_(Handle<Map>::null()),
+      bit_field_(HasDoubleValueField::encode(true) |
+                 InstanceTypeField::encode(kUnknownInstanceType)),
+      int32_value_(0) {
+  DCHECK_EQ(kHoleNaN, special);
+  std::memcpy(&double_value_, &kHoleNanInt64, sizeof(double_value_));
+  Initialize(Representation::Double());
+}
+
+
 HConstant::HConstant(Handle<Object> object, Representation r)
     : HTemplateInstruction<0>(HType::FromValue(object)),
       object_(Unique<Object>::CreateUninitialized(object)),
@@ -2945,7 +2958,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
     res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
   } else if (handle->IsUndefined()) {
-    res = new(zone) HConstant(base::OS::nan_value());
+    res = new (zone) HConstant(std::numeric_limits<double>::quiet_NaN());
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
@@ -4040,31 +4053,22 @@ bool HStoreKeyed::TryIncreaseBaseOffset(uint32_t increase_by_value) {
 
 
 bool HStoreKeyed::NeedsCanonicalization() {
-  // If value is an integer or smi or comes from the result of a keyed load or
-  // constant then it is either be a non-hole value or in the case of a constant
-  // the hole is only being stored explicitly: no need for canonicalization.
-  //
-  // The exception to that is keyed loads from external float or double arrays:
-  // these can load arbitrary representation of NaN.
-
-  if (value()->IsConstant()) {
-    return false;
-  }
-
-  if (value()->IsLoadKeyed()) {
-    return IsExternalFloatOrDoubleElementsKind(
-        HLoadKeyed::cast(value())->elements_kind());
-  }
-
-  if (value()->IsChange()) {
-    if (HChange::cast(value())->from().IsSmiOrInteger32()) {
-      return false;
+  switch (value()->opcode()) {
+    case kLoadKeyed: {
+      ElementsKind load_kind = HLoadKeyed::cast(value())->elements_kind();
+      return IsExternalFloatOrDoubleElementsKind(load_kind) ||
+             IsFixedFloatElementsKind(load_kind);
     }
-    if (HChange::cast(value())->value()->type().IsSmi()) {
-      return false;
+    case kChange: {
+      Representation from = HChange::cast(value())->from();
+      return from.IsTagged() || from.IsHeapObject();
     }
+    case kPhi:
+      // Better safe than sorry...
+      return true;
+    default:
+      return false;
   }
-  return true;
 }
 
 
@@ -4169,7 +4173,7 @@ HInstruction* HUnaryMathOperation::New(
     if (!constant->HasNumberValue()) break;
     double d = constant->DoubleValue();
     if (std::isnan(d)) {  // NaN poisons everything.
-      return H_CONSTANT_DOUBLE(base::OS::nan_value());
+      return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
@@ -4177,7 +4181,8 @@ HInstruction* HUnaryMathOperation::New(
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
         case kMathSqrt:
-          return H_CONSTANT_DOUBLE((d > 0.0) ? d : base::OS::nan_value());
+          return H_CONSTANT_DOUBLE(
+              (d > 0.0) ? d : std::numeric_limits<double>::quiet_NaN());
         case kMathPowHalf:
         case kMathAbs:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : -d);
@@ -4274,8 +4279,9 @@ HInstruction* HPower::New(Zone* zone,
     if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
       double result = power_helper(c_left->DoubleValue(),
                                    c_right->DoubleValue());
-      return H_CONSTANT_DOUBLE(std::isnan(result) ? base::OS::nan_value()
-                                                  : result);
+      return H_CONSTANT_DOUBLE(std::isnan(result)
+                                   ? std::numeric_limits<double>::quiet_NaN()
+                                   : result);
     }
   }
   return new(zone) HPower(left, right);
@@ -4308,7 +4314,7 @@ HInstruction* HMathMinMax::New(
         }
       }
       // All comparisons failed, must be NaN.
-      return H_CONSTANT_DOUBLE(base::OS::nan_value());
+      return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
     }
   }
   return new(zone) HMathMinMax(context, left, right, op);

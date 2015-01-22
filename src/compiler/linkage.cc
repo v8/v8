@@ -152,9 +152,12 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kDebugGetLoadedScripts:
     case Runtime::kDebugGetPropertyDetails:
     case Runtime::kDebugPromiseEvent:
+    case Runtime::kDefaultConstructorSuperCall:
     case Runtime::kDefineAccessorPropertyUnchecked:
+    case Runtime::kDefineClass:
     case Runtime::kDefineDataPropertyUnchecked:
     case Runtime::kDeleteProperty:
+    case Runtime::kDeliverObservationChangeRecords:
     case Runtime::kDeoptimizeFunction:
     case Runtime::kFunctionBindArguments:
     case Runtime::kGetDefaultReceiver:
@@ -166,6 +169,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
     case Runtime::kInlineDateField:
+    case Runtime::kInlineOptimizedGetPrototype:
     case Runtime::kInlineRegExpExec:
     case Runtime::kInternalSetPrototype:
     case Runtime::kInterrupt:

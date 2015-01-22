@@ -249,15 +249,6 @@ void OS::DebugBreak() {
 }
 
 
-// ----------------------------------------------------------------------------
-// Math functions
-
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
-}
-
-
 int OS::GetCurrentProcessId() {
   return static_cast<int>(getpid());
 }
@@ -319,10 +310,10 @@ void OS::ClearTimezoneCache(TimezoneCache* cache) {
 
 
 double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
-  if (std::isnan(time)) return nan_value();
+  if (std::isnan(time)) return std::numeric_limits<double>::quiet_NaN();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
-  if (NULL == t) return nan_value();
+  if (NULL == t) return std::numeric_limits<double>::quiet_NaN();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
 

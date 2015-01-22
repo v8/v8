@@ -389,7 +389,6 @@
   'js1_5/LexicalConventions/regress-469940': [FAIL_OK],
   'js1_5/Exceptions/regress-332472': [FAIL_OK],
   'js1_5/Regress/regress-173067': [FAIL_OK],
-  'js1_5/Regress/regress-355556': [FAIL_OK],
   'js1_5/Regress/regress-328664': [FAIL_OK],
   'js1_5/Regress/regress-252892': [FAIL_OK],
   'js1_5/Regress/regress-352208': [FAIL_OK],
@@ -893,6 +892,12 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mips'
+
+['arch == arm and simulator_run == True', {
+
+  #BUG(3837): Crashes due to C stack overflow.
+  'js1_5/extensions/regress-355497': [SKIP],
+}],  # 'arch == arm and simulator_run == True'
 
 ['arch == arm64 and simulator_run == True', {
 

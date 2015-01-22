@@ -229,7 +229,7 @@ TEST(AssemblerIa329) {
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(v8::base::OS::nan_value(), 1.1));
+  CHECK_EQ(kNaN, f(std::numeric_limits<double>::quiet_NaN(), 1.1));
 }
 
 

@@ -932,7 +932,9 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     if (FunctionLiteral::NeedsHomeObject(property->value())) {
       Unique<Name> name =
           MakeUnique(isolate()->factory()->home_object_symbol());
-      NewNode(javascript()->StoreNamed(strict_mode(), name), value, receiver);
+      Node* store = NewNode(javascript()->StoreNamed(strict_mode(), name),
+                            value, receiver);
+      PrepareFrameState(store, BailoutId::None());
     }
   }
 
@@ -948,6 +950,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None());
   }
 
+  PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
 }
 
@@ -1461,11 +1464,12 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       flags = CALL_AS_METHOD;
       break;
     }
-    case Call::SUPER_CALL: {
+    case Call::SUPER_CALL:
       // TODO(dslomov): Implement super calls.
-      UNIMPLEMENTED();
+      callee_value = jsgraph()->UndefinedConstant();
+      receiver_value = jsgraph()->UndefinedConstant();
+      SetStackOverflow();
       break;
-    }
     case Call::POSSIBLY_EVAL_CALL:
       possibly_eval = true;
     // Fall through.

@@ -10,8 +10,7 @@ function foo() {
 
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("fooed", foo());
-// TODO(mstarzinger): Still not optimized, make sure it is.
-// assertOptimized(foo);
+assertOptimized(foo);
 
 function bar() {
   with ({ value:"bared" }) { return value; }
@@ -20,5 +19,4 @@ function bar() {
 assertEquals("bared", bar());
 %OptimizeFunctionOnNextCall(bar);
 assertEquals("bared", bar());
-// TODO(mstarzinger): Still not optimized, make sure it is.
-// assertOptimized(bar);
+assertOptimized(bar);

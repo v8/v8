@@ -264,7 +264,7 @@ int rempio2(double x, double* y) {
   int32_t ix = hx & 0x7fffffff;
 
   if (ix >= 0x7ff00000) {
-    *y = base::OS::nan_value();
+    *y = std::numeric_limits<double>::quiet_NaN();
     return 0;
   }
 

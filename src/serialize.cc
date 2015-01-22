@@ -163,8 +163,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "std::log");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
-  Add(ExternalReference::address_of_canonical_non_hole_nan().address(),
-      "canonical_nan");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");
   Add(ExternalReference::get_date_field_function(isolate).address(),
       "JSDate::GetField");

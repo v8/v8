@@ -2096,9 +2096,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
-    double value = instr->DoubleValue();
-    bool value_is_zero = bit_cast<uint64_t, double>(value) == 0;
-    LOperand* temp = value_is_zero ? NULL : TempRegister();
+    uint64_t const bits = instr->DoubleValueAsBits();
+    LOperand* temp = bits ? TempRegister() : nullptr;
     return DefineAsRegister(new(zone()) LConstantD(temp));
   } else if (r.IsExternal()) {
     return DefineAsRegister(new(zone()) LConstantE);

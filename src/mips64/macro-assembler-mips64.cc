@@ -3884,7 +3884,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 
   // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
   // in the exponent.
-  li(scratch1, Operand(kNaNOrInfinityLowerBoundUpper32));
+  li(scratch1, Operand(kHoleNanUpper32 & HeapNumber::kExponentMask));
   lw(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
   Branch(&maybe_nan, ge, exponent_reg, Operand(scratch1));
 

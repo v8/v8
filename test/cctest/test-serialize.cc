@@ -88,7 +88,7 @@ TEST(ExternalReferenceEncoder) {
   CHECK_EQ(
       make_code(UNCLASSIFIED, 1),
       encoder.Encode(ExternalReference::roots_array_start(isolate).address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 34),
+  CHECK_EQ(make_code(UNCLASSIFIED, 33),
            encoder.Encode(ExternalReference::cpu_features().address()));
 }
 

@@ -3890,7 +3890,7 @@ TEST(RunFloat64UnorderedCompare) {
                                  m.machine()->Float64LessThan(),
                                  m.machine()->Float64LessThanOrEqual()};
 
-  double nan = v8::base::OS::nan_value();
+  double nan = std::numeric_limits<double>::quiet_NaN();
 
   FOR_FLOAT64_INPUTS(i) {
     for (size_t o = 0; o < arraysize(operators); ++o) {
@@ -4385,9 +4385,9 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.5, -1},
                  {5.5, 5},
                  {-5.0, -5},
-                 {v8::base::OS::nan_value(), 0},
+                 {std::numeric_limits<double>::quiet_NaN(), 0},
                  {std::numeric_limits<double>::infinity(), 0},
-                 {-v8::base::OS::nan_value(), 0},
+                 {-std::numeric_limits<double>::quiet_NaN(), 0},
                  {-std::numeric_limits<double>::infinity(), 0},
                  {4.94065645841e-324, 0},
                  {-4.94065645841e-324, 0},
