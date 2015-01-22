@@ -9,9 +9,6 @@
 
 #include "src/compiler.h"
 
-// Note: TODO(turbofan) implies a performance improvement opportunity,
-//   and TODO(name) implies an incomplete implementation
-
 namespace v8 {
 namespace internal {
 namespace compiler {
