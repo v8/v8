@@ -665,13 +665,15 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register hole_lower = elements;
   Register hole_upper = length;
   __ li(hole_lower, Operand(kHoleNanLower32));
+  __ li(hole_upper, Operand(kHoleNanUpper32));
+
   // scratch1: begin of source FixedArray element fields, not tagged
   // hole_lower: kHoleNanLower32
   // hole_upper: kHoleNanUpper32
   // array_end: end of destination FixedDoubleArray, not tagged
   // scratch3: begin of FixedDoubleArray element fields, not tagged
-  __ Branch(USE_DELAY_SLOT, &entry);
-  __ li(hole_upper, Operand(kHoleNanUpper32));  // In delay slot.
+
+  __ Branch(&entry);
 
   __ bind(&only_change_map);
   __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));

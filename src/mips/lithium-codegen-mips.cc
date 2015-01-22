@@ -1744,6 +1744,20 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 void LCodeGen::DoConstantD(LConstantD* instr) {
   DCHECK(instr->result()->IsDoubleRegister());
   DoubleRegister result = ToDoubleRegister(instr->result());
+#if V8_HOST_ARCH_IA32
+  // Need some crappy work-around for x87 sNaN -> qNaN breakage in simulator
+  // builds.
+  uint64_t bits = instr->bits();
+  if ((bits & V8_UINT64_C(0x7FF8000000000000)) ==
+      V8_UINT64_C(0x7FF0000000000000)) {
+    uint32_t lo = static_cast<uint32_t>(bits);
+    uint32_t hi = static_cast<uint32_t>(bits >> 32);
+    __ li(at, Operand(lo));
+    __ li(scratch0(), Operand(hi));
+    __ Move(result, at, scratch0());
+    return;
+  }
+#endif
   double v = instr->value();
   __ Move(result, v);
 }
