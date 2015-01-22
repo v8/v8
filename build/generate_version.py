@@ -26,6 +26,9 @@ CWD = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 VERSION_CC = os.path.join(CWD, "src", "version.cc")
 VERSION_GEN_CC = os.path.join(CWD, "src", "version_gen.cc")
 
+VERSION_RE_RAW = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<build>\d+)"
+VERSION_RE = re.compile(VERSION_RE_RAW + r"$")
+VERSION_WITH_PATCH_RE = re.compile(VERSION_RE_RAW + r"\.(?P<patch>\d+)$")
 
 def generate_version_file():
   # Make sure the tags are fetched from cached git repos.
@@ -54,17 +57,33 @@ def generate_version_file():
   else:
     version = tag
     candidate = "0"
-  version_levels = version.split(".")
 
-  # Set default patch level if none is given.
-  if len(version_levels) == 3:
-    version_levels.append("0")
-  assert len(version_levels) == 4
-
-  major, minor, build, patch = version_levels
+  match = VERSION_RE.match(version)
+  match_patch = VERSION_WITH_PATCH_RE.match(version)
+  if match:
+    # Simple version e.g. "3.30.5".
+    major = match.group("major")
+    minor = match.group("minor")
+    build = match.group("build")
+    patch = "0"
+    invalid = "0"
+  elif match_patch:
+    # Version with patch level e.g. "3.30.5.2".
+    major = match.group("major")
+    minor = match.group("minor")
+    build = match.group("build")
+    patch = match.group("patch")
+    invalid = "0"
+  else:
+    # A tag was found that's not a version string.
+    major = "0"
+    minor = "0"
+    build = "0"
+    patch = "0"
+    invalid = "1"
 
   # Increment build level for candidate builds.
-  if candidate == "1":
+  if candidate == "1" and invalid != "1":
     build = str(int(build) + 1)
     patch = "0"
 
@@ -77,16 +96,18 @@ def generate_version_file():
           ("MINOR_VERSION", minor),
           ("BUILD_NUMBER", build),
           ("PATCH_LEVEL", patch),
-          ("IS_CANDIDATE_VERSION", candidate)):
+          ("IS_CANDIDATE_VERSION", candidate),
+          ("IS_INVALID_VERSION", invalid)):
         if line.startswith("#define %s" % definition):
           line =  re.sub("\d+$", substitute, line)
       output.append(line)
 
   # Prepare log message.
-  candidate_txt = " (candidate)" if candidate == "1" else ""
+  suffix_txt = " (candidate)" if candidate == "1" else ""
+  suffix_txt = " (invalid)" if invalid == "1" else suffix_txt
   patch_txt = ".%s" % patch if patch != "0" else ""
   version_txt = ("%s.%s.%s%s%s" %
-                 (major, minor, build, patch_txt, candidate_txt))
+                 (major, minor, build, patch_txt, suffix_txt))
   log_message = "Modifying version_gen.cc. Set V8 version to %s" %  version_txt
   return "".join(output), log_message
 
