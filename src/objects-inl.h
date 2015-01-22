@@ -4857,6 +4857,21 @@ inline void Code::set_is_turbofanned(bool value) {
 }
 
 
+inline bool Code::can_have_weak_objects() {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  return CanHaveWeakObjectsField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+inline void Code::set_can_have_weak_objects(bool value) {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = CanHaveWeakObjectsField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
 bool Code::optimizable() {
   DCHECK_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;

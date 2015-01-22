@@ -5132,6 +5132,11 @@ class Code: public HeapObject {
   inline bool is_turbofanned();
   inline void set_is_turbofanned(bool value);
 
+  // [can_have_weak_objects]: For kind OPTIMIZED_FUNCTION, tells whether the
+  // embedded objects in code should be treated weakly.
+  inline bool can_have_weak_objects();
+  inline void set_can_have_weak_objects(bool value);
+
   // [optimizable]: For FUNCTION kind, tells if it is optimizable.
   inline bool optimizable();
   inline void set_optimizable(bool value);
@@ -5389,11 +5394,15 @@ class Code: public HeapObject {
   void VerifyEmbeddedObjectsInFullCode();
 #endif  // DEBUG
 
-  inline bool CanContainWeakObjects() { return is_optimized_code(); }
+  inline bool CanContainWeakObjects() {
+    // is_turbofanned() implies !can_have_weak_objects().
+    DCHECK(!is_optimized_code() || !is_turbofanned() ||
+           !can_have_weak_objects());
+    return is_optimized_code() && can_have_weak_objects();
+  }
 
   inline bool IsWeakObject(Object* object) {
-    return (is_optimized_code() && !is_turbofanned() &&
-            IsWeakObjectInOptimizedCode(object));
+    return (CanContainWeakObjects() && IsWeakObjectInOptimizedCode(object));
   }
 
   static inline bool IsWeakObjectInOptimizedCode(Object* object);
@@ -5459,9 +5468,10 @@ class Code: public HeapObject {
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kMarkedForDeoptimizationBit = kHasFunctionCacheBit + 1;
   static const int kIsTurbofannedBit = kMarkedForDeoptimizationBit + 1;
+  static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kIsTurbofannedBit + 1 <= 32);
+  STATIC_ASSERT(kCanHaveWeakObjects + 1 <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -5471,6 +5481,8 @@ class Code: public HeapObject {
       : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};   // NOLINT
   class IsTurbofannedField : public BitField<bool, kIsTurbofannedBit, 1> {
   };  // NOLINT
+  class CanHaveWeakObjectsField
+      : public BitField<bool, kCanHaveWeakObjects, 1> {};  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;
