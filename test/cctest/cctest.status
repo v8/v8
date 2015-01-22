@@ -95,9 +95,6 @@
   'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
   'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
 
-  # TODO(titzer): Triggers bug in late control reduction.
-  'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
-
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
 
