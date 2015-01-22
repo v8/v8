@@ -100,7 +100,7 @@ config("toolchain") {
 
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
-    if (arm_verson == 7) {
+    if (arm_version == 7) {
       defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
     }
     if (arm_fpu == "vfpv3-d16") {

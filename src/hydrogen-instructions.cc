@@ -4063,9 +4063,11 @@ bool HStoreKeyed::NeedsCanonicalization() {
       Representation from = HChange::cast(value())->from();
       return from.IsTagged() || from.IsHeapObject();
     }
-    case kPhi:
+    case kLoadNamedField:
+    case kPhi: {
       // Better safe than sorry...
       return true;
+    }
     default:
       return false;
   }

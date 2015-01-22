@@ -2621,7 +2621,7 @@ class ClassLiteral FINAL : public Expression {
   Scope* scope() const { return scope_; }
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
-  Expression* constructor() const { return constructor_; }
+  FunctionLiteral* constructor() const { return constructor_; }
   ZoneList<Property*>* properties() const { return properties_; }
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
@@ -2634,7 +2634,7 @@ class ClassLiteral FINAL : public Expression {
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,
                VariableProxy* class_variable_proxy, Expression* extends,
-               Expression* constructor, ZoneList<Property*>* properties,
+               FunctionLiteral* constructor, ZoneList<Property*>* properties,
                int start_position, int end_position)
       : Expression(zone, start_position),
         raw_name_(name),
@@ -2653,7 +2653,7 @@ class ClassLiteral FINAL : public Expression {
   Scope* scope_;
   VariableProxy* class_variable_proxy_;
   Expression* extends_;
-  Expression* constructor_;
+  FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
   int end_position_;
 };
@@ -3496,7 +3496,7 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
 
   ClassLiteral* NewClassLiteral(const AstRawString* name, Scope* scope,
                                 VariableProxy* proxy, Expression* extends,
-                                Expression* constructor,
+                                FunctionLiteral* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
     return new (zone_)

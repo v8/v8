@@ -1,3 +1,8 @@
+2015-01-22: Version 4.2.21
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-22: Version 4.2.20
 
         Add a pretty printer to improve the error message non-function calls

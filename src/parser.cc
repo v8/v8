@@ -4008,7 +4008,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   }
 
   ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
-  Expression* constructor = NULL;
+  FunctionLiteral* constructor = NULL;
   bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -4024,7 +4024,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
                                 &has_seen_constructor, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
-      constructor = GetPropertyValue(property);
+      constructor = GetPropertyValue(property)->AsFunctionLiteral();
+      DCHECK_NOT_NULL(constructor);
     } else {
       properties->Add(property, zone());
     }
