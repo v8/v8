@@ -2017,6 +2017,9 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(rbx);
   }
 
+  // Pass original constructor to construct stub.
+  __ movp(rdx, rdi);
+
   // Jump to the function-specific construct stub.
   Register jmp_reg = rcx;
   __ movp(jmp_reg, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));

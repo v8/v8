@@ -2862,11 +2862,15 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else if (call_type == Call::SUPER_CALL) {
-    SuperReference* super_ref = callee->AsSuperReference();
-    EmitLoadSuperConstructor(super_ref);
-    __ Push(result_register());
-    VisitForStackValue(super_ref->this_var());
-    EmitCall(expr, CallICState::METHOD);
+    if (FLAG_experimental_classes) {
+      EmitSuperConstructorCall(expr);
+    } else {
+      SuperReference* super_ref = callee->AsSuperReference();
+      EmitLoadSuperConstructor(super_ref);
+      __ Push(result_register());
+      VisitForStackValue(super_ref->this_var());
+      EmitCall(expr, CallICState::METHOD);
+    }
   } else {
     DCHECK(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.
@@ -2930,6 +2934,51 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
+  context()->Plug(x0);
+}
+
+
+void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
+  SuperReference* super_ref = expr->expression()->AsSuperReference();
+  EmitLoadSuperConstructor(super_ref);
+  __ push(result_register());
+
+  // Push the arguments ("left-to-right") on the stack.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    VisitForStackValue(args->at(i));
+  }
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetSourcePosition(expr->position());
+
+  // Load function and argument count into x1 and x0.
+  __ Mov(x0, arg_count);
+  __ Peek(x1, arg_count * kXRegSize);
+
+  // Record call targets in unoptimized code.
+  if (FLAG_pretenuring_call_new) {
+    UNREACHABLE();
+    /* TODO(dslomov): support pretenuring.
+    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
+    DCHECK(expr->AllocationSiteFeedbackSlot().ToInt() ==
+           expr->CallNewFeedbackSlot().ToInt() + 1);
+    */
+  }
+
+  __ LoadObject(x2, FeedbackVector());
+  __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
+
+  // TODO(dslomov): use a different stub and propagate new.target.
+  CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
+  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+  RecordJSReturnSite(expr);
+
+  // TODO(dslomov): implement TDZ for `this`.
+  EmitVariableAssignment(super_ref->this_var()->var(), Token::ASSIGN);
   context()->Plug(x0);
 }
 

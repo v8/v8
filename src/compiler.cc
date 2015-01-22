@@ -786,8 +786,8 @@ static void ThrowSuperConstructorCheckError(CompilationInfo* info,
 
 static bool CheckSuperConstructorCall(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
+  if (FLAG_experimental_classes) return true;
   if (!function->uses_super_constructor_call()) return true;
-
   if (function->is_default_constructor()) return true;
 
   ZoneList<Statement*>* body = function->body();
@@ -837,7 +837,6 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
     ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
-
   return true;
 }
 

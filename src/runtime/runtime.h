@@ -477,8 +477,8 @@ namespace internal {
   /* Statements */                                           \
   F(NewClosure, 3, 1)                                        \
   F(NewClosureFromStubFailure, 1, 1)                         \
-  F(NewObject, 1, 1)                                         \
-  F(NewObjectWithAllocationSite, 2, 1)                       \
+  F(NewObject, 2, 1)                                         \
+  F(NewObjectWithAllocationSite, 3, 1)                       \
   F(FinalizeInstanceSize, 1, 1)                              \
   F(Throw, 1, 1)                                             \
   F(ReThrow, 1, 1)                                           \
