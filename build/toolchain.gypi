@@ -229,11 +229,6 @@
               }, {
                 # 'v8_target_arch!=target_arch'
                 # Target not built with an Arm CXX compiler (simulator build).
-                'cflags': [
-                  '-msse2',
-                  '-mfpmath=sse',
-                  '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
-                ],
                 'conditions': [
                   [ 'arm_float_abi=="hard"', {
                     'defines': [
