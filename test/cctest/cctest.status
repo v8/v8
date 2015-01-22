@@ -78,9 +78,6 @@
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
-  # BUG(3840). Test fails with some random seeds.
-  'test-types/Maybe': [PASS, FAIL],
-
   ##############################################################################
   # TurboFan compiler failures.
 
