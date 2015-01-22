@@ -1236,6 +1236,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
   Scope* saved_scope = scope();
   scope_ = stmt->scope();

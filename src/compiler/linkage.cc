@@ -190,6 +190,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kPreventExtensions:
     case Runtime::kPromiseRejectEvent:
     case Runtime::kPromiseRevokeReject:
+    case Runtime::kPushWithContext:
     case Runtime::kRegExpInitializeAndCompile:
     case Runtime::kRegExpExecMultiple:
     case Runtime::kResolvePossiblyDirectEval:

@@ -291,6 +291,7 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
 void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
   IncrementNodeCount();
   DisableOptimization(kWithStatement);
+  node->set_base_id(ReserveIdRange(WithStatement::num_ids()));
   Visit(node->expression());
   Visit(node->statement());
 }
