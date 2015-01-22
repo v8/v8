@@ -15,7 +15,17 @@ i_view[1] = 0xFFF7FFFF;
 var f_view = new Float64Array(ab);
 
 var fixed_double_elements = new Float64Array(1);
-fixed_double_elements[0] = f_view[0];
+
+function opt_store() { fixed_double_elements[0] = f_view[0]; }
+
+opt_store();
+opt_store();
+%OptimizeFunctionOnNextCall(opt_store);
+opt_store();
+
+var i32 = new Int32Array(fixed_double_elements.buffer);
+assertEquals(i_view[0], i32[0]);
+assertEquals(i_view[1], i32[1]);
 
 var doubles = [0.5];
 loader(doubles, fixed_double_elements, 0);
