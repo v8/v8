@@ -888,12 +888,12 @@ Type* Typer::Visitor::JSBitwiseXorTyper(Type* lhs, Type* rhs, Typer* t) {
   double rmax = rhs->Max();
   if ((lmin >= 0 && rmin >= 0) || (lmax < 0 && rmax < 0)) {
     // Xor-ing negative or non-negative values results in a non-negative value.
-    return Type::Unsigned31();
+    return Type::NonNegativeSigned32();
   }
   if ((lmax < 0 && rmin >= 0) || (lmin >= 0 && rmax < 0)) {
     // Xor-ing a negative and a non-negative value results in a negative value.
     // TODO(jarin) Use a range here.
-    return Type::Negative32();
+    return Type::NegativeSigned32();
   }
   return Type::Signed32();
 }
@@ -1258,54 +1258,43 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
 Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
-  // If the types have nothing to do with integers, return the types.
-  if (!current_type->Maybe(typer_->integer) ||
-      !previous_type->Maybe(typer_->integer)) {
-    return current_type;
-  }
+  Type::RangeType* previous = previous_type->GetRange();
+  Type::RangeType* current = current_type->GetRange();
+  if (previous != NULL && current != NULL) {
+    double current_min = current->Min()->Number();
+    Handle<Object> new_min = current->Min();
 
-  Type* previous_number =
-      Type::Intersect(previous_type, typer_->integer, zone());
-  Type* current_number = Type::Intersect(current_type, typer_->integer, zone());
-  if (!current_number->IsRange() || !previous_number->IsRange()) {
-    return current_type;
-  }
-
-  Type::RangeType* previous = previous_number->AsRange();
-  Type::RangeType* current = current_number->AsRange();
-
-  double current_min = current->Min()->Number();
-  Handle<Object> new_min = current->Min();
-
-  // Find the closest lower entry in the list of allowed
-  // minima (or negative infinity if there is no such entry).
-  if (current_min != previous->Min()->Number()) {
-    new_min = typer_->integer->AsRange()->Min();
-    for (const auto val : typer_->weaken_min_limits_) {
-      if (val->Number() <= current_min) {
-        new_min = val;
-        break;
+    // Find the closest lower entry in the list of allowed
+    // minima (or negative infinity if there is no such entry).
+    if (current_min != previous->Min()->Number()) {
+      new_min = typer_->integer->AsRange()->Min();
+      for (const auto val : typer_->weaken_min_limits_) {
+        if (val->Number() <= current_min) {
+          new_min = val;
+          break;
+        }
       }
     }
-  }
 
-  double current_max = current->Max()->Number();
-  Handle<Object> new_max = current->Max();
-  // Find the closest greater entry in the list of allowed
-  // maxima (or infinity if there is no such entry).
-  if (current_max != previous->Max()->Number()) {
-    new_max = typer_->integer->AsRange()->Max();
-    for (const auto val : typer_->weaken_max_limits_) {
-      if (val->Number() >= current_max) {
-        new_max = val;
-        break;
+    double current_max = current->Max()->Number();
+    Handle<Object> new_max = current->Max();
+    // Find the closest greater entry in the list of allowed
+    // maxima (or infinity if there is no such entry).
+    if (current_max != previous->Max()->Number()) {
+      new_max = typer_->integer->AsRange()->Max();
+      for (const auto val : typer_->weaken_max_limits_) {
+        if (val->Number() >= current_max) {
+          new_max = val;
+          break;
+        }
       }
     }
-  }
 
-  return Type::Union(current_type,
-                     Type::Range(new_min, new_max, typer_->zone()),
-                     typer_->zone());
+    return Type::Union(current_type,
+                       Type::Range(new_min, new_max, typer_->zone()),
+                       typer_->zone());
+  }
+  return current_type;
 }
 
 
