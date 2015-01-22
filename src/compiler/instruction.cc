@@ -387,14 +387,12 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
       GetLoopEndRpo(block), block->deferred());
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
-  for (auto it = block->successors_begin(); it != block->successors_end();
-       ++it) {
-    instr_block->successors().push_back((*it)->GetRpoNumber());
+  for (BasicBlock* successor : block->successors()) {
+    instr_block->successors().push_back(successor->GetRpoNumber());
   }
   instr_block->predecessors().reserve(block->PredecessorCount());
-  for (auto it = block->predecessors_begin(); it != block->predecessors_end();
-       ++it) {
-    instr_block->predecessors().push_back((*it)->GetRpoNumber());
+  for (BasicBlock* predecessor : block->predecessors()) {
+    instr_block->predecessors().push_back(predecessor->GetRpoNumber());
   }
   return instr_block;
 }

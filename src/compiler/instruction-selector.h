@@ -10,6 +10,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -21,6 +22,8 @@ struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
 
+
+// Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector FINAL {
  public:
   // Forward declarations.

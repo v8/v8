@@ -88,7 +88,6 @@
         'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-variables.cc',
-        'compiler/test-schedule.cc',
         'compiler/test-scheduler.cc',
         'compiler/test-simplified-lowering.cc',
         'compiler/test-typer.cc',

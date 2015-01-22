@@ -131,10 +131,7 @@ TEST(InstructionBasic) {
   BasicBlockVector* blocks = R.schedule.rpo_order();
   CHECK_EQ(static_cast<int>(blocks->size()), R.code->InstructionBlockCount());
 
-  int index = 0;
-  for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end();
-       i++, index++) {
-    BasicBlock* block = *i;
+  for (auto block : *blocks) {
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
     CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
     CHECK_EQ(NULL, block->loop_end());
