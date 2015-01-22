@@ -940,6 +940,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
+  AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
   if (FLAG_turbo_asm && function->shared()->asm_function() &&

@@ -66,6 +66,11 @@ Counters::Counters(Isolate* isolate) {
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define AHT(name, caption) \
+  name##_ = AggregatableHistogramTimer(#caption, 0, 10000, 50, isolate);
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
+
 #define HP(name, caption) \
     name##_ = Histogram(#caption, 0, 101, 100, isolate);
     HISTOGRAM_PERCENTAGE_LIST(HP)
@@ -155,6 +160,10 @@ void Counters::ResetHistograms() {
 #define HT(name, caption) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) name##_.Reset();
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) name##_.Reset();
     HISTOGRAM_PERCENTAGE_LIST(HP)

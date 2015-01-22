@@ -1480,6 +1480,7 @@ Local<Value> Script::Run() {
   ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
+  i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
