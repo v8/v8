@@ -16,8 +16,6 @@ namespace compiler {
 // Forward declarations.
 class BasicBlock;
 class BasicBlockInstrumentor;
-class CodeGenerator;  // Because of a namespace bug in clang.
-class ConstructScheduleData;
 class Node;
 
 
@@ -164,6 +162,10 @@ class BasicBlock FINAL : public ZoneObject {
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ != NULL; }
   bool LoopContains(BasicBlock* block) const;
+
+  // Computes the immediate common dominator of {b1} and {b2}. The worst time
+  // complexity is O(N) where N is the height of the dominator tree.
+  static BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
 
  private:
   int32_t loop_number_;      // loop number of the block.

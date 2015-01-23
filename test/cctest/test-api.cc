@@ -7715,12 +7715,12 @@ class Trivial2 {
 };
 
 
-void CheckInternalFields(const v8::PhantomCallbackData<
-    v8::Persistent<v8::Object>, Trivial, Trivial2>& data) {
+void CheckInternalFields(
+    const v8::PhantomCallbackData<v8::Persistent<v8::Object>>& data) {
   v8::Persistent<v8::Object>* handle = data.GetParameter();
   handle->Reset();
-  Trivial* t1 = data.GetInternalField1();
-  Trivial2* t2 = data.GetInternalField2();
+  Trivial* t1 = reinterpret_cast<Trivial*>(data.GetInternalField1());
+  Trivial2* t2 = reinterpret_cast<Trivial2*>(data.GetInternalField2());
   CHECK_EQ(42, t1->x());
   CHECK_EQ(103, t2->x());
   t1->set_x(1729);
@@ -7756,8 +7756,8 @@ void InternalFieldCallback(bool global_gc) {
         reinterpret_cast<Trivial2*>(obj->GetAlignedPointerFromInternalField(1));
     CHECK_EQ(103, t2->x());
 
-    handle.SetPhantom<v8::Persistent<v8::Object>, Trivial, Trivial2>(
-        &handle, 0, 1, CheckInternalFields);
+    handle.SetPhantom<v8::Persistent<v8::Object>>(&handle, CheckInternalFields,
+                                                  0, 1);
     if (!global_gc) {
       handle.MarkIndependent();
     }
@@ -15199,6 +15199,12 @@ THREADED_TEST(ExternalAllocatedMemory) {
            isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
   CHECK_EQ(baseline,
            isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
+  const int64_t kTriggerGCSize =
+      v8::internal::Internals::kExternalAllocationLimit + 1;
+  CHECK_EQ(baseline + kTriggerGCSize,
+           isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize));
+  CHECK_EQ(baseline,
+           isolate->AdjustAmountOfExternalAllocatedMemory(-kTriggerGCSize));
 }
 
 

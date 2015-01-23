@@ -80,7 +80,6 @@ class Scheduler {
   void IncrementUnscheduledUseCount(Node* node, int index, Node* from);
   void DecrementUnscheduledUseCount(Node* node, int index, Node* from);
 
-  BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
   void PropagateImmediateDominators(BasicBlock* block);
 
   // Phase 1: Build control-flow graph.

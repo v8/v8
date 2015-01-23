@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "src/v8.h"
 
@@ -34,21 +11,28 @@
 // system so their names cannot be changed without changing the scripts.
 #define MAJOR_VERSION     4
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      23
+#define BUILD_NUMBER      0
 #define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
-#define IS_CANDIDATE_VERSION 0
+#define IS_CANDIDATE_VERSION 1
+
+// Used to mark a version built from a bad tag.
+#define IS_INVALID_VERSION 0
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the build system script.
 #define SONAME            ""
 
-#if IS_CANDIDATE_VERSION
-#define CANDIDATE_STRING " (candidate)"
+#if IS_INVALID_VERSION
+#define SUFFIX_STRING " (invalid)"
 #else
-#define CANDIDATE_STRING ""
+#if IS_CANDIDATE_VERSION
+#define SUFFIX_STRING " (candidate)"
+#else
+#define SUFFIX_STRING ""
+#endif
 #endif
 
 #define SX(x) #x
@@ -56,12 +40,11 @@
 
 #if PATCH_LEVEL > 0
 #define VERSION_STRING                                                         \
-    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "."              \
-        S(PATCH_LEVEL) CANDIDATE_STRING
+  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "." S(PATCH_LEVEL) \
+      SUFFIX_STRING
 #else
-#define VERSION_STRING                                                         \
-    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER)                  \
-        CANDIDATE_STRING
+#define VERSION_STRING \
+  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) SUFFIX_STRING
 #endif
 
 namespace v8 {

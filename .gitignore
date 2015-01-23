@@ -46,7 +46,6 @@ shell_g
 /out
 /perf.data
 /perf.data.old
-/src/version_gen.cc
 /test/benchmarks/CHECKED_OUT_*
 /test/benchmarks/downloaded_*
 /test/benchmarks/kraken

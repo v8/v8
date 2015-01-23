@@ -145,9 +145,9 @@ class GlobalHandles {
 
   // It would be nice to template this one, but it's really hard to get
   // the template instantiator to work right if you do.
-  static void MakePhantom(
-      Object** location, void* parameter, int number_of_internal_fields,
-      PhantomCallbackData<void, void, void>::Callback weak_callback);
+  static void MakePhantom(Object** location, void* parameter,
+                          int number_of_internal_fields,
+                          PhantomCallbackData<void>::Callback weak_callback);
 
   void RecordStats(HeapStats* stats);
 
@@ -345,7 +345,7 @@ class GlobalHandles {
 
 class GlobalHandles::PendingPhantomCallback {
  public:
-  typedef PhantomCallbackData<void, void, void> Data;
+  typedef PhantomCallbackData<void> Data;
   PendingPhantomCallback(Node* node, Data data, Data::Callback callback)
       : node_(node), data_(data), callback_(callback) {}
 
