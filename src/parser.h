@@ -697,7 +697,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   enum VariableDeclarationContext {
     kModuleElement,
-    kBlockElement,
     kStatement,
     kForStatement
   };
