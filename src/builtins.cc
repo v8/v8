@@ -1062,8 +1062,11 @@ static inline Object* TypeCheck(Heap* heap, Object* recv,
 
 
 template <bool is_construct>
-MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
-    Isolate* isolate, BuiltinArguments<NEEDS_CALLED_FUNCTION> args) {
+MUST_USE_RESULT static Object* HandleApiCallHelper(
+    BuiltinArguments<NEEDS_CALLED_FUNCTION> args, Isolate* isolate) {
+  DCHECK(is_construct == CalledAsConstructor(isolate));
+  Heap* heap = isolate->heap();
+
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.called_function();
   // TODO(ishell): turn this back to a DCHECK.
@@ -1072,23 +1075,22 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
   Handle<FunctionTemplateInfo> fun_data(
       function->shared()->get_api_func_data(), isolate);
   if (is_construct) {
-    ASSIGN_RETURN_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, fun_data,
         isolate->factory()->ConfigureInstance(
-            fun_data, Handle<JSObject>::cast(args.receiver())),
-        Object);
+            fun_data, Handle<JSObject>::cast(args.receiver())));
   }
 
   DCHECK(!args[0]->IsNull());
   if (args[0]->IsUndefined()) args[0] = function->global_proxy();
 
-  Object* raw_holder = TypeCheck(isolate->heap(), args[0], *fun_data);
+  Object* raw_holder = TypeCheck(heap, args[0], *fun_data);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
-    THROW_NEW_ERROR(
-        isolate, NewTypeError("illegal_invocation", HandleVector(&function, 1)),
-        Object);
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError("illegal_invocation", HandleVector(&function, 1)));
   }
 
   Object* raw_call_data = fun_data->call_code();
@@ -1100,6 +1102,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
     v8::FunctionCallback callback =
         v8::ToCData<v8::FunctionCallback>(callback_obj);
     Object* data_obj = call_data->data();
+    Object* result;
 
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     DCHECK(raw_holder->IsJSObject());
@@ -1113,73 +1116,28 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
                                      is_construct);
 
     v8::Handle<v8::Value> value = custom.Call(callback);
-    Handle<Object> result;
     if (value.IsEmpty()) {
-      result = isolate->factory()->undefined_value();
+      result = heap->undefined_value();
     } else {
-      result = v8::Utils::OpenHandle(*value);
+      result = *reinterpret_cast<Object**>(*value);
       result->VerifyApiCallResultType();
     }
 
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!is_construct || result->IsJSObject()) {
-      return scope.CloseAndEscape(result);
-    }
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    if (!is_construct || result->IsJSObject()) return result;
   }
 
-  return scope.CloseAndEscape(args.receiver());
+  return *args.receiver();
 }
 
 
 BUILTIN(HandleApiCall) {
-  HandleScope scope(isolate);
-  DCHECK(!CalledAsConstructor(isolate));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     HandleApiCallHelper<false>(isolate, args));
-  return *result;
+  return HandleApiCallHelper<false>(args, isolate);
 }
 
 
 BUILTIN(HandleApiCallConstruct) {
-  HandleScope scope(isolate);
-  DCHECK(CalledAsConstructor(isolate));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     HandleApiCallHelper<true>(isolate, args));
-  return *result;
-}
-
-
-MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<JSFunction> function,
-                                                Handle<Object> receiver,
-                                                int argc,
-                                                Handle<Object> args[]) {
-  // Construct BuiltinArguments object: function, arguments reversed, receiver.
-  const int kBufferSize = 32;
-  Object* small_argv[kBufferSize];
-  Object** argv;
-  if (argc + 2 <= kBufferSize) {
-    argv = small_argv;
-  } else {
-    argv = new Object* [argc + 2];
-  }
-  argv[argc + 1] = *receiver;
-  for (int i = 0; i < argc; ++i) {
-    argv[argc - i] = *args[i];
-  }
-  argv[0] = *function;
-  MaybeHandle<Object> result;
-  {
-    auto isolate = function->GetIsolate();
-    BuiltinArguments<NEEDS_CALLED_FUNCTION> arguments(argc + 2,
-                                                      &argv[argc + 1]);
-    result = HandleApiCallHelper<false>(isolate, arguments);
-  }
-  if (argv != small_argv) {
-    delete[] argv;
-  }
-  return result;
+  return HandleApiCallHelper<true>(args, isolate);
 }
 
 
