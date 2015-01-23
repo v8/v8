@@ -4,13 +4,18 @@
 
 #include "src/x64/assembler-x64.h"
 
+#include <cstring>
+
+#if V8_TARGET_ARCH_X64
+
 #if V8_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
 
-#if V8_TARGET_ARCH_X64
-
 #include "src/base/bits.h"
+#if V8_OS_WIN
+#include "src/base/win32-headers.h"
+#endif
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -28,7 +33,7 @@ bool EnableAVX() {
   // caused by ISRs, so we detect that here and disable AVX in that case.
   char buffer[128];
   size_t buffer_size = arraysize(buffer);
-  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
+  int ctl_name[] = {CTL_KERN, KERN_OSRELEASE};
   if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
     V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
   }
@@ -39,6 +44,19 @@ bool EnableAVX() {
   *period_pos = '\0';
   long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
   if (kernel_version_major <= 13) return false;
+#elif V8_OS_WIN
+  // The same problem seems to appear on Windows XP and Vista.
+  OSVERSIONINFOEX osvi;
+  DWORDLONG mask = 0;
+  memset(&osvi, 0, sizeof(osvi));
+  osvi.dwOSVersionInfoSize = sizeof(osvi);
+  osvi.dwMajorVersion = 6;
+  osvi.dwMinorVersion = 1;
+  VER_SET_CONDITION(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+  VER_SET_CONDITION(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+  if (!VerifyVersionInfo(&osvi, VER_MAJORVERSION | VER_MINORVERSION, mask)) {
+    return false;
+  }
 #endif  // V8_OS_MACOSX
   return FLAG_enable_avx;
 }

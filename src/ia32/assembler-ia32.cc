@@ -36,14 +36,19 @@
 
 #include "src/ia32/assembler-ia32.h"
 
+#include <cstring>
+
+#if V8_TARGET_ARCH_IA32
+
 #if V8_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
 
-#if V8_TARGET_ARCH_IA32
-
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#if V8_OS_WIN
+#include "src/base/win32-headers.h"
+#endif
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
@@ -73,6 +78,19 @@ bool EnableAVX() {
   *period_pos = '\0';
   long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
   if (kernel_version_major <= 13) return false;
+#elif V8_OS_WIN
+  // The same problem seems to appear on Windows XP and Vista.
+  OSVERSIONINFOEX osvi;
+  DWORDLONG mask = 0;
+  memset(&osvi, 0, sizeof(osvi));
+  osvi.dwOSVersionInfoSize = sizeof(osvi);
+  osvi.dwMajorVersion = 6;
+  osvi.dwMinorVersion = 1;
+  VER_SET_CONDITION(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+  VER_SET_CONDITION(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+  if (!VerifyVersionInfo(&osvi, VER_MAJORVERSION | VER_MINORVERSION, mask)) {
+    return false;
+  }
 #endif  // V8_OS_MACOSX
   return FLAG_enable_avx;
 }
