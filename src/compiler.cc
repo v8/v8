@@ -786,8 +786,8 @@ static void ThrowSuperConstructorCheckError(CompilationInfo* info,
 
 static bool CheckSuperConstructorCall(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
+  if (FLAG_experimental_classes) return true;
   if (!function->uses_super_constructor_call()) return true;
-
   if (function->is_default_constructor()) return true;
 
   ZoneList<Statement*>* body = function->body();
@@ -837,7 +837,6 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
     ThrowSuperConstructorCheckError(info, stmt);
     return false;
   }
-
   return true;
 }
 
@@ -940,6 +939,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
+  AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
   if (FLAG_turbo_asm && function->shared()->asm_function() &&

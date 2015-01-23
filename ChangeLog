@@ -1,3 +1,13 @@
+2015-01-23: Version 4.2.22
+
+        Fix run-time ARMv6 detection (issue 3844).
+
+        Support concatenating with zero-size arrays with DICTIONARY_ELEMENTS in
+        Runtime_ArrayConcat (Chromium issue 450895).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-22: Version 4.2.21
 
         Performance and stability improvements on all platforms.

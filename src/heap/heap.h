@@ -2133,9 +2133,6 @@ class Heap {
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
-#ifdef VERIFY_HEAP
-  friend class NoWeakObjectVerificationScope;
-#endif
   friend class Page;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
@@ -2187,15 +2184,6 @@ class AlwaysAllocateScope {
   Heap* heap_;
   DisallowAllocationFailure daf_;
 };
-
-
-#ifdef VERIFY_HEAP
-class NoWeakObjectVerificationScope {
- public:
-  inline NoWeakObjectVerificationScope();
-  inline ~NoWeakObjectVerificationScope();
-};
-#endif
 
 
 class GCCallbacksScope {

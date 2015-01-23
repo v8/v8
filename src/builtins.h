@@ -272,7 +272,6 @@ class Builtins {
     return names_[index];
   }
   static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
-  Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
   bool is_initialized() const { return initialized_; }

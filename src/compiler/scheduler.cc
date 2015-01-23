@@ -1032,8 +1032,8 @@ void Scheduler::ComputeSpecialRPONumbering() {
 
 void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
   for (/*nop*/; block != NULL; block = block->rpo_next()) {
-    BasicBlock::Predecessors::iterator pred = block->predecessors_begin();
-    BasicBlock::Predecessors::iterator end = block->predecessors_end();
+    auto pred = block->predecessors().begin();
+    auto end = block->predecessors().end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
     BasicBlock* dominator = *pred;
     // For multiple predecessors, walk up the dominator tree until a common

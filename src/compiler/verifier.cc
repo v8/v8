@@ -840,15 +840,13 @@ void ScheduleVerifier::Run(Schedule* schedule) {
        ++b) {
     CHECK_EQ((*b), schedule->GetBlockById((*b)->id()));
     // All predecessors and successors should be in rpo and in this schedule.
-    for (BasicBlock::Predecessors::iterator j = (*b)->predecessors_begin();
-         j != (*b)->predecessors_end(); ++j) {
-      CHECK_GE((*j)->rpo_number(), 0);
-      CHECK_EQ((*j), schedule->GetBlockById((*j)->id()));
+    for (BasicBlock const* predecessor : (*b)->predecessors()) {
+      CHECK_GE(predecessor->rpo_number(), 0);
+      CHECK_EQ(predecessor, schedule->GetBlockById(predecessor->id()));
     }
-    for (BasicBlock::Successors::iterator j = (*b)->successors_begin();
-         j != (*b)->successors_end(); ++j) {
-      CHECK_GE((*j)->rpo_number(), 0);
-      CHECK_EQ((*j), schedule->GetBlockById((*j)->id()));
+    for (BasicBlock const* successor : (*b)->successors()) {
+      CHECK_GE(successor->rpo_number(), 0);
+      CHECK_EQ(successor, schedule->GetBlockById(successor->id()));
     }
   }
 

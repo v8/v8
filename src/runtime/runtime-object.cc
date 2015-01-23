@@ -1279,7 +1279,12 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
 
 static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<Object> constructor,
+                                       Handle<Object> original_constructor,
                                        Handle<AllocationSite> site) {
+  // TODO(dslomov): implement prototype rewiring.
+  // The check below is a sanity check.
+  CHECK(*constructor == *original_constructor);
+
   // If the constructor isn't a proper function we throw a type error.
   if (!constructor->IsJSFunction()) {
     Vector<Handle<Object> > arguments = HandleVector(&constructor, 1);
@@ -1340,16 +1345,18 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_NewObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
-  return Runtime_NewObjectHelper(isolate, constructor,
+  CONVERT_ARG_HANDLE_CHECKED(Object, original_constructor, 1);
+  return Runtime_NewObjectHelper(isolate, constructor, original_constructor,
                                  Handle<AllocationSite>::null());
 }
 
 
 RUNTIME_FUNCTION(Runtime_NewObjectWithAllocationSite) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, original_constructor, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, feedback, 0);
   Handle<AllocationSite> site;
@@ -1357,7 +1364,8 @@ RUNTIME_FUNCTION(Runtime_NewObjectWithAllocationSite) {
     // The feedback can be an AllocationSite or undefined.
     site = Handle<AllocationSite>::cast(feedback);
   }
-  return Runtime_NewObjectHelper(isolate, constructor, site);
+  return Runtime_NewObjectHelper(isolate, constructor, original_constructor,
+                                 site);
 }
 
 

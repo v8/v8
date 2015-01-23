@@ -100,6 +100,42 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
+static void Generate_Runtime_NewObject(MacroAssembler* masm,
+                                       bool create_memento,
+                                       Register original_constructor,
+                                       Label* count_incremented,
+                                       Label* allocated) {
+  int offset = 0;
+  if (create_memento) {
+    // Get the cell or allocation site.
+    __ mov(edi, Operand(esp, kPointerSize * 2));
+    __ push(edi);
+    offset = kPointerSize;
+  }
+
+  // Must restore esi (context) and edi (constructor) before calling
+  // runtime.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ mov(edi, Operand(esp, offset));
+  __ push(edi);
+  __ push(original_constructor);
+  if (create_memento) {
+    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+  } else {
+    __ CallRuntime(Runtime::kNewObject, 2);
+  }
+  __ mov(ebx, eax);  // store result in ebx
+
+  // Runtime_NewObjectWithAllocationSite increments allocation count.
+  // Skip the increment.
+  if (create_memento) {
+    __ jmp(count_incremented);
+  } else {
+    __ jmp(allocated);
+  }
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -107,6 +143,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- eax: number of arguments
   //  -- edi: constructor function
   //  -- ebx: allocation site or undefined
+  //  -- edx: original constructor
   // -----------------------------------
 
   // Should never create mementos for api functions.
@@ -128,9 +165,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Push the function to invoke on the stack.
     __ push(edi);
 
+    __ cmp(edx, edi);
+    Label normal_new;
+    Label count_incremented;
+    Label allocated;
+    __ j(equal, &normal_new);
+
+    // Original constructor and function are different.
+    Generate_Runtime_NewObject(masm, create_memento, edx, &count_incremented,
+                               &allocated);
+    __ bind(&normal_new);
+
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call, allocated;
+    Label rt_call;
     if (FLAG_inline_new) {
       Label undo_allocation;
       ExternalReference debug_step_in_fp =
@@ -344,34 +392,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Allocate the new receiver object using the runtime call.
     __ bind(&rt_call);
-    int offset = 0;
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ mov(edi, Operand(esp, kPointerSize * 2));
-      __ push(edi);
-      offset = kPointerSize;
-    }
-
-    // Must restore esi (context) and edi (constructor) before calling runtime.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    __ mov(edi, Operand(esp, offset));
-    // edi: function (constructor)
-    __ push(edi);
-    if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
-    } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
-    }
-    __ mov(ebx, eax);  // store result in ebx
-
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ jmp(&count_incremented);
-    }
-
+    Generate_Runtime_NewObject(masm, create_memento, edi, &count_incremented,
+                               &allocated);
     // New object allocated.
     // ebx: newly allocated object
     __ bind(&allocated);

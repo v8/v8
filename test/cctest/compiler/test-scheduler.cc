@@ -86,21 +86,13 @@ static TestLoop* CreateLoop(Schedule* schedule, int count) {
 }
 
 
-static int GetScheduledNodeCount(Schedule* schedule) {
-  int node_count = 0;
-  for (BasicBlockVectorIter i = schedule->rpo_order()->begin();
-       i != schedule->rpo_order()->end(); ++i) {
-    BasicBlock* block = *i;
-    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
-         ++j) {
-      ++node_count;
-    }
-    BasicBlock::Control control = block->control();
-    if (control != BasicBlock::kNone) {
-      ++node_count;
-    }
+static int GetScheduledNodeCount(const Schedule* schedule) {
+  size_t node_count = 0;
+  for (auto block : *schedule->rpo_order()) {
+    node_count += block->NodeCount();
+    if (block->control() != BasicBlock::kNone) ++node_count;
   }
-  return node_count;
+  return static_cast<int>(node_count);
 }
 
 

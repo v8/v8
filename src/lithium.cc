@@ -413,6 +413,61 @@ Representation LChunk::LookupLiteralRepresentation(
 }
 
 
+static void AddWeakObjectToCodeDependency(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Code> code) {
+  Heap* heap = isolate->heap();
+  heap->EnsureWeakObjectToCodeTable();
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
+  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
+  heap->AddWeakObjectToCodeDependency(object, dep);
+}
+
+
+void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
+  DCHECK(code->is_optimized_code());
+  ZoneList<Handle<Map> > maps(1, zone());
+  ZoneList<Handle<JSObject> > objects(1, zone());
+  ZoneList<Handle<Cell> > cells(1, zone());
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::CELL);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::CELL &&
+        code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
+      Handle<Cell> cell(it.rinfo()->target_cell());
+      cells.Add(cell, zone());
+    } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
+               code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
+      if (it.rinfo()->target_object()->IsMap()) {
+        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
+        maps.Add(map, zone());
+      } else if (it.rinfo()->target_object()->IsJSObject()) {
+        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
+        objects.Add(object, zone());
+      } else if (it.rinfo()->target_object()->IsCell()) {
+        Handle<Cell> cell(Cell::cast(it.rinfo()->target_object()));
+        cells.Add(cell, zone());
+      }
+    }
+  }
+  for (int i = 0; i < maps.length(); i++) {
+    Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
+  }
+  for (int i = 0; i < objects.length(); i++) {
+    AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
+  }
+  for (int i = 0; i < cells.length(); i++) {
+    AddWeakObjectToCodeDependency(isolate(), cells.at(i), code);
+  }
+  if (FLAG_enable_ool_constant_pool) {
+    code->constant_pool()->set_weak_object_state(
+        ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE);
+  }
+  code->set_can_have_weak_objects(true);
+}
+
+
 void LChunk::CommitDependencies(Handle<Code> code) const {
   for (MapSet::const_iterator it = deprecation_dependencies_.begin(),
        iend = deprecation_dependencies_.end(); it != iend; ++it) {
@@ -431,6 +486,7 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
   }
 
   info_->CommitDependencies(code);
+  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
 }
 
 

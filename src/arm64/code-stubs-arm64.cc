@@ -2938,6 +2938,8 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(x2, x5);
   }
 
+  __ Mov(x3, function);
+
   // Jump to the function-specific construct stub.
   Register jump_reg = x4;
   Register shared_func_info = jump_reg;

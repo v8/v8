@@ -6,23 +6,24 @@
 #define V8_COMPILER_SCHEDULE_H_
 
 #include <iosfwd>
-#include <vector>
 
-#include "src/v8.h"
-
-#include "src/compiler/node.h"
-#include "src/compiler/opcodes.h"
-#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class BasicBlock;
 class BasicBlockInstrumentor;
-class Graph;
-class ConstructScheduleData;
 class CodeGenerator;  // Because of a namespace bug in clang.
+class ConstructScheduleData;
+class Node;
+
+
+typedef ZoneVector<BasicBlock*> BasicBlockVector;
+typedef ZoneVector<Node*> NodeVector;
+
 
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
@@ -83,36 +84,26 @@ class BasicBlock FINAL : public ZoneObject {
 
   Id id() const { return id_; }
 
-  // Predecessors and successors.
-  typedef ZoneVector<BasicBlock*> Predecessors;
-  Predecessors::iterator predecessors_begin() { return predecessors_.begin(); }
-  Predecessors::iterator predecessors_end() { return predecessors_.end(); }
-  Predecessors::const_iterator predecessors_begin() const {
-    return predecessors_.begin();
-  }
-  Predecessors::const_iterator predecessors_end() const {
-    return predecessors_.end();
-  }
+  // Predecessors.
+  BasicBlockVector& predecessors() { return predecessors_; }
+  const BasicBlockVector& predecessors() const { return predecessors_; }
   size_t PredecessorCount() const { return predecessors_.size(); }
   BasicBlock* PredecessorAt(size_t index) { return predecessors_[index]; }
   void ClearPredecessors() { predecessors_.clear(); }
   void AddPredecessor(BasicBlock* predecessor);
 
-  typedef ZoneVector<BasicBlock*> Successors;
-  Successors::iterator successors_begin() { return successors_.begin(); }
-  Successors::iterator successors_end() { return successors_.end(); }
-  Successors::const_iterator successors_begin() const {
-    return successors_.begin();
-  }
-  Successors::const_iterator successors_end() const {
-    return successors_.end();
-  }
+  // Successors.
+  BasicBlockVector& successors() { return successors_; }
+  const BasicBlockVector& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
   BasicBlock* SuccessorAt(size_t index) { return successors_[index]; }
   void ClearSuccessors() { successors_.clear(); }
   void AddSuccessor(BasicBlock* successor);
 
   // Nodes in the basic block.
+  typedef Node* value_type;
+  bool empty() const { return nodes_.empty(); }
+  size_t size() const { return nodes_.size(); }
   Node* NodeAt(size_t index) { return nodes_[index]; }
   size_t NodeCount() const { return nodes_.size(); }
 
@@ -191,20 +182,17 @@ class BasicBlock FINAL : public ZoneObject {
   Node* control_input_;      // Input value for control.
   NodeVector nodes_;         // nodes of this block in forward order.
 
-  Successors successors_;
-  Predecessors predecessors_;
+  BasicBlockVector successors_;
+  BasicBlockVector predecessors_;
   Id id_;
 
   DISALLOW_COPY_AND_ASSIGN(BasicBlock);
 };
 
-std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c);
-std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id);
-std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo);
+std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
+std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
+std::ostream& operator<<(std::ostream&, const BasicBlock::RpoNumber&);
 
-typedef ZoneVector<BasicBlock*> BasicBlockVector;
-typedef BasicBlockVector::iterator BasicBlockVectorIter;
-typedef BasicBlockVector::reverse_iterator BasicBlockVectorRIter;
 
 // A schedule represents the result of assigning nodes to basic blocks
 // and ordering them within basic blocks. Prior to computing a schedule,
@@ -286,7 +274,7 @@ class Schedule FINAL : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
-std::ostream& operator<<(std::ostream& os, const Schedule& s);
+std::ostream& operator<<(std::ostream&, const Schedule&);
 
 }  // namespace compiler
 }  // namespace internal

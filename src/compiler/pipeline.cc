@@ -777,7 +777,13 @@ Handle<Code> Pipeline::GenerateCode() {
   // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
   // the correct solution is to restore the context register after invoking
   // builtins from full-codegen.
-  if (isolate()->bootstrapper()->IsActive()) return Handle<Code>::null();
+  Handle<SharedFunctionInfo> shared = info()->shared_info();
+  if (isolate()->bootstrapper()->IsActive() ||
+      shared->disable_optimization_reason() ==
+          kBuiltinFunctionCannotBeOptimized) {
+    shared->DisableOptimization(kBuiltinFunctionCannotBeOptimized);
+    return Handle<Code>::null();
+  }
 
   ZonePool zone_pool(isolate());
   SmartPointer<PipelineStatistics> pipeline_statistics;

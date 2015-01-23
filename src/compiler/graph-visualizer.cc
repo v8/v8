@@ -570,17 +570,15 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     PrintIndent();
     os_ << "predecessors";
-    for (BasicBlock::Predecessors::iterator j = current->predecessors_begin();
-         j != current->predecessors_end(); ++j) {
-      os_ << " \"B" << (*j)->id() << "\"";
+    for (BasicBlock* predecessor : current->predecessors()) {
+      os_ << " \"B" << predecessor->id() << "\"";
     }
     os_ << "\n";
 
     PrintIndent();
     os_ << "successors";
-    for (BasicBlock::Successors::iterator j = current->successors_begin();
-         j != current->successors_end(); ++j) {
-      os_ << " \"B" << (*j)->id() << "\"";
+    for (BasicBlock* successor : current->successors()) {
+      os_ << " \"B" << successor->id() << "\"";
     }
     os_ << "\n";
 
@@ -665,9 +663,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
           os_ << -1 - current->id().ToInt() << " Goto";
         }
         os_ << " ->";
-        for (BasicBlock::Successors::iterator j = current->successors_begin();
-             j != current->successors_end(); ++j) {
-          os_ << " B" << (*j)->id();
+        for (BasicBlock* successor : current->successors()) {
+          os_ << " B" << successor->id();
         }
         if (FLAG_trace_turbo_types && current->control_input() != NULL) {
           os_ << " ";

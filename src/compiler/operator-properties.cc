@@ -57,22 +57,25 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSDivide:
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSModulus:
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSSubtract:
+
+    // Context operations
+    case IrOpcode::kJSCreateWithContext:
 
     // Conversions
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToNumber:
 
-    // Other
+    // Properties
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSDeleteProperty:
       return true;
 

@@ -643,7 +643,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ Daddu(scratch1, array, Operand(kHeapObjectTag));
-  __ sd(scratch1, FieldMemOperand(a2, JSObject::kElementsOffset));
+  __ sd(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver,
                       JSObject::kElementsOffset,
                       scratch1,

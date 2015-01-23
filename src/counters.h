@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/time.h"
 #include "src/globals.h"
 #include "src/objects.h"
 
@@ -291,6 +292,68 @@ class HistogramTimerScope BASE_EMBEDDED {
 #endif
 };
 
+
+// A histogram timer that can aggregate events within a larger scope.
+//
+// Intended use of this timer is to have an outer (aggregating) and an inner
+// (to be aggregated) scope, where the inner scope measure the time of events,
+// and all those inner scope measurements will be summed up by the outer scope.
+// An example use might be to aggregate the time spent in lazy compilation
+// while running a script.
+//
+// Helpers:
+// - AggregatingHistogramTimerScope, the "outer" scope within which
+//     times will be summed up.
+// - AggregatedHistogramTimerScope, the "inner" scope which defines the
+//     events to be timed.
+class AggregatableHistogramTimer : public Histogram {
+ public:
+  AggregatableHistogramTimer() {}
+  AggregatableHistogramTimer(const char* name, int min, int max,
+                             int num_buckets, Isolate* isolate)
+      : Histogram(name, min, max, num_buckets, isolate) {}
+
+  // Start/stop the "outer" scope.
+  void Start() { time_ = base::TimeDelta(); }
+  void Stop() { AddSample(static_cast<int>(time_.InMilliseconds())); }
+
+  // Add a time value ("inner" scope).
+  void Add(base::TimeDelta other) { time_ += other; }
+
+ private:
+  base::TimeDelta time_;
+};
+
+
+// A helper class for use with AggregatableHistogramTimer.
+class AggregatingHistogramTimerScope {
+ public:
+  explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
+      : histogram_(histogram) {
+    histogram_->Start();
+  }
+  ~AggregatingHistogramTimerScope() { histogram_->Stop(); }
+
+ private:
+  AggregatableHistogramTimer* histogram_;
+};
+
+
+// A helper class for use with AggregatableHistogramTimer.
+class AggregatedHistogramTimerScope {
+ public:
+  explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
+      : histogram_(histogram) {
+    timer_.Start();
+  }
+  ~AggregatedHistogramTimerScope() { histogram_->Add(timer_.Elapsed()); }
+
+ private:
+  base::ElapsedTimer timer_;
+  AggregatableHistogramTimer* histogram_;
+};
+
+
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
   HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
@@ -317,6 +380,10 @@ class HistogramTimerScope BASE_EMBEDDED {
   HT(compile_deserialize, V8.CompileDeserialize)             \
   /* Total compilation time incl. caching/parsing */         \
   HT(compile_script, V8.CompileScript)
+
+
+#define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
+  AHT(compile_lazy, V8.CompileLazy)
 
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
@@ -569,6 +636,11 @@ class Counters {
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define AHT(name, caption) \
+  AggregatableHistogramTimer* name() { return &name##_; }
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
+
 #define HP(name, caption) \
   Histogram* name() { return &name##_; }
   HISTOGRAM_PERCENTAGE_LIST(HP)
@@ -619,6 +691,9 @@ class Counters {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
+#define AGGREGATABLE_ID(name, caption) k_##name,
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AGGREGATABLE_ID)
+#undef AGGREGATABLE_ID
 #define PERCENTAGE_ID(name, caption) k_##name,
     HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
 #undef PERCENTAGE_ID
@@ -659,6 +734,11 @@ class Counters {
   HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) \
+  AggregatableHistogramTimer name##_;
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) \
   Histogram name##_;

@@ -729,20 +729,6 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 }
 
 
-#ifdef VERIFY_HEAP
-NoWeakObjectVerificationScope::NoWeakObjectVerificationScope() {
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_object_verification_scope_depth_++;
-}
-
-
-NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_object_verification_scope_depth_--;
-}
-#endif
-
-
 GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
   heap_->gc_callbacks_depth_++;
 }

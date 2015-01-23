@@ -542,6 +542,7 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   Node* value = environment()->Pop();
   const Operator* op = javascript()->CreateWithContext();
   Node* context = NewNode(op, value, GetFunctionClosure());
+  PrepareFrameState(context, stmt->EntryId());
   ContextScope scope(this, stmt->scope(), context);
   Visit(stmt->statement());
 }
@@ -1083,8 +1084,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           const Operator* op =
               javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
           Node* set_prototype = NewNode(op, receiver, value);
-          // SetPrototype should not lazy deopt on an object
-          // literal.
+          // SetPrototype should not lazy deopt on an object literal.
           PrepareFrameState(set_prototype, BailoutId::None());
         }
         break;

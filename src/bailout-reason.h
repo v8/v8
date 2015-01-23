@@ -40,6 +40,7 @@ namespace internal {
     "BinaryStub_GenerateFloatingPointCode")                                    \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
+  V(kBuiltinFunctionCannotBeOptimized, "Builtin function cannot be optimized") \
   V(kCallToAJavaScriptRuntimeFunction,                                         \
     "Call to a JavaScript runtime function")                                   \
   V(kCannotTranslatePositionInChangedArea,                                     \

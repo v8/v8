@@ -2510,6 +2510,10 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<Object> function_object = Object::GetProperty(
         isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+    // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
+    // the correct solution is to restore the context register after invoking
+    // builtins from full-codegen.
+    function->shared()->DisableOptimization(kBuiltinFunctionCannotBeOptimized);
     builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
