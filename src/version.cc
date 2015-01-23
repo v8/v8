@@ -17,22 +17,15 @@
 // (Boolean macro values are not supported by all preprocessors.)
 #define IS_CANDIDATE_VERSION 1
 
-// Used to mark a version built from a bad tag.
-#define IS_INVALID_VERSION 0
-
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the build system script.
 #define SONAME            ""
 
-#if IS_INVALID_VERSION
-#define SUFFIX_STRING " (invalid)"
-#else
 #if IS_CANDIDATE_VERSION
-#define SUFFIX_STRING " (candidate)"
+#define CANDIDATE_STRING " (candidate)"
 #else
-#define SUFFIX_STRING ""
-#endif
+#define CANDIDATE_STRING ""
 #endif
 
 #define SX(x) #x
@@ -41,10 +34,10 @@
 #if PATCH_LEVEL > 0
 #define VERSION_STRING                                                         \
   S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "." S(PATCH_LEVEL) \
-      SUFFIX_STRING
+      CANDIDATE_STRING
 #else
 #define VERSION_STRING \
-  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) SUFFIX_STRING
+  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) CANDIDATE_STRING
 #endif
 
 namespace v8 {
