@@ -285,7 +285,7 @@ class GlobalHandles::Node {
 
       // Zap with harmless value.
       *location() = Smi::FromInt(0);
-      typedef PhantomCallbackData<void, void, void> Data;
+      typedef PhantomCallbackData<void> Data;
 
       if (!internal_field0->IsSmi()) internal_field0 = nullptr;
       if (!internal_field1->IsSmi()) internal_field1 = nullptr;
@@ -562,7 +562,7 @@ void GlobalHandles::MakeWeak(Object** location, void* parameter,
 }
 
 
-typedef PhantomCallbackData<void, void, void>::Callback GenericCallback;
+typedef PhantomCallbackData<void>::Callback GenericCallback;
 
 
 void GlobalHandles::MakePhantom(Object** location, void* parameter,

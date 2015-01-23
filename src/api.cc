@@ -434,20 +434,19 @@ void V8::MakeWeak(i::Object** object, void* parameter,
 }
 
 
-void V8::MakePhantom(
-    i::Object** object, void* parameter, int internal_field_index1,
-    int internal_field_index2,
-    PhantomCallbackData<void, void, void>::Callback weak_callback) {
+void V8::MakePhantom(i::Object** object, void* parameter,
+                     int internal_field_index1, int internal_field_index2,
+                     PhantomCallbackData<void>::Callback weak_callback) {
   if (internal_field_index1 == 0) {
     if (internal_field_index2 == 1) {
       i::GlobalHandles::MakePhantom(object, parameter, 2, weak_callback);
     } else {
-      DCHECK_EQ(internal_field_index2, Object::kNoInternalFieldIndex);
+      DCHECK_EQ(internal_field_index2, kNoInternalFieldIndex);
       i::GlobalHandles::MakePhantom(object, parameter, 1, weak_callback);
     }
   } else {
-    DCHECK_EQ(internal_field_index1, Object::kNoInternalFieldIndex);
-    DCHECK_EQ(internal_field_index2, Object::kNoInternalFieldIndex);
+    DCHECK_EQ(internal_field_index1, kNoInternalFieldIndex);
+    DCHECK_EQ(internal_field_index2, kNoInternalFieldIndex);
     i::GlobalHandles::MakePhantom(object, parameter, 0, weak_callback);
   }
 }
