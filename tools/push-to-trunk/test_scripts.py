@@ -616,27 +616,29 @@ class ScriptTest(unittest.TestCase):
     self.assertEquals("New\n        Lines",
                       FileToText(TEST_CONFIG["CHANGELOG_ENTRY_FILE"]))
 
-  # Version on trunk: 3.22.4.0. Version on master (bleeding_edge): 3.22.6.
-  # Make sure that the increment is 3.22.7.0.
-  def testIncrementVersion(self):
-    self.WriteFakeVersionFile()
-    self._state["last_push_trunk"] = "hash1"
-    self._state["latest_build"] = "6"
-    self._state["latest_version"] = "3.22.6.0"
+  TAGS = """
+4425.0
+0.0.0.0
+3.9.6
+3.22.4
+test_tag
+"""
 
+  # Version as tag: 3.22.4.0. Version on master: 3.22.6.
+  # Make sure that the latest version is 3.22.6.0.
+  def testGetLatestVersion(self):
     self.Expect([
-      Cmd("git checkout -f hash1 -- src/version.cc", ""),
+      Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
-      RL("Y"),  # Increment build number.
     ])
 
-    self.RunStep(PushToTrunk, IncrementVersion)
+    self.RunStep(PushToTrunk, GetLatestVersion)
 
-    self.assertEquals("3", self._state["new_major"])
-    self.assertEquals("22", self._state["new_minor"])
-    self.assertEquals("7", self._state["new_build"])
-    self.assertEquals("0", self._state["new_patch"])
+    self.assertEquals("3", self._state["latest_major"])
+    self.assertEquals("22", self._state["latest_minor"])
+    self.assertEquals("6", self._state["latest_build"])
+    self.assertEquals("0", self._state["latest_patch"])
 
   def _TestSquashCommits(self, change_log, expected_msg):
     TEST_CONFIG["CHANGELOG_ENTRY_FILE"] = self.MakeEmptyTempFile()
@@ -770,6 +772,7 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd(("git new-branch %s --upstream origin/master" %
@@ -785,14 +788,9 @@ Performance and stability improvements on all platforms.""", commit)
     expectations += [
       Cmd("git log -1 --format=%s hash2",
        "Version 3.4.5 (based on abc3)\n"),
+      Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=self.WriteFakeVersionFile),
-      Cmd("git checkout -f hash2 -- src/version.cc", "",
-          cb=self.WriteFakeVersionFile),
-    ]
-    if manual:
-      expectations.append(RL(""))  # Increment build number.
-    expectations += [
       Cmd("git log --format=%H abc3..push_hash", "rev1\n"),
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),

@@ -606,6 +606,16 @@ class Step(GitRecipesMixin):
                      self[prefix + "build"],
                      self[prefix + "patch"]])
 
+  def StoreVersion(self, version, prefix):
+    version_parts = version.split(".")
+    if len(version_parts) == 3:
+      version_parts.append("0")
+    major, minor, build, patch = version_parts
+    self[prefix + "major"] = major
+    self[prefix + "minor"] = minor
+    self[prefix + "build"] = build
+    self[prefix + "patch"] = patch
+
   def SetVersion(self, version_file, prefix):
     output = ""
     for line in FileToText(version_file).splitlines():
