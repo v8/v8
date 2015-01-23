@@ -16,8 +16,6 @@ namespace compiler {
 // Forward declarations.
 class BasicBlock;
 class BasicBlockInstrumentor;
-class CodeGenerator;  // Because of a namespace bug in clang.
-class ConstructScheduleData;
 class Node;
 
 
