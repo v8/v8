@@ -287,6 +287,28 @@ class ApplyChanges(Step):
     os.remove(self.Config("PATCH_FILE"))
 
 
+class CommitSquash(Step):
+  MESSAGE = "Commit to local candidates branch."
+
+  def RunStep(self):
+    # Make a first commit with a slightly different title to not confuse
+    # the tagging.
+    msg = FileToText(self.Config("COMMITMSG_FILE")).splitlines()
+    msg[0] = msg[0].replace("(based on", "(squashed - based on")
+    self.GitCommit(message = "\n".join(msg))
+
+
+class PrepareVersionBranch(Step):
+  MESSAGE = "Prepare new branch to commit version and changelog file."
+
+  def RunStep(self):
+    self.GitCheckout("master")
+    self.Git("fetch")
+    self.GitDeleteBranch(self.Config("TRUNKBRANCH"))
+    self.GitCreateBranch(self.Config("TRUNKBRANCH"),
+                         self.vc.RemoteCandidateBranch())
+
+
 class AddChangeLog(Step):
   MESSAGE = "Add ChangeLog changes to trunk branch."
 
@@ -312,8 +334,8 @@ class SetVersion(Step):
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
-class CommitTrunk(Step):
-  MESSAGE = "Commit to local trunk branch."
+class CommitCandidate(Step):
+  MESSAGE = "Commit version and changelog to local candidates branch."
 
   def RunStep(self):
     self.GitCommit(file_name = self.Config("COMMITMSG_FILE"))
@@ -413,10 +435,13 @@ class PushToTrunk(ScriptsBase):
       SquashCommits,
       NewBranch,
       ApplyChanges,
+      CommitSquash,
+      SanityCheck,
+      Land,
+      PrepareVersionBranch,
       AddChangeLog,
       SetVersion,
-      CommitTrunk,
-      SanityCheck,
+      CommitCandidate,
       Land,
       TagRevision,
       CleanUp,

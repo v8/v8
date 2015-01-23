@@ -719,6 +719,18 @@ Performance and stability improvements on all platforms."""
                os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     os.environ["EDITOR"] = "vi"
 
+    commit_msg_squashed = """Version 3.22.5 (squashed - based on push_hash)
+
+Log text 1 (issue 321).
+
+Performance and stability improvements on all platforms."""
+
+    commit_msg = """Version 3.22.5 (based on push_hash)
+
+Log text 1 (issue 321).
+
+Performance and stability improvements on all platforms."""
+
     def ResetChangeLog():
       """On 'git co -b new_branch svn/trunk', and 'git checkout -- ChangeLog',
       the ChangLog will be reset to its content on trunk."""
@@ -732,14 +744,9 @@ Performance and stability improvements on all platforms."""
       ResetChangeLog()
       self.WriteFakeVersionFile()
 
-    def CheckSVNCommit():
+    def CheckVersionCommit():
       commit = FileToText(TEST_CONFIG["COMMITMSG_FILE"])
-      self.assertEquals(
-"""Version 3.22.5 (based on push_hash)
-
-Log text 1 (issue 321).
-
-Performance and stability improvements on all platforms.""", commit)
+      self.assertEquals(commit_msg, commit)
       version = FileToText(
           os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
@@ -808,16 +815,23 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd(("git new-branch %s --upstream origin/candidates" %
            TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
+      Cmd("git commit -am \"%s\"" % commit_msg_squashed, ""),
+    ]
+    if manual:
+      expectations.append(RL("Y"))  # Sanity check.
+    expectations += [
+      Cmd("git cl land -f --bypass-hooks", ""),
+      Cmd("git checkout -f master", ""),
+      Cmd("git fetch", ""),
+      Cmd("git branch -D %s" % TEST_CONFIG["TRUNKBRANCH"], ""),
+      Cmd(("git new-branch %s --upstream origin/candidates" %
+           TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git checkout -f origin/candidates -- ChangeLog", "",
           cb=ResetChangeLog),
       Cmd("git checkout -f origin/candidates -- src/version.cc", "",
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
-          cb=CheckSVNCommit),
-    ]
-    if manual:
-      expectations.append(RL("Y"))  # Sanity check.
-    expectations += [
+          cb=CheckVersionCommit),
       Cmd("git cl land -f --bypass-hooks", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
