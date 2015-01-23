@@ -36,9 +36,10 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
                            MachineType p3 = kMachNone,
                            MachineType p4 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
-        typer(this->graph(), MaybeHandle<Context>()),
+        typer(this->isolate(), this->graph(), MaybeHandle<Context>()),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
+        jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
+                this->machine()),
         lowering(&jsgraph, this->zone()) {}
 
   Typer typer;
@@ -58,9 +59,9 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     lowering.LowerAllNodes();
 
     Zone* zone = this->zone();
-    CompilationInfo info(zone->isolate(), zone);
-    Linkage linkage(
-        zone, Linkage::GetSimplifiedCDescriptor(zone, this->machine_sig_));
+    CompilationInfo info(this->isolate(), zone);
+    Linkage linkage(this->isolate(), zone, Linkage::GetSimplifiedCDescriptor(
+                                               zone, this->machine_sig_));
     ChangeLowering lowering(&jsgraph, &linkage);
     GraphReducer reducer(this->graph(), this->zone());
     reducer.AddReducer(&lowering);
@@ -666,9 +667,9 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(graph(), MaybeHandle<Context>()),
+        typer(main_isolate(), graph(), MaybeHandle<Context>()),
         javascript(main_zone()),
-        jsgraph(graph(), common(), &javascript, machine()) {
+        jsgraph(main_isolate(), graph(), common(), &javascript, machine()) {
     start = graph()->NewNode(common()->Start(2));
     graph()->SetStart(start);
     ret =
@@ -971,7 +972,7 @@ TEST(LowerNumberCmp_to_float64) {
 
 TEST(LowerNumberAddSub_to_int32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_zone()->isolate()->factory();
+  Factory* f = scope.main_isolate()->factory();
   Type* small_range =
       Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
   Type* large_range =
@@ -995,7 +996,7 @@ TEST(LowerNumberAddSub_to_int32) {
 
 TEST(LowerNumberAddSub_to_uint32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_zone()->isolate()->factory();
+  Factory* f = scope.main_isolate()->factory();
   Type* small_range =
       Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
   Type* large_range =

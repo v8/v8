@@ -44,13 +44,13 @@ class RawMachineAssembler : public GraphBuilder {
     DISALLOW_COPY_AND_ASSIGN(Label);
   };
 
-  RawMachineAssembler(Graph* graph, MachineSignature* machine_sig,
+  RawMachineAssembler(Isolate* isolate, Graph* graph,
+                      MachineSignature* machine_sig,
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
   ~RawMachineAssembler() OVERRIDE {}
 
-  Isolate* isolate() const { return zone()->isolate(); }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }

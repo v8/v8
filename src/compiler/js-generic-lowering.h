@@ -51,7 +51,7 @@ class JSGenericLowering FINAL : public Reducer {
   bool TryLowerDirectJSCall(Node* node);
 
   Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return zone()->isolate(); }
+  Isolate* isolate() const { return info_->isolate(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   Graph* graph() const { return jsgraph()->graph(); }
   Linkage* linkage() const { return linkage_; }

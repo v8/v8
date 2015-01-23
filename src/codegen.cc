@@ -125,12 +125,13 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->zone()).PrintProgram(info->function()));
+           PrettyPrinter(info->isolate(), info->zone())
+               .PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
-    PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->zone()).PrintProgram(info->function()));
+    PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
+                                    .PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }

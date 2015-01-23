@@ -16,13 +16,12 @@ namespace internal {
 
 AstTyper::AstTyper(CompilationInfo* info)
     : info_(info),
-      oracle_(
-          handle(info->closure()->shared()->code()),
-          handle(info->closure()->shared()->feedback_vector()),
-          handle(info->closure()->context()->native_context()),
-          info->zone()),
+      oracle_(info->isolate(), info->zone(),
+              handle(info->closure()->shared()->code()),
+              handle(info->closure()->shared()->feedback_vector()),
+              handle(info->closure()->context()->native_context())),
       store_(info->zone()) {
-  InitializeAstVisitor(info->zone());
+  InitializeAstVisitor(info->isolate(), info->zone());
 }
 
 

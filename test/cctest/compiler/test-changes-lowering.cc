@@ -33,7 +33,8 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
+        jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
+                this->machine()),
         function(Handle<JSFunction>::null()) {}
 
   JSOperatorBuilder javascript;
@@ -127,7 +128,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     // Run the graph reducer with changes lowering on a single node.
     CompilationInfo info(this->isolate(), this->zone());
     Linkage linkage(this->zone(), &info);
-    Typer typer(this->graph(), info.context());
+    Typer typer(this->isolate(), this->graph(), info.context());
     typer.Run();
     ChangeLowering change_lowering(&jsgraph, &linkage);
     SelectLowering select_lowering(this->graph(), this->common());

@@ -17,9 +17,10 @@ namespace internal {
 namespace compiler {
 
 
-StructuredGraphBuilder::StructuredGraphBuilder(Zone* local_zone, Graph* graph,
+StructuredGraphBuilder::StructuredGraphBuilder(Isolate* isolate,
+                                               Zone* local_zone, Graph* graph,
                                                CommonOperatorBuilder* common)
-    : GraphBuilder(graph),
+    : GraphBuilder(isolate, graph),
       common_(common),
       environment_(NULL),
       local_zone_(local_zone),

@@ -15,11 +15,11 @@ namespace internal {
 
 class AstNumberingVisitor FINAL : public AstVisitor {
  public:
-  explicit AstNumberingVisitor(Zone* zone)
+  explicit AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
         dont_optimize_reason_(kNoReason) {
-    InitializeAstVisitor(zone);
+    InitializeAstVisitor(isolate, zone);
   }
 
   bool Renumber(FunctionLiteral* node);
@@ -559,8 +559,9 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 }
 
 
-bool AstNumbering::Renumber(FunctionLiteral* function, Zone* zone) {
-  AstNumberingVisitor visitor(zone);
+bool AstNumbering::Renumber(Isolate* isolate, Zone* zone,
+                            FunctionLiteral* function) {
+  AstNumberingVisitor visitor(isolate, zone);
   return visitor.Renumber(function);
 }
 }

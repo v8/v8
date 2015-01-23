@@ -25,7 +25,8 @@ class Node;
 // A common base class for anything that creates nodes in a graph.
 class GraphBuilder {
  public:
-  explicit GraphBuilder(Graph* graph) : graph_(graph) {}
+  GraphBuilder(Isolate* isolate, Graph* graph)
+      : isolate_(isolate), graph_(graph) {}
   virtual ~GraphBuilder() {}
 
   Node* NewNode(const Operator* op, bool incomplete = false) {
@@ -68,6 +69,7 @@ class GraphBuilder {
     return MakeNode(op, value_input_count, value_inputs, incomplete);
   }
 
+  Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
 
  protected:
@@ -76,6 +78,7 @@ class GraphBuilder {
                          Node** value_inputs, bool incomplete) = 0;
 
  private:
+  Isolate* isolate_;
   Graph* graph_;
 };
 
@@ -85,7 +88,7 @@ class GraphBuilder {
 // StubGraphBuilder).
 class StructuredGraphBuilder : public GraphBuilder {
  public:
-  StructuredGraphBuilder(Zone* zone, Graph* graph,
+  StructuredGraphBuilder(Isolate* isolate, Zone* zone, Graph* graph,
                          CommonOperatorBuilder* common);
   ~StructuredGraphBuilder() OVERRIDE {}
 
@@ -131,7 +134,6 @@ class StructuredGraphBuilder : public GraphBuilder {
 
   Zone* graph_zone() const { return graph()->zone(); }
   Zone* local_zone() const { return local_zone_; }
-  Isolate* isolate() const { return graph_zone()->isolate(); }
   CommonOperatorBuilder* common() const { return common_; }
 
   // Helper to wrap a Handle<T> into a Unique<T>.

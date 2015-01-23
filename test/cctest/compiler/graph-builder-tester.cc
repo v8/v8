@@ -11,9 +11,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineCallHelper::MachineCallHelper(Zone* zone, MachineSignature* machine_sig)
-    : CallHelper(zone->isolate(), machine_sig),
+MachineCallHelper::MachineCallHelper(Isolate* isolate,
+                                     MachineSignature* machine_sig)
+    : CallHelper(isolate, machine_sig),
       parameters_(NULL),
+      isolate_(isolate),
       graph_(NULL) {}
 
 
@@ -37,7 +39,7 @@ byte* MachineCallHelper::Generate() {
     Zone* zone = graph_->zone();
     CallDescriptor* desc =
         Linkage::GetSimplifiedCDescriptor(zone, machine_sig_);
-    code_ = Pipeline::GenerateCodeForTesting(desc, graph_);
+    code_ = Pipeline::GenerateCodeForTesting(isolate_, desc, graph_);
   }
   return code_.ToHandleChecked()->entry();
 }

@@ -157,7 +157,7 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -171,7 +171,7 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
@@ -317,7 +317,7 @@ TEST(StandAlonePreParser) {
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
 
-    i::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     preparser.set_allow_harmony_arrow_functions(true);
@@ -351,7 +351,7 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize(&stream);
 
     // Preparser defaults to disallowing natives syntax.
-    i::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -416,7 +416,7 @@ TEST(RegressChromium62639) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::PreParser preparser(&scanner, &log,
+  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -448,7 +448,7 @@ TEST(Regress928) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::PreParser preparser(&scanner, &log,
+  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -497,7 +497,7 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
-  i::PreParser preparser(&scanner, &log, stack_limit);
+  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
   preparser.set_allow_lazy(true);
   preparser.set_allow_harmony_arrow_functions(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -805,7 +805,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  i::Zone zone(CcTest::i_isolate());
+  i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   ast_value_factory.Internalize(CcTest::i_isolate());
@@ -1406,7 +1406,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    i::PreParser preparser(&scanner, &log, stack_limit);
+    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
     i::PreParser::PreParseResult result = preparser.PreParseProgram(
@@ -3096,7 +3096,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone(isolate);
+  i::Zone zone;
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3107,9 +3107,10 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::Scope* script_scope =
-      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  i::Scope* s =
+      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
   DCHECK(s != script_scope);
   DCHECK(name != NULL);
 
@@ -3145,7 +3146,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone(isolate);
+  i::Zone zone;
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3154,9 +3155,10 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::Scope* script_scope =
-      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  i::Scope* s =
+      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
   DCHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
 
@@ -3192,7 +3194,7 @@ TEST(ExportsMaybeAssigned) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone(isolate);
+  i::Zone zone;
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3201,9 +3203,10 @@ TEST(ExportsMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::Scope* script_scope =
-      new (&zone) i::Scope(NULL, i::SCRIPT_SCOPE, &avf, &zone);
+      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
-  i::Scope* s = i::Scope::DeserializeScopeChain(context, script_scope, &zone);
+  i::Scope* s =
+      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
   DCHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   const i::AstRawString* name_f = avf.GetOneByteString("f");

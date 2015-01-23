@@ -21,14 +21,15 @@ namespace compiler {
 
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop)
-    : StructuredGraphBuilder(local_zone, jsgraph->graph(), jsgraph->common()),
+    : StructuredGraphBuilder(jsgraph->isolate(), local_zone, jsgraph->graph(),
+                             jsgraph->common()),
       info_(info),
       jsgraph_(jsgraph),
       globals_(0, local_zone),
       breakable_(NULL),
       execution_context_(NULL),
       loop_assignment_analysis_(loop) {
-  InitializeAstVisitor(local_zone);
+  InitializeAstVisitor(info->isolate(), local_zone);
 }
 
 

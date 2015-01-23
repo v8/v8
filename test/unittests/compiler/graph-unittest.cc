@@ -93,7 +93,8 @@ Matcher<Node*> GraphTest::IsTrueConstant() {
 
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(graph(), MaybeHandle<Context>()) {}
+    : GraphTest(num_parameters),
+      typer_(isolate(), graph(), MaybeHandle<Context>()) {}
 
 
 TypedGraphTest::~TypedGraphTest() {}

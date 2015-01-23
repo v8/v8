@@ -18,12 +18,13 @@ class ContextSpecializationTester : public HandleAndZoneScope,
                                     public DirectGraphBuilder {
  public:
   ContextSpecializationTester()
-      : DirectGraphBuilder(new (main_zone()) Graph(main_zone())),
+      : DirectGraphBuilder(main_isolate(),
+                           new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
-        jsgraph_(graph(), common(), &javascript_, &machine_),
+        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
         info_(main_isolate(), main_zone()) {}
 
   Factory* factory() { return main_isolate()->factory(); }

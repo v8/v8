@@ -45,7 +45,7 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        jsgraph(&graph, &common, NULL, NULL),
+        jsgraph(main_isolate(), &graph, &common, NULL, NULL),
         start(graph.NewNode(common.Start(1))),
         p0(graph.NewNode(common.Parameter(0), start)),
         end(graph.NewNode(common.End(), start)),

@@ -103,12 +103,11 @@ struct Tests : Rep {
   Zone zone;
   TypesInstance T;
 
-  Tests() :
-      isolate(CcTest::i_isolate()),
-      scope(isolate),
-      zone(isolate),
-      T(Rep::ToRegion(&zone, isolate), isolate) {
-  }
+  Tests()
+      : isolate(CcTest::i_isolate()),
+        scope(isolate),
+        zone(),
+        T(Rep::ToRegion(&zone, isolate), isolate) {}
 
   bool Equal(TypeHandle type1, TypeHandle type2) {
     return

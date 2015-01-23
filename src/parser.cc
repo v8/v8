@@ -265,8 +265,8 @@ void Parser::SetCachedData() {
 
 Scope* Parser::NewScope(Scope* parent, ScopeType scope_type) {
   DCHECK(ast_value_factory());
-  Scope* result =
-      new (zone()) Scope(parent, scope_type, ast_value_factory(), zone());
+  Scope* result = new (zone())
+      Scope(isolate(), zone(), parent, scope_type, ast_value_factory());
   result->Initialize();
   return result;
 }
@@ -778,8 +778,9 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
 
 
 Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
-    : ParserBase<ParserTraits>(&scanner_, parse_info->stack_limit,
-                               info->extension(), NULL, info->zone(), this),
+    : ParserBase<ParserTraits>(info->isolate(), info->zone(), &scanner_,
+                               parse_info->stack_limit, info->extension(), NULL,
+                               this),
       scanner_(parse_info->unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
@@ -897,7 +898,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     *scope = NewScope(scope_, SCRIPT_SCOPE);
     info->SetScriptScope(*scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
-      *scope = Scope::DeserializeScopeChain(*info->context(), *scope, zone());
+      *scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
+                                            *info->context(), *scope);
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
       // string table to internalize strings and values right after they're
@@ -1031,8 +1033,8 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
     info()->SetScriptScope(scope);
     if (!info()->closure().is_null()) {
-      scope = Scope::DeserializeScopeChain(info()->closure()->context(), scope,
-                                           zone());
+      scope = Scope::DeserializeScopeChain(isolate(), zone(),
+                                           info()->closure()->context(), scope);
     }
     original_scope_ = scope;
     AstNodeFactory function_factory(ast_value_factory());
@@ -3941,7 +3943,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
   if (reusable_preparser_ == NULL) {
-    reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit_);
+    reusable_preparser_ =
+        new PreParser(isolate(), &scanner_, NULL, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_natives(allow_natives());
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
@@ -4250,8 +4253,9 @@ void Parser::Internalize() {
 
 
 RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
-                           bool multiline, bool unicode, Zone* zone)
-    : isolate_(zone->isolate()),
+                           bool multiline, bool unicode, Isolate* isolate,
+                           Zone* zone)
+    : isolate_(isolate),
       zone_(zone),
       error_(error),
       captures_(NULL),
@@ -5134,11 +5138,11 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-bool RegExpParser::ParseRegExp(FlatStringReader* input, bool multiline,
-                               bool unicode, RegExpCompileData* result,
-                               Zone* zone) {
+bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
+                               FlatStringReader* input, bool multiline,
+                               bool unicode, RegExpCompileData* result) {
   DCHECK(result != NULL);
-  RegExpParser parser(input, &result->error, multiline, unicode, zone);
+  RegExpParser parser(input, &result->error, multiline, unicode, isolate, zone);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
     DCHECK(tree == NULL);

@@ -563,7 +563,7 @@ void ControlReducer::TrimGraph(Zone* zone, JSGraph* jsgraph) {
 Node* ControlReducer::ReducePhiForTesting(JSGraph* jsgraph,
                                           CommonOperatorBuilder* common,
                                           Node* node) {
-  Zone zone(jsgraph->graph()->zone()->isolate());
+  Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
   return impl.ReducePhi(node);
 }
@@ -572,7 +572,7 @@ Node* ControlReducer::ReducePhiForTesting(JSGraph* jsgraph,
 Node* ControlReducer::ReduceMergeForTesting(JSGraph* jsgraph,
                                             CommonOperatorBuilder* common,
                                             Node* node) {
-  Zone zone(jsgraph->graph()->zone()->isolate());
+  Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
   return impl.ReduceMerge(node);
 }
@@ -581,7 +581,7 @@ Node* ControlReducer::ReduceMergeForTesting(JSGraph* jsgraph,
 Node* ControlReducer::ReduceBranchForTesting(JSGraph* jsgraph,
                                              CommonOperatorBuilder* common,
                                              Node* node) {
-  Zone zone(jsgraph->graph()->zone()->isolate());
+  Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
   return impl.ReduceBranch(node);
 }

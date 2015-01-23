@@ -829,7 +829,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
 
 void ScheduleVerifier::Run(Schedule* schedule) {
   const size_t count = schedule->BasicBlockCount();
-  Zone tmp_zone(schedule->zone()->isolate());
+  Zone tmp_zone;
   Zone* zone = &tmp_zone;
   BasicBlock* start = schedule->start();
   BasicBlockVector* rpo_order = schedule->rpo_order();

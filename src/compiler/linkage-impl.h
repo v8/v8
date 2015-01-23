@@ -134,7 +134,7 @@ class LinkageHelper {
 
   // TODO(turbofan): cache call descriptors for code stub calls.
   static CallDescriptor* GetStubCallDescriptor(
-      Zone* zone, const CallInterfaceDescriptor& descriptor,
+      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties) {
     const int register_parameter_count =
@@ -183,7 +183,7 @@ class LinkageHelper {
         properties,                       // properties
         kNoCalleeSaved,                   // callee-saved registers
         flags,                            // flags
-        descriptor.DebugName(zone->isolate()));
+        descriptor.DebugName(isolate));
   }
 
   static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,

@@ -430,9 +430,11 @@ void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
 }
 
 
-InstructionSequence::InstructionSequence(Zone* instruction_zone,
+InstructionSequence::InstructionSequence(Isolate* isolate,
+                                         Zone* instruction_zone,
                                          InstructionBlocks* instruction_blocks)
-    : zone_(instruction_zone),
+    : isolate_(isolate),
+      zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
       block_starts_(zone()),
       constants_(ConstantMap::key_compare(),

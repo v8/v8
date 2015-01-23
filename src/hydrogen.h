@@ -1102,11 +1102,15 @@ class HGraphBuilder {
     return AddLeaveInlined(current_block(), return_value, state);
   }
 
-  template<class I>
-  HInstruction* NewUncasted() { return I::New(zone(), context()); }
+  template <class I>
+  HInstruction* NewUncasted() {
+    return I::New(isolate(), zone(), context());
+  }
 
-  template<class I>
-  I* New() { return I::New(zone(), context()); }
+  template <class I>
+  I* New() {
+    return I::New(isolate(), zone(), context());
+  }
 
   template<class I>
   HInstruction* AddUncasted() { return AddInstruction(NewUncasted<I>());}
@@ -1116,11 +1120,13 @@ class HGraphBuilder {
 
   template<class I, class P1>
   HInstruction* NewUncasted(P1 p1) {
-    return I::New(zone(), context(), p1);
+    return I::New(isolate(), zone(), context(), p1);
   }
 
-  template<class I, class P1>
-  I* New(P1 p1) { return I::New(zone(), context(), p1); }
+  template <class I, class P1>
+  I* New(P1 p1) {
+    return I::New(isolate(), zone(), context(), p1);
+  }
 
   template<class I, class P1>
   HInstruction* AddUncasted(P1 p1) {
@@ -1144,12 +1150,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   HInstruction* NewUncasted(P1 p1, P2 p2) {
-    return I::New(zone(), context(), p1, p2);
+    return I::New(isolate(), zone(), context(), p1, p2);
   }
 
   template<class I, class P1, class P2>
   I* New(P1 p1, P2 p2) {
-    return I::New(zone(), context(), p1, p2);
+    return I::New(isolate(), zone(), context(), p1, p2);
   }
 
   template<class I, class P1, class P2>
@@ -1172,12 +1178,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3) {
-    return I::New(zone(), context(), p1, p2, p3);
+    return I::New(isolate(), zone(), context(), p1, p2, p3);
   }
 
   template<class I, class P1, class P2, class P3>
   I* New(P1 p1, P2 p2, P3 p3) {
-    return I::New(zone(), context(), p1, p2, p3);
+    return I::New(isolate(), zone(), context(), p1, p2, p3);
   }
 
   template<class I, class P1, class P2, class P3>
@@ -1192,12 +1198,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::New(zone(), context(), p1, p2, p3, p4);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4);
   }
 
   template<class I, class P1, class P2, class P3, class P4>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::New(zone(), context(), p1, p2, p3, p4);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4);
   }
 
   template<class I, class P1, class P2, class P3, class P4>
@@ -1212,12 +1218,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
@@ -1232,12 +1238,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
@@ -1253,13 +1259,13 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7);
   }
 
   template<class I, class P1, class P2, class P3,
@@ -1278,13 +1284,13 @@ class HGraphBuilder {
       class P5, class P6, class P7, class P8>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4,
                             P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7, class P8>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
@@ -2508,6 +2514,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool has_holder() { return !holder_.is_null(); }
     bool IsLoad() const { return access_type_ == LOAD; }
 
+    Isolate* isolate() const { return lookup_.isolate(); }
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
@@ -2546,7 +2553,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Zone* zone() { return builder_->zone(); }
-    Isolate* isolate() const { return lookup_.isolate(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 

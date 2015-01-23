@@ -20,7 +20,7 @@ class TestCode : public HandleAndZoneScope {
   TestCode()
       : HandleAndZoneScope(),
         blocks_(main_zone()),
-        sequence_(main_zone(), &blocks_),
+        sequence_(main_isolate(), main_zone(), &blocks_),
         rpo_number_(RpoNumber::FromInt(0)),
         current_(NULL) {}
 
@@ -102,7 +102,7 @@ class TestCode : public HandleAndZoneScope {
 
 
 void VerifyForwarding(TestCode& code, int count, int* expected) {
-  Zone local_zone(code.main_isolate());
+  Zone local_zone;
   ZoneVector<RpoNumber> result(&local_zone);
   JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_);
 

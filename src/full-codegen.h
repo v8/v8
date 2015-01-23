@@ -29,8 +29,9 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  explicit BreakableStatementChecker(Zone* zone) : is_breakable_(false) {
-    InitializeAstVisitor(zone);
+  BreakableStatementChecker(Isolate* isolate, Zone* zone)
+      : is_breakable_(false) {
+    InitializeAstVisitor(isolate, zone);
   }
 
   void Check(Statement* stmt);

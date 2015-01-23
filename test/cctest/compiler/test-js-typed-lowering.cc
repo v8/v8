@@ -25,7 +25,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(&graph, MaybeHandle<Context>()),
+        typer(main_isolate(), &graph, MaybeHandle<Context>()),
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End()));
@@ -75,7 +75,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* reduce(Node* node) {
-    JSGraph jsgraph(&graph, &common, &javascript, &machine);
+    JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &machine);
     JSTypedLowering reducer(&jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();

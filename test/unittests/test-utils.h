@@ -92,7 +92,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 
 class TestWithZone : public TestWithIsolate {
  public:
-  TestWithZone() : zone_(isolate()) {}
+  TestWithZone() {}
   virtual ~TestWithZone();
 
   Zone* zone() { return &zone_; }

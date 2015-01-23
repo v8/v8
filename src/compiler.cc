@@ -700,7 +700,8 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
 
   // Update the shared function info with the scope info. Allocating the
   // ScopeInfo object may cause a GC.
-  Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope(), info->zone());
+  Handle<ScopeInfo> scope_info =
+      ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
   shared->set_scope_info(*scope_info);
 
   // Update the code and feedback vector for the shared function info.
@@ -761,7 +762,10 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
 
 static bool Renumber(CompilationInfo* info) {
-  if (!AstNumbering::Renumber(info->function(), info->zone())) return false;
+  if (!AstNumbering::Renumber(info->isolate(), info->zone(),
+                              info->function())) {
+    return false;
+  }
   if (!info->shared_info().is_null()) {
     FunctionLiteral* lit = info->function();
     info->shared_info()->set_ast_node_count(lit->ast_node_count());
@@ -829,7 +833,7 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
 
   ZoneList<Expression*>* arguments = callExpr->arguments();
 
-  AstThisAccessVisitor this_access_visitor(info->zone());
+  AstThisAccessVisitor this_access_visitor(info->isolate(), info->zone());
   this_access_visitor.VisitExpressions(arguments);
 
   if (this_access_visitor.HasStackOverflow()) return false;
@@ -1037,7 +1041,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // function is inlined before being called for the first time.
     if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
       Handle<ScopeInfo> target_scope_info =
-          ScopeInfo::Create(info->scope(), info->zone());
+          ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
       shared->set_scope_info(*target_scope_info);
     }
 
@@ -1099,8 +1103,8 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   LiveEditFunctionTracker tracker(info.isolate(), info.function());
   if (!CompileUnoptimizedCode(&info)) return;
   if (!info.shared_info().is_null()) {
-    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info.scope(),
-                                                     info.zone());
+    Handle<ScopeInfo> scope_info =
+        ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
     info.shared_info()->set_scope_info(*scope_info);
   }
   tracker.RecordRootFunctionInfo(info.code());
@@ -1169,7 +1173,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     DCHECK(!info->code().is_null());
     result = isolate->factory()->NewSharedFunctionInfo(
         lit->name(), lit->materialized_literal_count(), lit->kind(),
-        info->code(), ScopeInfo::Create(info->scope(), info->zone()),
+        info->code(),
+        ScopeInfo::Create(info->isolate(), info->zone(), info->scope()),
         info->feedback_vector());
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
@@ -1425,7 +1430,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     // MakeCode will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
-    scope_info = ScopeInfo::Create(info.scope(), info.zone());
+    scope_info = ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
@@ -1556,7 +1561,7 @@ bool Compiler::DebuggerWantsEagerCompilation(CompilationInfo* info,
 
 
 CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
-    : name_(name), info_(info), zone_(info->isolate()) {
+    : name_(name), info_(info) {
   if (FLAG_hydrogen_stats) {
     info_zone_start_allocation_size_ = info->zone()->allocation_size();
     timer_.Start();

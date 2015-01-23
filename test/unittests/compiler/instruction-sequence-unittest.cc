@@ -69,7 +69,8 @@ RegisterConfiguration* InstructionSequenceTest::config() {
 
 InstructionSequence* InstructionSequenceTest::sequence() {
   if (sequence_ == nullptr) {
-    sequence_ = new (zone()) InstructionSequence(zone(), &instruction_blocks_);
+    sequence_ = new (zone())
+        InstructionSequence(isolate(), zone(), &instruction_blocks_);
   }
   return sequence_;
 }

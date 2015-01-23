@@ -38,7 +38,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   InstructionSequence* code() const { return code_; }
   Frame* frame() const { return frame_; }
-  Isolate* isolate() const { return zone()->isolate(); }
+  Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
   Label* GetLabel(BasicBlock::RpoNumber rpo) { return &labels_[rpo.ToSize()]; }

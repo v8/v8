@@ -12,7 +12,7 @@ namespace compiler {
 
 class ZonePoolTest : public TestWithIsolate {
  public:
-  ZonePoolTest() : zone_pool_(isolate()) {}
+  ZonePoolTest() {}
 
  protected:
   ZonePool* zone_pool() { return &zone_pool_; }

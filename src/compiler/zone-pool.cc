@@ -65,8 +65,7 @@ void ZonePool::StatsScope::ZoneReturned(Zone* zone) {
 }
 
 
-ZonePool::ZonePool(Isolate* isolate)
-    : isolate_(isolate), max_allocated_bytes_(0), total_deleted_bytes_(0) {}
+ZonePool::ZonePool() : max_allocated_bytes_(0), total_deleted_bytes_(0) {}
 
 
 ZonePool::~ZonePool() {
@@ -104,7 +103,7 @@ Zone* ZonePool::NewEmptyZone() {
     zone = unused_.back();
     unused_.pop_back();
   } else {
-    zone = new Zone(isolate_);
+    zone = new Zone();
   }
   used_.push_back(zone);
   DCHECK_EQ(0, zone->allocation_size());
