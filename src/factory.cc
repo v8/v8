@@ -2243,6 +2243,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   Handle<Code> code = isolate()->builtins()->HandleApiCall();
   Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
+  obj->set_instantiated(true);
   Handle<JSFunction> result;
   if (obj->remove_prototype()) {
     result = NewFunctionWithoutPrototype(empty_string(), code);

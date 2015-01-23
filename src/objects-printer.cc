@@ -927,6 +927,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - hidden_prototype: " << (hidden_prototype() ? "true" : "false");
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
+  os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n";
 }
 
