@@ -35,25 +35,26 @@ struct MipsLinkageHelperTraits {
 
 typedef LinkageHelper<MipsLinkageHelperTraits> LH;
 
-CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
+CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, int parameter_count,
                                              CallDescriptor::Flags flags) {
   return LH::GetJSCallDescriptor(zone, parameter_count, flags);
 }
 
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Properties properties, Zone* zone) {
+    Zone* zone, Runtime::FunctionId function, int parameter_count,
+    Operator::Properties properties) {
   return LH::GetRuntimeCallDescriptor(zone, function, parameter_count,
                                       properties);
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, Operator::Properties properties, Zone* zone) {
-  return LH::GetStubCallDescriptor(zone, descriptor, stack_parameter_count,
-                                   flags, properties);
+    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+    int stack_parameter_count, CallDescriptor::Flags flags,
+    Operator::Properties properties) {
+  return LH::GetStubCallDescriptor(isolate, zone, descriptor,
+                                   stack_parameter_count, flags, properties);
 }
 
 
