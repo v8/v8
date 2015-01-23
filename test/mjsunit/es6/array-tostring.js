@@ -9,7 +9,6 @@ var global = this;
 var funs = {
   Object:   [ Object ],
   Function: [ Function ],
-  Array:    [ Array ],
   String:   [ String ],
   Boolean:  [ Boolean ],
   Number:   [ Number ],
@@ -21,20 +20,21 @@ var funs = {
 for (f in funs) {
   for (i in funs[f]) {
     assertEquals("[object " + f + "]",
-                 Object.prototype.toString.call(new funs[f][i]),
+                 Array.prototype.toString.call(new funs[f][i]),
                  funs[f][i]);
     assertEquals("[object Function]",
-                 Object.prototype.toString.call(funs[f][i]),
+                 Array.prototype.toString.call(funs[f][i]),
                  funs[f][i]);
   }
 }
+
 
 function testToStringTag(className) {
   // Using builtin toStringTags
   var obj = {};
   obj[Symbol.toStringTag] = className;
   assertEquals("[object ~" + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 
   // Getter throws
   obj = {};
@@ -42,7 +42,7 @@ function testToStringTag(className) {
     get: function() { throw className; }
   });
   assertThrows(function() {
-    Object.prototype.toString.call(obj);
+    Array.prototype.toString.call(obj);
   }, className);
 
   // Getter does not throw
@@ -51,13 +51,13 @@ function testToStringTag(className) {
     get: function() { return className; }
   });
   assertEquals("[object ~" + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 
   // Custom, non-builtin toStringTags
   obj = {};
   obj[Symbol.toStringTag] = "X" + className;
   assertEquals("[object X" + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 
   // With getter
   obj = {};
@@ -65,14 +65,14 @@ function testToStringTag(className) {
     get: function() { return "X" + className; }
   });
   assertEquals("[object X" + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 
   // Undefined toStringTag should return [object className]
   var obj = className === "Arguments" ?
       (function() { return arguments; })() : new global[className];
   obj[Symbol.toStringTag] = undefined;
   assertEquals("[object " + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 
   // With getter
   var obj = className === "Arguments" ?
@@ -81,12 +81,12 @@ function testToStringTag(className) {
     get: function() { return undefined; }
   });
   assertEquals("[object " + className + "]",
-               Object.prototype.toString.call(obj));
+               Array.prototype.toString.call(obj));
 }
+
 
 [
   "Arguments",
-  "Array",
   "Boolean",
   "Date",
   "Error",
@@ -96,18 +96,20 @@ function testToStringTag(className) {
   "String"
 ].forEach(testToStringTag);
 
+
 function testToStringTagNonString(value) {
   var obj = {};
   obj[Symbol.toStringTag] = value;
-  assertEquals("[object ???]", Object.prototype.toString.call(obj));
+  assertEquals("[object ???]", Array.prototype.toString.call(obj));
 
   // With getter
   obj = {};
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { return value; }
   });
-  assertEquals("[object ???]", Object.prototype.toString.call(obj));
+  assertEquals("[object ???]", Array.prototype.toString.call(obj));
 }
+
 
 [
   null,
@@ -124,16 +126,32 @@ function testToStringTagNonString(value) {
   new String("str")
 ].forEach(testToStringTagNonString);
 
-function testObjectToStringPropertyDesc() {
+
+function testArrayToStringPropertyDesc() {
   var desc = Object.getOwnPropertyDescriptor(Object.prototype, "toString");
   assertTrue(desc.writable);
   assertFalse(desc.enumerable);
   assertTrue(desc.configurable);
 }
-testObjectToStringPropertyDesc();
+testArrayToStringPropertyDesc();
 
-function testObjectToStringOwnNonStringValue() {
+
+function testArrayToStringOwnNonStringValue() {
   var obj = Object.defineProperty({}, Symbol.toStringTag, { value: 1 });
-  assertEquals("[object ???]", ({}).toString.call(obj));
+  assertEquals("[object ???]", ([]).toString.call(obj));
 }
-testObjectToStringOwnNonStringValue();
+testArrayToStringOwnNonStringValue();
+
+
+function testArrayToStringBasic() {
+  assertEquals("1,2,3", [1,2,3].toString());
+  assertEquals(",,3", [,,3].toString());
+}
+testArrayToStringBasic();
+
+
+function testArrayToStringObjectWithCallableJoin() {
+  var obj = { join: function() { return "CallableJoin"; } };
+  assertEquals("CallableJoin", Array.prototype.toString.call(obj));
+}
+testArrayToStringObjectWithCallableJoin();
