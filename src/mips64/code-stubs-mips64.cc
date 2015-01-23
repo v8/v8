@@ -3993,7 +3993,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
            Operand(name->Hash() + NameDictionary::GetProbeOffset(i)));
 
     // Scale the index by multiplying by the entry size.
-    DCHECK(NameDictionary::kEntrySize == 3);
+    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     __ dsll(at, index, 1);
     __ Daddu(index, index, at);  // index *= 3.
 
