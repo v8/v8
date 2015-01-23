@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef TestWithZone BasicBlockTest;
+typedef TestWithIsolateAndZone BasicBlockTest;
 
 
 TEST_F(BasicBlockTest, Constructor) {

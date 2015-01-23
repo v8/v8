@@ -90,7 +90,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 };
 
 
-class TestWithZone : public TestWithIsolate {
+class TestWithZone : public virtual ::testing::Test {
  public:
   TestWithZone() {}
   virtual ~TestWithZone();
@@ -102,6 +102,21 @@ class TestWithZone : public TestWithIsolate {
 
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
 };
+
+
+class TestWithIsolateAndZone : public virtual TestWithIsolate {
+ public:
+  TestWithIsolateAndZone() {}
+  virtual ~TestWithIsolateAndZone();
+
+  Zone* zone() { return &zone_; }
+
+ private:
+  Zone zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);
+};
+
 
 }  // namespace internal
 }  // namespace v8
