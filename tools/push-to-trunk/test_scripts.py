@@ -815,6 +815,10 @@ Performance and stability improvements on all platforms."""
       Cmd(("git new-branch %s --upstream origin/candidates" %
            TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
+      Cmd("git checkout -f origin/candidates -- ChangeLog", "",
+          cb=ResetChangeLog),
+      Cmd("git checkout -f origin/candidates -- src/version.cc", "",
+          cb=self.WriteFakeVersionFile),
       Cmd("git commit -am \"%s\"" % commit_msg_squashed, ""),
     ]
     if manual:
@@ -826,10 +830,6 @@ Performance and stability improvements on all platforms."""
       Cmd("git branch -D %s" % TEST_CONFIG["TRUNKBRANCH"], ""),
       Cmd(("git new-branch %s --upstream origin/candidates" %
            TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
-      Cmd("git checkout -f origin/candidates -- ChangeLog", "",
-          cb=ResetChangeLog),
-      Cmd("git checkout -f origin/candidates -- src/version.cc", "",
-          cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl land -f --bypass-hooks", ""),

@@ -285,6 +285,13 @@ class ApplyChanges(Step):
   def RunStep(self):
     self.ApplyPatch(self.Config("PATCH_FILE"))
     os.remove(self.Config("PATCH_FILE"))
+    # The change log has been modified by the patch. Reset it to the version
+    # on trunk and apply the exact changes determined by this PrepareChangeLog
+    # step above.
+    self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
+    # The version file has been modified by the patch. Reset it to the version
+    # on trunk.
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
 
 
 class CommitSquash(Step):
@@ -313,10 +320,6 @@ class AddChangeLog(Step):
   MESSAGE = "Add ChangeLog changes to trunk branch."
 
   def RunStep(self):
-    # The change log has been modified by the patch. Reset it to the version
-    # on trunk and apply the exact changes determined by this PrepareChangeLog
-    # step above.
-    self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
     changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
     old_change_log = FileToText(os.path.join(self.default_cwd, CHANGELOG_FILE))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
@@ -328,9 +331,6 @@ class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
 
   def RunStep(self):
-    # The version file has been modified by the patch. Reset it to the version
-    # on trunk and apply the correct version.
-    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
