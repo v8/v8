@@ -58,6 +58,26 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
     Handle<Object> args[]) {
   Isolate* isolate = function->GetIsolate();
 
+  // api callbacks can be called directly.
+  if (!is_construct && function->shared()->IsApiFunction()) {
+    SaveContext save(isolate);
+    isolate->set_context(function->context());
+    if (receiver->IsGlobalObject()) {
+      receiver = handle(Handle<GlobalObject>::cast(receiver)->global_proxy());
+    }
+    DCHECK(function->context()->global_object()->IsGlobalObject());
+    auto value = Builtins::InvokeApiFunction(function, receiver, argc, args);
+    bool has_exception = value.is_null();
+    DCHECK(has_exception == isolate->has_pending_exception());
+    if (has_exception) {
+      isolate->ReportPendingMessages();
+      return MaybeHandle<Object>();
+    } else {
+      isolate->clear_pending_message();
+    }
+    return value;
+  }
+
   // Entering JavaScript.
   VMState<JS> state(isolate);
   CHECK(AllowJavascriptExecution::IsAllowed(isolate));
