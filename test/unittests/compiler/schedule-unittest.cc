@@ -13,6 +13,61 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+typedef TestWithZone BasicBlockTest;
+
+
+TEST_F(BasicBlockTest, Constructor) {
+  int const id = random_number_generator()->NextInt();
+  BasicBlock b(zone(), BasicBlock::Id::FromInt(id));
+  EXPECT_FALSE(b.deferred());
+  EXPECT_GT(0, b.dominator_depth());
+  EXPECT_EQ(nullptr, b.dominator());
+  EXPECT_EQ(nullptr, b.rpo_next());
+  EXPECT_EQ(id, b.id().ToInt());
+}
+
+
+TEST_F(BasicBlockTest, GetCommonDominator1) {
+  BasicBlock b(zone(), BasicBlock::Id::FromInt(0));
+  EXPECT_EQ(&b, BasicBlock::GetCommonDominator(&b, &b));
+}
+
+
+TEST_F(BasicBlockTest, GetCommonDominator2) {
+  BasicBlock b0(zone(), BasicBlock::Id::FromInt(0));
+  BasicBlock b1(zone(), BasicBlock::Id::FromInt(1));
+  BasicBlock b2(zone(), BasicBlock::Id::FromInt(2));
+  b0.set_dominator_depth(0);
+  b1.set_dominator(&b0);
+  b1.set_dominator_depth(1);
+  b2.set_dominator(&b1);
+  b2.set_dominator_depth(2);
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b0, &b1));
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b0, &b2));
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b1, &b0));
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b2, &b0));
+  EXPECT_EQ(&b1, BasicBlock::GetCommonDominator(&b1, &b2));
+  EXPECT_EQ(&b1, BasicBlock::GetCommonDominator(&b2, &b1));
+}
+
+
+TEST_F(BasicBlockTest, GetCommonDominator3) {
+  BasicBlock b0(zone(), BasicBlock::Id::FromInt(0));
+  BasicBlock b1(zone(), BasicBlock::Id::FromInt(1));
+  BasicBlock b2(zone(), BasicBlock::Id::FromInt(2));
+  BasicBlock b3(zone(), BasicBlock::Id::FromInt(3));
+  b0.set_dominator_depth(0);
+  b1.set_dominator(&b0);
+  b1.set_dominator_depth(1);
+  b2.set_dominator(&b0);
+  b2.set_dominator_depth(1);
+  b3.set_dominator(&b2);
+  b3.set_dominator_depth(2);
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b1, &b3));
+  EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b3, &b1));
+}
+
+
 typedef TestWithZone ScheduleTest;
 
 

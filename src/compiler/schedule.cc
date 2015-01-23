@@ -18,13 +18,13 @@ BasicBlock::BasicBlock(Zone* zone, Id id)
       rpo_number_(-1),
       deferred_(false),
       dominator_depth_(-1),
-      dominator_(NULL),
-      rpo_next_(NULL),
-      loop_header_(NULL),
-      loop_end_(NULL),
+      dominator_(nullptr),
+      rpo_next_(nullptr),
+      loop_header_(nullptr),
+      loop_end_(nullptr),
       loop_depth_(0),
       control_(kNone),
-      control_input_(NULL),
+      control_input_(nullptr),
       nodes_(zone),
       successors_(zone),
       predecessors_(zone),
@@ -79,6 +79,19 @@ void BasicBlock::set_loop_end(BasicBlock* loop_end) { loop_end_ = loop_end; }
 
 void BasicBlock::set_loop_header(BasicBlock* loop_header) {
   loop_header_ = loop_header;
+}
+
+
+// static
+BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
+  while (b1 != b2) {
+    if (b1->dominator_depth() < b2->dominator_depth()) {
+      b2 = b2->dominator();
+    } else {
+      b1 = b1->dominator();
+    }
+  }
+  return b1;
 }
 
 

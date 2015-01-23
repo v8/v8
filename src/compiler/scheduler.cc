@@ -208,20 +208,6 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
 }
 
 
-BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
-  while (b1 != b2) {
-    int32_t b1_depth = b1->dominator_depth();
-    int32_t b2_depth = b2->dominator_depth();
-    if (b1_depth < b2_depth) {
-      b2 = b2->dominator();
-    } else {
-      b1 = b1->dominator();
-    }
-  }
-  return b1;
-}
-
-
 // -----------------------------------------------------------------------------
 // Phase 1: Build control-flow graph.
 
@@ -1042,7 +1028,7 @@ void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
     for (++pred; pred != end; ++pred) {
       // Don't examine backwards edges.
       if ((*pred)->dominator_depth() < 0) continue;
-      dominator = GetCommonDominator(dominator, *pred);
+      dominator = BasicBlock::GetCommonDominator(dominator, *pred);
     }
     block->set_dominator(dominator);
     block->set_dominator_depth(dominator->dominator_depth() + 1);
@@ -1195,7 +1181,7 @@ class ScheduleEarlyNodeVisitor {
 
 #if DEBUG
   bool InsideSameDominatorChain(BasicBlock* b1, BasicBlock* b2) {
-    BasicBlock* dominator = scheduler_->GetCommonDominator(b1, b2);
+    BasicBlock* dominator = BasicBlock::GetCommonDominator(b1, b2);
     return dominator == b1 || dominator == b2;
   }
 #endif
@@ -1277,7 +1263,7 @@ class ScheduleLateNodeVisitor {
 
     // The schedule early block dominates the schedule late block.
     BasicBlock* min_block = scheduler_->GetData(node)->minimum_block_;
-    DCHECK_EQ(min_block, scheduler_->GetCommonDominator(block, min_block));
+    DCHECK_EQ(min_block, BasicBlock::GetCommonDominator(block, min_block));
     Trace("Schedule late of #%d:%s is B%d at loop depth %d, minimum = B%d\n",
           node->id(), node->op()->mnemonic(), block->id().ToInt(),
           block->loop_depth(), min_block->id().ToInt());
@@ -1319,7 +1305,7 @@ class ScheduleLateNodeVisitor {
       BasicBlock* use_block = GetBlockForUse(edge);
       block = block == NULL ? use_block : use_block == NULL
                                               ? block
-                                              : scheduler_->GetCommonDominator(
+                                              : BasicBlock::GetCommonDominator(
                                                     block, use_block);
     }
     return block;
