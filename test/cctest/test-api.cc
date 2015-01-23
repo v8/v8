@@ -24165,12 +24165,11 @@ void RunStreamingTest(const char** chunks,
   task->Run();
   delete task;
 
-  v8::ScriptOrigin origin(v8_str("http://foo.com"));
-  char* full_source = TestSourceStream::FullSourceString(chunks);
-
-  // The possible errors are only produced while compiling.
+  // Possible errors are only produced while compiling.
   CHECK_EQ(false, try_catch.HasCaught());
 
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  char* full_source = TestSourceStream::FullSourceString(chunks);
   v8::Handle<Script> script = v8::ScriptCompiler::Compile(
       isolate, &source, v8_str(full_source), origin);
   if (expected_success) {
@@ -24509,6 +24508,48 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
   chunk2[1] = reference[2];
   const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingWithHarmonyScopes) {
+  // Don't use RunStreamingTest here so that both scripts get to use the same
+  // LocalContext and HandleScope.
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // First, run a script with a let variable.
+  CompileRun("\"use strict\"; let x = 1;");
+
+  // Then stream a script which (erroneously) tries to introduce the same
+  // variable again.
+  const char* chunks[] = {"\"use strict\"; let x = 2;", NULL};
+
+  v8::TryCatch try_catch;
+  v8::ScriptCompiler::StreamedSource source(
+      new TestSourceStream(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+  task->Run();
+  delete task;
+
+  // Parsing should succeed (the script will be parsed and compiled in a context
+  // independent way, so the error is not detected).
+  CHECK_EQ(false, try_catch.HasCaught());
+
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  char* full_source = TestSourceStream::FullSourceString(chunks);
+  v8::Handle<Script> script = v8::ScriptCompiler::Compile(
+      isolate, &source, v8_str(full_source), origin);
+  CHECK(!script.IsEmpty());
+  CHECK_EQ(false, try_catch.HasCaught());
+
+  // Running the script exposes the error.
+  v8::Handle<Value> result(script->Run());
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  delete[] full_source;
 }
 
 
