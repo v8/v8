@@ -234,6 +234,25 @@ bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
 }
 
 
+// TODO(dcarney): CallOptimization duplicates this logic, merge.
+Object* FunctionTemplateInfo::GetCompatibleReceiver(Isolate* isolate,
+                                                    Object* receiver) {
+  // API calls are only supported with JSObject receivers.
+  if (!receiver->IsJSObject()) return isolate->heap()->null_value();
+  Object* recv_type = this->signature();
+  // No signature, return holder.
+  if (recv_type->IsUndefined()) return receiver;
+  FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
+  // Check the receiver.
+  for (PrototypeIterator iter(isolate, receiver,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+    if (signature->IsTemplateFor(iter.GetCurrent())) return iter.GetCurrent();
+  }
+  return isolate->heap()->null_value();
+}
+
+
 Handle<FixedArray> JSObject::EnsureWritableFastElements(
     Handle<JSObject> object) {
   DCHECK(object->HasFastSmiOrObjectElements());

@@ -1022,45 +1022,6 @@ BUILTIN(GeneratorPoisonPill) {
 //
 
 
-// Searches the hidden prototype chain of the given object for the first
-// object that is an instance of the given type.  If no such object can
-// be found then Heap::null_value() is returned.
-static inline Object* FindHidden(Heap* heap,
-                                 Object* object,
-                                 FunctionTemplateInfo* type) {
-  for (PrototypeIterator iter(heap->isolate(), object,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    if (type->IsTemplateFor(iter.GetCurrent())) {
-      return iter.GetCurrent();
-    }
-  }
-  return heap->null_value();
-}
-
-
-// Returns the holder JSObject if the function can legally be called
-// with this receiver.  Returns Heap::null_value() if the call is
-// illegal.  Any arguments that don't fit the expected type is
-// overwritten with undefined.  Note that holder and the arguments are
-// implicitly rewritten with the first object in the hidden prototype
-// chain that actually has the expected type.
-static inline Object* TypeCheck(Heap* heap, Object* recv,
-                                FunctionTemplateInfo* info) {
-  // API calls are only supported with JSObject receivers.
-  if (!recv->IsJSObject()) return heap->null_value();
-  Object* recv_type = info->signature();
-  if (recv_type->IsUndefined()) return recv;
-  // If necessary, check the receiver
-  Object* holder = recv;
-  if (!recv_type->IsUndefined()) {
-    holder = FindHidden(heap, holder, FunctionTemplateInfo::cast(recv_type));
-    if (holder == heap->null_value()) return heap->null_value();
-  }
-  return holder;
-}
-
-
 template <bool is_construct>
 MUST_USE_RESULT static Object* HandleApiCallHelper(
     BuiltinArguments<NEEDS_CALLED_FUNCTION> args, Isolate* isolate) {
@@ -1084,7 +1045,7 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
   DCHECK(!args[0]->IsNull());
   if (args[0]->IsUndefined()) args[0] = function->global_proxy();
 
-  Object* raw_holder = TypeCheck(heap, args[0], *fun_data);
+  Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, args[0]);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
