@@ -67,7 +67,7 @@ Heap::Heap()
       initial_semispace_size_(Page::kPageSize),
       target_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
-      initial_old_generation_size_(max_old_generation_size_ / 2),
+      initial_old_generation_size_(max_old_generation_size_),
       old_generation_size_configured_(false),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
       // Variables set based on semispace_size_ and old_generation_size_ in
@@ -1048,6 +1048,8 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   promotion_ratio_ = (static_cast<double>(promoted_objects_size_) /
                       static_cast<double>(start_new_space_size) * 100);
 
+  if (gc_count_ > 1) tracer()->AddPromotionRatio(promotion_ratio_);
+
   if (previous_semi_space_copied_object_size_ > 0) {
     promotion_rate_ =
         (static_cast<double>(promoted_objects_size_) /
@@ -1061,8 +1063,6 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
        static_cast<double>(start_new_space_size) * 100);
 
   double survival_rate = promotion_ratio_ + semi_space_copied_rate_;
-  tracer()->AddSurvivalRate(survival_rate);
-
   if (survival_rate > kYoungSurvivalRateHighThreshold) {
     high_survival_rate_period_length_++;
   } else {
@@ -2372,7 +2372,7 @@ void Heap::ConfigureInitialOldGenerationSize() {
         Max(kMinimumOldGenerationAllocationLimit,
             static_cast<intptr_t>(
                 static_cast<double>(initial_old_generation_size_) *
-                (tracer()->AverageSurvivalRate() / 100)));
+                (tracer()->AveragePromotionRatio() / 100)));
   }
 }
 

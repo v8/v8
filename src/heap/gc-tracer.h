@@ -164,14 +164,14 @@ class GCTracer {
   };
 
 
-  class SurvivalEvent {
+  class PromotionEvent {
    public:
     // Default constructor leaves the event uninitialized.
-    SurvivalEvent() {}
+    PromotionEvent() {}
 
-    explicit SurvivalEvent(double survival_rate);
+    explicit PromotionEvent(double promotion_ratio);
 
-    double survival_rate_;
+    double promotion_ratio_;
   };
 
 
@@ -283,7 +283,7 @@ class GCTracer {
   typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
       ContextDisposalEventBuffer;
 
-  typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
+  typedef RingBuffer<PromotionEvent, kRingBufferMaxSize> PromotionEventBuffer;
 
   explicit GCTracer(Heap* heap);
 
@@ -299,7 +299,7 @@ class GCTracer {
 
   void AddContextDisposalTime(double time);
 
-  void AddSurvivalRate(double survival_rate);
+  void AddPromotionRatio(double promotion_ratio);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -387,10 +387,10 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   double ContextDisposalRateInMilliseconds() const;
 
-  // Computes the average survival rate based on the last recorded survival
+  // Computes the average promotion ratio based on the last recorded promotion
   // events.
   // Returns 0 if no events have been recorded.
-  double AverageSurvivalRate() const;
+  double AveragePromotionRatio() const;
 
   // Returns true if at least one survival event was recorded.
   bool SurvivalEventsRecorded() const;
@@ -451,8 +451,8 @@ class GCTracer {
   // RingBuffer for context disposal events.
   ContextDisposalEventBuffer context_disposal_events_;
 
-  // RingBuffer for survival events.
-  SurvivalEventBuffer survival_events_;
+  // RingBuffer for promotion events.
+  PromotionEventBuffer promotion_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
