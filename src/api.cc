@@ -797,10 +797,19 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
 }
 
 
+static void EnsureNotInstantiated(i::Handle<i::FunctionTemplateInfo> info,
+                                  const char* func) {
+  Utils::ApiCheck(!info->instantiated(), func,
+                  "FunctionTemplate already instantiated");
+}
+
+
 void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::Inherit");
+  i::Isolate* isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_parent_template(*Utils::OpenHandle(*value));
+  info->set_parent_template(*Utils::OpenHandle(*value));
 }
 
 
@@ -910,7 +919,9 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 void FunctionTemplate::SetCallHandler(FunctionCallback callback,
                                       v8::Handle<Value> data) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
+  i::Isolate* isolate = info->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
@@ -922,7 +933,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  Utils::OpenHandle(this)->set_call_code(*obj);
+  info->set_call_code(*obj);
 }
 
 
@@ -986,37 +997,47 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 
 
 void FunctionTemplate::SetLength(int length) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetLength");
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_length(length);
+  info->set_length(length);
 }
 
 
 void FunctionTemplate::SetClassName(Handle<String> name) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetClassName");
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_class_name(*Utils::OpenHandle(*name));
+  info->set_class_name(*Utils::OpenHandle(*name));
 }
 
 
 void FunctionTemplate::SetHiddenPrototype(bool value) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetHiddenPrototype");
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_hidden_prototype(value);
+  info->set_hidden_prototype(value);
 }
 
 
 void FunctionTemplate::ReadOnlyPrototype() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::ReadOnlyPrototype");
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_read_only_prototype(true);
+  info->set_read_only_prototype(true);
 }
 
 
 void FunctionTemplate::RemovePrototype() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto info = Utils::OpenHandle(this);
+  EnsureNotInstantiated(info, "v8::FunctionTemplate::RemovePrototype");
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
-  Utils::OpenHandle(this)->set_remove_prototype(true);
+  info->set_remove_prototype(true);
 }
 
 
@@ -1183,10 +1204,8 @@ static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, templ);
-  i::FunctionTemplateInfo* constructor =
-      i::FunctionTemplateInfo::cast(Utils::OpenHandle(templ)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  auto cons = EnsureConstructor(isolate, templ);
+  EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
@@ -1229,10 +1248,8 @@ void ObjectTemplate::MarkAsUndetectable() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, this);
-  i::FunctionTemplateInfo* constructor =
-      i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  auto cons = EnsureConstructor(isolate, this);
+  EnsureNotInstantiated(cons, "v8::ObjectTemplate::MarkAsUndetectable");
   cons->set_undetectable(true);
 }
 
@@ -1245,7 +1262,8 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, this);
+  auto cons = EnsureConstructor(isolate, this);
+  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetAccessCheckCallbacks");
 
   i::Handle<i::Struct> struct_info =
       isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
@@ -1260,9 +1278,6 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   }
   info->set_data(*Utils::OpenHandle(*data));
 
-  i::FunctionTemplateInfo* constructor =
-      i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
   cons->set_access_check_info(*info);
   cons->set_needs_access_check(turned_on_by_default);
 }
@@ -1273,10 +1288,8 @@ void ObjectTemplate::SetHandler(
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, this);
-  i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
-      Utils::OpenHandle(this)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  auto cons = EnsureConstructor(isolate, this);
+  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
@@ -1305,10 +1318,8 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(isolate, this);
-  i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
-      Utils::OpenHandle(this)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  auto cons = EnsureConstructor(isolate, this);
+  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::Struct> struct_obj =
       isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =

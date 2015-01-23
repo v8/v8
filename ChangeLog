@@ -1,3 +1,11 @@
+2015-01-23: Version 4.2.23
+
+        [x86] Blacklist AVX for Windows versions before 6.1 (Windows 7) (issue
+        3846).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-23: Version 4.2.22
 
         Fix run-time ARMv6 detection (issue 3844).
