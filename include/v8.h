@@ -7289,9 +7289,8 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
       amount - *amount_of_external_allocated_memory_at_last_global_gc >
           I::kExternalAllocationLimit) {
     CollectAllGarbage("external memory allocation limit reached.");
-  } else {
-    *amount_of_external_allocated_memory = amount;
   }
+  *amount_of_external_allocated_memory = amount;
   return *amount_of_external_allocated_memory;
 }
 
