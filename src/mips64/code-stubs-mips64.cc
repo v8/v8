@@ -2739,6 +2739,9 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(a2, a5);
   }
 
+  // Pass function as original constructor.
+  __ mov(a3, a1);
+
   // Jump to the function-specific construct stub.
   Register jmp_reg = a4;
   __ ld(jmp_reg, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
