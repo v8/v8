@@ -143,7 +143,6 @@ class OperandGenerator {
  protected:
   InstructionSelector* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
-  Isolate* isolate() const { return zone()->isolate(); }
   Zone* zone() const { return selector()->instruction_zone(); }
 
  private:

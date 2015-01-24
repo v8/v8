@@ -26,7 +26,7 @@ namespace compiler {
 using ::testing::Matcher;
 
 
-class GraphTest : public TestWithContext, public TestWithZone {
+class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
   ~GraphTest() OVERRIDE;

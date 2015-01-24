@@ -208,7 +208,7 @@ class JSONGraphEdgeWriter {
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
-  Zone tmp_zone(ad.graph.zone()->isolate());
+  Zone tmp_zone;
   os << "{\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph).Print();
   os << "],\"edges\":[";
@@ -390,7 +390,7 @@ void GraphVisualizer::Print() {
 
 
 std::ostream& operator<<(std::ostream& os, const AsDOT& ad) {
-  Zone tmp_zone(ad.graph.zone()->isolate());
+  Zone tmp_zone;
   GraphVisualizer(os, &tmp_zone, &ad.graph).Print();
   return os;
 }
@@ -769,14 +769,14 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
-  Zone tmp_zone(ac.info_->isolate());
+  Zone tmp_zone;
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
-  Zone tmp_zone(ac.schedule_->zone()->isolate());
+  Zone tmp_zone;
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
@@ -784,7 +784,7 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VAllocator& ac) {
-  Zone tmp_zone(ac.allocator_->code()->zone()->isolate());
+  Zone tmp_zone;
   GraphC1Visualizer(os, &tmp_zone).PrintAllocator(ac.phase_, ac.allocator_);
   return os;
 }
@@ -794,7 +794,7 @@ const int kOnStack = 1;
 const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
-  Zone local_zone(ar.graph.zone()->isolate());
+  Zone local_zone;
   ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 

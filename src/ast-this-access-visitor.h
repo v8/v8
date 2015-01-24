@@ -11,7 +11,7 @@ namespace internal {
 
 class AstThisAccessVisitor : public AstVisitor {
  public:
-  explicit AstThisAccessVisitor(Zone* zone);
+  AstThisAccessVisitor(Isolate* isolate, Zone* zone);
 
   bool UsesThis() { return uses_this_; }
 

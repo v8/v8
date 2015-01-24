@@ -36,7 +36,7 @@ class Isolate;
 
 class Zone {
  public:
-  explicit Zone(Isolate* isolate);
+  Zone();
   ~Zone();
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
@@ -64,8 +64,6 @@ class Zone {
   inline void adjust_segment_bytes_allocated(int delta);
 
   inline unsigned allocation_size() const { return allocation_size_; }
-
-  inline Isolate* isolate() const { return isolate_; }
 
  private:
   friend class Isolate;
@@ -120,7 +118,6 @@ class Zone {
   Address limit_;
 
   Segment* segment_head_;
-  Isolate* isolate_;
 };
 
 

@@ -21,7 +21,7 @@ class LazyTypeCache;
 
 class Typer {
  public:
-  explicit Typer(Graph* graph, MaybeHandle<Context> context);
+  Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context);
   ~Typer();
 
   void Run();
@@ -29,12 +29,13 @@ class Typer {
   Graph* graph() { return graph_; }
   MaybeHandle<Context> context() { return context_; }
   Zone* zone() { return graph_->zone(); }
-  Isolate* isolate() { return zone()->isolate(); }
+  Isolate* isolate() { return isolate_; }
 
  private:
   class Visitor;
   class Decorator;
 
+  Isolate* isolate_;
   Graph* graph_;
   MaybeHandle<Context> context_;
   Decorator* decorator_;

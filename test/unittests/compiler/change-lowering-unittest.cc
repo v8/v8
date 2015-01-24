@@ -66,7 +66,7 @@ class ChangeLoweringTest : public GraphTest {
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone(), WordRepresentation());
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(graph(), common(), &javascript, &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, &machine);
     CompilationInfo info(isolate(), zone());
     Linkage linkage(zone(), &info);
     ChangeLowering reducer(&jsgraph, &linkage);

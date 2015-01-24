@@ -32,7 +32,7 @@ class MachineAssemblerTester : public HandleAndZoneScope,
             main_isolate(),
             MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4)),
         MachineAssembler(
-            new (main_zone()) Graph(main_zone()),
+            main_isolate(), new (main_zone()) Graph(main_zone()),
             MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4),
             kMachPtr, flags) {}
 
@@ -68,8 +68,8 @@ class MachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      code_ =
-          Pipeline::GenerateCodeForTesting(call_descriptor, graph, schedule);
+      code_ = Pipeline::GenerateCodeForTesting(this->isolate(), call_descriptor,
+                                               graph, schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }

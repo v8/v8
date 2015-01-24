@@ -653,7 +653,7 @@ HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
   if (!pointer->is_set()) {
     // Can't pass GetInvalidContext() to HConstant::New, because that will
     // recursively call GetConstant
-    HConstant* constant = HConstant::New(zone(), NULL, value);
+    HConstant* constant = HConstant::New(isolate(), zone(), NULL, value);
     constant->InsertAfter(entry_block()->first());
     pointer->set(constant);
     return constant;
@@ -1027,8 +1027,9 @@ void HGraphBuilder::IfBuilder::End() {
   current = merge_at_join_blocks_;
   while (current != NULL) {
     if (current->deopt_ && current->block_ != NULL) {
-      current->block_->FinishExit(HAbnormalExit::New(builder()->zone(), NULL),
-                                  HSourcePosition::Unknown());
+      current->block_->FinishExit(
+          HAbnormalExit::New(builder()->isolate(), builder()->zone(), NULL),
+          HSourcePosition::Unknown());
     }
     current = current->next_;
   }
@@ -1098,11 +1099,12 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
 
   builder_->set_current_block(body_block_);
   if (direction_ == kPreIncrement || direction_ == kPreDecrement) {
+    Isolate* isolate = builder_->isolate();
     HValue* one = builder_->graph()->GetConstant1();
     if (direction_ == kPreIncrement) {
-      increment_ = HAdd::New(zone(), context_, phi_, one);
+      increment_ = HAdd::New(isolate, zone(), context_, phi_, one);
     } else {
-      increment_ = HSub::New(zone(), context_, phi_, one);
+      increment_ = HSub::New(isolate, zone(), context_, phi_, one);
     }
     increment_->ClearFlag(HValue::kCanOverflow);
     builder_->AddInstruction(increment_);
@@ -1144,10 +1146,13 @@ void HGraphBuilder::LoopBuilder::EndBody() {
   DCHECK(!finished_);
 
   if (direction_ == kPostIncrement || direction_ == kPostDecrement) {
+    Isolate* isolate = builder_->isolate();
     if (direction_ == kPostIncrement) {
-      increment_ = HAdd::New(zone(), context_, phi_, increment_amount_);
+      increment_ =
+          HAdd::New(isolate, zone(), context_, phi_, increment_amount_);
     } else {
-      increment_ = HSub::New(zone(), context_, phi_, increment_amount_);
+      increment_ =
+          HSub::New(isolate, zone(), context_, phi_, increment_amount_);
     }
     increment_->ClearFlag(HValue::kCanOverflow);
     builder_->AddInstruction(increment_);
@@ -2548,9 +2553,9 @@ HValue* HGraphBuilder::BuildCalculateElementsSize(ElementsKind kind,
       : kPointerSize;
 
   HConstant* elements_size_value = Add<HConstant>(elements_size);
-  HInstruction* mul = HMul::NewImul(zone(), context(),
-                                    capacity->ActualValue(),
-                                    elements_size_value);
+  HInstruction* mul =
+      HMul::NewImul(isolate(), zone(), context(), capacity->ActualValue(),
+                    elements_size_value);
   AddInstruction(mul);
   mul->ClearFlag(HValue::kCanOverflow);
 
@@ -3344,7 +3349,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
   function_state_ = &initial_function_state_;
-  InitializeAstVisitor(info->zone());
+  InitializeAstVisitor(info->isolate(), info->zone());
   if (FLAG_hydrogen_track_positions) {
     SetSourcePosition(info->shared_info()->start_position());
   }
@@ -7522,8 +7527,7 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
 
 HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(
     HValue* fun, int argument_count, bool pass_argument_count) {
-  return New<HCallJSFunction>(
-      fun, argument_count, pass_argument_count);
+  return New<HCallJSFunction>(fun, argument_count, pass_argument_count);
 }
 
 
@@ -8207,7 +8211,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
         HValue* right = Pop();
         HValue* left = Pop();
         Drop(2);  // Receiver and function.
-        HInstruction* op = HMul::NewImul(zone(), context(), left, right);
+        HInstruction* op =
+            HMul::NewImul(isolate(), zone(), context(), left, right);
         ast_context()->ReturnInstruction(op, expr->id());
         return true;
       }
@@ -8332,7 +8337,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HValue* right = Pop();
         HValue* left = Pop();
         Drop(2);  // Receiver and function.
-        HInstruction* result = HMul::NewImul(zone(), context(), left, right);
+        HInstruction* result =
+            HMul::NewImul(isolate(), zone(), context(), left, right);
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
@@ -10367,7 +10373,8 @@ HValue* HGraphBuilder::EnforceNumberType(HValue* number,
 HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
-    Maybe<HConstant*> number = constant->CopyToTruncatedNumber(zone());
+    Maybe<HConstant*> number =
+        constant->CopyToTruncatedNumber(isolate(), zone());
     if (number.has_value) {
       *expected = Type::Number(zone());
       return AddInstruction(number.value);

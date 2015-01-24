@@ -55,7 +55,8 @@ class InstructionTester : public HandleAndZoneScope {
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new (main_zone()) TestInstrSeq(main_zone(), instruction_blocks);
+    code = new (main_zone())
+        TestInstrSeq(main_isolate(), main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {
@@ -288,7 +289,7 @@ TEST(InstructionAddGapMove) {
 
 
 TEST(InstructionOperands) {
-  Zone zone(CcTest::InitIsolateOnce());
+  Zone zone;
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);

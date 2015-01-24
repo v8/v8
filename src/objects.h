@@ -4260,7 +4260,7 @@ class ScopeInfo : public FixedArray {
                                              Handle<JSObject> scope_object);
 
 
-  static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
+  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
 
   // Serializes empty scope info.
   static ScopeInfo* Empty(Isolate* isolate);

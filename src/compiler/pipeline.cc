@@ -54,7 +54,7 @@ namespace compiler {
 class PipelineData {
  public:
   explicit PipelineData(ZonePool* zone_pool, CompilationInfo* info)
-      : isolate_(info->zone()->isolate()),
+      : isolate_(info->isolate()),
         info_(info),
         outer_zone_(nullptr),
         zone_pool_(zone_pool),
@@ -96,9 +96,9 @@ class PipelineData {
         InstructionSelector::SupportedMachineOperatorFlags());
     common_ = new (graph_zone()) CommonOperatorBuilder(graph_zone());
     javascript_ = new (graph_zone()) JSOperatorBuilder(graph_zone());
-    jsgraph_ =
-        new (graph_zone()) JSGraph(graph(), common(), javascript(), machine());
-    typer_.Reset(new Typer(graph(), info()->context()));
+    jsgraph_ = new (graph_zone())
+        JSGraph(info()->isolate(), graph(), common(), javascript(), machine());
+    typer_.Reset(new Typer(info()->isolate(), graph(), info()->context()));
     instruction_zone_ = instruction_zone_scope_.zone();
   }
 
@@ -197,8 +197,8 @@ class PipelineData {
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
-    sequence_ = new (instruction_zone())
-        InstructionSequence(instruction_zone(), instruction_blocks);
+    sequence_ = new (instruction_zone()) InstructionSequence(
+        info()->isolate(), instruction_zone(), instruction_blocks);
   }
 
   void InitializeRegisterAllocator(Zone* local_zone,
@@ -785,7 +785,7 @@ Handle<Code> Pipeline::GenerateCode() {
     return Handle<Code>::null();
   }
 
-  ZonePool zone_pool(isolate());
+  ZonePool zone_pool;
   SmartPointer<PipelineStatistics> pipeline_statistics;
 
   if (FLAG_turbo_stats) {
@@ -924,10 +924,11 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 
-Handle<Code> Pipeline::GenerateCodeForTesting(CallDescriptor* call_descriptor,
+Handle<Code> Pipeline::GenerateCodeForTesting(Isolate* isolate,
+                                              CallDescriptor* call_descriptor,
                                               Graph* graph,
                                               Schedule* schedule) {
-  CompilationInfo info(graph->zone()->isolate(), graph->zone());
+  CompilationInfo info(isolate, graph->zone());
   return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
 }
 
@@ -937,7 +938,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Graph* graph,
                                               Schedule* schedule) {
   CHECK(SupportedBackend());
-  ZonePool zone_pool(info->isolate());
+  ZonePool zone_pool;
   Pipeline pipeline(info);
   PipelineData data(&zone_pool, info);
   pipeline.data_ = &data;
@@ -950,7 +951,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
     TraceSchedule(schedule);
   }
 
-  Linkage linkage(info->zone(), call_descriptor);
+  Linkage linkage(info->isolate(), info->zone(), call_descriptor);
   pipeline.GenerateCode(&linkage);
   Handle<Code> code = data.code();
 
@@ -968,8 +969,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  CompilationInfo info(sequence->zone()->isolate(), sequence->zone());
-  ZonePool zone_pool(sequence->zone()->isolate());
+  CompilationInfo info(sequence->isolate(), sequence->zone());
+  ZonePool zone_pool;
   PipelineData data(&zone_pool, &info);
   data.InitializeTorTesting(sequence);
   Pipeline pipeline(&info);
@@ -1044,7 +1045,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
-    verifier_zone.Reset(new Zone(info()->isolate()));
+    verifier_zone.Reset(new Zone());
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
         verifier_zone.get(), config, data->sequence());
   }

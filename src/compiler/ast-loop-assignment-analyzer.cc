@@ -13,7 +13,7 @@ typedef class AstLoopAssignmentAnalyzer ALAA;  // for code shortitude.
 
 ALAA::AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info)
     : info_(info), loop_stack_(zone) {
-  InitializeAstVisitor(zone);
+  InitializeAstVisitor(info->isolate(), zone);
 }
 
 

@@ -223,10 +223,11 @@ class RegExpBuilder: public ZoneObject {
 class RegExpParser BASE_EMBEDDED {
  public:
   RegExpParser(FlatStringReader* in, Handle<String>* error, bool multiline_mode,
-               bool unicode, Zone* zone);
+               bool unicode, Isolate* isolate, Zone* zone);
 
-  static bool ParseRegExp(FlatStringReader* input, bool multiline, bool unicode,
-                          RegExpCompileData* result, Zone* zone);
+  static bool ParseRegExp(Isolate* isolate, Zone* zone, FlatStringReader* input,
+                          bool multiline, bool unicode,
+                          RegExpCompileData* result);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();
@@ -696,7 +697,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   enum VariableDeclarationContext {
     kModuleElement,
-    kBlockElement,
     kStatement,
     kForStatement
   };

@@ -22,7 +22,7 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
   TyperTester()
       : GraphAndBuilders(main_zone()),
         types_(main_zone(), isolate()),
-        typer_(graph(), MaybeHandle<Context>()),
+        typer_(isolate(), graph(), MaybeHandle<Context>()),
         javascript_(main_zone()) {
     Node* s = graph()->NewNode(common()->Start(3));
     graph()->SetStart(s);

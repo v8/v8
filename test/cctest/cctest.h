@@ -577,7 +577,7 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() : main_zone_(main_isolate()) {}
+  HandleAndZoneScope() {}
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Zone* main_zone() { return &main_zone_; }

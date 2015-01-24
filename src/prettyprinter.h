@@ -13,7 +13,7 @@ namespace internal {
 
 class CallPrinter : public AstVisitor {
  public:
-  explicit CallPrinter(Zone* zone);
+  CallPrinter(Isolate* isolate, Zone* zone);
   virtual ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
@@ -52,7 +52,7 @@ class CallPrinter : public AstVisitor {
 
 class PrettyPrinter: public AstVisitor {
  public:
-  explicit PrettyPrinter(Zone* zone);
+  PrettyPrinter(Isolate* isolate, Zone* zone);
   virtual ~PrettyPrinter();
 
   // The following routines print a node into a string.
@@ -64,7 +64,7 @@ class PrettyPrinter: public AstVisitor {
   void Print(const char* format, ...);
 
   // Print a node to stdout.
-  static void PrintOut(Zone* zone, AstNode* node);
+  static void PrintOut(Isolate* isolate, Zone* zone, AstNode* node);
 
   // Individual nodes
 #define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
@@ -98,7 +98,7 @@ class PrettyPrinter: public AstVisitor {
 // Prints the AST structure
 class AstPrinter: public PrettyPrinter {
  public:
-  explicit AstPrinter(Zone* zone);
+  AstPrinter(Isolate* isolate, Zone* zone);
   virtual ~AstPrinter();
 
   const char* PrintProgram(FunctionLiteral* program);

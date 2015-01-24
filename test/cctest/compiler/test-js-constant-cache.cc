@@ -17,11 +17,11 @@ using namespace v8::internal::compiler;
 
 class JSCacheTesterHelper {
  protected:
-  explicit JSCacheTesterHelper(Zone* zone)
+  JSCacheTesterHelper(Isolate* isolate, Zone* zone)
       : main_graph_(zone),
         main_common_(zone),
         main_javascript_(zone),
-        main_typer_(&main_graph_, MaybeHandle<Context>()),
+        main_typer_(isolate, &main_graph_, MaybeHandle<Context>()),
         main_machine_(zone) {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
@@ -37,8 +37,8 @@ class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSGraph {
  public:
   JSConstantCacheTester()
-      : JSCacheTesterHelper(main_zone()),
-        JSGraph(&main_graph_, &main_common_, &main_javascript_,
+      : JSCacheTesterHelper(main_isolate(), main_zone()),
+        JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
     main_graph_.SetEnd(main_graph_.NewNode(common()->End()));

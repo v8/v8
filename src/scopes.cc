@@ -67,9 +67,9 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Scope* outer_scope, ScopeType scope_type,
-             AstValueFactory* ast_value_factory, Zone* zone)
-    : isolate_(zone->isolate()),
+Scope::Scope(Isolate* isolate, Zone* zone, Scope* outer_scope,
+             ScopeType scope_type, AstValueFactory* ast_value_factory)
+    : isolate_(isolate),
       inner_scopes_(4, zone),
       variables_(zone),
       internals_(4, zone),
@@ -77,9 +77,10 @@ Scope::Scope(Scope* outer_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      interface_(FLAG_harmony_modules &&
-                 (scope_type == MODULE_SCOPE || scope_type == SCRIPT_SCOPE)
-                     ? Interface::NewModule(zone) : NULL),
+      interface_(FLAG_harmony_modules && (scope_type == MODULE_SCOPE ||
+                                          scope_type == SCRIPT_SCOPE)
+                     ? Interface::NewModule(zone)
+                     : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone) {
@@ -90,12 +91,10 @@ Scope::Scope(Scope* outer_scope, ScopeType scope_type,
 }
 
 
-Scope::Scope(Scope* inner_scope,
-             ScopeType scope_type,
-             Handle<ScopeInfo> scope_info,
-             AstValueFactory* value_factory,
-             Zone* zone)
-    : isolate_(zone->isolate()),
+Scope::Scope(Isolate* isolate, Zone* zone, Scope* inner_scope,
+             ScopeType scope_type, Handle<ScopeInfo> scope_info,
+             AstValueFactory* value_factory)
+    : isolate_(isolate),
       inner_scopes_(4, zone),
       variables_(zone),
       internals_(4, zone),
@@ -118,9 +117,10 @@ Scope::Scope(Scope* inner_scope,
 }
 
 
-Scope::Scope(Scope* inner_scope, const AstRawString* catch_variable_name,
-             AstValueFactory* value_factory, Zone* zone)
-    : isolate_(zone->isolate()),
+Scope::Scope(Isolate* isolate, Zone* zone, Scope* inner_scope,
+             const AstRawString* catch_variable_name,
+             AstValueFactory* value_factory)
+    : isolate_(isolate),
       inner_scopes_(1, zone),
       variables_(zone),
       internals_(0, zone),
@@ -192,19 +192,17 @@ void Scope::SetDefaults(ScopeType scope_type,
 }
 
 
-Scope* Scope::DeserializeScopeChain(Context* context, Scope* script_scope,
-                                    Zone* zone) {
+Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
+                                    Context* context, Scope* script_scope) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
-      Scope* with_scope = new(zone) Scope(current_scope,
-                                          WITH_SCOPE,
-                                          Handle<ScopeInfo>::null(),
-                                          script_scope->ast_value_factory_,
-                                          zone);
+      Scope* with_scope = new (zone)
+          Scope(isolate, zone, current_scope, WITH_SCOPE,
+                Handle<ScopeInfo>::null(), script_scope->ast_value_factory_);
       current_scope = with_scope;
       // All the inner scopes are inside a with.
       contains_with = true;
@@ -213,41 +211,33 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* script_scope,
       }
     } else if (context->IsScriptContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
-      current_scope = new(zone) Scope(current_scope,
-                                      SCRIPT_SCOPE,
-                                      Handle<ScopeInfo>(scope_info),
-                                      script_scope->ast_value_factory_,
-                                      zone);
+      current_scope = new (zone) Scope(
+          isolate, zone, current_scope, SCRIPT_SCOPE,
+          Handle<ScopeInfo>(scope_info), script_scope->ast_value_factory_);
     } else if (context->IsModuleContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->module()->scope_info());
-      current_scope = new(zone) Scope(current_scope,
-                                      MODULE_SCOPE,
-                                      Handle<ScopeInfo>(scope_info),
-                                      script_scope->ast_value_factory_,
-                                      zone);
+      current_scope = new (zone) Scope(
+          isolate, zone, current_scope, MODULE_SCOPE,
+          Handle<ScopeInfo>(scope_info), script_scope->ast_value_factory_);
     } else if (context->IsFunctionContext()) {
       ScopeInfo* scope_info = context->closure()->shared()->scope_info();
-      current_scope = new(zone) Scope(current_scope,
-                                      FUNCTION_SCOPE,
-                                      Handle<ScopeInfo>(scope_info),
-                                      script_scope->ast_value_factory_,
-                                      zone);
+      current_scope = new (zone) Scope(
+          isolate, zone, current_scope, FUNCTION_SCOPE,
+          Handle<ScopeInfo>(scope_info), script_scope->ast_value_factory_);
       if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
       if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
     } else if (context->IsBlockContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
-      current_scope = new(zone) Scope(current_scope,
-                                      BLOCK_SCOPE,
-                                      Handle<ScopeInfo>(scope_info),
-                                      script_scope->ast_value_factory_,
-                                      zone);
+      current_scope = new (zone) Scope(
+          isolate, zone, current_scope, BLOCK_SCOPE,
+          Handle<ScopeInfo>(scope_info), script_scope->ast_value_factory_);
     } else {
       DCHECK(context->IsCatchContext());
       String* name = String::cast(context->extension());
       current_scope = new (zone) Scope(
-          current_scope,
+          isolate, zone, current_scope,
           script_scope->ast_value_factory_->GetString(Handle<String>(name)),
-          script_scope->ast_value_factory_, zone);
+          script_scope->ast_value_factory_);
     }
     if (contains_with) current_scope->RecordWithStatement();
     if (innermost_scope == NULL) innermost_scope = current_scope;
@@ -758,7 +748,7 @@ Scope* Scope::DeclarationScope() {
 
 Handle<ScopeInfo> Scope::GetScopeInfo() {
   if (scope_info_.is_null()) {
-    scope_info_ = ScopeInfo::Create(this, zone());
+    scope_info_ = ScopeInfo::Create(isolate(), zone(), this);
   }
   return scope_info_;
 }

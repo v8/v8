@@ -39,7 +39,7 @@ class LoopFinderTester : HandleAndZoneScope {
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        jsgraph(&graph, &common, NULL, NULL),
+        jsgraph(main_isolate(), &graph, &common, NULL, NULL),
         start(graph.NewNode(common.Start(1))),
         end(graph.NewNode(common.End(), start)),
         p0(graph.NewNode(common.Parameter(0), start)),
@@ -127,7 +127,7 @@ class LoopFinderTester : HandleAndZoneScope {
         OFStream os(stdout);
         os << AsRPO(graph);
       }
-      Zone zone(isolate);
+      Zone zone;
       loop_tree = LoopFinder::BuildLoopTree(&graph, &zone);
     }
     return loop_tree;

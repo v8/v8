@@ -33,7 +33,7 @@ function ObjectToStringHarmony() {
   if (IS_UNDEFINED(tag)) {
     tag = builtinTag;
   } else if (!IS_STRING(tag)) {
-    return "[object ???]"
+    return "[object ???]";
   } else if (tag !== builtinTag && kBuiltinStringTags[tag]) {
     return "[object ~" + tag + "]";
   }

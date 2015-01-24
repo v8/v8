@@ -45,7 +45,8 @@ enum LazyCachedType {
 // TODO(turbofan): these types could be globally cached or cached per isolate.
 class LazyTypeCache FINAL : public ZoneObject {
  public:
-  explicit LazyTypeCache(Zone* zone) : zone_(zone) {
+  explicit LazyTypeCache(Isolate* isolate, Zone* zone)
+      : isolate_(isolate), zone_(zone) {
     memset(cache_, 0, sizeof(cache_));
   }
 
@@ -133,10 +134,11 @@ class LazyTypeCache FINAL : public ZoneObject {
   }
 
   Factory* factory() const { return isolate()->factory(); }
-  Isolate* isolate() const { return zone()->isolate(); }
+  Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
   Type* cache_[kNumLazyCachedTypes];
+  Isolate* isolate_;
   Zone* zone_;
 };
 
@@ -151,15 +153,16 @@ class Typer::Decorator FINAL : public GraphDecorator {
 };
 
 
-Typer::Typer(Graph* graph, MaybeHandle<Context> context)
-    : graph_(graph),
+Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
+    : isolate_(isolate),
+      graph_(graph),
       context_(context),
       decorator_(NULL),
-      cache_(new (graph->zone()) LazyTypeCache(graph->zone())),
+      cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())),
       weaken_min_limits_(graph->zone()),
       weaken_max_limits_(graph->zone()) {
   Zone* zone = this->zone();
-  Factory* f = zone->isolate()->factory();
+  Factory* f = isolate->factory();
 
   Handle<Object> zero = f->NewNumber(0);
   Handle<Object> one = f->NewNumber(1);

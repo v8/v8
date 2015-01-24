@@ -25,7 +25,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::Flag::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
-    JSGraph jsgraph(graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSBuiltinReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }

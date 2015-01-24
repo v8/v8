@@ -44,14 +44,12 @@ class Segment {
 };
 
 
-Zone::Zone(Isolate* isolate)
+Zone::Zone()
     : allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
       limit_(0),
-      segment_head_(NULL),
-      isolate_(isolate) {
-}
+      segment_head_(NULL) {}
 
 
 Zone::~Zone() {

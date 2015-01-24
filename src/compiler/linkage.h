@@ -172,9 +172,11 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 class Linkage : public ZoneObject {
  public:
   Linkage(Zone* zone, CompilationInfo* info)
-      : zone_(zone), incoming_(ComputeIncoming(zone, info)) {}
-  Linkage(Zone* zone, CallDescriptor* incoming)
-      : zone_(zone), incoming_(incoming) {}
+      : isolate_(info->isolate()),
+        zone_(zone),
+        incoming_(ComputeIncoming(zone, info)) {}
+  Linkage(Isolate* isolate, Zone* zone, CallDescriptor* incoming)
+      : isolate_(isolate), zone_(zone), incoming_(incoming) {}
 
   static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
 
@@ -183,22 +185,23 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
   CallDescriptor* GetJSCallDescriptor(int parameter_count,
                                       CallDescriptor::Flags flags) const;
-  static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone,
+  static CallDescriptor* GetJSCallDescriptor(Zone* zone, int parameter_count,
                                              CallDescriptor::Flags flags);
   CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties) const;
   static CallDescriptor* GetRuntimeCallDescriptor(
-      Runtime::FunctionId function, int parameter_count,
-      Operator::Properties properties, Zone* zone);
+      Zone* zone, Runtime::FunctionId function, int parameter_count,
+      Operator::Properties properties);
 
   CallDescriptor* GetStubCallDescriptor(
       const CallInterfaceDescriptor& descriptor, int stack_parameter_count = 0,
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags,
       Operator::Properties properties = Operator::kNoProperties) const;
   static CallDescriptor* GetStubCallDescriptor(
-      const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-      CallDescriptor::Flags flags, Operator::Properties properties, Zone* zone);
+      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      int stack_parameter_count, CallDescriptor::Flags flags,
+      Operator::Properties properties);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports
@@ -238,6 +241,7 @@ class Linkage : public ZoneObject {
   LinkageLocation GetOsrValueLocation(int index) const;
 
  private:
+  Isolate* isolate_;
   Zone* const zone_;
   CallDescriptor* const incoming_;
 

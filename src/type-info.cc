@@ -16,16 +16,16 @@ namespace internal {
 
 
 TypeFeedbackOracle::TypeFeedbackOracle(
-    Handle<Code> code, Handle<TypeFeedbackVector> feedback_vector,
-    Handle<Context> native_context, Zone* zone)
-    : native_context_(native_context), zone_(zone) {
+    Isolate* isolate, Zone* zone, Handle<Code> code,
+    Handle<TypeFeedbackVector> feedback_vector, Handle<Context> native_context)
+    : native_context_(native_context), isolate_(isolate), zone_(zone) {
   BuildDictionary(code);
   DCHECK(dictionary_->IsDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
   // traverse the feedback vector at GC time.
-  feedback_vector_ = TypeFeedbackVector::Copy(isolate(), feedback_vector);
+  feedback_vector_ = TypeFeedbackVector::Copy(isolate, feedback_vector);
 }
 
 

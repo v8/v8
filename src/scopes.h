@@ -72,16 +72,16 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType scope_type,
-        AstValueFactory* value_factory, Zone* zone);
+  Scope(Isolate* isolate, Zone* zone, Scope* outer_scope, ScopeType scope_type,
+        AstValueFactory* value_factory);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
-  static Scope* DeserializeScopeChain(Context* context, Scope* script_scope,
-                                      Zone* zone);
+  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+                                      Context* context, Scope* script_scope);
 
   // The scope name is only used for printing/debugging.
   void SetScopeName(const AstRawString* scope_name) {
@@ -95,6 +95,7 @@ class Scope: public ZoneObject {
   // tree and its children are reparented.
   Scope* FinalizeBlockScope();
 
+  Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
   // ---------------------------------------------------------------------------
@@ -651,13 +652,13 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info,
-        AstValueFactory* value_factory, Zone* zone);
+  Scope(Isolate* isolate, Zone* zone, Scope* inner_scope, ScopeType type,
+        Handle<ScopeInfo> scope_info, AstValueFactory* value_factory);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Scope* inner_scope,
+  Scope(Isolate* isolate, Zone* zone, Scope* inner_scope,
         const AstRawString* catch_variable_name,
-        AstValueFactory* value_factory, Zone* zone);
+        AstValueFactory* value_factory);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {

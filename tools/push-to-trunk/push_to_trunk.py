@@ -285,16 +285,41 @@ class ApplyChanges(Step):
   def RunStep(self):
     self.ApplyPatch(self.Config("PATCH_FILE"))
     os.remove(self.Config("PATCH_FILE"))
+    # The change log has been modified by the patch. Reset it to the version
+    # on trunk and apply the exact changes determined by this PrepareChangeLog
+    # step above.
+    self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
+    # The version file has been modified by the patch. Reset it to the version
+    # on trunk.
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
+
+
+class CommitSquash(Step):
+  MESSAGE = "Commit to local candidates branch."
+
+  def RunStep(self):
+    # Make a first commit with a slightly different title to not confuse
+    # the tagging.
+    msg = FileToText(self.Config("COMMITMSG_FILE")).splitlines()
+    msg[0] = msg[0].replace("(based on", "(squashed - based on")
+    self.GitCommit(message = "\n".join(msg))
+
+
+class PrepareVersionBranch(Step):
+  MESSAGE = "Prepare new branch to commit version and changelog file."
+
+  def RunStep(self):
+    self.GitCheckout("master")
+    self.Git("fetch")
+    self.GitDeleteBranch(self.Config("TRUNKBRANCH"))
+    self.GitCreateBranch(self.Config("TRUNKBRANCH"),
+                         self.vc.RemoteCandidateBranch())
 
 
 class AddChangeLog(Step):
   MESSAGE = "Add ChangeLog changes to trunk branch."
 
   def RunStep(self):
-    # The change log has been modified by the patch. Reset it to the version
-    # on trunk and apply the exact changes determined by this PrepareChangeLog
-    # step above.
-    self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
     changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
     old_change_log = FileToText(os.path.join(self.default_cwd, CHANGELOG_FILE))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
@@ -306,14 +331,11 @@ class SetVersion(Step):
   MESSAGE = "Set correct version for trunk."
 
   def RunStep(self):
-    # The version file has been modified by the patch. Reset it to the version
-    # on trunk and apply the correct version.
-    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
-class CommitTrunk(Step):
-  MESSAGE = "Commit to local trunk branch."
+class CommitCandidate(Step):
+  MESSAGE = "Commit version and changelog to local candidates branch."
 
   def RunStep(self):
     self.GitCommit(file_name = self.Config("COMMITMSG_FILE"))
@@ -413,10 +435,13 @@ class PushToTrunk(ScriptsBase):
       SquashCommits,
       NewBranch,
       ApplyChanges,
+      CommitSquash,
+      SanityCheck,
+      Land,
+      PrepareVersionBranch,
       AddChangeLog,
       SetVersion,
-      CommitTrunk,
-      SanityCheck,
+      CommitCandidate,
       Land,
       TagRevision,
       CleanUp,

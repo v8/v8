@@ -918,7 +918,8 @@ class InstructionSequence FINAL : public ZoneObject {
   // Puts the deferred blocks last.
   static void ComputeAssemblyOrder(InstructionBlocks* blocks);
 
-  InstructionSequence(Zone* zone, InstructionBlocks* instruction_blocks);
+  InstructionSequence(Isolate* isolate, Zone* zone,
+                      InstructionBlocks* instruction_blocks);
 
   int NextVirtualRegister();
   int VirtualRegisterCount() const { return next_virtual_register_; }
@@ -972,7 +973,7 @@ class InstructionSequence FINAL : public ZoneObject {
     return instructions_[index];
   }
 
-  Isolate* isolate() const { return zone()->isolate(); }
+  Isolate* isolate() const { return isolate_; }
   const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
   Zone* zone() const { return zone_; }
 
@@ -1037,6 +1038,7 @@ class InstructionSequence FINAL : public ZoneObject {
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
+  Isolate* isolate_;
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
   IntVector block_starts_;

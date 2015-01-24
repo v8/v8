@@ -3143,20 +3143,22 @@ class AstVisitor BASE_EMBEDDED {
                                                             \
   bool CheckStackOverflow() {                               \
     if (stack_overflow_) return true;                       \
-    StackLimitCheck check(zone_->isolate());                \
+    StackLimitCheck check(isolate_);                        \
     if (!check.HasOverflowed()) return false;               \
     stack_overflow_ = true;                                 \
     return true;                                            \
   }                                                         \
                                                             \
  private:                                                   \
-  void InitializeAstVisitor(Zone* zone) {                   \
+  void InitializeAstVisitor(Isolate* isolate, Zone* zone) { \
+    isolate_ = isolate;                                     \
     zone_ = zone;                                           \
     stack_overflow_ = false;                                \
   }                                                         \
   Zone* zone() { return zone_; }                            \
-  Isolate* isolate() { return zone_->isolate(); }           \
+  Isolate* isolate() { return isolate_; }                   \
                                                             \
+  Isolate* isolate_;                                        \
   Zone* zone_;                                              \
   bool stack_overflow_
 

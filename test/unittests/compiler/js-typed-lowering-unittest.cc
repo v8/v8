@@ -75,14 +75,14 @@ class JSTypedLoweringTest : public TypedGraphTest {
  protected:
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSTypedLowering reducer(&jsgraph, zone());
     return reducer.Reduce(node);
   }
 
   Node* EmptyFrameState() {
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     return jsgraph.EmptyFrameState();
   }
 

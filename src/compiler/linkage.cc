@@ -42,22 +42,23 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
-    return GetJSCallDescriptor(1 + info->function()->parameter_count(), zone,
+    return GetJSCallDescriptor(zone, 1 + info->function()->parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
     SharedFunctionInfo* shared = info->closure()->shared();
-    return GetJSCallDescriptor(1 + shared->formal_parameter_count(), zone,
+    return GetJSCallDescriptor(zone, 1 + shared->formal_parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(descriptor, 0, CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties, zone);
+    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
+                                 CallDescriptor::kNoFlags,
+                                 Operator::kNoProperties);
   }
   return NULL;  // TODO(titzer): ?
 }
@@ -93,22 +94,22 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 
 CallDescriptor* Linkage::GetJSCallDescriptor(
     int parameter_count, CallDescriptor::Flags flags) const {
-  return GetJSCallDescriptor(parameter_count, zone_, flags);
+  return GetJSCallDescriptor(zone_, parameter_count, flags);
 }
 
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Runtime::FunctionId function, int parameter_count,
     Operator::Properties properties) const {
-  return GetRuntimeCallDescriptor(function, parameter_count, properties, zone_);
+  return GetRuntimeCallDescriptor(zone_, function, parameter_count, properties);
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags, Operator::Properties properties) const {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
-                               properties, zone_);
+  return GetStubCallDescriptor(isolate_, zone_, descriptor,
+                               stack_parameter_count, flags, properties);
 }
 
 
@@ -230,7 +231,8 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
 // Provide unimplemented methods on unsupported architectures, to at least link.
 //==============================================================================
 #if !V8_TURBOFAN_BACKEND
-CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
+CallDescriptor* Linkage::GetJSCallDescriptor(Isolate* isolate, Zone* zone,
+                                             int parameter_count,
                                              CallDescriptor::Flags flags) {
   UNIMPLEMENTED();
   return NULL;

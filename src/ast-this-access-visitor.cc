@@ -10,8 +10,8 @@ namespace internal {
 
 typedef class AstThisAccessVisitor ATAV;  // for code shortitude.
 
-ATAV::AstThisAccessVisitor(Zone* zone) : uses_this_(false) {
-  InitializeAstVisitor(zone);
+ATAV::AstThisAccessVisitor(Isolate* isolate, Zone* zone) : uses_this_(false) {
+  InitializeAstVisitor(isolate, zone);
 }
 
 

@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionSequenceTest : public TestWithZone {
+class InstructionSequenceTest : public TestWithIsolateAndZone {
  public:
   static const int kDefaultNRegs = 4;
   static const int kNoValue = kMinInt;

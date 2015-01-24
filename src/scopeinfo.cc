@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 
-Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
+Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
+                                    Scope* scope) {
   // Collect stack and context locals.
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
@@ -49,7 +50,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
       + parameter_count + stack_local_count + 2 * context_local_count
       + (has_function_name ? 2 : 0);
 
-  Factory* factory = zone->isolate()->factory();
+  Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
