@@ -1,3 +1,11 @@
+2015-01-24: Version 4.2.26
+
+        ES6 Array.prototype.toString falls back on Object.prototype.toString if
+        method "join" is not callable (issue 3793).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-23: Version 4.2.25
 
         Performance and stability improvements on all platforms.
