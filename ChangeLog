@@ -1,3 +1,8 @@
+2015-01-25: Version 4.2.27
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-24: Version 4.2.26
 
         ES6 Array.prototype.toString falls back on Object.prototype.toString if
