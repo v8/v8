@@ -18,11 +18,11 @@ namespace internal {
 
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Handle<JSFunction> getter) {
+    Register holder, int accessor_index, int expected_arguments) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    if (!getter.is_null()) {
+    if (accessor_index >= 0) {
       // Call the JavaScript getter with the receiver on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
@@ -31,8 +31,14 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       }
       __ push(receiver);
       ParameterCount actual(0);
-      ParameterCount expected(getter);
-      __ InvokeFunction(getter, expected, actual, CALL_FUNCTION,
+      ParameterCount expected(expected_arguments);
+      Register scratch = holder;
+      __ mov(scratch, FieldOperand(holder, HeapObject::kMapOffset));
+      __ LoadInstanceDescriptors(scratch, scratch);
+      __ mov(scratch, FieldOperand(scratch, DescriptorArray::GetValueOffset(
+                                                accessor_index)));
+      __ mov(edi, FieldOperand(scratch, AccessorPair::kGetterOffset));
+      __ InvokeFunction(edi, expected, actual, CALL_FUNCTION,
                         NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember

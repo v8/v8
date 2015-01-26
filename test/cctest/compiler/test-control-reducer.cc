@@ -17,6 +17,8 @@ using namespace v8::internal::compiler;
 
 static const size_t kNumLeafs = 4;
 
+enum Decision { kFalse, kUnknown, kTrue };
+
 // TODO(titzer): convert this whole file into unit tests.
 
 static int CheckInputs(Node* node, Node* i0 = NULL, Node* i1 = NULL,
@@ -175,10 +177,25 @@ class ControlReducerTester : HandleAndZoneScope {
     CheckInputs(end, expect);
   }
 
-  void ReduceBranch(Node* expect, Node* branch) {
-    Node* result =
-        ControlReducer::ReduceBranchForTesting(&jsgraph, &common, branch);
-    CHECK_EQ(expect, result);
+  void ReduceBranch(Decision expected, Node* branch) {
+    Node* control = branch->InputAt(1);
+    for (Node* use : branch->uses()) {
+      if (use->opcode() == IrOpcode::kIfTrue) {
+        Node* result =
+            ControlReducer::ReduceIfNodeForTesting(&jsgraph, &common, use);
+        if (expected == kTrue) CHECK_EQ(control, result);
+        if (expected == kFalse) CHECK_EQ(IrOpcode::kDead, result->opcode());
+        if (expected == kUnknown) CHECK_EQ(use, result);
+      } else if (use->opcode() == IrOpcode::kIfFalse) {
+        Node* result =
+            ControlReducer::ReduceIfNodeForTesting(&jsgraph, &common, use);
+        if (expected == kFalse) CHECK_EQ(control, result);
+        if (expected == kTrue) CHECK_EQ(IrOpcode::kDead, result->opcode());
+        if (expected == kUnknown) CHECK_EQ(use, result);
+      } else {
+        UNREACHABLE();
+      }
+    }
   }
 
   Node* Return(Node* val, Node* effect, Node* control) {
@@ -1028,7 +1045,7 @@ struct While {
 TEST(CBranchReduce_none1) {
   ControlReducerTester R;
   Diamond d(R, R.p0);
-  R.ReduceBranch(d.branch, d.branch);
+  R.ReduceBranch(kUnknown, d.branch);
 }
 
 
@@ -1037,7 +1054,7 @@ TEST(CBranchReduce_none2) {
   Diamond d1(R, R.p0);
   Diamond d2(R, R.p0);
   d2.chain(d1);
-  R.ReduceBranch(d2.branch, d2.branch);
+  R.ReduceBranch(kUnknown, d2.branch);
 }
 
 
@@ -1050,13 +1067,7 @@ TEST(CBranchReduce_true) {
 
   for (size_t i = 0; i < arraysize(true_values); i++) {
     Diamond d(R, true_values[i]);
-    Node* true_use = R.graph.NewNode(R.common.Merge(1), d.if_true);
-    Node* false_use = R.graph.NewNode(R.common.Merge(1), d.if_false);
-    R.ReduceBranch(R.start, d.branch);
-    CHECK_EQ(R.start, true_use->InputAt(0));
-    CHECK_EQ(IrOpcode::kDead, false_use->InputAt(0)->opcode());
-    CHECK(d.if_true->IsDead());   // replaced
-    CHECK(d.if_false->IsDead());  // replaced
+    R.ReduceBranch(kTrue, d.branch);
   }
 }
 
@@ -1068,13 +1079,7 @@ TEST(CBranchReduce_false) {
 
   for (size_t i = 0; i < arraysize(false_values); i++) {
     Diamond d(R, false_values[i]);
-    Node* true_use = R.graph.NewNode(R.common.Merge(1), d.if_true);
-    Node* false_use = R.graph.NewNode(R.common.Merge(1), d.if_false);
-    R.ReduceBranch(R.start, d.branch);
-    CHECK_EQ(R.start, false_use->InputAt(0));
-    CHECK_EQ(IrOpcode::kDead, true_use->InputAt(0)->opcode());
-    CHECK(d.if_true->IsDead());   // replaced
-    CHECK(d.if_false->IsDead());  // replaced
+    R.ReduceBranch(kFalse, d.branch);
   }
 }
 
@@ -1356,10 +1361,10 @@ TEST(CNonTermLoop_big2) {
   Branch b1(R, R.p0);
   Node* rt = R.graph.NewNode(R.common.Return(), R.one, R.start, b1.if_true);
 
-  Branch b2(R, R.zero, b1.if_false);
+  Node* loop = R.graph.NewNode(R.common.Loop(2), b1.if_false, R.start);
+  Branch b2(R, R.zero, loop);
+  loop->ReplaceInput(1, b2.if_false);
   Node* rf = R.graph.NewNode(R.common.Return(), R.zero, R.start, b2.if_true);
-  Node* loop = R.SetSelfReferences(
-      R.graph.NewNode(R.common.Loop(2), b2.if_false, R.self));
   Node* merge = R.graph.NewNode(R.common.Merge(2), rt, rf);
   R.end->ReplaceInput(0, merge);
 

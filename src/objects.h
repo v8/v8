@@ -4852,7 +4852,8 @@ class DeoptimizationInputData: public FixedArray {
   static const int kOsrPcOffsetIndex = 4;
   static const int kOptimizationIdIndex = 5;
   static const int kSharedFunctionInfoIndex = 6;
-  static const int kFirstDeoptEntryIndex = 7;
+  static const int kWeakCellCacheIndex = 7;
+  static const int kFirstDeoptEntryIndex = 8;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kAstIdRawOffset = 0;
@@ -4877,6 +4878,7 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DEFINE_ELEMENT_ACCESSORS(OptimizationId, Smi)
   DEFINE_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
+  DEFINE_ELEMENT_ACCESSORS(WeakCellCache, Object)
 
 #undef DEFINE_ELEMENT_ACCESSORS
 
@@ -5406,6 +5408,9 @@ class Code: public HeapObject {
   }
 
   static inline bool IsWeakObjectInOptimizedCode(Object* object);
+
+  static Handle<WeakCell> WeakCellFor(Handle<Code> code);
+  WeakCell* CachedWeakCell();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.

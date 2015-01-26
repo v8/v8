@@ -2840,8 +2840,8 @@ Local<Uint32> Value::ToArrayIndex() const {
 
 int32_t Value::Int32Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsSmi()) {
-    return i::Smi::cast(*obj)->value();
+  if (obj->IsNumber()) {
+    return NumberToInt32(*obj);
   } else {
     i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "Int32Value (slow)");
@@ -2941,8 +2941,8 @@ bool Value::SameValue(Handle<Value> that) const {
 
 uint32_t Value::Uint32Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsSmi()) {
-    return i::Smi::cast(*obj)->value();
+  if (obj->IsNumber()) {
+    return NumberToUint32(*obj);
   } else {
     i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "Uint32Value");

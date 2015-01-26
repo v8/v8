@@ -48,12 +48,12 @@ class Preparation(Step):
     # Make sure tags are fetched.
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
 
-    if(self["current_branch"] == self.Config("TRUNKBRANCH")
+    if(self["current_branch"] == self.Config("CANDIDATESBRANCH")
        or self["current_branch"] == self.Config("BRANCHNAME")):
       print "Warning: Script started on branch %s" % self["current_branch"]
 
     self.PrepareBranch()
-    self.DeleteBranch(self.Config("TRUNKBRANCH"))
+    self.DeleteBranch(self.Config("CANDIDATESBRANCH"))
 
 
 class FreshBranch(Step):
@@ -77,40 +77,41 @@ class PreparePushRevision(Step):
 
 
 class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of last push to trunk."
+  MESSAGE = "Detect commit ID of last push to CANDIDATES."
 
   def RunStep(self):
-    last_push = self._options.last_push or self.FindLastTrunkPush()
+    last_push = self._options.last_push or self.FindLastCandidatesPush()
     while True:
       # Print assumed commit, circumventing git's pager.
       print self.GitLog(n=1, git_hash=last_push)
-      if self.Confirm("Is the commit printed above the last push to trunk?"):
+      if self.Confirm(
+          "Is the commit printed above the last push to candidates?"):
         break
-      last_push = self.FindLastTrunkPush(parent_hash=last_push)
+      last_push = self.FindLastCandidatesPush(parent_hash=last_push)
 
-    if self._options.last_bleeding_edge:
-      # Read the bleeding edge revision of the last push from a command-line
-      # option.
-      last_push_bleeding_edge = self._options.last_bleeding_edge
+    if self._options.last_master:
+      # Read the master revision of the last push from a command-line option.
+      last_push_master = self._options.last_master
     else:
-      # Retrieve the bleeding edge revision of the last push from the text in
+      # Retrieve the master revision of the last push from the text in
       # the push commit message.
       last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
-      last_push_bleeding_edge = PUSH_MSG_GIT_RE.match(
+      last_push_master = PUSH_MSG_GIT_RE.match(
           last_push_title).group("git_rev")
 
-      if not last_push_bleeding_edge:  # pragma: no cover
-        self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
-                 % last_push)
+      if not last_push_master:  # pragma: no cover
+        self.Die(
+            "Could not retrieve master git hash for candidates push %s"
+            % last_push)
 
-    # This points to the git hash of the last push on trunk.
-    self["last_push_trunk"] = last_push
-    # This points to the last bleeding_edge revision that went into the last
+    # This points to the git hash of the last push on candidates.
+    self["last_push_candidates"] = last_push
+    # This points to the last master revision that went into the last
     # push.
     # TODO(machenbach): Do we need a check to make sure we're not pushing a
     # revision older than the last push? If we do this, the output of the
     # current change log preparation won't make much sense.
-    self["last_push_bleeding_edge"] = last_push_bleeding_edge
+    self["last_push_master"] = last_push_master
 
 
 class GetLatestVersion(Step):
@@ -140,7 +141,7 @@ class IncrementVersion(Step):
 
   def RunStep(self):
     # Variables prefixed with 'new_' contain the new version numbers for the
-    # ongoing trunk push.
+    # ongoing candidates push.
     self["new_major"] = self["latest_major"]
     self["new_minor"] = self["latest_minor"]
     self["new_build"] = str(int(self["latest_build"]) + 1)
@@ -179,7 +180,7 @@ class PrepareChangeLog(Step):
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
     TextToFile(output, self.Config("CHANGELOG_ENTRY_FILE"))
     commits = self.GitLog(format="%H",
-        git_hash="%s..%s" % (self["last_push_bleeding_edge"],
+        git_hash="%s..%s" % (self["last_push_master"],
                              self["push_hash"]))
 
     # Cache raw commit messages.
@@ -225,7 +226,7 @@ class EditChangeLog(Step):
     if changelog_entry == "":  # pragma: no cover
       self.Die("Empty ChangeLog entry.")
 
-    # Safe new change log for adding it later to the trunk patch.
+    # Safe new change log for adding it later to the candidates patch.
     TextToFile(changelog_entry, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
@@ -272,10 +273,10 @@ class SquashCommits(Step):
 
 
 class NewBranch(Step):
-  MESSAGE = "Create a new branch from trunk."
+  MESSAGE = "Create a new branch from candidates."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config("TRUNKBRANCH"),
+    self.GitCreateBranch(self.Config("CANDIDATESBRANCH"),
                          self.vc.RemoteCandidateBranch())
 
 
@@ -286,11 +287,11 @@ class ApplyChanges(Step):
     self.ApplyPatch(self.Config("PATCH_FILE"))
     os.remove(self.Config("PATCH_FILE"))
     # The change log has been modified by the patch. Reset it to the version
-    # on trunk and apply the exact changes determined by this PrepareChangeLog
-    # step above.
+    # on candidates and apply the exact changes determined by this
+    # PrepareChangeLog step above.
     self.GitCheckoutFile(CHANGELOG_FILE, self.vc.RemoteCandidateBranch())
     # The version file has been modified by the patch. Reset it to the version
-    # on trunk.
+    # on candidates.
     self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
 
 
@@ -311,13 +312,13 @@ class PrepareVersionBranch(Step):
   def RunStep(self):
     self.GitCheckout("master")
     self.Git("fetch")
-    self.GitDeleteBranch(self.Config("TRUNKBRANCH"))
-    self.GitCreateBranch(self.Config("TRUNKBRANCH"),
+    self.GitDeleteBranch(self.Config("CANDIDATESBRANCH"))
+    self.GitCreateBranch(self.Config("CANDIDATESBRANCH"),
                          self.vc.RemoteCandidateBranch())
 
 
 class AddChangeLog(Step):
-  MESSAGE = "Add ChangeLog changes to trunk branch."
+  MESSAGE = "Add ChangeLog changes to candidates branch."
 
   def RunStep(self):
     changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
@@ -328,7 +329,7 @@ class AddChangeLog(Step):
 
 
 class SetVersion(Step):
-  MESSAGE = "Set correct version for trunk."
+  MESSAGE = "Set correct version for candidates."
 
   def RunStep(self):
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
@@ -349,7 +350,7 @@ class SanityCheck(Step):
     # TODO(machenbach): Run presubmit script here as it is now missing in the
     # prepare push process.
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
-        "%s, compile, run tests. Do you want to commit this new trunk "
+        "%s, compile, run tests. Do you want to commit this new candidates "
         "revision to the repository?" % VERSION_FILE):
       self.Die("Execution canceled.")  # pragma: no cover
 
@@ -373,16 +374,16 @@ class CleanUp(Step):
   MESSAGE = "Done!"
 
   def RunStep(self):
-    print("Congratulations, you have successfully created the trunk "
+    print("Congratulations, you have successfully created the candidates "
           "revision %s."
           % self["version"])
 
     self.CommonCleanup()
-    if self.Config("TRUNKBRANCH") != self["current_branch"]:
-      self.GitDeleteBranch(self.Config("TRUNKBRANCH"))
+    if self.Config("CANDIDATESBRANCH") != self["current_branch"]:
+      self.GitDeleteBranch(self.Config("CANDIDATESBRANCH"))
 
 
-class PushToTrunk(ScriptsBase):
+class PushToCandidates(ScriptsBase):
   def _PrepareOptions(self, parser):
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-f", "--force",
@@ -391,12 +392,12 @@ class PushToTrunk(ScriptsBase):
     group.add_argument("-m", "--manual",
                       help="Prompt the user at every important step.",
                       default=False, action="store_true")
-    parser.add_argument("-b", "--last-bleeding-edge",
-                        help=("The git commit ID of the last bleeding edge "
-                              "revision that was pushed to trunk. This is "
-                              "used for the auto-generated ChangeLog entry."))
+    parser.add_argument("-b", "--last-master",
+                        help=("The git commit ID of the last master "
+                              "revision that was pushed to candidates. This is"
+                              " used for the auto-generated ChangeLog entry."))
     parser.add_argument("-l", "--last-push",
-                        help="The git commit ID of the last push to trunk.")
+                        help="The git commit ID of the last candidates push.")
     parser.add_argument("-R", "--revision",
                         help="The git commit ID to push (defaults to HEAD).")
 
@@ -414,11 +415,12 @@ class PushToTrunk(ScriptsBase):
   def _Config(self):
     return {
       "BRANCHNAME": "prepare-push",
-      "TRUNKBRANCH": "trunk-push",
-      "PERSISTFILE_BASENAME": "/tmp/v8-push-to-trunk-tempfile",
-      "CHANGELOG_ENTRY_FILE": "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
-      "PATCH_FILE": "/tmp/v8-push-to-trunk-tempfile-patch-file",
-      "COMMITMSG_FILE": "/tmp/v8-push-to-trunk-tempfile-commitmsg",
+      "CANDIDATESBRANCH": "candidates-push",
+      "PERSISTFILE_BASENAME": "/tmp/v8-push-to-candidates-tempfile",
+      "CHANGELOG_ENTRY_FILE":
+          "/tmp/v8-push-to-candidates-tempfile-changelog-entry",
+      "PATCH_FILE": "/tmp/v8-push-to-candidates-tempfile-patch-file",
+      "COMMITMSG_FILE": "/tmp/v8-push-to-candidates-tempfile-commitmsg",
     }
 
   def _Steps(self):
@@ -449,4 +451,4 @@ class PushToTrunk(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(PushToTrunk().Run())
+  sys.exit(PushToCandidates().Run())

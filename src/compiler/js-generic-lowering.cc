@@ -186,14 +186,23 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
       CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(
       callable.descriptor(), nargs, FlagsForNode(node), properties);
-  // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
-  // of code across native contexts. Fix this by loading from given context.
-  Handle<JSFunction> function(
-      JSFunction::cast(info()->context()->builtins()->javascript_builtin(id)));
+  Node* global_object = graph()->NewNode(
+      machine()->Load(kMachAnyTagged), NodeProperties::GetContextInput(node),
+      jsgraph()->IntPtrConstant(
+          Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
+      NodeProperties::GetEffectInput(node), graph()->start());
+  Node* builtins_object = graph()->NewNode(
+      machine()->Load(kMachAnyTagged), global_object,
+      jsgraph()->IntPtrConstant(GlobalObject::kBuiltinsOffset - kHeapObjectTag),
+      NodeProperties::GetEffectInput(node), graph()->start());
+  Node* function = graph()->NewNode(
+      machine()->Load(kMachAnyTagged), builtins_object,
+      jsgraph()->IntPtrConstant(JSBuiltinsObject::OffsetOfFunctionWithId(id) -
+                                kHeapObjectTag),
+      NodeProperties::GetEffectInput(node), graph()->start());
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* function_node = jsgraph()->HeapConstant(function);
   PatchInsertInput(node, 0, stub_code);
-  PatchInsertInput(node, 1, function_node);
+  PatchInsertInput(node, 1, function);
   PatchOperator(node, common()->Call(desc));
 }
 
@@ -291,8 +300,8 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   StrictMode strict_mode = OpParameter<StrictMode>(node);
-  PatchInsertInput(node, 2, jsgraph()->SmiConstant(strict_mode));
   ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
+  PatchInsertInput(node, 4, jsgraph()->SmiConstant(strict_mode));
 }
 
 

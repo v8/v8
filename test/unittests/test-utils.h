@@ -16,7 +16,7 @@ namespace v8 {
 std::ostream& operator<<(std::ostream&, ExternalArrayType);
 
 
-class TestWithIsolate : public ::testing::Test {
+class TestWithIsolate : public virtual ::testing::Test {
  public:
   TestWithIsolate();
   virtual ~TestWithIsolate();

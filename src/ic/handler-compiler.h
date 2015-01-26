@@ -133,8 +133,8 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // inlined.
   Handle<Code> CompileLoadInterceptor(LookupIterator* it);
 
-  Handle<Code> CompileLoadViaGetter(Handle<Name> name,
-                                    Handle<JSFunction> getter);
+  Handle<Code> CompileLoadViaGetter(Handle<Name> name, int accessor_index,
+                                    int expected_arguments);
 
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
                                  bool is_configurable);
@@ -144,12 +144,12 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                              Handle<HeapType> type);
 
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<HeapType> type,
-                                    Register receiver,
-                                    Handle<JSFunction> getter);
+                                    Register receiver, Register holder,
+                                    int accessor_index, int expected_arguments);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
-    GenerateLoadViaGetter(masm, Handle<HeapType>::null(), no_reg,
-                          Handle<JSFunction>());
+    GenerateLoadViaGetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
+                          -1);
   }
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,

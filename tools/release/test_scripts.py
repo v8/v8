@@ -39,28 +39,25 @@ import common_includes
 from common_includes import *
 import merge_to_branch
 from merge_to_branch import *
-import push_to_trunk
-from push_to_trunk import *
+import push_to_candidates
+from push_to_candidates import *
 import chromium_roll
 from chromium_roll import ChromiumRoll
 import releases
 from releases import Releases
-import bump_up_version
-from bump_up_version import BumpUpVersion
-from bump_up_version import LastChangeBailout
-from bump_up_version import LKGRVersionUpToDateBailout
 from auto_tag import AutoTag
 
 
 TEST_CONFIG = {
   "DEFAULT_CWD": None,
   "BRANCHNAME": "test-prepare-push",
-  "TRUNKBRANCH": "test-trunk-push",
-  "PERSISTFILE_BASENAME": "/tmp/test-v8-push-to-trunk-tempfile",
-  "CHANGELOG_ENTRY_FILE": "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
-  "PATCH_FILE": "/tmp/test-v8-push-to-trunk-tempfile-patch",
-  "COMMITMSG_FILE": "/tmp/test-v8-push-to-trunk-tempfile-commitmsg",
-  "CHROMIUM": "/tmp/test-v8-push-to-trunk-tempfile-chromium",
+  "CANDIDATESBRANCH": "test-candidates-push",
+  "PERSISTFILE_BASENAME": "/tmp/test-v8-push-to-candidates-tempfile",
+  "CHANGELOG_ENTRY_FILE":
+      "/tmp/test-v8-push-to-candidates-tempfile-changelog-entry",
+  "PATCH_FILE": "/tmp/test-v8-push-to-candidates-tempfile-patch",
+  "COMMITMSG_FILE": "/tmp/test-v8-push-to-candidates-tempfile-commitmsg",
+  "CHROMIUM": "/tmp/test-v8-push-to-candidates-tempfile-chromium",
   "SETTINGS_LOCATION": None,
   "ALREADY_MERGING_SENTINEL_FILE":
       "/tmp/test-merge-to-branch-tempfile-already-merging",
@@ -376,7 +373,7 @@ class ScriptTest(unittest.TestCase):
                     config=TEST_CONFIG, side_effect_handler=self,
                     options=options)
 
-  def RunStep(self, script=PushToTrunk, step_class=Step, args=None):
+  def RunStep(self, script=PushToCandidates, step_class=Step, args=None):
     """Convenience wrapper."""
     args = args if args is not None else ["-m"]
     return script(TEST_CONFIG, self, self._state).RunSteps([step_class], args)
@@ -540,7 +537,7 @@ class ScriptTest(unittest.TestCase):
       Cmd("git log -1 --format=%H HEAD", "push_hash")
     ])
 
-    self.RunStep(PushToTrunk, PreparePushRevision)
+    self.RunStep(PushToCandidates, PreparePushRevision)
     self.assertEquals("push_hash", self._state["push_hash"])
 
   def testPrepareChangeLog(self):
@@ -567,10 +564,10 @@ class ScriptTest(unittest.TestCase):
       Cmd("git log -1 --format=%an rev4", "author4@chromium.org"),
     ])
 
-    self._state["last_push_bleeding_edge"] = "1234"
+    self._state["last_push_master"] = "1234"
     self._state["push_hash"] = "push_hash"
     self._state["version"] = "3.22.5"
-    self.RunStep(PushToTrunk, PrepareChangeLog)
+    self.RunStep(PushToCandidates, PrepareChangeLog)
 
     actual_cl = FileToText(TEST_CONFIG["CHANGELOG_ENTRY_FILE"])
 
@@ -611,7 +608,7 @@ class ScriptTest(unittest.TestCase):
       Cmd("vi %s" % TEST_CONFIG["CHANGELOG_ENTRY_FILE"], ""),
     ])
 
-    self.RunStep(PushToTrunk, EditChangeLog)
+    self.RunStep(PushToCandidates, EditChangeLog)
 
     self.assertEquals("New\n        Lines",
                       FileToText(TEST_CONFIG["CHANGELOG_ENTRY_FILE"]))
@@ -633,7 +630,7 @@ test_tag
           "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
     ])
 
-    self.RunStep(PushToTrunk, GetLatestVersion)
+    self.RunStep(PushToCandidates, GetLatestVersion)
 
     self.assertEquals("3", self._state["latest_major"])
     self.assertEquals("22", self._state["latest_minor"])
@@ -652,7 +649,7 @@ test_tag
     self._state["push_hash"] = "hash1"
     self._state["date"] = "1999-11-11"
 
-    self.RunStep(PushToTrunk, SquashCommits)
+    self.RunStep(PushToCandidates, SquashCommits)
     self.assertEquals(FileToText(TEST_CONFIG["COMMITMSG_FILE"]), expected_msg)
 
     patch = FileToText(TEST_CONFIG["PATCH_FILE"])
@@ -706,16 +703,16 @@ Performance and stability improvements on all platforms."""
     ])
     FakeScript(fake_config, self).Run(["--work-dir", work_dir])
 
-  def _PushToTrunk(self, force=False, manual=False):
+  def _PushToCandidates(self, force=False, manual=False):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
 
-    # The version file on bleeding edge has build level 5, while the version
-    # file from trunk has build level 4.
+    # The version file on master has build level 5, while the version
+    # file from candidates has build level 4.
     self.WriteFakeVersionFile(build=5)
 
     TEST_CONFIG["CHANGELOG_ENTRY_FILE"] = self.MakeEmptyTempFile()
-    bleeding_edge_change_log = "2014-03-17: Sentinel\n"
-    TextToFile(bleeding_edge_change_log,
+    master_change_log = "2014-03-17: Sentinel\n"
+    TextToFile(master_change_log,
                os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     os.environ["EDITOR"] = "vi"
 
@@ -732,15 +729,16 @@ Log text 1 (issue 321).
 Performance and stability improvements on all platforms."""
 
     def ResetChangeLog():
-      """On 'git co -b new_branch svn/trunk', and 'git checkout -- ChangeLog',
-      the ChangLog will be reset to its content on trunk."""
-      trunk_change_log = """1999-04-05: Version 3.22.4
+      """On 'git co -b new_branch origin/candidates',
+      and 'git checkout -- ChangeLog',
+      the ChangLog will be reset to its content on candidates."""
+      candidates_change_log = """1999-04-05: Version 3.22.4
 
         Performance and stability improvements on all platforms.\n"""
-      TextToFile(trunk_change_log,
+      TextToFile(candidates_change_log,
                  os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
 
-    def ResetToTrunk():
+    def ResetToCandidates():
       ResetChangeLog()
       self.WriteFakeVersionFile()
 
@@ -755,7 +753,8 @@ Performance and stability improvements on all platforms."""
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
       self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
 
-      # Check that the change log on the trunk branch got correctly modified.
+      # Check that the change log on the candidates branch got correctly
+      # modified.
       change_log = FileToText(
           os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
       self.assertEquals(
@@ -813,7 +812,7 @@ Performance and stability improvements on all platforms."""
       Cmd("git checkout -f origin/master", ""),
       Cmd("git diff origin/candidates push_hash", "patch content\n"),
       Cmd(("git new-branch %s --upstream origin/candidates" %
-           TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
+           TEST_CONFIG["CANDIDATESBRANCH"]), "", cb=ResetToCandidates),
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
       Cmd("git checkout -f origin/candidates -- ChangeLog", "",
           cb=ResetChangeLog),
@@ -827,9 +826,9 @@ Performance and stability improvements on all platforms."""
       Cmd("git cl land -f --bypass-hooks", ""),
       Cmd("git checkout -f master", ""),
       Cmd("git fetch", ""),
-      Cmd("git branch -D %s" % TEST_CONFIG["TRUNKBRANCH"], ""),
+      Cmd("git branch -D %s" % TEST_CONFIG["CANDIDATESBRANCH"], ""),
       Cmd(("git new-branch %s --upstream origin/candidates" %
-           TEST_CONFIG["TRUNKBRANCH"]), "", cb=ResetToTrunk),
+           TEST_CONFIG["CANDIDATESBRANCH"]), "", cb=ResetToCandidates),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl land -f --bypass-hooks", ""),
@@ -841,7 +840,7 @@ Performance and stability improvements on all platforms."""
       Cmd("git push origin 3.22.5", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
-      Cmd("git branch -D %s" % TEST_CONFIG["TRUNKBRANCH"], ""),
+      Cmd("git branch -D %s" % TEST_CONFIG["CANDIDATESBRANCH"], ""),
     ]
     self.Expect(expectations)
 
@@ -849,7 +848,7 @@ Performance and stability improvements on all platforms."""
     if force: args.append("-f")
     if manual: args.append("-m")
     else: args += ["-r", "reviewer@chromium.org"]
-    PushToTrunk(TEST_CONFIG, self).Run(args)
+    PushToCandidates(TEST_CONFIG, self).Run(args)
 
     cl = FileToText(os.path.join(TEST_CONFIG["DEFAULT_CWD"], CHANGELOG_FILE))
     self.assertTrue(re.search(r"^\d\d\d\d\-\d+\-\d+: Version 3\.22\.5", cl))
@@ -857,17 +856,16 @@ Performance and stability improvements on all platforms."""
     self.assertTrue(re.search(r"1999\-04\-05: Version 3\.22\.4", cl))
 
     # Note: The version file is on build number 5 again in the end of this test
-    # since the git command that merges to the bleeding edge branch is mocked
-    # out.
+    # since the git command that merges to master is mocked out.
 
-  def testPushToTrunkManual(self):
-    self._PushToTrunk(manual=True)
+  def testPushToCandidatesManual(self):
+    self._PushToCandidates(manual=True)
 
-  def testPushToTrunkSemiAutomatic(self):
-    self._PushToTrunk()
+  def testPushToCandidatesSemiAutomatic(self):
+    self._PushToCandidates()
 
-  def testPushToTrunkForced(self):
-    self._PushToTrunk(force=True)
+  def testPushToCandidatesForced(self):
+    self._PushToCandidates(force=True)
 
   C_V8_22624_LOG = """V8 CL.
 
@@ -915,7 +913,7 @@ def get_list():
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%s push_hash",
-          "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
+          "Version 3.22.5 (based on abc)\n"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
           "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
@@ -926,7 +924,7 @@ def get_list():
       Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
       Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
-           "(based on bleeding_edge revision r22622).\n\n"
+           "(based on abc).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
            "case of problems.\n\nTBR=c_name@chromium.org\" "
            "--author \"author@chromium.org <author@chromium.org>\""),
@@ -959,14 +957,11 @@ def get_list():
 
   def testAutoPush(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
-    TEST_CONFIG["SETTINGS_LOCATION"] = "~/.doesnotexist"
 
     self.Expect([
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
-      URL("https://v8-status.appspot.com/current?format=json",
-          "{\"message\": \"Tree is throttled\"}"),
       Cmd("git fetch origin +refs/heads/candidate:refs/heads/candidate", ""),
       Cmd("git show-ref -s refs/heads/candidate", "abc123\n"),
       Cmd(("git log -1 --format=%H --grep=\""
@@ -982,38 +977,6 @@ def get_list():
                                   % TEST_CONFIG["PERSISTFILE_BASENAME"]))
 
     self.assertEquals("abc123", state["candidate"])
-
-  def testAutoPushStoppedBySettings(self):
-    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
-    TEST_CONFIG["SETTINGS_LOCATION"] = self.MakeEmptyTempFile()
-    TextToFile("{\"enable_auto_push\": false}",
-               TEST_CONFIG["SETTINGS_LOCATION"])
-
-    self.Expect([
-      Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
-      Cmd("git fetch", ""),
-    ])
-
-    def RunAutoPush():
-      auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS)
-    self.assertRaises(Exception, RunAutoPush)
-
-  def testAutoPushStoppedByTreeStatus(self):
-    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
-    TEST_CONFIG["SETTINGS_LOCATION"] = "~/.doesnotexist"
-
-    self.Expect([
-      Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
-      Cmd("git fetch", ""),
-      URL("https://v8-status.appspot.com/current?format=json",
-          "{\"message\": \"Tree is throttled (no push)\"}"),
-    ])
-
-    def RunAutoPush():
-      auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS)
-    self.assertRaises(Exception, RunAutoPush)
 
   def testAutoRollExistingRoll(self):
     self.Expect([
@@ -1113,7 +1076,7 @@ BUG=123,234,345,456,567,v8:123
 LOG=N
 """
 
-    def VerifySVNCommit():
+    def VerifyLand():
       commit = FileToText(TEST_CONFIG["COMMITMSG_FILE"])
       self.assertEquals(msg, commit)
       version = FileToText(
@@ -1186,7 +1149,7 @@ LOG=N
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl land -f --bypass-hooks", "Closing issue\n",
-          cb=VerifySVNCommit),
+          cb=VerifyLand),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep=\""
           "Version 3.22.5.1 (cherry-pick)"
@@ -1368,8 +1331,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
       {
         "revision": "345",
         "revision_git": "hash_345",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "patches_merged": "",
         "version": "3.22.3",
         "chromium_revision": "3456:4566",
@@ -1383,8 +1346,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
         "revision": "123",
         "revision_git": "hash_123",
         "patches_merged": "",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "version": "3.21.2",
         "chromium_revision": "",
         "branch": "3.21",
@@ -1397,8 +1360,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
         "revision": "234",
         "revision_git": "hash_234",
         "patches_merged": "abc12",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "version": "3.3.1.1",
         "chromium_revision": "",
         "branch": "3.3",
@@ -1409,95 +1372,6 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
       },
     ]
     self.assertEquals(expected_json, json.loads(FileToText(json_output)))
-
-
-  def _bumpUpVersion(self):
-    self.WriteFakeVersionFile()
-
-    def ResetVersion(minor, build, patch=0):
-      return lambda: self.WriteFakeVersionFile(minor=minor,
-                                               build=build,
-                                               patch=patch)
-
-    return [
-      Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f master", "", cb=ResetVersion(11, 4)),
-      Cmd("git pull", ""),
-      Cmd("git branch", ""),
-      Cmd("git checkout -f master", ""),
-      Cmd("git log -1 --format=%H", "latest_hash"),
-      Cmd("git diff --name-only latest_hash latest_hash^", ""),
-      URL("https://v8-status.appspot.com/lkgr", "12345"),
-      Cmd("git checkout -f master", ""),
-      Cmd(("git log --format=%H --grep="
-           "\"^git-svn-id: [^@]*@12345 [A-Za-z0-9-]*$\""),
-          "lkgr_hash"),
-      Cmd("git new-branch auto-bump-up-version --upstream lkgr_hash", ""),
-      Cmd("git checkout -f master", ""),
-      Cmd("git branch", "auto-bump-up-version\n* master"),
-      Cmd("git branch -D auto-bump-up-version", ""),
-      Cmd("git diff --name-only lkgr_hash lkgr_hash^", ""),
-      Cmd("git checkout -f candidates", "", cb=ResetVersion(11, 5)),
-      Cmd("git pull", ""),
-      URL("https://v8-status.appspot.com/current?format=json",
-          "{\"message\": \"Tree is open\"}"),
-      Cmd("git new-branch auto-bump-up-version --upstream master", "",
-          cb=ResetVersion(11, 4)),
-      Cmd("git commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
-          "TBR=author@chromium.org\" "
-          "--author \"author@chromium.org <author@chromium.org>\"", ""),
-    ]
-
-  def testBumpUpVersionGit(self):
-    expectations = self._bumpUpVersion()
-    expectations += [
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
-          "--bypass-hooks", ""),
-      Cmd("git cl land -f --bypass-hooks", ""),
-      Cmd("git checkout -f master", ""),
-      Cmd("git branch", "auto-bump-up-version\n* master"),
-      Cmd("git branch -D auto-bump-up-version", ""),
-    ]
-    self.Expect(expectations)
-
-    BumpUpVersion(TEST_CONFIG, self).Run(["-a", "author@chromium.org"])
-
-
-  # Test that we bail out if the last change was a version change.
-  def testBumpUpVersionBailout1(self):
-    self._state["latest"] = "latest_hash"
-
-    self.Expect([
-      Cmd("git diff --name-only latest_hash latest_hash^", VERSION_FILE),
-    ])
-
-    self.assertEquals(0,
-        self.RunStep(BumpUpVersion, LastChangeBailout, ["--dry_run"]))
-
-  # Test that we bail out if the lkgr was a version change.
-  def testBumpUpVersionBailout2(self):
-    self._state["lkgr"] = "lkgr_hash"
-
-    self.Expect([
-      Cmd("git diff --name-only lkgr_hash lkgr_hash^", VERSION_FILE),
-    ])
-
-    self.assertEquals(0,
-        self.RunStep(BumpUpVersion, LKGRVersionUpToDateBailout, ["--dry_run"]))
-
-  # Test that we bail out if the last version is already newer than the lkgr's
-  # version.
-  def testBumpUpVersionBailout3(self):
-    self._state["lkgr"] = "lkgr_hash"
-    self._state["lkgr_version"] = "3.22.4.0"
-    self._state["latest_version"] = "3.22.5.0"
-
-    self.Expect([
-      Cmd("git diff --name-only lkgr_hash lkgr_hash^", ""),
-    ])
-
-    self.assertEquals(0,
-        self.RunStep(BumpUpVersion, LKGRVersionUpToDateBailout, ["--dry_run"]))
 
 
 class SystemTest(unittest.TestCase):

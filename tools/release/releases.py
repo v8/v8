@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# This script retrieves the history of all V8 branches and trunk revisions and
+# This script retrieves the history of all V8 branches and
 # their corresponding Chromium revisions.
 
 # Requires a chromium checkout with branch heads:
@@ -136,7 +136,7 @@ class RetrieveV8Releases(Step):
     return (self._options.max_releases > 0
             and len(releases) > self._options.max_releases)
 
-  def GetBleedingEdgeGitFromPush(self, title):
+  def GetMasterHashFromPush(self, title):
     return MatchSafe(PUSH_MSG_GIT_RE.match(title))
 
   def GetMergedPatches(self, body):
@@ -161,7 +161,7 @@ class RetrieveV8Releases(Step):
 
 
   def GetReleaseDict(
-      self, git_hash, bleeding_edge_rev, bleeding_edge_git, branch, version,
+      self, git_hash, master_position, master_hash, branch, version,
       patches, cl_body):
     revision = self.GetCommitPositionNumber(git_hash)
     return {
@@ -170,9 +170,9 @@ class RetrieveV8Releases(Step):
       # The git revision on the branch.
       "revision_git": git_hash,
       # The cr commit position number on master.
-      "bleeding_edge": bleeding_edge_rev,
+      "master_position": master_position,
       # The same for git.
-      "bleeding_edge_git": bleeding_edge_git,
+      "master_hash": master_hash,
       # The branch name.
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.
@@ -185,8 +185,8 @@ class RetrieveV8Releases(Step):
       "chromium_revision": "",
       # Default for easier output formatting.
       "chromium_branch": "",
-      # Link to the CL on code review. Trunk pushes are not uploaded, so this
-      # field will be populated below with the recent roll CL link.
+      # Link to the CL on code review. Candiates pushes are not uploaded,
+      # so this field will be populated below with the recent roll CL link.
       "review_link": MatchSafe(REVIEW_LINK_RE.search(cl_body)),
       # Link to the commit message on google code.
       "revision_link": ("https://code.google.com/p/v8/source/detail?r=%s"
@@ -208,13 +208,13 @@ class RetrieveV8Releases(Step):
         patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
-    bleeding_edge_git = self.GetBleedingEdgeGitFromPush(title)
-    bleeding_edge_position = ""
-    if bleeding_edge_git:
-      bleeding_edge_position = self.GetCommitPositionNumber(bleeding_edge_git)
+    master_hash = self.GetMasterHashFromPush(title)
+    master_position = ""
+    if master_hash:
+      master_position = self.GetCommitPositionNumber(master_hash)
     # TODO(machenbach): Add the commit position number.
     return self.GetReleaseDict(
-        git_hash, bleeding_edge_position, bleeding_edge_git, branch, version,
+        git_hash, master_position, master_hash, branch, version,
         patches, body), self["patch"]
 
   def GetReleasesFromMaster(self):
@@ -270,7 +270,7 @@ class RetrieveV8Releases(Step):
     branches = self.vc.GetBranches()
     releases = []
     if self._options.branch == 'recent':
-      # Get only recent development on trunk, beta and stable.
+      # Get only recent development on candidates, beta and stable.
       if self._options.max_releases == 0:  # pragma: no cover
         self._options.max_releases = 10
       beta, stable = SortBranches(branches)[0:2]
@@ -373,7 +373,7 @@ class RetrieveChromiumV8Releases(Step):
     # Clean up.
     self.GitCheckoutFileSafe("DEPS", "HEAD", cwd=cwd)
 
-    # Add the chromium ranges to the v8 trunk and bleeding_edge releases.
+    # Add the chromium ranges to the v8 candidates and master releases.
     all_ranges = BuildRevisionRanges(cr_releases)
     releases_dict = dict((r["revision"], r) for r in releases)
     for revision, ranges in all_ranges.iteritems():
@@ -386,13 +386,13 @@ class RietrieveChromiumBranches(Step):
 
   def RunStep(self):
     cwd = self._options.chromium
-    trunk_releases = filter(lambda r: r["branch"] == self.vc.CandidateBranch(),
-                            self["releases"])
-    if not trunk_releases:  # pragma: no cover
-      print "No trunk releases detected. Skipping chromium history."
+    cand_releases = filter(lambda r: r["branch"] == self.vc.CandidateBranch(),
+                           self["releases"])
+    if not cand_releases:  # pragma: no cover
+      print "No candidates releases detected. Skipping chromium history."
       return True
 
-    oldest_v8_rev = int(trunk_releases[-1]["revision"])
+    oldest_v8_rev = int(cand_releases[-1]["revision"])
 
     # Filter out irrelevant branches.
     branches = filter(lambda r: re.match(r"branch-heads/\d+", r),
@@ -430,11 +430,11 @@ class RietrieveChromiumBranches(Step):
     # Clean up.
     self.GitCheckoutFileSafe("DEPS", "HEAD", cwd=cwd)
 
-    # Add the chromium branches to the v8 trunk releases.
+    # Add the chromium branches to the v8 candidate releases.
     all_ranges = BuildRevisionRanges(cr_branches)
-    trunk_dict = dict((r["revision"], r) for r in trunk_releases)
+    cand_dict = dict((r["revision"], r) for r in cand_releases)
     for revision, ranges in all_ranges.iteritems():
-      trunk_dict.get(revision, {})["chromium_branch"] = ranges
+      cand_dict.get(revision, {})["chromium_branch"] = ranges
 
 
 class CleanUp(Step):
@@ -471,7 +471,8 @@ class Releases(ScriptsBase):
     parser.add_argument("-b", "--branch", default="recent",
                         help=("The branch to analyze. If 'all' is specified, "
                               "analyze all branches. If 'recent' (default) "
-                              "is specified, track beta, stable and trunk."))
+                              "is specified, track beta, stable and "
+                              "candidates."))
     parser.add_argument("-c", "--chromium",
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))

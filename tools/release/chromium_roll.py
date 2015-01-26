@@ -19,10 +19,10 @@ class Preparation(Step):
 
 
 class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of last push to trunk."
+  MESSAGE = "Detect commit ID of last push to candidates."
 
   def RunStep(self):
-    self["last_push"] = self._options.last_push or self.FindLastTrunkPush(
+    self["last_push"] = self._options.last_push or self.FindLastCandidatesPush(
         branch="origin/candidates", include_patches=True)
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
@@ -118,7 +118,7 @@ class ChromiumRoll(ScriptsBase):
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
     parser.add_argument("-l", "--last-push",
-                        help="The git commit ID of the last push to trunk.")
+                        help="The git commit ID of the last candidates push.")
     parser.add_argument("--use-commit-queue",
                         help="Check the CQ bit on upload.",
                         default=False, action="store_true")

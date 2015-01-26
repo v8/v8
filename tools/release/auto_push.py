@@ -34,7 +34,7 @@ import sys
 import urllib
 
 from common_includes import *
-import push_to_trunk
+import push_to_candidates
 
 PUSH_MESSAGE_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
@@ -46,30 +46,6 @@ class Preparation(Step):
     self.CommonPrepare()
 
 
-class CheckAutoPushSettings(Step):
-  MESSAGE = "Checking settings file."
-
-  def RunStep(self):
-    settings_file = os.path.realpath(self.Config("SETTINGS_LOCATION"))
-    if os.path.exists(settings_file):
-      settings_dict = json.loads(FileToText(settings_file))
-      if settings_dict.get("enable_auto_roll") is False:
-        self.Die("Push to trunk disabled by auto-roll settings file: %s"
-                 % settings_file)
-
-
-class CheckTreeStatus(Step):
-  MESSAGE = "Checking v8 tree status message."
-
-  def RunStep(self):
-    status_url = "https://v8-status.appspot.com/current?format=json"
-    status_json = self.ReadURL(status_url, wait_plan=[5, 20, 300, 300])
-    self["tree_message"] = json.loads(status_json)["message"]
-    if re.search(r"nopush|no push", self["tree_message"], flags=re.I):
-      self.Die("Push to trunk disabled by tree state: %s"
-               % self["tree_message"])
-
-
 class FetchCandidate(Step):
   MESSAGE = "Fetching V8 roll candidate ref."
 
@@ -79,22 +55,22 @@ class FetchCandidate(Step):
 
 
 class CheckLastPush(Step):
-  MESSAGE = "Checking last V8 push to trunk."
+  MESSAGE = "Checking last V8 push to candidates."
 
   def RunStep(self):
-    last_push = self.FindLastTrunkPush()
+    last_push = self.FindLastCandidatesPush()
 
-    # Retrieve the bleeding edge revision of the last push from the text in
+    # Retrieve the master revision of the last push from the text in
     # the push commit message.
     last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
-    last_push_be = PUSH_MESSAGE_RE.match(last_push_title).group(1)
+    candidate = PUSH_MESSAGE_RE.match(last_push_title).group(1)
 
-    if not last_push_be:  # pragma: no cover
-      self.Die("Could not retrieve bleeding edge revision for trunk push %s"
+    if not candidate:  # pragma: no cover
+      self.Die("Could not retrieve master revision for candidates push %s"
                % last_push)
 
-    if self["candidate"] == last_push_be:
-      print "Already pushed current candidate %s" % last_push_be
+    if self["candidate"] == candidate:
+      print "Already pushed current candidate %s" % candidate
       return True
 
 
@@ -116,13 +92,14 @@ class PushToCandidates(Step):
 
     # TODO(machenbach): Update the script before calling it.
     if self._options.push:
-      self._side_effect_handler.Call(push_to_trunk.PushToTrunk().Run, args)
+      self._side_effect_handler.Call(
+          push_to_candidates.PushToCandidates().Run, args)
 
 
 class AutoPush(ScriptsBase):
   def _PrepareOptions(self, parser):
     parser.add_argument("-p", "--push",
-                        help="Push to trunk. Dry run if unspecified.",
+                        help="Push to candidates. Dry run if unspecified.",
                         default=False, action="store_true")
 
   def _ProcessOptions(self, options):
@@ -135,14 +112,11 @@ class AutoPush(ScriptsBase):
   def _Config(self):
     return {
       "PERSISTFILE_BASENAME": "/tmp/v8-auto-push-tempfile",
-      "SETTINGS_LOCATION": "~/.auto-roll",
     }
 
   def _Steps(self):
     return [
       Preparation,
-      CheckAutoPushSettings,
-      CheckTreeStatus,
       FetchCandidate,
       CheckLastPush,
       PushToCandidates,
