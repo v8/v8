@@ -412,6 +412,8 @@
         '../../src/compilation-statistics.h',
         '../../src/compiler/access-builder.cc',
         '../../src/compiler/access-builder.h',
+        '../../src/compiler/all-nodes.cc',
+        '../../src/compiler/all-nodes.h',
         '../../src/compiler/ast-graph-builder.cc',
         '../../src/compiler/ast-graph-builder.h',
         '../../src/compiler/ast-loop-assignment-analyzer.cc',

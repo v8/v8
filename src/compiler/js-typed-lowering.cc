@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/compiler/access-builder.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"

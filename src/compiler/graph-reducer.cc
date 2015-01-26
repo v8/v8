@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph-reducer.h"
-
 #include <functional>
 
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/graph.h"
+#include "src/compiler/graph-reducer.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {

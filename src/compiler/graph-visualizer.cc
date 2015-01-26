@@ -8,8 +8,8 @@
 #include <string>
 
 #include "src/code-stubs.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
@@ -30,57 +30,6 @@ static const char* SafeMnemonic(Node* node) {
 }
 
 #define DEAD_COLOR "#999999"
-
-class AllNodes {
- public:
-  enum State { kDead, kGray, kLive };
-
-  AllNodes(Zone* local_zone, const Graph* graph)
-      : state(graph->NodeCount(), kDead, local_zone),
-        live(local_zone),
-        gray(local_zone) {
-    Node* end = graph->end();
-    state[end->id()] = kLive;
-    live.push_back(end);
-    // Find all live nodes reachable from end.
-    for (size_t i = 0; i < live.size(); i++) {
-      for (Node* const input : live[i]->inputs()) {
-        if (input == NULL) {
-          // TODO(titzer): print a warning.
-          continue;
-        }
-        if (input->id() >= graph->NodeCount()) {
-          // TODO(titzer): print a warning.
-          continue;
-        }
-        if (state[input->id()] != kLive) {
-          live.push_back(input);
-          state[input->id()] = kLive;
-        }
-      }
-    }
-
-    // Find all nodes that are not reachable from end that use live nodes.
-    for (size_t i = 0; i < live.size(); i++) {
-      for (Node* const use : live[i]->uses()) {
-        if (state[use->id()] == kDead) {
-          gray.push_back(use);
-          state[use->id()] = kGray;
-        }
-      }
-    }
-  }
-
-  bool IsLive(Node* node) {
-    return node != NULL && node->id() < static_cast<int>(state.size()) &&
-           state[node->id()] == kLive;
-  }
-
-  ZoneVector<State> state;
-  NodeVector live;
-  NodeVector gray;
-};
-
 
 class Escaped {
  public:
