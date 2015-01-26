@@ -1442,6 +1442,16 @@ Bounds Typer::Visitor::TypeJSCallFunction(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
+  switch (CallRuntimeParametersOf(node->op()).id()) {
+    case Runtime::kInlineIsSmi:
+    case Runtime::kInlineIsNonNegativeSmi:
+    case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsFunction:
+    case Runtime::kInlineIsRegExp:
+      return Bounds(Type::None(zone()), Type::Boolean(zone()));
+    default:
+      break;
+  }
   return Bounds::Unbounded(zone());
 }
 

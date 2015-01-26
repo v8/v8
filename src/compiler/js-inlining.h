@@ -21,7 +21,6 @@ class JSInliner {
 
   void Inline();
   void TryInlineJSCall(Node* node);
-  void TryInlineRuntimeCall(Node* node);
 
  private:
   friend class InlinerVisitor;

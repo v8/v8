@@ -854,10 +854,10 @@ class RepresentationSelector {
         if (lower()) {
           Node* is_tagged = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->WordAnd(), node->InputAt(0),
-              jsgraph_->Int32Constant(static_cast<int>(kSmiTagMask)));
+              jsgraph_->IntPtrConstant(kSmiTagMask));
           Node* is_smi = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->WordEqual(), is_tagged,
-              jsgraph_->Int32Constant(kSmiTag));
+              jsgraph_->IntPtrConstant(kSmiTag));
           DeferReplacement(node, is_smi);
         }
         break;
@@ -868,13 +868,13 @@ class RepresentationSelector {
         if (lower()) {
           Node* is_tagged = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->WordAnd(), node->InputAt(0),
-              jsgraph_->Int32Constant(static_cast<int>(kSmiTagMask)));
+              jsgraph_->IntPtrConstant(kSmiTagMask));
           Node* is_smi = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->WordEqual(), is_tagged,
-              jsgraph_->Int32Constant(kSmiTag));
+              jsgraph_->IntPtrConstant(kSmiTag));
           Node* is_non_neg = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->IntLessThanOrEqual(),
-              jsgraph_->Int32Constant(0), node->InputAt(0));
+              jsgraph_->IntPtrConstant(0), node->InputAt(0));
           Node* is_non_neg_smi = jsgraph_->graph()->NewNode(
               jsgraph_->machine()->Word32And(), is_smi, is_non_neg);
           DeferReplacement(node, is_non_neg_smi);

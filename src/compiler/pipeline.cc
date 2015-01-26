@@ -24,6 +24,7 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
+#include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/load-elimination.h"
@@ -428,12 +429,14 @@ struct TypedLoweringPhase {
     LoadElimination load_elimination;
     JSBuiltinReducer builtin_reducer(data->jsgraph());
     JSTypedLowering typed_lowering(data->jsgraph(), temp_zone);
+    JSIntrinsicLowering intrinsic_lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
     graph_reducer.AddReducer(&builtin_reducer);
     graph_reducer.AddReducer(&typed_lowering);
+    graph_reducer.AddReducer(&intrinsic_lowering);
     graph_reducer.AddReducer(&load_elimination);
     graph_reducer.AddReducer(&simple_reducer);
     graph_reducer.AddReducer(&common_reducer);
