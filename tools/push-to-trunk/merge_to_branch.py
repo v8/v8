@@ -47,9 +47,9 @@ class Preparation(Step):
     open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
     self.InitialEnvironmentChecks(self.default_cwd)
-    if self._options.revert_bleeding_edge:
-      # FIXME(machenbach): Make revert bleeding_edge obsolete?
-      self["merge_to_branch"] = "bleeding_edge"
+    if self._options.revert_master:
+      # FIXME(machenbach): Make revert master obsolete?
+      self["merge_to_branch"] = "master"
     elif self._options.branch:
       self["merge_to_branch"] = self._options.branch
     else:  # pragma: no cover
@@ -111,7 +111,7 @@ class CreateCommitMessage(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    if self._options.revert and not self._options.revert_bleeding_edge:
+    if self._options.revert and not self._options.revert_master:
       action_text = "Rollback of %s"
     else:
       action_text = "Merged %s"
@@ -156,7 +156,7 @@ class PrepareVersion(Step):
   MESSAGE = "Prepare version file."
 
   def RunStep(self):
-    if self._options.revert_bleeding_edge:
+    if self._options.revert_master:
       return
     # This is used to calculate the patch level increment.
     self.ReadAndPersistVersion()
@@ -166,7 +166,7 @@ class IncrementVersion(Step):
   MESSAGE = "Increment version number."
 
   def RunStep(self):
-    if self._options.revert_bleeding_edge:
+    if self._options.revert_master:
       return
     new_patch = str(int(self["patch"]) + 1)
     if self.Confirm("Automatically increment PATCH_LEVEL? (Saying 'n' will "
@@ -192,7 +192,7 @@ class CommitLocal(Step):
 
   def RunStep(self):
     # Add a commit message title.
-    if self._options.revert and self._options.revert_bleeding_edge:
+    if self._options.revert and self._options.revert_master:
       # TODO(machenbach): Find a better convention if multiple patches are
       # reverted in one CL.
       self["commit_title"] = "Revert on master"
@@ -218,7 +218,7 @@ class TagRevision(Step):
   MESSAGE = "Create the tag."
 
   def RunStep(self):
-    if self._options.revert_bleeding_edge:
+    if self._options.revert_master:
       return
     print "Creating tag %s" % self["version"]
     self.vc.Tag(self["version"],
@@ -231,7 +231,7 @@ class CleanUp(Step):
 
   def RunStep(self):
     self.CommonCleanup()
-    if not self._options.revert_bleeding_edge:
+    if not self._options.revert_master:
       print "*** SUMMARY ***"
       print "version: %s" % self["version"]
       print "branch: %s" % self["merge_to_branch"]
@@ -242,13 +242,13 @@ class CleanUp(Step):
 class MergeToBranch(ScriptsBase):
   def _Description(self):
     return ("Performs the necessary steps to merge revisions from "
-            "bleeding_edge to other branches, including trunk.")
+            "master to other branches, including candidates.")
 
   def _PrepareOptions(self, parser):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--branch", help="The branch to merge to.")
-    group.add_argument("-R", "--revert-bleeding-edge",
-                       help="Revert specified patches from bleeding edge.",
+    group.add_argument("-R", "--revert-master",
+                       help="Revert specified patches from master.",
                        default=False, action="store_true")
     parser.add_argument("revisions", nargs="*",
                         help="The revisions to merge.")
@@ -264,7 +264,7 @@ class MergeToBranch(ScriptsBase):
                         help="A patch file to apply as part of the merge.")
 
   def _ProcessOptions(self, options):
-    # TODO(machenbach): Add a test that covers revert from bleeding_edge
+    # TODO(machenbach): Add a test that covers revert from master
     if len(options.revisions) < 1:
       if not options.patch:
         print "Either a patch file or revision numbers must be specified"

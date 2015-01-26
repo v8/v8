@@ -39,11 +39,11 @@ class CheckActiveRoll(Step):
 
 
 class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of the last push to trunk."
+  MESSAGE = "Detect commit ID of the last push to candidates."
 
   def RunStep(self):
     self.vc.Fetch()
-    push_hash = self.FindLastTrunkPush(
+    push_hash = self.FindLastCandidatesPush(
         branch="origin/candidates", include_patches=True)
     self["last_push"] = self.GetCommitPositionNumber(push_hash)
 
@@ -58,8 +58,8 @@ class DetectLastRoll(Step):
     Var = lambda var: '%s'
     exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
     last_roll = self.GetCommitPositionNumber(vars['v8_revision'])
-    # FIXME(machenbach): When rolling from bleeding edge and from trunk there
-    # be different commit numbers here. Better use version?
+    # FIXME(machenbach): When rolling from master and from candidates there
+    # will be different commit numbers here. Better use version?
     if int(last_roll) >= int(self["last_push"]):
       print("There is no newer v8 revision than the one in Chromium (%s)."
             % last_roll)
