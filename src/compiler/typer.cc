@@ -916,11 +916,17 @@ Type* Typer::Visitor::JSShiftRightTyper(Type* lhs, Type* rhs, Typer* t) {
     // Right-shifting a non-negative value cannot make it negative, nor larger.
     min = std::max(min, 0.0);
     max = std::min(max, lhs->Max());
+    if (rhs->Min() > 0 && rhs->Max() <= 31) {
+      max = static_cast<int>(max) >> static_cast<int>(rhs->Min());
+    }
   }
   if (lhs->Max() < 0) {
     // Right-shifting a negative value cannot make it non-negative, nor smaller.
     min = std::max(min, lhs->Min());
     max = std::min(max, -1.0);
+    if (rhs->Min() > 0 && rhs->Max() <= 31) {
+      min = static_cast<int>(min) >> static_cast<int>(rhs->Min());
+    }
   }
   if (rhs->Min() > 0 && rhs->Max() <= 31) {
     // Right-shifting by a positive value yields a small integer value.
