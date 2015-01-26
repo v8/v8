@@ -170,9 +170,9 @@ class RetrieveV8Releases(Step):
       # The git revision on the branch.
       "revision_git": git_hash,
       # The cr commit position number on master.
-      "bleeding_edge": master_position,
+      "master_position": master_position,
       # The same for git.
-      "bleeding_edge_git": master_hash,
+      "master_hash": master_hash,
       # The branch name.
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.

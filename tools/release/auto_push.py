@@ -34,7 +34,7 @@ import sys
 import urllib
 
 from common_includes import *
-import push_to_trunk
+import push_to_candidates
 
 PUSH_MESSAGE_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
@@ -93,7 +93,7 @@ class PushToCandidates(Step):
     # TODO(machenbach): Update the script before calling it.
     if self._options.push:
       self._side_effect_handler.Call(
-          push_to_trunk.PushToCandidates().Run, args)
+          push_to_candidates.PushToCandidates().Run, args)
 
 
 class AutoPush(ScriptsBase):

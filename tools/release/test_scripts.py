@@ -39,8 +39,8 @@ import common_includes
 from common_includes import *
 import merge_to_branch
 from merge_to_branch import *
-import push_to_trunk
-from push_to_trunk import *
+import push_to_candidates
+from push_to_candidates import *
 import chromium_roll
 from chromium_roll import ChromiumRoll
 import releases
@@ -913,7 +913,7 @@ def get_list():
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%s push_hash",
-          "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
+          "Version 3.22.5 (based on abc)\n"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
           "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
@@ -924,7 +924,7 @@ def get_list():
       Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
       Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
-           "(based on bleeding_edge revision r22622).\n\n"
+           "(based on abc).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
            "case of problems.\n\nTBR=c_name@chromium.org\" "
            "--author \"author@chromium.org <author@chromium.org>\""),
@@ -1331,8 +1331,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
       {
         "revision": "345",
         "revision_git": "hash_345",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "patches_merged": "",
         "version": "3.22.3",
         "chromium_revision": "3456:4566",
@@ -1346,8 +1346,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
         "revision": "123",
         "revision_git": "hash_123",
         "patches_merged": "",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "version": "3.21.2",
         "chromium_revision": "",
         "branch": "3.21",
@@ -1360,8 +1360,8 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
         "revision": "234",
         "revision_git": "hash_234",
         "patches_merged": "abc12",
-        "bleeding_edge": "",
-        "bleeding_edge_git": "",
+        "master_position": "",
+        "master_hash": "",
         "version": "3.3.1.1",
         "chromium_revision": "",
         "branch": "3.3",
