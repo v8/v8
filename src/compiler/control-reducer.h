@@ -25,7 +25,7 @@ class ControlReducer {
   // Testing interface.
   static Node* ReducePhiForTesting(JSGraph* graph,
                                    CommonOperatorBuilder* builder, Node* node);
-  static Node* ReduceBranchForTesting(JSGraph* graph,
+  static Node* ReduceIfNodeForTesting(JSGraph* graph,
                                       CommonOperatorBuilder* builder,
                                       Node* node);
   static Node* ReduceMergeForTesting(JSGraph* graph,

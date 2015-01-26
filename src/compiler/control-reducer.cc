@@ -357,8 +357,10 @@ class ControlReducerImpl {
 
     // Reduce branches, phis, and merges.
     switch (node->opcode()) {
-      case IrOpcode::kBranch:
-        return ReduceBranch(node);
+      case IrOpcode::kIfTrue:
+        return ReduceIfTrue(node);
+      case IrOpcode::kIfFalse:
+        return ReduceIfFalse(node);
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
         return ReduceMerge(node);
@@ -480,30 +482,31 @@ class ControlReducerImpl {
   }
 
   // Reduce branches if they have constant inputs.
-  Node* ReduceBranch(Node* node) {
-    Decision result = DecideCondition(node->InputAt(0));
-    if (result == kUnknown) return node;
-
-    TRACE(("BranchReduce: #%d:%s = %s\n", node->id(), node->op()->mnemonic(),
-           (result == kTrue) ? "true" : "false"));
-
-    // Replace IfTrue and IfFalse projections from this branch.
-    Node* control = NodeProperties::GetControlInput(node);
-    for (Edge edge : node->use_edges()) {
-      Node* use = edge.from();
-      if (use->opcode() == IrOpcode::kIfTrue) {
-        TRACE(("  IfTrue: #%d:%s\n", use->id(), use->op()->mnemonic()));
-        edge.UpdateTo(NULL);
-        ReplaceNode(use, (result == kTrue) ? control : dead());
-        control = NodeProperties::GetControlInput(node);  // Could change!
-      } else if (use->opcode() == IrOpcode::kIfFalse) {
-        TRACE(("  IfFalse: #%d:%s\n", use->id(), use->op()->mnemonic()));
-        edge.UpdateTo(NULL);
-        ReplaceNode(use, (result == kTrue) ? dead() : control);
-        control = NodeProperties::GetControlInput(node);  // Could change!
-      }
+  Node* ReduceIfTrue(Node* node) {
+    Node* branch = node->InputAt(0);
+    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+    Decision result = DecideCondition(branch->InputAt(0));
+    if (result == kTrue) {
+      // fold a true branch by replacing IfTrue with the branch control.
+      TRACE(("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+             branch->op()->mnemonic(), node->id(), node->op()->mnemonic()));
+      return branch->InputAt(1);
     }
-    return control;
+    return result == kUnknown ? node : dead();
+  }
+
+  // Reduce branches if they have constant inputs.
+  Node* ReduceIfFalse(Node* node) {
+    Node* branch = node->InputAt(0);
+    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+    Decision result = DecideCondition(branch->InputAt(0));
+    if (result == kFalse) {
+      // fold a false branch by replacing IfFalse with the branch control.
+      TRACE(("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+             branch->op()->mnemonic(), node->id(), node->op()->mnemonic()));
+      return branch->InputAt(1);
+    }
+    return result == kUnknown ? node : dead();
   }
 
   // Remove inputs to {node} corresponding to the dead inputs to {merge}
@@ -578,12 +581,19 @@ Node* ControlReducer::ReduceMergeForTesting(JSGraph* jsgraph,
 }
 
 
-Node* ControlReducer::ReduceBranchForTesting(JSGraph* jsgraph,
+Node* ControlReducer::ReduceIfNodeForTesting(JSGraph* jsgraph,
                                              CommonOperatorBuilder* common,
                                              Node* node) {
   Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
-  return impl.ReduceBranch(node);
+  switch (node->opcode()) {
+    case IrOpcode::kIfTrue:
+      return impl.ReduceIfTrue(node);
+    case IrOpcode::kIfFalse:
+      return impl.ReduceIfFalse(node);
+    default:
+      return node;
+  }
 }
 }
 }
