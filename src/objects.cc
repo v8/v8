@@ -11033,6 +11033,29 @@ const char* Code::Kind2String(Kind kind) {
 }
 
 
+Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
+  DCHECK(code->kind() == OPTIMIZED_FUNCTION);
+  WeakCell* raw_cell = code->CachedWeakCell();
+  if (raw_cell != NULL) return Handle<WeakCell>(raw_cell);
+  Handle<WeakCell> cell = code->GetIsolate()->factory()->NewWeakCell(code);
+  DeoptimizationInputData::cast(code->deoptimization_data())
+      ->SetWeakCellCache(*cell);
+  return cell;
+}
+
+
+WeakCell* Code::CachedWeakCell() {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  Object* weak_cell_cache =
+      DeoptimizationInputData::cast(deoptimization_data())->WeakCellCache();
+  if (weak_cell_cache->IsWeakCell()) {
+    DCHECK(this == WeakCell::cast(weak_cell_cache)->value());
+    return WeakCell::cast(weak_cell_cache);
+  }
+  return NULL;
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(
