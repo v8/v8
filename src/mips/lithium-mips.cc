@@ -1500,9 +1500,10 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
     bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
 
+    int32_t constant_value = 0;
     if (right->IsConstant()) {
       HConstant* constant = HConstant::cast(right);
-      int32_t constant_value = constant->Integer32Value();
+      constant_value = constant->Integer32Value();
       // Constants -1, 0 and 1 can be optimized if the result can overflow.
       // For other constants, it can be optimized only without overflow.
       if (!can_overflow || ((constant_value >= -1) && (constant_value <= 1))) {
@@ -1525,7 +1526,10 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
       right_op = UseRegister(right);
     }
     LMulI* mul = new(zone()) LMulI(left_op, right_op);
-    if (can_overflow || bailout_on_minus_zero) {
+    if (right_op->IsConstantOperand()
+            ? ((can_overflow && constant_value == -1) ||
+               (bailout_on_minus_zero && constant_value <= 0))
+            : (can_overflow || bailout_on_minus_zero)) {
       AssignEnvironment(mul);
     }
     return DefineAsRegister(mul);
