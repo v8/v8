@@ -1293,7 +1293,10 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
-    if (FLAG_serialize_toplevel &&
+    maybe_result = compilation_cache->LookupScript(
+        source, script_name, line_offset, column_offset, is_shared_cross_origin,
+        context);
+    if (maybe_result.is_null() && FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
@@ -1303,10 +1306,6 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         return result;
       }
       // Deserializer failed. Fall through to compile.
-    } else {
-      maybe_result = compilation_cache->LookupScript(
-          source, script_name, line_offset, column_offset,
-          is_shared_cross_origin, context);
     }
   }
 
