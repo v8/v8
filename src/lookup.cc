@@ -238,6 +238,14 @@ Handle<Object> LookupIterator::FetchValue() const {
 }
 
 
+int LookupIterator::GetAccessorIndex() const {
+  DCHECK(has_property_);
+  DCHECK(!holder_map_->is_dictionary_map());
+  DCHECK_EQ(v8::internal::ACCESSOR_CONSTANT, property_details_.type());
+  return descriptor_number();
+}
+
+
 int LookupIterator::GetConstantIndex() const {
   DCHECK(has_property_);
   DCHECK(!holder_map_->is_dictionary_map());

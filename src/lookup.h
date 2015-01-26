@@ -132,6 +132,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   }
   FieldIndex GetFieldIndex() const;
   Handle<HeapType> GetFieldType() const;
+  int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;

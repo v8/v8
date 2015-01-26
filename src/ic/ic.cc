@@ -1229,7 +1229,9 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           return compiler.CompileLoadCallback(lookup->name(),
                                               call_optimization);
         }
-        return compiler.CompileLoadViaGetter(lookup->name(), function);
+        int expected_arguments = function->shared()->formal_parameter_count();
+        return compiler.CompileLoadViaGetter(
+            lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
       }
       break;
     }

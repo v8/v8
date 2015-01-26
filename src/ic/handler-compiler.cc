@@ -353,9 +353,10 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
-    Handle<Name> name, Handle<JSFunction> getter) {
-  Frontend(name);
-  GenerateLoadViaGetter(masm(), type(), receiver(), getter);
+    Handle<Name> name, int accessor_index, int expected_arguments) {
+  Register holder = Frontend(name);
+  GenerateLoadViaGetter(masm(), type(), receiver(), holder, accessor_index,
+                        expected_arguments);
   return GetCode(kind(), Code::FAST, name);
 }
 
