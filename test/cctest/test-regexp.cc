@@ -1372,8 +1372,9 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 
 TEST(MacroAssembler) {
   byte codes[1024];
-  Zone zone(CcTest::i_isolate());
-  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024), &zone);
+  Zone zone;
+  RegExpMacroAssemblerIrregexp m(CcTest::i_isolate(), Vector<byte>(codes, 1024),
+                                 &zone);
   // ^f(o)o.
   Label start, fail, backtrack;
 
