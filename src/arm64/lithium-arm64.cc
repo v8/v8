@@ -1963,7 +1963,9 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
                                        : UseRegisterAtStart(least_const);
         LInstruction* result =
             DefineAsRegister(new(zone()) LMulConstIS(left, right));
-        if ((bailout_on_minus_zero && constant <= 0) || can_overflow) {
+        if ((bailout_on_minus_zero && constant <= 0) ||
+            (can_overflow && constant != 1 &&
+             base::bits::IsPowerOfTwo32(constant_abs))) {
           result = AssignEnvironment(result);
         }
         return result;
