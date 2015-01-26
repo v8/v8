@@ -1,3 +1,11 @@
+2015-01-26: Version 4.2.28
+
+        Fixed Hydrogen environment handling for mul-i on ARM and ARM64 (issue
+        451322).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-25: Version 4.2.27
 
         Performance and stability improvements on all platforms.
