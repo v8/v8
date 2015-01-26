@@ -130,6 +130,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kCompileLazy:
     case Runtime::kCompileOptimized:
     case Runtime::kCompileString:
+    case Runtime::kCreateArrayLiteral:
     case Runtime::kCreateObjectLiteral:
     case Runtime::kDebugBreak:
     case Runtime::kDataViewSetInt8:

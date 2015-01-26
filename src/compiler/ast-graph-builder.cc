@@ -1199,6 +1199,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   const Operator* op =
       javascript()->CallRuntime(Runtime::kCreateArrayLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+  PrepareFrameState(literal, expr->CreateLiteralId(),
+                    OutputFrameStateCombine::Push());
 
   // The array and the literal index are both expected on the operand stack
   // during computation of the element values.

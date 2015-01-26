@@ -1586,12 +1586,14 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
 
-  // Unlike other AST nodes, this number of bailout IDs allocated for an
-  // ArrayLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + values()->length(); }
+  BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
 
   // Return an AST id for an element that is used in simulate instructions.
-  BailoutId GetIdForElement(int i) { return BailoutId(local_id(i)); }
+  BailoutId GetIdForElement(int i) { return BailoutId(local_id(i + 1)); }
+
+  // Unlike other AST nodes, this number of bailout IDs allocated for an
+  // ArrayLiteral can vary, so num_ids() is not a static method.
+  int num_ids() const { return parent_num_ids() + 1 + values()->length(); }
 
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
