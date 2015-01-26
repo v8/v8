@@ -1,3 +1,17 @@
+2015-01-26: Version 4.2.29
+
+        MIPS: Fixed Hydrogen environment handling for mul-i ARM and ARM64 (issue
+        451322).
+
+        [turbofan] Simplify reduction if IfTrue and IfFalse and fix bugs
+        (Chromium issue 451958).
+
+        Add HeapNumber fast path to v8::Value::{Uint,Int}32Value() (Chromium
+        issue 446097).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-26: Version 4.2.28
 
         Fixed Hydrogen environment handling for mul-i on ARM and ARM64 (issue
