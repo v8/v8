@@ -2695,8 +2695,7 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
   // Record source position of the IC call.
   SetSourcePosition(expr->position());
 
-  Handle<Code> ic = CallIC::initialize_stub(
-      isolate(), arg_count, call_type);
+  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, call_type).code();
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
   __ Peek(x1, (arg_count + 1) * kXRegSize);
   // Don't assign a type feedback id to the IC, since type feedback is provided

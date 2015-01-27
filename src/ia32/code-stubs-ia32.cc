@@ -2192,11 +2192,10 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Label miss;
   int argc = arg_count();
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, ebx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
@@ -2233,6 +2232,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2243,8 +2243,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Label have_js_function;
   int argc = arg_count();
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, ebx);
 
   // The checks. First, does edi match the recorded monomorphic target?
   __ cmp(edi, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -4333,6 +4331,20 @@ void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorKeyedLoadStub stub(isolate());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallICStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallIC_ArrayStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

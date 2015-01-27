@@ -1591,6 +1591,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
 Handle<Code> CallIC::initialize_stub(Isolate* isolate, int argc,
                                      CallICState::CallType call_type) {
+  CallICTrampolineStub stub(isolate, CallICState(argc, call_type));
+  Handle<Code> code = stub.GetCode();
+  return code;
+}
+
+
+Handle<Code> CallIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, int argc, CallICState::CallType call_type) {
   CallICStub stub(isolate, CallICState(argc, call_type));
   Handle<Code> code = stub.GetCode();
   return code;
@@ -2136,7 +2144,7 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
     CallICNexus* nexus = casted_nexus<CallICNexus>();
     nexus->ConfigureMonomorphicArray();
 
-    CallIC_ArrayStub stub(isolate(), callic_state);
+    CallIC_ArrayTrampolineStub stub(isolate(), callic_state);
     set_target(*stub.GetCode());
     Handle<String> name;
     if (array_function->shared()->name()->IsString()) {
@@ -2159,7 +2167,7 @@ void CallIC::PatchMegamorphic(Handle<Object> function) {
   CallICNexus* nexus = casted_nexus<CallICNexus>();
   nexus->ConfigureGeneric();
 
-  CallICStub stub(isolate(), callic_state);
+  CallICTrampolineStub stub(isolate(), callic_state);
   Handle<Code> code = stub.GetCode();
   set_target(*code);
 

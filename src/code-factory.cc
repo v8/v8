@@ -49,6 +49,23 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::CallIC(Isolate* isolate, int argc,
+                             CallICState::CallType call_type) {
+  return Callable(CallIC::initialize_stub(isolate, argc, call_type),
+                  CallFunctionWithFeedbackDescriptor(isolate));
+}
+
+
+// static
+Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
+                                            CallICState::CallType call_type) {
+  return Callable(
+      CallIC::initialize_stub_in_optimized_code(isolate, argc, call_type),
+      CallFunctionWithFeedbackAndVectorDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::StoreIC(Isolate* isolate, StrictMode mode) {
   return Callable(StoreIC::initialize_stub(isolate, mode),
                   StoreDescriptor(isolate));

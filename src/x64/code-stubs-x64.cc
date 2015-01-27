@@ -2059,11 +2059,11 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id (as integer)
+  // rbx - vector
   Label miss;
   int argc = arg_count();
   ParameterCount actual(argc);
 
-  EmitLoadTypeFeedbackVector(masm, rbx);
   __ SmiToInteger32(rdx, rdx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
@@ -2100,6 +2100,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id
+  // rbx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2111,8 +2112,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, rbx);
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
@@ -4262,6 +4261,20 @@ void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorKeyedLoadStub stub(isolate());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, rbx);
+  CallICStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, rbx);
+  CallIC_ArrayStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

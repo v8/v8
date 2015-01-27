@@ -355,6 +355,8 @@ class CallIC : public IC {
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
                                       CallICState::CallType call_type);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, int argc, CallICState::CallType call_type);
 
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
