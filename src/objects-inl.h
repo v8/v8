@@ -3334,7 +3334,6 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FreeSpace)
 CAST_ACCESSOR(GlobalObject)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(JSArray)
@@ -3441,6 +3440,39 @@ NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
+
+
+FreeSpace* FreeSpace::next() {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  return reinterpret_cast<FreeSpace*>(
+      Memory::Address_at(address() + kNextOffset));
+}
+
+
+FreeSpace** FreeSpace::next_address() {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  return reinterpret_cast<FreeSpace**>(address() + kNextOffset);
+}
+
+
+void FreeSpace::set_next(FreeSpace* next) {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  base::NoBarrier_Store(
+      reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
+      reinterpret_cast<base::AtomicWord>(next));
+}
+
+
+FreeSpace* FreeSpace::cast(HeapObject* o) {
+  SLOW_DCHECK(!o->GetHeap()->deserialization_complete() || o->IsFreeSpace());
+  return reinterpret_cast<FreeSpace*>(o);
+}
 
 
 uint32_t Name::hash_field() {

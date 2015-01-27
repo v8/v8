@@ -692,8 +692,8 @@ class Heap {
   // Iterates the whole code space to clear all ICs of the given kind.
   void ClearAllICsByKind(Code::Kind kind);
 
-  // For use during bootup.
-  void RepairFreeListsAfterBoot();
+  // FreeSpace objects have a null map after deserialization. Update the map.
+  void RepairFreeListsAfterDeserialization();
 
   template <typename T>
   static inline bool IsOneByte(T t, int chars);

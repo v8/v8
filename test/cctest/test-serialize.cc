@@ -156,6 +156,23 @@ static void Serialize(v8::Isolate* isolate) {
 }
 
 
+Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
+                                      Vector<const uint8_t> body,
+                                      Vector<const uint8_t> tail, int repeats) {
+  int source_length = head.length() + body.length() * repeats + tail.length();
+  uint8_t* source = NewArray<uint8_t>(static_cast<size_t>(source_length));
+  CopyChars(source, head.start(), head.length());
+  for (int i = 0; i < repeats; i++) {
+    CopyChars(source + head.length() + i * body.length(), body.start(),
+              body.length());
+  }
+  CopyChars(source + head.length() + repeats * body.length(), tail.start(),
+            tail.length());
+  return Vector<const uint8_t>(const_cast<const uint8_t*>(source),
+                               source_length);
+}
+
+
 // Test that the whole heap can be serialized.
 UNINITIALIZED_TEST(Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
@@ -546,7 +563,6 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
     params.enable_serializer = true;
     v8::Isolate* v8_isolate = v8::Isolate::New(params);
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    Heap* heap = isolate->heap();
     {
       v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -569,6 +585,16 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
             "var r = Math.random() + Math.cos(0);"
             "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
             "var s = parseInt('12345');");
+
+        Vector<const uint8_t> source = ConstructSource(
+            STATIC_CHAR_VECTOR("function g() { return [,"),
+            STATIC_CHAR_VECTOR("1,"),
+            STATIC_CHAR_VECTOR("];} a = g(); b = g(); b.push(1);"), 100000);
+        v8::Handle<v8::String> source_str = v8::String::NewFromOneByte(
+            v8_isolate, source.start(), v8::String::kNormalString,
+            source.length());
+        CompileRun(source_str);
+        source.Dispose();
       }
       // Make sure all builtin scripts are cached.
       {
@@ -579,7 +605,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
       }
       // If we don't do this then we end up with a stray root pointing at the
       // context even after we have disposed of env.
-      heap->CollectAllGarbage(Heap::kNoGCFlags);
+      isolate->heap()->CollectAllAvailableGarbage("snapshotting");
 
       int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
       Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -667,6 +693,10 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
         CHECK_EQ(5, f);
         v8::Handle<v8::String> s = CompileRun("s")->ToString(v8_isolate);
         CHECK(s->Equals(v8_str("12345")));
+        int a = CompileRun("a.length")->ToNumber(v8_isolate)->Int32Value();
+        CHECK_EQ(100001, a);
+        int b = CompileRun("b.length")->ToNumber(v8_isolate)->Int32Value();
+        CHECK_EQ(100002, b);
       }
     }
     v8_isolate->Dispose();
@@ -816,23 +846,6 @@ TEST(SerializeToplevelInternalizedString) {
   CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cache;
-}
-
-
-Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
-                                      Vector<const uint8_t> body,
-                                      Vector<const uint8_t> tail, int repeats) {
-  int source_length = head.length() + body.length() * repeats + tail.length();
-  uint8_t* source = NewArray<uint8_t>(static_cast<size_t>(source_length));
-  CopyChars(source, head.start(), head.length());
-  for (int i = 0; i < repeats; i++) {
-    CopyChars(source + head.length() + i * body.length(), body.start(),
-              body.length());
-  }
-  CopyChars(source + head.length() + repeats * body.length(), tail.start(),
-            tail.length());
-  return Vector<const uint8_t>(const_cast<const uint8_t*>(source),
-                               source_length);
 }
 
 

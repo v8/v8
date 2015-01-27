@@ -3872,21 +3872,6 @@ TEST(Regress169209) {
 }
 
 
-// Helper function that simulates a fill new-space in the heap.
-static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
-                                        int extra_bytes) {
-  int space_remaining = static_cast<int>(
-      *space->allocation_limit_address() - *space->allocation_top_address());
-  CHECK(space_remaining >= extra_bytes);
-  int new_linear_size = space_remaining - extra_bytes;
-  v8::internal::AllocationResult allocation =
-      space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node =
-      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-  node->set_size(space->heap(), new_linear_size);
-}
-
-
 TEST(Regress169928) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_crankshaft = false;
