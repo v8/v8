@@ -11,8 +11,7 @@
 #include <string>
 
 #include "src/bit-vector.h"
-#include "src/compiler/generic-algorithm.h"
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties-inl.h"
@@ -40,12 +39,11 @@ static bool IsUseDefChainLinkPresent(Node* def, Node* use) {
 }
 
 
-class Verifier::Visitor : public NullNodeVisitor {
+class Verifier::Visitor {
  public:
   Visitor(Zone* z, Typing typed) : zone(z), typing(typed) {}
 
-  // Fulfills the PreNodeCallback interface.
-  void Pre(Node* node);
+  void Check(Node* node);
 
   Zone* zone;
   Typing typing;
@@ -113,7 +111,7 @@ class Verifier::Visitor : public NullNodeVisitor {
 };
 
 
-void Verifier::Visitor::Pre(Node* node) {
+void Verifier::Visitor::Check(Node* node) {
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
   int frame_state_count =
@@ -754,10 +752,11 @@ void Verifier::Visitor::Pre(Node* node) {
 
 
 void Verifier::Run(Graph* graph, Typing typing) {
-  Visitor visitor(graph->zone(), typing);
   CHECK_NE(NULL, graph->start());
   CHECK_NE(NULL, graph->end());
-  graph->VisitNodeInputsFromEnd(&visitor);
+  Zone zone;
+  Visitor visitor(&zone, typing);
+  for (Node* node : AllNodes(&zone, graph).live) visitor.Check(node);
 }
 
 
