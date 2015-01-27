@@ -1,3 +1,8 @@
+2015-01-27: Version 4.2.30
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-26: Version 4.2.29
 
         MIPS: Fixed Hydrogen environment handling for mul-i ARM and ARM64 (issue
