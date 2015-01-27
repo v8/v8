@@ -968,15 +968,6 @@ std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << NameOf(context()) << " " << NameOf(function());
-  if (HasVectorAndSlot()) {
-    os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
-  }
-  return os;
-}
-
-
 void HBoundsCheck::ApplyIndexChange() {
   if (skip_check()) return;
 
