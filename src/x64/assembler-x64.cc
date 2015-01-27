@@ -8,14 +8,14 @@
 
 #if V8_TARGET_ARCH_X64
 
+#if V8_LIBC_MSVCRT
+#include <intrin.h>  // _xgetbv()
+#endif
 #if V8_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
 
 #include "src/base/bits.h"
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
-#endif
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -27,7 +27,24 @@ namespace internal {
 
 namespace {
 
-bool EnableAVX() {
+#if !V8_LIBC_MSVCRT
+
+V8_INLINE uint64_t _xgetbv(unsigned int xcr) {
+  unsigned eax, edx;
+  // Check xgetbv; this uses a .byte sequence instead of the instruction
+  // directly because older assemblers do not include support for xgetbv and
+  // there is no easy way to conditionally compile based on the assembler
+  // used.
+  __asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(xcr));
+  return static_cast<uint64_t>(eax) | (static_cast<uint64_t>(edx) << 32);
+}
+
+#define _XCR_XFEATURE_ENABLED_MASK 0
+
+#endif  // !V8_LIBC_MSVCRT
+
+
+bool OSHasAVXSupport() {
 #if V8_OS_MACOSX
   // Mac OS X up to 10.9 has a bug where AVX transitions were indeed being
   // caused by ISRs, so we detect that here and disable AVX in that case.
@@ -44,21 +61,10 @@ bool EnableAVX() {
   *period_pos = '\0';
   long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
   if (kernel_version_major <= 13) return false;
-#elif V8_OS_WIN
-  // The same problem seems to appear on Windows XP and Vista.
-  OSVERSIONINFOEX osvi;
-  DWORDLONG mask = 0;
-  memset(&osvi, 0, sizeof(osvi));
-  osvi.dwOSVersionInfoSize = sizeof(osvi);
-  osvi.dwMajorVersion = 6;
-  osvi.dwMinorVersion = 1;
-  VER_SET_CONDITION(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
-  VER_SET_CONDITION(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
-  if (!VerifyVersionInfo(&osvi, VER_MAJORVERSION | VER_MINORVERSION, mask)) {
-    return false;
-  }
 #endif  // V8_OS_MACOSX
-  return FLAG_enable_avx;
+  // Check whether OS claims to support AVX.
+  uint64_t feature_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+  return (feature_mask & 0x6) == 0x6;
 }
 
 }  // namespace
@@ -76,8 +82,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   // SAHF is not generally available in long mode.
   if (cpu.has_sahf() && FLAG_enable_sahf) supported_ |= 1u << SAHF;
-  if (cpu.has_avx() && EnableAVX()) supported_ |= 1u << AVX;
-  if (cpu.has_fma3() && FLAG_enable_fma3) supported_ |= 1u << FMA3;
+  if (cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
+      OSHasAVXSupport()) {
+    supported_ |= 1u << AVX;
+  }
+  if (cpu.has_fma3() && FLAG_enable_fma3 && cpu.has_osxsave() &&
+      OSHasAVXSupport()) {
+    supported_ |= 1u << FMA3;
+  }
   if (strcmp(FLAG_mcpu, "auto") == 0) {
     if (cpu.is_atom()) supported_ |= 1u << ATOM;
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
