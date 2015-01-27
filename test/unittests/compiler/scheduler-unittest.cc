@@ -1,8 +1,6 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-#include "src/v8.h"
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
@@ -16,21 +14,17 @@
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
+#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/test-utils.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
-namespace {
-
-class SchedulerTest : public virtual TestWithZone {
+class SchedulerTest : public TestWithZone {
  public:
   SchedulerTest()
-      : TestWithZone(),
-        graph_(zone()),
-        common_(zone()),
-        simplified_(zone()),
-        js_(zone()) {}
+      : graph_(zone()), common_(zone()), simplified_(zone()), js_(zone()) {}
 
   static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
     if (FLAG_trace_turbo) {
@@ -70,7 +64,8 @@ class SchedulerTest : public virtual TestWithZone {
   JSOperatorBuilder js_;
 };
 
-class SchedulerRPOTest : public virtual SchedulerTest {
+
+class SchedulerRPOTest : public SchedulerTest {
  public:
   SchedulerRPOTest() {}
 
@@ -133,8 +128,8 @@ class SchedulerRPOTest : public virtual SchedulerTest {
   }
 };
 
-class SchedulerTestWithIsolate : public virtual SchedulerTest,
-                                 public virtual TestWithIsolate {
+
+class SchedulerTestWithIsolate : public SchedulerTest, public TestWithIsolate {
  public:
   SchedulerTestWithIsolate() {}
 
@@ -145,8 +140,10 @@ class SchedulerTestWithIsolate : public virtual SchedulerTest,
   }
 };
 
-Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0, 0, 1,
-                 0, 0);
+namespace {
+
+const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
+                       0, 1, 0, 0);
 
 }  // namespace
 
@@ -1592,10 +1589,9 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoopWithCodeMotion) {
 }
 
 
-#if V8_TURBOFAN_TARGET
+namespace {
 
-static Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common,
-                           Node* cond) {
+Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common, Node* cond) {
   Node* tv = graph->NewNode(common->Int32Constant(6));
   Node* fv = graph->NewNode(common->Int32Constant(7));
   Node* br = graph->NewNode(common->Branch(), cond, graph->start());
@@ -1606,8 +1602,10 @@ static Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common,
   return phi;
 }
 
+}  // namespace
 
-TEST_F(SchedulerTest, FloatingDiamond1) {
+
+TARGET_TEST_F(SchedulerTest, FloatingDiamond1) {
   Node* start = graph()->NewNode(common()->Start(1));
   graph()->SetStart(start);
 
@@ -1622,7 +1620,7 @@ TEST_F(SchedulerTest, FloatingDiamond1) {
 }
 
 
-TEST_F(SchedulerTest, FloatingDiamond2) {
+TARGET_TEST_F(SchedulerTest, FloatingDiamond2) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1640,7 +1638,7 @@ TEST_F(SchedulerTest, FloatingDiamond2) {
 }
 
 
-TEST_F(SchedulerTest, FloatingDiamond3) {
+TARGET_TEST_F(SchedulerTest, FloatingDiamond3) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1659,7 +1657,7 @@ TEST_F(SchedulerTest, FloatingDiamond3) {
 }
 
 
-TEST_F(SchedulerTest, NestedFloatingDiamonds) {
+TARGET_TEST_F(SchedulerTest, NestedFloatingDiamonds) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1696,7 +1694,7 @@ TEST_F(SchedulerTest, NestedFloatingDiamonds) {
 }
 
 
-TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
+TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1740,7 +1738,7 @@ TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
 }
 
 
-TEST_F(SchedulerTest, NestedFloatingDiamondWithLoop) {
+TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithLoop) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1774,7 +1772,7 @@ TEST_F(SchedulerTest, NestedFloatingDiamondWithLoop) {
 }
 
 
-TEST_F(SchedulerTest, LoopedFloatingDiamond1) {
+TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond1) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1807,7 +1805,7 @@ TEST_F(SchedulerTest, LoopedFloatingDiamond1) {
 }
 
 
-TEST_F(SchedulerTest, LoopedFloatingDiamond2) {
+TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond2) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1841,7 +1839,7 @@ TEST_F(SchedulerTest, LoopedFloatingDiamond2) {
 }
 
 
-TEST_F(SchedulerTest, LoopedFloatingDiamond3) {
+TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond3) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1887,7 +1885,7 @@ TEST_F(SchedulerTest, LoopedFloatingDiamond3) {
 }
 
 
-TEST_F(SchedulerTest, PhisPushedDownToDifferentBranches) {
+TARGET_TEST_F(SchedulerTest, PhisPushedDownToDifferentBranches) {
   Node* start = graph()->NewNode(common()->Start(2));
   graph()->SetStart(start);
 
@@ -1921,7 +1919,7 @@ TEST_F(SchedulerTest, PhisPushedDownToDifferentBranches) {
 }
 
 
-TEST_F(SchedulerTest, BranchHintTrue) {
+TARGET_TEST_F(SchedulerTest, BranchHintTrue) {
   Node* start = graph()->NewNode(common()->Start(1));
   graph()->SetStart(start);
 
@@ -1945,7 +1943,7 @@ TEST_F(SchedulerTest, BranchHintTrue) {
 }
 
 
-TEST_F(SchedulerTest, BranchHintFalse) {
+TARGET_TEST_F(SchedulerTest, BranchHintFalse) {
   Node* start = graph()->NewNode(common()->Start(1));
   graph()->SetStart(start);
 
@@ -1969,7 +1967,7 @@ TEST_F(SchedulerTest, BranchHintFalse) {
 }
 
 
-TEST_F(SchedulerTest, ScheduleTerminate) {
+TARGET_TEST_F(SchedulerTest, ScheduleTerminate) {
   Node* start = graph()->NewNode(common()->Start(1));
   graph()->SetStart(start);
 
@@ -1991,4 +1989,6 @@ TEST_F(SchedulerTest, ScheduleTerminate) {
   CHECK_GE(block->rpo_number(), 0);
 }
 
-#endif
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
