@@ -224,13 +224,16 @@ class Histogram {
 // A HistogramTimer allows distributions of results to be created.
 class HistogramTimer : public Histogram {
  public:
-  HistogramTimer() { }
-  HistogramTimer(const char* name,
-                 int min,
-                 int max,
-                 int num_buckets,
-                 Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate) {}
+  enum Resolution {
+    MILLISECOND,
+    MICROSECOND
+  };
+
+  HistogramTimer() {}
+  HistogramTimer(const char* name, int min, int max, Resolution resolution,
+                 int num_buckets, Isolate* isolate)
+      : Histogram(name, min, max, num_buckets, isolate),
+        resolution_(resolution) {}
 
   // Start the timer.
   void Start();
@@ -250,6 +253,7 @@ class HistogramTimer : public Histogram {
 
  private:
   base::ElapsedTimer timer_;
+  Resolution resolution_;
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -315,7 +319,7 @@ class AggregatableHistogramTimer : public Histogram {
 
   // Start/stop the "outer" scope.
   void Start() { time_ = base::TimeDelta(); }
-  void Stop() { AddSample(static_cast<int>(time_.InMilliseconds())); }
+  void Stop() { AddSample(static_cast<int>(time_.InMicroseconds())); }
 
   // Add a time value ("inner" scope).
   void Add(base::TimeDelta other) { time_ += other; }
@@ -360,30 +364,33 @@ class AggregatedHistogramTimerScope {
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
   HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000, 101)
 
-#define HISTOGRAM_TIMER_LIST(HT)                             \
-  /* Garbage collection timers. */                           \
-  HT(gc_compactor, V8.GCCompactor)                           \
-  HT(gc_scavenger, V8.GCScavenger)                           \
-  HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
-  HT(gc_idle_notification, V8.GCIdleNotification)            \
-  HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
-  HT(gc_low_memory_notification, V8.GCLowMemoryNotification) \
-  /* Parsing timers. */                                      \
-  HT(parse, V8.Parse)                                        \
-  HT(parse_lazy, V8.ParseLazy)                               \
-  HT(pre_parse, V8.PreParse)                                 \
-  /* Compilation times. */                                   \
-  HT(compile, V8.Compile)                                    \
-  HT(compile_eval, V8.CompileEval)                           \
-  /* Serialization as part of compilation (code caching) */  \
-  HT(compile_serialize, V8.CompileSerialize)                 \
-  HT(compile_deserialize, V8.CompileDeserialize)             \
-  /* Total compilation time incl. caching/parsing */         \
-  HT(compile_script, V8.CompileScript)
+#define HISTOGRAM_TIMER_LIST(HT)                                              \
+  /* Garbage collection timers. */                                            \
+  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                        \
+  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                        \
+  HT(gc_context, V8.GCContext, 10000,                                         \
+     MILLISECOND) /* GC context cleanup time */                               \
+  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
+     MILLISECOND)                                                             \
+  /* Parsing timers. */                                                       \
+  HT(parse, V8.ParseMicroSeconds, 1000000, MICROSECOND)                       \
+  HT(parse_lazy, V8.ParseLazyMicroSeconds, 1000000, MICROSECOND)              \
+  HT(pre_parse, V8.PreParseMicroSeconds, 1000000, MICROSECOND)                \
+  /* Compilation times. */                                                    \
+  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                   \
+  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)          \
+  /* Serialization as part of compilation (code caching) */                   \
+  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
+  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
+  /* Total compilation time incl. caching/parsing */                          \
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
 
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
-  AHT(compile_lazy, V8.CompileLazy)
+  AHT(compile_lazy, V8.CompileLazyMicroSeconds)
 
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
@@ -631,7 +638,7 @@ class Counters {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) \
+#define HT(name, caption, max, res) \
   HistogramTimer* name() { return &name##_; }
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
@@ -688,7 +695,7 @@ class Counters {
 #undef SC
 
   enum Id {
-#define RATE_ID(name, caption) k_##name,
+#define RATE_ID(name, caption, max, res) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
 #define AGGREGATABLE_ID(name, caption) k_##name,
@@ -730,8 +737,7 @@ class Counters {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) \
-  HistogramTimer name##_;
+#define HT(name, caption, max, res) HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
