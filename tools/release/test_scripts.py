@@ -623,19 +623,20 @@ test_tag
 
   # Version as tag: 3.22.4.0. Version on master: 3.22.6.
   # Make sure that the latest version is 3.22.6.0.
-  def testGetLatestVersion(self):
+  def testIncrementVersion(self):
     self.Expect([
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
     ])
 
-    self.RunStep(PushToCandidates, GetLatestVersion)
+    self.RunStep(PushToCandidates, IncrementVersion)
 
-    self.assertEquals("3", self._state["latest_major"])
-    self.assertEquals("22", self._state["latest_minor"])
-    self.assertEquals("6", self._state["latest_build"])
-    self.assertEquals("0", self._state["latest_patch"])
+    self.assertEquals("3", self._state["new_major"])
+    self.assertEquals("22", self._state["new_minor"])
+    self.assertEquals("7", self._state["new_build"])
+    self.assertEquals("0", self._state["new_patch"])
 
   def _TestSquashCommits(self, change_log, expected_msg):
     TEST_CONFIG["CHANGELOG_ENTRY_FILE"] = self.MakeEmptyTempFile()
@@ -778,7 +779,6 @@ Performance and stability improvements on all platforms."""
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd(("git new-branch %s --upstream origin/master" %
@@ -794,6 +794,7 @@ Performance and stability improvements on all platforms."""
     expectations += [
       Cmd("git log -1 --format=%s hash2",
        "Version 3.4.5 (based on abc3)\n"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=self.WriteFakeVersionFile),

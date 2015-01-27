@@ -45,9 +45,6 @@ class Preparation(Step):
     self.InitialEnvironmentChecks(self.default_cwd)
     self.CommonPrepare()
 
-    # Make sure tags are fetched.
-    self.Git("fetch origin +refs/tags/*:refs/tags/*")
-
     if(self["current_branch"] == self.Config("CANDIDATESBRANCH")
        or self["current_branch"] == self.Config("BRANCHNAME")):
       print "Warning: Script started on branch %s" % self["current_branch"]
@@ -114,37 +111,29 @@ class DetectLastPush(Step):
     self["last_push_master"] = last_push_master
 
 
-class GetLatestVersion(Step):
-  MESSAGE = "Get latest version from tags."
+class IncrementVersion(Step):
+  MESSAGE = "Increment version number."
 
   def RunStep(self):
-    versions = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
-                      key=SortingKey, reverse=True)
-    self.StoreVersion(versions[0], "latest_")
-    self["latest_version"] = self.ArrayToVersion("latest_")
+    latest_version = self.GetLatestVersion()
 
     # The version file on master can be used to bump up major/minor at
     # branch time.
     self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMasterBranch())
     self.ReadAndPersistVersion("master_")
-    self["master_version"] = self.ArrayToVersion("master_")
+    master_version = self.ArrayToVersion("master_")
 
-    if SortingKey(self["master_version"]) > SortingKey(self["latest_version"]):
-      self["latest_version"] = self["master_version"]
-      self.StoreVersion(self["latest_version"], "latest_")
+    # Use the highest version from master or from tags to determine the new
+    # version.
+    authoritative_version = sorted(
+        [master_version, latest_version], key=SortingKey)[1]
+    self.StoreVersion(authoritative_version, "authoritative_")
 
-    print "Determined latest version %s" % self["latest_version"]
-
-
-class IncrementVersion(Step):
-  MESSAGE = "Increment version number."
-
-  def RunStep(self):
     # Variables prefixed with 'new_' contain the new version numbers for the
     # ongoing candidates push.
-    self["new_major"] = self["latest_major"]
-    self["new_minor"] = self["latest_minor"]
-    self["new_build"] = str(int(self["latest_build"]) + 1)
+    self["new_major"] = self["authoritative_major"]
+    self["new_minor"] = self["authoritative_minor"]
+    self["new_build"] = str(int(self["authoritative_build"]) + 1)
 
     # Make sure patch level is 0 in a new push.
     self["new_patch"] = "0"
@@ -152,6 +141,8 @@ class IncrementVersion(Step):
     self["version"] = "%s.%s.%s" % (self["new_major"],
                                     self["new_minor"],
                                     self["new_build"])
+
+    print ("Incremented version to %s" % self["version"])
 
 
 class PrepareChangeLog(Step):
@@ -429,7 +420,6 @@ class PushToCandidates(ScriptsBase):
       FreshBranch,
       PreparePushRevision,
       DetectLastPush,
-      GetLatestVersion,
       IncrementVersion,
       PrepareChangeLog,
       EditChangeLog,

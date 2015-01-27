@@ -47,6 +47,7 @@ from git_recipes import GitFailedException
 
 CHANGELOG_FILE = "ChangeLog"
 VERSION_FILE = os.path.join("src", "version.cc")
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
 # V8 base directory.
 V8_BASE = os.path.dirname(
@@ -380,7 +381,7 @@ class Step(GitRecipesMixin):
   def __getitem__(self, key):
     # Convenience method to allow direct [] access on step classes for
     # manipulating the backed state dict.
-    return self._state[key]
+    return self._state.get(key)
 
   def __setitem__(self, key, value):
     # Convenience method to allow direct [] access on step classes for
@@ -588,6 +589,20 @@ class Step(GitRecipesMixin):
       self.GitApplyPatch(patch_file, revert)
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
+
+  def GetLatestVersion(self):
+    # Use cached version if available.
+    if self["latest_version"]:
+      return self["latest_version"]
+
+    # Make sure tags are fetched.
+    self.Git("fetch origin +refs/tags/*:refs/tags/*")
+    version_parts = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
+                           key=SortingKey, reverse=True)[0].split(".")
+    if len(version_parts) == 3:
+      version_parts.append("0")
+    self["latest_version"] = ".".join(version_parts)
+    return self["latest_version"]
 
   def FindLastCandidatesPush(
       self, parent_hash="", branch="", include_patches=False):
