@@ -1362,7 +1362,6 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
-  friend class IsolateInitializer;
   friend class OptimizingCompilerThread;
   friend class SweeperThread;
   friend class ThreadManager;
