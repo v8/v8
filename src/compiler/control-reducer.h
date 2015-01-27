@@ -7,8 +7,14 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Zone;
+
+
 namespace compiler {
 
+// Forward declarations.
 class JSGraph;
 class CommonOperatorBuilder;
 class Node;

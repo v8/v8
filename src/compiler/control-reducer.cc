@@ -169,44 +169,80 @@ class ControlReducerImpl {
   Node* ConnectNTL(Node* loop) {
     TRACE(("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic()));
 
-    if (loop->opcode() != IrOpcode::kTerminate) {
-      // Insert a {Terminate} node if the loop has effects.
-      ZoneDeque<Node*> effects(zone_);
-      for (Node* const use : loop->uses()) {
-        if (use->opcode() == IrOpcode::kEffectPhi) effects.push_back(use);
-      }
-      int count = static_cast<int>(effects.size());
-      if (count > 0) {
-        Node** inputs = zone_->NewArray<Node*>(1 + count);
-        for (int i = 0; i < count; i++) inputs[i] = effects[i];
-        inputs[count] = loop;
-        loop = graph()->NewNode(common_->Terminate(count), 1 + count, inputs);
-        TRACE(("AddTerminate: #%d:%s[%d]\n", loop->id(), loop->op()->mnemonic(),
-               count));
+    Node* always = graph()->NewNode(common_->Always());
+    // Mark the node as visited so that we can revisit later.
+    MarkAsVisited(always);
+
+    Node* branch = graph()->NewNode(common_->Branch(), always, loop);
+    // Mark the node as visited so that we can revisit later.
+    MarkAsVisited(branch);
+
+    Node* if_true = graph()->NewNode(common_->IfTrue(), branch);
+    // Mark the node as visited so that we can revisit later.
+    MarkAsVisited(if_true);
+
+    Node* if_false = graph()->NewNode(common_->IfFalse(), branch);
+    // Mark the node as visited so that we can revisit later.
+    MarkAsVisited(if_false);
+
+    // Hook up the branch into the loop and collect all loop effects.
+    NodeVector effects(zone_);
+    for (auto edge : loop->use_edges()) {
+      DCHECK_EQ(loop, edge.to());
+      DCHECK(NodeProperties::IsControlEdge(edge));
+      if (edge.from() == branch) continue;
+      switch (edge.from()->opcode()) {
+#define CASE(Opcode) case IrOpcode::k##Opcode:
+        CONTROL_OP_LIST(CASE)
+#undef CASE
+          // Update all control nodes (except {branch}) pointing to the {loop}.
+          edge.UpdateTo(if_true);
+          break;
+        case IrOpcode::kEffectPhi:
+          effects.push_back(edge.from());
+          break;
+        default:
+          break;
       }
     }
 
-    Node* to_add = loop;
+    // Compute effects for the Return.
+    Node* effect = graph()->start();
+    int const effects_count = static_cast<int>(effects.size());
+    if (effects_count == 1) {
+      effect = effects[0];
+    } else if (effects_count > 1) {
+      effect = graph()->NewNode(common_->EffectSet(effects_count),
+                                effects_count, &effects.front());
+      // Mark the node as visited so that we can revisit later.
+      MarkAsVisited(effect);
+    }
+
+    // Add a return to connect the NTL to the end.
+    Node* ret = graph()->NewNode(
+        common_->Return(), jsgraph_->UndefinedConstant(), effect, if_false);
+    // Mark the node as visited so that we can revisit later.
+    MarkAsVisited(ret);
+
     Node* end = graph()->end();
     CHECK_EQ(IrOpcode::kEnd, end->opcode());
     Node* merge = end->InputAt(0);
     if (merge == NULL || merge->opcode() == IrOpcode::kDead) {
-      // The end node died; just connect end to {loop}.
-      end->ReplaceInput(0, loop);
+      // The end node died; just connect end to {ret}.
+      end->ReplaceInput(0, ret);
     } else if (merge->opcode() != IrOpcode::kMerge) {
-      // Introduce a final merge node for {end->InputAt(0)} and {loop}.
-      merge = graph()->NewNode(common_->Merge(2), merge, loop);
+      // Introduce a final merge node for {end->InputAt(0)} and {ret}.
+      merge = graph()->NewNode(common_->Merge(2), merge, ret);
       end->ReplaceInput(0, merge);
-      to_add = merge;
+      ret = merge;
       // Mark the node as visited so that we can revisit later.
-      EnsureStateSize(merge->id());
-      state_[merge->id()] = kVisited;
+      MarkAsVisited(merge);
     } else {
       // Append a new input to the final merge at the end.
-      merge->AppendInput(graph()->zone(), loop);
+      merge->AppendInput(graph()->zone(), ret);
       merge->set_op(common_->Merge(merge->InputCount()));
     }
-    return to_add;
+    return ret;
   }
 
   void AddNodesReachableFromEnd(ReachabilityMarker& marked, NodeVector& nodes) {
@@ -335,6 +371,13 @@ class ControlReducerImpl {
       state_[id] = kRevisit;
       revisit_.push_back(node);
     }
+  }
+
+  // Mark {node} as visited.
+  void MarkAsVisited(Node* node) {
+    size_t id = static_cast<size_t>(node->id());
+    EnsureStateSize(id);
+    state_[id] = kVisited;
   }
 
   Node* dead() {

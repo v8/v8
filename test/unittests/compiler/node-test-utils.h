@@ -31,6 +31,8 @@ class Node;
 using ::testing::Matcher;
 
 
+Matcher<Node*> IsAlways();
+Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
@@ -73,6 +75,8 @@ Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
 Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher,
                            const Matcher<Node*>& merge_matcher);
+Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
+                           const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
 Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,

@@ -13,6 +13,7 @@ namespace compiler {
 
 GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
+  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
 }
 
 
@@ -89,6 +90,12 @@ Matcher<Node*> GraphTest::IsFalseConstant() {
 Matcher<Node*> GraphTest::IsTrueConstant() {
   return IsHeapConstant(
       Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+}
+
+
+Matcher<Node*> GraphTest::IsUndefinedConstant() {
+  return IsHeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
 }
 
 

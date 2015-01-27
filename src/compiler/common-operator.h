@@ -162,13 +162,17 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
 
+  // Special operator used only in Branches to mark them as always taken, but
+  // still unfoldable. This is required to properly connect non terminating
+  // loops to end (in both the sea of nodes and the CFG).
+  const Operator* Always();
+
   const Operator* Dead();
   const Operator* End();
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* Throw();
-  const Operator* Terminate(int effects);
   const Operator* Return();
 
   const Operator* Start(int num_formal_parameters);
@@ -191,6 +195,7 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Select(MachineType, BranchHint = BranchHint::kNone);
   const Operator* Phi(MachineType type, int arguments);
   const Operator* EffectPhi(int arguments);
+  const Operator* EffectSet(int arguments);
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
   const Operator* StateValues(int arguments);

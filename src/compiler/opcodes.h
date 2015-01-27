@@ -14,7 +14,6 @@
   V(IfFalse)                     \
   V(Merge)                       \
   V(Return)                      \
-  V(Terminate)                   \
   V(OsrNormalEntry)              \
   V(OsrLoopEntry)                \
   V(Throw)
@@ -37,6 +36,7 @@
 #define INNER_OP_LIST(V) \
   V(Select)              \
   V(Phi)                 \
+  V(EffectSet)           \
   V(EffectPhi)           \
   V(ValueEffect)         \
   V(Finish)              \
@@ -49,7 +49,8 @@
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
-  INNER_OP_LIST(V)
+  INNER_OP_LIST(V)        \
+  V(Always)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -277,7 +278,7 @@ class IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kDead <= value && value <= kProjection;
+    return kDead <= value && value <= kAlways;
   }
 
   // Returns true if opcode for control operator.
