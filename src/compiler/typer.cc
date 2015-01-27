@@ -316,14 +316,7 @@ class Typer::Visitor : public Reducer {
     return BoundsOrNone(operand_node);
   }
 
-  Bounds ContextOperand(Node* node) {
-    Bounds result = BoundsOrNone(NodeProperties::GetContextInput(node));
-    DCHECK(result.upper->Maybe(Type::Internal()));
-    // TODO(rossberg): More precisely, instead of the above assertion, we should
-    // back-propagate the constraint that it has to be a subtype of Internal.
-    return result;
-  }
-
+  Bounds WrapContextBoundsForInput(Node* node);
   Type* Weaken(Type* current_type, Type* previous_type);
 
   Zone* zone() { return typer_->zone(); }
@@ -1387,40 +1380,45 @@ Bounds Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
+Bounds Typer::Visitor::WrapContextBoundsForInput(Node* node) {
+  Bounds outer = BoundsOrNone(NodeProperties::GetContextInput(node));
+  if (outer.upper->Is(Type::None())) {
+    return Bounds(Type::None());
+  } else {
+    DCHECK(outer.upper->Maybe(Type::Internal()));
+    return Bounds(Type::Context(outer.upper, zone()));
+  }
+}
+
+
 Bounds Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
 Bounds Typer::Visitor::TypeJSCreateCatchContext(Node* node) {
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
 Bounds Typer::Visitor::TypeJSCreateWithContext(Node* node) {
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
 Bounds Typer::Visitor::TypeJSCreateBlockContext(Node* node) {
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
 Bounds Typer::Visitor::TypeJSCreateModuleContext(Node* node) {
   // TODO(rossberg): this is probably incorrect
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
 Bounds Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
-  Bounds outer = ContextOperand(node);
-  return Bounds(Type::Context(outer.upper, zone()));
+  return WrapContextBoundsForInput(node);
 }
 
 
