@@ -3300,19 +3300,21 @@ static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
   Handle<Map> current_map = map;
 
   ElementsKind kind = map->elements_kind();
-  if (!map->is_prototype_map()) {
+  TransitionFlag flag;
+  if (map->is_prototype_map()) {
+    flag = OMIT_TRANSITION;
+  } else {
+    flag = INSERT_TRANSITION;
     while (kind != to_kind && !IsTerminalElementsKind(kind)) {
       kind = GetNextTransitionElementsKind(kind);
-      current_map =
-          Map::CopyAsElementsKind(current_map, kind, INSERT_TRANSITION);
+      current_map = Map::CopyAsElementsKind(current_map, kind, flag);
     }
   }
 
   // In case we are exiting the fast elements kind system, just add the map in
   // the end.
   if (kind != to_kind) {
-    current_map = Map::CopyAsElementsKind(
-        current_map, to_kind, INSERT_TRANSITION);
+    current_map = Map::CopyAsElementsKind(current_map, to_kind, flag);
   }
 
   DCHECK(current_map->elements_kind() == to_kind);
@@ -6805,31 +6807,18 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
                            map->CanHaveMoreTransitions() &&
                            !map->HasElementsTransition();
 
-  if (insert_transition && map->owns_descriptors()) {
-    // In case the map owned its own descriptors, share the descriptors and
-    // transfer ownership to the new map.
-    Handle<Map> new_map = CopyDropDescriptors(map);
+  if (insert_transition) {
+    Handle<Map> new_map = CopyForTransition(map, "CopyAsElementsKind");
+    new_map->set_elements_kind(kind);
 
     ConnectElementsTransition(map, new_map);
 
-    new_map->set_elements_kind(kind);
-    // The properties did not change, so reuse descriptors.
-    new_map->InitializeDescriptors(map->instance_descriptors(),
-                                   map->GetLayoutDescriptor());
     return new_map;
   }
 
-  // In case the map did not own its own descriptors, a split is forced by
-  // copying the map; creating a new descriptor array cell.
   // Create a new free-floating map only if we are not allowed to store it.
   Handle<Map> new_map = Copy(map, "CopyAsElementsKind");
-
   new_map->set_elements_kind(kind);
-
-  if (insert_transition) {
-    ConnectElementsTransition(map, new_map);
-  }
-
   return new_map;
 }
 
@@ -6839,27 +6828,55 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
   Isolate* isolate = map->GetIsolate();
 
-  // In case the map owned its own descriptors, share the descriptors and
-  // transfer ownership to the new map.
-  Handle<Map> new_map;
-  if (map->owns_descriptors()) {
-    new_map = CopyDropDescriptors(map);
-  } else {
-    DCHECK(!map->is_prototype_map());
-    new_map = Copy(map, "CopyForObserved");
+  bool insert_transition =
+      map->CanHaveMoreTransitions() && !map->is_prototype_map();
+
+  if (insert_transition) {
+    Handle<Map> new_map = CopyForTransition(map, "CopyForObserved");
+    new_map->set_is_observed();
+
+    Handle<Name> name = isolate->factory()->observed_symbol();
+    ConnectTransition(map, new_map, name, SPECIAL_TRANSITION);
+    return new_map;
   }
 
+  // Create a new free-floating map only if we are not allowed to store it.
+  Handle<Map> new_map = Map::Copy(map, "CopyForObserved");
   new_map->set_is_observed();
+  return new_map;
+}
+
+
+Handle<Map> Map::CopyForTransition(Handle<Map> map, const char* reason) {
+  DCHECK(!map->is_prototype_map());
+  Handle<Map> new_map = CopyDropDescriptors(map);
+
   if (map->owns_descriptors()) {
+    // In case the map owned its own descriptors, share the descriptors and
+    // transfer ownership to the new map.
     // The properties did not change, so reuse descriptors.
     new_map->InitializeDescriptors(map->instance_descriptors(),
                                    map->GetLayoutDescriptor());
+  } else {
+    // In case the map did not own its own descriptors, a split is forced by
+    // copying the map; creating a new descriptor array cell.
+    Handle<DescriptorArray> descriptors(map->instance_descriptors());
+    int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> new_descriptors =
+        DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
+    Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
+                                                   map->GetIsolate());
+    new_map->InitializeDescriptors(*new_descriptors, *new_layout_descriptor);
   }
 
-  if (map->CanHaveMoreTransitions()) {
-    Handle<Name> name = isolate->factory()->observed_symbol();
-    ConnectTransition(map, new_map, name, SPECIAL_TRANSITION);
+#if TRACE_MAPS
+  if (FLAG_trace_maps) {
+    PrintF("[TraceMaps: CopyForTransition from= %p to= %p reason= %s ]\n",
+           reinterpret_cast<void*>(*map), reinterpret_cast<void*>(*new_map),
+           reason);
   }
+#endif
+
   return new_map;
 }
 

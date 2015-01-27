@@ -6141,6 +6141,11 @@ class Map: public HeapObject {
 
   inline void AppendDescriptor(Descriptor* desc);
 
+  // Returns a copy of the map, prepared for inserting into the transition
+  // tree (if the |map| owns descriptors then the new one will share
+  // descriptors with |map|).
+  static Handle<Map> CopyForTransition(Handle<Map> map, const char* reason);
+
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map, const char* reason);
