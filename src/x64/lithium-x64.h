@@ -1928,11 +1928,14 @@ class LInvokeFunction FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCallFunction FINAL : public LTemplateInstruction<1, 2, 0> {
+class LCallFunction FINAL : public LTemplateInstruction<1, 2, 2> {
  public:
-  LCallFunction(LOperand* context, LOperand* function) {
+  LCallFunction(LOperand* context, LOperand* function, LOperand* slot,
+                LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = function;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
@@ -1940,7 +1943,11 @@ class LCallFunction FINAL : public LTemplateInstruction<1, 2, 0> {
 
   LOperand* context() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
   int arity() const { return hydrogen()->argument_count() - 1; }
+
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 

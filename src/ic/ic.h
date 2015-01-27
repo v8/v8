@@ -146,6 +146,8 @@ class IC {
   // Get the original (non-breakpointed) code object of the caller.
   Code* GetOriginalCode() const;
 
+  bool AddressIsOptimizedCode() const;
+
   // Set the call-site target.
   inline void set_target(Code* code);
   bool is_target_set() { return target_set_; }
