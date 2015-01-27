@@ -306,11 +306,11 @@ void ArgumentAdaptorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       esi,  // context
-      eax,  // callee
+      edi,  // callee
       ebx,  // call_data
       ecx,  // holder
       edx,  // api_function_address
-      edi,  // actual number of arguments
+      eax,  // actual number of arguments
   };
   Representation representations[] = {
       Representation::Tagged(),     // context
@@ -327,7 +327,7 @@ void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 void ApiAccessorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       esi,  // context
-      eax,  // callee
+      edi,  // callee
       ebx,  // call_data
       ecx,  // holder
       edx,  // api_function_address

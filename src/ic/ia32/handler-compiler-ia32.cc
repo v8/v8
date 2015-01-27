@@ -162,11 +162,11 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
-  Register callee = eax;
+  Register callee = edi;
   Register call_data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
-  Register scratch = edi;  // scratch_in is no longer valid.
+  Register scratch = eax;  // scratch_in is no longer valid.
 
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
