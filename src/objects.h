@@ -4448,11 +4448,8 @@ class ByteArray: public FixedArrayBase {
 };
 
 
-// FreeSpace are fixed-size free memory blocks used by the heap and GC.
-// They look like heap objects (are heap object tagged and have a map) so that
-// the heap remains iterable.  They have a size and a next pointer.
-// The next pointer is the raw address of the next FreeSpace object (or NULL)
-// in the free list.
+// FreeSpace represents fixed sized areas of the heap that are not currently in
+// use.  Used by the heap and GC.
 class FreeSpace: public HeapObject {
  public:
   // [size]: size of the free space including the header.
@@ -4464,12 +4461,7 @@ class FreeSpace: public HeapObject {
 
   inline int Size() { return size(); }
 
-  // Accessors for the next field.
-  inline FreeSpace* next();
-  inline FreeSpace** next_address();
-  inline void set_next(FreeSpace* next);
-
-  inline static FreeSpace* cast(HeapObject* obj);
+  DECLARE_CAST(FreeSpace)
 
   // Dispatched behavior.
   DECLARE_PRINTER(FreeSpace)
@@ -4478,7 +4470,9 @@ class FreeSpace: public HeapObject {
   // Layout description.
   // Size is smi tagged when it is stored.
   static const int kSizeOffset = HeapObject::kHeaderSize;
-  static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
+  static const int kHeaderSize = kSizeOffset + kPointerSize;
+
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
