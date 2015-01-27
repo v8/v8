@@ -1,3 +1,11 @@
+2015-01-27: Version 4.2.31
+
+        [x86] Disable AVX unless the operating system explicitly claims to
+        support it (issue 3846, Chromium issue 452033).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-27: Version 4.2.30
 
         Performance and stability improvements on all platforms.
