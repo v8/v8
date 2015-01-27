@@ -27,164 +27,19 @@
 
 // Flags: --harmony-modules
 
-// Test basic module syntax, with and without automatic semicolon insertion.
-
-module A {}
-
-module A1 = A
-module A2 = A;
-module A3 = A2
-
-module B {
-  export vx
-  export vy, lz, c, f
-
-  var vx
-  var vx, vy;
-  var vx = 0, vy
-  let lx, ly
-  let lz = 1
-  const c = 9
-  function f() {}
-
-  module C0 {}
-
-  export module C {
-    let x
-    export module D { export let x }
-    let y
-  }
-
-  let zz = ""
-
-  export var x0
-  export var x1, x2 = 6, x3
-  export let y0
-  export let y1 = 0, y2
-  export const z0 = 0
-  export const z1 = 2, z2 = 3
-  export function f0() {}
-  export module M1 {}
-  export module M2 = C.D
-  export module M3 at "http://where"
-
-  import i0 from I
-  import i1, i2, i3, M from I
-  //import i4, i5 from "http://where"
-}
-
-module I {
-  export let i0, i1, i2, i3;
-  export module M {}
-}
-
-module C1 = B.C;
-module D1 = B.C.D
-module D2 = C1.D
-module D3 = D2
-
-module E1 at "http://where"
-module E2 at "http://where";
-module E3 = E1
-
-// Check that ASI does not interfere.
-
-module X
-{
-let x
-}
-
-module Y
-=
-X
-
-module Z
-at
-"file://local"
-
-import
-vx
-,
-vy
-from
-B
-
-
-module Wrap {
-export
-x
-,
-y
-
-var
-x
-,
-y
-
-export
-var
-v1 = 1
-
-export
-let
-v2 = 2
-
-export
-const
-v3 = 3
-
-export
-function
-f
-(
-)
-{
-}
-
-export
-module V
-{
-}
-}
-
-export A, A1, A2, A3, B, I, C1, D1, D2, D3, E1, E2, E3, X, Y, Z, Wrap, x, y, UU
-
-
-
-// Check that 'module' still works as an identifier.
-
-var module
-module = {}
-module["a"] = 6
-function module() {}
-function f(module) { return module }
-try {} catch (module) {}
-
-module
-v = 20
-
-
-
-// Check that module declarations are rejected in eval or local scope.
-
-module M { export let x; }
-
-assertThrows("export x;", SyntaxError);  // It's using eval, so should throw.
+// Check that import/export declarations are rejected in eval or local scope.
+assertThrows("export x;", SyntaxError);
 assertThrows("export let x;", SyntaxError);
-assertThrows("import x from M;", SyntaxError);
-assertThrows("module M {};", SyntaxError);
+assertThrows("import x from 'http://url';", SyntaxError);
 
 assertThrows("{ export x; }", SyntaxError);
 assertThrows("{ export let x; }", SyntaxError);
-assertThrows("{ import x from M; }", SyntaxError);
-assertThrows("{ module M {}; }", SyntaxError);
+assertThrows("{ import x from 'http://url'; }", SyntaxError);
 
 assertThrows("function f() { export x; }", SyntaxError);
 assertThrows("function f() { export let x; }", SyntaxError);
-assertThrows("function f() { import x from M; }", SyntaxError);
-assertThrows("function f() { module M {}; }", SyntaxError);
+assertThrows("function f() { import x from 'http://url'; }", SyntaxError);
 
 assertThrows("function f() { { export x; } }", SyntaxError);
 assertThrows("function f() { { export let x; } }", SyntaxError);
-assertThrows("function f() { { import x from M; } }", SyntaxError);
-assertThrows("function f() { { module M {}; } }", SyntaxError);
+assertThrows("function f() { { import x from 'http://url'; } }", SyntaxError);

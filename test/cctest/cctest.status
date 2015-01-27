@@ -63,6 +63,9 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
+  # Modules are busted
+  'test-parsing/ExportsMaybeAssigned': [SKIP],
+
   # This tests only the type system, so there is no point in running several
   # variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],

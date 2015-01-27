@@ -89,7 +89,8 @@ class CompilationInfo {
     kInliningEnabled = 1 << 17,
     kTypingEnabled = 1 << 18,
     kDisableFutureOptimization = 1 << 19,
-    kToplevel = 1 << 20
+    kModule = 1 << 20,
+    kToplevel = 1 << 21
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -105,6 +106,7 @@ class CompilationInfo {
   bool is_lazy() const { return GetFlag(kLazy); }
   bool is_eval() const { return GetFlag(kEval); }
   bool is_global() const { return GetFlag(kGlobal); }
+  bool is_module() const { return GetFlag(kModule); }
   StrictMode strict_mode() const {
     return GetFlag(kStrictMode) ? STRICT : SLOPPY;
   }
@@ -144,6 +146,11 @@ class CompilationInfo {
   void MarkAsGlobal() {
     DCHECK(!is_lazy());
     SetFlag(kGlobal);
+  }
+
+  void MarkAsModule() {
+    DCHECK(!is_lazy());
+    SetFlag(kModule);
   }
 
   void set_parameter_count(int parameter_count) {

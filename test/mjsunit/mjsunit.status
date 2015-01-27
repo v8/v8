@@ -80,6 +80,12 @@
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
 
+  # Modules are busted
+  'harmony/module-linking': [SKIP],
+  'harmony/module-recompile': [SKIP],
+  'harmony/module-resolution': [SKIP],
+  'harmony/regress/regress-343928': [SKIP],
+
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
