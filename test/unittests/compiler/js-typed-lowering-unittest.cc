@@ -119,7 +119,6 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
 
 
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
-  Handle<Object> zero = factory()->NewNumber(0);
   Node* input = Parameter(
       Type::Union(
           Type::MinusZero(),
@@ -133,7 +132,7 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
                           Type::Undetectable(),
                           Type::Union(
                               Type::Constant(factory()->false_value(), zone()),
-                              Type::Range(zero, zero, zone()), zone()),
+                              Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
                       zone()),
                   zone()),
@@ -164,9 +163,7 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithTruish) {
 
 
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithNonZeroPlainNumber) {
-  Node* input = Parameter(
-      Type::Range(factory()->NewNumber(1), factory()->NewNumber(42), zone()),
-      0);
+  Node* input = Parameter(Type::Range(1.0, 42.0, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
@@ -259,8 +256,7 @@ TEST_F(JSTypedLoweringTest, ParameterWithPlainNumber) {
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
   TRACED_FOREACH(double, value, kIntegerValues) {
-    Handle<Object> constant = factory()->NewNumber(value);
-    Reduction r = Reduce(Parameter(Type::Range(constant, constant, zone())));
+    Reduction r = Reduce(Parameter(Type::Range(value, value, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
@@ -299,7 +295,6 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
 
 
 TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
-  Handle<Object> zero = factory()->NewNumber(0);
   Node* input = Parameter(
       Type::Union(
           Type::MinusZero(),
@@ -313,7 +308,7 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
                           Type::Undetectable(),
                           Type::Union(
                               Type::Constant(factory()->false_value(), zone()),
-                              Type::Range(zero, zero, zone()), zone()),
+                              Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
                       zone()),
                   zone()),
@@ -344,10 +339,7 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
 
 
 TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
-  Node* input =
-      Parameter(Type::Range(factory()->NewNumber(1),
-                            factory()->NewNumber(V8_INFINITY), zone()),
-                0);
+  Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
@@ -593,8 +585,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     int const element_size = static_cast<int>(array->element_size());
 
     Node* key = Parameter(
-        Type::Range(factory()->NewNumber(kMinInt / element_size),
-                    factory()->NewNumber(kMaxInt / element_size), zone()));
+        Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
     Node* base = HeapConstant(array);
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
@@ -640,8 +631,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     int min = random_number_generator()->NextInt(static_cast<int>(kLength));
     int max = random_number_generator()->NextInt(static_cast<int>(kLength));
     if (min > max) std::swap(min, max);
-    Node* key = Parameter(Type::Range(factory()->NewNumber(min),
-                                      factory()->NewNumber(max), zone()));
+    Node* key = Parameter(Type::Range(min, max, zone()));
     Node* base = HeapConstant(array);
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
@@ -681,8 +671,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       int const element_size = static_cast<int>(array->element_size());
 
       Node* key = Parameter(
-          Type::Range(factory()->NewNumber(kMinInt / element_size),
-                      factory()->NewNumber(kMaxInt / element_size), zone()));
+          Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
       Node* base = HeapConstant(array);
       Node* value =
           Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
@@ -728,8 +717,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       int const element_size = static_cast<int>(array->element_size());
 
       Node* key = Parameter(
-          Type::Range(factory()->NewNumber(kMinInt / element_size),
-                      factory()->NewNumber(kMaxInt / element_size), zone()));
+          Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(Type::Any());
       Node* context = UndefinedConstant();
@@ -787,8 +775,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       int min = random_number_generator()->NextInt(static_cast<int>(kLength));
       int max = random_number_generator()->NextInt(static_cast<int>(kLength));
       if (min > max) std::swap(min, max);
-      Node* key = Parameter(Type::Range(factory()->NewNumber(min),
-                                        factory()->NewNumber(max), zone()));
+      Node* key = Parameter(Type::Range(min, max, zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(access.type);
       Node* context = UndefinedConstant();

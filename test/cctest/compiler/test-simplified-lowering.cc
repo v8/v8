@@ -972,11 +972,8 @@ TEST(LowerNumberCmp_to_float64) {
 
 TEST(LowerNumberAddSub_to_int32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_isolate()->factory();
-  Type* small_range =
-      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
-  Type* large_range =
-      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  Type* small_range = Type::Range(1, 10, scope.main_zone());
+  Type* large_range = Type::Range(-1e+13, 1e+14, scope.main_zone());
   static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
                           large_range};
 
@@ -996,11 +993,8 @@ TEST(LowerNumberAddSub_to_int32) {
 
 TEST(LowerNumberAddSub_to_uint32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_isolate()->factory();
-  Type* small_range =
-      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
-  Type* large_range =
-      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  Type* small_range = Type::Range(1, 10, scope.main_zone());
+  Type* large_range = Type::Range(-1e+13, 1e+14, scope.main_zone());
   static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
                           large_range};
 

@@ -65,8 +65,8 @@ class Typer {
   Type* random_fun_;
   LazyTypeCache* cache_;
 
-  ZoneVector<Handle<Object> > weaken_min_limits_;
-  ZoneVector<Handle<Object> > weaken_max_limits_;
+  ZoneVector<double> weaken_min_limits_;
+  ZoneVector<double> weaken_max_limits_;
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 

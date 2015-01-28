@@ -26,8 +26,8 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
     Limits lhs, Limits rhs) {
   DisallowHeapAllocation no_allocation;
   Limits result(lhs);
-  if (lhs.min->Number() < rhs.min->Number()) result.min = rhs.min;
-  if (lhs.max->Number() > rhs.max->Number()) result.max = rhs.max;
+  if (lhs.min < rhs.min) result.min = rhs.min;
+  if (lhs.max > rhs.max) result.max = rhs.max;
   result.representation = lhs.representation & rhs.representation;
   return result;
 }
@@ -35,7 +35,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
 
 template <class Config>
 bool TypeImpl<Config>::IsEmpty(Limits lim) {
-  return lim.min->Number() > lim.max->Number();
+  return lim.min > lim.max;
 }
 
 
@@ -44,8 +44,8 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Union(Limits lhs,
                                                           Limits rhs) {
   DisallowHeapAllocation no_allocation;
   Limits result(lhs);
-  if (lhs.min->Number() > rhs.min->Number()) result.min = rhs.min;
-  if (lhs.max->Number() < rhs.max->Number()) result.max = rhs.max;
+  if (lhs.min > rhs.min) result.min = rhs.min;
+  if (lhs.max < rhs.max) result.max = rhs.max;
   result.representation = lhs.representation | rhs.representation;
   return result;
 }
@@ -57,7 +57,7 @@ bool TypeImpl<Config>::Overlap(
     typename TypeImpl<Config>::RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
   typename TypeImpl<Config>::Limits lim = Intersect(Limits(lhs), Limits(rhs));
-  return lim.min->Number() <= lim.max->Number();
+  return lim.min <= lim.max;
 }
 
 
@@ -66,9 +66,8 @@ bool TypeImpl<Config>::Contains(
     typename TypeImpl<Config>::RangeType* lhs,
     typename TypeImpl<Config>::RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
-  return rhs->Bound()->Is(lhs->Bound()) &&
-         lhs->Min()->Number() <= rhs->Min()->Number() &&
-         rhs->Max()->Number() <= lhs->Max()->Number();
+  return BitsetType::Is(rhs->Bound(), lhs->Bound()) &&
+         lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
 
@@ -76,9 +75,10 @@ template <class Config>
 bool TypeImpl<Config>::Contains(typename TypeImpl<Config>::RangeType* lhs,
                                 typename TypeImpl<Config>::ConstantType* rhs) {
   DisallowHeapAllocation no_allocation;
-  return IsInteger(*rhs->Value()) && rhs->Bound()->Is(lhs->Bound()) &&
-         lhs->Min()->Number() <= rhs->Value()->Number() &&
-         rhs->Value()->Number() <= lhs->Max()->Number();
+  return IsInteger(*rhs->Value()) &&
+         BitsetType::Is(rhs->Bound()->AsBitset(), lhs->Bound()) &&
+         lhs->Min() <= rhs->Value()->Number() &&
+         rhs->Value()->Number() <= lhs->Max();
 }
 
 
@@ -87,9 +87,8 @@ bool TypeImpl<Config>::Contains(
     typename TypeImpl<Config>::RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(val) &&
-         BitsetType::Is(BitsetType::Lub(val), range->Bound()->AsBitset()) &&
-         range->Min()->Number() <= val->Number() &&
-         val->Number() <= range->Max()->Number();
+         BitsetType::Is(BitsetType::Lub(val), range->Bound()) &&
+         range->Min() <= val->Number() && val->Number() <= range->Max();
 }
 
 
@@ -107,7 +106,7 @@ double TypeImpl<Config>::Min() {
     }
     return min;
   }
-  if (this->IsRange()) return this->AsRange()->Min()->Number();
+  if (this->IsRange()) return this->AsRange()->Min();
   if (this->IsConstant()) return this->AsConstant()->Value()->Number();
   UNREACHABLE();
   return 0;
@@ -125,7 +124,7 @@ double TypeImpl<Config>::Max() {
     }
     return max;
   }
-  if (this->IsRange()) return this->AsRange()->Max()->Number();
+  if (this->IsRange()) return this->AsRange()->Max();
   if (this->IsConstant()) return this->AsConstant()->Value()->Number();
   UNREACHABLE();
   return 0;
@@ -148,8 +147,8 @@ TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
     return type->AsUnion()->Get(0)->BitsetGlb() |
            type->AsUnion()->Get(1)->BitsetGlb();  // Shortcut.
   } else if (type->IsRange()) {
-    bitset glb = SEMANTIC(BitsetType::Glb(type->AsRange()->Min()->Number(),
-                                          type->AsRange()->Max()->Number()));
+    bitset glb = SEMANTIC(
+        BitsetType::Glb(type->AsRange()->Min(), type->AsRange()->Max()));
     if (glb == 0) {
       return kNone;
     } else {
@@ -181,7 +180,7 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
         type->AsClass()->Bound(NULL)->AsBitset();
   }
   if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
-  if (type->IsRange()) return type->AsRange()->Bound()->AsBitset();
+  if (type->IsRange()) return type->AsRange()->Bound();
   if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kArray;
   if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
@@ -765,13 +764,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::ToLimits(bitset bits,
     return Limits::Empty(region);
   }
 
-  double bitset_min = BitsetType::Min(number_bits);
-  double bitset_max = BitsetType::Max(number_bits);
-
-  // TODO(jarin) Get rid of the heap numbers.
-  i::Factory* f = i::Isolate::Current()->factory();
-
-  return Limits(f->NewNumber(bitset_min), f->NewNumber(bitset_max),
+  return Limits(BitsetType::Min(number_bits), BitsetType::Max(number_bits),
                 representation);
 }
 
@@ -874,10 +867,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
   double bitset_min = BitsetType::Min(number_bits);
   double bitset_max = BitsetType::Max(number_bits);
 
-  i::Handle<i::Object> range_min_obj = range->Min();
-  i::Handle<i::Object> range_max_obj = range->Max();
-  double range_min = range_min_obj->Number();
-  double range_max = range_max_obj->Number();
+  double range_min = range->Min();
+  double range_max = range->Max();
 
   bitset range_representation = REPRESENTATION(range->BitsetLub());
   bitset bits_representation = REPRESENTATION(*bits);
@@ -897,14 +888,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
   }
 
   if (bitset_min < range_min) {
-    // TODO(jarin) Get rid of the heap numbers.
-    range_min_obj = i::Isolate::Current()->factory()->NewNumber(bitset_min);
+    range_min = bitset_min;
   }
   if (bitset_max > range_max) {
-    // TODO(jarin) Get rid of the heap numbers.
-    range_max_obj = i::Isolate::Current()->factory()->NewNumber(bitset_max);
+    range_max = bitset_max;
   }
-  return RangeType::New(range_min_obj, range_max_obj,
+  return RangeType::New(range_min, range_max,
                         BitsetType::New(representation, region), region);
 }
 
@@ -1227,8 +1216,8 @@ void TypeImpl<Config>::PrintTo(std::ostream& os, PrintDimension dim) {
     } else if (this->IsRange()) {
       std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
       std::streamsize saved_precision = os.precision(0);
-      os << "Range(" << this->AsRange()->Min()->Number() << ", "
-         << this->AsRange()->Max()->Number() << ")";
+      os << "Range(" << this->AsRange()->Min() << ", " << this->AsRange()->Max()
+         << ")";
       os.flags(saved_flags);
       os.precision(saved_precision);
     } else if (this->IsContext()) {
