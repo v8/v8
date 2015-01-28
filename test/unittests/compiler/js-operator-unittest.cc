@@ -68,7 +68,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0),
     SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(ToName, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
+    SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
     SHARED(Create, Operator::kEliminatable, 0, 0, 1, 1, 1, 1),

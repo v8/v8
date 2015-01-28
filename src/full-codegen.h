@@ -580,7 +580,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(ObjectLiteralProperty* property);
+  void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.

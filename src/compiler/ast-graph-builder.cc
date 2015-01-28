@@ -899,7 +899,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     environment()->Push(property->is_static() ? literal : proto);
 
     VisitForValue(property->key());
-    environment()->Push(BuildToName(environment()->Pop()));
+    environment()->Push(
+        BuildToName(environment()->Pop(), expr->GetIdForProperty(i)));
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -1131,7 +1132,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
     environment()->Push(literal);  // Duplicate receiver.
     VisitForValue(property->key());
-    environment()->Push(BuildToName(environment()->Pop()));
+    environment()->Push(BuildToName(environment()->Pop(),
+                                    expr->GetIdForProperty(property_index)));
     // TODO(mstarzinger): For ObjectLiteral::Property::PROTOTYPE the key should
     // not be on the operand stack while the value is being evaluated. Come up
     // with a repro for this and fix it. Also find a nice way to do so. :)
@@ -2324,11 +2326,13 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
 }
 
 
-Node* AstGraphBuilder::BuildToName(Node* input) {
+Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
   // TODO(turbofan): Possible optimization is to NOP on name constants. But the
   // same caveat as with BuildToBoolean applies, and it should be factored out
   // into a JSOperatorReducer.
-  return NewNode(javascript()->ToName(), input);
+  Node* name = NewNode(javascript()->ToName(), input);
+  PrepareFrameState(name, bailout_id);
+  return name;
 }
 
 

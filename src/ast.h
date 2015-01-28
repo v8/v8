@@ -1530,7 +1530,12 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
 
   BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
 
-  static int num_ids() { return parent_num_ids() + 1; }
+  // Return an AST id for a property that is used in simulate instructions.
+  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 1)); }
+
+  // Unlike other AST nodes, this number of bailout IDs allocated for an
+  // ObjectLiteral can vary, so num_ids() is not a static method.
+  int num_ids() const { return parent_num_ids() + 1 + properties()->length(); }
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
@@ -2641,10 +2646,16 @@ class ClassLiteral FINAL : public Expression {
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
 
-  static int num_ids() { return parent_num_ids() + 3; }
   BailoutId EntryId() const { return BailoutId(local_id(0)); }
   BailoutId DeclsId() const { return BailoutId(local_id(1)); }
   BailoutId ExitId() { return BailoutId(local_id(2)); }
+
+  // Return an AST id for a property that is used in simulate instructions.
+  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 3)); }
+
+  // Unlike other AST nodes, this number of bailout IDs allocated for an
+  // ClassLiteral can vary, so num_ids() is not a static method.
+  int num_ids() const { return parent_num_ids() + 3 + properties()->length(); }
 
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,

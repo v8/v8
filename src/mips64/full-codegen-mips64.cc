@@ -1792,7 +1792,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ Drop(2);
       }
     } else {
-      EmitPropertyKey(property);
+      EmitPropertyKey(property, expr->GetIdForProperty(property_index));
       VisitForStackValue(value);
 
       switch (property->kind()) {
@@ -2525,7 +2525,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
       __ ld(scratch, MemOperand(sp, 0));  // prototype
     }
     __ push(scratch);
-    EmitPropertyKey(property);
+    EmitPropertyKey(property, lit->GetIdForProperty(i));
     VisitForStackValue(value);
     EmitSetHomeObjectIfNeeded(value, 2);
 
