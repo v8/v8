@@ -211,7 +211,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
 TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTaggedSmall) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
-  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::SignedSmall()));
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Signed31()));
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 

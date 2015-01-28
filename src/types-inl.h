@@ -16,6 +16,19 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // TypeImpl
 
+template <class Config>
+typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::SignedSmall() {
+  return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
+}
+
+
+template <class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::UnsignedSmall() {
+  return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
+}
+
+
 template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
