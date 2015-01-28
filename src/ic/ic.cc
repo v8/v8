@@ -223,6 +223,17 @@ Code* IC::GetOriginalCode() const {
 }
 
 
+bool IC::AddressIsOptimizedCode() const {
+  Object* maybe_function =
+      Memory::Object_at(fp() + JavaScriptFrameConstants::kFunctionOffset);
+  if (maybe_function->IsJSFunction()) {
+    JSFunction* function = JSFunction::cast(maybe_function);
+    return function->IsOptimized();
+  }
+  return false;
+}
+
+
 static void LookupForRead(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -2144,8 +2155,16 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
     CallICNexus* nexus = casted_nexus<CallICNexus>();
     nexus->ConfigureMonomorphicArray();
 
-    CallIC_ArrayTrampolineStub stub(isolate(), callic_state);
-    set_target(*stub.GetCode());
+    // Vector-based ICs have a different calling convention in optimized code
+    // than full code so the correct stub has to be chosen.
+    if (AddressIsOptimizedCode()) {
+      CallIC_ArrayStub stub(isolate(), callic_state);
+      set_target(*stub.GetCode());
+    } else {
+      CallIC_ArrayTrampolineStub stub(isolate(), callic_state);
+      set_target(*stub.GetCode());
+    }
+
     Handle<String> name;
     if (array_function->shared()->name()->IsString()) {
       name = Handle<String>(String::cast(array_function->shared()->name()),
@@ -2167,9 +2186,15 @@ void CallIC::PatchMegamorphic(Handle<Object> function) {
   CallICNexus* nexus = casted_nexus<CallICNexus>();
   nexus->ConfigureGeneric();
 
-  CallICTrampolineStub stub(isolate(), callic_state);
-  Handle<Code> code = stub.GetCode();
-  set_target(*code);
+  // Vector-based ICs have a different calling convention in optimized code
+  // than full code so the correct stub has to be chosen.
+  if (AddressIsOptimizedCode()) {
+    CallICStub stub(isolate(), callic_state);
+    set_target(*stub.GetCode());
+  } else {
+    CallICTrampolineStub stub(isolate(), callic_state);
+    set_target(*stub.GetCode());
+  }
 
   Handle<Object> name = isolate()->factory()->empty_string();
   if (function->IsJSFunction()) {
