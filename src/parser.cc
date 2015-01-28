@@ -265,6 +265,7 @@ void Parser::SetCachedData() {
 
 Scope* Parser::NewScope(Scope* parent, ScopeType scope_type) {
   DCHECK(ast_value_factory());
+  DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
   Scope* result = new (zone())
       Scope(isolate(), zone(), parent, scope_type, ast_value_factory());
   result->Initialize();
@@ -934,8 +935,17 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
-    ParseSourceElements(body, Token::EOS, info->is_eval(), true, eval_scope,
-                        &ok);
+    if (info->is_module()) {
+      DCHECK(allow_harmony_modules());
+      Module* module = ParseModule(&ok);
+      if (ok) {
+        // TODO(adamk): Do something with returned Module
+        CHECK(module);
+        body->Add(factory()->NewEmptyStatement(RelocInfo::kNoPosition), zone());
+      }
+    } else {
+      ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
+    }
 
     if (ok && strict_mode() == STRICT) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
@@ -1080,11 +1090,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
 }
 
 
-void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
-                                  int end_token, bool is_eval, bool is_global,
-                                  Scope** eval_scope, bool* ok) {
-  // SourceElements ::
-  //   (ModuleElement)* <end_token>
+void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
+                                 bool is_eval, Scope** eval_scope, bool* ok) {
+  // StatementList ::
+  //   (StatementListItem)* <end_token>
 
   // Allocate a target stack to use for this set of source
   // elements. This way, all scripts and functions get their own
@@ -1092,7 +1101,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   // functions.
   TargetScope scope(&this->target_stack_);
 
-  DCHECK(processor != NULL);
+  DCHECK(body != NULL);
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {
@@ -1101,12 +1110,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
     }
 
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement* stat;
-    if (is_global && !is_eval) {
-      stat = ParseModuleElement(NULL, CHECK_OK);
-    } else {
-      stat = ParseBlockElement(NULL, CHECK_OK);
-    }
+    Statement* stat = ParseStatementListItem(CHECK_OK);
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1162,134 +1166,64 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       }
     }
 
-    processor->Add(stat, zone());
+    body->Add(stat, zone());
   }
 
   return 0;
 }
 
 
-Statement* Parser::ParseModuleElement(ZoneList<const AstRawString*>* labels,
-                                      bool* ok) {
-  // (Ecma 262 5th Edition, clause 14):
-  // SourceElement:
+Statement* Parser::ParseStatementListItem(bool* ok) {
+  // (Ecma 262 6th Edition, 13.1):
+  // StatementListItem:
   //    Statement
-  //    FunctionDeclaration
-  //
-  // In harmony mode we allow additionally the following productions
-  // ModuleElement:
-  //    LetDeclaration
-  //    ConstDeclaration
-  //    ModuleDeclaration
-  //    ImportDeclaration
-  //    ExportDeclaration
-  //    GeneratorDeclaration
+  //    Declaration
 
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
     case Token::CLASS:
       return ParseClassDeclaration(NULL, ok);
+    case Token::CONST:
+    case Token::VAR:
+      return ParseVariableStatement(kStatementListItem, NULL, ok);
+    case Token::LET:
+      DCHECK(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kStatementListItem, NULL, ok);
+      }
+      // Fall through.
+    default:
+      return ParseStatement(NULL, ok);
+  }
+}
+
+
+Statement* Parser::ParseModuleItem(bool* ok) {
+  // (Ecma 262 6th Edition, 15.2):
+  // ModuleItem :
+  //    ImportDeclaration
+  //    ExportDeclaration
+  //    StatementListItem
+
+  switch (peek()) {
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
-    case Token::CONST:
-      return ParseVariableStatement(kModuleElement, NULL, ok);
-    case Token::LET:
-      DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
-        return ParseVariableStatement(kModuleElement, NULL, ok);
-      }
-      // Fall through.
-    default: {
-      Statement* stmt = ParseStatement(labels, CHECK_OK);
-      // Handle 'module' as a context-sensitive keyword.
-      if (FLAG_harmony_modules &&
-          peek() == Token::IDENTIFIER &&
-          !scanner()->HasAnyLineTerminatorBeforeNext() &&
-          stmt != NULL) {
-        ExpressionStatement* estmt = stmt->AsExpressionStatement();
-        if (estmt != NULL && estmt->expression()->AsVariableProxy() != NULL &&
-            estmt->expression()->AsVariableProxy()->raw_name() ==
-                ast_value_factory()->module_string() &&
-            !scanner()->literal_contains_escapes()) {
-          return ParseModuleDeclaration(NULL, ok);
-        }
-      }
-      return stmt;
-    }
+    default:
+      return ParseStatementListItem(ok);
   }
-}
-
-
-Statement* Parser::ParseModuleDeclaration(ZoneList<const AstRawString*>* names,
-                                          bool* ok) {
-  // ModuleDeclaration:
-  //    'module' Identifier Module
-
-  int pos = peek_position();
-  const AstRawString* name =
-      ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-
-#ifdef DEBUG
-  if (FLAG_print_interface_details)
-    PrintF("# Module %.*s ", name->length(), name->raw_data());
-#endif
-
-  Module* module = ParseModule(CHECK_OK);
-  VariableProxy* proxy = NewUnresolved(name, MODULE, module->interface());
-  Declaration* declaration =
-      factory()->NewModuleDeclaration(proxy, module, scope_, pos);
-  Declare(declaration, true, CHECK_OK);
-
-#ifdef DEBUG
-  if (FLAG_print_interface_details)
-    PrintF("# Module %.*s ", name->length(), name->raw_data());
-  if (FLAG_print_interfaces) {
-    PrintF("module %.*s: ", name->length(), name->raw_data());
-    module->interface()->Print();
-  }
-#endif
-
-  if (names) names->Add(name, zone());
-  if (module->body() == NULL)
-    return factory()->NewEmptyStatement(pos);
-  else
-    return factory()->NewModuleStatement(proxy, module->body(), pos);
 }
 
 
 Module* Parser::ParseModule(bool* ok) {
-  // Module:
-  //    '{' ModuleElement '}'
-  //    '=' ModulePath ';'
-  //    'at' String ';'
-
-  switch (peek()) {
-    case Token::LBRACE:
-      return ParseModuleLiteral(ok);
-
-    case Token::ASSIGN: {
-      Expect(Token::ASSIGN, CHECK_OK);
-      Module* result = ParseModulePath(CHECK_OK);
-      ExpectSemicolon(CHECK_OK);
-      return result;
-    }
-
-    default: {
-      ExpectContextualKeyword(CStrVector("at"), CHECK_OK);
-      Module* result = ParseModuleUrl(CHECK_OK);
-      ExpectSemicolon(CHECK_OK);
-      return result;
-    }
-  }
-}
-
-
-Module* Parser::ParseModuleLiteral(bool* ok) {
-  // Module:
-  //    '{' ModuleElement '}'
+  // (Ecma 262 6th Edition, 15.2):
+  // Module :
+  //    ModuleBody?
+  //
+  // ModuleBody :
+  //    ModuleItem*
 
   int pos = peek_position();
   // Construct block expecting 16 statements.
@@ -1299,7 +1233,6 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 #endif
   Scope* scope = NewScope(scope_, MODULE_SCOPE);
 
-  Expect(Token::LBRACE, CHECK_OK);
   scope->set_start_position(scanner()->location().beg_pos);
   scope->SetStrictMode(STRICT);
 
@@ -1307,15 +1240,14 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
     BlockState block_state(&scope_, scope);
     Target target(&this->target_stack_, body);
 
-    while (peek() != Token::RBRACE) {
-      Statement* stat = ParseModuleElement(NULL, CHECK_OK);
+    while (peek() != Token::EOS) {
+      Statement* stat = ParseModuleItem(CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
       }
     }
   }
 
-  Expect(Token::RBRACE, CHECK_OK);
   scope->set_end_position(scanner()->location().end_pos);
   body->set_scope(scope);
 
@@ -1335,60 +1267,6 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   interface->Freeze(ok);
   DCHECK(*ok);
   return factory()->NewModuleLiteral(body, interface, pos);
-}
-
-
-Module* Parser::ParseModulePath(bool* ok) {
-  // ModulePath:
-  //    Identifier
-  //    ModulePath '.' Identifier
-
-  int pos = peek_position();
-  Module* result = ParseModuleVariable(CHECK_OK);
-  while (Check(Token::PERIOD)) {
-    const AstRawString* name = ParseIdentifierName(CHECK_OK);
-#ifdef DEBUG
-    if (FLAG_print_interface_details)
-      PrintF("# Path .%.*s ", name->length(), name->raw_data());
-#endif
-    Module* member = factory()->NewModulePath(result, name, pos);
-    result->interface()->Add(name, member->interface(), zone(), ok);
-    if (!*ok) {
-#ifdef DEBUG
-      if (FLAG_print_interfaces) {
-        PrintF("PATH TYPE ERROR at '%.*s'\n", name->length(), name->raw_data());
-        PrintF("result: ");
-        result->interface()->Print();
-        PrintF("member: ");
-        member->interface()->Print();
-      }
-#endif
-      ParserTraits::ReportMessage("invalid_module_path", name);
-      return NULL;
-    }
-    result = member;
-  }
-
-  return result;
-}
-
-
-Module* Parser::ParseModuleVariable(bool* ok) {
-  // ModulePath:
-  //    Identifier
-
-  int pos = peek_position();
-  const AstRawString* name =
-      ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-#ifdef DEBUG
-  if (FLAG_print_interface_details)
-    PrintF("# Module variable %.*s ", name->length(), name->raw_data());
-#endif
-  VariableProxy* proxy = scope_->NewUnresolved(
-      factory(), name, Interface::NewModule(zone()),
-      scanner()->location().beg_pos);
-
-  return factory()->NewModuleVariable(proxy, pos);
 }
 
 
@@ -1421,24 +1299,11 @@ Module* Parser::ParseModuleUrl(bool* ok) {
 }
 
 
-Module* Parser::ParseModuleSpecifier(bool* ok) {
-  // ModuleSpecifier:
-  //    String
-  //    ModulePath
-
-  if (peek() == Token::STRING) {
-    return ParseModuleUrl(ok);
-  } else {
-    return ParseModulePath(ok);
-  }
-}
-
-
-Block* Parser::ParseImportDeclaration(bool* ok) {
+Statement* Parser::ParseImportDeclaration(bool* ok) {
   // ImportDeclaration:
-  //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleSpecifier ';'
+  //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleUrl ';'
   //
-  // TODO(ES6): implement destructuring ImportSpecifiers
+  // TODO(ES6): implement current syntax
 
   int pos = peek_position();
   Expect(Token::IMPORT, CHECK_OK);
@@ -1453,38 +1318,17 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-  Module* module = ParseModuleSpecifier(CHECK_OK);
+  Module* module = ParseModuleUrl(CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
-  // Generate a separate declaration for each identifier.
-  // TODO(ES6): once we implement destructuring, make that one declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
+  // TODO(ES6): Do something with ParseModuleUrl's return value.
+  USE(module);
+
   for (int i = 0; i < names.length(); ++i) {
-#ifdef DEBUG
-    if (FLAG_print_interface_details)
-      PrintF("# Import %.*s ", name->length(), name->raw_data());
-#endif
-    Interface* interface = Interface::NewUnknown(zone());
-    module->interface()->Add(names[i], interface, zone(), ok);
-    if (!*ok) {
-#ifdef DEBUG
-      if (FLAG_print_interfaces) {
-        PrintF("IMPORT TYPE ERROR at '%.*s'\n", name->length(),
-               name->raw_data());
-        PrintF("module: ");
-        module->interface()->Print();
-      }
-#endif
-      ParserTraits::ReportMessage("invalid_module_path", name);
-      return NULL;
-    }
-    VariableProxy* proxy = NewUnresolved(names[i], LET, interface);
-    Declaration* declaration =
-        factory()->NewImportDeclaration(proxy, module, scope_, pos);
-    Declare(declaration, true, CHECK_OK);
+    // TODO(ES6): Add an appropriate declaration for each name
   }
 
-  return block;
+  return factory()->NewEmptyStatement(pos);
 }
 
 
@@ -1496,7 +1340,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   //    'export' GeneratorDeclaration
   //    'export' ModuleDeclaration
   //
-  // TODO(ES6): implement structuring ExportSpecifiers
+  // TODO(ES6): implement current syntax
 
   Expect(Token::EXPORT, CHECK_OK);
 
@@ -1507,19 +1351,14 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       int pos = position();
       const AstRawString* name =
           ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-      // Handle 'module' as a context-sensitive keyword.
-      if (name != ast_value_factory()->module_string()) {
+      names.Add(name, zone());
+      while (peek() == Token::COMMA) {
+        Consume(Token::COMMA);
+        name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
         names.Add(name, zone());
-        while (peek() == Token::COMMA) {
-          Consume(Token::COMMA);
-          name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-          names.Add(name, zone());
-        }
-        ExpectSemicolon(CHECK_OK);
-        result = factory()->NewEmptyStatement(pos);
-      } else {
-        result = ParseModuleDeclaration(&names, CHECK_OK);
       }
+      ExpectSemicolon(CHECK_OK);
+      result = factory()->NewEmptyStatement(pos);
       break;
     }
 
@@ -1534,7 +1373,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::VAR:
     case Token::LET:
     case Token::CONST:
-      result = ParseVariableStatement(kModuleElement, &names, CHECK_OK);
+      result = ParseVariableStatement(kStatementListItem, &names, CHECK_OK);
       break;
 
     default:
@@ -1578,39 +1417,6 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 
   DCHECK(result != NULL);
   return result;
-}
-
-
-Statement* Parser::ParseBlockElement(ZoneList<const AstRawString*>* labels,
-                                     bool* ok) {
-  // (Ecma 262 5th Edition, clause 14):
-  // SourceElement:
-  //    Statement
-  //    FunctionDeclaration
-  //
-  // In harmony mode we allow additionally the following productions
-  // BlockElement (aka SourceElement):
-  //    LetDeclaration
-  //    ConstDeclaration
-  //    GeneratorDeclaration
-  //    ClassDeclaration
-
-  switch (peek()) {
-    case Token::FUNCTION:
-      return ParseFunctionDeclaration(NULL, ok);
-    case Token::CLASS:
-      return ParseClassDeclaration(NULL, ok);
-    case Token::CONST:
-      return ParseVariableStatement(kModuleElement, NULL, ok);
-    case Token::LET:
-      DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
-        return ParseVariableStatement(kModuleElement, NULL, ok);
-      }
-      // Fall through.
-    default:
-      return ParseStatement(labels, ok);
-  }
 }
 
 
@@ -2067,7 +1873,7 @@ Block* Parser::ParseScopedBlock(ZoneList<const AstRawString*>* labels,
     Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
-      Statement* stat = ParseBlockElement(NULL, CHECK_OK);
+      Statement* stat = ParseStatementListItem(CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
       }
@@ -2482,24 +2288,16 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     return ParseNativeDeclaration(ok);
   }
 
-  // Parsed expression statement, or the context-sensitive 'module' keyword.
-  // Only expect semicolon in the former case.
-  // Also detect attempts at 'let' declarations in sloppy mode.
-  if (!FLAG_harmony_modules || peek() != Token::IDENTIFIER ||
-      scanner()->HasAnyLineTerminatorBeforeNext() ||
-      expr->AsVariableProxy() == NULL ||
-      expr->AsVariableProxy()->raw_name() !=
-          ast_value_factory()->module_string() ||
-      scanner()->literal_contains_escapes()) {
-    if (peek() == Token::IDENTIFIER && expr->AsVariableProxy() != NULL &&
-        expr->AsVariableProxy()->raw_name() ==
-            ast_value_factory()->let_string()) {
-      ReportMessage("sloppy_lexical", NULL);
-      *ok = false;
-      return NULL;
-    }
-    ExpectSemicolon(CHECK_OK);
+  // Parsed expression statement, followed by semicolon.
+  // Detect attempts at 'let' declarations in sloppy mode.
+  if (peek() == Token::IDENTIFIER && expr->AsVariableProxy() != NULL &&
+      expr->AsVariableProxy()->raw_name() ==
+          ast_value_factory()->let_string()) {
+    ReportMessage("sloppy_lexical", NULL);
+    *ok = false;
+    return NULL;
   }
+  ExpectSemicolon(CHECK_OK);
   return factory()->NewExpressionStatement(expr, pos);
 }
 
@@ -3913,7 +3711,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         yield, RelocInfo::kNoPosition), zone());
   }
 
-  ParseSourceElements(body, Token::RBRACE, false, false, NULL, CHECK_OK);
+  ParseStatementList(body, Token::RBRACE, false, NULL, CHECK_OK);
 
   if (is_generator) {
     VariableProxy* get_proxy = factory()->NewVariableProxy(

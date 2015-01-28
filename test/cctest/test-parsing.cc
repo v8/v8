@@ -4668,3 +4668,57 @@ TEST(ComputedPropertyNameShorthandError) {
   RunParserSyncTest(context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+
+TEST(BasicImportExportParsing) {
+  const char kSource[] =
+      "export let x = 0;"
+      "import y from 'http://module.com/foo.js';"
+      "function f() {};"
+      "f();";
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  int kProgramByteSize = i::StrLength(kSource);
+  i::ScopedVector<char> program(kProgramByteSize + 1);
+  i::SNPrintF(program, "%s", kSource);
+  i::Handle<i::String> source =
+      factory->NewStringFromUtf8(i::CStrVector(program.start()))
+          .ToHandleChecked();
+
+  // Show that parsing as a module works
+  {
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::CompilationInfoWithZone info(script);
+    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                       isolate->heap()->HashSeed(),
+                                       isolate->unicode_cache()};
+    i::Parser parser(&info, &parse_info);
+    parser.set_allow_harmony_modules(true);
+    parser.set_allow_harmony_scoping(true);
+    info.MarkAsModule();
+    CHECK(parser.Parse());
+  }
+
+  // And that parsing a script does not.
+  {
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::CompilationInfoWithZone info(script);
+    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                       isolate->heap()->HashSeed(),
+                                       isolate->unicode_cache()};
+    i::Parser parser(&info, &parse_info);
+    parser.set_allow_harmony_modules(true);
+    parser.set_allow_harmony_scoping(true);
+    info.MarkAsGlobal();
+    CHECK(!parser.Parse());
+  }
+}

@@ -253,7 +253,6 @@ class AstValue : public ZoneObject {
   F(make_reference_error, "MakeReferenceErrorEmbedded") \
   F(make_syntax_error, "MakeSyntaxErrorEmbedded")       \
   F(make_type_error, "MakeTypeErrorEmbedded")           \
-  F(module, "module")                                   \
   F(native, "native")                                   \
   F(next, "next")                                       \
   F(proto, "__proto__")                                 \

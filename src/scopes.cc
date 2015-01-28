@@ -77,10 +77,8 @@ Scope::Scope(Isolate* isolate, Zone* zone, Scope* outer_scope,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      interface_(FLAG_harmony_modules && (scope_type == MODULE_SCOPE ||
-                                          scope_type == SCRIPT_SCOPE)
-                     ? Interface::NewModule(zone)
-                     : NULL),
+      interface_(scope_type == MODULE_SCOPE ? Interface::NewModule(zone)
+                                            : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone) {
