@@ -1,3 +1,11 @@
+2015-01-27: Version 4.2.32
+
+        Do not generalize field representations when making elements kind or
+        observed transition (Chromium issue 448711).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-27: Version 4.2.31
 
         [x86] Disable AVX unless the operating system explicitly claims to
