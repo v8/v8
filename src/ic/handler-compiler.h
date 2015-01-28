@@ -225,16 +225,18 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
-                                     Handle<JSFunction> setter);
+                                     int accessor_index,
+                                     int expected_arguments);
   Handle<Code> CompileStoreInterceptor(Handle<Name> name);
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<HeapType> type, Register receiver,
-                                     Handle<JSFunction> setter);
+                                     Register holder, int accessor_index,
+                                     int expected_arguments);
 
   static void GenerateStoreViaSetterForDeopt(MacroAssembler* masm) {
-    GenerateStoreViaSetter(masm, Handle<HeapType>::null(), no_reg,
-                           Handle<JSFunction>());
+    GenerateStoreViaSetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
+                           -1);
   }
 
   static void GenerateSlow(MacroAssembler* masm);

@@ -1743,8 +1743,10 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           return compiler.CompileStoreCallback(receiver, lookup->name(),
                                                call_optimization);
         }
+        int expected_arguments = function->shared()->formal_parameter_count();
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
-                                              Handle<JSFunction>::cast(setter));
+                                              lookup->GetAccessorIndex(),
+                                              expected_arguments);
       }
       break;
     }

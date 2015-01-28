@@ -214,7 +214,7 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Handle<JSFunction> setter) {
+    Register holder, int accessor_index, int expected_arguments) {
   // ----------- S t a t e -------------
   //  -- rsp[0] : return address
   // -----------------------------------
@@ -224,7 +224,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     // Save value register, so we can restore it later.
     __ Push(value());
 
-    if (!setter.is_null()) {
+    if (accessor_index >= 0) {
       // Call the JavaScript setter with receiver and value on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
@@ -234,8 +234,14 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       __ Push(receiver);
       __ Push(value());
       ParameterCount actual(1);
-      ParameterCount expected(setter);
-      __ InvokeFunction(setter, expected, actual, CALL_FUNCTION,
+      ParameterCount expected(expected_arguments);
+      Register scratch = holder;
+      __ movp(scratch, FieldOperand(holder, HeapObject::kMapOffset));
+      __ LoadInstanceDescriptors(scratch, scratch);
+      __ movp(scratch, FieldOperand(scratch, DescriptorArray::GetValueOffset(
+                                                 accessor_index)));
+      __ movp(rdi, FieldOperand(scratch, AccessorPair::kSetterOffset));
+      __ InvokeFunction(rdi, expected, actual, CALL_FUNCTION,
                         NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
