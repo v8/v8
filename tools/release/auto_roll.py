@@ -38,29 +38,31 @@ class CheckActiveRoll(Step):
       return True
 
 
-class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of the last push to candidates."
-
-  def RunStep(self):
-    self.vc.Fetch()
-    push_hash = self.FindLastCandidatesPush(
-        branch="origin/candidates", include_patches=True)
-    self["last_push"] = self.GetCommitPositionNumber(push_hash)
-
-
 class DetectLastRoll(Step):
   MESSAGE = "Detect commit ID of the last Chromium roll."
 
   def RunStep(self):
+    # The revision that should be rolled.
+    latest_release = self.GetLatestRelease()
+
     # Interpret the DEPS file to retrieve the v8 revision.
     # TODO(machenbach): This should be part or the roll-deps api of
     # depot_tools.
     Var = lambda var: '%s'
     exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
-    last_roll = self.GetCommitPositionNumber(vars['v8_revision'])
-    # FIXME(machenbach): When rolling from master and from candidates there
-    # will be different commit numbers here. Better use version?
-    if int(last_roll) >= int(self["last_push"]):
+
+    # The revision rolled last.
+    last_roll = vars['v8_revision']
+
+    # TODO(machenbach): It is possible that the auto-push script made a new
+    # fast-forward release (e.g. 4.2.3) while somebody patches the last
+    # candidate (e.g. 4.2.2.1). In this case, the auto-roller would pick
+    # the fast-forward release. Should there be a way to prioritize the
+    # patched version?
+
+    if latest_release == last_roll:
+      # We always try to roll if the latest revision is not the revision in
+      # chromium.
       print("There is no newer v8 revision than the one in Chromium (%s)."
             % last_roll)
       return True
@@ -131,7 +133,6 @@ class AutoRoll(ScriptsBase):
   def _Steps(self):
     return [
       CheckActiveRoll,
-      DetectLastPush,
       DetectLastRoll,
       CheckClusterFuzz,
       RollChromium,

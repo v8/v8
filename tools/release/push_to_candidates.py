@@ -35,8 +35,7 @@ import urllib2
 from common_includes import *
 
 PUSH_MSG_GIT_SUFFIX = " (based on %s)"
-PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
-VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -73,44 +72,6 @@ class PreparePushRevision(Step):
       self.Die("Could not determine the git hash for the push.")
 
 
-class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of last push to CANDIDATES."
-
-  def RunStep(self):
-    last_push = self._options.last_push or self.FindLastCandidatesPush()
-    while True:
-      # Print assumed commit, circumventing git's pager.
-      print self.GitLog(n=1, git_hash=last_push)
-      if self.Confirm(
-          "Is the commit printed above the last push to candidates?"):
-        break
-      last_push = self.FindLastCandidatesPush(parent_hash=last_push)
-
-    if self._options.last_master:
-      # Read the master revision of the last push from a command-line option.
-      last_push_master = self._options.last_master
-    else:
-      # Retrieve the master revision of the last push from the text in
-      # the push commit message.
-      last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
-      last_push_master = PUSH_MSG_GIT_RE.match(
-          last_push_title).group("git_rev")
-
-      if not last_push_master:  # pragma: no cover
-        self.Die(
-            "Could not retrieve master git hash for candidates push %s"
-            % last_push)
-
-    # This points to the git hash of the last push on candidates.
-    self["last_push_candidates"] = last_push
-    # This points to the last master revision that went into the last
-    # push.
-    # TODO(machenbach): Do we need a check to make sure we're not pushing a
-    # revision older than the last push? If we do this, the output of the
-    # current change log preparation won't make much sense.
-    self["last_push_master"] = last_push_master
-
-
 class IncrementVersion(Step):
   MESSAGE = "Increment version number."
 
@@ -143,6 +104,16 @@ class IncrementVersion(Step):
                                     self["new_build"])
 
     print ("Incremented version to %s" % self["version"])
+
+
+class DetectLastRelease(Step):
+  MESSAGE = "Detect commit ID of last release base."
+
+  def RunStep(self):
+    if self._options.last_master:
+      self["last_push_master"] = self._options.last_master
+    else:
+      self["last_push_master"] = self.GetLatestReleaseBase()
 
 
 class PrepareChangeLog(Step):
@@ -419,8 +390,8 @@ class PushToCandidates(ScriptsBase):
       Preparation,
       FreshBranch,
       PreparePushRevision,
-      DetectLastPush,
       IncrementVersion,
+      DetectLastRelease,
       PrepareChangeLog,
       EditChangeLog,
       StragglerCommits,

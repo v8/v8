@@ -36,7 +36,6 @@ import urllib
 from common_includes import *
 import push_to_candidates
 
-PUSH_MESSAGE_RE = re.compile(r".* \(based on ([a-fA-F0-9]+)\)$")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -47,30 +46,24 @@ class Preparation(Step):
 
 
 class FetchCandidate(Step):
-  MESSAGE = "Fetching V8 roll candidate ref."
+  MESSAGE = "Fetching V8 roll ref."
 
   def RunStep(self):
-    self.Git("fetch origin +refs/heads/candidate:refs/heads/candidate")
-    self["candidate"] = self.Git("show-ref -s refs/heads/candidate").strip()
+    # The roll ref points to the candidate to be rolled.
+    self.Git("fetch origin +refs/heads/roll:refs/heads/roll")
+    self["candidate"] = self.Git("show-ref -s refs/heads/roll").strip()
 
 
-class CheckLastPush(Step):
-  MESSAGE = "Checking last V8 push to candidates."
+class LastReleaseBailout(Step):
+  MESSAGE = "Checking last V8 release base."
 
   def RunStep(self):
-    last_push = self.FindLastCandidatesPush()
+    last_release = self.GetLatestReleaseBase()
+    commits = self.GitLog(
+        format="%H", git_hash="%s..%s" % (last_release, self["candidate"]))
 
-    # Retrieve the master revision of the last push from the text in
-    # the push commit message.
-    last_push_title = self.GitLog(n=1, format="%s", git_hash=last_push)
-    candidate = PUSH_MESSAGE_RE.match(last_push_title).group(1)
-
-    if not candidate:  # pragma: no cover
-      self.Die("Could not retrieve master revision for candidates push %s"
-               % last_push)
-
-    if self["candidate"] == candidate:
-      print "Already pushed current candidate %s" % candidate
+    if not commits:
+      print "Already pushed current candidate %s" % self["candidate"]
       return True
 
 
@@ -118,7 +111,7 @@ class AutoPush(ScriptsBase):
     return [
       Preparation,
       FetchCandidate,
-      CheckLastPush,
+      LastReleaseBailout,
       PushToCandidates,
     ]
 

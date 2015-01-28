@@ -33,7 +33,7 @@ import traceback
 import unittest
 
 import auto_push
-from auto_push import CheckLastPush
+from auto_push import LastReleaseBailout
 import auto_roll
 import common_includes
 from common_includes import *
@@ -782,22 +782,14 @@ Performance and stability improvements on all platforms."""
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd(("git new-branch %s --upstream origin/master" %
-           TEST_CONFIG["BRANCHNAME"]),
-          ""),
-      Cmd(("git log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
-           "origin/candidates"), "hash2\n"),
-      Cmd("git log -1 hash2", "Log message\n"),
-    ]
-    if manual:
-      expectations.append(RL("Y"))  # Confirm last push.
-    expectations += [
-      Cmd("git log -1 --format=%s hash2",
-       "Version 3.4.5 (based on abc3)\n"),
+           TEST_CONFIG["BRANCHNAME"]), ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=self.WriteFakeVersionFile),
+      Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
+      Cmd("git log -1 --format=%s release_hash",
+          "Version 3.22.4 (based on abc3)\n"),
       Cmd("git log --format=%H abc3..push_hash", "rev1\n"),
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
@@ -910,9 +902,9 @@ def get_list():
 
     expectations = [
       Cmd("git fetch origin", ""),
-      Cmd(("git log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/candidates"), "push_hash\n"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git tag", self.TAGS),
+      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
       Cmd("git log -1 --format=%s push_hash",
           "Version 3.22.5 (based on abc)\n"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
@@ -945,16 +937,17 @@ def get_list():
 
   def testCheckLastPushRecently(self):
     self.Expect([
-      Cmd(("git log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
-           "origin/candidates"), "hash2\n"),
-      Cmd("git log -1 --format=%s hash2",
-          "Version 3.4.5 (based on abc123)\n"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git tag", self.TAGS),
+      Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
+      Cmd("git log -1 --format=%s release_hash",
+          "Version 3.22.4 (based on abc3)\n"),
+      Cmd("git log --format=%H abc3..abc123", "\n"),
     ])
 
     self._state["candidate"] = "abc123"
     self.assertEquals(0, self.RunStep(
-        auto_push.AutoPush, CheckLastPush, AUTO_PUSH_ARGS))
+        auto_push.AutoPush, LastReleaseBailout, AUTO_PUSH_ARGS))
 
   def testAutoPush(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
@@ -963,13 +956,14 @@ def get_list():
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
-      Cmd("git fetch origin +refs/heads/candidate:refs/heads/candidate", ""),
-      Cmd("git show-ref -s refs/heads/candidate", "abc123\n"),
-      Cmd(("git log -1 --format=%H --grep=\""
-           "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\""
-           " origin/candidates"), "push_hash\n"),
-      Cmd("git log -1 --format=%s push_hash",
-          "Version 3.4.5 (based on abc101)\n"),
+      Cmd("git fetch origin +refs/heads/roll:refs/heads/roll", ""),
+      Cmd("git show-ref -s refs/heads/roll", "abc123\n"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git tag", self.TAGS),
+      Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
+      Cmd("git log -1 --format=%s release_hash",
+          "Version 3.22.4 (based on abc3)\n"),
+      Cmd("git log --format=%H abc3..abc123", "some_stuff\n"),
     ])
 
     auto_push.AutoPush(TEST_CONFIG, self).Run(AUTO_PUSH_ARGS + ["--push"])
@@ -1010,12 +1004,9 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
-      Cmd("git fetch", ""),
-      Cmd(("git log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/candidates"), "push_hash\n"),
-      Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
-      Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git tag", self.TAGS),
+      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -1032,12 +1023,9 @@ deps = {
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
-      Cmd("git fetch", ""),
-      Cmd(("git log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/candidates"), "push_hash\n"),
-      Cmd("git log -1 --format=%B push_hash", self.C_V8_123456_LOG),
-      Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git tag", self.TAGS),
+      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
