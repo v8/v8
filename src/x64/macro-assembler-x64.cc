@@ -3413,6 +3413,18 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
 }
 
 
+void MacroAssembler::LoadAccessor(Register dst, Register holder,
+                                  int accessor_index,
+                                  AccessorComponent accessor) {
+  movp(dst, FieldOperand(holder, HeapObject::kMapOffset));
+  LoadInstanceDescriptors(dst, dst);
+  movp(dst, FieldOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
+  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
+                                           : AccessorPair::kSetterOffset;
+  movp(dst, FieldOperand(dst, offset));
+}
+
+
 void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
                                      Register scratch2, Handle<WeakCell> cell,
                                      Handle<Code> success,

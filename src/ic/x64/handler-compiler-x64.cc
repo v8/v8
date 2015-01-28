@@ -235,12 +235,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       __ Push(value());
       ParameterCount actual(1);
       ParameterCount expected(expected_arguments);
-      Register scratch = holder;
-      __ movp(scratch, FieldOperand(holder, HeapObject::kMapOffset));
-      __ LoadInstanceDescriptors(scratch, scratch);
-      __ movp(scratch, FieldOperand(scratch, DescriptorArray::GetValueOffset(
-                                                 accessor_index)));
-      __ movp(rdi, FieldOperand(scratch, AccessorPair::kSetterOffset));
+      __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_SETTER);
       __ InvokeFunction(rdi, expected, actual, CALL_FUNCTION,
                         NullCallWrapper());
     } else {
@@ -280,12 +275,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       __ Push(receiver);
       ParameterCount actual(0);
       ParameterCount expected(expected_arguments);
-      Register scratch = holder;
-      __ movp(scratch, FieldOperand(holder, HeapObject::kMapOffset));
-      __ LoadInstanceDescriptors(scratch, scratch);
-      __ movp(scratch, FieldOperand(scratch, DescriptorArray::GetValueOffset(
-                                                 accessor_index)));
-      __ movp(rdi, FieldOperand(scratch, AccessorPair::kGetterOffset));
+      __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_GETTER);
       __ InvokeFunction(rdi, expected, actual, CALL_FUNCTION,
                         NullCallWrapper());
     } else {

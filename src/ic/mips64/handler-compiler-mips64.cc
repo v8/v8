@@ -37,12 +37,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       __ push(receiver);
       ParameterCount actual(0);
       ParameterCount expected(expected_arguments);
-      Register scratch = holder;
-      __ ld(scratch, FieldMemOperand(holder, HeapObject::kMapOffset));
-      __ LoadInstanceDescriptors(scratch, scratch);
-      __ ld(scratch, FieldMemOperand(scratch, DescriptorArray::GetValueOffset(
-                                                  accessor_index)));
-      __ ld(a1, FieldMemOperand(scratch, AccessorPair::kGetterOffset));
+      __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_GETTER);
       __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
@@ -79,12 +74,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       __ Push(receiver, value());
       ParameterCount actual(1);
       ParameterCount expected(expected_arguments);
-      Register scratch = holder;
-      __ ld(scratch, FieldMemOperand(holder, HeapObject::kMapOffset));
-      __ LoadInstanceDescriptors(scratch, scratch);
-      __ ld(scratch, FieldMemOperand(scratch, DescriptorArray::GetValueOffset(
-                                                  accessor_index)));
-      __ ld(a1, FieldMemOperand(scratch, AccessorPair::kSetterOffset));
+      __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_SETTER);
       __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
