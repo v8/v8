@@ -45,6 +45,9 @@ class Types {
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
 
+    SignedSmall = Type::SignedSmall(region);
+    UnsignedSmall = Type::UnsignedSmall(region);
+
     object_map = isolate->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array_map = isolate->factory()->NewMap(
@@ -130,6 +133,8 @@ class Types {
   #define DECLARE_TYPE(name, value) TypeHandle name;
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
+  TypeHandle SignedSmall;
+  TypeHandle UnsignedSmall;
 
   TypeHandle ObjectClass;
   TypeHandle ArrayClass;
