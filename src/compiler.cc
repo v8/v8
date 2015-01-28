@@ -1268,8 +1268,6 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     v8::Extension* extension, ScriptData** cached_data,
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
-  HistogramTimerScope total(isolate->counters()->compile_script(), true);
-
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||

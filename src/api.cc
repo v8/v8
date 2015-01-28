@@ -1598,6 +1598,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
   ENTER_V8(isolate);
   i::SharedFunctionInfo* raw_result = NULL;
   { i::HandleScope scope(isolate);
+    i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
