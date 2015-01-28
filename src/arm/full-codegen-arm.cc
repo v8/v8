@@ -1260,6 +1260,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each());
+    PrepareForBailoutForId(stmt->AssignmentId(), NO_REGISTERS);
   }
 
   // Generate code for the body of the loop.
