@@ -1270,7 +1270,7 @@ Module* Parser::ParseModule(bool* ok) {
 }
 
 
-Module* Parser::ParseModuleUrl(bool* ok) {
+Module* Parser::ParseModuleSpecifier(bool* ok) {
   // Module:
   //    String
 
@@ -1299,6 +1299,44 @@ Module* Parser::ParseModuleUrl(bool* ok) {
 }
 
 
+void* Parser::ParseModuleDeclarationClause(ZoneList<const AstRawString*>* names,
+                                           bool* ok) {
+  // Handles both imports and exports:
+  //
+  // ImportOrExportClause :
+  //   '{' '}'
+  //   '{' ImportOrExportsList '}'
+  //   '{' ImportOrExportsList ',' '}'
+  //
+  // ImportOrExportsList :
+  //   ImportOrExportSpecifier
+  //   ImportOrExportsList ',' ImportOrExportSpecifier
+  //
+  // ImportOrExportSpecifier :
+  //   IdentifierName
+  //   IdentifierName 'as' IdentifierName
+
+  Expect(Token::LBRACE, CHECK_OK);
+
+  while (peek() != Token::RBRACE) {
+    const AstRawString* name = ParseIdentifierName(CHECK_OK);
+    names->Add(name, zone());
+    const AstRawString* export_name = NULL;
+    if (CheckContextualKeyword(CStrVector("as"))) {
+      export_name = ParseIdentifierName(CHECK_OK);
+    }
+    // TODO(ES6): Return the export_name as well as the name.
+    USE(export_name);
+    if (peek() == Token::RBRACE) break;
+    Expect(Token::COMMA, CHECK_OK);
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+
+  return 0;
+}
+
+
 Statement* Parser::ParseImportDeclaration(bool* ok) {
   // ImportDeclaration:
   //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleUrl ';'
@@ -1318,10 +1356,10 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-  Module* module = ParseModuleUrl(CHECK_OK);
+  Module* module = ParseModuleSpecifier(CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
-  // TODO(ES6): Do something with ParseModuleUrl's return value.
+  // TODO(ES6): Do something with ParseModuleSpecifier's return value.
   USE(module);
 
   for (int i = 0; i < names.length(); ++i) {
@@ -1332,35 +1370,83 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
 }
 
 
+Statement* Parser::ParseExportDefault(bool* ok) {
+  //  Supports the following productions, starting after the 'default' token:
+  //    'export' 'default' FunctionDeclaration
+  //    'export' 'default' ClassDeclaration
+  //    'export' 'default' AssignmentExpression[In] ';'
+
+  Statement* result = NULL;
+  switch (peek()) {
+    case Token::FUNCTION:
+      // TODO(ES6): Support parsing anonymous function declarations here.
+      result = ParseFunctionDeclaration(NULL, CHECK_OK);
+      break;
+
+    case Token::CLASS:
+      // TODO(ES6): Support parsing anonymous class declarations here.
+      result = ParseClassDeclaration(NULL, CHECK_OK);
+      break;
+
+    default: {
+      int pos = peek_position();
+      Expression* expr = ParseAssignmentExpression(true, CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      result = factory()->NewExpressionStatement(expr, pos);
+      break;
+    }
+  }
+
+  // TODO(ES6): Add default export to scope_->interface()
+
+  return result;
+}
+
+
 Statement* Parser::ParseExportDeclaration(bool* ok) {
   // ExportDeclaration:
-  //    'export' Identifier (',' Identifier)* ';'
-  //    'export' VariableDeclaration
-  //    'export' FunctionDeclaration
-  //    'export' GeneratorDeclaration
-  //    'export' ModuleDeclaration
-  //
-  // TODO(ES6): implement current syntax
+  //    'export' '*' 'from' ModuleSpecifier ';'
+  //    'export' ExportClause ('from' ModuleSpecifier)? ';'
+  //    'export' VariableStatement
+  //    'export' Declaration
+  //    'export' 'default' ... (handled in ParseExportDefault)
 
+  int pos = peek_position();
   Expect(Token::EXPORT, CHECK_OK);
 
   Statement* result = NULL;
   ZoneList<const AstRawString*> names(1, zone());
+  bool is_export_from = false;
   switch (peek()) {
-    case Token::IDENTIFIER: {
-      int pos = position();
-      const AstRawString* name =
-          ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-      names.Add(name, zone());
-      while (peek() == Token::COMMA) {
-        Consume(Token::COMMA);
-        name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-        names.Add(name, zone());
+    case Token::DEFAULT:
+      Consume(Token::DEFAULT);
+      return ParseExportDefault(ok);
+
+    case Token::MUL: {
+      Consume(Token::MUL);
+      ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
+      Module* module = ParseModuleSpecifier(CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      // TODO(ES6): Do something with the return value
+      // of ParseModuleSpecifier.
+      USE(module);
+      is_export_from = true;
+      result = factory()->NewEmptyStatement(pos);
+      break;
+    }
+
+    case Token::LBRACE:
+      ParseModuleDeclarationClause(&names, CHECK_OK);
+      if (CheckContextualKeyword(CStrVector("from"))) {
+        Module* module = ParseModuleSpecifier(CHECK_OK);
+        // TODO(ES6): Do something with the return value
+        // of ParseModuleSpecifier.
+        USE(module);
+        is_export_from = true;
       }
       ExpectSemicolon(CHECK_OK);
       result = factory()->NewEmptyStatement(pos);
       break;
-    }
 
     case Token::FUNCTION:
       result = ParseFunctionDeclaration(&names, CHECK_OK);
@@ -1395,24 +1481,27 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     }
   }
 
-  // Extract declared names into export declarations and interface.
-  Interface* interface = scope_->interface();
-  for (int i = 0; i < names.length(); ++i) {
+  // TODO(ES6): Handle 'export from' once imports are properly implemented.
+  // For now we just drop such exports on the floor.
+  if (!is_export_from) {
+    // Extract declared names into export declarations and interface.
+    Interface* interface = scope_->interface();
+    for (int i = 0; i < names.length(); ++i) {
 #ifdef DEBUG
-    if (FLAG_print_interface_details)
-      PrintF("# Export %.*s ", names[i]->length(), names[i]->raw_data());
+      if (FLAG_print_interface_details)
+        PrintF("# Export %.*s ", names[i]->length(), names[i]->raw_data());
 #endif
-    Interface* inner = Interface::NewUnknown(zone());
-    interface->Add(names[i], inner, zone(), CHECK_OK);
-    if (!*ok)
-      return NULL;
-    VariableProxy* proxy = NewUnresolved(names[i], LET, inner);
-    USE(proxy);
-    // TODO(rossberg): Rethink whether we actually need to store export
-    // declarations (for compilation?).
-    // ExportDeclaration* declaration =
-    //     factory()->NewExportDeclaration(proxy, scope_, position);
-    // scope_->AddDeclaration(declaration);
+      Interface* inner = Interface::NewUnknown(zone());
+      interface->Add(names[i], inner, zone(), CHECK_OK);
+      if (!*ok) return NULL;
+      VariableProxy* proxy = NewUnresolved(names[i], LET, inner);
+      USE(proxy);
+      // TODO(rossberg): Rethink whether we actually need to store export
+      // declarations (for compilation?).
+      // ExportDeclaration* declaration =
+      //     factory()->NewExportDeclaration(proxy, scope_, position);
+      // scope_->AddDeclaration(declaration);
+    }
   }
 
   DCHECK(result != NULL);

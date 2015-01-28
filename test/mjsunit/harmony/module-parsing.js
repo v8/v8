@@ -28,18 +28,14 @@
 // Flags: --harmony-modules
 
 // Check that import/export declarations are rejected in eval or local scope.
-assertThrows("export x;", SyntaxError);
 assertThrows("export let x;", SyntaxError);
 assertThrows("import x from 'http://url';", SyntaxError);
 
-assertThrows("{ export x; }", SyntaxError);
 assertThrows("{ export let x; }", SyntaxError);
 assertThrows("{ import x from 'http://url'; }", SyntaxError);
 
-assertThrows("function f() { export x; }", SyntaxError);
 assertThrows("function f() { export let x; }", SyntaxError);
 assertThrows("function f() { import x from 'http://url'; }", SyntaxError);
 
-assertThrows("function f() { { export x; } }", SyntaxError);
 assertThrows("function f() { { export let x; } }", SyntaxError);
 assertThrows("function f() { { import x from 'http://url'; } }", SyntaxError);
