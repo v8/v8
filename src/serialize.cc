@@ -664,7 +664,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
   isolate_->heap()->IterateSmiRoots(this);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  isolate_->heap()->RepairFreeListsAfterBoot();
+  isolate_->heap()->RepairFreeListsAfterDeserialization();
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 
   isolate_->heap()->set_native_contexts_list(

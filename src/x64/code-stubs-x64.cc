@@ -2059,11 +2059,11 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id (as integer)
+  // rbx - vector
   Label miss;
   int argc = arg_count();
   ParameterCount actual(argc);
 
-  EmitLoadTypeFeedbackVector(masm, rbx);
   __ SmiToInteger32(rdx, rdx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
@@ -2100,6 +2100,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id
+  // rbx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2111,8 +2112,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, rbx);
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
@@ -4266,6 +4265,20 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, rbx);
+  CallICStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, rbx);
+  CallIC_ArrayStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
@@ -4817,12 +4830,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
                                       bool return_first_arg,
                                       bool call_data_undefined) {
   // ----------- S t a t e -------------
-  //  -- rax                 : callee
+  //  -- rdi                 : callee
   //  -- rbx                 : call_data
   //  -- rcx                 : holder
   //  -- rdx                 : api_function_address
   //  -- rsi                 : context
-  //  -- rdi                 : number of arguments if argc is a register
+  //  -- rax                 : number of arguments if argc is a register
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : last argument
   //  -- ...
@@ -4830,11 +4843,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
 
-  Register callee = rax;
+  Register callee = rdi;
   Register call_data = rbx;
   Register holder = rcx;
   Register api_function_address = rdx;
   Register context = rsi;
+  Register return_address = r8;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -4847,17 +4861,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  DCHECK(argc.is_immediate() || rdi.is(argc.reg()));
+  DCHECK(argc.is_immediate() || rax.is(argc.reg()));
 
-  if (kPointerSize == kInt64Size) {
-    //  pop return address and save context
-    __ xchgq(context, Operand(rsp, 0));
-  } else {
-    // x32 handling.
-    __ PopReturnAddressTo(kScratchRegister);
-    __ Push(context);
-    __ movq(context, kScratchRegister);
-  }
+  __ PopReturnAddressTo(return_address);
+
+  // context save
+  __ Push(context);
 
   // callee
   __ Push(callee);
@@ -4880,7 +4889,7 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
   __ movp(scratch, rsp);
   // Push return address back on stack.
-  __ PushReturnAddressFrom(context);
+  __ PushReturnAddressFrom(return_address);
 
   // load context from callee
   __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
@@ -4954,9 +4963,8 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
 
 void CallApiFunctionStub::Generate(MacroAssembler* masm) {
-  // TODO(dcarney): make rax contain the function address.
   bool call_data_undefined = this->call_data_undefined();
-  CallApiFunctionStubHelper(masm, ParameterCount(rdi), false,
+  CallApiFunctionStubHelper(masm, ParameterCount(rax), false,
                             call_data_undefined);
 }
 

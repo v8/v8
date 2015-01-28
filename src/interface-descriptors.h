@@ -30,6 +30,7 @@ class PlatformInterfaceDescriptor;
   V(CreateAllocationSite)                     \
   V(CallFunction)                             \
   V(CallFunctionWithFeedback)                 \
+  V(CallFunctionWithFeedbackAndVector)        \
   V(CallConstruct)                            \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
@@ -326,6 +327,14 @@ class CallFunctionDescriptor : public CallInterfaceDescriptor {
 class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CallFunctionWithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+
+class CallFunctionWithFeedbackAndVectorDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CallFunctionWithFeedbackAndVectorDescriptor,
                      CallInterfaceDescriptor)
 };
 

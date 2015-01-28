@@ -589,6 +589,11 @@ Bounds Typer::Visitor::TypeStart(Node* node) {
 // Common operators.
 
 
+Bounds Typer::Visitor::TypeAlways(Node* node) {
+  return Bounds(Type::None(zone()), Type::Boolean(zone()));
+}
+
+
 Bounds Typer::Visitor::TypeParameter(Node* node) {
   return Bounds::Unbounded(zone());
 }
@@ -665,6 +670,12 @@ Bounds Typer::Visitor::TypePhi(Node* node) {
 
 
 Bounds Typer::Visitor::TypeEffectPhi(Node* node) {
+  UNREACHABLE();
+  return Bounds();
+}
+
+
+Bounds Typer::Visitor::TypeEffectSet(Node* node) {
   UNREACHABLE();
   return Bounds();
 }

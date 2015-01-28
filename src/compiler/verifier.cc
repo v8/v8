@@ -178,6 +178,16 @@ void Verifier::Visitor::Check(Node* node) {
   }
 
   switch (node->opcode()) {
+    case IrOpcode::kAlways:
+      // Always has no inputs.
+      CHECK_EQ(0, input_count);
+      // Always uses are Branch.
+      for (auto use : node->uses()) {
+        CHECK(use->opcode() == IrOpcode::kBranch);
+      }
+      // Type is boolean.
+      CheckUpperIs(node, Type::Boolean());
+      break;
     case IrOpcode::kStart:
       // Start has no inputs.
       CHECK_EQ(0, input_count);
@@ -232,12 +242,6 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): what are the constraints on these?
       // Type is empty.
       CheckNotTyped(node);
-      break;
-    case IrOpcode::kTerminate:
-      // Type is empty.
-      CheckNotTyped(node);
-      CHECK_EQ(1, control_count);
-      CHECK_EQ(input_count, 1 + effect_count);
       break;
     case IrOpcode::kOsrNormalEntry:
     case IrOpcode::kOsrLoopEntry:
@@ -346,6 +350,12 @@ void Verifier::Visitor::Check(Node* node) {
       Node* control = NodeProperties::GetControlInput(node, 0);
       CHECK_EQ(effect_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + effect_count);
+      break;
+    }
+    case IrOpcode::kEffectSet: {
+      CHECK_EQ(0, value_count);
+      CHECK_EQ(0, control_count);
+      CHECK_LT(1, effect_count);
       break;
     }
     case IrOpcode::kValueEffect:

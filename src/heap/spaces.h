@@ -1411,45 +1411,6 @@ class AllocationStats BASE_EMBEDDED {
 
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces
-//
-// Free-list nodes are free blocks in the heap.  They look like heap objects
-// (free-list node pointers have the heap object tag, and they have a map like
-// a heap object).  They have a size and a next pointer.  The next pointer is
-// the raw address of the next free list node (or NULL).
-class FreeListNode : public HeapObject {
- public:
-  // Obtain a free-list node from a raw address.  This is not a cast because
-  // it does not check nor require that the first word at the address is a map
-  // pointer.
-  static FreeListNode* FromAddress(Address address) {
-    return reinterpret_cast<FreeListNode*>(HeapObject::FromAddress(address));
-  }
-
-  static inline bool IsFreeListNode(HeapObject* object);
-
-  // Set the size in bytes, which can be read with HeapObject::Size().  This
-  // function also writes a map to the first word of the block so that it
-  // looks like a heap object to the garbage collector and heap iteration
-  // functions.
-  void set_size(Heap* heap, int size_in_bytes);
-
-  // Accessors for the next field.
-  inline FreeListNode* next();
-  inline FreeListNode** next_address();
-  inline void set_next(FreeListNode* next);
-
-  inline void Zap();
-
-  static inline FreeListNode* cast(Object* object) {
-    return reinterpret_cast<FreeListNode*>(object);
-  }
-
- private:
-  static const int kNextOffset = POINTER_SIZE_ALIGN(FreeSpace::kHeaderSize);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeListNode);
-};
-
 
 // The free list category holds a pointer to the top element and a pointer to
 // the end element of the linked list of free memory blocks.
@@ -1461,27 +1422,26 @@ class FreeListCategory {
 
   void Reset();
 
-  void Free(FreeListNode* node, int size_in_bytes);
+  void Free(FreeSpace* node, int size_in_bytes);
 
-  FreeListNode* PickNodeFromList(int* node_size);
-  FreeListNode* PickNodeFromList(int size_in_bytes, int* node_size);
+  FreeSpace* PickNodeFromList(int* node_size);
+  FreeSpace* PickNodeFromList(int size_in_bytes, int* node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
   bool ContainsPageFreeListItemsInList(Page* p);
 
   void RepairFreeList(Heap* heap);
 
-  FreeListNode* top() const {
-    return reinterpret_cast<FreeListNode*>(base::NoBarrier_Load(&top_));
+  FreeSpace* top() const {
+    return reinterpret_cast<FreeSpace*>(base::NoBarrier_Load(&top_));
   }
 
-  void set_top(FreeListNode* top) {
+  void set_top(FreeSpace* top) {
     base::NoBarrier_Store(&top_, reinterpret_cast<base::AtomicWord>(top));
   }
 
-  FreeListNode** GetEndAddress() { return &end_; }
-  FreeListNode* end() const { return end_; }
-  void set_end(FreeListNode* end) { end_ = end; }
+  FreeSpace* end() const { return end_; }
+  void set_end(FreeSpace* end) { end_ = end; }
 
   int* GetAvailableAddress() { return &available_; }
   int available() const { return available_; }
@@ -1497,9 +1457,9 @@ class FreeListCategory {
 #endif
 
  private:
-  // top_ points to the top FreeListNode* in the free list category.
+  // top_ points to the top FreeSpace* in the free list category.
   base::AtomicWord top_;
-  FreeListNode* end_;
+  FreeSpace* end_;
   base::Mutex mutex_;
 
   // Total available bytes in all blocks of this free list category.
@@ -1596,17 +1556,18 @@ class FreeList {
   FreeListCategory* large_list() { return &large_list_; }
   FreeListCategory* huge_list() { return &huge_list_; }
 
+  static const int kSmallListMin = 0x20 * kPointerSize;
+
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
 
-  FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
+  FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
 
   PagedSpace* owner_;
   Heap* heap_;
 
-  static const int kSmallListMin = 0x20 * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
   static const int kMediumListMax = 0x7ff * kPointerSize;
   static const int kLargeListMax = 0x3fff * kPointerSize;
@@ -1702,7 +1663,7 @@ class PagedSpace : public Space {
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
-  void RepairFreeListsAfterBoot();
+  void RepairFreeListsAfterDeserialization();
 
   // Prepares for a mark-compact GC.
   void PrepareForMarkCompact();
@@ -1908,8 +1869,6 @@ class PagedSpace : public Space {
 
   // Maximum capacity of this space.
   intptr_t max_capacity_;
-
-  intptr_t SizeOfFirstPage();
 
   // Accounting information for this space.
   AllocationStats accounting_stats_;

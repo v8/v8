@@ -305,14 +305,6 @@ intptr_t LargeObjectSpace::Available() {
   return ObjectSizeFor(heap()->isolate()->memory_allocator()->Available());
 }
 
-
-bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  Map* map = object->map();
-  Heap* heap = object->GetHeap();
-  return map == heap->raw_unchecked_free_space_map() ||
-         map == heap->raw_unchecked_one_pointer_filler_map() ||
-         map == heap->raw_unchecked_two_pointer_filler_map();
-}
 }
 }  // namespace v8::internal
 

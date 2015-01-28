@@ -36,6 +36,10 @@ class CodeFactory FINAL {
   static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode);
   static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
+  static Callable CallIC(Isolate* isolate, int argc,
+                         CallICState::CallType call_type);
+  static Callable CallICInOptimizedCode(Isolate* isolate, int argc,
+                                        CallICState::CallType call_type);
   static Callable StoreIC(Isolate* isolate, StrictMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, StrictMode mode);
 

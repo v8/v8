@@ -28,6 +28,7 @@ struct SharedOperator {
   int value_input_count;
   int effect_input_count;
   int control_input_count;
+  int value_output_count;
   int effect_output_count;
   int control_output_count;
 };
@@ -39,19 +40,21 @@ std::ostream& operator<<(std::ostream& os, const SharedOperator& fop) {
 
 
 const SharedOperator kSharedOperators[] = {
-#define SHARED(Name, properties, value_input_count, effect_input_count,        \
-               control_input_count, effect_output_count, control_output_count) \
-  {                                                                            \
-    &CommonOperatorBuilder::Name, IrOpcode::k##Name, properties,               \
-        value_input_count, effect_input_count, control_input_count,            \
-        effect_output_count, control_output_count                              \
+#define SHARED(Name, properties, value_input_count, effect_input_count,      \
+               control_input_count, value_output_count, effect_output_count, \
+               control_output_count)                                         \
+  {                                                                          \
+    &CommonOperatorBuilder::Name, IrOpcode::k##Name, properties,             \
+        value_input_count, effect_input_count, control_input_count,          \
+        value_output_count, effect_output_count, control_output_count        \
   }
-    SHARED(Dead, Operator::kFoldable, 0, 0, 0, 0, 1),
-    SHARED(End, Operator::kFoldable, 0, 0, 1, 0, 0),
-    SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 1),
-    SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 1),
-    SHARED(Throw, Operator::kFoldable, 1, 1, 1, 0, 1),
-    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 0, 1)
+    SHARED(Always, Operator::kPure, 0, 0, 0, 1, 0, 0),
+    SHARED(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1),
+    SHARED(End, Operator::kFoldable, 0, 0, 1, 0, 0, 0),
+    SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 0, 1),
+    SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 0, 1),
+    SHARED(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1),
+    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 0, 0, 1)
 #undef SHARED
 };
 
@@ -83,7 +86,7 @@ TEST_P(CommonSharedOperatorTest, NumberOfInputsAndOutputs) {
       sop.value_input_count + sop.effect_input_count + sop.control_input_count,
       OperatorProperties::GetTotalInputCount(op));
 
-  EXPECT_EQ(0, op->ValueOutputCount());
+  EXPECT_EQ(sop.value_output_count, op->ValueOutputCount());
   EXPECT_EQ(sop.effect_output_count, op->EffectOutputCount());
   EXPECT_EQ(sop.control_output_count, op->ControlOutputCount());
 }

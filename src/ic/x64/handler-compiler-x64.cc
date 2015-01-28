@@ -147,11 +147,11 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   // Stack now matches JSFunction abi.
 
   // Abi for CallApiFunctionStub.
-  Register callee = rax;
+  Register callee = rdi;
   Register call_data = rbx;
   Register holder = rcx;
   Register api_function_address = rdx;
-  Register scratch = rdi;  // scratch_in is no longer valid.
+  Register scratch = rax;  // scratch_in is no longer valid.
 
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;

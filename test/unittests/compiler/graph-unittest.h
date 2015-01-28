@@ -50,6 +50,7 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
 
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
+  Matcher<Node*> IsUndefinedConstant();
 
   CommonOperatorBuilder* common() { return &common_; }
   Graph* graph() { return &graph_; }

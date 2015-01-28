@@ -39,6 +39,8 @@ namespace internal {
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
+  V(CallICTrampoline)                       \
+  V(CallIC_ArrayTrampoline)                 \
   V(LoadIndexedInterceptor)                 \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
@@ -829,7 +831,7 @@ class CallICStub: public PlatformCodeStub {
  private:
   void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedbackAndVector);
   DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
 };
 
@@ -1935,6 +1937,41 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
   Code::Kind GetCodeKind() const OVERRIDE { return Code::KEYED_LOAD_IC; }
 
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, LoadICTrampolineStub);
+};
+
+
+class CallICTrampolineStub : public PlatformCodeStub {
+ public:
+  CallICTrampolineStub(Isolate* isolate, const CallICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  Code::Kind GetCodeKind() const OVERRIDE { return Code::CALL_IC; }
+
+  InlineCacheState GetICState() const FINAL { return DEFAULT; }
+
+  ExtraICState GetExtraICState() const FINAL {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ protected:
+  CallICState state() const {
+    return CallICState(static_cast<ExtraICState>(minor_key_));
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
+  DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
+};
+
+
+class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
+ public:
+  CallIC_ArrayTrampolineStub(Isolate* isolate, const CallICState& state)
+      : CallICTrampolineStub(isolate, state) {}
+
+ private:
+  DEFINE_PLATFORM_CODE_STUB(CallIC_ArrayTrampoline, CallICTrampolineStub);
 };
 
 

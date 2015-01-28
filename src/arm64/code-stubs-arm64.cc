@@ -2983,13 +2983,12 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // x1 - function
   // x3 - slot id
+  // x2 - vector
   Label miss;
   Register function = x1;
   Register feedback_vector = x2;
   Register index = x3;
   Register scratch = x4;
-
-  EmitLoadTypeFeedbackVector(masm, feedback_vector);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, scratch);
   __ Cmp(function, scratch);
@@ -3029,6 +3028,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // x1 - function
   // x3 - slot id (Smi)
+  // x2 - vector
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
   const int generic_offset =
@@ -3043,8 +3043,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Register feedback_vector = x2;
   Register index = x3;
   Register type = x4;
-
-  EmitLoadTypeFeedbackVector(masm, feedback_vector);
 
   // The checks. First, does x1 match the recorded monomorphic target?
   __ Add(x4, feedback_vector,
@@ -4370,6 +4368,20 @@ void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorKeyedLoadStub stub(isolate());
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, x2);
+  CallICStub stub(isolate(), state());
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, x2);
+  CallIC_ArrayStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

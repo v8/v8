@@ -2192,11 +2192,10 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Label miss;
   int argc = arg_count();
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, ebx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
@@ -2233,6 +2232,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2243,8 +2243,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Label have_js_function;
   int argc = arg_count();
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, ebx);
 
   // The checks. First, does edi match the recorded monomorphic target?
   __ cmp(edi, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -4337,6 +4335,20 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallICStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallIC_ArrayStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
@@ -4876,12 +4888,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
                                       bool return_first_arg,
                                       bool call_data_undefined) {
   // ----------- S t a t e -------------
-  //  -- eax                 : callee
+  //  -- edi                 : callee
   //  -- ebx                 : call_data
   //  -- ecx                 : holder
   //  -- edx                 : api_function_address
   //  -- esi                 : context
-  //  -- edi                 : number of arguments if argc is a register
+  //  -- eax                 : number of arguments if argc is a register
   //  --
   //  -- esp[0]              : return address
   //  -- esp[4]              : last argument
@@ -4890,11 +4902,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  Register callee = eax;
+  Register callee = edi;
   Register call_data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
   Register context = esi;
+  Register return_address = eax;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -4907,10 +4920,17 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  DCHECK(argc.is_immediate() || edi.is(argc.reg()));
+  DCHECK(argc.is_immediate() || eax.is(argc.reg()));
 
-  // pop return address and save context
-  __ xchg(context, Operand(esp, 0));
+  if (argc.is_immediate()) {
+    __ pop(return_address);
+    // context save.
+    __ push(context);
+  } else {
+    // pop return address and save context
+    __ xchg(context, Operand(esp, 0));
+    return_address = context;
+  }
 
   // callee
   __ push(callee);
@@ -4938,7 +4958,7 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   __ mov(scratch, esp);
 
   // push return address
-  __ push(context);
+  __ push(return_address);
 
   // load context from callee
   __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
@@ -5011,9 +5031,8 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
 
 void CallApiFunctionStub::Generate(MacroAssembler* masm) {
-  // TODO(dcarney): make eax contain the function address.
   bool call_data_undefined = this->call_data_undefined();
-  CallApiFunctionStubHelper(masm, ParameterCount(edi), false,
+  CallApiFunctionStubHelper(masm, ParameterCount(eax), false,
                             call_data_undefined);
 }
 

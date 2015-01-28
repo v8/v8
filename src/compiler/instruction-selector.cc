@@ -508,6 +508,9 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       CheckNoPhis(tbranch);
       CheckNoPhis(fbranch);
       if (tbranch == fbranch) return VisitGoto(tbranch);
+      // Treat special Branch(Always, IfTrue, IfFalse) as Goto(IfTrue).
+      Node* const condition = input->InputAt(0);
+      if (condition->opcode() == IrOpcode::kAlways) return VisitGoto(tbranch);
       return VisitBranch(input, tbranch, fbranch);
     }
     case BasicBlock::kReturn: {
@@ -541,8 +544,8 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
+    case IrOpcode::kEffectSet:
     case IrOpcode::kMerge:
-    case IrOpcode::kTerminate:
       // No code needed for these graph artifacts.
       return kMachNone;
     case IrOpcode::kFinish:

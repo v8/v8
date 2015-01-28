@@ -128,6 +128,16 @@ void CallFunctionWithFeedbackDescriptor::Initialize(
 }
 
 
+void CallFunctionWithFeedbackAndVectorDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rdi, rdx, rbx};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
 void CallConstructDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   // rax : number of arguments
   // rbx : feedback vector
@@ -297,11 +307,11 @@ void ArgumentAdaptorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rsi,  // context
-      rax,  // callee
+      rdi,  // callee
       rbx,  // call_data
       rcx,  // holder
       rdx,  // api_function_address
-      rdi,  // actual number of arguments
+      rax,  // actual number of arguments
   };
   Representation representations[] = {
       Representation::Tagged(),     // context
@@ -318,7 +328,7 @@ void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 void ApiAccessorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rsi,  // context
-      rax,  // callee
+      rdi,  // callee
       rbx,  // call_data
       rcx,  // holder
       rdx,  // api_function_address

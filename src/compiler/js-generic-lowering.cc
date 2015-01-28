@@ -45,9 +45,12 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       // have inserted the correct ChangeBoolToBit, otherwise we need to perform
       // poor-man's representation inference here and insert manual change.
       if (!info()->is_typing_enabled()) {
-        Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
-                                      jsgraph()->TrueConstant());
-        node->ReplaceInput(0, test);
+        Node* condition = node->InputAt(0);
+        if (condition->opcode() != IrOpcode::kAlways) {
+          Node* test = graph()->NewNode(machine()->WordEqual(), condition,
+                                        jsgraph()->TrueConstant());
+          node->ReplaceInput(0, test);
+        }
         break;
       }
       // Fall-through.
