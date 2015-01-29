@@ -249,7 +249,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   // Abi for CallApiFunctionStub.
   Register callee = a0;
-  Register call_data = t0;
+  Register data = t0;
   Register holder = a2;
   Register api_function_address = a1;
 
@@ -275,18 +275,16 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
   bool call_data_undefined = false;
-  // Put call_data in place.
-  if (isolate->heap()->InNewSpace(*call_data_obj)) {
-    __ li(call_data, api_call_info);
-    __ lw(call_data, FieldMemOperand(call_data, CallHandlerInfo::kDataOffset));
-  } else if (call_data_obj->IsUndefined()) {
+  // Put call data in place.
+  if (api_call_info->data()->IsUndefined()) {
     call_data_undefined = true;
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ li(call_data, call_data_obj);
+    __ lw(data, FieldMemOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(data, FieldMemOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ lw(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    __ lw(data, FieldMemOperand(data, CallHandlerInfo::kDataOffset));
   }
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());

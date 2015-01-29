@@ -130,30 +130,30 @@ static void CompileCallLoadPropertyWithInterceptor(
 // Generate call to api function.
 void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
-    Handle<Map> receiver_map, Register receiver, Register scratch_in,
+    Handle<Map> receiver_map, Register receiver, Register scratch,
     bool is_store, Register store_parameter, Register accessor_holder,
     int accessor_index) {
-  DCHECK(!accessor_holder.is(scratch_in));
+  DCHECK(!accessor_holder.is(scratch));
   DCHECK(optimization.is_simple_api_call());
 
-  __ PopReturnAddressTo(scratch_in);
+  __ PopReturnAddressTo(scratch);
   // receiver
   __ Push(receiver);
   // Write the arguments to stack frame.
   if (is_store) {
     DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch_in.is(store_parameter));
+    DCHECK(!scratch.is(store_parameter));
     __ Push(store_parameter);
   }
-  __ PushReturnAddressFrom(scratch_in);
+  __ PushReturnAddressFrom(scratch);
   // Stack now matches JSFunction abi.
 
   // Abi for CallApiFunctionStub.
   Register callee = rdi;
-  Register call_data = rbx;
+  Register data = rbx;
   Register holder = rcx;
   Register api_function_address = rdx;
-  Register scratch = rax;  // scratch_in is no longer valid.
+  scratch = no_reg;
 
   // Put callee in place.
   __ LoadAccessor(callee, accessor_holder, accessor_index,
@@ -177,18 +177,16 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
   bool call_data_undefined = false;
-  // Put call_data in place.
-  if (isolate->heap()->InNewSpace(*call_data_obj)) {
-    __ Move(scratch, api_call_info);
-    __ movp(call_data, FieldOperand(scratch, CallHandlerInfo::kDataOffset));
-  } else if (call_data_obj->IsUndefined()) {
+  // Put call data in place.
+  if (api_call_info->data()->IsUndefined()) {
     call_data_undefined = true;
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ Move(call_data, call_data_obj);
+    __ movp(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ movp(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    __ movp(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
 
   // Put api_function_address in place.
