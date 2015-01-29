@@ -2220,7 +2220,7 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
   // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
   DCHECK(!feedback->IsSmi());
 
-  if (feedback->IsJSFunction() || !function->IsJSFunction()) {
+  if (feedback->IsWeakCell() || !function->IsJSFunction()) {
     // We are going generic.
     nexus->ConfigureGeneric();
   } else {

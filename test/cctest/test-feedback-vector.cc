@@ -171,44 +171,43 @@ TEST(VectorICProfilerStatistics) {
   Handle<JSFunction> f = v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
   // There should be one IC.
-  Code* code = f->shared()->code();
+  Handle<Code> code = handle(f->shared()->code(), isolate);
   TypeFeedbackInfo* feedback_info =
       TypeFeedbackInfo::cast(code->type_feedback_info());
   CHECK_EQ(1, feedback_info->ic_total_count());
   CHECK_EQ(0, feedback_info->ic_with_type_info_count());
   CHECK_EQ(0, feedback_info->ic_generic_count());
-  TypeFeedbackVector* feedback_vector = f->shared()->feedback_vector();
+  Handle<TypeFeedbackVector> feedback_vector =
+      handle(f->shared()->feedback_vector(), isolate);
+  int ic_slot = 0;
+  CallICNexus nexus(feedback_vector, FeedbackVectorICSlot(ic_slot));
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
   // Now send the information generic.
   CompileRun("f(Object);");
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(1, feedback_vector->ic_generic_count());
 
-  // A collection will make the site uninitialized again.
+  // A collection will not affect the site.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
+  CHECK_EQ(1, feedback_vector->ic_generic_count());
 
   // The Array function is special. A call to array remains monomorphic
   // and isn't cleared by gc because an AllocationSite is being held.
+  // Clear the IC manually in order to test this case.
+  nexus.Clear(*code);
   CompileRun("f(Array);");
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
-  int ic_slot = 0;
-  CHECK(
-      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
+
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
-  CHECK(
-      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
 }
 
 
@@ -238,15 +237,16 @@ TEST(VectorCallICStates) {
   CompileRun("f(function() { return 16; })");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
-  // After a collection, state should be reset to UNINITIALIZED.
+  // After a collection, state should remain GENERIC.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(UNINITIALIZED, nexus.StateFromFeedback());
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
-  // Array is special. It will remain monomorphic across gcs and it contains an
-  // AllocationSite.
+  // A call to Array is special, it contains an AllocationSite as feedback.
+  // Clear the IC manually in order to test this case.
+  nexus.Clear(f->shared()->code());
   CompileRun("f(Array)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot))->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
 
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
