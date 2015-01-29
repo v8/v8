@@ -450,10 +450,6 @@ Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
-  // This stub is performance sensitive, the generated code must be tuned
-  // so that it doesn't build an eager frame.
-  info()->MarkMustNotHaveEagerFrame();
-
   HValue* size = Add<HConstant>(AllocationSite::kSize);
   HInstruction* object = Add<HAllocate>(size, HType::JSObject(), TENURED,
       JS_OBJECT_TYPE);
@@ -524,36 +520,6 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
 Handle<Code> CreateAllocationSiteStub::GenerateCode() {
   return DoGenerateCode(this);
 }
-
-
-template <>
-HValue* CodeStubGraphBuilder<CreateWeakCellStub>::BuildCodeStub() {
-  // This stub is performance sensitive, the generated code must be tuned
-  // so that it doesn't build an eager frame.
-  info()->MarkMustNotHaveEagerFrame();
-
-  HValue* size = Add<HConstant>(WeakCell::kSize);
-  HInstruction* object =
-      Add<HAllocate>(size, HType::JSObject(), TENURED, JS_OBJECT_TYPE);
-
-  Handle<Map> weak_cell_map = isolate()->factory()->weak_cell_map();
-  AddStoreMapConstant(object, weak_cell_map);
-
-  HInstruction* value = GetParameter(CreateWeakCellDescriptor::kValueIndex);
-  Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellValue(), value);
-  Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellNext(),
-                        graph()->GetConstantUndefined());
-
-  HInstruction* feedback_vector =
-      GetParameter(CreateWeakCellDescriptor::kVectorIndex);
-  HInstruction* slot = GetParameter(CreateWeakCellDescriptor::kSlotIndex);
-  Add<HStoreKeyed>(feedback_vector, slot, object, FAST_ELEMENTS,
-                   INITIALIZING_STORE);
-  return graph()->GetConstant0();
-}
-
-
-Handle<Code> CreateWeakCellStub::GenerateCode() { return DoGenerateCode(this); }
 
 
 template <>

@@ -2115,29 +2115,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
-  __ movp(rcx,
-          FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
-
-  // We don't know that we have a weak cell. We might have a private symbol
-  // or an AllocationSite, but the memory is safe to examine.
-  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
-  // FixedArray.
-  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
-  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
-  // computed, meaning that it can't appear to be a pointer. If the low bit is
-  // 0, then hash is computed, but the 0 bit prevents the field from appearing
-  // to be a pointer.
-  STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
-  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
-                    WeakCell::kValueOffset &&
-                WeakCell::kValueOffset == Symbol::kHashFieldSlot);
-
-  __ cmpp(rdi, FieldOperand(rcx, WeakCell::kValueOffset));
+  __ cmpp(rdi, FieldOperand(rbx, rdx, times_pointer_size,
+                            FixedArray::kHeaderSize));
   __ j(not_equal, &extra_checks_or_miss);
-
-  // The compare above could have been a SMI/SMI comparison. Guard against this
-  // convincing us that we have a monomorphic JSFunction.
-  __ JumpIfSmi(rdi, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -2167,6 +2147,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss;
 
+  __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
+                            FixedArray::kHeaderSize));
   __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ j(equal, &slow_start);
 
@@ -2209,20 +2191,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Update stats.
   __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
 
-  // Store the function. Use a stub since we need a frame for allocation.
-  // rbx - vector
-  // rdx - slot (needs to be in smi form)
-  // rdi - function
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    CreateWeakCellStub create_stub(isolate);
+  // Store the function.
+  __ movp(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+          rdi);
 
-    __ Integer32ToSmi(rdx, rdx);
-    __ Push(rdi);
-    __ CallStub(&create_stub);
-    __ Pop(rdi);
-  }
-
+  // Update the write barrier.
+  __ movp(rax, rdi);
+  __ RecordWriteArray(rbx, rax, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
   __ jmp(&have_js_function);
 
   // We are here because tracing is on or we encountered a MISS case we can't
@@ -2284,7 +2260,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }

@@ -138,7 +138,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 static bool ClearLogic(Heap* heap, int ic_age, Code::Kind kind,
                        InlineCacheState state) {
   if (FLAG_cleanup_code_caches_at_gc &&
-      (heap->flush_monomorphic_ics() ||
+      (kind == Code::CALL_IC || heap->flush_monomorphic_ics() ||
        // TODO(mvstanton): is this ic_age granular enough? it comes from
        // the SharedFunctionInfo which may change on a different schedule
        // than ic targets.
@@ -285,7 +285,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;
-  } else if (feedback->IsAllocationSite() || feedback->IsWeakCell()) {
+  } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
     return MONOMORPHIC;
   }
 
@@ -319,8 +319,7 @@ void CallICNexus::ConfigureUninitialized() {
 
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
-  Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
-  SetFeedback(*new_cell);
+  SetFeedback(*function);
 }
 
 

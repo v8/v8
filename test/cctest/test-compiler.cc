@@ -314,9 +314,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   CHECK_EQ(expected_slots, feedback_vector->Slots());
   CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
   FeedbackVectorICSlot slot_for_a(0);
-  Object* object = feedback_vector->Get(slot_for_a);
-  CHECK(object->IsWeakCell() &&
-        WeakCell::cast(object)->value()->IsJSFunction());
+  CHECK(feedback_vector->Get(slot_for_a)->IsJSFunction());
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
 
@@ -324,9 +322,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   CHECK(f->shared()->has_deoptimization_support());
-  object = f->shared()->feedback_vector()->Get(slot_for_a);
-  CHECK(object->IsWeakCell() &&
-        WeakCell::cast(object)->value()->IsJSFunction());
+  CHECK(f->shared()->feedback_vector()->Get(slot_for_a)->IsJSFunction());
 }
 
 
