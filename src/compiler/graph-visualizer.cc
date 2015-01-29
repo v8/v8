@@ -12,9 +12,9 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -274,7 +274,7 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
 
 
 static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
-  if (IrOpcode::IsPhiOpcode(from->opcode())) {
+  if (NodeProperties::IsPhi(from)) {
     Node* control = NodeProperties::GetControlInput(from, 0);
     return control != NULL && control->opcode() != IrOpcode::kMerge &&
            control != to && index != 0;

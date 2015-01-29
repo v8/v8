@@ -9,7 +9,8 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "src/unique.h"
 
 namespace v8 {

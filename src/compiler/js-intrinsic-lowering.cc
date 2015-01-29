@@ -6,7 +6,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {

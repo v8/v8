@@ -10,7 +10,7 @@
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;

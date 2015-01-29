@@ -6,7 +6,7 @@
 
 #include "src/assembler.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 #include "src/types.h"
 #include "test/cctest/cctest.h"

@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {

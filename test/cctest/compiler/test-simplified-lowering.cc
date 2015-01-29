@@ -9,7 +9,7 @@
 #include "src/compiler/control-builders.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"

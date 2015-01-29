@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <deque>
-#include <queue>
-
 #include "src/compiler/scheduler.h"
 
 #include "src/bit-vector.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -1417,8 +1415,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   NodeVector propagation_roots(control_flow_builder_->control_);
   for (Node* node : control_flow_builder_->control_) {
     for (Node* use : node->uses()) {
-      if (IrOpcode::IsPhiOpcode(use->opcode()))
-        propagation_roots.push_back(use);
+      if (NodeProperties::IsPhi(use)) propagation_roots.push_back(use);
     }
   }
   if (FLAG_trace_turbo_scheduler) {

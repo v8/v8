@@ -7,7 +7,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -196,7 +196,7 @@ class LoopFinderImpl {
       if (node->opcode() == IrOpcode::kLoop) {
         // found the loop node first.
         loop_num = CreateLoopInfo(node);
-      } else if (IrOpcode::IsPhiOpcode(node->opcode())) {
+      } else if (NodeProperties::IsPhi(node)) {
         // found a phi first.
         Node* merge = node->InputAt(node->InputCount() - 1);
         if (merge->opcode() == IrOpcode::kLoop) {
@@ -234,7 +234,7 @@ class LoopFinderImpl {
 
     // Setup loop mark for phis attached to loop header.
     for (Node* use : node->uses()) {
-      if (IrOpcode::IsPhiOpcode(use->opcode())) {
+      if (NodeProperties::IsPhi(use)) {
         SetBackwardMark(use, loop_num);
         loop_tree_->node_to_loop_num_[use->id()] = loop_num;
       }
@@ -289,7 +289,7 @@ class LoopFinderImpl {
   bool IsBackedge(Node* use, Edge& edge) {
     if (LoopNum(use) <= 0) return false;
     if (edge.index() == kAssumedLoopEntryIndex) return false;
-    if (IrOpcode::IsPhiOpcode(use->opcode())) {
+    if (NodeProperties::IsPhi(use)) {
       return !NodeProperties::IsControlEdge(edge);
     }
     return true;

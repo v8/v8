@@ -9,7 +9,6 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/operator-properties.h"
 
 namespace v8 {

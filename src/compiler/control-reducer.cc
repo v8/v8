@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -133,7 +133,7 @@ class ControlReducerImpl {
           pop = false;  // restart traversing successors of this node.
           break;
         }
-        if (IrOpcode::IsControlOpcode(succ->opcode()) &&
+        if (NodeProperties::IsControl(succ) &&
             !marked.IsReachableFromStart(succ)) {
           // {succ} is a control node and not yet reached from start.
           marked.Push(succ);
@@ -157,7 +157,7 @@ class ControlReducerImpl {
     // Any control nodes not reachable from start are dead, even loops.
     for (size_t i = 0; i < nodes.size(); i++) {
       Node* node = nodes[i];
-      if (IrOpcode::IsControlOpcode(node->opcode()) &&
+      if (NodeProperties::IsControl(node) &&
           !marked.IsReachableFromStart(node)) {
         ReplaceNode(node, dead());  // uses will be added to revisit queue.
       }
@@ -502,7 +502,7 @@ class ControlReducerImpl {
     // Gather phis and effect phis to be edited.
     ZoneVector<Node*> phis(zone_);
     for (Node* const use : node->uses()) {
-      if (IrOpcode::IsPhiOpcode(use->opcode())) phis.push_back(use);
+      if (NodeProperties::IsPhi(use)) phis.push_back(use);
     }
 
     if (live == 1) {
