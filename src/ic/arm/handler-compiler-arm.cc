@@ -18,7 +18,8 @@ namespace internal {
 
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
   //  -- r2    : name
@@ -28,11 +29,14 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
       // Call the JavaScript getter with the receiver on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ ldr(receiver,
+        __ ldr(scratch,
                FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       ParameterCount actual(0);
@@ -54,7 +58,8 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   // -----------------------------------
@@ -65,11 +70,15 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ push(value());
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
+      DCHECK(!value().is(scratch));
       // Call the JavaScript setter with receiver and value on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ ldr(receiver,
+        __ ldr(scratch,
                FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ Push(receiver, value());
       ParameterCount actual(1);

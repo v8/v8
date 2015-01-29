@@ -356,7 +356,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);
   GenerateLoadViaGetter(masm(), type(), receiver(), holder, accessor_index,
-                        expected_arguments);
+                        expected_arguments, scratch2());
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -446,7 +446,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     int expected_arguments) {
   Register holder = Frontend(name);
   GenerateStoreViaSetter(masm(), type(), receiver(), holder, accessor_index,
-                         expected_arguments);
+                         expected_arguments, scratch2());
 
   return GetCode(kind(), Code::FAST, name);
 }

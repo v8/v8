@@ -145,11 +145,12 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<HeapType> type,
                                     Register receiver, Register holder,
-                                    int accessor_index, int expected_arguments);
+                                    int accessor_index, int expected_arguments,
+                                    Register scratch);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
     GenerateLoadViaGetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
-                          -1);
+                          -1, no_reg);
   }
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
@@ -232,11 +233,11 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<HeapType> type, Register receiver,
                                      Register holder, int accessor_index,
-                                     int expected_arguments);
+                                     int expected_arguments, Register scratch);
 
   static void GenerateStoreViaSetterForDeopt(MacroAssembler* masm) {
     GenerateStoreViaSetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
-                           -1);
+                           -1, no_reg);
   }
 
   static void GenerateSlow(MacroAssembler* masm);

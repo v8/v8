@@ -18,16 +18,20 @@ namespace internal {
 
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
       // Call the JavaScript getter with the receiver on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ mov(receiver,
+        __ mov(scratch,
                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       ParameterCount actual(0);
@@ -231,7 +235,8 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
   // -----------------------------------
@@ -242,11 +247,14 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ push(value());
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
+      DCHECK(!value().is(scratch));
       // Call the JavaScript setter with receiver and value on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ mov(receiver,
+        __ mov(scratch,
                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       __ push(value());
