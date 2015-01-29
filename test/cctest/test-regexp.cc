@@ -38,7 +38,6 @@
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-macro-assembler-irregexp.h"
 #include "src/string-stream.h"
-#include "src/zone-inl.h"
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP

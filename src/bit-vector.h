@@ -10,7 +10,6 @@
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/compiler.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

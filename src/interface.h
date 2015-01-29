@@ -6,7 +6,6 @@
 #define V8_INTERFACE_H_
 
 #include "src/ast-value-factory.h"
-#include "src/zone-inl.h"  // For operator new.
 
 namespace v8 {
 namespace internal {

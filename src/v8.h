@@ -44,7 +44,6 @@
 #include "src/log-inl.h"  // NOLINT
 #include "src/handles-inl.h"  // NOLINT
 #include "src/types-inl.h"  // NOLINT
-#include "src/zone-inl.h"  // NOLINT
 
 namespace v8 {
 namespace internal {

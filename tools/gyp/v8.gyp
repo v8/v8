@@ -895,7 +895,6 @@
         '../../src/version.h',
         '../../src/vm-state-inl.h',
         '../../src/vm-state.h',
-        '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
         '../../src/third_party/fdlibm/fdlibm.cc',
