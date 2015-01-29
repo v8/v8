@@ -704,9 +704,9 @@ class Compiler : public AllStatic {
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(
       Handle<String> source, Handle<Object> script_name, int line_offset,
-      int column_offset, bool is_shared_cross_origin, Handle<Context> context,
-      v8::Extension* extension, ScriptData** cached_data,
-      ScriptCompiler::CompileOptions compile_options,
+      int column_offset, bool is_debugger_script, bool is_shared_cross_origin,
+      Handle<Context> context, v8::Extension* extension,
+      ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
       NativesFlag is_natives_code);
 
   static Handle<SharedFunctionInfo> CompileStreamedScript(CompilationInfo* info,

@@ -36,6 +36,7 @@ namespace internal {
   V(ScriptType)                   \
   V(ScriptSourceUrl)              \
   V(ScriptSourceMappingUrl)       \
+  V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
 
 // Accessors contains all predefined proxy accessors.

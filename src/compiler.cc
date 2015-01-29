@@ -1264,7 +1264,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
 Handle<SharedFunctionInfo> Compiler::CompileScript(
     Handle<String> source, Handle<Object> script_name, int line_offset,
-    int column_offset, bool is_shared_cross_origin, Handle<Context> context,
+    int column_offset, bool is_embedder_debug_script,
+    bool is_shared_cross_origin, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
@@ -1292,8 +1293,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
     maybe_result = compilation_cache->LookupScript(
-        source, script_name, line_offset, column_offset, is_shared_cross_origin,
-        context);
+        source, script_name, line_offset, column_offset,
+        is_embedder_debug_script, is_shared_cross_origin, context);
     if (maybe_result.is_null() && FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
@@ -1327,6 +1328,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       script->set_column_offset(Smi::FromInt(column_offset));
     }
     script->set_is_shared_cross_origin(is_shared_cross_origin);
+    script->set_is_embedder_debug_script(is_embedder_debug_script);
 
     // Compile the function and add it to the cache.
     CompilationInfoWithZone info(script);

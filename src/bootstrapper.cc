@@ -1448,7 +1448,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     function_info = Compiler::CompileScript(
-        source, script_name, 0, 0, false, top_context, extension, NULL,
+        source, script_name, 0, 0, false, false, top_context, extension, NULL,
         ScriptCompiler::kNoCompileOptions,
         use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
     if (function_info.is_null()) return false;
@@ -1764,7 +1764,7 @@ bool Genesis::InstallNatives() {
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
-    Map::EnsureDescriptorSlack(script_map, 14);
+    Map::EnsureDescriptorSlack(script_map, 15);
 
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1889,6 +1889,15 @@ bool Genesis::InstallNatives() {
       AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_source_mapping_url->name())),
           script_source_mapping_url, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_is_embedder_debug_script =
+        Accessors::ScriptIsEmbedderDebugScriptInfo(isolate(), attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
+          script_is_embedder_debug_script, attribs);
       script_map->AppendDescriptor(&d);
     }
 
