@@ -23,6 +23,7 @@
 #include "src/liveedit.h"
 #include "src/messages.h"
 #include "src/parser.h"
+#include "src/prettyprinter.h"
 #include "src/rewriter.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
@@ -412,7 +413,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     if (FLAG_trace_opt) {
       OFStream os(stdout);
       os << "[compiling method " << Brief(*info()->closure())
-         << " using TurboFan]" << std::endl;
+         << " using TurboFan";
+      if (info()->is_osr()) os << " OSR";
+      os << "]" << std::endl;
     }
     Timer t(this, &time_taken_to_create_graph_);
     compiler::Pipeline pipeline(info());
@@ -425,7 +428,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   if (FLAG_trace_opt) {
     OFStream os(stdout);
     os << "[compiling method " << Brief(*info()->closure())
-       << " using Crankshaft]" << std::endl;
+       << " using Crankshaft";
+    if (info()->is_osr()) os << " OSR";
+    os << "]" << std::endl;
   }
 
   if (FLAG_trace_hydrogen) {
@@ -1589,4 +1594,11 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
       base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
 
+
+#if DEBUG
+void CompilationInfo::PrintAstForTesting() {
+  PrintF("--- Source from AST ---\n%s\n",
+         PrettyPrinter(isolate(), zone()).PrintProgram(function()));
+}
+#endif
 } }  // namespace v8::internal

@@ -405,6 +405,10 @@ class CompilationInfo {
     ast_value_factory_owned_ = owned;
   }
 
+#if DEBUG
+  void PrintAstForTesting();
+#endif
+
  protected:
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                   Zone* zone);

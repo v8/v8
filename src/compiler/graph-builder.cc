@@ -201,16 +201,11 @@ void StructuredGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
 
     for (int i = 0; i < size; ++i) {
       Node* val = values()->at(i);
-      // TODO(titzer): use IrOpcode::IsConstant() or similar.
-      if (val->opcode() == IrOpcode::kNumberConstant ||
-          val->opcode() == IrOpcode::kInt32Constant ||
-          val->opcode() == IrOpcode::kInt64Constant ||
-          val->opcode() == IrOpcode::kFloat64Constant ||
-          val->opcode() == IrOpcode::kHeapConstant)
-        continue;
-      Node* osr_value =
-          graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
-      values()->at(i) = builder_->MergeValue(val, osr_value, control);
+      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
+        Node* osr_value =
+            graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
+        values()->at(i) = builder_->MergeValue(val, osr_value, control);
+      }
     }
   }
 }

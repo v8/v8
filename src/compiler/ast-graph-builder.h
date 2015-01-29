@@ -199,6 +199,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value,
                             BailoutId bailout_id);
+  void VisitForInBody(ForInStatement* stmt);
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);

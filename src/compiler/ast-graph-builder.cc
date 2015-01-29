@@ -702,96 +702,100 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         environment()->Push(cache_array);
         environment()->Push(cache_length);
         environment()->Push(jsgraph()->ZeroConstant());
-        // PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
-        LoopBuilder for_loop(this);
-        for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt),
-                           IsOsrLoopEntry(stmt));
-        // Check loop termination condition.
-        Node* index = environment()->Peek(0);
-        Node* exit_cond =
-            NewNode(javascript()->LessThan(), index, cache_length);
-        // TODO(jarin): provide real bailout id.
-        PrepareFrameState(exit_cond, BailoutId::None());
-        for_loop.BreakUnless(exit_cond);
-        // TODO(dcarney): this runtime call should be a handful of
-        //                simplified instructions that
-        //                basically produce
-        //                    value = array[index]
-        environment()->Push(obj);
-        environment()->Push(cache_array);
-        environment()->Push(cache_type);
-        environment()->Push(index);
-        Node* pair = ProcessArguments(
-            javascript()->CallRuntime(Runtime::kForInNext, 4), 4);
-        Node* value = NewNode(common()->Projection(0), pair);
-        Node* should_filter = NewNode(common()->Projection(1), pair);
-        environment()->Push(value);
-        {
-          // Test if FILTER_KEY needs to be called.
-          IfBuilder test_should_filter(this);
-          Node* should_filter_cond =
-              NewNode(javascript()->StrictEqual(), should_filter,
-                      jsgraph()->TrueConstant());
-          test_should_filter.If(should_filter_cond);
-          test_should_filter.Then();
-          value = environment()->Pop();
-          Node* builtins = BuildLoadBuiltinsObject();
-          Node* function = BuildLoadObjectField(
-              builtins,
-              JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
-          // Callee.
-          environment()->Push(function);
-          // Receiver.
-          environment()->Push(obj);
-          // Args.
-          environment()->Push(value);
-          // result is either the string key or Smi(0) indicating the property
-          // is gone.
-          Node* res = ProcessArguments(
-              javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS), 3);
-          // TODO(jarin): provide real bailout id.
-          PrepareFrameState(res, BailoutId::None());
-          Node* property_missing = NewNode(javascript()->StrictEqual(), res,
-                                           jsgraph()->ZeroConstant());
-          {
-            IfBuilder is_property_missing(this);
-            is_property_missing.If(property_missing);
-            is_property_missing.Then();
-            // Inc counter and continue.
-            Node* index_inc =
-                NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
-            // TODO(jarin): provide real bailout id.
-            PrepareFrameState(index_inc, BailoutId::None());
-            environment()->Poke(0, index_inc);
-            for_loop.Continue();
-            is_property_missing.Else();
-            is_property_missing.End();
-          }
-          // Replace 'value' in environment.
-          environment()->Push(res);
-          test_should_filter.Else();
-          test_should_filter.End();
-        }
-        value = environment()->Pop();
-        // Bind value and do loop body.
-        VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
-        VisitIterationBody(stmt, &for_loop, 5);
-        for_loop.EndBody();
-        // Inc counter and continue.
-        Node* index_inc =
-            NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
-        // TODO(jarin): provide real bailout id.
-        PrepareFrameState(index_inc, BailoutId::None());
-        environment()->Poke(0, index_inc);
-        for_loop.EndLoop();
-        environment()->Drop(5);
-        // PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+
+        // Build the actual loop body.
+        VisitForInBody(stmt);
       }
       have_no_properties.End();
     }
     is_null.End();
   }
   is_undefined.End();
+}
+
+
+// TODO(dcarney): this is a big function.  Try to clean up some.
+void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
+  LoopBuilder for_loop(this);
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+
+  // These stack values are renamed in the case of OSR, so reload them
+  // from the environment.
+  Node* index = environment()->Peek(0);
+  Node* cache_length = environment()->Peek(1);
+  Node* cache_array = environment()->Peek(2);
+  Node* cache_type = environment()->Peek(3);
+  Node* obj = environment()->Peek(4);
+
+  // Check loop termination condition.
+  Node* exit_cond = NewNode(javascript()->LessThan(), index, cache_length);
+  // TODO(jarin): provide real bailout id.
+  PrepareFrameState(exit_cond, BailoutId::None());
+  for_loop.BreakUnless(exit_cond);
+  Node* pair = NewNode(javascript()->CallRuntime(Runtime::kForInNext, 4), obj,
+                       cache_array, cache_type, index);
+  Node* value = NewNode(common()->Projection(0), pair);
+  Node* should_filter = NewNode(common()->Projection(1), pair);
+  environment()->Push(value);
+  {
+    // Test if FILTER_KEY needs to be called.
+    IfBuilder test_should_filter(this);
+    Node* should_filter_cond = NewNode(
+        javascript()->StrictEqual(), should_filter, jsgraph()->TrueConstant());
+    test_should_filter.If(should_filter_cond);
+    test_should_filter.Then();
+    value = environment()->Pop();
+    Node* builtins = BuildLoadBuiltinsObject();
+    Node* function = BuildLoadObjectField(
+        builtins,
+        JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
+    // Callee.
+    environment()->Push(function);
+    // Receiver.
+    environment()->Push(obj);
+    // Args.
+    environment()->Push(value);
+    // result is either the string key or Smi(0) indicating the property
+    // is gone.
+    Node* res = ProcessArguments(
+        javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS), 3);
+    // TODO(jarin): provide real bailout id.
+    PrepareFrameState(res, BailoutId::None());
+    Node* property_missing =
+        NewNode(javascript()->StrictEqual(), res, jsgraph()->ZeroConstant());
+    {
+      IfBuilder is_property_missing(this);
+      is_property_missing.If(property_missing);
+      is_property_missing.Then();
+      // Inc counter and continue.
+      Node* index_inc =
+          NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+      // TODO(jarin): provide real bailout id.
+      PrepareFrameState(index_inc, BailoutId::None());
+      environment()->Poke(0, index_inc);
+      for_loop.Continue();
+      is_property_missing.Else();
+      is_property_missing.End();
+    }
+    // Replace 'value' in environment.
+    environment()->Push(res);
+    test_should_filter.Else();
+    test_should_filter.End();
+  }
+  value = environment()->Pop();
+  // Bind value and do loop body.
+  VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
+  VisitIterationBody(stmt, &for_loop, 5);
+  for_loop.EndBody();
+  // Inc counter and continue.
+  Node* index_inc =
+      NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+  // TODO(jarin): provide real bailout id.
+  PrepareFrameState(index_inc, BailoutId::None());
+  environment()->Poke(0, index_inc);
+  for_loop.EndLoop();
+  environment()->Drop(5);
+  // PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
 
