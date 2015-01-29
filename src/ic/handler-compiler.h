@@ -58,7 +58,9 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                                       const CallOptimization& optimization,
                                       Handle<Map> receiver_map,
                                       Register receiver, Register scratch,
-                                      bool is_store, Register store_parameter);
+                                      bool is_store, Register store_parameter,
+                                      Register accessor_holder,
+                                      int accessor_index);
 
   // Helper function used to check that the dictionary doesn't contain
   // the property. This function may return false negatives, so miss_label
@@ -124,7 +126,8 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                    Handle<ExecutableAccessorInfo> callback);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   const CallOptimization& call_optimization);
+                                   const CallOptimization& call_optimization,
+                                   int accessor_index);
 
   Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
@@ -224,7 +227,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    const CallOptimization& call_optimization);
+                                    const CallOptimization& call_optimization,
+                                    int accessor_index);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      int accessor_index,
                                      int expected_arguments);

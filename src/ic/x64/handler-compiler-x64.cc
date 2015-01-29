@@ -131,7 +131,9 @@ static void CompileCallLoadPropertyWithInterceptor(
 void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
     Handle<Map> receiver_map, Register receiver, Register scratch_in,
-    bool is_store, Register store_parameter) {
+    bool is_store, Register store_parameter, Register accessor_holder,
+    int accessor_index) {
+  DCHECK(!accessor_holder.is(scratch_in));
   DCHECK(optimization.is_simple_api_call());
 
   __ PopReturnAddressTo(scratch_in);
@@ -153,6 +155,10 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   Register api_function_address = rdx;
   Register scratch = rax;  // scratch_in is no longer valid.
 
+  // Put callee in place.
+  __ LoadAccessor(callee, accessor_holder, accessor_index,
+                  is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
+
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
   Handle<JSObject> api_holder =
@@ -170,12 +176,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   }
 
   Isolate* isolate = masm->isolate();
-  Handle<JSFunction> function = optimization.constant_function();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
-  // Put callee in place.
-  __ Move(callee, function);
 
   bool call_data_undefined = false;
   // Put call_data in place.

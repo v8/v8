@@ -1237,8 +1237,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                           cache_holder);
         if (call_optimization.is_simple_api_call() &&
             call_optimization.IsCompatibleReceiver(receiver, holder)) {
-          return compiler.CompileLoadCallback(lookup->name(),
-                                              call_optimization);
+          return compiler.CompileLoadCallback(lookup->name(), call_optimization,
+                                              lookup->GetAccessorIndex());
         }
         int expected_arguments = function->shared()->formal_parameter_count();
         return compiler.CompileLoadViaGetter(
@@ -1741,7 +1741,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         if (call_optimization.is_simple_api_call() &&
             call_optimization.IsCompatibleReceiver(receiver, holder)) {
           return compiler.CompileStoreCallback(receiver, lookup->name(),
-                                               call_optimization);
+                                               call_optimization,
+                                               lookup->GetAccessorIndex());
         }
         int expected_arguments = function->shared()->formal_parameter_count();
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
