@@ -255,7 +255,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   Register api_function_address = a1;
 
   // Put callee in place.
-  __ LoadAccessor(callee, holder, accessor_index,
+  __ LoadAccessor(callee, accessor_holder, accessor_index,
                   is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
 
   // Put holder in place.
