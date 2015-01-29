@@ -85,8 +85,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  FinishCode(masm());
-
   // Ensure there is space for lazy deoptimization in the code.
   if (!info->IsStub()) {
     int target_offset = masm()->pc_offset() + Deoptimizer::patch_size();
@@ -94,6 +92,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
       masm()->nop();
     }
   }
+
+  FinishCode(masm());
 
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
