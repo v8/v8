@@ -99,7 +99,8 @@ class OsrHelper {
 
   // Deconstructs the artificial {OsrNormalEntry} and rewrites the graph so
   // that only the path corresponding to {OsrLoopEntry} remains.
-  void Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
+  // Return {false} if the OSR deconstruction failed somehow.
+  bool Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
                    Zone* tmp_zone);
 
   // Prepares the frame w.r.t. OSR.
