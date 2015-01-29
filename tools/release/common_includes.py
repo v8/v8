@@ -591,6 +591,24 @@ class Step(GitRecipesMixin):
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
+  def GetRecentReleases(self, max_age):
+    # Make sure tags are fetched.
+    self.Git("fetch origin +refs/tags/*:refs/tags/*")
+
+    # Current timestamp.
+    time_now = int(self._side_effect_handler.GetUTCStamp())
+
+    # List every tag from a given period.
+    revisions = self.Git("rev-list --max-age=%d --tags" %
+                         int(time_now - max_age)).strip()
+
+    def IsTagged(revision):
+      return VERSION_RE.match(
+          self.Git("describe --tags %s" % revision).strip())
+
+    # Filter out revisions who's tag is off by one or more commits.
+    return filter(IsTagged, revisions.splitlines())
+
   def GetLatestVersion(self):
     # Use cached version if available.
     if self["latest_version"]:
