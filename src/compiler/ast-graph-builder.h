@@ -99,7 +99,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* value);
-  Node* BuildToName(Node* value);
+  Node* BuildToName(Node* value, BailoutId bailout_id);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
@@ -197,7 +197,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitArithmeticExpression(BinaryOperation* expr);
 
   // Dispatched from VisitForInStatement.
-  void VisitForInAssignment(Expression* expr, Node* value);
+  void VisitForInAssignment(Expression* expr, Node* value,
+                            BailoutId bailout_id);
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);

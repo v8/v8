@@ -441,7 +441,7 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
   DisableOptimization(kClassLiteral);
-  node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
+  node->set_base_id(ReserveIdRange(node->num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   if (node->class_variable_proxy()) {
@@ -455,7 +455,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
 
 void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   IncrementNodeCount();
-  node->set_base_id(ReserveIdRange(ObjectLiteral::num_ids()));
+  node->set_base_id(ReserveIdRange(node->num_ids()));
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }

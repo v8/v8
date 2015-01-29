@@ -1453,6 +1453,19 @@ void MacroAssembler::EnumLengthSmi(Register dst, Register map) {
 }
 
 
+void MacroAssembler::LoadAccessor(Register dst, Register holder,
+                                  int accessor_index,
+                                  AccessorComponent accessor) {
+  Ldr(dst, FieldMemOperand(holder, HeapObject::kMapOffset));
+  LoadInstanceDescriptors(dst, dst);
+  Ldr(dst,
+      FieldMemOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
+  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
+                                           : AccessorPair::kSetterOffset;
+  Ldr(dst, FieldMemOperand(dst, offset));
+}
+
+
 void MacroAssembler::CheckEnumCache(Register object,
                                     Register null_value,
                                     Register scratch0,

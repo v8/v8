@@ -87,11 +87,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   Type* NewRange(double i, double j) {
-    Factory* f = isolate()->factory();
-    i::Handle<i::Object> min = f->NewNumber(i);
-    i::Handle<i::Object> max = f->NewNumber(j);
-    if (min->Number() > max->Number()) std::swap(min, max);
-    return Type::Range(min, max, main_zone());
+    if (i > j) std::swap(i, j);
+    return Type::Range(i, j, main_zone());
   }
 
   double RandomInt(double min, double max) {
@@ -113,7 +110,7 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   double RandomInt(Type::RangeType* range) {
-    return RandomInt(range->Min()->Number(), range->Max()->Number());
+    return RandomInt(range->Min(), range->Max());
   }
 
   // Careful, this function runs O(max_width^5) trials.

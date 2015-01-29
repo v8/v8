@@ -75,10 +75,8 @@ class RepresentationSelector {
         queue_(zone) {
     memset(info_, 0, sizeof(NodeInfo) * count_);
 
-    Factory* f = jsgraph->isolate()->factory();
     safe_int_additive_range_ =
-        Type::Range(f->NewNumber(-std::pow(2.0, 52.0)),
-                    f->NewNumber(std::pow(2.0, 52.0)), zone);
+        Type::Range(-std::pow(2.0, 52.0), std::pow(2.0, 52.0), zone);
   }
 
   void Run(SimplifiedLowering* lowering) {

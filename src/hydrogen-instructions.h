@@ -2434,22 +2434,36 @@ class HCallFunction FINAL : public HBinaryCall {
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
       HCallFunction, HValue*, int, CallFunctionFlags);
 
-  HValue* context() { return first(); }
-  HValue* function() { return second(); }
+  HValue* context() const { return first(); }
+  HValue* function() const { return second(); }
   CallFunctionFlags function_flags() const { return function_flags_; }
 
+  FeedbackVectorICSlot slot() const { return slot_; }
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  bool HasVectorAndSlot() const { return !feedback_vector_.is_null(); }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallFunction)
+
+  std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   int argument_delta() const OVERRIDE { return -argument_count(); }
 
  private:
-  HCallFunction(HValue* context,
-                HValue* function,
-                int argument_count,
+  HCallFunction(HValue* context, HValue* function, int argument_count,
                 CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS)
-      : HBinaryCall(context, function, argument_count), function_flags_(flags) {
-  }
+      : HBinaryCall(context, function, argument_count),
+        function_flags_(flags),
+        slot_(FeedbackVectorICSlot::Invalid()) {}
   CallFunctionFlags function_flags_;
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
 };
 
 

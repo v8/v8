@@ -101,8 +101,7 @@ class Types {
       if (!IsMinusZero(x)) integers.push_back(isolate->factory()->NewNumber(x));
     }
 
-    Integer = Type::Range(isolate->factory()->NewNumber(-V8_INFINITY),
-                          isolate->factory()->NewNumber(+V8_INFINITY), region);
+    Integer = Type::Range(-V8_INFINITY, +V8_INFINITY, region);
 
     NumberArray = Type::Array(Number, region);
     StringArray = Type::Array(String, region);
@@ -184,7 +183,7 @@ class Types {
     return Type::Constant(value, region_);
   }
 
-  TypeHandle Range(Handle<i::Object> min, Handle<i::Object> max) {
+  TypeHandle Range(double min, double max) {
     return Type::Range(min, max, region_);
   }
 
@@ -263,9 +262,9 @@ class Types {
       case 3: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
         int j = rng_->NextInt(static_cast<int>(integers.size()));
-        i::Handle<i::Object> min = integers[i];
-        i::Handle<i::Object> max = integers[j];
-        if (min->Number() > max->Number()) std::swap(min, max);
+        double min = integers[i]->Number();
+        double max = integers[j]->Number();
+        if (min > max) std::swap(min, max);
         return Type::Range(min, max, region_);
       }
       case 4: {  // context

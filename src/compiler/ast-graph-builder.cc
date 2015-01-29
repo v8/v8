@@ -774,7 +774,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         }
         value = environment()->Pop();
         // Bind value and do loop body.
-        VisitForInAssignment(stmt->each(), value);
+        VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
         VisitIterationBody(stmt, &for_loop, 5);
         for_loop.EndBody();
         // Inc counter and continue.
@@ -899,7 +899,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     environment()->Push(property->is_static() ? literal : proto);
 
     VisitForValue(property->key());
-    environment()->Push(BuildToName(environment()->Pop()));
+    environment()->Push(
+        BuildToName(environment()->Pop(), expr->GetIdForProperty(i)));
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -1131,7 +1132,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
     environment()->Push(literal);  // Duplicate receiver.
     VisitForValue(property->key());
-    environment()->Push(BuildToName(environment()->Pop()));
+    environment()->Push(BuildToName(environment()->Pop(),
+                                    expr->GetIdForProperty(property_index)));
     // TODO(mstarzinger): For ObjectLiteral::Property::PROTOTYPE the key should
     // not be on the operand stack while the value is being evaluated. Come up
     // with a repro for this and fix it. Also find a nice way to do so. :)
@@ -1226,7 +1228,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
+void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
+                                           BailoutId bailout_id) {
   DCHECK(expr->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a variable slot.
@@ -1237,8 +1240,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* var = expr->AsVariableProxy()->var();
-      // TODO(jarin) Fill in the correct bailout id.
-      BuildVariableAssignment(var, value, Token::ASSIGN, BailoutId::None());
+      BuildVariableAssignment(var, value, Token::ASSIGN, bailout_id);
       break;
     }
     case NAMED_PROPERTY: {
@@ -1250,8 +1252,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
-      // TODO(jarin) Fill in the correct bailout id.
-      PrepareFrameState(store, BailoutId::None());
+      PrepareFrameState(store, bailout_id);
       break;
     }
     case KEYED_PROPERTY: {
@@ -1263,8 +1264,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
       value = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
                             key, value);
-      // TODO(jarin) Fill in the correct bailout id.
-      PrepareFrameState(store, BailoutId::None());
+      PrepareFrameState(store, bailout_id);
       break;
     }
   }
@@ -2324,11 +2324,13 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
 }
 
 
-Node* AstGraphBuilder::BuildToName(Node* input) {
+Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
   // TODO(turbofan): Possible optimization is to NOP on name constants. But the
   // same caveat as with BuildToBoolean applies, and it should be factored out
   // into a JSOperatorReducer.
-  return NewNode(javascript()->ToName(), input);
+  Node* name = NewNode(javascript()->ToName(), input);
+  PrepareFrameState(name, bailout_id);
+  return name;
 }
 
 

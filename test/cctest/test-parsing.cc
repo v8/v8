@@ -4671,11 +4671,24 @@ TEST(ComputedPropertyNameShorthandError) {
 
 
 TEST(BasicImportExportParsing) {
-  const char kSource[] =
-      "export let x = 0;"
-      "import y from 'http://module.com/foo.js';"
-      "function f() {};"
-      "f();";
+  const char* kSources[] = {
+      "export let x = 0;",
+      "export var y = 0;",
+      "export const z = 0;",
+      "export function func() { };",
+      "export class C { };",
+      "export { };",
+      "function f() {}; f(); export { f };",
+      "var a, b, c; export { a, b as baz, c };",
+      "var d, e; export { d as dreary, e, };",
+      "import y from 'http://module.com/foo.js';",
+      "export default function f() {}",
+      "export default class C {}",
+      "export default 42",
+      "var x; export default x = 7",
+      "export { Q } from 'somemodule.js';",
+      "export * from 'somemodule.js';"
+  };
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -4687,38 +4700,101 @@ TEST(BasicImportExportParsing) {
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
                                         128 * 1024);
 
-  int kProgramByteSize = i::StrLength(kSource);
-  i::ScopedVector<char> program(kProgramByteSize + 1);
-  i::SNPrintF(program, "%s", kSource);
-  i::Handle<i::String> source =
-      factory->NewStringFromUtf8(i::CStrVector(program.start()))
-          .ToHandleChecked();
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    int kProgramByteSize = i::StrLength(kSources[i]);
+    i::ScopedVector<char> program(kProgramByteSize + 1);
+    i::SNPrintF(program, "%s", kSources[i]);
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program.start()))
+            .ToHandleChecked();
 
-  // Show that parsing as a module works
-  {
+    // Show that parsing as a module works
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::CompilationInfoWithZone info(script);
+      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                         isolate->heap()->HashSeed(),
+                                         isolate->unicode_cache()};
+      i::Parser parser(&info, &parse_info);
+      parser.set_allow_harmony_classes(true);
+      parser.set_allow_harmony_modules(true);
+      parser.set_allow_harmony_scoping(true);
+      info.MarkAsModule();
+      CHECK(parser.Parse());
+    }
+
+    // And that parsing a script does not.
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::CompilationInfoWithZone info(script);
+      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                         isolate->heap()->HashSeed(),
+                                         isolate->unicode_cache()};
+      i::Parser parser(&info, &parse_info);
+      parser.set_allow_harmony_classes(true);
+      parser.set_allow_harmony_modules(true);
+      parser.set_allow_harmony_scoping(true);
+      info.MarkAsGlobal();
+      CHECK(!parser.Parse());
+    }
+  }
+}
+
+
+TEST(ImportExportParsingErrors) {
+  const char* kErrorSources[] = {
+      "export {",
+      "var a; export { a",
+      "var a; export { a,",
+      "var a; export { a, ;",
+      "var a; export { a as };",
+      "var a, b; export { a as , b};",
+      "export }",
+      "var foo, bar; export { foo bar };",
+      "export { foo };",
+      "export { , };",
+      "export default;",
+      "export default var x = 7;",
+      "export default let x = 7;",
+      "export default const x = 7;",
+      "export *;",
+      "export * from;",
+      "export { Q } from;",
+      "export default from 'module.js';",
+
+      // TODO(ES6): These two forms should be supported
+      "export default function() {};",
+      "export default class {};"
+  };
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    int kProgramByteSize = i::StrLength(kErrorSources[i]);
+    i::ScopedVector<char> program(kProgramByteSize + 1);
+    i::SNPrintF(program, "%s", kErrorSources[i]);
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program.start()))
+            .ToHandleChecked();
+
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
     i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
                                        isolate->heap()->HashSeed(),
                                        isolate->unicode_cache()};
     i::Parser parser(&info, &parse_info);
+    parser.set_allow_harmony_classes(true);
     parser.set_allow_harmony_modules(true);
     parser.set_allow_harmony_scoping(true);
     info.MarkAsModule();
-    CHECK(parser.Parse());
-  }
-
-  // And that parsing a script does not.
-  {
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::CompilationInfoWithZone info(script);
-    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                       isolate->heap()->HashSeed(),
-                                       isolate->unicode_cache()};
-    i::Parser parser(&info, &parse_info);
-    parser.set_allow_harmony_modules(true);
-    parser.set_allow_harmony_scoping(true);
-    info.MarkAsGlobal();
     CHECK(!parser.Parse());
   }
 }

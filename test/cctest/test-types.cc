@@ -36,7 +36,8 @@ struct ZoneRep {
     return !IsBitset(t) && reinterpret_cast<intptr_t>(AsStruct(t)[0]) == tag;
   }
   static bool IsBitset(Type* t) { return reinterpret_cast<uintptr_t>(t) & 1; }
-  static bool IsUnion(Type* t) { return IsStruct(t, 6); }
+  // HACK: the number 5 below is the value of StructuralType::kUnionTag.
+  static bool IsUnion(Type* t) { return t->IsUnionForTesting(); }
 
   static Struct* AsStruct(Type* t) {
     return reinterpret_cast<Struct*>(t);
@@ -69,7 +70,8 @@ struct HeapRep {
     return t->IsFixedArray() && Smi::cast(AsStruct(t)->get(0))->value() == tag;
   }
   static bool IsBitset(Handle<HeapType> t) { return t->IsSmi(); }
-  static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 6); }
+  // HACK: the number 5 below is the value of StructuralType::kUnionTag.
+  static bool IsUnion(Handle<HeapType> t) { return t->IsUnionForTesting(); }
 
   static Struct* AsStruct(Handle<HeapType> t) { return FixedArray::cast(*t); }
   static bitset AsBitset(Handle<HeapType> t) {
@@ -351,9 +353,9 @@ struct Tests : Rep {
     // Constructor
     for (ValueIterator i = T.integers.begin(); i != T.integers.end(); ++i) {
       for (ValueIterator j = T.integers.begin(); j != T.integers.end(); ++j) {
-        i::Handle<i::Object> min = *i;
-        i::Handle<i::Object> max = *j;
-        if (min->Number() > max->Number()) std::swap(min, max);
+        double min = (*i)->Number();
+        double max = (*j)->Number();
+        if (min > max) std::swap(min, max);
         TypeHandle type = T.Range(min, max);
         CHECK(type->IsRange());
       }
@@ -362,12 +364,12 @@ struct Tests : Rep {
     // Range attributes
     for (ValueIterator i = T.integers.begin(); i != T.integers.end(); ++i) {
       for (ValueIterator j = T.integers.begin(); j != T.integers.end(); ++j) {
-        i::Handle<i::Object> min = *i;
-        i::Handle<i::Object> max = *j;
-        if (min->Number() > max->Number()) std::swap(min, max);
+        double min = (*i)->Number();
+        double max = (*j)->Number();
+        if (min > max) std::swap(min, max);
         TypeHandle type = T.Range(min, max);
-        CHECK(*min == *type->AsRange()->Min());
-        CHECK(*max == *type->AsRange()->Max());
+        CHECK(min == type->AsRange()->Min());
+        CHECK(max == type->AsRange()->Max());
       }
     }
 
@@ -381,15 +383,15 @@ struct Tests : Rep {
             i2 != T.integers.end(); ++i2) {
           for (ValueIterator j2 = i2;
               j2 != T.integers.end(); ++j2) {
-            i::Handle<i::Object> min1 = *i1;
-            i::Handle<i::Object> max1 = *j1;
-            i::Handle<i::Object> min2 = *i2;
-            i::Handle<i::Object> max2 = *j2;
-            if (min1->Number() > max1->Number()) std::swap(min1, max1);
-            if (min2->Number() > max2->Number()) std::swap(min2, max2);
+            double min1 = (*i1)->Number();
+            double max1 = (*j1)->Number();
+            double min2 = (*i2)->Number();
+            double max2 = (*j2)->Number();
+            if (min1 > max1) std::swap(min1, max1);
+            if (min2 > max2) std::swap(min2, max2);
             TypeHandle type1 = T.Range(min1, max1);
             TypeHandle type2 = T.Range(min2, max2);
-            CHECK(Equal(type1, type2) == (*min1 == *min2 && *max1 == *max2));
+            CHECK(Equal(type1, type2) == (min1 == min2 && max1 == max2));
           }
         }
       }
@@ -608,8 +610,6 @@ struct Tests : Rep {
   }
 
   void MinMax() {
-    Factory* fac = isolate->factory();
-
     // If b is regular numeric bitset, then Range(b->Min(), b->Max())->Is(b).
     // TODO(neis): Need to ignore representation for this to be true.
     /*
@@ -662,8 +662,7 @@ struct Tests : Rep {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
       CHECK(!(type->Is(T.Integer) && !type->Is(T.None)) ||
-            type->Is(T.Range(fac->NewNumber(type->Min()),
-                             fac->NewNumber(type->Max()))));
+            type->Is(T.Range(type->Min(), type->Max())));
     }
   }
 
@@ -828,17 +827,15 @@ struct Tests : Rep {
              i2 != T.integers.end(); ++i2) {
           for (ValueIterator j2 = i2;
                j2 != T.integers.end(); ++j2) {
-            i::Handle<i::Object> min1 = *i1;
-            i::Handle<i::Object> max1 = *j1;
-            i::Handle<i::Object> min2 = *i2;
-            i::Handle<i::Object> max2 = *j2;
-            if (min1->Number() > max1->Number()) std::swap(min1, max1);
-            if (min2->Number() > max2->Number()) std::swap(min2, max2);
+            double min1 = (*i1)->Number();
+            double max1 = (*j1)->Number();
+            double min2 = (*i2)->Number();
+            double max2 = (*j2)->Number();
+            if (min1 > max1) std::swap(min1, max1);
+            if (min2 > max2) std::swap(min2, max2);
             TypeHandle type1 = T.Range(min1, max1);
             TypeHandle type2 = T.Range(min2, max2);
-            CHECK(type1->Is(type2) ==
-                (min1->Number() >= min2->Number() &&
-                 max1->Number() <= max2->Number()));
+            CHECK(type1->Is(type2) == (min1 >= min2 && max1 <= max2));
           }
         }
       }
@@ -898,8 +895,8 @@ struct Tests : Rep {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
       if (type->IsConstant() && IsInteger(*type->AsConstant()->Value())) {
-        CHECK(type->Is(
-            T.Range(type->AsConstant()->Value(), type->AsConstant()->Value())));
+        CHECK(type->Is(T.Range(type->AsConstant()->Value()->Number(),
+                               type->AsConstant()->Value()->Number())));
       }
     }
 
@@ -910,8 +907,8 @@ struct Tests : Rep {
         TypeHandle type2 = *it2;
         if (type1->IsConstant() && type2->IsRange() && type1->Is(type2)) {
           double x = type1->AsConstant()->Value()->Number();
-          double min = type2->AsRange()->Min()->Number();
-          double max = type2->AsRange()->Max()->Number();
+          double min = type2->AsRange()->Min();
+          double max = type2->AsRange()->Max();
           CHECK(IsInteger(x) && min <= x && x <= max);
         }
       }
@@ -1848,8 +1845,8 @@ struct Tests : Rep {
       TypeHandle type1 = *it1;
       if (type1->IsRange()) {
         typename Type::RangeType* range = type1->GetRange();
-        CHECK(type1->Min() == range->Min()->Number());
-        CHECK(type1->Max() == range->Max()->Number());
+        CHECK(type1->Min() == range->Min());
+        CHECK(type1->Max() == range->Max());
       }
     }
 
@@ -1861,8 +1858,8 @@ struct Tests : Rep {
         if (type1->IsConstant() && type2->IsRange()) {
           TypeHandle u = T.Union(type1, type2);
 
-          CHECK(type2->Min() == u->GetRange()->Min()->Number());
-          CHECK(type2->Max() == u->GetRange()->Max()->Number());
+          CHECK(type2->Min() == u->GetRange()->Min());
+          CHECK(type2->Max() == u->GetRange()->Max());
         }
       }
     }

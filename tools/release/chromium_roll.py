@@ -19,11 +19,11 @@ class Preparation(Step):
 
 
 class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of last push to candidates."
+  MESSAGE = "Detect commit ID of last release."
 
   def RunStep(self):
-    self["last_push"] = self._options.last_push or self.FindLastCandidatesPush(
-        branch="origin/candidates", include_patches=True)
+    # The revision that should be rolled.
+    self["last_push"] = self._options.last_push or self.GetLatestRelease()
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
 

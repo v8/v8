@@ -442,9 +442,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
-    Handle<JSObject> object, Handle<Name> name, Handle<JSFunction> setter) {
-  Frontend(name);
-  GenerateStoreViaSetter(masm(), type(), receiver(), setter);
+    Handle<JSObject> object, Handle<Name> name, int accessor_index,
+    int expected_arguments) {
+  Register holder = Frontend(name);
+  GenerateStoreViaSetter(masm(), type(), receiver(), holder, accessor_index,
+                         expected_arguments);
 
   return GetCode(kind(), Code::FAST, name);
 }

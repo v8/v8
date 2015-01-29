@@ -46,6 +46,7 @@ from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
 CHANGELOG_FILE = "ChangeLog"
+PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 VERSION_FILE = os.path.join("src", "version.cc")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
@@ -597,23 +598,44 @@ class Step(GitRecipesMixin):
 
     # Make sure tags are fetched.
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
-    version_parts = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
-                           key=SortingKey, reverse=True)[0].split(".")
-    if len(version_parts) == 3:
-      version_parts.append("0")
-    self["latest_version"] = ".".join(version_parts)
-    return self["latest_version"]
+    version = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
+                     key=SortingKey, reverse=True)[0]
+    self["latest_version"] = version
+    return version
 
-  def FindLastCandidatesPush(
-      self, parent_hash="", branch="", include_patches=False):
-    push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*"
-    if not include_patches:
-      # Non-patched versions only have three numbers followed by the "(based
-      # on...) comment."
-      push_pattern += " (based"
-    branch = "" if parent_hash else branch or self.vc.RemoteCandidateBranch()
-    return self.GitLog(n=1, format="%H", grep=push_pattern,
-                       parent_hash=parent_hash, branch=branch)
+  def GetLatestRelease(self):
+    """The latest release is the git hash of the latest tagged version.
+
+    This revision should be rolled into chromium.
+    """
+    latest_version = self.GetLatestVersion()
+
+    # The latest release.
+    latest_hash = self.GitLog(n=1, format="%H", branch=latest_version)
+    assert latest_hash
+    return latest_hash
+
+  def GetLatestReleaseBase(self):
+    """The latest release base is the latest revision that is covered in the
+    last change log file. It doesn't include cherry-picked patches.
+    """
+    latest_version = self.GetLatestVersion()
+
+    # Strip patch level if it exists.
+    latest_version = ".".join(latest_version.split(".")[:3])
+
+    # The latest release base.
+    latest_hash = self.GitLog(n=1, format="%H", branch=latest_version)
+    assert latest_hash
+
+    match = PUSH_MSG_GIT_RE.match(
+        self.GitLog(n=1, format="%s", git_hash=latest_hash))
+    if match:
+      # Legacy: In the old process there's one level of indirection. The
+      # version is on the candidates branch and points to the real release
+      # base on master through the commit message.
+      latest_hash = match.group("git_rev")
+    return latest_hash
 
   def ArrayToVersion(self, prefix):
     return ".".join([self[prefix + "major"],
