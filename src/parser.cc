@@ -723,7 +723,14 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
     PrintF("# Variable %.*s ", name->length(), name->raw_data());
 #endif
   Interface* interface = Interface::NewUnknown(parser_->zone());
-  return scope->NewUnresolved(factory, name, interface, pos);
+
+  // Arrow function parameters are parsed as an expression. When
+  // parsing lazily, it is enough to create a VariableProxy in order
+  // for Traits::DeclareArrowParametersFromExpression() to be able to
+  // pick the names of the parameters.
+  return parser_->parsing_lazy_arrow_parameters_
+      ? factory->NewVariableProxy(name, false, interface, pos)
+      : scope->NewUnresolved(factory, name, interface, pos);
 }
 
 
@@ -788,6 +795,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
       target_stack_(NULL),
       cached_parse_data_(NULL),
       info_(info),
+      parsing_lazy_arrow_parameters_(false),
       has_pending_error_(false),
       pending_error_message_(NULL),
       pending_error_arg_(NULL),
@@ -1061,6 +1069,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     bool ok = true;
 
     if (shared_info->is_arrow()) {
+      // The first expression being parsed is the parameter list of the arrow
+      // function. Setting this avoids prevents ExpressionFromIdentifier()
+      // from creating unresolved variables in already-resolved scopes.
+      parsing_lazy_arrow_parameters_ = true;
       Expression* expression = ParseExpression(false, &ok);
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
@@ -3430,6 +3442,10 @@ int ParserTraits::DeclareArrowParametersFromExpression(
     Expression* expression, Scope* scope, Scanner::Location* dupe_loc,
     bool* ok) {
   int num_params = 0;
+  // Always reset the flag: It only needs to be set for the first expression
+  // parsed as arrow function parameter list, becauseonly top-level functions
+  // are parsed lazily.
+  parser_->parsing_lazy_arrow_parameters_ = false;
   *ok = CheckAndDeclareArrowParameter(this, expression, scope, &num_params,
                                       dupe_loc);
   return num_params;
