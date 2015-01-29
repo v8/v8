@@ -289,7 +289,7 @@ DEFINE_INT(max_inlined_source_size, 1150,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_INT(max_inlined_nodes, 200,
            "maximum number of AST nodes considered for a single inlining")
-DEFINE_INT(max_inlined_nodes_cumulative, 400,
+DEFINE_INT(max_inlined_nodes_cumulative, 3000,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_BOOL(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
