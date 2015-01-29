@@ -161,7 +161,7 @@ class ParserBase : public Traits {
   };
 
   class Checkpoint;
-  class ObjectLiteralChecker;
+  class ObjectLiteralCheckerBase;
 
   // ---------------------------------------------------------------------------
   // FunctionState and BlockState together implement the parser's scope stack.
@@ -512,11 +512,9 @@ class ParserBase : public Traits {
                                 bool* is_static, bool* is_computed_name,
                                 bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
-  ObjectLiteralPropertyT ParsePropertyDefinition(ObjectLiteralChecker* checker,
-                                                 bool in_class, bool is_static,
-                                                 bool* is_computed_name,
-                                                 bool* has_seen_constructor,
-                                                 bool* ok);
+  ObjectLiteralPropertyT ParsePropertyDefinition(
+      ObjectLiteralCheckerBase* checker, bool in_class, bool is_static,
+      bool* is_computed_name, bool* has_seen_constructor, bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool* ok);
@@ -541,58 +539,63 @@ class ParserBase : public Traits {
       ExpressionT expression,
       Scanner::Location location, const char* message, bool* ok);
 
-  // Used to detect duplicates in object literals. Each of the values
-  // kGetterProperty, kSetterProperty and kValueProperty represents
-  // a type of object literal property. When parsing a property, its
-  // type value is stored in the DuplicateFinder for the property name.
-  // Values are chosen so that having intersection bits means the there is
-  // an incompatibility.
-  // I.e., you can add a getter to a property that already has a setter, since
-  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
-  // already has a getter or a value. Adding the getter to an existing
-  // setter will store the value (kGetterProperty | kSetterProperty), which
-  // is incompatible with adding any further properties.
+  // Used to validate property names in object literals and class literals
   enum PropertyKind {
-    kNone = 0,
-    // Bit patterns representing different object literal property types.
-    kGetterProperty = 1,
-    kSetterProperty = 2,
-    kValueProperty = 7,
-    // Helper constants.
-    kValueFlag = 4
+    kAccessorProperty,
+    kValueProperty,
+    kMethodProperty
   };
 
-  // Validation per ECMA 262 - 11.1.5 "Object Initializer".
-  class ObjectLiteralChecker {
+  class ObjectLiteralCheckerBase {
    public:
-    ObjectLiteralChecker(ParserBase* parser, StrictMode strict_mode)
-        : parser_(parser),
-          finder_(scanner()->unicode_cache()),
-          strict_mode_(strict_mode) {}
+    explicit ObjectLiteralCheckerBase(ParserBase* parser) : parser_(parser) {}
 
-    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
+    virtual void CheckProperty(Token::Value property, PropertyKind type,
+                               bool is_static, bool is_generator, bool* ok) = 0;
 
-   private:
+    virtual ~ObjectLiteralCheckerBase() {}
+
+   protected:
     ParserBase* parser() const { return parser_; }
     Scanner* scanner() const { return parser_->scanner(); }
 
-    // Checks the type of conflict based on values coming from PropertyType.
-    bool HasConflict(PropertyKind type1, PropertyKind type2) {
-      return (type1 & type2) != 0;
+   private:
+    ParserBase* parser_;
+  };
+
+  // Validation per ES6 object literals.
+  class ObjectLiteralChecker : public ObjectLiteralCheckerBase {
+   public:
+    explicit ObjectLiteralChecker(ParserBase* parser)
+        : ObjectLiteralCheckerBase(parser), has_seen_proto_(false) {}
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
+                       bool is_generator, bool* ok) OVERRIDE;
+
+   private:
+    bool IsProto() { return this->scanner()->LiteralMatches("__proto__", 9); }
+
+    bool has_seen_proto_;
+  };
+
+  // Validation per ES6 class literals.
+  class ClassLiteralChecker : public ObjectLiteralCheckerBase {
+   public:
+    explicit ClassLiteralChecker(ParserBase* parser)
+        : ObjectLiteralCheckerBase(parser), has_seen_constructor_(false) {}
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
+                       bool is_generator, bool* ok) OVERRIDE;
+
+   private:
+    bool IsConstructor() {
+      return this->scanner()->LiteralMatches("constructor", 11);
     }
-    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 & type2) & kValueFlag) != 0;
-    }
-    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 ^ type2) & kValueFlag) != 0;
-    }
-    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 | type2) & kValueFlag) == 0;
+    bool IsPrototype() {
+      return this->scanner()->LiteralMatches("prototype", 9);
     }
 
-    ParserBase* parser_;
-    DuplicateFinder finder_;
-    StrictMode strict_mode_;
+    bool has_seen_constructor_;
   };
 
   // If true, the next (and immediately following) function literal is
@@ -2070,12 +2073,12 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
 
 template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT
-ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
+ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
                                             bool in_class, bool is_static,
                                             bool* is_computed_name,
                                             bool* has_seen_constructor,
                                             bool* ok) {
-  DCHECK(!in_class || is_static || has_seen_constructor != NULL);
+  DCHECK(!in_class || is_static || has_seen_constructor != nullptr);
   ExpressionT value = this->EmptyExpression();
   IdentifierT name = this->EmptyIdentifier();
   bool is_get = false;
@@ -2089,14 +2092,15 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
       &name, &is_get, &is_set, &name_is_static, is_computed_name,
       CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-  if (fni_ != NULL && !*is_computed_name) {
+  if (fni_ != nullptr && !*is_computed_name) {
     this->PushLiteralName(fni_, name);
   }
 
   if (!in_class && !is_generator && peek() == Token::COLON) {
     // PropertyDefinition : PropertyName ':' AssignmentExpression
-    if (!*is_computed_name && checker != NULL) {
-      checker->CheckProperty(name_token, kValueProperty,
+    if (!*is_computed_name) {
+      checker->CheckProperty(name_token, kValueProperty, is_static,
+                             is_generator,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
     Consume(Token::COLON);
@@ -2106,36 +2110,18 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
   } else if (is_generator ||
              (allow_harmony_object_literals_ && peek() == Token::LPAREN)) {
     // Concise Method
-
-    if (is_static && this->IsPrototype(name)) {
-      ReportMessageAt(scanner()->location(), "static_prototype");
-      *ok = false;
-      return this->EmptyObjectLiteralProperty();
+    if (!*is_computed_name) {
+      checker->CheckProperty(name_token, kMethodProperty, is_static,
+                             is_generator,
+                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
 
     if (in_class && !is_static && this->IsConstructor(name)) {
-      if (is_generator) {
-        ReportMessageAt(scanner()->location(), "constructor_special_method");
-        *ok = false;
-        return this->EmptyObjectLiteralProperty();
-      }
-
-      if (*has_seen_constructor) {
-        ReportMessageAt(scanner()->location(), "duplicate_constructor");
-        *ok = false;
-        return this->EmptyObjectLiteralProperty();
-      }
-
       *has_seen_constructor = true;
       kind = FunctionKind::kNormalFunction;
-    }
-
-    if (!*is_computed_name && checker != NULL) {
-      checker->CheckProperty(name_token, kValueProperty,
-                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
     value = this->ParseFunctionLiteral(
@@ -2151,8 +2137,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
 
   } else if (in_class && name_is_static && !is_static) {
     // static MethodDefinition
-    return ParsePropertyDefinition(checker, true, true, is_computed_name, NULL,
-                                   ok);
+    return ParsePropertyDefinition(checker, true, true, is_computed_name,
+                                   nullptr, ok);
 
   } else if (is_get || is_set) {
     // Accessor
@@ -2164,19 +2150,9 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
         &name, &dont_care, &dont_care, &dont_care, is_computed_name,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-    // Validate the property.
-    if (is_static && this->IsPrototype(name)) {
-      ReportMessageAt(scanner()->location(), "static_prototype");
-      *ok = false;
-      return this->EmptyObjectLiteralProperty();
-    } else if (in_class && !is_static && this->IsConstructor(name)) {
-      ReportMessageAt(scanner()->location(), "constructor_special_method");
-      *ok = false;
-      return this->EmptyObjectLiteralProperty();
-    }
-    if (!*is_computed_name && checker != NULL) {
-      checker->CheckProperty(name_token,
-                             is_get ? kGetterProperty : kSetterProperty,
+    if (!*is_computed_name) {
+      checker->CheckProperty(name_token, kAccessorProperty, is_static,
+                             is_generator,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
@@ -2234,19 +2210,18 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
   bool has_computed_names = false;
-
-  ObjectLiteralChecker checker(this, strict_mode());
+  ObjectLiteralChecker checker(this);
 
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
-    if (fni_ != NULL) fni_->Enter();
+    if (fni_ != nullptr) fni_->Enter();
 
     const bool in_class = false;
     const bool is_static = false;
     bool is_computed_name = false;
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        &checker, in_class, is_static, &is_computed_name, NULL, CHECK_OK);
+        &checker, in_class, is_static, &is_computed_name, nullptr, CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;
@@ -2269,7 +2244,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
       Expect(Token::COMMA, CHECK_OK);
     }
 
-    if (fni_ != NULL) {
+    if (fni_ != nullptr) {
       fni_->Infer();
       fni_->Leave();
     }
@@ -3041,28 +3016,52 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
 template <typename Traits>
 void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
-    Token::Value property, PropertyKind type, bool* ok) {
-  int old;
-  if (property == Token::NUMBER) {
-    old = scanner()->FindNumber(&finder_, type);
-  } else {
-    old = scanner()->FindSymbol(&finder_, type);
-  }
-  PropertyKind old_type = static_cast<PropertyKind>(old);
-  if (HasConflict(old_type, type)) {
-    if (IsDataDataConflict(old_type, type)) {
-      // Both are data properties.
-      if (strict_mode_ == SLOPPY) return;
-      parser()->ReportMessage("strict_duplicate_property");
-    } else if (IsDataAccessorConflict(old_type, type)) {
-      // Both a data and an accessor property with the same name.
-      parser()->ReportMessage("accessor_data_property");
-    } else {
-      DCHECK(IsAccessorAccessorConflict(old_type, type));
-      // Both accessors of the same type.
-      parser()->ReportMessage("accessor_get_set");
+    Token::Value property, PropertyKind type, bool is_static, bool is_generator,
+    bool* ok) {
+  DCHECK(!is_static);
+  DCHECK(!is_generator || type == kMethodProperty);
+
+  if (property == Token::NUMBER) return;
+
+  if (type == kValueProperty && IsProto()) {
+    if (has_seen_proto_) {
+      this->parser()->ReportMessage("duplicate_proto");
+      *ok = false;
+      return;
     }
-    *ok = false;
+    has_seen_proto_ = true;
+    return;
+  }
+}
+
+
+template <typename Traits>
+void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
+    Token::Value property, PropertyKind type, bool is_static, bool is_generator,
+    bool* ok) {
+  DCHECK(type == kMethodProperty || type == kAccessorProperty);
+
+  if (property == Token::NUMBER) return;
+
+  if (is_static) {
+    if (IsPrototype()) {
+      this->parser()->ReportMessage("static_prototype");
+      *ok = false;
+      return;
+    }
+  } else if (IsConstructor()) {
+    if (is_generator || type == kAccessorProperty) {
+      this->parser()->ReportMessage("constructor_special_method");
+      *ok = false;
+      return;
+    }
+    if (has_seen_constructor_) {
+      this->parser()->ReportMessage("duplicate_constructor");
+      *ok = false;
+      return;
+    }
+    has_seen_constructor_ = true;
+    return;
   }
 }
 } }  // v8::internal

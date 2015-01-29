@@ -155,9 +155,6 @@ var kMessages = {
   strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
   strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
   template_octal_literal:        ["Octal literals are not allowed in template strings."],
-  strict_duplicate_property:     ["Duplicate data property in object literal not allowed in strict mode"],
-  accessor_data_property:        ["Object literal may not have data and accessor property with the same name"],
-  accessor_get_set:              ["Object literal may not have multiple get/set accessors with the same name"],
   strict_delete:                 ["Delete of an unqualified identifier in strict mode."],
   strict_delete_property:        ["Cannot delete property '", "%0", "' of ", "%1"],
   strict_const:                  ["Use of const in strict mode."],
@@ -184,7 +181,8 @@ var kMessages = {
   prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"],
   duplicate_constructor:         ["A class may only have one constructor"],
   sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
-  super_constructor_call:        ["A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported."]
+  super_constructor_call:        ["A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported."],
+  duplicate_proto:               ["Duplicate __proto__ fields are not allowed in object literals"]
 };
 
 

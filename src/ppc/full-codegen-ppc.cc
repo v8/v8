@@ -1714,11 +1714,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ LoadP(r3, MemOperand(sp));
         __ push(r3);
         VisitForStackValue(value);
-        if (property->emit_store()) {
-          __ CallRuntime(Runtime::kInternalSetPrototype, 2);
-        } else {
-          __ Drop(2);
-        }
+        DCHECK(property->emit_store());
+        __ CallRuntime(Runtime::kInternalSetPrototype, 2);
         break;
       case ObjectLiteral::Property::GETTER:
         accessor_table.lookup(key)->second->getter = value;
@@ -2530,8 +2527,9 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::PROTOTYPE:
+        UNREACHABLE();
+      case ObjectLiteral::Property::COMPUTED:
         __ CallRuntime(Runtime::kDefineClassMethod, 3);
         break;
 

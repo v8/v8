@@ -2687,12 +2687,9 @@ TEST(ErrorsNewExpression) {
 
 
 TEST(StrictObjectLiteralChecking) {
-  const char* strict_context_data[][2] = {
+  const char* context_data[][2] = {
     {"\"use strict\"; var myobject = {", "};"},
     {"\"use strict\"; var myobject = {", ",};"},
-    { NULL, NULL }
-  };
-  const char* non_strict_context_data[][2] = {
     {"var myobject = {", "};"},
     {"var myobject = {", ",};"},
     { NULL, NULL }
@@ -2710,8 +2707,7 @@ TEST(StrictObjectLiteralChecking) {
     NULL
   };
 
-  RunParserSyncTest(non_strict_context_data, statement_data, kSuccess);
-  RunParserSyncTest(strict_context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -2723,36 +2719,17 @@ TEST(ErrorsObjectLiteralChecking) {
   };
 
   const char* statement_data[] = {
-      ",",
-      "foo: 1, get foo() {}",
-      "foo: 1, set foo(v) {}",
-      "\"foo\": 1, get \"foo\"() {}",
-      "\"foo\": 1, set \"foo\"(v) {}",
-      "1: 1, get 1() {}",
-      "1: 1, set 1() {}",
-      "get foo() {}, get foo() {}",
-      "set foo(_) {}, set foo(_) {}",
-      // It's counter-intuitive, but these collide too (even in classic
-      // mode). Note that we can have "foo" and foo as properties in classic
-      // mode,
-      // but we cannot have "foo" and get foo, or foo and get "foo".
-      "foo: 1, get \"foo\"() {}",
-      "foo: 1, set \"foo\"(v) {}",
-      "\"foo\": 1, get foo() {}",
-      "\"foo\": 1, set foo(v) {}",
-      "1: 1, get \"1\"() {}",
-      "1: 1, set \"1\"() {}",
-      "\"1\": 1, get 1() {}"
-      "\"1\": 1, set 1(v) {}"
-      // Wrong number of parameters
-      "get bar(x) {}",
-      "get bar(x, y) {}",
-      "set bar() {}",
-      "set bar(x, y) {}",
-      // Parsing FunctionLiteral for getter or setter fails
-      "get foo( +",
-      "get foo() \"error\"",
-      NULL};
+    ",",
+    // Wrong number of parameters
+    "get bar(x) {}",
+    "get bar(x, y) {}",
+    "set bar() {}",
+    "set bar(x, y) {}",
+    // Parsing FunctionLiteral for getter or setter fails
+    "get foo( +",
+    "get foo() \"error\"",
+    NULL
+  };
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2768,6 +2745,22 @@ TEST(NoErrorsObjectLiteralChecking) {
   };
 
   const char* statement_data[] = {
+    "foo: 1, get foo() {}",
+    "foo: 1, set foo(v) {}",
+    "\"foo\": 1, get \"foo\"() {}",
+    "\"foo\": 1, set \"foo\"(v) {}",
+    "1: 1, get 1() {}",
+    "1: 1, set 1(v) {}",
+    "get foo() {}, get foo() {}",
+    "set foo(_) {}, set foo(v) {}",
+    "foo: 1, get \"foo\"() {}",
+    "foo: 1, set \"foo\"(v) {}",
+    "\"foo\": 1, get foo() {}",
+    "\"foo\": 1, set foo(v) {}",
+    "1: 1, get \"1\"() {}",
+    "1: 1, set \"1\"(v) {}",
+    "\"1\": 1, get 1() {}",
+    "\"1\": 1, set 1(v) {}",
     "foo: 1, bar: 2",
     "\"foo\": 1, \"bar\": 2",
     "1: 1, 2: 2",
@@ -3734,8 +3727,6 @@ TEST(MethodDefinitionStrictFormalParamereters) {
 
 
 TEST(MethodDefinitionDuplicateProperty) {
-  // Duplicate properties are allowed in ES6 but we haven't removed that check
-  // yet.
   const char* context_data[][2] = {{"'use strict'; ({", "});"},
                                    {NULL, NULL}};
 
@@ -3766,7 +3757,7 @@ TEST(MethodDefinitionDuplicateProperty) {
   };
 
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
-  RunParserSyncTest(context_data, params_data, kError, NULL, 0,
+  RunParserSyncTest(context_data, params_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -4797,4 +4788,46 @@ TEST(ImportExportParsingErrors) {
     info.MarkAsModule();
     CHECK(!parser.Parse());
   }
+}
+
+
+TEST(DuplicateProtoError) {
+  const char* context_data[][2] = {
+    {"({", "});"},
+    {"'use strict'; ({", "});"},
+    {NULL, NULL}
+  };
+  const char* error_data[] = {
+    "__proto__: {}, __proto__: {}",
+    "__proto__: {}, \"__proto__\": {}",
+    "__proto__: {}, \"__\x70roto__\": {}",
+    "__proto__: {}, a: 1, __proto__: {}",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, error_data, kError);
+}
+
+
+TEST(DuplicateProtoNoError) {
+  const char* context_data[][2] = {
+    {"({", "});"},
+    {"'use strict'; ({", "});"},
+    {NULL, NULL}
+  };
+  const char* error_data[] = {
+    "__proto__: {}, ['__proto__']: {}",
+    "__proto__: {}, __proto__() {}",
+    "__proto__: {}, get __proto__() {}",
+    "__proto__: {}, set __proto__(v) {}",
+    "__proto__: {}, __proto__",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyComputedPropertyNames,
+    kAllowHarmonyObjectLiterals,
+  };
+  RunParserSyncTest(context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }

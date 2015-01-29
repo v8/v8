@@ -1086,13 +1086,12 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForValue(property->value());
         Node* value = environment()->Pop();
         Node* receiver = environment()->Pop();
-        if (property->emit_store()) {
-          const Operator* op =
-              javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
-          Node* set_prototype = NewNode(op, receiver, value);
-          // SetPrototype should not lazy deopt on an object literal.
-          PrepareFrameState(set_prototype, BailoutId::None());
-        }
+        DCHECK(property->emit_store());
+        const Operator* op =
+            javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
+        Node* set_prototype = NewNode(op, receiver, value);
+        // SetPrototype should not lazy deopt on an object literal.
+        PrepareFrameState(set_prototype, BailoutId::None());
         break;
       }
       case ObjectLiteral::Property::GETTER:
