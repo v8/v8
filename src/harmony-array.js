@@ -142,7 +142,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     }
   }
 
-  var iterable = ToIterable(items);
+  var iterable = GetMethod(items, symbolIterator);
   var k;
   var result;
   var mappedValue;
@@ -151,23 +151,40 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   if (!IS_UNDEFINED(iterable)) {
     result = %IsConstructor(this) ? new this() : [];
 
+    var iterator = GetIterator(items, iterable);
+
     k = 0;
-    for (nextValue of items) {
-      if (mapping) mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
-      else mappedValue = nextValue;
+    while (true) {
+      var next = iterator.next();
+
+      if (!IS_OBJECT(next)) {
+        throw MakeTypeError("iterator_result_not_an_object", [next]);
+      }
+
+      if (next.done) {
+        result.length = k;
+        return result;
+      }
+
+      nextValue = next.value;
+      if (mapping) {
+        mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+      } else {
+        mappedValue = nextValue;
+      }
       %AddElement(result, k++, mappedValue, NONE);
     }
-
-    result.length = k;
-    return result;
   } else {
     var len = ToLength(items.length);
     result = %IsConstructor(this) ? new this(len) : new $Array(len);
 
     for (k = 0; k < len; ++k) {
       nextValue = items[k];
-      if (mapping) mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
-      else mappedValue = nextValue;
+      if (mapping) {
+        mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+      } else {
+        mappedValue = nextValue;
+      }
       %AddElement(result, k, mappedValue, NONE);
     }
 

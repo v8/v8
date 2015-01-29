@@ -12,7 +12,6 @@
 #include "src/sampler.h"
 #include "src/scopeinfo.h"
 #include "src/unicode.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

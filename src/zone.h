@@ -17,35 +17,35 @@
 namespace v8 {
 namespace internal {
 
-
+// Forward declarations.
 class Segment;
-class Isolate;
+
 
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead
 // the Zone supports deallocating all chunks in one fast
 // operation. The Zone is used to hold temporary data structures like
 // the abstract syntax tree, which is deallocated after compilation.
-
+//
 // Note: There is no need to initialize the Zone; the first time an
 // allocation is attempted, a segment of memory will be requested
 // through a call to malloc().
-
+//
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
-
-class Zone {
+class Zone FINAL {
  public:
   Zone();
   ~Zone();
+
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
   void* New(int size);
 
   template <typename T>
   T* NewArray(int length) {
-    CHECK(std::numeric_limits<int>::max() / static_cast<int>(sizeof(T)) >
-          length);
+    DCHECK(std::numeric_limits<int>::max() / static_cast<int>(sizeof(T)) >
+           length);
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
@@ -59,15 +59,13 @@ class Zone {
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
-  inline bool excess_allocation();
+  bool excess_allocation() const {
+    return segment_bytes_allocated_ > kExcessLimit;
+  }
 
-  inline void adjust_segment_bytes_allocated(int delta);
-
-  inline unsigned allocation_size() const { return allocation_size_; }
+  unsigned allocation_size() const { return allocation_size_; }
 
  private:
-  friend class Isolate;
-
   // All pointers returned from New() have this alignment.  In addition, if the
   // object being allocated has a size that is divisible by 8 then its alignment
   // will be 8. ASan requires 8-byte alignment.
@@ -106,10 +104,10 @@ class Zone {
 
   // Creates a new segment, sets it size, and pushes it to the front
   // of the segment chain. Returns the new segment.
-  INLINE(Segment* NewSegment(int size));
+  inline Segment* NewSegment(int size);
 
   // Deletes the given segment. Does not touch the segment chain.
-  INLINE(void DeleteSegment(Segment* segment, int size));
+  inline void DeleteSegment(Segment* segment, int size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
@@ -126,7 +124,9 @@ class Zone {
 class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
-  INLINE(void* operator new(size_t size, Zone* zone));
+  void* operator new(size_t size, Zone* zone) {
+    return zone->New(static_cast<int>(size));
+  }
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes
@@ -143,12 +143,12 @@ class ZoneObject {
 
 // The ZoneScope is used to automatically call DeleteAll() on a
 // Zone when the ZoneScope is destroyed (i.e. goes out of scope)
-struct ZoneScope {
+class ZoneScope FINAL {
  public:
   explicit ZoneScope(Zone* zone) : zone_(zone) { }
   ~ZoneScope() { zone_->DeleteAll(); }
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
  private:
   Zone* zone_;
@@ -157,12 +157,12 @@ struct ZoneScope {
 
 // The ZoneAllocationPolicy is used to specialize generic data
 // structures to allocate themselves and their elements in the Zone.
-struct ZoneAllocationPolicy {
+class ZoneAllocationPolicy FINAL {
  public:
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
-  INLINE(void* New(size_t size));
-  INLINE(static void Delete(void *pointer)) { }
-  Zone* zone() { return zone_; }
+  void* New(size_t size) { return zone()->New(static_cast<int>(size)); }
+  static void Delete(void* pointer) {}
+  Zone* zone() const { return zone_; }
 
  private:
   Zone* zone_;
@@ -173,15 +173,17 @@ struct ZoneAllocationPolicy {
 // elements. The list itself and all its elements are allocated in the
 // Zone. ZoneLists cannot be deleted individually; you can delete all
 // objects in the Zone by calling Zone::DeleteAll().
-template<typename T>
-class ZoneList: public List<T, ZoneAllocationPolicy> {
+template <typename T>
+class ZoneList FINAL : public List<T, ZoneAllocationPolicy> {
  public:
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
   ZoneList(int capacity, Zone* zone)
       : List<T, ZoneAllocationPolicy>(capacity, ZoneAllocationPolicy(zone)) { }
 
-  INLINE(void* operator new(size_t size, Zone* zone));
+  void* operator new(size_t size, Zone* zone) {
+    return zone->New(static_cast<int>(size));
+  }
 
   // Construct a new ZoneList by copying the elements of the given ZoneList.
   ZoneList(const ZoneList<T>& other, Zone* zone)
@@ -192,27 +194,27 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 
   // We add some convenience wrappers so that we can pass in a Zone
   // instead of a (less convenient) ZoneAllocationPolicy.
-  INLINE(void Add(const T& element, Zone* zone)) {
+  void Add(const T& element, Zone* zone) {
     List<T, ZoneAllocationPolicy>::Add(element, ZoneAllocationPolicy(zone));
   }
-  INLINE(void AddAll(const List<T, ZoneAllocationPolicy>& other, Zone* zone)) {
+  void AddAll(const List<T, ZoneAllocationPolicy>& other, Zone* zone) {
     List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
   }
-  INLINE(void AddAll(const Vector<T>& other, Zone* zone)) {
+  void AddAll(const Vector<T>& other, Zone* zone) {
     List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
   }
-  INLINE(void InsertAt(int index, const T& element, Zone* zone)) {
+  void InsertAt(int index, const T& element, Zone* zone) {
     List<T, ZoneAllocationPolicy>::InsertAt(index, element,
                                             ZoneAllocationPolicy(zone));
   }
-  INLINE(Vector<T> AddBlock(T value, int count, Zone* zone)) {
+  Vector<T> AddBlock(T value, int count, Zone* zone) {
     return List<T, ZoneAllocationPolicy>::AddBlock(value, count,
                                                    ZoneAllocationPolicy(zone));
   }
-  INLINE(void Allocate(int length, Zone* zone)) {
+  void Allocate(int length, Zone* zone) {
     List<T, ZoneAllocationPolicy>::Allocate(length, ZoneAllocationPolicy(zone));
   }
-  INLINE(void Initialize(int capacity, Zone* zone)) {
+  void Initialize(int capacity, Zone* zone) {
     List<T, ZoneAllocationPolicy>::Initialize(capacity,
                                               ZoneAllocationPolicy(zone));
   }
@@ -226,13 +228,20 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 // different configurations of a concrete splay tree (see splay-tree.h).
 // The tree itself and all its elements are allocated in the Zone.
 template <typename Config>
-class ZoneSplayTree: public SplayTree<Config, ZoneAllocationPolicy> {
+class ZoneSplayTree FINAL : public SplayTree<Config, ZoneAllocationPolicy> {
  public:
   explicit ZoneSplayTree(Zone* zone)
       : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
-  ~ZoneSplayTree();
+  ~ZoneSplayTree() {
+    // Reset the root to avoid unneeded iteration over all tree nodes
+    // in the destructor.  For a zone-allocated tree, nodes will be
+    // freed by the Zone.
+    SplayTree<Config, ZoneAllocationPolicy>::ResetRoot();
+  }
 
-  INLINE(void* operator new(size_t size, Zone* zone));
+  void* operator new(size_t size, Zone* zone) {
+    return zone->New(static_cast<int>(size));
+  }
 
   void operator delete(void* pointer) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
@@ -241,6 +250,7 @@ class ZoneSplayTree: public SplayTree<Config, ZoneAllocationPolicy> {
 
 typedef TemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ZONE_H_

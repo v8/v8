@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/globals.h"
 #include "src/types.h"
-#include "src/zone-inl.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

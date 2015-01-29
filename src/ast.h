@@ -22,7 +22,6 @@
 #include "src/types.h"
 #include "src/utils.h"
 #include "src/variables.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
