@@ -2276,7 +2276,7 @@ void MarkCompactCollector::AfterMarking() {
 
   // Process the weak references.
   MarkCompactWeakObjectRetainer mark_compact_object_retainer;
-  heap()->ProcessWeakReferences(&mark_compact_object_retainer);
+  heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
 
   // Remove object groups after marking phase.
   heap()->isolate()->global_handles()->RemoveObjectGroups();
@@ -3546,7 +3546,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       &UpdateReferenceInExternalStringTableEntry);
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
-  heap()->ProcessWeakReferences(&evacuation_object_retainer);
+  heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
 
   // Visit invalidated code (we ignored all slots on it) and clear mark-bits
   // under it.
