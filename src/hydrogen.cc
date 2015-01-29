@@ -3511,16 +3511,13 @@ int HGraph::TraceInlinedFunction(
         os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
            << ") id{" << info()->optimization_id() << "," << id << "} ---\n";
         {
-          StringCharacterStream stream(String::cast(script->source()),
-                                       shared->start_position());
-          // fun->end_position() points to the last character in the stream. We
-          // need to compensate by adding one to calculate the length.
-          int source_len =
-              shared->end_position() - shared->start_position() + 1;
-          for (int i = 0; i < source_len; i++) {
-            if (stream.HasMore()) {
-              os << AsReversiblyEscapedUC16(stream.GetNext());
-            }
+          DisallowHeapAllocation no_allocation;
+          int start = shared->start_position();
+          int len = shared->end_position() - start + 1;
+          String::SubStringRange source(String::cast(script->source()), start,
+                                        len);
+          for (const auto& c : source) {
+            os << AsReversiblyEscapedUC16(c);
           }
         }
 

@@ -30,8 +30,9 @@ std::ostream& operator<<(std::ostream& os, const AsDOT& ad);
 
 
 struct AsJSON {
-  explicit AsJSON(const Graph& g) : graph(g) {}
+  AsJSON(const Graph& g, SourcePositionTable* p) : graph(g), positions(p) {}
   const Graph& graph;
+  const SourcePositionTable* positions;
 };
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad);

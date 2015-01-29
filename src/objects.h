@@ -8847,6 +8847,22 @@ class String: public Name {
        << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
 
+  class SubStringRange {
+   public:
+    explicit SubStringRange(String* string, int first = 0, int length = -1)
+        : string_(string),
+          first_(first),
+          length_(length == -1 ? string->length() : length) {}
+    class iterator;
+    inline iterator begin();
+    inline iterator end();
+
+   private:
+    String* string_;
+    int first_;
+    int length_;
+  };
+
   // Representation of the flat content of a String.
   // A non-flat string doesn't have flat content.
   // A flat string has content that's encoded as a sequence of either
@@ -8881,6 +8897,10 @@ class String: public Name {
       return twobyte_start[i];
     }
 
+    bool UsesSameString(const FlatContent& other) const {
+      return onebyte_start == other.onebyte_start;
+    }
+
    private:
     enum State { NON_FLAT, ONE_BYTE, TWO_BYTE };
 
@@ -8899,6 +8919,7 @@ class String: public Name {
     State state_;
 
     friend class String;
+    friend class IterableSubString;
   };
 
   template <typename Char>

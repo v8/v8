@@ -691,33 +691,44 @@ struct GenerateCodePhase {
 };
 
 
+namespace {
+
+FILE* OpenLogFile(CompilationInfo* info, const char* phase, const char* suffix,
+                  const char* mode) {
+  EmbeddedVector<char, 256> filename;
+  SmartArrayPointer<char> function_name;
+  if (!info->shared_info().is_null()) {
+    function_name = info->shared_info()->DebugName()->ToCString();
+    if (strlen(function_name.get()) > 0) {
+      SNPrintF(filename, "turbo-%s", function_name.get());
+    } else {
+      SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
+    }
+  } else {
+    SNPrintF(filename, "turbo-none-%s", phase);
+  }
+  std::replace(filename.start(), filename.start() + filename.length(), ' ',
+               '_');
+
+  EmbeddedVector<char, 256> full_filename;
+  if (phase == NULL) {
+    SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
+  } else {
+    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
+  }
+  return base::OS::FOpen(full_filename.start(), mode);
+}
+}
+
 struct PrintGraphPhase {
   static const char* phase_name() { return nullptr; }
 
   void Run(PipelineData* data, Zone* temp_zone, const char* phase) {
     CompilationInfo* info = data->info();
     Graph* graph = data->graph();
-    char buffer[256];
-    Vector<char> filename(buffer, sizeof(buffer));
-    SmartArrayPointer<char> functionname;
-    if (!info->shared_info().is_null()) {
-      functionname = info->shared_info()->DebugName()->ToCString();
-      if (strlen(functionname.get()) > 0) {
-        SNPrintF(filename, "turbo-%s-%s", functionname.get(), phase);
-      } else {
-        SNPrintF(filename, "turbo-%p-%s", static_cast<void*>(info), phase);
-      }
-    } else {
-      SNPrintF(filename, "turbo-none-%s", phase);
-    }
-    std::replace(filename.start(), filename.start() + filename.length(), ' ',
-                 '_');
 
     {  // Print dot.
-      char dot_buffer[256];
-      Vector<char> dot_filename(dot_buffer, sizeof(dot_buffer));
-      SNPrintF(dot_filename, "%s.dot", filename.start());
-      FILE* dot_file = base::OS::FOpen(dot_filename.start(), "w+");
+      FILE* dot_file = OpenLogFile(info, phase, "dot", "w+");
       if (dot_file == nullptr) return;
       OFStream dot_of(dot_file);
       dot_of << AsDOT(*graph);
@@ -725,13 +736,11 @@ struct PrintGraphPhase {
     }
 
     {  // Print JSON.
-      char json_buffer[256];
-      Vector<char> json_filename(json_buffer, sizeof(json_buffer));
-      SNPrintF(json_filename, "%s.json", filename.start());
-      FILE* json_file = base::OS::FOpen(json_filename.start(), "w+");
+      FILE* json_file = OpenLogFile(info, NULL, "json", "a+");
       if (json_file == nullptr) return;
       OFStream json_of(json_file);
-      json_of << AsJSON(*graph);
+      json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
+              << AsJSON(*graph, data->source_positions()) << "},\n";
       fclose(json_file);
     }
 
@@ -740,9 +749,6 @@ struct PrintGraphPhase {
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
     }
-
-    os << "-- " << phase << " graph printed to file " << filename.start()
-       << std::endl;
   }
 };
 
@@ -799,6 +805,32 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
     pipeline_statistics->BeginPhaseKind("initializing");
+  }
+
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenLogFile(info(), NULL, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      Handle<Script> script = info()->script();
+      FunctionLiteral* function = info()->function();
+      SmartArrayPointer<char> function_name =
+          info()->shared_info()->DebugName()->ToCString();
+      int pos = info()->shared_info()->start_position();
+      json_of << "{\"function\":\"" << function_name.get()
+              << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
+      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+        DisallowHeapAllocation no_allocation;
+        int start = function->start_position();
+        int len = function->end_position() - start + 1;
+        String::SubStringRange source(String::cast(script->source()), start,
+                                      len);
+        for (const auto& c : source) {
+          json_of << AsEscapedUC16ForJSON(c);
+        }
+      }
+      json_of << "\",\n\"phases\":[";
+      fclose(json_file);
+    }
   }
 
   PipelineData data(&zone_pool, info());
@@ -915,6 +947,22 @@ Handle<Code> Pipeline::GenerateCode() {
   v8::internal::CodeGenerator::PrintCode(code, info());
 
   if (FLAG_trace_turbo) {
+    FILE* json_file = OpenLogFile(info(), NULL, "json", "a+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of
+          << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+#if ENABLE_DISASSEMBLER
+      std::stringstream disassembly_stream;
+      code->Disassemble(NULL, disassembly_stream);
+      std::string disassembly_string(disassembly_stream.str());
+      for (const auto& c : disassembly_string) {
+        json_of << AsEscapedUC16ForJSON(c);
+      }
+#endif  // ENABLE_DISASSEMBLER
+      json_of << "\"}\n]}";
+      fclose(json_file);
+    }
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << GetDebugName(info()).get()
