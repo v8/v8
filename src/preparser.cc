@@ -983,6 +983,7 @@ PreParserExpression PreParser::ParseClassLiteral(
     ParseLeftHandSideExpression(CHECK_OK);
   }
 
+  ClassLiteralChecker checker(this);
   bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -992,7 +993,7 @@ PreParserExpression PreParser::ParseClassLiteral(
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
-    ParsePropertyDefinition(NULL, in_class, is_static, &is_computed_name,
+    ParsePropertyDefinition(&checker, in_class, is_static, &is_computed_name,
                             &has_seen_constructor, CHECK_OK);
   }
 

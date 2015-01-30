@@ -255,19 +255,25 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   Register api_function_address = a1;
 
   // Put callee in place.
-  __ LoadAccessor(callee, holder, accessor_index,
+  __ LoadAccessor(callee, accessor_holder, accessor_index,
                   is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
 
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
-  Handle<JSObject> api_holder =
-      optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
+  int holder_depth = 0;
+  optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup,
+                                          &holder_depth);
   switch (holder_lookup) {
     case CallOptimization::kHolderIsReceiver:
       __ Move(holder, receiver);
       break;
     case CallOptimization::kHolderFound:
-      __ li(holder, api_holder);
+      __ ld(holder, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+      for (int i = 1; i < holder_depth; i++) {
+        __ ld(holder, FieldMemOperand(holder, HeapObject::kMapOffset));
+        __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+      }
       break;
     case CallOptimization::kHolderNotFound:
       UNREACHABLE();

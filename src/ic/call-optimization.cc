@@ -16,7 +16,8 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 
 
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
-    Handle<Map> object_map, HolderLookup* holder_lookup) const {
+    Handle<Map> object_map, HolderLookup* holder_lookup,
+    int* holder_depth_in_prototype_chain) const {
   DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
@@ -27,13 +28,16 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  while (true) {
+  for (int depth = 1; true; depth++) {
     if (!object_map->prototype()->IsJSObject()) break;
     Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
     if (!prototype->map()->is_hidden_prototype()) break;
     object_map = handle(prototype->map());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;
+      if (holder_depth_in_prototype_chain != NULL) {
+        *holder_depth_in_prototype_chain = depth;
+      }
       return prototype;
     }
   }

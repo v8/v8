@@ -3913,6 +3913,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     block_scope->set_start_position(scanner()->location().end_pos);
   }
 
+
+  ClassLiteralChecker checker(this);
   ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
   FunctionLiteral* constructor = NULL;
   bool has_seen_constructor = false;
@@ -3925,9 +3927,9 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
-    ObjectLiteral::Property* property =
-        ParsePropertyDefinition(NULL, in_class, is_static, &is_computed_name,
-                                &has_seen_constructor, CHECK_OK);
+    ObjectLiteral::Property* property = ParsePropertyDefinition(
+        &checker, in_class, is_static, &is_computed_name, &has_seen_constructor,
+        CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
