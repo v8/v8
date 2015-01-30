@@ -21,6 +21,24 @@ using namespace v8::internal;
 #if (V8_DOUBLE_FIELDS_UNBOXING)
 
 
+//
+// Helper functions.
+//
+
+static Handle<String> MakeString(const char* str) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  return factory->InternalizeUtf8String(str);
+}
+
+
+static Handle<String> MakeName(const char* str, int suffix) {
+  EmbeddedVector<char, 128> buffer;
+  SNPrintF(buffer, "%s%d", str, suffix);
+  return MakeString(buffer.start());
+}
+
+
 static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
@@ -601,14 +619,14 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     TestPropertyKind kind = props[i];
     if (kind == PROP_CONSTANT) {
       DataConstantDescriptor d(name, func, NONE);
-      layout_descriptor = LayoutDescriptor::Append(map, d.GetDetails());
+      layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
       descriptors->Append(&d);
 
     } else {
       DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
       int field_width_in_words = f.GetDetails().field_width_in_words();
       next_field_offset += field_width_in_words;
-      layout_descriptor = LayoutDescriptor::Append(map, f.GetDetails());
+      layout_descriptor = LayoutDescriptor::ShareAppend(map, f.GetDetails());
       descriptors->Append(&f);
 
       int field_index = f.GetDetails().field_index();
@@ -1093,6 +1111,52 @@ TEST(LayoutDescriptorHelperAllDoubles) {
                              kPropsCount);
 
   TestLayoutDescriptorHelper(isolate, kPropsCount, descriptors, kPropsCount);
+}
+
+
+TEST(LayoutDescriptorSharing) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<HeapType> any_type = HeapType::Any(isolate);
+
+  Handle<Map> split_map;
+  {
+    Handle<Map> map = Map::Create(isolate, 64);
+    for (int i = 0; i < 32; i++) {
+      Handle<String> name = MakeName("prop", i);
+      map = Map::CopyWithField(map, name, any_type, NONE, Representation::Smi(),
+                               INSERT_TRANSITION).ToHandleChecked();
+    }
+    split_map = Map::CopyWithField(map, MakeString("dbl"), any_type, NONE,
+                                   Representation::Double(),
+                                   INSERT_TRANSITION).ToHandleChecked();
+  }
+  Handle<LayoutDescriptor> split_layout_descriptor(
+      split_map->layout_descriptor(), isolate);
+  DCHECK(split_layout_descriptor->IsConsistentWithMap(*split_map));
+  CHECK(split_layout_descriptor->IsSlowLayout());
+  CHECK(split_map->owns_descriptors());
+
+  Handle<Map> map1 = Map::CopyWithField(split_map, MakeString("foo"), any_type,
+                                        NONE, Representation::Double(),
+                                        INSERT_TRANSITION).ToHandleChecked();
+  CHECK(!split_map->owns_descriptors());
+  CHECK_EQ(*split_layout_descriptor, split_map->layout_descriptor());
+
+  // Layout descriptors should be shared with |split_map|.
+  CHECK(map1->owns_descriptors());
+  CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor());
+  DCHECK(map1->layout_descriptor()->IsConsistentWithMap(*map1));
+
+  Handle<Map> map2 = Map::CopyWithField(split_map, MakeString("bar"), any_type,
+                                        NONE, Representation::Tagged(),
+                                        INSERT_TRANSITION).ToHandleChecked();
+
+  // Layout descriptors should not be shared with |split_map|.
+  CHECK(map2->owns_descriptors());
+  CHECK_NE(*split_layout_descriptor, map2->layout_descriptor());
+  DCHECK(map2->layout_descriptor()->IsConsistentWithMap(*map2));
 }
 
 

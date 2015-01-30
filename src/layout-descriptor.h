@@ -53,10 +53,10 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
                                       Handle<DescriptorArray> descriptors,
                                       int num_descriptors);
 
-  // Creates new layout descriptor by appending property with |details| to
-  // |map|'s layout descriptor.
-  static Handle<LayoutDescriptor> Append(Handle<Map> map,
-                                         PropertyDetails details);
+  // Modifies |map|'s layout descriptor or creates a new one if necessary by
+  // appending property with |details| to it.
+  static Handle<LayoutDescriptor> ShareAppend(Handle<Map> map,
+                                              PropertyDetails details);
 
   // Creates new layout descriptor by appending property with |details| to
   // |map|'s layout descriptor and if it is still fast then returns it.
