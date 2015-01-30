@@ -225,7 +225,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                       Handle<Name> name);
   Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    Handle<ExecutableAccessorInfo> callback);
+                                    int accessor_index);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
                                     int accessor_index);

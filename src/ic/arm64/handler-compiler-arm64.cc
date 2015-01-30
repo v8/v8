@@ -742,8 +742,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
   Register holder_reg = Frontend(name);
 
@@ -753,7 +752,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   // receiver() and holder_reg can alias.
   DCHECK(!AreAliased(receiver(), scratch1(), scratch2(), value()));
   DCHECK(!AreAliased(holder_reg, scratch1(), scratch2(), value()));
-  __ Mov(scratch1(), Operand(callback));
+  __ Mov(scratch1(), Operand(Smi::FromInt(accessor_index)));
   __ Mov(scratch2(), Operand(name));
   __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
 

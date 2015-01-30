@@ -695,14 +695,13 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   Register holder_reg = Frontend(name);
 
   __ pop(scratch1());  // remove the return address
   __ push(receiver());
   __ push(holder_reg);
-  __ Push(callback);
+  __ Push(Smi::FromInt(accessor_index));
   __ Push(name);
   __ push(value());
   __ push(scratch1());  // restore return address

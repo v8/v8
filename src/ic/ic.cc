@@ -1720,7 +1720,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           break;
         }
         NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-        return compiler.CompileStoreCallback(receiver, lookup->name(), info);
+        return compiler.CompileStoreCallback(receiver, lookup->name(),
+                                             lookup->GetAccessorIndex());
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
@@ -2808,10 +2809,14 @@ RUNTIME_FUNCTION(ToBooleanIC_Miss) {
 RUNTIME_FUNCTION(StoreCallbackProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<ExecutableAccessorInfo> callback = args.at<ExecutableAccessorInfo>(2);
+  Handle<Smi> accessor_index = args.at<Smi>(2);
   Handle<Name> name = args.at<Name>(3);
   Handle<Object> value = args.at<Object>(4);
   HandleScope scope(isolate);
+
+  Handle<ExecutableAccessorInfo> callback(ExecutableAccessorInfo::cast(
+      holder->map()->instance_descriptors()->GetCallbacksObject(
+          accessor_index->value())));
 
   DCHECK(callback->IsCompatibleReceiver(*receiver));
 

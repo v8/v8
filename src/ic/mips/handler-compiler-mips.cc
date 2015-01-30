@@ -669,12 +669,11 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   Register holder_reg = Frontend(name);
 
   __ Push(receiver(), holder_reg);  // Receiver.
-  __ li(at, Operand(callback));     // Callback info.
+  __ li(at, Operand(Smi::FromInt(accessor_index)));
   __ push(at);
   __ li(at, Operand(name));
   __ Push(at, value());
