@@ -169,17 +169,17 @@ TEST(CodeEvents) {
 
   CodeEntry* comment = generator.code_map()->FindEntry(comment_code->address());
   CHECK(comment);
-  CHECK_EQ("comment", comment->name());
+  CHECK_EQ(0, strcmp("comment", comment->name()));
 
   CodeEntry* args5 = generator.code_map()->FindEntry(args5_code->address());
   CHECK(args5);
-  CHECK_EQ("5", args5->name());
+  CHECK_EQ(0, strcmp("5", args5->name()));
 
   CHECK(!generator.code_map()->FindEntry(comment2_code->address()));
 
   CodeEntry* comment2 = generator.code_map()->FindEntry(moved_code->address());
   CHECK(comment2);
-  CHECK_EQ("comment2", comment2->name());
+  CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
 
 
@@ -230,15 +230,15 @@ TEST(TickEvents) {
   const i::List<ProfileNode*>* top_down_root_children =
       profile->top_down()->root()->children();
   CHECK_EQ(1, top_down_root_children->length());
-  CHECK_EQ("bbb", top_down_root_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("bbb", top_down_root_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_bbb_children =
       top_down_root_children->last()->children();
   CHECK_EQ(1, top_down_bbb_children->length());
-  CHECK_EQ("5", top_down_bbb_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("5", top_down_bbb_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_stub_children =
       top_down_bbb_children->last()->children();
   CHECK_EQ(1, top_down_stub_children->length());
-  CHECK_EQ("ddd", top_down_stub_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->last()->children();
   CHECK_EQ(0, top_down_ddd_children->length());
