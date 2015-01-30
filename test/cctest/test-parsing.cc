@@ -3788,9 +3788,9 @@ TEST(ClassExpressionNoErrors) {
 
 
 TEST(ClassDeclarationNoErrors) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"{", "}"},
-                                   {"if (true) {", "}"},
+  const char* context_data[][2] = {{"'use strict'; ", ""},
+                                   {"'use strict'; {", "}"},
+                                   {"'use strict'; if (true) {", "}"},
                                    {NULL, NULL}};
   const char* statement_data[] = {
     "class name {}",
@@ -3801,7 +3801,7 @@ TEST(ClassDeclarationNoErrors) {
     NULL};
 
   static const ParserFlag always_flags[] = {
-      kAllowHarmonyClasses, kAllowHarmonySloppy};
+      kAllowHarmonyClasses, kAllowHarmonyScoping};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -4829,5 +4829,28 @@ TEST(DuplicateProtoNoError) {
     kAllowHarmonyObjectLiterals,
   };
   RunParserSyncTest(context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(DeclarationsError) {
+  const char* context_data[][2] = {{"'use strict'; if (true)", ""},
+                                   {"'use strict'; if (false) {} else", ""},
+                                   {"'use strict'; while (false)", ""},
+                                   {"'use strict'; for (;;)", ""},
+                                   {"'use strict'; for (x in y)", ""},
+                                   {"'use strict'; do ", " while (false)"},
+                                   {NULL, NULL}};
+
+  const char* statement_data[] = {
+    "let x = 1;",
+    "const x = 1;",
+    "class C {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses, kAllowHarmonyScoping
+  };
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }

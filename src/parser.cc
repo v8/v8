@@ -1618,22 +1618,21 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       return ParseFunctionDeclaration(NULL, ok);
     }
 
-    case Token::CLASS:
-      return ParseClassDeclaration(NULL, ok);
-
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
     case Token::VAR:
-    case Token::CONST:
       return ParseVariableStatement(kStatement, NULL, ok);
 
-    case Token::LET:
-      DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
+    case Token::CONST:
+      // In ES6 CONST is not allowed as a Statement, only as a
+      // LexicalDeclaration, however we continue to allow it in sloppy mode for
+      // backwards compatibility.
+      if (strict_mode() == SLOPPY) {
         return ParseVariableStatement(kStatement, NULL, ok);
       }
-      // Fall through.
+
+    // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(labels, ok);
   }
@@ -2039,16 +2038,6 @@ Block* Parser::ParseVariableDeclarations(
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
-    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
-    //
-    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
-    //
-    // * It is a Syntax Error if the code that matches this production is not
-    //   contained in extended code.
-    //
-    // However disallowing const in sloppy mode will break compatibility with
-    // existing pages. Therefore we keep allowing const with the old
-    // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     switch (strict_mode()) {
       case SLOPPY:
@@ -2056,33 +2045,22 @@ Block* Parser::ParseVariableDeclarations(
         init_op = Token::INIT_CONST_LEGACY;
         break;
       case STRICT:
-        if (allow_harmony_scoping()) {
-          if (var_context == kStatement) {
-            // In strict mode 'const' declarations are only allowed in source
-            // element positions.
-            ReportMessage("unprotected_const");
-            *ok = false;
-            return NULL;
-          }
-          mode = CONST;
-          init_op = Token::INIT_CONST;
-        } else {
+        DCHECK(var_context != kStatement);
+        // In ES5 const is not allowed in strict mode.
+        if (!allow_harmony_scoping()) {
           ReportMessage("strict_const");
           *ok = false;
           return NULL;
         }
+        mode = CONST;
+        init_op = Token::INIT_CONST;
     }
     is_const = true;
     needs_init = true;
   } else if (peek() == Token::LET && strict_mode() == STRICT) {
     DCHECK(allow_harmony_scoping());
     Consume(Token::LET);
-    if (var_context == kStatement) {
-      // Let declarations are only allowed in source element positions.
-      ReportMessage("unprotected_let");
-      *ok = false;
-      return NULL;
-    }
+    DCHECK(var_context != kStatement);
     mode = LET;
     needs_init = true;
     init_op = Token::INIT_LET;
@@ -2345,6 +2323,26 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
+  //
+  // ExpressionStatement[Yield] :
+  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+
+  switch (peek()) {
+    case Token::FUNCTION:
+    case Token::LBRACE:
+      UNREACHABLE();  // Always handled by the callers.
+    case Token::CLASS:
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return nullptr;
+
+    // TODO(arv): Handle `let [`
+    // https://code.google.com/p/v8/issues/detail?id=3847
+
+    default:
+      break;
+  }
+
   int pos = peek_position();
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);
