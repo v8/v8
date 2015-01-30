@@ -252,6 +252,12 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['byteorder == big', {
+  # Emscripten requires little-endian, skip all tests on big endian platforms.
+  'asm/embenchen/*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
 ['arch == arm64 or arch == android_arm64', {
 
   # arm64 TF timeout.
@@ -440,9 +446,6 @@
 ['arch == mips', {
   # Flaky with TF.
   'mirror-script': [PASS, NO_VARIANTS],
-
-  # Emscripten requires little-endian, skip all tests on MIPS EB.
-  'asm/embenchen/*': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################

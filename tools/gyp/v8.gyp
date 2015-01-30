@@ -1497,6 +1497,12 @@
             ],
           }
         ],
+        ['OS=="aix"', {
+          'sources': [
+            '../../src/base/platform/platform-aix.cc',
+            '../../src/base/platform/platform-posix.cc'
+          ]},
+        ],
         ['OS=="solaris"', {
             'link_settings': {
               'libraries': [

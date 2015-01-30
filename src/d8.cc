@@ -1539,8 +1539,8 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  void* Allocate(size_t) OVERRIDE { return malloc(0); }
-  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(0); }
+  void* Allocate(size_t) OVERRIDE { return malloc(1); }
+  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(1); }
   void Free(void* p, size_t) OVERRIDE { free(p); }
 };
 

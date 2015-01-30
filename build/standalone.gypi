@@ -46,7 +46,7 @@
         'variables': {
           'conditions': [
             ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac" or OS=="qnx"', {
+               OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
               # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
@@ -54,7 +54,7 @@
               'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac"
+              # OS!="netbsd" and OS!="mac" and OS!="aix"
               'host_arch%': 'ia32',
             }],
           ],
@@ -183,6 +183,9 @@
               '_GLIBCXX_DEBUG'
             ],
           }],
+          [ 'OS=="aix"', {
+            'cflags': [ '-gxcoff' ],
+          }],
         ],
       },
       'Optdebug': {
@@ -284,7 +287,7 @@
       },
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-       or OS=="netbsd"', {
+       or OS=="netbsd" or OS=="aix"', {
       'target_defaults': {
         'cflags': [
           '-Wall',
@@ -301,6 +304,9 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          [ 'host_arch=="ppc64"', {
+            'cflags': [ '-mminimal-toc' ],
+          }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],

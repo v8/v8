@@ -73,6 +73,8 @@ def GuessOS():
     return 'solaris'
   elif system == 'NetBSD':
     return 'netbsd'
+  elif system == 'AIX':
+    return 'aix'
   else:
     return None
 
@@ -99,7 +101,7 @@ def DefaultArch():
     return 'ia32'
   elif machine == 'amd64':
     return 'ia32'
-  elif id == 'ppc64':
+  elif machine == 'ppc64':
     return 'ppc'
   else:
     return None
