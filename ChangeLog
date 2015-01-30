@@ -1,3 +1,12 @@
+2015-01-30: Version 4.2.38
+
+        Move object literal checking into checker classes (issue 3819).
+
+        [turbofan] Fix OSR compilations of for-in.
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-30: Version 4.2.37
 
         Do not create unresolved variables when parsing arrow functions lazily
