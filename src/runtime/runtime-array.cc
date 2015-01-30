@@ -851,7 +851,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
             case FAST_HOLEY_ELEMENTS:
             case FAST_ELEMENTS:
             case DICTIONARY_ELEMENTS:
-              DCHECK_EQ(0, length);
+              DCHECK_EQ(0u, length);
               break;
             default:
               UNREACHABLE();

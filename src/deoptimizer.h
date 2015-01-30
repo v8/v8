@@ -98,7 +98,7 @@ class Deoptimizer : public Malloced {
     DEBUGGER
   };
 
-  static const int kBailoutTypesWithCodeEntry = SOFT + 1;
+  enum { kBailoutTypesWithCodeEntry = SOFT + 1 };
 
   struct Reason {
     Reason(int r, const char* m, const char* d)

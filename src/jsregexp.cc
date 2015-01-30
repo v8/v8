@@ -3446,14 +3446,14 @@ int ChoiceNode::GreedyLoopTextLengthForAlternative(
 
 
 void LoopChoiceNode::AddLoopAlternative(GuardedAlternative alt) {
-  DCHECK_EQ(loop_node_, NULL);
+  DCHECK_NULL(loop_node_);
   AddAlternative(alt);
   loop_node_ = alt.node();
 }
 
 
 void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
-  DCHECK_EQ(continue_node_, NULL);
+  DCHECK_NULL(continue_node_);
   AddAlternative(alt);
   continue_node_ = alt.node();
 }
@@ -3473,7 +3473,7 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     macro_assembler->GoTo(trace->loop_label());
     return;
   }
-  DCHECK(trace->stop_node() == NULL);
+  DCHECK_NULL(trace->stop_node());
   if (!trace->is_trivial()) {
     trace->Flush(compiler, this);
     return;
@@ -5294,8 +5294,8 @@ void CharacterRange::Split(ZoneList<CharacterRange>* base,
                            ZoneList<CharacterRange>** included,
                            ZoneList<CharacterRange>** excluded,
                            Zone* zone) {
-  DCHECK_EQ(NULL, *included);
-  DCHECK_EQ(NULL, *excluded);
+  DCHECK_NULL(*included);
+  DCHECK_NULL(*excluded);
   DispatchTable table(zone);
   for (int i = 0; i < base->length(); i++)
     table.AddRange(base->at(i), CharacterRangeSplitter::kInBase, zone);

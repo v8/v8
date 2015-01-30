@@ -447,7 +447,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
-    DCHECK_EQ(NULL, (*blocks)[rpo_number]);
+    DCHECK(!(*blocks)[rpo_number]);
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }

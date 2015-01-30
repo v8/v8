@@ -944,7 +944,7 @@ class MacroAssembler: public Assembler {
     ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset), cond);
     ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset), cond);
     tst(type, Operand(kIsNotStringMask), cond);
-    DCHECK_EQ(0, kStringTag);
+    DCHECK_EQ(0u, kStringTag);
     return eq;
   }
 

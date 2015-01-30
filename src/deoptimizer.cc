@@ -110,7 +110,7 @@ size_t Deoptimizer::GetMaxDeoptTableSize() {
 
 Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   Deoptimizer* result = isolate->deoptimizer_data()->current_;
-  CHECK_NE(result, NULL);
+  CHECK_NOT_NULL(result);
   result->DeleteFrameDescriptions();
   isolate->deoptimizer_data()->current_ = NULL;
   return result;
@@ -901,7 +901,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   bool is_bottommost = (0 == frame_index);
   bool is_topmost = (output_count_ - 1 == frame_index);
   CHECK(frame_index >= 0 && frame_index < output_count_);
-  CHECK_EQ(output_[frame_index], NULL);
+  CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
   // The top address for the bottommost output frame can be computed from
@@ -1060,7 +1060,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     output_offset -= kPointerSize;
     DoTranslateCommand(iterator, frame_index, output_offset);
   }
-  CHECK_EQ(0, output_offset);
+  CHECK_EQ(0u, output_offset);
 
   // Compute this frame's PC, state, and continuation.
   Code* non_optimized_code = function->shared()->code();
@@ -1382,7 +1382,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
            top_address + output_offset, output_offset, value);
   }
 
-  CHECK_EQ(0, output_offset);
+  CHECK_EQ(0u, output_offset);
 
   intptr_t pc = reinterpret_cast<intptr_t>(
       construct_stub->instruction_start() +
@@ -1429,7 +1429,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
 
   // A frame for an accessor stub can not be the topmost or bottommost one.
   CHECK(frame_index > 0 && frame_index < output_count_ - 1);
-  CHECK_EQ(output_[frame_index], NULL);
+  CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1522,7 +1522,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
     DoTranslateCommand(iterator, frame_index, output_offset);
   }
 
-  CHECK_EQ(output_offset, 0);
+  CHECK_EQ(0u, output_offset);
 
   Smi* offset = is_setter_stub_frame ?
       isolate_->heap()->setter_stub_deopt_pc_offset() :
@@ -1735,7 +1735,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     }
   }
 
-  CHECK_EQ(output_frame_offset, 0);
+  CHECK_EQ(0u, output_frame_offset);
 
   if (!arg_count_known) {
     CHECK_GE(arguments_length_offset, 0);

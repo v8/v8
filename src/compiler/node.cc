@@ -134,7 +134,7 @@ void Node::ReplaceUses(Node* replace_to) {
     use->from->GetInputRecordPtr(use->input_index)->to = replace_to;
   }
   if (!replace_to->last_use_) {
-    DCHECK_EQ(nullptr, replace_to->first_use_);
+    DCHECK(!replace_to->first_use_);
     replace_to->first_use_ = first_use_;
     replace_to->last_use_ = last_use_;
   } else if (first_use_) {

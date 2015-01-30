@@ -207,7 +207,7 @@ void HeapObject::VerifyHeapPointer(Object* p) {
 void Symbol::SymbolVerify() {
   CHECK(IsSymbol());
   CHECK(HasHashCode());
-  CHECK_GT(Hash(), 0);
+  CHECK_GT(Hash(), 0u);
   CHECK(name()->IsUndefined() || name()->IsString());
   CHECK(flags()->IsSmi());
 }

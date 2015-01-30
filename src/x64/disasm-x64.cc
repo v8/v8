@@ -803,7 +803,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
         UnimplementedInstruction();
         return count + 1;
     }
-    DCHECK_NE(NULL, mnem);
+    DCHECK_NOT_NULL(mnem);
     AppendToBuffer("%s%c ", mnem, operand_size_code());
   }
   count += PrintRightOperand(data + count);

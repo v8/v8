@@ -242,13 +242,13 @@ TEST(RunChangeTaggedToFloat64) {
       {
         Handle<Object> number = t.factory()->NewNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
 
       {
         Handle<HeapNumber> number = t.factory()->NewHeapNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
     }
   }

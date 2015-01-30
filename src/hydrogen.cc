@@ -8721,7 +8721,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     case kCallApiGetter:
       // Receiver and prototype chain cannot have changed.
       DCHECK_EQ(0, argc);
-      DCHECK_EQ(NULL, receiver);
+      DCHECK_NULL(receiver);
       // Receiver is on expression stack.
       receiver = Pop();
       Add<HPushArguments>(receiver);
@@ -8731,7 +8731,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
         is_store = true;
         // Receiver and prototype chain cannot have changed.
         DCHECK_EQ(1, argc);
-        DCHECK_EQ(NULL, receiver);
+        DCHECK_NULL(receiver);
         // Receiver and value are on expression stack.
         HValue* value = Pop();
         receiver = Pop();
@@ -11812,7 +11812,7 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 
 void HOptimizedGraphBuilder::GenerateDateField(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 2);
-  DCHECK_NE(NULL, call->arguments()->at(1)->AsLiteral());
+  DCHECK_NOT_NULL(call->arguments()->at(1)->AsLiteral());
   Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->value()));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* date = Pop();

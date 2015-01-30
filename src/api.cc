@@ -4996,7 +4996,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   if (!InternalFieldOK(obj, index, location)) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
-  DCHECK_EQ(value, GetInternalField(index));
+  DCHECK(value->Equals(GetInternalField(index)));
 }
 
 

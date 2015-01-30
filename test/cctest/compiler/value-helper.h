@@ -44,7 +44,7 @@ class ValueHelper {
 
   void CheckUint32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<uint32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node));
   }
 
   void CheckHeapConstant(Object* expected, Node* node) {

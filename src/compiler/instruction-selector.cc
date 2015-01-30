@@ -40,7 +40,7 @@ void InstructionSelector::SelectInstructions() {
   BasicBlockVector* blocks = schedule()->rpo_order();
   for (auto const block : *blocks) {
     if (!block->IsLoopHeader()) continue;
-    DCHECK_LE(2, block->PredecessorCount());
+    DCHECK_LE(2u, block->PredecessorCount());
     for (Node* const phi : *block) {
       if (phi->opcode() != IrOpcode::kPhi) continue;
 
@@ -342,7 +342,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
         if (use->opcode() != IrOpcode::kProjection) continue;
         size_t const index = ProjectionIndexOf(use->op());
         DCHECK_LT(index, buffer->output_nodes.size());
-        DCHECK_EQ(nullptr, buffer->output_nodes[index]);
+        DCHECK(!buffer->output_nodes[index]);
         buffer->output_nodes[index] = use;
       }
     }
@@ -435,7 +435,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
         buffer->pushed_nodes.resize(stack_index + 1, NULL);
       }
-      DCHECK_EQ(NULL, buffer->pushed_nodes[stack_index]);
+      DCHECK(!buffer->pushed_nodes[stack_index]);
       buffer->pushed_nodes[stack_index] = *iter;
       pushed_count++;
     } else {
@@ -450,7 +450,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
-  DCHECK_EQ(NULL, current_block_);
+  DCHECK(!current_block_);
   current_block_ = block;
   int current_block_end = static_cast<int>(instructions_.size());
 

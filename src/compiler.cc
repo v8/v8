@@ -208,7 +208,7 @@ CompilationInfo::~CompilationInfo() {
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    DCHECK_EQ(NULL, dependencies_[i]);
+    DCHECK(!dependencies_[i]);
   }
 #endif  // DEBUG
 }

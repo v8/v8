@@ -1038,8 +1038,9 @@ TEST(JSONStringifySliceMadeExternal) {
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
   CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
 
-  CHECK_EQ("\"bcdefghijklmnopqrstuvwxyz\"",
-           *v8::String::Utf8Value(CompileRun("JSON.stringify(slice)")));
+  CHECK_EQ(0,
+           strcmp("\"bcdefghijklmnopqrstuvwxyz\"",
+                  *v8::String::Utf8Value(CompileRun("JSON.stringify(slice)"))));
 }
 
 
@@ -1171,7 +1172,7 @@ TEST(TrivialSlice) {
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK_EQ("bcdefghijklmnopqrstuvwxy", string->ToCString().get());
+  CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 }
 
 
@@ -1193,14 +1194,14 @@ TEST(SliceFromSlice) {
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
-  CHECK_EQ("bcdefghijklmnopqrstuvwxy", string->ToCString().get());
+  CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
-  CHECK_EQ("cdefghijklmnopqrstuvwx", string->ToCString().get());
+  CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
 }
 
 
@@ -1263,7 +1264,7 @@ TEST(RobustSubStringStub) {
   // Ordinary HeapNumbers can be handled (in runtime).
   result = CompileRun("%_SubString(short, Math.sqrt(4), 5.1);");
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ("cde", string->ToCString().get());
+  CHECK_EQ(0, strcmp("cde", string->ToCString().get()));
 
   CompileRun("var long = 'abcdefghijklmnopqrstuvwxyz';");
   // Invalid indices.
@@ -1278,7 +1279,7 @@ TEST(RobustSubStringStub) {
   // Ordinary HeapNumbers within bounds can be handled (in runtime).
   result = CompileRun("%_SubString(long, Math.sqrt(4), 17.1);");
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ("cdefghijklmnopq", string->ToCString().get());
+  CHECK_EQ(0, strcmp("cdefghijklmnopq", string->ToCString().get()));
 
   // Test that out-of-bounds substring of a slice fails when the indices
   // would have been valid for the underlying string.

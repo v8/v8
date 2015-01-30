@@ -632,15 +632,15 @@ TEST(RemoveAllInputs) {
     n1->RemoveAllInputs();
     CHECK_EQ(1, n1->InputCount());
     CHECK_EQ(1, n0->UseCount());
-    CHECK_EQ(NULL, n1->InputAt(0));
+    CHECK(!n1->InputAt(0));
 
     CHECK_EQ(1, n1->UseCount());
     n2->RemoveAllInputs();
     CHECK_EQ(2, n2->InputCount());
     CHECK_EQ(0, n0->UseCount());
     CHECK_EQ(0, n1->UseCount());
-    CHECK_EQ(NULL, n2->InputAt(0));
-    CHECK_EQ(NULL, n2->InputAt(1));
+    CHECK(!n2->InputAt(0));
+    CHECK(!n2->InputAt(1));
   }
 
   {
@@ -653,6 +653,6 @@ TEST(RemoveAllInputs) {
     n1->RemoveAllInputs();
     CHECK_EQ(1, n1->InputCount());
     CHECK_EQ(0, n1->UseCount());
-    CHECK_EQ(NULL, n1->InputAt(0));
+    CHECK(!n1->InputAt(0));
   }
 }

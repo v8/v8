@@ -106,7 +106,7 @@ Zone* ZonePool::NewEmptyZone() {
     zone = new Zone();
   }
   used_.push_back(zone);
-  DCHECK_EQ(0, zone->allocation_size());
+  DCHECK_EQ(0u, zone->allocation_size());
   return zone;
 }
 
@@ -129,7 +129,7 @@ void ZonePool::ReturnZone(Zone* zone) {
     delete zone;
   } else {
     zone->DeleteAll();
-    DCHECK_EQ(0, zone->allocation_size());
+    DCHECK_EQ(0u, zone->allocation_size());
     unused_.push_back(zone);
   }
 }

@@ -40,18 +40,18 @@ bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
 
   if (osr_loop_entry == nullptr) {
     // No OSR entry found, do nothing.
-    CHECK_NE(nullptr, osr_normal_entry);
+    CHECK(osr_normal_entry);
     return true;
   }
 
   for (Node* use : osr_loop_entry->uses()) {
     if (use->opcode() == IrOpcode::kLoop) {
-      CHECK_EQ(nullptr, osr_loop);  // should be only one OSR loop.
+      CHECK(!osr_loop);             // should be only one OSR loop.
       osr_loop = use;               // found the OSR loop.
     }
   }
 
-  CHECK_NE(nullptr, osr_loop);  // Should have found the OSR loop.
+  CHECK(osr_loop);  // Should have found the OSR loop.
 
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);

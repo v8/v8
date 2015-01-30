@@ -375,7 +375,7 @@ TEST(PreparsingObjectLiterals) {
     v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
-    CHECK_EQ("foo", *utf8);
+    CHECK_EQ(0, strcmp("foo", *utf8));
   }
 
   {
@@ -383,7 +383,7 @@ TEST(PreparsingObjectLiterals) {
     v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
-    CHECK_EQ("foo", *utf8);
+    CHECK_EQ(0, strcmp("foo", *utf8));
   }
 
   {
@@ -391,7 +391,7 @@ TEST(PreparsingObjectLiterals) {
     v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
-    CHECK_EQ("foo", *utf8);
+    CHECK_EQ(0, strcmp("foo", *utf8));
   }
 }
 
@@ -1670,8 +1670,9 @@ TEST(StrictOctal) {
   v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(), script));
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(try_catch.Exception());
-  CHECK_EQ("SyntaxError: Octal literals are not allowed in strict mode.",
-           *exception);
+  CHECK_EQ(0,
+           strcmp("SyntaxError: Octal literals are not allowed in strict mode.",
+                  *exception));
 }
 
 

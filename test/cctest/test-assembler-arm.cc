@@ -987,10 +987,10 @@ TEST(11) {
   Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
   USE(dummy);
 
-  CHECK_EQ(0xabcd0001, i.a);
+  CHECK_EQ(static_cast<int32_t>(0xabcd0001), i.a);
   CHECK_EQ(static_cast<int32_t>(0xabcd0000) >> 1, i.b);
   CHECK_EQ(0x00000000, i.c);
-  CHECK_EQ(0xffffffff, i.d);
+  CHECK_EQ(static_cast<int32_t>(0xffffffff), i.d);
 }
 
 
@@ -1129,8 +1129,8 @@ TEST(13) {
     CHECK_EQ(14.7610017472335499, t.i);
     CHECK_EQ(16.0, t.j);
     CHECK_EQ(73.8818412254460241, t.k);
-    CHECK_EQ(372106121, t.low);
-    CHECK_EQ(1079146608, t.high);
+    CHECK_EQ(372106121u, t.low);
+    CHECK_EQ(1079146608u, t.high);
   }
 }
 
@@ -1321,22 +1321,22 @@ TEST(15) {
     t.dstA7 = 0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
-    CHECK_EQ(0x01020304, t.dst0);
-    CHECK_EQ(0x11121314, t.dst1);
-    CHECK_EQ(0x21222324, t.dst2);
-    CHECK_EQ(0x31323334, t.dst3);
-    CHECK_EQ(0x41424344, t.dst4);
-    CHECK_EQ(0x51525354, t.dst5);
-    CHECK_EQ(0x61626364, t.dst6);
-    CHECK_EQ(0x71727374, t.dst7);
-    CHECK_EQ(0x00430044, t.dstA0);
-    CHECK_EQ(0x00410042, t.dstA1);
-    CHECK_EQ(0x00830084, t.dstA2);
-    CHECK_EQ(0x00810082, t.dstA3);
-    CHECK_EQ(0x00430044, t.dstA4);
-    CHECK_EQ(0x00410042, t.dstA5);
-    CHECK_EQ(0x00830084, t.dstA6);
-    CHECK_EQ(0x00810082, t.dstA7);
+    CHECK_EQ(0x01020304u, t.dst0);
+    CHECK_EQ(0x11121314u, t.dst1);
+    CHECK_EQ(0x21222324u, t.dst2);
+    CHECK_EQ(0x31323334u, t.dst3);
+    CHECK_EQ(0x41424344u, t.dst4);
+    CHECK_EQ(0x51525354u, t.dst5);
+    CHECK_EQ(0x61626364u, t.dst6);
+    CHECK_EQ(0x71727374u, t.dst7);
+    CHECK_EQ(0x00430044u, t.dstA0);
+    CHECK_EQ(0x00410042u, t.dstA1);
+    CHECK_EQ(0x00830084u, t.dstA2);
+    CHECK_EQ(0x00810082u, t.dstA3);
+    CHECK_EQ(0x00430044u, t.dstA4);
+    CHECK_EQ(0x00410042u, t.dstA5);
+    CHECK_EQ(0x00830084u, t.dstA6);
+    CHECK_EQ(0x00810082u, t.dstA7);
   }
 }
 
@@ -1406,11 +1406,11 @@ TEST(16) {
   t.dst4 = 0;
   Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
   USE(dummy);
-  CHECK_EQ(0x12130304, t.dst0);
-  CHECK_EQ(0x01021213, t.dst1);
-  CHECK_EQ(0x00010003, t.dst2);
-  CHECK_EQ(0x00000003, t.dst3);
-  CHECK_EQ(0x11121313, t.dst4);
+  CHECK_EQ(0x12130304u, t.dst0);
+  CHECK_EQ(0x01021213u, t.dst1);
+  CHECK_EQ(0x00010003u, t.dst2);
+  CHECK_EQ(0x00000003u, t.dst3);
+  CHECK_EQ(0x11121313u, t.dst4);
 }
 
 
@@ -1542,10 +1542,10 @@ TEST(udiv) {
 #endif
     F3 f = FUNCTION_CAST<F3>(code->entry());
     Object* dummy;
-    TEST_UDIV(0, 0, 0);
-    TEST_UDIV(0, 1024, 0);
-    TEST_UDIV(5, 10, 2);
-    TEST_UDIV(3, 10, 3);
+    TEST_UDIV(0u, 0, 0);
+    TEST_UDIV(0u, 1024, 0);
+    TEST_UDIV(5u, 10, 2);
+    TEST_UDIV(3u, 10, 3);
     USE(dummy);
   }
 }

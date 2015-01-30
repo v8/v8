@@ -103,7 +103,6 @@
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
         'test-bit-vector.cc',
-        'test-checks.cc',
         'test-circular-queue.cc',
         'test-compiler.cc',
         'test-constantpool.cc',

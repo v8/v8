@@ -275,7 +275,7 @@ class BackReferenceMap : public AddressMapBase {
 
   void Add(HeapObject* obj, BackReference b) {
     DCHECK(b.is_valid());
-    DCHECK_EQ(NULL, LookupEntry(map_, obj, false));
+    DCHECK_NULL(LookupEntry(map_, obj, false));
     HashMap::Entry* entry = LookupEntry(map_, obj, true);
     SetValue(entry, b.bitfield());
   }
@@ -307,7 +307,7 @@ class HotObjectsList {
   }
 
   HeapObject* Get(int index) {
-    DCHECK_NE(NULL, circular_queue_[index]);
+    DCHECK_NOT_NULL(circular_queue_[index]);
     return circular_queue_[index];
   }
 
