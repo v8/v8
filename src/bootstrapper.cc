@@ -1491,7 +1491,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
             .ToHandleChecked());
   }
   const char* inner = period_pos + 1;
-  DCHECK_EQ(NULL, strchr(inner, '.'));
+  DCHECK(!strchr(inner, '.'));
   Vector<const char> property(holder_expr,
                               static_cast<int>(period_pos - holder_expr));
   Handle<String> property_string = factory->InternalizeUtf8String(property);

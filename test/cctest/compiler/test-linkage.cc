@@ -62,7 +62,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Linkage linkage(info.zone(), &info);
 
     CallDescriptor* descriptor = linkage.GetIncomingDescriptor();
-    CHECK_NE(NULL, descriptor);
+    CHECK(descriptor);
 
     CHECK_EQ(1 + i, static_cast<int>(descriptor->JSParameterCount()));
     CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
@@ -78,7 +78,7 @@ TEST(TestLinkageCodeStubIncoming) {
   Linkage linkage(info.zone(), &info);
   // TODO(titzer): test linkage creation with a bonafide code stub.
   // this just checks current behavior.
-  CHECK_EQ(NULL, linkage.GetIncomingDescriptor());
+  CHECK(!linkage.GetIncomingDescriptor());
 }
 
 
@@ -91,7 +91,7 @@ TEST(TestLinkageJSCall) {
   for (int i = 0; i < 32; i++) {
     CallDescriptor* descriptor =
         linkage.GetJSCallDescriptor(i, CallDescriptor::kNoFlags);
-    CHECK_NE(NULL, descriptor);
+    CHECK(descriptor);
     CHECK_EQ(i, static_cast<int>(descriptor->JSParameterCount()));
     CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
     CHECK_EQ(Operator::kNoProperties, descriptor->properties());

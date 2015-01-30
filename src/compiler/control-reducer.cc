@@ -296,7 +296,7 @@ class ControlReducerImpl {
     for (size_t j = 0; j < nodes.size(); j++) {
       Node* node = nodes[j];
       for (Node* const input : node->inputs()) {
-        CHECK_NE(NULL, input);
+        CHECK(input);
       }
       for (Node* const use : node->uses()) {
         CHECK(marked.IsReachableFromEnd(use));
@@ -319,7 +319,7 @@ class ControlReducerImpl {
 
     // Recurse on an input if necessary.
     for (Node* const input : node->inputs()) {
-      CHECK_NE(NULL, input);
+      DCHECK(input);
       if (Recurse(input)) return;
     }
 

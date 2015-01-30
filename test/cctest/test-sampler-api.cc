@@ -91,7 +91,7 @@ class SamplingTestHelper {
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {
-    DCHECK_EQ(NULL, instance_);
+    DCHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
     v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
@@ -242,10 +242,10 @@ TEST(StackFramesConsistent) {
 
   const SamplingTestHelper::CodeEventEntry* entry;
   entry = helper.FindEventEntry(sample.begin()[0]);
-  CHECK_NE(NULL, entry);
+  CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_inner"));
 
   entry = helper.FindEventEntry(sample.begin()[1]);
-  CHECK_NE(NULL, entry);
+  CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_outer"));
 }

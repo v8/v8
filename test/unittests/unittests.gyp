@@ -28,6 +28,7 @@
         'base/division-by-constant-unittest.cc',
         'base/flags-unittest.cc',
         'base/functional-unittest.cc',
+        'base/logging-unittest.cc',
         'base/iterator-unittest.cc',
         'base/platform/condition-variable-unittest.cc',
         'base/platform/mutex-unittest.cc',

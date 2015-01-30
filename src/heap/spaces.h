@@ -1276,13 +1276,13 @@ class AllocationInfo {
 
   INLINE(void set_top(Address top)) {
     SLOW_DCHECK(top == NULL ||
-                (reinterpret_cast<intptr_t>(top) & HeapObjectTagMask()) == 0);
+                (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
     top_ = top;
   }
 
   INLINE(Address top()) const {
     SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & HeapObjectTagMask()) == 0);
+                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
     return top_;
   }
 
@@ -1290,13 +1290,13 @@ class AllocationInfo {
 
   INLINE(void set_limit(Address limit)) {
     SLOW_DCHECK(limit == NULL ||
-                (reinterpret_cast<intptr_t>(limit) & HeapObjectTagMask()) == 0);
+                (reinterpret_cast<intptr_t>(limit) & kHeapObjectTagMask) == 0);
     limit_ = limit;
   }
 
   INLINE(Address limit()) const {
     SLOW_DCHECK(limit_ == NULL ||
-                (reinterpret_cast<intptr_t>(limit_) & HeapObjectTagMask()) ==
+                (reinterpret_cast<intptr_t>(limit_) & kHeapObjectTagMask) ==
                     0);
     return limit_;
   }

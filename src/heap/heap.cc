@@ -5458,7 +5458,7 @@ bool Heap::CreateHeapObjects() {
 
   // Create initial objects
   CreateInitialObjects();
-  CHECK_EQ(0, gc_count_);
+  CHECK_EQ(0u, gc_count_);
 
   set_native_contexts_list(undefined_value());
   set_array_buffers_list(undefined_value());

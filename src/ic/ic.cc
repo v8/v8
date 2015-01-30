@@ -2550,7 +2550,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     target = stub.GetCode();
 
     // Sanity check the generic stub.
-    DCHECK_EQ(NULL, target->FindFirstAllocationSite());
+    DCHECK_NULL(target->FindFirstAllocationSite());
   }
   set_target(*target);
 

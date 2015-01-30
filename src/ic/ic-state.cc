@@ -36,6 +36,14 @@ std::ostream& operator<<(std::ostream& os, const CallICState& s) {
 }
 
 
+// static
+STATIC_CONST_MEMBER_DEFINITION const int BinaryOpICState::FIRST_TOKEN;
+
+
+// static
+STATIC_CONST_MEMBER_DEFINITION const int BinaryOpICState::LAST_TOKEN;
+
+
 BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
     : isolate_(isolate) {
   op_ =

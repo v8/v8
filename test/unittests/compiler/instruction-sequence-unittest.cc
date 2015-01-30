@@ -285,7 +285,7 @@ Instruction* InstructionSequenceTest::NewInstruction(
     InstructionCode code, size_t outputs_size, InstructionOperand** outputs,
     size_t inputs_size, InstructionOperand** inputs, size_t temps_size,
     InstructionOperand** temps) {
-  CHECK_NE(nullptr, current_block_);
+  CHECK(current_block_);
   return Instruction::New(zone(), code, outputs_size, outputs, inputs_size,
                           inputs, temps_size, temps);
 }
@@ -419,7 +419,7 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
 
 
 void InstructionSequenceTest::WireBlocks() {
-  CHECK_EQ(nullptr, current_block());
+  CHECK(!current_block());
   CHECK(instruction_blocks_.size() == completions_.size());
   size_t offset = 0;
   for (const auto& completion : completions_) {

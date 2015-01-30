@@ -136,7 +136,7 @@ class LoopFinderTester : HandleAndZoneScope {
   void CheckLoop(Node** header, int header_count, Node** body, int body_count) {
     LoopTree* tree = GetLoopTree();
     LoopTree::Loop* loop = tree->ContainingLoop(header[0]);
-    CHECK_NE(NULL, loop);
+    CHECK(loop);
 
     CHECK(header_count == static_cast<int>(loop->HeaderSize()));
     for (int i = 0; i < header_count; i++) {
@@ -164,7 +164,7 @@ class LoopFinderTester : HandleAndZoneScope {
       Node* header = chain[i];
       // Each header should be in a loop.
       LoopTree::Loop* loop = tree->ContainingLoop(header);
-      CHECK_NE(NULL, loop);
+      CHECK(loop);
       // Check parentage.
       LoopTree::Loop* parent =
           i == 0 ? NULL : tree->ContainingLoop(chain[i - 1]);

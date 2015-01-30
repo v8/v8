@@ -2198,7 +2198,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
   Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
 #endif
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(0, Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   movl(kScratchRegister, Immediate(kSmiTagMask));
   andp(kScratchRegister, src1);
   testl(kScratchRegister, src2);

@@ -17,7 +17,7 @@ TEST(Int32Constant_back_to_back) {
 
   for (int i = -2000000000; i < 2000000000; i += 3315177) {
     Node** pos = cache.Find(graph.zone(), i);
-    CHECK_NE(NULL, pos);
+    CHECK(pos);
     for (int j = 0; j < 3; j++) {
       Node** npos = cache.Find(graph.zone(), i);
       CHECK_EQ(pos, npos);
@@ -80,7 +80,7 @@ TEST(Int64Constant_back_to_back) {
 
   for (int64_t i = -2000000000; i < 2000000000; i += 3315177) {
     Node** pos = cache.Find(graph.zone(), i);
-    CHECK_NE(NULL, pos);
+    CHECK(pos);
     for (int j = 0; j < 3; j++) {
       Node** npos = cache.Find(graph.zone(), i);
       CHECK_EQ(pos, npos);

@@ -103,7 +103,7 @@ Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
 
 
 Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
-  DCHECK_LT(0, divisor);
+  DCHECK_LT(0u, divisor);
   // If the divisor is even, we can avoid using the expensive fixup by shifting
   // the dividend upfront.
   unsigned const shift = base::bits::CountTrailingZeros32(divisor);
@@ -115,7 +115,7 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   Node* quotient = graph()->NewNode(machine()->Uint32MulHigh(), dividend,
                                     Uint32Constant(mag.multiplier));
   if (mag.add) {
-    DCHECK_LE(1, mag.shift);
+    DCHECK_LE(1u, mag.shift);
     quotient = Word32Shr(
         Int32Add(Word32Shr(Int32Sub(dividend, quotient), 1), quotient),
         mag.shift - 1);
@@ -520,7 +520,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     Node* quotient = dividend;
     if (base::bits::IsPowerOfTwo32(Abs(divisor))) {
       uint32_t const shift = WhichPowerOf2Abs(divisor);
-      DCHECK_NE(0, shift);
+      DCHECK_NE(0u, shift);
       if (shift > 1) {
         quotient = Word32Sar(quotient, 31);
       }

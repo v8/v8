@@ -51,9 +51,9 @@ using namespace v8::internal;
 typedef int (*F0)();
 typedef int (*F1)(int64_t x);
 typedef int (*F2)(int64_t x, int64_t y);
-typedef int (*F3)(double x);
-typedef int64_t (*F4)(int64_t* x, int64_t* y);
-typedef int64_t (*F5)(int64_t x);
+typedef unsigned (*F3)(double x);
+typedef uint64_t (*F4)(uint64_t* x, uint64_t* y);
+typedef uint64_t (*F5)(uint64_t x);
 
 #ifdef _WIN64
 static const Register arg1 = rcx;
@@ -220,9 +220,9 @@ TEST(AssemblerX64XchglOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
-  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
-  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
+  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 40000000), left);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 20000000), right);
   USE(result);
@@ -245,9 +245,9 @@ TEST(AssemblerX64OrlOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
-  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
-  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
+  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 60000000), left);
   USE(result);
 }
@@ -269,8 +269,8 @@ TEST(AssemblerX64RollOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t src    = V8_2PART_UINT64_C(0x10000000, C0000000);
-  int64_t result = FUNCTION_CAST<F5>(buffer)(src);
+  uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
+  uint64_t result = FUNCTION_CAST<F5>(buffer)(src);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 80000001), result);
 }
 
@@ -291,9 +291,9 @@ TEST(AssemblerX64SublOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
-  int64_t right  = V8_2PART_UINT64_C(0x30000000, 40000000);
-  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
+  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, e0000000), left);
   USE(result);
 }
@@ -321,10 +321,10 @@ TEST(AssemblerX64TestlOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
-  int64_t right  = V8_2PART_UINT64_C(0x30000000, 00000000);
-  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
-  CHECK_EQ(static_cast<int64_t>(1), result);
+  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
+  uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
+  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  CHECK_EQ(1u, result);
 }
 
 
@@ -344,9 +344,9 @@ TEST(AssemblerX64XorlOperations) {
   CodeDesc desc;
   assm.GetCode(&desc);
   // Call the function from C++.
-  int64_t left   = V8_2PART_UINT64_C(0x10000000, 20000000);
-  int64_t right  = V8_2PART_UINT64_C(0x30000000, 60000000);
-  int64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
+  uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
+  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 40000000), left);
   USE(result);
 }
@@ -586,7 +586,7 @@ TEST(AssemblerMultiByteNop) {
 
 
 #ifdef __GNUC__
-#define ELEMENT_COUNT 4
+#define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(CcTest::isolate());
@@ -603,7 +603,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   __ popq(rcx);
 
   // Store input vector on the stack.
-  for (int i = 0; i < ELEMENT_COUNT; i++) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
     __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
     __ shlq(rax, Immediate(0x20));
     __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
@@ -657,7 +657,7 @@ TEST(StackAlignmentForSSE2) {
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
   v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
-  for (int i = 0; i < ELEMENT_COUNT; i++) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
     v8_vec->Set(i, v8_num(vec[i]));
   }
 
@@ -696,9 +696,9 @@ TEST(AssemblerX64Extractps) {
 
   F3 f = FUNCTION_CAST<F3>(code->entry());
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
-  CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
+  CHECK_EQ(0x12345678u, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
-  CHECK_EQ(0x87654321, f(uint64_to_double(value2)));
+  CHECK_EQ(0x87654321u, f(uint64_to_double(value2)));
 }
 
 

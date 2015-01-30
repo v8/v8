@@ -145,19 +145,19 @@ class PipelineData {
 
   LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
   void set_loop_assignment(LoopAssignmentAnalysis* loop_assignment) {
-    DCHECK_EQ(nullptr, loop_assignment_);
+    DCHECK(!loop_assignment_);
     loop_assignment_ = loop_assignment;
   }
 
   Node* context_node() const { return context_node_; }
   void set_context_node(Node* context_node) {
-    DCHECK_EQ(nullptr, context_node_);
+    DCHECK(!context_node_);
     context_node_ = context_node;
   }
 
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
-    DCHECK_EQ(nullptr, schedule_);
+    DCHECK(!schedule_);
     schedule_ = schedule;
   }
 
@@ -194,7 +194,7 @@ class PipelineData {
   }
 
   void InitializeInstructionSequence() {
-    DCHECK_EQ(nullptr, sequence_);
+    DCHECK(!sequence_);
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
@@ -205,8 +205,8 @@ class PipelineData {
   void InitializeRegisterAllocator(Zone* local_zone,
                                    const RegisterConfiguration* config,
                                    const char* debug_name) {
-    DCHECK_EQ(nullptr, register_allocator_);
-    DCHECK_EQ(nullptr, frame_);
+    DCHECK(!register_allocator_);
+    DCHECK(!frame_);
     frame_ = new (instruction_zone()) Frame();
     register_allocator_ = new (instruction_zone())
         RegisterAllocator(config, local_zone, frame(), sequence(), debug_name);

@@ -438,7 +438,7 @@ TEST(AssemblerMultiByteNop) {
 
 
 #ifdef __GNUC__
-#define ELEMENT_COUNT 4
+#define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
@@ -455,7 +455,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   __ pop(ecx);
 
   // Store input vector on the stack.
-  for (int i = 0; i < ELEMENT_COUNT; ++i) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; ++i) {
     __ push(Immediate(vec->Get(i)->Int32Value()));
   }
 
@@ -507,7 +507,7 @@ TEST(StackAlignmentForSSE2) {
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
   v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
-  for (int i = 0; i < ELEMENT_COUNT; i++) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
       v8_vec->Set(i, v8_num(vec[i]));
   }
 
@@ -549,7 +549,7 @@ TEST(AssemblerIa32Extractps) {
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
-  CHECK_EQ(0x87654321, f(uint64_to_double(value2)));
+  CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
 }
 
 

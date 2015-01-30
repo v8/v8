@@ -84,7 +84,7 @@ class Inlinee {
 
   // Counts only formal parameters.
   size_t formal_parameters() {
-    DCHECK_GE(total_parameters(), 3);
+    DCHECK_GE(total_parameters(), 3u);
     return total_parameters() - 3;
   }
 
@@ -176,7 +176,7 @@ class CopyVisitor : public NullNodeVisitor {
     if (copy == NULL) {
       copy = GetSentinel(original);
     }
-    DCHECK_NE(NULL, copy);
+    DCHECK(copy);
     return copy;
   }
 
@@ -193,7 +193,7 @@ class CopyVisitor : public NullNodeVisitor {
       Node* sentinel = sentinels_[id];
       if (sentinel == NULL) continue;
       Node* copy = copies_[id];
-      DCHECK_NE(NULL, copy);
+      DCHECK(copy);
       sentinel->ReplaceUses(copy);
     }
   }

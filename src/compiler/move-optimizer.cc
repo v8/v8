@@ -83,11 +83,11 @@ static MoveOperands* PrepareInsertAfter(ParallelMove* left, MoveOperands* move,
   for (auto curr = move_ops->begin(); curr != move_ops->end(); ++curr) {
     if (curr->IsEliminated()) continue;
     if (curr->destination()->Equals(move->source())) {
-      DCHECK_EQ(nullptr, replacement);
+      DCHECK(!replacement);
       replacement = curr;
       if (to_eliminate != nullptr) break;
     } else if (curr->destination()->Equals(move->destination())) {
-      DCHECK_EQ(nullptr, to_eliminate);
+      DCHECK(!to_eliminate);
       to_eliminate = curr;
       if (replacement != nullptr) break;
     }

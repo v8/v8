@@ -102,7 +102,7 @@ OptimizingCompilerThread::~OptimizingCompilerThread() {
   if (FLAG_concurrent_osr) {
 #ifdef DEBUG
     for (int i = 0; i < osr_buffer_capacity_; i++) {
-      CHECK_EQ(NULL, osr_buffer_[i]);
+      CHECK_NULL(osr_buffer_[i]);
     }
 #endif
     DeleteArray(osr_buffer_);
@@ -178,7 +178,7 @@ OptimizedCompileJob* OptimizingCompilerThread::NextInput(StopFlag* flag) {
     return NULL;
   }
   OptimizedCompileJob* job = input_queue_[InputQueueIndex(0)];
-  DCHECK_NE(NULL, job);
+  DCHECK_NOT_NULL(job);
   input_queue_shift_ = InputQueueIndex(1);
   input_queue_length_--;
   if (flag) {
@@ -189,7 +189,7 @@ OptimizedCompileJob* OptimizingCompilerThread::NextInput(StopFlag* flag) {
 
 
 void OptimizingCompilerThread::CompileNext(OptimizedCompileJob* job) {
-  DCHECK_NE(NULL, job);
+  DCHECK_NOT_NULL(job);
 
   // The function may have already been optimized by OSR.  Simply continue.
   OptimizedCompileJob::Status status = job->OptimizeGraph();
