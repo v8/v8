@@ -2723,8 +2723,6 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
       __ push(result_register());
       EmitNamedSuperPropertyLoad(expr);
     }
-    PrepareForBailoutForId(expr->LoadId(), TOS_REG);
-    context()->Plug(eax);
   } else {
     if (!expr->IsSuperAccess()) {
       VisitForStackValue(expr->obj());
@@ -2739,8 +2737,9 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
       VisitForStackValue(expr->key());
       EmitKeyedSuperPropertyLoad(expr);
     }
-    context()->Plug(eax);
   }
+  PrepareForBailoutForId(expr->LoadId(), TOS_REG);
+  context()->Plug(eax);
 }
 
 
