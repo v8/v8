@@ -2391,6 +2391,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                          int argc,
                          BailoutId ast_id,
                          ApiCallType call_type);
+  static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
