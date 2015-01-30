@@ -569,12 +569,16 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   DCHECK(!scratch3().is(reg));
   DCHECK(!scratch4().is(reg));
   __ push(receiver());
-  if (heap()->InNewSpace(callback->data())) {
-    __ Move(scratch3(), callback);
-    __ ldr(scratch3(),
-           FieldMemOperand(scratch3(), ExecutableAccessorInfo::kDataOffset));
+  // Push data from ExecutableAccessorInfo.
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ Move(scratch3(), data);
   } else {
-    __ Move(scratch3(), Handle<Object>(callback->data(), isolate()));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch3(), cell);
   }
   __ push(scratch3());
   __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);

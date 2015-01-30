@@ -562,13 +562,17 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
   __ Push(receiver());  // receiver
-  if (heap()->InNewSpace(callback->data())) {
-    DCHECK(!scratch2().is(reg));
-    __ Move(scratch2(), callback);
-    __ Push(FieldOperand(scratch2(),
-                         ExecutableAccessorInfo::kDataOffset));  // data
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ Push(data);
   } else {
-    __ Push(Handle<Object>(callback->data(), isolate()));
+    DCHECK(!scratch2().is(reg));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch2(), cell);
+    __ Push(scratch2());
   }
   DCHECK(!kScratchRegister.is(reg));
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);

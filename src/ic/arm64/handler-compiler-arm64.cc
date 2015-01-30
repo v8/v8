@@ -626,12 +626,15 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
 
   __ Push(receiver());
 
-  if (heap()->InNewSpace(callback->data())) {
-    __ Mov(scratch3(), Operand(callback));
-    __ Ldr(scratch3(),
-           FieldMemOperand(scratch3(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ Mov(scratch3(), Operand(data));
   } else {
-    __ Mov(scratch3(), Operand(Handle<Object>(callback->data(), isolate())));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch3(), cell);
   }
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Mov(scratch2(), Operand(ExternalReference::isolate_address(isolate())));

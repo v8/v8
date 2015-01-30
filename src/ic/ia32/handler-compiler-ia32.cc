@@ -567,12 +567,17 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   __ push(receiver());  // receiver
   // Push data from ExecutableAccessorInfo.
-  if (isolate()->heap()->InNewSpace(callback->data())) {
-    DCHECK(!scratch2().is(reg));
-    __ mov(scratch2(), Immediate(callback));
-    __ push(FieldOperand(scratch2(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ push(Immediate(data));
   } else {
-    __ push(Immediate(Handle<Object>(callback->data(), isolate())));
+    DCHECK(!scratch2().is(reg));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch2(), cell);
+    __ push(scratch2());
   }
   __ push(Immediate(isolate()->factory()->undefined_value()));  // ReturnValue
   // ReturnValue default value
