@@ -167,10 +167,9 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
   // LoadWithInterceptor.
   static const int kInterceptorArgsNameIndex = 0;
-  static const int kInterceptorArgsInfoIndex = 1;
-  static const int kInterceptorArgsThisIndex = 2;
-  static const int kInterceptorArgsHolderIndex = 3;
-  static const int kInterceptorArgsLength = 4;
+  static const int kInterceptorArgsThisIndex = 1;
+  static const int kInterceptorArgsHolderIndex = 2;
+  static const int kInterceptorArgsLength = 3;
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,

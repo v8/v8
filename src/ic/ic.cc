@@ -2841,8 +2841,12 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
-      NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex);
+  Handle<JSObject> receiver =
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<JSObject> holder =
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
+  HandleScope scope(isolate);
+  Handle<InterceptorInfo> interceptor_info(holder->GetNamedInterceptor());
 
   if (name->IsSymbol() && !interceptor_info->can_intercept_symbols())
     return isolate->heap()->no_interceptor_result_sentinel();
@@ -2852,15 +2856,10 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
       FUNCTION_CAST<v8::GenericNamedPropertyGetterCallback>(getter_address);
   DCHECK(getter != NULL);
 
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   PropertyCallbackArguments callback_args(isolate, interceptor_info->data(),
                                           *receiver, *holder);
   {
     // Use the interceptor getter.
-    HandleScope scope(isolate);
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
