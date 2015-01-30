@@ -809,7 +809,7 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache,
     FlushOnePage(i_cache, start, bytes_to_flush);
     start += bytes_to_flush;
     size -= bytes_to_flush;
-    DCHECK_EQ((uint64_t)0, start & CachePage::kPageMask);
+    DCHECK_EQ((int64_t)0, start & CachePage::kPageMask);
     offset = 0;
   }
   if (size != 0) {

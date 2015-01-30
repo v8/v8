@@ -583,7 +583,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(0, Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ And(a6, lhs, Operand(rhs));
   __ JumpIfNotSmi(a6, &not_smis, a4);
   // One operand is a smi. EmitSmiNonsmiComparison generates code that can:
@@ -1465,7 +1465,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Branch(&loop);
 
   __ bind(&is_instance);
-  DCHECK(Smi::FromInt(0) == 0);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   if (!HasCallSiteInlineCheck()) {
     __ mov(v0, zero_reg);
     __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
@@ -1480,7 +1480,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ PatchRelocatedValue(inline_site, scratch, v0);
 
     if (!ReturnTrueFalseObject()) {
-      DCHECK_EQ(Smi::FromInt(0), 0);
       __ mov(v0, zero_reg);
     }
   }
@@ -1715,7 +1714,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
   Label param_map_size;
-  DCHECK_EQ(0, Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ Branch(USE_DELAY_SLOT, &param_map_size, eq, a1, Operand(zero_reg));
   __ mov(t1, zero_reg);  // In delay slot: param map size = 0 when a1 == 0.
   __ SmiScale(t1, a1, kPointerSizeLog2);

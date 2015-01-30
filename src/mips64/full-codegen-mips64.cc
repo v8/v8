@@ -1224,7 +1224,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // For proxies, no filtering is done.
   // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
-  DCHECK_EQ(Smi::FromInt(0), 0);
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   __ Branch(&update_each, eq, a2, Operand(zero_reg));
 
   // Convert the entry to a string or (smi) 0 if it isn't a property

@@ -961,10 +961,10 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
   if (check == ENABLE_INLINED_SMI_CHECK) {
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));
-    DCHECK_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+    DCHECK_EQ(0u, Assembler::GetImmediate16(instr_at_patch));
     patcher.masm()->andi(at, reg, kSmiTagMask);
   } else {
-    DCHECK(check == DISABLE_INLINED_SMI_CHECK);
+    DCHECK_EQ(check, DISABLE_INLINED_SMI_CHECK);
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));
     patcher.masm()->andi(at, reg, 0);
   }
