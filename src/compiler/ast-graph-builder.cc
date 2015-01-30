@@ -667,24 +667,20 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     PrepareFrameState(obj, stmt->ToObjectId(), OutputFrameStateCombine::Push());
     environment()->Push(obj);
     // TODO(dcarney): should do a fast enum cache check here to skip runtime.
-    environment()->Push(obj);
-    Node* cache_type = ProcessArguments(
-        javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), 1);
+    Node* cache_type = NewNode(
+        javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), obj);
     PrepareFrameState(cache_type, stmt->EnumId(),
                       OutputFrameStateCombine::Push());
     // TODO(dcarney): these next runtime calls should be removed in favour of
     //                a few simplified instructions.
-    environment()->Push(obj);
-    environment()->Push(cache_type);
-    Node* cache_pair =
-        ProcessArguments(javascript()->CallRuntime(Runtime::kForInInit, 2), 2);
+    Node* cache_pair = NewNode(
+        javascript()->CallRuntime(Runtime::kForInInit, 2), obj, cache_type);
     // cache_type may have been replaced.
     Node* cache_array = NewNode(common()->Projection(0), cache_pair);
     cache_type = NewNode(common()->Projection(1), cache_pair);
-    environment()->Push(cache_type);
-    environment()->Push(cache_array);
-    Node* cache_length = ProcessArguments(
-        javascript()->CallRuntime(Runtime::kForInCacheArrayLength, 2), 2);
+    Node* cache_length =
+        NewNode(javascript()->CallRuntime(Runtime::kForInCacheArrayLength, 2),
+                cache_type, cache_array);
     {
       // TODO(dcarney): this check is actually supposed to be for the
       //                empty enum case only.
@@ -749,16 +745,10 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
     Node* function = BuildLoadObjectField(
         builtins,
         JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
-    // Callee.
-    environment()->Push(function);
-    // Receiver.
-    environment()->Push(obj);
-    // Args.
-    environment()->Push(value);
     // result is either the string key or Smi(0) indicating the property
     // is gone.
-    Node* res = ProcessArguments(
-        javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS), 3);
+    Node* res = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                        function, obj, value);
     // TODO(jarin): provide real bailout id.
     PrepareFrameState(res, BailoutId::None());
     Node* property_missing =
