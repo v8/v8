@@ -682,6 +682,9 @@ class Step(GitRecipesMixin):
         line = re.sub("\d+$", self[prefix + "build"], line)
       elif line.startswith("#define PATCH_LEVEL"):
         line = re.sub("\d+$", self[prefix + "patch"], line)
+      elif (self[prefix + "candidate"] and
+            line.startswith("#define IS_CANDIDATE_VERSION")):
+        line = re.sub("\d+$", self[prefix + "candidate"], line)
       output += "%s\n" % line
     TextToFile(output, version_file)
 
