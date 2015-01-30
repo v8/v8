@@ -159,13 +159,13 @@ void DeclarationContext::Check(const char* source,
   if (expectations == EXPECT_RESULT) {
     CHECK(!catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK(value->Equals(result));
+      CHECK_EQ(value, result);
     }
   } else {
     CHECK(expectations == EXPECT_EXCEPTION);
     CHECK(catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK(value->Equals(catcher.Exception()));
+      CHECK_EQ(value, catcher.Exception());
     }
   }
   // Clean slate for the next test.
@@ -580,13 +580,13 @@ class SimpleContext {
     if (expectations == EXPECT_RESULT) {
       CHECK(!catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK(value->Equals(result));
+        CHECK_EQ(value, result);
       }
     } else {
       CHECK(expectations == EXPECT_EXCEPTION);
       CHECK(catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK(value->Equals(catcher.Exception()));
+        CHECK_EQ(value, catcher.Exception());
       }
     }
   }

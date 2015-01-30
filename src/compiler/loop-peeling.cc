@@ -268,7 +268,7 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
         }
       }
       // There should be a merge or a return for each exit.
-      CHECK(found);
+      CHECK_NE(NULL, found);
     }
     // Return nodes, the end merge, and the phis associated with the end merge
     // must be duplicated as well.

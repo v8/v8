@@ -266,7 +266,7 @@ class CFGBuilder : public ZoneObject {
       // single-exit region that makes up a minimal component to be scheduled.
       if (IsSingleEntrySingleExitRegion(node, exit)) {
         Trace("Found SESE at #%d:%s\n", node->id(), node->op()->mnemonic());
-        DCHECK(!component_entry_);
+        DCHECK_EQ(NULL, component_entry_);
         component_entry_ = node;
         continue;
       }
@@ -276,7 +276,7 @@ class CFGBuilder : public ZoneObject {
         Queue(node->InputAt(i));
       }
     }
-    DCHECK(component_entry_);
+    DCHECK_NE(NULL, component_entry_);
 
     for (NodeVector::iterator i = control_.begin(); i != control_.end(); ++i) {
       ConnectBlocks(*i);  // Connect block to its predecessor/successors.
@@ -370,16 +370,16 @@ class CFGBuilder : public ZoneObject {
     buffer[1] = NULL;
     for (Node* use : node->uses()) {
       if (use->opcode() == true_opcode) {
-        DCHECK(!buffer[0]);
+        DCHECK_EQ(NULL, buffer[0]);
         buffer[0] = use;
       }
       if (use->opcode() == false_opcode) {
-        DCHECK(!buffer[1]);
+        DCHECK_EQ(NULL, buffer[1]);
         buffer[1] = use;
       }
     }
-    DCHECK(buffer[0]);
-    DCHECK(buffer[1]);
+    DCHECK_NE(NULL, buffer[0]);
+    DCHECK_NE(NULL, buffer[1]);
   }
 
   void CollectSuccessorBlocks(Node* node, BasicBlock** buffer,
@@ -448,7 +448,7 @@ class CFGBuilder : public ZoneObject {
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {
-    DCHECK(block);
+    DCHECK_NE(NULL, block);
     if (succ == NULL) {
       Trace("Connect #%d:%s, B%d -> end\n", node->id(), node->op()->mnemonic(),
             block->id().ToInt());
@@ -533,7 +533,7 @@ class SpecialRPONumberer : public ZoneObject {
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
     DCHECK(schedule_->end()->SuccessorCount() == 0);
-    DCHECK(!order_);  // Main order does not exist yet.
+    DCHECK_EQ(NULL, order_);  // Main order does not exist yet.
     ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
   }
 
@@ -541,7 +541,7 @@ class SpecialRPONumberer : public ZoneObject {
   // that is for the graph spanned between the given {entry} and {end} blocks,
   // then updates the existing ordering with this new information.
   void UpdateSpecialRPO(BasicBlock* entry, BasicBlock* end) {
-    DCHECK(order_);  // Main order to be updated is present.
+    DCHECK_NE(NULL, order_);  // Main order to be updated is present.
     ComputeAndInsertSpecialRPO(entry, end);
   }
 

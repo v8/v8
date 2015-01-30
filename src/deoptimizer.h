@@ -95,9 +95,10 @@ class Deoptimizer : public Malloced {
     SOFT,
     // This last bailout type is not really a bailout, but used by the
     // debugger to deoptimize stack frames to allow inspection.
-    DEBUGGER,
-    kBailoutTypesWithCodeEntry = SOFT + 1
+    DEBUGGER
   };
+
+  static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
   struct Reason {
     Reason(int r, const char* m, const char* d)

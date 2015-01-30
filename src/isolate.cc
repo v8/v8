@@ -1560,7 +1560,7 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
   // TODO(svenpanne) The assertion below would fire if an embedder does not
   // cleanly dispose all Isolates before disposing v8, so we are conservative
   // and leave it out for now.
-  // DCHECK_NULL(list_);
+  // DCHECK_EQ(NULL, list_);
 }
 
 

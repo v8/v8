@@ -58,7 +58,7 @@ static uint32_t Encode(const ExternalReferenceEncoder& encoder, T id) {
 }
 
 
-static uint32_t make_code(TypeCode type, int id) {
+static int make_code(TypeCode type, int id) {
   return static_cast<uint32_t>(type) << kReferenceTypeShift | id;
 }
 

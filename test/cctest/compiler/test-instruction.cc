@@ -135,7 +135,7 @@ TEST(InstructionBasic) {
   for (auto block : *blocks) {
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
     CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
-    CHECK(!block->loop_end());
+    CHECK_EQ(NULL, block->loop_end());
   }
 }
 
@@ -278,7 +278,7 @@ TEST(InstructionAddGapMove) {
     R.code->AddGapMove(index, op1, op2);
     GapInstruction* gap = R.code->GapAt(index);
     ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
-    CHECK(move);
+    CHECK_NE(NULL, move);
     const ZoneList<MoveOperands>* move_operands = move->move_operands();
     CHECK_EQ(1, move_operands->length());
     MoveOperands* cur = &move_operands->at(0);

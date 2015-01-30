@@ -5,8 +5,7 @@
 #ifndef V8_BASE_PLATFORM_TIME_H_
 #define V8_BASE_PLATFORM_TIME_H_
 
-#include <ctime>
-#include <iosfwd>
+#include <time.h>
 #include <limits>
 
 #include "src/base/macros.h"
@@ -280,8 +279,6 @@ class Time FINAL {
   // Time in microseconds in UTC.
   int64_t us_;
 };
-
-std::ostream& operator<<(std::ostream&, const Time&);
 
 inline Time operator+(const TimeDelta& delta, const Time& time) {
   return time + delta;

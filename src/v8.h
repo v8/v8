@@ -73,7 +73,7 @@ class V8 : public AllStatic {
   }
 
   static void SetArrayBufferAllocator(v8::ArrayBuffer::Allocator *allocator) {
-    CHECK_NULL(array_buffer_allocator_);
+    CHECK_EQ(NULL, array_buffer_allocator_);
     array_buffer_allocator_ = allocator;
   }
 

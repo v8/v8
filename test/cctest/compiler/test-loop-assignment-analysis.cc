@@ -37,18 +37,18 @@ struct TestHelper : public HandleAndZoneScope {
 
     Scope* scope = info.function()->scope();
     AstValueFactory* factory = info.ast_value_factory();
-    CHECK(scope);
+    CHECK_NE(NULL, scope);
 
     if (result == NULL) {
       AstLoopAssignmentAnalyzer analyzer(main_zone(), &info);
       result = analyzer.Analyze();
-      CHECK(result);
+      CHECK_NE(NULL, result);
     }
 
     const i::AstRawString* name = factory->GetOneByteString(var_name);
 
     i::Variable* var = scope->Lookup(name);
-    CHECK(var);
+    CHECK_NE(NULL, var);
 
     if (var->location() == Variable::UNALLOCATED) {
       CHECK_EQ(0, expected);

@@ -109,7 +109,7 @@ static void CheckParseEq(const char* input, const char* expected) {
   CHECK(result.error.is_null());
   std::ostringstream os;
   result.tree->Print(os, &zone);
-  CHECK_EQ(0, strcmp(expected, os.str().c_str()));
+  CHECK_EQ(expected, os.str().c_str());
 }
 
 
@@ -414,7 +414,7 @@ static void ExpectError(const char* input,
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
-  CHECK_EQ(0, strcmp(expected, str.get()));
+  CHECK_EQ(expected, str.get());
 }
 
 
@@ -572,7 +572,7 @@ TEST(SplayTreeSimple) {
   } while (false)
   for (int i = 0; i < 50; i++) {
     for (int j = 0; j < 50; j++) {
-      int next = PseudoRandom(i, j) % kLimit;
+      unsigned next = PseudoRandom(i, j) % kLimit;
       if (seen[next]) {
         // We've already seen this one.  Check the value and remove
         // it.
@@ -1487,8 +1487,8 @@ static uc32 canonicalize(uc32 c) {
 
 TEST(LatinCanonicalize) {
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
-  for (unibrow::uchar lower = 'a'; lower <= 'z'; lower++) {
-    unibrow::uchar upper = lower + ('A' - 'a');
+  for (char lower = 'a'; lower <= 'z'; lower++) {
+    char upper = lower + ('A' - 'a');
     CHECK_EQ(canonicalize(lower), canonicalize(upper));
     unibrow::uchar uncanon[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int length = un_canonicalize.get(lower, '\0', uncanon);

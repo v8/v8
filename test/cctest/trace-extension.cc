@@ -130,14 +130,14 @@ void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 Address TraceExtension::GetJsEntrySp() {
-  CHECK(CcTest::i_isolate()->thread_local_top());
+  CHECK_NE(NULL, CcTest::i_isolate()->thread_local_top());
   return CcTest::i_isolate()->js_entry_sp();
 }
 
 
 void TraceExtension::JSEntrySP(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(GetJsEntrySp());
+  CHECK_NE(0, GetJsEntrySp());
 }
 
 
@@ -145,7 +145,7 @@ void TraceExtension::JSEntrySPLevel2(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(args.GetIsolate());
   const Address js_entry_sp = GetJsEntrySp();
-  CHECK(js_entry_sp);
+  CHECK_NE(0, js_entry_sp);
   CompileRun("js_entry_sp();");
   CHECK_EQ(js_entry_sp, GetJsEntrySp());
 }

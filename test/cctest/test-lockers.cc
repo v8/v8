@@ -67,8 +67,7 @@ class KangarooThread : public v8::base::Thread {
     {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
-      CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate_),
-               v8::internal::Isolate::Current());
+      CHECK_EQ(isolate_, v8::internal::Isolate::Current());
       v8::HandleScope scope(isolate_);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate_, context_);
@@ -107,8 +106,7 @@ TEST(KangarooIsolates) {
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
-    CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate),
-             v8::internal::Isolate::Current());
+    CHECK_EQ(isolate, v8::internal::Isolate::Current());
     CompileRun("function getValue() { return 30; }");
     thread1.Reset(new KangarooThread(isolate, context));
   }
@@ -186,8 +184,7 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
     LocalContext local_context(isolate_);
-    CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate_),
-             v8::internal::Isolate::Current());
+    CHECK_EQ(isolate_, v8::internal::Isolate::Current());
     CalcFibAndCheck();
   }
  private:

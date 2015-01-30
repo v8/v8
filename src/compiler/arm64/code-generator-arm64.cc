@@ -846,7 +846,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   // Materialize a full 64-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
-  DCHECK_NE(0u, instr->OutputCount());
+  DCHECK_NE(0, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = FlagsConditionToCondition(condition);
   __ Cset(reg, cc);

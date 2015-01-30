@@ -448,7 +448,7 @@ class V8_EXPORT HeapProfiler {
    * it in case heap profiler cannot find id  for the object passed as
    * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.
    */
-  enum { kUnknownObjectId };
+  static const SnapshotObjectId kUnknownObjectId = 0;
 
   /**
    * Callback interface for retrieving user friendly names of global objects.

@@ -9589,7 +9589,7 @@ FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-    DCHECK_NOT_NULL(cached_literals);
+    DCHECK_NE(NULL, cached_literals);
     return cached_literals;
   }
   return NULL;
@@ -9600,7 +9600,7 @@ Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
   DCHECK(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   Code* code = Code::cast(code_map->get(index));
-  DCHECK_NOT_NULL(code);
+  DCHECK_NE(NULL, code);
   return code;
 }
 

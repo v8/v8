@@ -276,11 +276,11 @@ TEST(JsEntrySp) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
   v8::Context::Scope context_scope(context);
-  CHECK(!i::TraceExtension::GetJsEntrySp());
+  CHECK_EQ(0, i::TraceExtension::GetJsEntrySp());
   CompileRun("a = 1; b = a + 1;");
-  CHECK(!i::TraceExtension::GetJsEntrySp());
+  CHECK_EQ(0, i::TraceExtension::GetJsEntrySp());
   CompileRun("js_entry_sp();");
-  CHECK(!i::TraceExtension::GetJsEntrySp());
+  CHECK_EQ(0, i::TraceExtension::GetJsEntrySp());
   CompileRun("js_entry_sp_level2();");
-  CHECK(!i::TraceExtension::GetJsEntrySp());
+  CHECK_EQ(0, i::TraceExtension::GetJsEntrySp());
 }

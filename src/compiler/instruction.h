@@ -520,7 +520,7 @@ class Instruction : public ZoneObject {
 
   void set_pointer_map(PointerMap* map) {
     DCHECK(NeedsPointerMap());
-    DCHECK(!pointer_map_);
+    DCHECK_EQ(NULL, pointer_map_);
     pointer_map_ = map;
   }
 

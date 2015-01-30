@@ -6,7 +6,6 @@
 
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -59,7 +58,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
     CHECK(m.HasValue());
-    CheckDoubleEq(expected, m.Value());
+    CHECK_EQ(expected, m.Value());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
@@ -78,7 +77,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
     CHECK(m.HasValue());
-    CheckDoubleEq(expected, m.Value());
+    CHECK_EQ(expected, m.Value());
   }
 
   Node* Parameter(int index = 0) {

@@ -2820,7 +2820,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ Sdiv(result, dividend, divisor);
 
   if (hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
-    DCHECK(!instr->temp());
+    DCHECK_EQ(NULL, instr->temp());
     return;
   }
 

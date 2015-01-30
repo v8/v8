@@ -123,7 +123,8 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
     return KindMaybeSmi(left_kind_) || KindMaybeSmi(right_kind_);
   }
 
-  enum { FIRST_TOKEN = Token::BIT_OR, LAST_TOKEN = Token::MOD };
+  static const int FIRST_TOKEN = Token::BIT_OR;
+  static const int LAST_TOKEN = Token::MOD;
 
   Token::Value op() const { return op_; }
   OverwriteMode mode() const { return mode_; }
