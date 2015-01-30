@@ -291,7 +291,6 @@ namespace internal {
   V(uninitialized_symbol)           \
   V(megamorphic_symbol)             \
   V(premonomorphic_symbol)          \
-  V(generic_symbol)                 \
   V(stack_trace_symbol)             \
   V(detailed_stack_trace_symbol)    \
   V(normal_ic_symbol)               \

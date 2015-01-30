@@ -637,10 +637,10 @@ void IC::ConfigureVectorState(IC::State new_state) {
     }
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    if (new_state == GENERIC) {
-      nexus->ConfigureGeneric();
-    } else if (new_state == PREMONOMORPHIC) {
+    if (new_state == PREMONOMORPHIC) {
       nexus->ConfigurePremonomorphic();
+    } else if (new_state == MEGAMORPHIC) {
+      nexus->ConfigureMegamorphic();
     } else {
       UNREACHABLE();
     }
@@ -704,7 +704,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) {
       if (UseVector()) {
-        ConfigureVectorState(GENERIC);
+        ConfigureVectorState(MEGAMORPHIC);
       } else {
         set_target(*megamorphic_stub());
       }
@@ -1433,7 +1433,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     if (!is_vector_set() || stub.is_null()) {
       Code* generic = *megamorphic_stub();
       if (!stub.is_null() && *stub == generic) {
-        ConfigureVectorState(GENERIC);
+        ConfigureVectorState(MEGAMORPHIC);
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
 

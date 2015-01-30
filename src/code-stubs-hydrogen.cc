@@ -2171,14 +2171,15 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
   }
   array_checker.Else();
   {
-    // Check if the IC is in generic state.
-    IfBuilder generic_checker(this);
-    HConstant* generic_symbol =
-        Add<HConstant>(isolate()->factory()->generic_symbol());
-    generic_checker.If<HCompareObjectEqAndBranch>(feedback, generic_symbol);
-    generic_checker.Then();
+    // Check if the IC is in megamorphic state.
+    IfBuilder megamorphic_checker(this);
+    HConstant* megamorphic_symbol =
+        Add<HConstant>(isolate()->factory()->megamorphic_symbol());
+    megamorphic_checker.If<HCompareObjectEqAndBranch>(feedback,
+                                                      megamorphic_symbol);
+    megamorphic_checker.Then();
     {
-      // Tail-call to the generic KeyedLoadIC, treating it like a handler.
+      // Tail-call to the megamorphic KeyedLoadIC, treating it like a handler.
       Handle<Code> stub = KeyedLoadIC::ChooseMegamorphicStub(isolate());
       HValue* constant_stub = Add<HConstant>(stub);
       LoadDescriptor descriptor(isolate());
@@ -2187,7 +2188,7 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
                                Vector<HValue*>(op_vals, 3), TAIL_CALL);
       // We never return here, it is a tail call.
     }
-    generic_checker.End();
+    megamorphic_checker.End();
   }
   array_checker.End();
 
