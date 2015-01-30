@@ -1356,6 +1356,7 @@ enum ParserFlag {
   kAllowHarmonyArrowFunctions,
   kAllowHarmonyClasses,
   kAllowHarmonyObjectLiterals,
+  kAllowHarmonyRestParameters,
   kAllowHarmonyTemplates,
   kAllowHarmonySloppy,
   kAllowHarmonyUnicode,
@@ -1384,6 +1385,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyArrowFunctions));
   parser->set_allow_harmony_classes(flags.Contains(kAllowHarmonyClasses));
   parser->set_allow_harmony_templates(flags.Contains(kAllowHarmonyTemplates));
+  parser->set_allow_harmony_rest_params(
+      flags.Contains(kAllowHarmonyRestParameters));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
   parser->set_allow_harmony_computed_property_names(
@@ -4564,6 +4567,66 @@ TEST(TemplateLiteralsIllegalTokens) {
       NULL};
 
   static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ParseRestParameters) {
+  const char* context_data[][2] = {{"'use strict';(function(",
+                                    "){ return args;})(1, [], /regexp/, 'str',"
+                                    "function(){});"},
+                                   {"(function(", "){ return args;})(1, [],"
+                                    "/regexp/, 'str', function(){});"},
+                                  {NULL, NULL}};
+
+  const char* data[] = {
+    "...args",
+    "a, ...args",
+    "...   args",
+    "a, ...   args",
+    "...\targs",
+    "a, ...\targs",
+    "...\r\nargs",
+    "a, ...\r\nargs",
+    "...\rargs",
+    "a, ...\rargs",
+    "...\t\n\t\t\n  args",
+    "a, ...  \n  \n  args",
+    NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyRestParameters};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ParseRestParametersErrors) {
+  const char* context_data[][2] = {{"'use strict';(function(",
+                                    "){ return args;}(1, [], /regexp/, 'str',"
+                                    "function(){});"},
+                                   {"(function(", "){ return args;}(1, [],"
+                                    "/regexp/, 'str', function(){});"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "...args, b",
+      "a, ...args, b",
+      "...args,   b",
+      "a, ...args,   b",
+      "...args,\tb",
+      "a,...args\t,b",
+      "...args\r\n, b",
+      "a, ... args,\r\nb",
+      "...args\r,b",
+      "a, ... args,\rb",
+      "...args\t\n\t\t\n,  b",
+      "a, ... args,  \n  \n  b",
+      "a, a, ...args",
+      "a,\ta, ...args",
+      "a,\ra, ...args",
+      "a,\na, ...args",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyRestParameters};
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }

@@ -126,7 +126,8 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  Variable* DeclareParameter(const AstRawString* name, VariableMode mode);
+  Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
+                             bool is_rest = false);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -358,7 +359,31 @@ class Scope: public ZoneObject {
     return params_[index];
   }
 
+  // Returns the default function arity --- does not include rest parameters.
+  int default_function_length() const {
+    int count = params_.length();
+    if (rest_index_ >= 0) {
+      DCHECK(count > 0);
+      DCHECK(is_function_scope());
+      --count;
+    }
+    return count;
+  }
+
   int num_parameters() const { return params_.length(); }
+
+  // A function can have at most one rest parameter. Returns Variable* or NULL.
+  Variable* rest_parameter(int* index) const {
+    *index = rest_index_;
+    if (rest_index_ < 0) return NULL;
+    return rest_parameter_;
+  }
+
+  bool is_simple_parameter_list() const {
+    DCHECK(is_function_scope());
+    if (rest_index_ >= 0) return false;
+    return true;
+  }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
   Variable* arguments() const { return arguments_; }
@@ -554,6 +579,10 @@ class Scope: public ZoneObject {
 
   // For module scopes, the host scope's internal variable binding this module.
   Variable* module_var_;
+
+  // Rest parameter
+  Variable* rest_parameter_;
+  int rest_index_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;

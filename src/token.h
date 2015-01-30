@@ -40,6 +40,7 @@ namespace internal {
   T(COLON, ":", 0)                                                   \
   T(SEMICOLON, ";", 0)                                               \
   T(PERIOD, ".", 0)                                                  \
+  T(ELLIPSIS, "...", 0)                                               \
   T(CONDITIONAL, "?", 3)                                             \
   T(INC, "++", 0)                                                    \
   T(DEC, "--", 0)                                                    \

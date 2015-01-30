@@ -816,6 +816,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_harmony_unicode(FLAG_harmony_unicode);
   set_allow_harmony_computed_property_names(
       FLAG_harmony_computed_property_names);
+  set_allow_harmony_rest_params(FLAG_harmony_rest_parameters);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -3675,11 +3676,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
 
+    bool is_rest = false;
     bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
         (peek() == Token::RPAREN &&
          arity_restriction != FunctionLiteral::SETTER_ARITY);
     while (!done) {
       bool is_strict_reserved = false;
+      is_rest = peek() == Token::ELLIPSIS && allow_harmony_rest_params();
+      if (is_rest) {
+        Consume(Token::ELLIPSIS);
+      }
+
       const AstRawString* param_name =
           ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
 
@@ -3695,7 +3702,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         dupe_error_loc = scanner()->location();
       }
 
-      Variable* var = scope_->DeclareParameter(param_name, VAR);
+      Variable* var = scope_->DeclareParameter(param_name, VAR, is_rest);
       if (scope->strict_mode() == SLOPPY) {
         // TODO(sigurds) Mark every parameter as maybe assigned. This is a
         // conservative approximation necessary to account for parameters
@@ -3711,7 +3718,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
       if (arity_restriction == FunctionLiteral::SETTER_ARITY) break;
       done = (peek() == Token::RPAREN);
-      if (!done) Expect(Token::COMMA, CHECK_OK);
+      if (!done) {
+        if (is_rest) {
+          ReportMessageAt(scanner()->peek_location(), "param_after_rest");
+          *ok = false;
+          return NULL;
+        }
+        Expect(Token::COMMA, CHECK_OK);
+      }
     }
     Expect(Token::RPAREN, CHECK_OK);
 
@@ -3794,7 +3808,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Validate strict mode.
     // Concise methods use StrictFormalParameters.
-    if (strict_mode() == STRICT || IsConciseMethod(kind)) {
+    // Functions for which IsSimpleParameterList() returns false use
+    // StrictFormalParameters.
+    if (strict_mode() == STRICT || IsConciseMethod(kind) || is_rest) {
       CheckStrictFunctionNameAndParameters(function_name,
                                            name_is_strict_reserved,
                                            function_name_location,
@@ -3979,6 +3995,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_unicode(allow_harmony_unicode());
     reusable_preparser_->set_allow_harmony_computed_property_names(
         allow_harmony_computed_property_names());
+    reusable_preparser_->set_allow_harmony_rest_params(
+        allow_harmony_rest_params());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),

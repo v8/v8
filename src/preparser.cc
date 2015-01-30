@@ -878,11 +878,17 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Scanner::Location dupe_error_loc = Scanner::Location::invalid();
   Scanner::Location reserved_error_loc = Scanner::Location::invalid();
 
+  bool is_rest = false;
   bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
       (peek() == Token::RPAREN &&
        arity_restriction != FunctionLiteral::SETTER_ARITY);
   while (!done) {
     bool is_strict_reserved = false;
+    is_rest = peek() == Token::ELLIPSIS && allow_harmony_rest_params();
+    if (is_rest) {
+      Consume(Token::ELLIPSIS);
+    }
+
     Identifier param_name =
         ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
     if (!eval_args_error_loc.IsValid() && param_name.IsEvalOrArguments()) {
@@ -900,7 +906,14 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
     if (arity_restriction == FunctionLiteral::SETTER_ARITY) break;
     done = (peek() == Token::RPAREN);
-    if (!done) Expect(Token::COMMA, CHECK_OK);
+    if (!done) {
+      if (is_rest) {
+        ReportMessageAt(scanner()->peek_location(), "param_after_rest");
+        *ok = false;
+        return Expression::Default();
+      }
+      Expect(Token::COMMA, CHECK_OK);
+    }
   }
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -921,7 +934,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Validate strict mode. We can do this only after parsing the function,
   // since the function can declare itself strict.
   // Concise methods use StrictFormalParameters.
-  if (strict_mode() == STRICT || IsConciseMethod(kind)) {
+  if (strict_mode() == STRICT || IsConciseMethod(kind) || is_rest) {
     if (function_name.IsEvalOrArguments()) {
       ReportMessageAt(function_name_location, "strict_eval_arguments");
       *ok = false;
