@@ -755,8 +755,9 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
-  void* ParseModuleDeclarationClause(ZoneList<const AstRawString*>* names,
-                                     bool* ok);
+  void* ParseExportClause(ZoneList<const AstRawString*>* names,
+                          Scanner::Location* reserved_loc, bool* ok);
+  void* ParseNamedImports(ZoneList<const AstRawString*>* names, bool* ok);
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
