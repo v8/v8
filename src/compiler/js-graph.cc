@@ -4,7 +4,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 
 namespace v8 {

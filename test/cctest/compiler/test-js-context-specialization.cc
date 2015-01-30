@@ -5,7 +5,7 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/source-position.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"

@@ -754,7 +754,7 @@ TEST(SerializeToplevelOnePlusOne) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      orig_source, Handle<String>(), 0, 0, false,
+      orig_source, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -764,7 +764,7 @@ TEST(SerializeToplevelOnePlusOne) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        copy_source, Handle<String>(), 0, 0, false,
+        copy_source, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -809,7 +809,7 @@ TEST(SerializeToplevelInternalizedString) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      orig_source, Handle<String>(), 0, 0, false,
+      orig_source, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   Handle<JSFunction> orig_fun =
@@ -825,7 +825,7 @@ TEST(SerializeToplevelInternalizedString) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        copy_source, Handle<String>(), 0, 0, false,
+        copy_source, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -868,7 +868,7 @@ TEST(SerializeToplevelLargeCodeObject) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false,
+      source_str, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -878,7 +878,7 @@ TEST(SerializeToplevelLargeCodeObject) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false,
+        source_str, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -924,7 +924,7 @@ TEST(SerializeToplevelLargeStrings) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false,
+      source_str, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -932,7 +932,7 @@ TEST(SerializeToplevelLargeStrings) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false,
+        source_str, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -997,7 +997,7 @@ TEST(SerializeToplevelThreeBigStrings) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false,
+      source_str, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -1005,7 +1005,7 @@ TEST(SerializeToplevelThreeBigStrings) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false,
+        source_str, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -1105,7 +1105,7 @@ TEST(SerializeToplevelExternalString) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_string, Handle<String>(), 0, 0, false,
+      source_string, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -1113,7 +1113,7 @@ TEST(SerializeToplevelExternalString) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_string, Handle<String>(), 0, 0, false,
+        source_string, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -1167,7 +1167,7 @@ TEST(SerializeToplevelLargeExternalString) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false,
+      source_str, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -1175,7 +1175,7 @@ TEST(SerializeToplevelLargeExternalString) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false,
+        source_str, Handle<String>(), 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
@@ -1221,7 +1221,7 @@ TEST(SerializeToplevelExternalScriptName) {
   ScriptData* cache = NULL;
 
   Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_string, name, 0, 0, false,
+      source_string, name, 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, &cache,
       v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
@@ -1229,7 +1229,7 @@ TEST(SerializeToplevelExternalScriptName) {
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = Compiler::CompileScript(
-        source_string, name, 0, 0, false,
+        source_string, name, 0, 0, false, false,
         Handle<Context>(isolate->native_context()), NULL, &cache,
         v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }

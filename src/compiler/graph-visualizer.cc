@@ -12,9 +12,9 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -60,18 +60,20 @@ class Escaped {
 
 class JSONGraphNodeWriter {
  public:
-  JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph)
-      : os_(os), all_(zone, graph), first_node_(true) {}
+  JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
+                      const SourcePositionTable* positions)
+      : os_(os), all_(zone, graph), positions_(positions), first_node_(true) {}
 
   void Print() {
     for (Node* const node : all_.live) PrintNode(node);
+    os_ << "\n";
   }
 
   void PrintNode(Node* node) {
     if (first_node_) {
       first_node_ = false;
     } else {
-      os_ << ",";
+      os_ << ",\n";
     }
     std::ostringstream label;
     label << *node->op();
@@ -91,6 +93,11 @@ class JSONGraphNodeWriter {
     if (opcode == IrOpcode::kBranch) {
       os_ << ",\"rankInputs\":[0]";
     }
+    SourcePosition position = positions_->GetSourcePosition(node);
+    if (!position.IsUnknown()) {
+      DCHECK(!position.IsInvalid());
+      os_ << ",\"pos\":" << position.raw();
+    }
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                                : "false");
@@ -100,6 +107,7 @@ class JSONGraphNodeWriter {
  private:
   std::ostream& os_;
   AllNodes all_;
+  const SourcePositionTable* positions_;
   bool first_node_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
@@ -113,6 +121,7 @@ class JSONGraphEdgeWriter {
 
   void Print() {
     for (Node* const node : all_.live) PrintEdges(node);
+    os_ << "\n";
   }
 
   void PrintEdges(Node* node) {
@@ -127,7 +136,7 @@ class JSONGraphEdgeWriter {
     if (first_edge_) {
       first_edge_ = false;
     } else {
-      os_ << ",";
+      os_ << ",\n";
     }
     const char* edge_type = NULL;
     if (index < NodeProperties::FirstValueIndex(from)) {
@@ -158,9 +167,9 @@ class JSONGraphEdgeWriter {
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
   Zone tmp_zone;
-  os << "{\"nodes\":[";
-  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph).Print();
-  os << "],\"edges\":[";
+  os << "{\n\"nodes\":[";
+  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
+  os << "],\n\"edges\":[";
   JSONGraphEdgeWriter(os, &tmp_zone, &ad.graph).Print();
   os << "]}";
   return os;
@@ -274,7 +283,7 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
 
 
 static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
-  if (IrOpcode::IsPhiOpcode(from->opcode())) {
+  if (NodeProperties::IsPhi(from)) {
     Node* control = NodeProperties::GetControlInput(from, 0);
     return control != NULL && control->opcode() != IrOpcode::kMerge &&
            control != to && index != 0;

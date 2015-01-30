@@ -326,15 +326,15 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK_EQ(outputs[z], m->OutputAt(z));
+          CHECK(outputs[z]->Equals(m->OutputAt(z)));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK_EQ(inputs[z], m->InputAt(z));
+          CHECK(inputs[z]->Equals(m->InputAt(z)));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK_EQ(temps[z], m->TempAt(z));
+          CHECK(temps[z]->Equals(m->TempAt(z)));
         }
       }
     }

@@ -7,7 +7,7 @@
 #include "src/compiler/loop-peeling.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone.h"
 
 // Loop peeling is an optimization that copies the body of a loop, creating
@@ -276,7 +276,7 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
     if (end != NULL) {
       exits.push_back(end);
       for (Node* use : end->uses()) {
-        if (IrOpcode::IsPhiOpcode(use->opcode())) exits.push_back(use);
+        if (NodeProperties::IsPhi(use)) exits.push_back(use);
       }
     }
   }

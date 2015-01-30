@@ -72,10 +72,9 @@ class CompilationCacheScript : public CompilationSubCache {
  public:
   CompilationCacheScript(Isolate* isolate, int generations);
 
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Object> name,
-                                    int line_offset,
-                                    int column_offset,
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source, Handle<Object> name,
+                                    int line_offset, int column_offset,
+                                    bool is_embedder_debug_script,
                                     bool is_shared_cross_origin,
                                     Handle<Context> context);
   void Put(Handle<String> source,
@@ -83,11 +82,9 @@ class CompilationCacheScript : public CompilationSubCache {
            Handle<SharedFunctionInfo> function_info);
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 Handle<Object> name,
-                 int line_offset,
-                 int column_offset,
-                 bool is_shared_cross_origin);
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info, Handle<Object> name,
+                 int line_offset, int column_offset,
+                 bool is_embedder_debug_script, bool is_shared_cross_origin);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
@@ -150,7 +147,8 @@ class CompilationCache {
   // script for the given source string with the right origin.
   MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<String> source, Handle<Object> name, int line_offset,
-      int column_offset, bool is_shared_cross_origin, Handle<Context> context);
+      int column_offset, bool is_embedder_debug_script,
+      bool is_shared_cross_origin, Handle<Context> context);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't

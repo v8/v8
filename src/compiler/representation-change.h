@@ -10,7 +10,6 @@
 #include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {

@@ -217,21 +217,6 @@ class RetrieveV8Releases(Step):
         git_hash, master_position, master_hash, branch, version,
         patches, body), self["patch"]
 
-  def GetReleasesFromMaster(self):
-    # TODO(machenbach): Implement this in git as soon as we tag again on
-    # master.
-    # tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v
-    # --limit 20")
-    # releases = []
-    # for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
-    #   git_hash = self.vc.SvnGit(revision)
-
-      # Add bleeding edge release. It does not contain patches or a code
-      # review link, as tags are not uploaded.
-    #   releases.append(self.GetReleaseDict(
-    #     git_hash, revision, git_hash, self.vc.MasterBranch(), tag, "", ""))
-    return []
-
   def GetReleasesFromBranch(self, branch):
     self.GitReset(self.vc.RemoteBranch(branch))
     if branch == self.vc.MasterBranch():
@@ -265,28 +250,58 @@ class RetrieveV8Releases(Step):
     self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
     return releases
 
+  def GetReleaseFromRevision(self, revision):
+    releases = []
+    try:
+      if (VERSION_FILE not in self.GitChangedFiles(revision) or
+          not self.GitCheckoutFileSafe(VERSION_FILE, revision)):
+        print "Skipping revision %s" % revision
+        return []  # pragma: no cover
+
+      branches = map(
+          str.strip,
+          self.Git("branch -r --contains %s" % revision).strip().splitlines(),
+      )
+      branch = ""
+      for b in branches:
+        if b == "origin/candidates":
+          branch = "candidates"
+          break
+        if b.startswith("branch-heads/"):
+          branch = b.split("branch-heads/")[1]
+          break
+      else:
+        print "Could not determine branch for %s" % revision
+
+      release, _ = self.GetRelease(revision, branch)
+      releases.append(release)
+
+    # Allow Ctrl-C interrupt.
+    except (KeyboardInterrupt, SystemExit):  # pragma: no cover
+      pass
+
+    # Clean up checked-out version file.
+    self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
+    return releases
+
+
   def RunStep(self):
     self.GitCreateBranch(self._config["BRANCHNAME"])
-    branches = self.vc.GetBranches()
     releases = []
     if self._options.branch == 'recent':
-      # Get only recent development on candidates, beta and stable.
-      if self._options.max_releases == 0:  # pragma: no cover
-        self._options.max_releases = 10
-      beta, stable = SortBranches(branches)[0:2]
-      releases += self.GetReleasesFromBranch(stable)
-      releases += self.GetReleasesFromBranch(beta)
-      releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
-      releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
+      # List every release from the last 7 days.
+      revisions = self.GetRecentReleases(max_age=7 * 24 * 60 * 60)
+      for revision in revisions:
+        releases += self.GetReleaseFromRevision(revision)
     elif self._options.branch == 'all':  # pragma: no cover
       # Retrieve the full release history.
-      for branch in branches:
+      for branch in self.vc.GetBranches():
         releases += self.GetReleasesFromBranch(branch)
       releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
       releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
     else:  # pragma: no cover
       # Retrieve history for a specified branch.
-      assert self._options.branch in (branches +
+      assert self._options.branch in (self.vc.GetBranches() +
           [self.vc.CandidateBranch(), self.vc.MasterBranch()])
       releases += self.GetReleasesFromBranch(self._options.branch)
 

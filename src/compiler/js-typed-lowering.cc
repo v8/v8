@@ -7,7 +7,8 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -854,8 +855,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
-  if (!IrOpcode::IsConstantOpcode(node->opcode()) &&
-      NodeProperties::IsTyped(node) &&
+  if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable)) {
     Type* upper = NodeProperties::GetBounds(node).upper;
     if (upper->IsConstant()) {

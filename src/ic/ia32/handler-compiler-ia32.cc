@@ -18,16 +18,20 @@ namespace internal {
 
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
       // Call the JavaScript getter with the receiver on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ mov(receiver,
+        __ mov(scratch,
                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       ParameterCount actual(0);
@@ -140,28 +144,34 @@ void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
 // when api call ICs are generated in hydrogen.
 void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
-    Handle<Map> receiver_map, Register receiver, Register scratch_in,
-    bool is_store, Register store_parameter) {
+    Handle<Map> receiver_map, Register receiver, Register scratch,
+    bool is_store, Register store_parameter, Register accessor_holder,
+    int accessor_index) {
+  DCHECK(!accessor_holder.is(scratch));
   // Copy return value.
-  __ pop(scratch_in);
+  __ pop(scratch);
   // receiver
   __ push(receiver);
   // Write the arguments to stack frame.
   if (is_store) {
     DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch_in.is(store_parameter));
+    DCHECK(!scratch.is(store_parameter));
     __ push(store_parameter);
   }
-  __ push(scratch_in);
+  __ push(scratch);
   // Stack now matches JSFunction abi.
   DCHECK(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
   Register callee = edi;
-  Register call_data = ebx;
+  Register data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
-  Register scratch = eax;  // scratch_in is no longer valid.
+  scratch = no_reg;
+
+  // Put callee in place.
+  __ LoadAccessor(callee, accessor_holder, accessor_index,
+                  is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
 
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
@@ -180,23 +190,17 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   }
 
   Isolate* isolate = masm->isolate();
-  Handle<JSFunction> function = optimization.constant_function();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
-  // Put callee in place.
-  __ LoadHeapObject(callee, function);
-
   bool call_data_undefined = false;
-  // Put call_data in place.
-  if (isolate->heap()->InNewSpace(*call_data_obj)) {
-    __ mov(scratch, api_call_info);
-    __ mov(call_data, FieldOperand(scratch, CallHandlerInfo::kDataOffset));
-  } else if (call_data_obj->IsUndefined()) {
+  // Put call data in place.
+  if (api_call_info->data()->IsUndefined()) {
     call_data_undefined = true;
-    __ mov(call_data, Immediate(isolate->factory()->undefined_value()));
+    __ mov(data, Immediate(isolate->factory()->undefined_value()));
   } else {
-    __ mov(call_data, call_data_obj);
+    __ mov(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ mov(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    __ mov(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
 
   // Put api_function_address in place.
@@ -231,7 +235,8 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Register holder, int accessor_index, int expected_arguments) {
+    Register holder, int accessor_index, int expected_arguments,
+    Register scratch) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
   // -----------------------------------
@@ -242,11 +247,14 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ push(value());
 
     if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
+      DCHECK(!value().is(scratch));
       // Call the JavaScript setter with receiver and value on the stack.
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ mov(receiver,
+        __ mov(scratch,
                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       __ push(value());

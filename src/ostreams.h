@@ -55,11 +55,19 @@ struct AsReversiblyEscapedUC16 {
   uint16_t value;
 };
 
+struct AsEscapedUC16ForJSON {
+  explicit AsEscapedUC16ForJSON(uint16_t v) : value(v) {}
+  uint16_t value;
+};
+
 
 // Writes the given character to the output escaping everything outside of
 // printable/space ASCII range. Additionally escapes '\' making escaping
 // reversible.
 std::ostream& operator<<(std::ostream& os, const AsReversiblyEscapedUC16& c);
+
+// Same as AsReversiblyEscapedUC16 with additional escaping of \n, \r, " and '.
+std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c);
 
 // Writes the given character to the output escaping everything outside
 // of printable ASCII range.

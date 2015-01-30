@@ -407,7 +407,7 @@ class ScriptTest(unittest.TestCase):
     return "1999-07-31"
 
   def GetUTCStamp(self):
-    return "100000"
+    return "1000000"
 
   def Expect(self, *args):
     """Convenience wrapper."""
@@ -1233,42 +1233,45 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], ""),
-      Cmd("git branch -r", "  branch-heads/3.21\n  branch-heads/3.3\n"),
-      Cmd("git reset --hard branch-heads/3.3", ""),
-      Cmd("git log --format=%H", "hash1\nhash_234"),
-      Cmd("git diff --name-only hash1 hash1^", ""),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git rev-list --max-age=395200 --tags",
+          "bad_tag\nhash_234\nhash_123\nhash_345\n"),
+      Cmd("git describe --tags bad_tag", "3.23.42-1-deadbeef"),
+      Cmd("git describe --tags hash_234", "3.3.1.1"),
+      Cmd("git describe --tags hash_123", "3.21.2"),
+      Cmd("git describe --tags hash_345", "3.22.3"),
       Cmd("git diff --name-only hash_234 hash_234^", VERSION_FILE),
       Cmd("git checkout -f hash_234 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(3, 1, 1)),
+      Cmd("git branch -r --contains hash_234", "  branch-heads/3.3\n"),
       Cmd("git log -1 --format=%B hash_234", c_hash_234_commit_log),
       Cmd("git log -1 --format=%s hash_234", ""),
       Cmd("git log -1 --format=%B hash_234", c_hash_234_commit_log),
       Cmd("git log -1 --format=%ci hash_234", "18:15"),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
-      Cmd("git reset --hard branch-heads/3.21", ""),
-      Cmd("git log --format=%H", "hash_123\nhash4\nhash5\n"),
+
       Cmd("git diff --name-only hash_123 hash_123^", VERSION_FILE),
       Cmd("git checkout -f hash_123 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(21, 2)),
+      Cmd("git branch -r --contains hash_123", "  branch-heads/3.21\n"),
       Cmd("git log -1 --format=%B hash_123", c_hash_123_commit_log),
       Cmd("git log -1 --format=%s hash_123", ""),
       Cmd("git log -1 --format=%B hash_123", c_hash_123_commit_log),
       Cmd("git log -1 --format=%ci hash_123", "03:15"),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
-      Cmd("git reset --hard origin/candidates", ""),
-      Cmd("git log --format=%H", "hash_345\n"),
+
       Cmd("git diff --name-only hash_345 hash_345^", VERSION_FILE),
       Cmd("git checkout -f hash_345 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 3)),
+      Cmd("git branch -r --contains hash_345", "  origin/candidates\n"),
       Cmd("git log -1 --format=%B hash_345", c_hash_345_commit_log),
       Cmd("git log -1 --format=%s hash_345", ""),
       Cmd("git log -1 --format=%B hash_345", c_hash_345_commit_log),
       Cmd("git log -1 --format=%ci hash_345", ""),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
-      Cmd("git reset --hard origin/master", ""),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),

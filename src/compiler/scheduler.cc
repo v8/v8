@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <deque>
-#include <queue>
-
 #include "src/compiler/scheduler.h"
 
 #include "src/bit-vector.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -1048,7 +1046,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
 // Phase 3: Prepare use counts for nodes.
 
 
-class PrepareUsesVisitor : public NullNodeVisitor {
+class PrepareUsesVisitor {
  public:
   explicit PrepareUsesVisitor(Scheduler* scheduler)
       : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
@@ -1091,10 +1089,29 @@ class PrepareUsesVisitor : public NullNodeVisitor {
 void Scheduler::PrepareUses() {
   Trace("--- PREPARE USES -------------------------------------------\n");
 
-  // Count the uses of every node, it will be used to ensure that all of a
+  // Count the uses of every node, which is used to ensure that all of a
   // node's uses are scheduled before the node itself.
   PrepareUsesVisitor prepare_uses(this);
-  graph_->VisitNodeInputsFromEnd(&prepare_uses);
+
+  // TODO(turbofan): simplify the careful pre/post ordering here.
+  BoolVector visited(graph_->NodeCount(), false, zone_);
+  ZoneStack<Node::InputEdges::iterator> stack(zone_);
+  Node* node = graph_->end();
+  prepare_uses.Pre(node);
+  visited[node->id()] = true;
+  stack.push(node->input_edges().begin());
+  while (!stack.empty()) {
+    Edge edge = *stack.top();
+    Node* node = edge.to();
+    if (visited[node->id()]) {
+      prepare_uses.PostEdge(edge.from(), edge.index(), edge.to());
+      if (++stack.top() == edge.from()->input_edges().end()) stack.pop();
+    } else {
+      prepare_uses.Pre(node);
+      visited[node->id()] = true;
+      if (node->InputCount() > 0) stack.push(node->input_edges().begin());
+    }
+  }
 }
 
 
@@ -1417,8 +1434,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   NodeVector propagation_roots(control_flow_builder_->control_);
   for (Node* node : control_flow_builder_->control_) {
     for (Node* use : node->uses()) {
-      if (IrOpcode::IsPhiOpcode(use->opcode()))
-        propagation_roots.push_back(use);
+      if (NodeProperties::IsPhi(use)) propagation_roots.push_back(use);
     }
   }
   if (FLAG_trace_turbo_scheduler) {

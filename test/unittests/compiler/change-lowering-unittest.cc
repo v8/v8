@@ -6,7 +6,7 @@
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"

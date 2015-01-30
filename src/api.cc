@@ -1602,6 +1602,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
+    bool is_embedder_debug_script = false;
     bool is_shared_cross_origin = false;
     if (!source->resource_name.IsEmpty()) {
       name_obj = Utils::OpenHandle(*(source->resource_name));
@@ -1614,15 +1615,18 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
           static_cast<int>(source->resource_column_offset->Value());
     }
     if (!source->resource_is_shared_cross_origin.IsEmpty()) {
-      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
       is_shared_cross_origin =
-          source->resource_is_shared_cross_origin == v8::True(v8_isolate);
+          source->resource_is_shared_cross_origin->IsTrue();
+    }
+    if (!source->resource_is_embedder_debug_script.IsEmpty()) {
+      is_embedder_debug_script =
+          source->resource_is_embedder_debug_script->IsTrue();
     }
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
-        str, name_obj, line_offset, column_offset, is_shared_cross_origin,
-        isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE);
+        str, name_obj, line_offset, column_offset, is_embedder_debug_script,
+        is_shared_cross_origin, isolate->native_context(), NULL, &script_data,
+        options, i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -1700,8 +1704,12 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
           static_cast<int>(origin.ResourceColumnOffset()->Value())));
     }
     if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
-      script->set_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin() ==
-                                         v8::True(v8_isolate));
+      script->set_is_shared_cross_origin(
+          origin.ResourceIsSharedCrossOrigin()->IsTrue());
+    }
+    if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
+      script->set_is_embedder_debug_script(
+          origin.ResourceIsEmbedderDebugScript()->IsTrue());
     }
     source->info->set_script(script);
     source->info->SetContext(isolate->native_context());
@@ -1966,8 +1974,9 @@ ScriptOrigin Message::GetScriptOrigin() const {
       Utils::ToLocal(scriptName),
       v8::Integer::New(v8_isolate, script->line_offset()->value()),
       v8::Integer::New(v8_isolate, script->column_offset()->value()),
-      Handle<Boolean>(),
-      v8::Integer::New(v8_isolate, script->id()->value()));
+      v8::Boolean::New(v8_isolate, script->is_shared_cross_origin()),
+      v8::Integer::New(v8_isolate, script->id()->value()),
+      v8::Boolean::New(v8_isolate, script->is_embedder_debug_script()));
   return origin;
 }
 
@@ -4137,7 +4146,10 @@ ScriptOrigin Function::GetScriptOrigin() const {
     v8::ScriptOrigin origin(
         Utils::ToLocal(scriptName),
         v8::Integer::New(isolate, script->line_offset()->value()),
-        v8::Integer::New(isolate, script->column_offset()->value()));
+        v8::Integer::New(isolate, script->column_offset()->value()),
+        v8::Boolean::New(isolate, script->is_shared_cross_origin()),
+        v8::Integer::New(isolate, script->id()->value()),
+        v8::Boolean::New(isolate, script->is_embedder_debug_script()));
     return origin;
   }
   return v8::ScriptOrigin(Handle<Value>());

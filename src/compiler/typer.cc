@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/bootstrapper.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"

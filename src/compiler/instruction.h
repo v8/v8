@@ -72,6 +72,8 @@ class InstructionOperand : public ZoneObject {
   static void TearDownCaches();
 
  protected:
+  // TODO(dcarney): remove.  used to construct the Instruction operand array.
+  InstructionOperand() : value_(0xffffffff) {}
   typedef BitField<Kind, 0, 3> KindField;
 
   uint32_t value_;
@@ -263,6 +265,10 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
  private:
+  friend class Instruction;
+  UnallocatedOperand()
+      : InstructionOperand(), virtual_register_(kInvalidVirtualRegister) {}
+
   // TODO(dcarney): this should really be unsigned.
   int32_t virtual_register_;
 };
@@ -422,28 +428,37 @@ std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
 class Instruction : public ZoneObject {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
-  InstructionOperand* OutputAt(size_t i) const {
+  const InstructionOperand* OutputAt(size_t i) const {
     DCHECK(i < OutputCount());
-    return operands_[i];
+    return &operands_[i];
+  }
+  InstructionOperand* OutputAt(size_t i) {
+    DCHECK(i < OutputCount());
+    return &operands_[i];
   }
 
   bool HasOutput() const { return OutputCount() == 1; }
-  InstructionOperand* Output() const { return OutputAt(0); }
+  const InstructionOperand* Output() const { return OutputAt(0); }
+  InstructionOperand* Output() { return OutputAt(0); }
 
   size_t InputCount() const { return InputCountField::decode(bit_field_); }
-  InstructionOperand* InputAt(size_t i) const {
+  const InstructionOperand* InputAt(size_t i) const {
     DCHECK(i < InputCount());
-    return operands_[OutputCount() + i];
+    return &operands_[OutputCount() + i];
   }
-  void SetInputAt(size_t i, InstructionOperand* operand) {
+  InstructionOperand* InputAt(size_t i) {
     DCHECK(i < InputCount());
-    operands_[OutputCount() + i] = operand;
+    return &operands_[OutputCount() + i];
   }
 
   size_t TempCount() const { return TempCountField::decode(bit_field_); }
-  InstructionOperand* TempAt(size_t i) const {
+  const InstructionOperand* TempAt(size_t i) const {
     DCHECK(i < TempCount());
-    return operands_[OutputCount() + InputCount() + i];
+    return &operands_[OutputCount() + InputCount() + i];
+  }
+  InstructionOperand* TempAt(size_t i) {
+    DCHECK(i < TempCount());
+    return &operands_[OutputCount() + InputCount() + i];
   }
 
   InstructionCode opcode() const { return opcode_; }
@@ -469,11 +484,11 @@ class Instruction : public ZoneObject {
     DCHECK(output_count == 0 || outputs != NULL);
     DCHECK(input_count == 0 || inputs != NULL);
     DCHECK(temp_count == 0 || temps != NULL);
-    InstructionOperand* none = NULL;
-    USE(none);
-    int size = static_cast<int>(RoundUp(sizeof(Instruction), kPointerSize) +
-                                (output_count + input_count + temp_count - 1) *
-                                    sizeof(none));
+    size_t total_extra_ops = output_count + input_count + temp_count;
+    if (total_extra_ops != 0) total_extra_ops--;
+    int size = static_cast<int>(
+        RoundUp(sizeof(Instruction), sizeof(UnallocatedOperand)) +
+        total_extra_ops * sizeof(UnallocatedOperand));
     return new (zone->New(size)) Instruction(
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
@@ -527,33 +542,11 @@ class Instruction : public ZoneObject {
   }
 
  protected:
-  explicit Instruction(InstructionCode opcode)
-      : opcode_(opcode),
-        bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
-                   TempCountField::encode(0) | IsCallField::encode(false) |
-                   IsControlField::encode(false)),
-        pointer_map_(NULL) {}
-
+  explicit Instruction(InstructionCode opcode);
   Instruction(InstructionCode opcode, size_t output_count,
               InstructionOperand** outputs, size_t input_count,
               InstructionOperand** inputs, size_t temp_count,
-              InstructionOperand** temps)
-      : opcode_(opcode),
-        bit_field_(OutputCountField::encode(output_count) |
-                   InputCountField::encode(input_count) |
-                   TempCountField::encode(temp_count) |
-                   IsCallField::encode(false) | IsControlField::encode(false)),
-        pointer_map_(NULL) {
-    for (size_t i = 0; i < output_count; ++i) {
-      operands_[i] = outputs[i];
-    }
-    for (size_t i = 0; i < input_count; ++i) {
-      operands_[output_count + i] = inputs[i];
-    }
-    for (size_t i = 0; i < temp_count; ++i) {
-      operands_[output_count + input_count + i] = temps[i];
-    }
-  }
+              InstructionOperand** temps);
 
  protected:
   typedef BitField<size_t, 0, 8> OutputCountField;
@@ -565,7 +558,7 @@ class Instruction : public ZoneObject {
   InstructionCode opcode_;
   uint32_t bit_field_;
   PointerMap* pointer_map_;
-  InstructionOperand* operands_[1];
+  UnallocatedOperand operands_[1];
 };
 
 

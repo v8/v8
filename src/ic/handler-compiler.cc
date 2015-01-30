@@ -229,12 +229,13 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, const CallOptimization& call_optimization) {
+    Handle<Name> name, const CallOptimization& call_optimization,
+    int accessor_index) {
   DCHECK(call_optimization.is_simple_api_call());
-  Frontend(name);
+  Register holder = Frontend(name);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
   GenerateApiAccessorCall(masm(), call_optimization, receiver_map, receiver(),
-                          scratch1(), false, no_reg);
+                          scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -356,7 +357,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);
   GenerateLoadViaGetter(masm(), type(), receiver(), holder, accessor_index,
-                        expected_arguments);
+                        expected_arguments, scratch2());
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -446,7 +447,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     int expected_arguments) {
   Register holder = Frontend(name);
   GenerateStoreViaSetter(masm(), type(), receiver(), holder, accessor_index,
-                         expected_arguments);
+                         expected_arguments, scratch2());
 
   return GetCode(kind(), Code::FAST, name);
 }
@@ -454,10 +455,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  Frontend(name);
+    const CallOptimization& call_optimization, int accessor_index) {
+  Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
-                          receiver(), scratch1(), true, value());
+                          receiver(), scratch2(), true, value(), holder,
+                          accessor_index);
   return GetCode(kind(), Code::FAST, name);
 }
 

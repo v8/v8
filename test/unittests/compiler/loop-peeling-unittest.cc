@@ -9,7 +9,7 @@
 #include "src/compiler/loop-peeling.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"

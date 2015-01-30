@@ -332,6 +332,7 @@ namespace internal {
     "Wrong address or value passed to RecordWrite")                            \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
+  V(kOsrCompileFailed, "OSR compilation failed")                               \
   V(kYield, "Yield")
 
 

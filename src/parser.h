@@ -888,6 +888,7 @@ class Parser : public ParserBase<ParserTraits> {
   ParseData* cached_parse_data_;
 
   CompilationInfo* info_;
+  bool parsing_lazy_arrow_parameters_;  // for lazily parsed arrow functions.
 
   // Pending errors.
   bool has_pending_error_;
