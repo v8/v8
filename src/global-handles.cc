@@ -573,9 +573,18 @@ void GlobalHandles::MakePhantom(Object** location, void* parameter,
 }
 
 
-void GlobalHandles::CollectPhantomCallbackData() {
+void GlobalHandles::CollectAllPhantomCallbackData() {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
+    node->CollectPhantomCallbackData(isolate(), &pending_phantom_callbacks_);
+  }
+}
+
+
+void GlobalHandles::CollectYoungPhantomCallbackData() {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    DCHECK(node->is_in_new_space_list());
     node->CollectPhantomCallbackData(isolate(), &pending_phantom_callbacks_);
   }
 }

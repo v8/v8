@@ -309,8 +309,6 @@ void MarkCompactCollector::CollectGarbage() {
 
   heap_->set_encountered_weak_cells(Smi::FromInt(0));
 
-  isolate()->global_handles()->CollectPhantomCallbackData();
-
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyMarking(heap_);
@@ -3547,6 +3545,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
+
+  // Collects callback info for handles that are pending (about to be
+  // collected) and either phantom or internal-fields.  Releases the global
+  // handles.  See also PostGarbageCollectionProcessing.
+  isolate()->global_handles()->CollectAllPhantomCallbackData();
 
   // Visit invalidated code (we ignored all slots on it) and clear mark-bits
   // under it.
