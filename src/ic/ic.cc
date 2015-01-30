@@ -606,7 +606,7 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
 
 
 // static
-Handle<Code> KeyedLoadIC::megamorphic_stub(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
     return KeyedLoadGenericStub(isolate).GetCode();
   } else {
@@ -706,7 +706,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       if (UseVector()) {
         ConfigureVectorState(GENERIC);
       } else {
-        set_target(*KeyedLoadIC::megamorphic_stub(isolate()));
+        set_target(*megamorphic_stub());
       }
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
@@ -1017,7 +1017,7 @@ Handle<Code> LoadIC::megamorphic_stub() {
     return stub.GetCode();
   } else {
     DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-    return KeyedLoadIC::megamorphic_stub(isolate());
+    return KeyedLoadIC::ChooseMegamorphicStub(isolate());
   }
 }
 
@@ -1363,14 +1363,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
-    return megamorphic_stub(isolate());
+    return megamorphic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
-    return megamorphic_stub(isolate());
+    return megamorphic_stub();
   }
 
   if (FLAG_vector_ics) {
@@ -1400,7 +1400,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   Handle<Object> load_handle;
-  Handle<Code> stub = megamorphic_stub(isolate());
+  Handle<Code> stub = megamorphic_stub();
 
   // Check for non-string values that can be converted into an
   // internalized string directly or is representable as a smi.
@@ -1421,7 +1421,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 
   if (!UseVector()) {
     if (!is_target_set()) {
-      Code* generic = *megamorphic_stub(isolate());
+      Code* generic = *megamorphic_stub();
       if (*stub == generic) {
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
@@ -1431,7 +1431,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   } else {
     if (!is_vector_set() || stub.is_null()) {
-      Code* generic = *megamorphic_stub(isolate());
+      Code* generic = *megamorphic_stub();
       if (!stub.is_null() && *stub == generic) {
         ConfigureVectorState(GENERIC);
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");

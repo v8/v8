@@ -2179,7 +2179,7 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
     generic_checker.Then();
     {
       // Tail-call to the generic KeyedLoadIC, treating it like a handler.
-      Handle<Code> stub = KeyedLoadIC::megamorphic_stub(isolate());
+      Handle<Code> stub = KeyedLoadIC::ChooseMegamorphicStub(isolate());
       HValue* constant_stub = Add<HConstant>(stub);
       LoadDescriptor descriptor(isolate());
       HValue* op_vals[] = {context(), receiver, name};

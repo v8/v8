@@ -498,7 +498,7 @@ class KeyedLoadIC : public LoadIC {
 
   static Handle<Code> initialize_stub(Isolate* isolate);
   static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
-  static Handle<Code> megamorphic_stub(Isolate* isolate);
+  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
