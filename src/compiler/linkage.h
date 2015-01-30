@@ -185,7 +185,8 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
   CallDescriptor* GetJSCallDescriptor(int parameter_count,
                                       CallDescriptor::Flags flags) const;
-  static CallDescriptor* GetJSCallDescriptor(Zone* zone, int parameter_count,
+  static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
+                                             int parameter_count,
                                              CallDescriptor::Flags flags);
   CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
@@ -239,6 +240,9 @@ class Linkage : public ZoneObject {
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;
+
+  // A special parameter index for JSCalls that represents the closure.
+  static const int kJSFunctionCallClosureParamIndex = -1;
 
  private:
   Isolate* isolate_;

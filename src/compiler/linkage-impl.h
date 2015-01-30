@@ -29,7 +29,8 @@ class LinkageHelper {
   }
 
   // TODO(turbofan): cache call descriptors for JSFunction calls.
-  static CallDescriptor* GetJSCallDescriptor(Zone* zone, int js_parameter_count,
+  static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
+                                             int js_parameter_count,
                                              CallDescriptor::Flags flags) {
     const size_t return_count = 1;
     const size_t context_count = 1;
@@ -56,7 +57,12 @@ class LinkageHelper {
 
     // The target for JS function calls is the JSFunction object.
     MachineType target_type = kMachAnyTagged;
-    LinkageLocation target_loc = regloc(LinkageTraits::JSCallFunctionReg());
+    // Unoptimized code doesn't preserve the JSCallFunctionReg, so expect the
+    // closure on the stack.
+    LinkageLocation target_loc =
+        is_osr ? stackloc(Linkage::kJSFunctionCallClosureParamIndex -
+                          js_parameter_count)
+               : regloc(LinkageTraits::JSCallFunctionReg());
     return new (zone) CallDescriptor(     // --
         CallDescriptor::kCallJSFunction,  // kind
         target_type,                      // target MachineType

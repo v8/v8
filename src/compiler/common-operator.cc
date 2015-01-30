@@ -315,11 +315,11 @@ const Operator* CommonOperatorBuilder::Parameter(int index) {
 
 
 const Operator* CommonOperatorBuilder::OsrValue(int index) {
-  return new (zone()) Operator1<int>(        // --
-      IrOpcode::kOsrValue, Operator::kPure,  // opcode
-      "OsrValue",                            // name
-      0, 0, 1, 1, 0, 0,                      // counts
-      index);                                // parameter
+  return new (zone()) Operator1<int>(                // --
+      IrOpcode::kOsrValue, Operator::kNoProperties,  // opcode
+      "OsrValue",                                    // name
+      0, 0, 1, 1, 0, 0,                              // counts
+      index);                                        // parameter
 }
 
 

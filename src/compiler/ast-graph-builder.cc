@@ -7,6 +7,7 @@
 #include "src/compiler.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -35,8 +36,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
 
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
-    // Parameter -1 is special for the function closure
-    const Operator* op = common()->Parameter(-1);
+    const Operator* op =
+        common()->Parameter(Linkage::kJSFunctionCallClosureParamIndex);
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }

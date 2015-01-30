@@ -410,8 +410,8 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
     context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
   }
   node->ReplaceInput(index, context);
-  CallDescriptor* desc = linkage()->GetJSCallDescriptor(
-      jsgraph()->zone(), 1 + arg_count, FlagsForNode(node));
+  CallDescriptor* desc =
+      linkage()->GetJSCallDescriptor(1 + arg_count, FlagsForNode(node));
   PatchOperator(node, common()->Call(desc));
   return true;
 }
