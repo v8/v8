@@ -1,3 +1,11 @@
+2015-01-30: Version 4.2.37
+
+        Do not create unresolved variables when parsing arrow functions lazily
+        (issue 3501).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-29: Version 4.2.36
 
         Performance and stability improvements on all platforms.
