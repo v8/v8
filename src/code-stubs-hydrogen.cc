@@ -1907,6 +1907,9 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     }
     if_dict_properties.Else();
     {
+      // TODO(dcarney): don't use keyed lookup cache, but convert to use
+      // megamorphic stub cache.
+      UNREACHABLE();
       //  Key is string, properties are fast mode
       HValue* hash = BuildKeyedLookupCacheHash(receiver, key);
 
@@ -2176,7 +2179,7 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
     generic_checker.Then();
     {
       // Tail-call to the generic KeyedLoadIC, treating it like a handler.
-      Handle<Code> stub = KeyedLoadIC::generic_stub(isolate());
+      Handle<Code> stub = KeyedLoadIC::megamorphic_stub(isolate());
       HValue* constant_stub = Add<HConstant>(stub);
       LoadDescriptor descriptor(isolate());
       HValue* op_vals[] = {context(), receiver, name};

@@ -606,11 +606,11 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
 
 
 // static
-Handle<Code> KeyedLoadIC::generic_stub(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::megamorphic_stub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
     return KeyedLoadGenericStub(isolate).GetCode();
   } else {
-    return isolate->builtins()->KeyedLoadIC_Generic();
+    return isolate->builtins()->KeyedLoadIC_Megamorphic();
   }
 }
 
@@ -706,7 +706,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       if (UseVector()) {
         ConfigureVectorState(GENERIC);
       } else {
-        set_target(*KeyedLoadIC::generic_stub(isolate()));
+        set_target(*KeyedLoadIC::megamorphic_stub(isolate()));
       }
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
@@ -951,8 +951,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
         CopyICToMegamorphicCache(name);
       }
       if (UseVector()) {
-        ConfigureVectorState(kind() == Code::KEYED_LOAD_IC ? GENERIC
-                                                           : MEGAMORPHIC);
+        ConfigureVectorState(MEGAMORPHIC);
       } else {
         set_target(*megamorphic_stub());
       }
@@ -969,12 +968,8 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
     case DEBUG_STUB:
       break;
     case DEFAULT:
-      UNREACHABLE();
-      break;
     case GENERIC:
-      // The generic keyed store stub re-uses store handlers, which can miss.
-      // That's ok, no reason to do anything.
-      DCHECK(target()->kind() == Code::KEYED_STORE_IC);
+      UNREACHABLE();
       break;
   }
 }
@@ -1022,7 +1017,7 @@ Handle<Code> LoadIC::megamorphic_stub() {
     return stub.GetCode();
   } else {
     DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-    return KeyedLoadIC::generic_stub(isolate());
+    return KeyedLoadIC::megamorphic_stub(isolate());
   }
 }
 
@@ -1091,8 +1086,6 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 
 
 void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
-  // Megamorphic state isn't implemented for keyed loads currently.
-  if (kind() == Code::KEYED_LOAD_IC) return;
   Map* map = *TypeToMap(type, isolate());
   isolate()->stub_cache()->Set(name, map, code);
 }
@@ -1370,14 +1363,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
-    return generic_stub();
+    return megamorphic_stub(isolate());
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
-    return generic_stub();
+    return megamorphic_stub(isolate());
   }
 
   if (FLAG_vector_ics) {
@@ -1407,7 +1400,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   Handle<Object> load_handle;
-  Handle<Code> stub = generic_stub();
+  Handle<Code> stub = megamorphic_stub(isolate());
 
   // Check for non-string values that can be converted into an
   // internalized string directly or is representable as a smi.
@@ -1428,7 +1421,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 
   if (!UseVector()) {
     if (!is_target_set()) {
-      Code* generic = *generic_stub();
+      Code* generic = *megamorphic_stub(isolate());
       if (*stub == generic) {
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
@@ -1438,7 +1431,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   } else {
     if (!is_vector_set() || stub.is_null()) {
-      Code* generic = *generic_stub();
+      Code* generic = *megamorphic_stub(isolate());
       if (!stub.is_null() && *stub == generic) {
         ConfigureVectorState(GENERIC);
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");

@@ -2395,11 +2395,8 @@ TEST(CheckCodeNames) {
       stub_path, arraysize(stub_path));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path1[] = {
-    "::(GC roots)",
-    "::(Builtins)",
-    "::(KeyedLoadIC_Generic builtin)"
-  };
+  const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
+                                 "::(KeyedLoadIC_Megamorphic builtin)"};
   node = GetNodeByPath(snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK_NE(NULL, node);
 
