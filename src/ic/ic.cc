@@ -224,13 +224,9 @@ Code* IC::GetOriginalCode() const {
 
 
 bool IC::AddressIsOptimizedCode() const {
-  Object* maybe_function =
-      Memory::Object_at(fp() + JavaScriptFrameConstants::kFunctionOffset);
-  if (maybe_function->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(maybe_function);
-    return function->IsOptimized();
-  }
-  return false;
+  Code* host =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
+  return host->kind() == Code::OPTIMIZED_FUNCTION;
 }
 
 
