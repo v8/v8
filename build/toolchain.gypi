@@ -279,6 +279,16 @@
             'defines': [
               'V8_TARGET_ARCH_PPC_BE',
             ],
+            'conditions': [
+              ['OS=="aix"', {
+                # Work around AIX ceil, trunc and round oddities.
+                'cflags': [ '-mcpu=power5+ -mfprnd' ],
+              }],
+              ['OS=="aix"', {
+                # Work around AIX assembler popcntb bug.
+                'cflags': [ '-mno-popcntb' ],
+              }],
+            ],
           }],
         ],
       }],  # ppc
@@ -889,7 +899,7 @@
          ],
       }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx"', {
+         or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
         'conditions': [
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -904,6 +914,21 @@
       }],
       ['OS=="netbsd"', {
         'cflags': [ '-I/usr/pkg/include' ],
+      }],
+      ['OS=="aix"', {
+        'defines': [
+          # Support for malloc(0)
+          '_LINUX_SOURCE_COMPAT=1',
+          '_ALL_SOURCE=1'],
+        'conditions': [
+          [ 'v8_target_arch=="ppc"', {
+            'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+          }],
+          [ 'v8_target_arch=="ppc64"', {
+            'cflags': [ '-maix64' ],
+            'ldflags': [ '-maix64' ],
+          }],
+        ],
       }],
     ],  # conditions
     'configurations': {
@@ -930,7 +955,7 @@
         },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags!': [
               '-O3',
               '-O2',
@@ -984,7 +1009,7 @@
         },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags!': [
               '-O0',
               '-O1',
@@ -1033,12 +1058,15 @@
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags': [ '-Woverloaded-virtual', '<(wno_array_bounds)', ],
           }],
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
+          }],
+          ['OS=="aix"', {
+            'ldflags': [ '-Wl,-bbigtoc' ],
           }],
           ['OS=="android"', {
             'variables': {
@@ -1072,7 +1100,8 @@
           'v8_enable_slow_dchecks%': 0,
         },
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
+            or OS=="aix"', {
             'cflags!': [
               '-Os',
             ],

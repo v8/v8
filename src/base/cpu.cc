@@ -19,6 +19,12 @@
 #if V8_OS_LINUX && V8_HOST_ARCH_PPC
 #include <elf.h>
 #endif
+#if V8_OS_AIX
+#include <sys/systemcfg.h>  // _system_configuration
+#ifndef POWER_8
+#define POWER_8 0x10000
+#endif
+#endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
 #endif
@@ -654,7 +660,22 @@ CPU::CPU()
     }
   }
 
-#endif  // V8_OS_LINUX
+#elif V8_OS_AIX
+  switch (_system_configuration.implementation) {
+    case POWER_8:
+      part_ = PPC_POWER8;
+      break;
+    case POWER_7:
+      part_ = PPC_POWER7;
+      break;
+    case POWER_6:
+      part_ = PPC_POWER6;
+      break;
+    case POWER_5:
+      part_ = PPC_POWER5;
+      break;
+  }
+#endif  // V8_OS_AIX
 #endif  // !USE_SIMULATOR
 #endif  // V8_HOST_ARCH_PPC
 }

@@ -4,6 +4,9 @@
 
 #include "src/v8.h"
 
+#if defined(V8_OS_AIX)
+#include <fenv.h>
+#endif
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -48,7 +51,15 @@ double modulo(double x, double y) {
 #else  // POSIX
 
 double modulo(double x, double y) {
+#if defined(V8_OS_AIX)
+  // AIX raises an underflow exception for (Number.MIN_VALUE % Number.MAX_VALUE)
+  feclearexcept(FE_ALL_EXCEPT);
+  double result = std::fmod(x, y);
+  int exception = fetestexcept(FE_UNDERFLOW);
+  return (exception ? x : result);
+#else
   return std::fmod(x, y);
+#endif
 }
 #endif  // defined(_WIN64)
 

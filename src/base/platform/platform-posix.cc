@@ -55,7 +55,7 @@
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 
-#if !V8_OS_NACL
+#if !defined(V8_OS_NACL) && !defined(_AIX)
 #include <sys/syscall.h>
 #endif
 
@@ -172,7 +172,13 @@ void* OS::GetRandomMmapAddr() {
   // fulfilling our placement request.
   raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #elif V8_TARGET_ARCH_PPC64
-#if V8_TARGET_BIG_ENDIAN
+#if V8_OS_AIX
+  // AIX: 64 bits of virtual addressing, but we limit address range to:
+  //   a) minimize Segment Lookaside Buffer (SLB) misses and
+  raw_addr &= V8_UINT64_C(0x3ffff000);
+  // Use extra address space to isolate the mmap regions.
+  raw_addr += V8_UINT64_C(0x400000000000);
+#elif V8_TARGET_BIG_ENDIAN
   // Big-endian Linux: 44 bits of virtual addressing.
   raw_addr &= V8_UINT64_C(0x03fffffff000);
 #else
@@ -193,6 +199,10 @@ void* OS::GetRandomMmapAddr() {
   // no hint at all. The high hint prevents the break from getting hemmed in
   // at low values, ceding half of the address space to the system heap.
   raw_addr += 0x80000000;
+#elif V8_OS_AIX
+  // The range 0x30000000 - 0xD0000000 is available on AIX;
+  // choose the upper range.
+  raw_addr += 0x90000000;
 # else
   // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
   // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
@@ -261,6 +271,8 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(syscall(__NR_gettid));
 #elif V8_OS_ANDROID
   return static_cast<int>(gettid());
+#elif V8_OS_AIX
+  return static_cast<int>(thread_self());
 #else
   return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
@@ -524,8 +536,15 @@ void Thread::Start() {
   DCHECK_EQ(0, result);
   // Native client uses default stack size.
 #if !V8_OS_NACL
-  if (stack_size_ > 0) {
-    result = pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
+  size_t stack_size = stack_size_;
+#if V8_OS_AIX
+  if (stack_size == 0) {
+    // Default on AIX is 96KB -- bump up to 2MB
+    stack_size = 2 * 1024 * 1024;
+  }
+#endif
+  if (stack_size > 0) {
+    result = pthread_attr_setstacksize(&attr, stack_size);
     DCHECK_EQ(0, result);
   }
 #endif

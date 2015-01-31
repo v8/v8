@@ -165,8 +165,6 @@ var kMessages = {
   strict_caller:                 ["Illegal access to a strict mode caller function."],
   malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
-  unprotected_let:               ["Illegal let declaration in unprotected statement context."],
-  unprotected_const:             ["Illegal const declaration in unprotected statement context."],
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
   harmony_const_assign:          ["Assignment to constant variable."],

@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_NACL
+#if !V8_OS_QNX && !V8_OS_NACL && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 
@@ -479,7 +479,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_FP]);
 #endif  // V8_HOST_ARCH_*
-#endif  // V8_OS_QNX
+#elif V8_OS_AIX
+  state.pc = reinterpret_cast<Address>(mcontext.jmp_context.iar);
+  state.sp = reinterpret_cast<Address>(mcontext.jmp_context.gpr[1]);
+  state.fp = reinterpret_cast<Address>(mcontext.jmp_context.gpr[31]);
+#endif  // V8_OS_AIX
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
 }

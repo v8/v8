@@ -399,4 +399,9 @@
   'test-accessors/Gc' : [SKIP],
 
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+['arch == ppc64', {
+  #issue 2857
+  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+}],  # 'arch == ppc64'
 ]

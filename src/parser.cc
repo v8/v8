@@ -1311,26 +1311,31 @@ Module* Parser::ParseModuleSpecifier(bool* ok) {
 }
 
 
-void* Parser::ParseModuleDeclarationClause(ZoneList<const AstRawString*>* names,
-                                           bool* ok) {
-  // Handles both imports and exports:
-  //
-  // ImportOrExportClause :
+void* Parser::ParseExportClause(ZoneList<const AstRawString*>* names,
+                                Scanner::Location* reserved_loc, bool* ok) {
+  // ExportClause :
   //   '{' '}'
-  //   '{' ImportOrExportsList '}'
-  //   '{' ImportOrExportsList ',' '}'
+  //   '{' ExportsList '}'
+  //   '{' ExportsList ',' '}'
   //
-  // ImportOrExportsList :
-  //   ImportOrExportSpecifier
-  //   ImportOrExportsList ',' ImportOrExportSpecifier
+  // ExportsList :
+  //   ExportSpecifier
+  //   ExportsList ',' ExportSpecifier
   //
-  // ImportOrExportSpecifier :
+  // ExportSpecifier :
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
 
   Expect(Token::LBRACE, CHECK_OK);
 
-  while (peek() != Token::RBRACE) {
+  Token::Value name_tok;
+  while ((name_tok = peek()) != Token::RBRACE) {
+    // Keep track of the first reserved word encountered in case our
+    // caller needs to report an error.
+    if (!reserved_loc->IsValid() &&
+        !Token::IsIdentifier(name_tok, STRICT, false)) {
+      *reserved_loc = scanner()->location();
+    }
     const AstRawString* name = ParseIdentifierName(CHECK_OK);
     names->Add(name, zone());
     const AstRawString* export_name = NULL;
@@ -1349,30 +1354,124 @@ void* Parser::ParseModuleDeclarationClause(ZoneList<const AstRawString*>* names,
 }
 
 
-Statement* Parser::ParseImportDeclaration(bool* ok) {
-  // ImportDeclaration:
-  //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleUrl ';'
+void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* names,
+                                bool* ok) {
+  // NamedImports :
+  //   '{' '}'
+  //   '{' ImportsList '}'
+  //   '{' ImportsList ',' '}'
   //
-  // TODO(ES6): implement current syntax
+  // ImportsList :
+  //   ImportSpecifier
+  //   ImportsList ',' ImportSpecifier
+  //
+  // ImportSpecifier :
+  //   BindingIdentifier
+  //   IdentifierName 'as' BindingIdentifier
+
+  Expect(Token::LBRACE, CHECK_OK);
+
+  Token::Value name_tok;
+  while ((name_tok = peek()) != Token::RBRACE) {
+    const AstRawString* name = ParseIdentifierName(CHECK_OK);
+    const AstRawString* import_name = NULL;
+    // In the presence of 'as', the left-side of the 'as' can
+    // be any IdentifierName. But without 'as', it must be a valid
+    // BindingIdentiifer.
+    if (CheckContextualKeyword(CStrVector("as"))) {
+      import_name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    } else if (!Token::IsIdentifier(name_tok, STRICT, false)) {
+      *ok = false;
+      ReportMessageAt(scanner()->location(), "unexpected_reserved");
+      return NULL;
+    } else if (IsEvalOrArguments(name)) {
+      *ok = false;
+      ReportMessageAt(scanner()->location(), "strict_eval_arguments");
+      return NULL;
+    }
+    // TODO(ES6): Return the import_name as well as the name.
+    names->Add(name, zone());
+    USE(import_name);
+    if (peek() == Token::RBRACE) break;
+    Expect(Token::COMMA, CHECK_OK);
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+
+  return NULL;
+}
+
+
+Statement* Parser::ParseImportDeclaration(bool* ok) {
+  // ImportDeclaration :
+  //   'import' ImportClause 'from' ModuleSpecifier ';'
+  //   'import' ModuleSpecifier ';'
+  //
+  // ImportClause :
+  //   NameSpaceImport
+  //   NamedImports
+  //   ImportedDefaultBinding
+  //   ImportedDefaultBinding ',' NameSpaceImport
+  //   ImportedDefaultBinding ',' NamedImports
+  //
+  // NameSpaceImport :
+  //   '*' 'as' ImportedBinding
 
   int pos = peek_position();
   Expect(Token::IMPORT, CHECK_OK);
-  ZoneList<const AstRawString*> names(1, zone());
 
-  const AstRawString* name = ParseIdentifierName(CHECK_OK);
-  names.Add(name, zone());
-  while (peek() == Token::COMMA) {
-    Consume(Token::COMMA);
-    name = ParseIdentifierName(CHECK_OK);
-    names.Add(name, zone());
+  Token::Value tok = peek();
+
+  // 'import' ModuleSpecifier ';'
+  if (tok == Token::STRING) {
+    ParseModuleSpecifier(CHECK_OK);
+    ExpectSemicolon(CHECK_OK);
+    return factory()->NewEmptyStatement(pos);
+  }
+
+  // Parse ImportedDefaultBinding if present.
+  const AstRawString* imported_default_binding = NULL;
+  if (tok != Token::MUL && tok != Token::LBRACE) {
+    imported_default_binding =
+        ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+  }
+
+  const AstRawString* module_instance_binding = NULL;
+  ZoneList<const AstRawString*> names(1, zone());
+  if (imported_default_binding == NULL || Check(Token::COMMA)) {
+    switch (peek()) {
+      case Token::MUL: {
+        Consume(Token::MUL);
+        ExpectContextualKeyword(CStrVector("as"), CHECK_OK);
+        module_instance_binding =
+            ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+        break;
+      }
+
+      case Token::LBRACE:
+        ParseNamedImports(&names, CHECK_OK);
+        break;
+
+      default:
+        *ok = false;
+        ReportUnexpectedToken(scanner()->current_token());
+        return NULL;
+    }
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
   Module* module = ParseModuleSpecifier(CHECK_OK);
+  USE(module);
+
   ExpectSemicolon(CHECK_OK);
 
-  // TODO(ES6): Do something with ParseModuleSpecifier's return value.
-  USE(module);
+  if (module_instance_binding != NULL) {
+    // TODO(ES6): Bind name to the Module Instance Object of module.
+  }
+
+  if (imported_default_binding != NULL) {
+    // TODO(ES6): Add an appropriate declaration.
+  }
 
   for (int i = 0; i < names.length(); ++i) {
     // TODO(ES6): Add an appropriate declaration for each name
@@ -1447,18 +1546,36 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       break;
     }
 
-    case Token::LBRACE:
-      ParseModuleDeclarationClause(&names, CHECK_OK);
+    case Token::LBRACE: {
+      // There are two cases here:
+      //
+      // 'export' ExportClause ';'
+      // and
+      // 'export' ExportClause FromClause ';'
+      //
+      // In the first case, the exported identifiers in ExportClause must
+      // not be reserved words, while in the latter they may be. We
+      // pass in a location that gets filled with the first reserved word
+      // encountered, and then throw a SyntaxError if we are in the
+      // non-FromClause case.
+      Scanner::Location reserved_loc = Scanner::Location::invalid();
+      ParseExportClause(&names, &reserved_loc, CHECK_OK);
       if (CheckContextualKeyword(CStrVector("from"))) {
         Module* module = ParseModuleSpecifier(CHECK_OK);
         // TODO(ES6): Do something with the return value
         // of ParseModuleSpecifier.
         USE(module);
         is_export_from = true;
+      } else if (reserved_loc.IsValid()) {
+        // No FromClause, so reserved words are invalid in ExportClause.
+        *ok = false;
+        ReportMessageAt(reserved_loc, "unexpected_reserved");
+        return NULL;
       }
       ExpectSemicolon(CHECK_OK);
       result = factory()->NewEmptyStatement(pos);
       break;
+    }
 
     case Token::FUNCTION:
       result = ParseFunctionDeclaration(&names, CHECK_OK);
@@ -1618,22 +1735,21 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       return ParseFunctionDeclaration(NULL, ok);
     }
 
-    case Token::CLASS:
-      return ParseClassDeclaration(NULL, ok);
-
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
     case Token::VAR:
-    case Token::CONST:
       return ParseVariableStatement(kStatement, NULL, ok);
 
-    case Token::LET:
-      DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
+    case Token::CONST:
+      // In ES6 CONST is not allowed as a Statement, only as a
+      // LexicalDeclaration, however we continue to allow it in sloppy mode for
+      // backwards compatibility.
+      if (strict_mode() == SLOPPY) {
         return ParseVariableStatement(kStatement, NULL, ok);
       }
-      // Fall through.
+
+    // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(labels, ok);
   }
@@ -2039,16 +2155,6 @@ Block* Parser::ParseVariableDeclarations(
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
-    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
-    //
-    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
-    //
-    // * It is a Syntax Error if the code that matches this production is not
-    //   contained in extended code.
-    //
-    // However disallowing const in sloppy mode will break compatibility with
-    // existing pages. Therefore we keep allowing const with the old
-    // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     switch (strict_mode()) {
       case SLOPPY:
@@ -2056,33 +2162,22 @@ Block* Parser::ParseVariableDeclarations(
         init_op = Token::INIT_CONST_LEGACY;
         break;
       case STRICT:
-        if (allow_harmony_scoping()) {
-          if (var_context == kStatement) {
-            // In strict mode 'const' declarations are only allowed in source
-            // element positions.
-            ReportMessage("unprotected_const");
-            *ok = false;
-            return NULL;
-          }
-          mode = CONST;
-          init_op = Token::INIT_CONST;
-        } else {
+        DCHECK(var_context != kStatement);
+        // In ES5 const is not allowed in strict mode.
+        if (!allow_harmony_scoping()) {
           ReportMessage("strict_const");
           *ok = false;
           return NULL;
         }
+        mode = CONST;
+        init_op = Token::INIT_CONST;
     }
     is_const = true;
     needs_init = true;
   } else if (peek() == Token::LET && strict_mode() == STRICT) {
     DCHECK(allow_harmony_scoping());
     Consume(Token::LET);
-    if (var_context == kStatement) {
-      // Let declarations are only allowed in source element positions.
-      ReportMessage("unprotected_let");
-      *ok = false;
-      return NULL;
-    }
+    DCHECK(var_context != kStatement);
     mode = LET;
     needs_init = true;
     init_op = Token::INIT_LET;
@@ -2345,6 +2440,26 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
+  //
+  // ExpressionStatement[Yield] :
+  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+
+  switch (peek()) {
+    case Token::FUNCTION:
+    case Token::LBRACE:
+      UNREACHABLE();  // Always handled by the callers.
+    case Token::CLASS:
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return nullptr;
+
+    // TODO(arv): Handle `let [`
+    // https://code.google.com/p/v8/issues/detail?id=3847
+
+    default:
+      break;
+  }
+
   int pos = peek_position();
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);

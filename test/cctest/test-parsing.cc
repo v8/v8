@@ -3788,9 +3788,9 @@ TEST(ClassExpressionNoErrors) {
 
 
 TEST(ClassDeclarationNoErrors) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"{", "}"},
-                                   {"if (true) {", "}"},
+  const char* context_data[][2] = {{"'use strict'; ", ""},
+                                   {"'use strict'; {", "}"},
+                                   {"'use strict'; if (true) {", "}"},
                                    {NULL, NULL}};
   const char* statement_data[] = {
     "class name {}",
@@ -3801,7 +3801,7 @@ TEST(ClassDeclarationNoErrors) {
     NULL};
 
   static const ParserFlag always_flags[] = {
-      kAllowHarmonyClasses, kAllowHarmonySloppy};
+      kAllowHarmonyClasses, kAllowHarmonyScoping};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -4672,13 +4672,32 @@ TEST(BasicImportExportParsing) {
       "function f() {}; f(); export { f };",
       "var a, b, c; export { a, b as baz, c };",
       "var d, e; export { d as dreary, e, };",
-      "import y from 'http://module.com/foo.js';",
       "export default function f() {}",
       "export default class C {}",
       "export default 42",
       "var x; export default x = 7",
       "export { Q } from 'somemodule.js';",
-      "export * from 'somemodule.js';"
+      "export * from 'somemodule.js';",
+      "var foo; export { foo as for };",
+      "export { arguments } from 'm.js';",
+      "export { for } from 'm.js';",
+      "export { yield } from 'm.js'",
+      "export { static } from 'm.js'",
+      "export { let } from 'm.js'",
+
+      "import 'somemodule.js';",
+      "import { } from 'm.js';",
+      "import { a } from 'm.js';",
+      "import { a, b as d, c, } from 'm.js';",
+      "import * as thing from 'm.js';",
+      "import thing from 'm.js';",
+      "import thing, * as rest from 'm.js';",
+      "import thing, { a, b, c } from 'm.js';",
+      "import { arguments as a } from 'm.js';",
+      "import { for as f } from 'm.js';",
+      "import { yield as y } from 'm.js';",
+      "import { static as s } from 'm.js';",
+      "import { let as l } from 'm.js';",
   };
 
   i::Isolate* isolate = CcTest::i_isolate();
@@ -4711,7 +4730,22 @@ TEST(BasicImportExportParsing) {
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
       info.MarkAsModule();
-      CHECK(parser.Parse());
+      if (!parser.Parse()) {
+        i::Handle<i::JSObject> exception_handle(
+            i::JSObject::cast(isolate->pending_exception()));
+        i::Handle<i::String> message_string =
+            i::Handle<i::String>::cast(i::Object::GetProperty(
+                  isolate, exception_handle, "message").ToHandleChecked());
+
+        v8::base::OS::Print(
+            "Parser failed on:\n"
+            "\t%s\n"
+            "with error:\n"
+            "\t%s\n"
+            "However, we expected no error.",
+            source->ToCString().get(), message_string->ToCString().get());
+        CHECK(false);
+      }
     }
 
     // And that parsing a script does not.
@@ -4752,6 +4786,38 @@ TEST(ImportExportParsingErrors) {
       "export * from;",
       "export { Q } from;",
       "export default from 'module.js';",
+      "export { for }",
+      "export { for as foo }",
+      "export { arguments }",
+      "export { arguments as foo }",
+
+      "import from;",
+      "import from 'm.js';",
+      "import { };",
+      "import {;",
+      "import };",
+      "import { , };",
+      "import { , } from 'm.js';",
+      "import { a } from;",
+      "import { a } 'm.js';",
+      "import , from 'm.js';",
+      "import a , from 'm.js';",
+      "import a { b, c } from 'm.js';",
+      "import arguments from 'm.js';",
+      "import eval from 'm.js';",
+      "import { arguments } from 'm.js';",
+      "import { eval } from 'm.js';",
+      "import { a as arguments } from 'm.js';",
+      "import { for } from 'm.js';",
+      "import { y as yield } from 'm.js'",
+      "import { s as static } from 'm.js'",
+      "import { l as let } from 'm.js'",
+      "import { x }, def from 'm.js';",
+      "import def, def2 from 'm.js';",
+      "import * as x, def from 'm.js';",
+      "import * as x, * as y from 'm.js';",
+      "import {x}, {y} from 'm.js';",
+      "import * as x, {y} from 'm.js';",
 
       // TODO(ES6): These two forms should be supported
       "export default function() {};",
@@ -4829,5 +4895,28 @@ TEST(DuplicateProtoNoError) {
     kAllowHarmonyObjectLiterals,
   };
   RunParserSyncTest(context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(DeclarationsError) {
+  const char* context_data[][2] = {{"'use strict'; if (true)", ""},
+                                   {"'use strict'; if (false) {} else", ""},
+                                   {"'use strict'; while (false)", ""},
+                                   {"'use strict'; for (;;)", ""},
+                                   {"'use strict'; for (x in y)", ""},
+                                   {"'use strict'; do ", " while (false)"},
+                                   {NULL, NULL}};
+
+  const char* statement_data[] = {
+    "let x = 1;",
+    "const x = 1;",
+    "class C {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses, kAllowHarmonyScoping
+  };
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }

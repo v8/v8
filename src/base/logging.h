@@ -76,6 +76,23 @@ inline void CheckEqualsHelper(const char* file, int line,
 }
 
 
+// 32-bit AIX defines intptr_t as long int.
+#if V8_OS_AIX && V8_HOST_ARCH_32_BIT
+// Helper function used by the CHECK_EQ function when given intptr_t
+// arguments.  Should not be called directly.
+inline void CheckEqualsHelper(const char* file, int line,
+                              const char* expected_source, intptr_t expected,
+                              const char* value_source, intptr_t value) {
+  if (expected != value) {
+    V8_Fatal(file, line,
+             "CHECK_EQ(%s, %s) failed\n#"
+             "   Expected: 0x%lx\n#   Found: 0x%lx",
+             expected_source, value_source, expected, value);
+  }
+}
+#endif
+
+
 // Helper function used by the CHECK_NE function when given int
 // arguments.  Should not be called directly.
 inline void CheckNonEqualsHelper(const char* file,

@@ -162,16 +162,22 @@ PreParserExpression PreParserTraits::ParseClassLiteral(
 
 
 PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
-  // (Ecma 262 5th Edition, clause 14):
-  // SourceElement:
-  //    Statement
-  //    FunctionDeclaration
+  // ECMA 262 6th Edition
+  // StatementListItem[Yield, Return] :
+  //   Statement[?Yield, ?Return]
+  //   Declaration[?Yield]
   //
-  // In harmony mode we allow additionally the following productions
-  // SourceElement:
-  //    LetDeclaration
-  //    ConstDeclaration
-  //    GeneratorDeclaration
+  // Declaration[Yield] :
+  //   HoistableDeclaration[?Yield]
+  //   ClassDeclaration[?Yield]
+  //   LexicalDeclaration[In, ?Yield]
+  //
+  // HoistableDeclaration[Yield, Default] :
+  //   FunctionDeclaration[?Yield, ?Default]
+  //   GeneratorDeclaration[?Yield, ?Default]
+  //
+  // LexicalDeclaration[In, Yield] :
+  //   LetOrConst BindingList[?In, ?Yield] ;
 
   switch (peek()) {
     case Token::FUNCTION:
@@ -305,22 +311,21 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       }
     }
 
-    case Token::CLASS:
-      return ParseClassDeclaration(CHECK_OK);
-
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
     case Token::VAR:
-    case Token::CONST:
       return ParseVariableStatement(kStatement, ok);
 
-    case Token::LET:
-      DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
+    case Token::CONST:
+      // In ES6 CONST is not allowed as a Statement, only as a
+      // LexicalDeclaration, however we continue to allow it in sloppy mode for
+      // backwards compatibility.
+      if (strict_mode() == SLOPPY) {
         return ParseVariableStatement(kStatement, ok);
       }
-      // Fall through.
+
+    // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(ok);
   }
@@ -441,28 +446,19 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
     if (strict_mode() == STRICT) {
-      if (allow_harmony_scoping()) {
-        if (var_context != kSourceElement && var_context != kForStatement) {
-          ReportMessageAt(scanner()->peek_location(), "unprotected_const");
-          *ok = false;
-          return Statement::Default();
-        }
-        is_strict_const = true;
-        require_initializer = var_context != kForStatement;
-      } else {
+      DCHECK(var_context != kStatement);
+      if (!allow_harmony_scoping()) {
         Scanner::Location location = scanner()->peek_location();
         ReportMessageAt(location, "strict_const");
         *ok = false;
         return Statement::Default();
       }
+      is_strict_const = true;
+      require_initializer = var_context != kForStatement;
     }
   } else if (peek() == Token::LET && strict_mode() == STRICT) {
     Consume(Token::LET);
-    if (var_context != kSourceElement && var_context != kForStatement) {
-      ReportMessageAt(scanner()->peek_location(), "unprotected_let");
-      *ok = false;
-      return Statement::Default();
-    }
+    DCHECK(var_context != kStatement);
   } else {
     *ok = false;
     return Statement::Default();
@@ -496,6 +492,22 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
+
+  switch (peek()) {
+    case Token::FUNCTION:
+    case Token::LBRACE:
+      UNREACHABLE();  // Always handled by the callers.
+    case Token::CLASS:
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return Statement::Default();
+
+    // TODO(arv): Handle `let [`
+    // https://code.google.com/p/v8/issues/detail?id=3847
+
+    default:
+      break;
+  }
 
   bool starts_with_identifier = peek_any_identifier();
   Expression expr = ParseExpression(true, CHECK_OK);

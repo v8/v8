@@ -1441,15 +1441,18 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-#if defined(__MINGW64_VERSION_MAJOR) && \
-    (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)
-  // MinGW64 has a custom implementation for pow.  This handles certain
+#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
+     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
+    defined(V8_OS_AIX)
+  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
   // special cases that are different.
-  if ((x == 0.0 || std::isinf(x)) && std::isfinite(y)) {
+  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
     double f;
-    if (std::modf(y, &f) != 0.0) {
-      return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
-    }
+    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    /* retain sign if odd integer exponent */
+    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
+               ? copysign(result, x)
+               : result;
   }
 
   if (x == 2.0) {
