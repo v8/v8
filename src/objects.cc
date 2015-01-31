@@ -6633,7 +6633,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
 
   Handle<LayoutDescriptor> layout_descriptor =
       FLAG_unbox_double_fields
-          ? LayoutDescriptor::Append(map, descriptor->GetDetails())
+          ? LayoutDescriptor::ShareAppend(map, descriptor->GetDetails())
           : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
 
   {
@@ -7150,13 +7150,14 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
     return ShareDescriptor(map, descriptors, descriptor);
   }
 
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
-      descriptors, map->NumberOfOwnDescriptors(), 1);
+  int nof = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> new_descriptors =
+      DescriptorArray::CopyUpTo(descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
   Handle<LayoutDescriptor> new_layout_descriptor =
       FLAG_unbox_double_fields
-          ? LayoutDescriptor::Append(map, descriptor->GetDetails())
+          ? LayoutDescriptor::New(map, new_descriptors, nof + 1)
           : handle(LayoutDescriptor::FastPointerLayout(), map->GetIsolate());
 
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
@@ -9589,7 +9590,7 @@ FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-    DCHECK_NE(NULL, cached_literals);
+    DCHECK_NOT_NULL(cached_literals);
     return cached_literals;
   }
   return NULL;
@@ -9600,7 +9601,7 @@ Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
   DCHECK(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   Code* code = Code::cast(code_map->get(index));
-  DCHECK_NE(NULL, code);
+  DCHECK_NOT_NULL(code);
   return code;
 }
 

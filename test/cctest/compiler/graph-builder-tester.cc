@@ -21,7 +21,7 @@ MachineCallHelper::MachineCallHelper(Isolate* isolate,
 
 void MachineCallHelper::InitParameters(GraphBuilder* builder,
                                        CommonOperatorBuilder* common) {
-  DCHECK_EQ(NULL, parameters_);
+  DCHECK(!parameters_);
   graph_ = builder->graph();
   int param_count = static_cast<int>(parameter_count());
   if (param_count == 0) return;
@@ -46,7 +46,7 @@ byte* MachineCallHelper::Generate() {
 
 
 Node* MachineCallHelper::Parameter(size_t index) {
-  DCHECK_NE(NULL, parameters_);
+  DCHECK(parameters_);
   DCHECK(index < parameter_count());
   return parameters_[index];
 }

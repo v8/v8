@@ -465,7 +465,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in lr.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -519,94 +519,20 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(masm, receiver, r0, r3,
                                  Map::kHasNamedInterceptor, &slow);
 
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary.
+  // If the receiver is a fast-case object, check the stub cache. Otherwise
+  // probe the dictionary.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ldr(r4, FieldMemOperand(r3, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r4, ip);
   __ b(eq, &probe_dictionary);
 
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the name hash.
-  __ ldr(r0, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ mov(r3, Operand(r0, ASR, KeyedLookupCache::kMapHashShift));
-  __ ldr(r4, FieldMemOperand(key, Name::kHashFieldOffset));
-  __ eor(r3, r3, Operand(r4, ASR, Name::kHashShift));
-  int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
-  __ And(r3, r3, Operand(mask));
-
-  // Load the key (consisting of map and unique name) from the cache and
-  // check for match.
-  Label load_in_object_property;
-  static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
-  Label hit_on_nth_entry[kEntriesPerBucket];
-  ExternalReference cache_keys =
-      ExternalReference::keyed_lookup_cache_keys(isolate);
-
-  __ mov(r4, Operand(cache_keys));
-  __ add(r4, r4, Operand(r3, LSL, kPointerSizeLog2 + 1));
-
-  for (int i = 0; i < kEntriesPerBucket - 1; i++) {
-    Label try_next_entry;
-    // Load map and move r4 to next entry.
-    __ ldr(r5, MemOperand(r4, kPointerSize * 2, PostIndex));
-    __ cmp(r0, r5);
-    __ b(ne, &try_next_entry);
-    __ ldr(r5, MemOperand(r4, -kPointerSize));  // Load name
-    __ cmp(key, r5);
-    __ b(eq, &hit_on_nth_entry[i]);
-    __ bind(&try_next_entry);
-  }
-
-  // Last entry: Load map and move r4 to name.
-  __ ldr(r5, MemOperand(r4, kPointerSize, PostIndex));
-  __ cmp(r0, r5);
-  __ b(ne, &slow);
-  __ ldr(r5, MemOperand(r4));
-  __ cmp(key, r5);
-  __ b(ne, &slow);
-
-  // Get field offset.
-  // r0     : receiver's map
-  // r3     : lookup cache index
-  ExternalReference cache_field_offsets =
-      ExternalReference::keyed_lookup_cache_field_offsets(isolate);
-
-  // Hit on nth entry.
-  for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
-    __ bind(&hit_on_nth_entry[i]);
-    __ mov(r4, Operand(cache_field_offsets));
-    if (i != 0) {
-      __ add(r3, r3, Operand(i));
-    }
-    __ ldr(r5, MemOperand(r4, r3, LSL, kPointerSizeLog2));
-    __ ldrb(r6, FieldMemOperand(r0, Map::kInObjectPropertiesOffset));
-    __ sub(r5, r5, r6, SetCC);
-    __ b(ge, &property_array_property);
-    if (i != 0) {
-      __ jmp(&load_in_object_property);
-    }
-  }
-
-  // Load in-object property.
-  __ bind(&load_in_object_property);
-  __ ldrb(r6, FieldMemOperand(r0, Map::kInstanceSizeOffset));
-  __ add(r6, r6, r5);  // Index from start of object.
-  __ sub(receiver, receiver, Operand(kHeapObjectTag));  // Remove the heap tag.
-  __ ldr(r0, MemOperand(receiver, r6, LSL, kPointerSizeLog2));
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(), 1,
-                      r4, r3);
-  __ Ret();
-
-  // Load property array property.
-  __ bind(&property_array_property);
-  __ ldr(receiver, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-  __ add(receiver, receiver, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r0, MemOperand(receiver, r5, LSL, kPointerSizeLog2));
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(), 1,
-                      r4, r3);
-  __ Ret();
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::LOAD_IC, flags, false, receiver, key, r3, r4, r5, r6);
+  // Cache miss.
+  GenerateMiss(masm);
 
   // Do a quick inline probe of the receiver's dictionary, if it
   // exists.

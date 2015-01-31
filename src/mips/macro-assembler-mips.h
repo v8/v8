@@ -1102,7 +1102,7 @@ class MacroAssembler: public Assembler {
     lw(type, FieldMemOperand(obj, HeapObject::kMapOffset));
     lbu(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
     And(type, type, Operand(kIsNotStringMask));
-    DCHECK_EQ(0, kStringTag);
+    DCHECK_EQ(0u, kStringTag);
     return eq;
   }
 

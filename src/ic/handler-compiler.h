@@ -167,10 +167,9 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
   // LoadWithInterceptor.
   static const int kInterceptorArgsNameIndex = 0;
-  static const int kInterceptorArgsInfoIndex = 1;
-  static const int kInterceptorArgsThisIndex = 2;
-  static const int kInterceptorArgsHolderIndex = 3;
-  static const int kInterceptorArgsLength = 4;
+  static const int kInterceptorArgsThisIndex = 1;
+  static const int kInterceptorArgsHolderIndex = 2;
+  static const int kInterceptorArgsLength = 3;
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
@@ -225,7 +224,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                       Handle<Name> name);
   Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    Handle<ExecutableAccessorInfo> callback);
+                                    int accessor_index);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
                                     int accessor_index);

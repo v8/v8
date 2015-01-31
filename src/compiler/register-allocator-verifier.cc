@@ -20,7 +20,7 @@ static void VerifyGapEmpty(const GapInstruction* gap) {
        i <= GapInstruction::LAST_INNER_POSITION; i++) {
     GapInstruction::InnerPosition inner_pos =
         static_cast<GapInstruction::InnerPosition>(i);
-    CHECK_EQ(NULL, gap->GetParallelMove(inner_pos));
+    CHECK(!gap->GetParallelMove(inner_pos));
   }
 }
 
@@ -432,14 +432,14 @@ class OperandMap : public ZoneObject {
         for (; p != nullptr; p = p->first_pred_phi) {
           if (p->virtual_register == v->use_vreg) break;
         }
-        CHECK_NE(nullptr, p);
+        CHECK(p);
       }
       // Mark the use.
       it->second->use_vreg = use_vreg;
       return;
     }
     // Use of a phi value without definition.
-    CHECK(false);
+    UNREACHABLE();
   }
 
  private:

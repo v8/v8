@@ -473,7 +473,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in ra.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -527,99 +527,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                                  Map::kHasNamedInterceptor, &slow);
 
 
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary.
+  // If the receiver is a fast-case object, check the stub cache. Otherwise
+  // probe the dictionary.
   __ ld(a3, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ld(a4, FieldMemOperand(a3, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kHashTableMapRootIndex);
   __ Branch(&probe_dictionary, eq, a4, Operand(at));
 
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the name hash.
-  __ ld(a0, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ dsll32(a3, a0, 0);
-  __ dsrl32(a3, a3, 0);
-  __ dsra(a3, a3, KeyedLookupCache::kMapHashShift);
-  __ lwu(a4, FieldMemOperand(key, Name::kHashFieldOffset));
-  __ dsra(at, a4, Name::kHashShift);
-  __ xor_(a3, a3, at);
-  int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
-  __ And(a3, a3, Operand(mask));
-
-  // Load the key (consisting of map and unique name) from the cache and
-  // check for match.
-  Label load_in_object_property;
-  static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
-  Label hit_on_nth_entry[kEntriesPerBucket];
-  ExternalReference cache_keys =
-      ExternalReference::keyed_lookup_cache_keys(isolate);
-  __ li(a4, Operand(cache_keys));
-  __ dsll(at, a3, kPointerSizeLog2 + 1);
-  __ daddu(a4, a4, at);
-
-  for (int i = 0; i < kEntriesPerBucket - 1; i++) {
-    Label try_next_entry;
-    __ ld(a5, MemOperand(a4, kPointerSize * i * 2));
-    __ Branch(&try_next_entry, ne, a0, Operand(a5));
-    __ ld(a5, MemOperand(a4, kPointerSize * (i * 2 + 1)));
-    __ Branch(&hit_on_nth_entry[i], eq, key, Operand(a5));
-    __ bind(&try_next_entry);
-  }
-
-  __ ld(a5, MemOperand(a4, kPointerSize * (kEntriesPerBucket - 1) * 2));
-  __ Branch(&slow, ne, a0, Operand(a5));
-  __ ld(a5, MemOperand(a4, kPointerSize * ((kEntriesPerBucket - 1) * 2 + 1)));
-  __ Branch(&slow, ne, key, Operand(a5));
-
-  // Get field offset.
-  // a0     : receiver's map
-  // a3     : lookup cache index
-  ExternalReference cache_field_offsets =
-      ExternalReference::keyed_lookup_cache_field_offsets(isolate);
-
-  // Hit on nth entry.
-  for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
-    __ bind(&hit_on_nth_entry[i]);
-    __ li(a4, Operand(cache_field_offsets));
-
-    // TODO(yy) This data structure does NOT follow natural pointer size.
-    __ dsll(at, a3, kPointerSizeLog2 - 1);
-    __ daddu(at, a4, at);
-    __ lwu(a5, MemOperand(at, kPointerSize / 2 * i));
-
-    __ lbu(a6, FieldMemOperand(a0, Map::kInObjectPropertiesOffset));
-    __ Dsubu(a5, a5, a6);
-    __ Branch(&property_array_property, ge, a5, Operand(zero_reg));
-    if (i != 0) {
-      __ Branch(&load_in_object_property);
-    }
-  }
-
-  // Load in-object property.
-  __ bind(&load_in_object_property);
-  __ lbu(a6, FieldMemOperand(a0, Map::kInstanceSizeOffset));
-  // Index from start of object.
-  __ daddu(a6, a6, a5);
-  // Remove the heap tag.
-  __ Dsubu(receiver, receiver, Operand(kHeapObjectTag));
-  __ dsll(at, a6, kPointerSizeLog2);
-  __ daddu(at, receiver, at);
-  __ ld(v0, MemOperand(at));
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(), 1,
-                      a4, a3);
-  __ Ret();
-
-  // Load property array property.
-  __ bind(&property_array_property);
-  __ ld(receiver, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-  __ Daddu(receiver, receiver, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ dsll(v0, a5, kPointerSizeLog2);
-  __ Daddu(v0, v0, a1);
-  __ ld(v0, MemOperand(v0));
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(), 1,
-                      a4, a3);
-  __ Ret();
-
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::LOAD_IC, flags, false, receiver, key, a3, a4, a5, a6);
+  // Cache miss.
+  GenerateMiss(masm);
 
   // Do a quick inline probe of the receiver's dictionary, if it
   // exists.
@@ -1041,10 +961,10 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
   if (check == ENABLE_INLINED_SMI_CHECK) {
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));
-    DCHECK_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+    DCHECK_EQ(0u, Assembler::GetImmediate16(instr_at_patch));
     patcher.masm()->andi(at, reg, kSmiTagMask);
   } else {
-    DCHECK(check == DISABLE_INLINED_SMI_CHECK);
+    DCHECK_EQ(check, DISABLE_INLINED_SMI_CHECK);
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));
     patcher.masm()->andi(at, reg, 0);
   }

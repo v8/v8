@@ -274,7 +274,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
 }
 
 
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -325,86 +325,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(masm, receiver, rax, Map::kHasNamedInterceptor,
                                  &slow);
 
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary leaving result in key.
+  // If the receiver is a fast-case object, check the stub cache. Otherwise
+  // probe the dictionary.
   __ movp(rbx, FieldOperand(receiver, JSObject::kPropertiesOffset));
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kHashTableMapRootIndex);
   __ j(equal, &probe_dictionary);
 
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the string hash.
-  __ movp(rbx, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movl(rax, rbx);
-  __ shrl(rax, Immediate(KeyedLookupCache::kMapHashShift));
-  __ movl(rdi, FieldOperand(key, String::kHashFieldOffset));
-  __ shrl(rdi, Immediate(String::kHashShift));
-  __ xorp(rax, rdi);
-  int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
-  __ andp(rax, Immediate(mask));
-
-  // Load the key (consisting of map and internalized string) from the cache and
-  // check for match.
-  Label load_in_object_property;
-  static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
-  Label hit_on_nth_entry[kEntriesPerBucket];
-  ExternalReference cache_keys =
-      ExternalReference::keyed_lookup_cache_keys(masm->isolate());
-
-  for (int i = 0; i < kEntriesPerBucket - 1; i++) {
-    Label try_next_entry;
-    __ movp(rdi, rax);
-    __ shlp(rdi, Immediate(kPointerSizeLog2 + 1));
-    __ LoadAddress(kScratchRegister, cache_keys);
-    int off = kPointerSize * i * 2;
-    __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
-    __ j(not_equal, &try_next_entry);
-    __ cmpp(key, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
-    __ j(equal, &hit_on_nth_entry[i]);
-    __ bind(&try_next_entry);
-  }
-
-  int off = kPointerSize * (kEntriesPerBucket - 1) * 2;
-  __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
-  __ j(not_equal, &slow);
-  __ cmpp(key, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
-  __ j(not_equal, &slow);
-
-  // Get field offset, which is a 32-bit integer.
-  ExternalReference cache_field_offsets =
-      ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
-
-  // Hit on nth entry.
-  for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
-    __ bind(&hit_on_nth_entry[i]);
-    if (i != 0) {
-      __ addl(rax, Immediate(i));
-    }
-    __ LoadAddress(kScratchRegister, cache_field_offsets);
-    __ movl(rdi, Operand(kScratchRegister, rax, times_4, 0));
-    __ movzxbp(rax, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
-    __ subp(rdi, rax);
-    __ j(above_equal, &property_array_property);
-    if (i != 0) {
-      __ jmp(&load_in_object_property);
-    }
-  }
-
-  // Load in-object property.
-  __ bind(&load_in_object_property);
-  __ movzxbp(rax, FieldOperand(rbx, Map::kInstanceSizeOffset));
-  __ addp(rax, rdi);
-  __ movp(rax, FieldOperand(receiver, rax, times_pointer_size, 0));
-  __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
-  __ ret(0);
-
-  // Load property array property.
-  __ bind(&property_array_property);
-  __ movp(rax, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ movp(rax,
-          FieldOperand(rax, rdi, times_pointer_size, FixedArray::kHeaderSize));
-  __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
-  __ ret(0);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::LOAD_IC, flags, false, receiver, key, rbx, no_reg);
+  // Cache miss.
+  GenerateMiss(masm);
 
   // Do a quick inline probe of the receiver's dictionary, if it
   // exists.

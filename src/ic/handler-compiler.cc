@@ -347,7 +347,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::ACCESSOR:
       Handle<ExecutableAccessorInfo> info =
           Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
-      DCHECK_NE(NULL, info->getter());
+      DCHECK_NOT_NULL(info->getter());
       GenerateLoadCallback(reg, info);
   }
 }

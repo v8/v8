@@ -208,16 +208,10 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
                                      Register holder, Register name,
                                      Handle<JSObject> holder_obj) {
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
-  __ push(name);
-  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
-  DCHECK(!masm->isolate()->heap()->InNewSpace(*interceptor));
-  Register scratch = name;
-  __ li(scratch, Operand(interceptor));
-  __ Push(scratch, receiver, holder);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
+  __ Push(name, receiver, holder);
 }
 
 
@@ -559,12 +553,15 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   DCHECK(!scratch3().is(reg));
   DCHECK(!scratch4().is(reg));
   __ push(receiver());
-  if (heap()->InNewSpace(callback->data())) {
-    __ li(scratch3(), callback);
-    __ lw(scratch3(),
-          FieldMemOperand(scratch3(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ li(scratch3(), data);
   } else {
-    __ li(scratch3(), Handle<Object>(callback->data(), isolate()));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch3(), cell);
   }
   __ Subu(sp, sp, 6 * kPointerSize);
   __ sw(scratch3(), MemOperand(sp, 5 * kPointerSize));
@@ -666,12 +663,11 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   Register holder_reg = Frontend(name);
 
   __ Push(receiver(), holder_reg);  // Receiver.
-  __ li(at, Operand(callback));     // Callback info.
+  __ li(at, Operand(Smi::FromInt(accessor_index)));
   __ push(at);
   __ li(at, Operand(name));
   __ Push(at, value());

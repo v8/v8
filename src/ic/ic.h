@@ -487,7 +487,7 @@ class KeyedLoadIC : public LoadIC {
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
     GenerateMiss(masm);
   }
-  static void GenerateGeneric(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -498,7 +498,7 @@ class KeyedLoadIC : public LoadIC {
 
   static Handle<Code> initialize_stub(Isolate* isolate);
   static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
-  static Handle<Code> generic_stub(Isolate* isolate);
+  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
@@ -511,8 +511,6 @@ class KeyedLoadIC : public LoadIC {
   }
 
  private:
-  Handle<Code> generic_stub() const { return generic_stub(isolate()); }
-
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 

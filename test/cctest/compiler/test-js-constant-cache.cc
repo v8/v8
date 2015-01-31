@@ -103,10 +103,10 @@ TEST(MinusZeroConstant) {
   double zero_value = OpParameter<double>(zero);
   double minus_zero_value = OpParameter<double>(minus_zero);
 
-  CHECK_EQ(0.0, zero_value);
-  CHECK_NE(-0.0, zero_value);
-  CHECK_EQ(-0.0, minus_zero_value);
-  CHECK_NE(0.0, minus_zero_value);
+  CHECK(bit_cast<uint64_t>(0.0) == bit_cast<uint64_t>(zero_value));
+  CHECK(bit_cast<uint64_t>(-0.0) != bit_cast<uint64_t>(zero_value));
+  CHECK(bit_cast<uint64_t>(0.0) != bit_cast<uint64_t>(minus_zero_value));
+  CHECK(bit_cast<uint64_t>(-0.0) == bit_cast<uint64_t>(minus_zero_value));
 }
 
 

@@ -264,8 +264,8 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
     return UNINITIALIZED;
   } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
     return PREMONOMORPHIC;
-  } else if (feedback == *vector()->GenericSentinel(isolate)) {
-    return GENERIC;
+  } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
   } else if (feedback->IsFixedArray()) {
     // Determine state purely by our structure, don't check if the maps are
     // cleared.
@@ -323,8 +323,8 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 }
 
 
-void KeyedLoadICNexus::ConfigureGeneric() {
-  SetFeedback(*vector()->GenericSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+void KeyedLoadICNexus::ConfigureMegamorphic() {
+  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
 }
 
 

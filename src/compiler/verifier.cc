@@ -763,8 +763,8 @@ void Verifier::Visitor::Check(Node* node) {
 
 
 void Verifier::Run(Graph* graph, Typing typing) {
-  CHECK_NE(NULL, graph->start());
-  CHECK_NE(NULL, graph->end());
+  CHECK_NOT_NULL(graph->start());
+  CHECK_NOT_NULL(graph->end());
   Zone zone;
   Visitor visitor(&zone, typing);
   for (Node* node : AllNodes(&zone, graph).live) visitor.Check(node);
@@ -868,10 +868,10 @@ void ScheduleVerifier::Run(Schedule* schedule) {
     BasicBlock* dom = block->dominator();
     if (b == 0) {
       // All blocks except start should have a dominator.
-      CHECK_EQ(NULL, dom);
+      CHECK_NULL(dom);
     } else {
       // Check that the immediate dominator appears somewhere before the block.
-      CHECK_NE(NULL, dom);
+      CHECK_NOT_NULL(dom);
       CHECK_LT(dom->rpo_number(), block->rpo_number());
     }
   }

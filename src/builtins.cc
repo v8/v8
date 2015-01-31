@@ -1273,8 +1273,8 @@ static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_Generic(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateGeneric(masm);
+static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
 

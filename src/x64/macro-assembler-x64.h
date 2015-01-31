@@ -846,6 +846,8 @@ class MacroAssembler: public Assembler {
   // Compare the given value and the value of weak cell.
   void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
 
+  void GetWeakValue(Register value, Handle<WeakCell> cell);
+
   // Load the value of the weak cell in the value register. Branch to the given
   // miss label if the weak cell was cleared.
   void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);

@@ -2951,7 +2951,7 @@ int LinearSearch(T* array, Name* name, int len, int valid_entries,
     return T::kNotFound;
   } else {
     DCHECK(len >= valid_entries);
-    DCHECK_EQ(NULL, out_insertion_index);  // Not supported here.
+    DCHECK_NULL(out_insertion_index);  // Not supported here.
     for (int number = 0; number < valid_entries; number++) {
       Name* entry = array->GetKey(number);
       uint32_t current_hash = entry->Hash();
@@ -3390,6 +3390,12 @@ CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
+
+
+// static
+template <class Traits>
+STATIC_CONST_MEMBER_DEFINITION const InstanceType
+    FixedTypedArray<Traits>::kInstanceType;
 
 
 template <class Traits>

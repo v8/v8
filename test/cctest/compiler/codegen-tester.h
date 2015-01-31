@@ -332,6 +332,16 @@ class Int32BinopInputShapeTester {
   void RunLeft(RawMachineAssemblerTester<int32_t>* m);
   void RunRight(RawMachineAssemblerTester<int32_t>* m);
 };
+
+// TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
+static inline void CheckDoubleEq(volatile double x, volatile double y) {
+  if (std::isnan(x)) {
+    CHECK(std::isnan(y));
+  } else {
+    CHECK_EQ(x, y);
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

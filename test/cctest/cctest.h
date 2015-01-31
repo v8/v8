@@ -440,7 +440,7 @@ static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsString());
   v8::String::Utf8Value utf8(result);
-  CHECK_EQ(expected, *utf8);
+  CHECK_EQ(0, strcmp(expected, *utf8));
 }
 
 
@@ -557,7 +557,7 @@ class HeapObjectsTracker {
  public:
   HeapObjectsTracker() {
     heap_profiler_ = i::Isolate::Current()->heap_profiler();
-    CHECK_NE(NULL, heap_profiler_);
+    CHECK_NOT_NULL(heap_profiler_);
     heap_profiler_->StartHeapObjectsTracking(true);
   }
 

@@ -1491,7 +1491,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
             .ToHandleChecked());
   }
   const char* inner = period_pos + 1;
-  DCHECK_EQ(NULL, strchr(inner, '.'));
+  DCHECK(!strchr(inner, '.'));
   Vector<const char> property(holder_expr,
                               static_cast<int>(period_pos - holder_expr));
   Handle<String> property_string = factory->InternalizeUtf8String(property);
@@ -1599,6 +1599,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_templates)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1629,6 +1630,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_templates)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2208,6 +2210,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_sloppy_natives[] = {NULL};
   static const char* harmony_unicode_natives[] = {NULL};
   static const char* harmony_computed_property_names_natives[] = {NULL};
+  static const char* harmony_rest_parameters_natives[] = {NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

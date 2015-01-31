@@ -4996,7 +4996,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   if (!InternalFieldOK(obj, index, location)) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
-  DCHECK_EQ(value, GetInternalField(index));
+  DCHECK(value->Equals(GetInternalField(index)));
 }
 
 
@@ -7355,6 +7355,11 @@ void HeapSnapshot::Serialize(OutputStream* stream,
   i::HeapSnapshotJSONSerializer serializer(ToInternal(this));
   serializer.Serialize(stream);
 }
+
+
+// static
+STATIC_CONST_MEMBER_DEFINITION const SnapshotObjectId
+    HeapProfiler::kUnknownObjectId;
 
 
 int HeapProfiler::GetSnapshotCount() {

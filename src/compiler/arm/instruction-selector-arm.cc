@@ -233,8 +233,8 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
-  DCHECK_NE(0, output_count);
+  DCHECK_NE(0u, input_count);
+  DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
@@ -448,8 +448,8 @@ void EmitBic(InstructionSelector* selector, Node* node, Node* left,
 
 void EmitUbfx(InstructionSelector* selector, Node* node, Node* left,
               uint32_t lsb, uint32_t width) {
-  DCHECK_LE(1, width);
-  DCHECK_LE(width, 32 - lsb);
+  DCHECK_LE(1u, width);
+  DCHECK_LE(width, 32u - lsb);
   ArmOperandGenerator g(selector);
   selector->Emit(kArmUbfx, g.DefineAsRegister(node), g.UseRegister(left),
                  g.TempImmediate(lsb), g.TempImmediate(width));
@@ -481,7 +481,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
     uint32_t msb = base::bits::CountLeadingZeros32(value);
     // Try to interpret this AND as UBFX.
     if (IsSupported(ARMv7) && width != 0 && msb + width == 32) {
-      DCHECK_EQ(0, base::bits::CountTrailingZeros32(value));
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(value));
       if (m.left().IsWord32Shr()) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().IsInRange(0, 31)) {
@@ -550,10 +550,11 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 }
 
 
+namespace {
+
 template <typename TryMatchShift>
-static inline void VisitShift(InstructionSelector* selector, Node* node,
-                              TryMatchShift try_match_shift,
-                              FlagsContinuation* cont) {
+void VisitShift(InstructionSelector* selector, Node* node,
+                TryMatchShift try_match_shift, FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmMov;
   InstructionOperand* inputs[4];
@@ -573,8 +574,8 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
-  DCHECK_NE(0, output_count);
+  DCHECK_NE(0u, input_count);
+  DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
@@ -586,11 +587,13 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
 
 
 template <typename TryMatchShift>
-static inline void VisitShift(InstructionSelector* selector, Node* node,
+void VisitShift(InstructionSelector* selector, Node* node,
                               TryMatchShift try_match_shift) {
   FlagsContinuation cont;
   VisitShift(selector, node, try_match_shift, &cont);
 }
+
+}  // namespace
 
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
@@ -603,7 +606,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
   if (IsSupported(ARMv7) && m.left().IsWord32And() &&
       m.right().IsInRange(0, 31)) {
-    int32_t lsb = m.right().Value();
+    uint32_t lsb = m.right().Value();
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint32_t value = (mleft.right().Value() >> lsb) << lsb;
@@ -1123,7 +1126,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
+  DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 

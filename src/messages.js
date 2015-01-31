@@ -180,7 +180,8 @@ var kMessages = {
   duplicate_constructor:         ["A class may only have one constructor"],
   sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
   super_constructor_call:        ["A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported."],
-  duplicate_proto:               ["Duplicate __proto__ fields are not allowed in object literals"]
+  duplicate_proto:               ["Duplicate __proto__ fields are not allowed in object literals"],
+  param_after_rest:              ["Rest parameter must be last formal parameter"]
 };
 
 

@@ -183,7 +183,7 @@ void LiveRange::SetSpillOperand(InstructionOperand* operand) {
 
 void LiveRange::SetSpillRange(SpillRange* spill_range) {
   DCHECK(HasNoSpillType() || HasSpillRange());
-  DCHECK_NE(spill_range, nullptr);
+  DCHECK(spill_range);
   spill_type_ = SpillType::kSpillRange;
   spill_range_ = spill_range;
 }

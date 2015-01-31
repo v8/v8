@@ -89,7 +89,8 @@ class ParserBase : public Traits {
         allow_harmony_arrow_functions_(false),
         allow_harmony_object_literals_(false),
         allow_harmony_sloppy_(false),
-        allow_harmony_computed_property_names_(false) {}
+        allow_harmony_computed_property_names_(false),
+        allow_harmony_rest_params_(false) {}
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -112,6 +113,9 @@ class ParserBase : public Traits {
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
   bool allow_harmony_computed_property_names() const {
     return allow_harmony_computed_property_names_;
+  }
+  bool allow_harmony_rest_params() const {
+    return allow_harmony_rest_params_;
   }
 
   // Setters that determine whether certain syntactical constructs are
@@ -147,6 +151,9 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_computed_property_names(bool allow) {
     allow_harmony_computed_property_names_ = allow;
+  }
+  void set_allow_harmony_rest_params(bool allow) {
+    allow_harmony_rest_params_ = allow;
   }
 
  protected:
@@ -625,6 +632,7 @@ class ParserBase : public Traits {
   bool allow_harmony_object_literals_;
   bool allow_harmony_sloppy_;
   bool allow_harmony_computed_property_names_;
+  bool allow_harmony_rest_params_;
 };
 
 

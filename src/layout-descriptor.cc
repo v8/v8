@@ -72,13 +72,16 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(
 }
 
 
-Handle<LayoutDescriptor> LayoutDescriptor::Append(Handle<Map> map,
-                                                  PropertyDetails details) {
+Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
+    Handle<Map> map, PropertyDetails details) {
+  DCHECK(map->owns_descriptors());
   Isolate* isolate = map->GetIsolate();
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
 
   if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+    DCHECK(details.location() != kField ||
+           layout_descriptor->IsTagged(details.field_index()));
     return layout_descriptor;
   }
   int field_index = details.field_index();
@@ -104,6 +107,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     return full_layout_descriptor;
   }
   if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+    DCHECK(details.location() != kField ||
+           layout_descriptor->IsTagged(details.field_index()));
     return handle(layout_descriptor, map->GetIsolate());
   }
   int field_index = details.field_index();
@@ -127,7 +132,6 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     int new_capacity) {
   int old_capacity = layout_descriptor->capacity();
   if (new_capacity <= old_capacity) {
-    // Nothing to do with layout in Smi-form.
     return layout_descriptor;
   }
   Handle<LayoutDescriptor> new_layout_descriptor =

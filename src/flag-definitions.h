@@ -186,7 +186,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_proxies, "harmony proxies")                         \
   V(harmony_sloppy, "harmony features in sloppy mode")          \
   V(harmony_unicode, "harmony unicode escapes")                 \
-  V(harmony_computed_property_names, "harmony computed property names")
+  V(harmony_computed_property_names, "harmony computed property names") \
+  V(harmony_rest_parameters, "harmony rest parameters")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                 \

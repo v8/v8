@@ -76,8 +76,8 @@ class SchedulerRPOTest : public SchedulerTest {
     for (int i = 0; i < static_cast<int>(order->size()); i++) {
       CHECK(order->at(i)->rpo_number() == i);
       if (!loops_allowed) {
-        CHECK_EQ(NULL, order->at(i)->loop_end());
-        CHECK_EQ(NULL, order->at(i)->loop_header());
+        CHECK(!order->at(i)->loop_end());
+        CHECK(!order->at(i)->loop_header());
       }
     }
   }
@@ -86,7 +86,7 @@ class SchedulerRPOTest : public SchedulerTest {
                         int body_size) {
     BasicBlock* header = blocks[0];
     BasicBlock* end = header->loop_end();
-    CHECK_NE(NULL, end);
+    CHECK(end);
     CHECK_GT(end->rpo_number(), 0);
     CHECK_EQ(body_size, end->rpo_number() - header->rpo_number());
     for (int i = 0; i < body_size; i++) {

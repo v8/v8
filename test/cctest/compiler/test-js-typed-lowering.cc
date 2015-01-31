@@ -797,7 +797,7 @@ TEST(RemoveToNumberEffects) {
     }
   }
 
-  CHECK_EQ(NULL, effect_use);  // should have done all cases above.
+  CHECK(!effect_use);  // should have done all cases above.
 }
 
 

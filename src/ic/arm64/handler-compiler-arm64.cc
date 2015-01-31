@@ -121,17 +121,11 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
                                      Register holder, Register name,
                                      Handle<JSObject> holder_obj) {
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
 
-  __ Push(name);
-  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
-  DCHECK(!masm->isolate()->heap()->InNewSpace(*interceptor));
-  Register scratch = name;
-  __ Mov(scratch, Operand(interceptor));
-  __ Push(scratch, receiver, holder);
+  __ Push(name, receiver, holder);
 }
 
 
@@ -626,12 +620,15 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
 
   __ Push(receiver());
 
-  if (heap()->InNewSpace(callback->data())) {
-    __ Mov(scratch3(), Operand(callback));
-    __ Ldr(scratch3(),
-           FieldMemOperand(scratch3(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ Mov(scratch3(), Operand(data));
   } else {
-    __ Mov(scratch3(), Operand(Handle<Object>(callback->data(), isolate())));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch3(), cell);
   }
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Mov(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
@@ -739,8 +736,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
   Register holder_reg = Frontend(name);
 
@@ -750,7 +746,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   // receiver() and holder_reg can alias.
   DCHECK(!AreAliased(receiver(), scratch1(), scratch2(), value()));
   DCHECK(!AreAliased(holder_reg, scratch1(), scratch2(), value()));
-  __ Mov(scratch1(), Operand(callback));
+  __ Mov(scratch1(), Operand(Smi::FromInt(accessor_index)));
   __ Mov(scratch2(), Operand(name));
   __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
 

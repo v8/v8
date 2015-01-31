@@ -224,13 +224,9 @@ Code* IC::GetOriginalCode() const {
 
 
 bool IC::AddressIsOptimizedCode() const {
-  Object* maybe_function =
-      Memory::Object_at(fp() + JavaScriptFrameConstants::kFunctionOffset);
-  if (maybe_function->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(maybe_function);
-    return function->IsOptimized();
-  }
-  return false;
+  Code* host =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
+  return host->kind() == Code::OPTIMIZED_FUNCTION;
 }
 
 
@@ -606,11 +602,11 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
 
 
 // static
-Handle<Code> KeyedLoadIC::generic_stub(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
     return KeyedLoadGenericStub(isolate).GetCode();
   } else {
-    return isolate->builtins()->KeyedLoadIC_Generic();
+    return isolate->builtins()->KeyedLoadIC_Megamorphic();
   }
 }
 
@@ -637,10 +633,10 @@ void IC::ConfigureVectorState(IC::State new_state) {
     }
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    if (new_state == GENERIC) {
-      nexus->ConfigureGeneric();
-    } else if (new_state == PREMONOMORPHIC) {
+    if (new_state == PREMONOMORPHIC) {
       nexus->ConfigurePremonomorphic();
+    } else if (new_state == MEGAMORPHIC) {
+      nexus->ConfigureMegamorphic();
     } else {
       UNREACHABLE();
     }
@@ -704,9 +700,9 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) {
       if (UseVector()) {
-        ConfigureVectorState(GENERIC);
+        ConfigureVectorState(MEGAMORPHIC);
       } else {
-        set_target(*KeyedLoadIC::generic_stub(isolate()));
+        set_target(*megamorphic_stub());
       }
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
@@ -951,8 +947,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
         CopyICToMegamorphicCache(name);
       }
       if (UseVector()) {
-        ConfigureVectorState(kind() == Code::KEYED_LOAD_IC ? GENERIC
-                                                           : MEGAMORPHIC);
+        ConfigureVectorState(MEGAMORPHIC);
       } else {
         set_target(*megamorphic_stub());
       }
@@ -969,12 +964,8 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
     case DEBUG_STUB:
       break;
     case DEFAULT:
-      UNREACHABLE();
-      break;
     case GENERIC:
-      // The generic keyed store stub re-uses store handlers, which can miss.
-      // That's ok, no reason to do anything.
-      DCHECK(target()->kind() == Code::KEYED_STORE_IC);
+      UNREACHABLE();
       break;
   }
 }
@@ -1022,7 +1013,7 @@ Handle<Code> LoadIC::megamorphic_stub() {
     return stub.GetCode();
   } else {
     DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-    return KeyedLoadIC::generic_stub(isolate());
+    return KeyedLoadIC::ChooseMegamorphicStub(isolate());
   }
 }
 
@@ -1091,8 +1082,6 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 
 
 void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
-  // Megamorphic state isn't implemented for keyed loads currently.
-  if (kind() == Code::KEYED_LOAD_IC) return;
   Map* map = *TypeToMap(type, isolate());
   isolate()->stub_cache()->Set(name, map, code);
 }
@@ -1370,14 +1359,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
-    return generic_stub();
+    return megamorphic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
-    return generic_stub();
+    return megamorphic_stub();
   }
 
   if (FLAG_vector_ics) {
@@ -1407,7 +1396,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   Handle<Object> load_handle;
-  Handle<Code> stub = generic_stub();
+  Handle<Code> stub = megamorphic_stub();
 
   // Check for non-string values that can be converted into an
   // internalized string directly or is representable as a smi.
@@ -1428,7 +1417,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 
   if (!UseVector()) {
     if (!is_target_set()) {
-      Code* generic = *generic_stub();
+      Code* generic = *megamorphic_stub();
       if (*stub == generic) {
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
@@ -1438,9 +1427,9 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   } else {
     if (!is_vector_set() || stub.is_null()) {
-      Code* generic = *generic_stub();
+      Code* generic = *megamorphic_stub();
       if (!stub.is_null() && *stub == generic) {
-        ConfigureVectorState(GENERIC);
+        ConfigureVectorState(MEGAMORPHIC);
         TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
       }
 
@@ -1727,7 +1716,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           break;
         }
         NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-        return compiler.CompileStoreCallback(receiver, lookup->name(), info);
+        return compiler.CompileStoreCallback(receiver, lookup->name(),
+                                             lookup->GetAccessorIndex());
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
@@ -2557,7 +2547,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     target = stub.GetCode();
 
     // Sanity check the generic stub.
-    DCHECK_EQ(NULL, target->FindFirstAllocationSite());
+    DCHECK_NULL(target->FindFirstAllocationSite());
   }
   set_target(*target);
 
@@ -2815,10 +2805,14 @@ RUNTIME_FUNCTION(ToBooleanIC_Miss) {
 RUNTIME_FUNCTION(StoreCallbackProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<ExecutableAccessorInfo> callback = args.at<ExecutableAccessorInfo>(2);
+  Handle<Smi> accessor_index = args.at<Smi>(2);
   Handle<Name> name = args.at<Name>(3);
   Handle<Object> value = args.at<Object>(4);
   HandleScope scope(isolate);
+
+  Handle<ExecutableAccessorInfo> callback(ExecutableAccessorInfo::cast(
+      holder->map()->instance_descriptors()->GetCallbacksObject(
+          accessor_index->value())));
 
   DCHECK(callback->IsCompatibleReceiver(*receiver));
 
@@ -2847,8 +2841,12 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
-      NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex);
+  Handle<JSObject> receiver =
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<JSObject> holder =
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
+  HandleScope scope(isolate);
+  Handle<InterceptorInfo> interceptor_info(holder->GetNamedInterceptor());
 
   if (name->IsSymbol() && !interceptor_info->can_intercept_symbols())
     return isolate->heap()->no_interceptor_result_sentinel();
@@ -2858,15 +2856,10 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
       FUNCTION_CAST<v8::GenericNamedPropertyGetterCallback>(getter_address);
   DCHECK(getter != NULL);
 
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   PropertyCallbackArguments callback_args(isolate, interceptor_info->data(),
                                           *receiver, *holder);
   {
     // Use the interceptor getter.
-    HandleScope scope(isolate);
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);

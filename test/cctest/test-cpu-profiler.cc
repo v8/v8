@@ -164,22 +164,22 @@ TEST(CodeEvents) {
 
   // Check the state of profile generator.
   CodeEntry* aaa = generator.code_map()->FindEntry(aaa_code->address());
-  CHECK_NE(NULL, aaa);
+  CHECK(aaa);
   CHECK_EQ(aaa_str, aaa->name());
 
   CodeEntry* comment = generator.code_map()->FindEntry(comment_code->address());
-  CHECK_NE(NULL, comment);
-  CHECK_EQ("comment", comment->name());
+  CHECK(comment);
+  CHECK_EQ(0, strcmp("comment", comment->name()));
 
   CodeEntry* args5 = generator.code_map()->FindEntry(args5_code->address());
-  CHECK_NE(NULL, args5);
-  CHECK_EQ("5", args5->name());
+  CHECK(args5);
+  CHECK_EQ(0, strcmp("5", args5->name()));
 
-  CHECK_EQ(NULL, generator.code_map()->FindEntry(comment2_code->address()));
+  CHECK(!generator.code_map()->FindEntry(comment2_code->address()));
 
   CodeEntry* comment2 = generator.code_map()->FindEntry(moved_code->address());
-  CHECK_NE(NULL, comment2);
-  CHECK_EQ("comment2", comment2->name());
+  CHECK(comment2);
+  CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
 
 
@@ -224,21 +224,21 @@ TEST(TickEvents) {
 
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
 
   // Check call trees.
   const i::List<ProfileNode*>* top_down_root_children =
       profile->top_down()->root()->children();
   CHECK_EQ(1, top_down_root_children->length());
-  CHECK_EQ("bbb", top_down_root_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("bbb", top_down_root_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_bbb_children =
       top_down_root_children->last()->children();
   CHECK_EQ(1, top_down_bbb_children->length());
-  CHECK_EQ("5", top_down_bbb_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("5", top_down_bbb_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_stub_children =
       top_down_bbb_children->last()->children();
   CHECK_EQ(1, top_down_stub_children->length());
-  CHECK_EQ("ddd", top_down_stub_children->last()->entry()->name());
+  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->last()->entry()->name()));
   const i::List<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->last()->children();
   CHECK_EQ(0, top_down_ddd_children->length());
@@ -289,9 +289,9 @@ TEST(Issue1398) {
 
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
 
-  int actual_depth = 0;
+  unsigned actual_depth = 0;
   const ProfileNode* node = profile->top_down()->root();
   while (node->children()->length() > 0) {
     node = node->children()->last();
@@ -356,7 +356,7 @@ TEST(DeleteCpuProfile) {
   v8::Local<v8::String> name1 = v8::String::NewFromUtf8(env->GetIsolate(), "1");
   cpu_profiler->StartProfiling(name1);
   v8::CpuProfile* p1 = cpu_profiler->StopProfiling(name1);
-  CHECK_NE(NULL, p1);
+  CHECK(p1);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   CHECK(FindCpuProfile(cpu_profiler, p1));
   p1->Delete();
@@ -365,13 +365,13 @@ TEST(DeleteCpuProfile) {
   v8::Local<v8::String> name2 = v8::String::NewFromUtf8(env->GetIsolate(), "2");
   cpu_profiler->StartProfiling(name2);
   v8::CpuProfile* p2 = cpu_profiler->StopProfiling(name2);
-  CHECK_NE(NULL, p2);
+  CHECK(p2);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   CHECK(FindCpuProfile(cpu_profiler, p2));
   v8::Local<v8::String> name3 = v8::String::NewFromUtf8(env->GetIsolate(), "3");
   cpu_profiler->StartProfiling(name3);
   v8::CpuProfile* p3 = cpu_profiler->StopProfiling(name3);
-  CHECK_NE(NULL, p3);
+  CHECK(p3);
   CHECK_EQ(2, iprofiler->GetProfilesCount());
   CHECK_NE(p2, p3);
   CHECK(FindCpuProfile(cpu_profiler, p3));
@@ -417,7 +417,7 @@ static v8::CpuProfile* RunProfiler(
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
 
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
   // Dump collected profile to have a better diagnostic in case of failure.
   reinterpret_cast<i::CpuProfile*>(profile)->Print();
 
@@ -444,7 +444,7 @@ static void CheckChildrenNames(const v8::CpuProfileNode* node,
     // Check that there are no duplicates.
     for (int j = 0; j < count; j++) {
       if (j == i) continue;
-      CHECK_NE(name, node->GetChild(j)->GetFunctionName());
+      CHECK(!name->Equals(node->GetChild(j)->GetFunctionName()));
     }
   }
 }
@@ -674,7 +674,7 @@ TEST(CollectCpuProfileSamples) {
   uint64_t current_time = profile->GetStartTime();
   CHECK_LE(current_time, end_time);
   for (int i = 0; i < profile->GetSamplesCount(); i++) {
-    CHECK_NE(NULL, profile->GetSample(i));
+    CHECK(profile->GetSample(i));
     uint64_t timestamp = profile->GetSampleTimestamp(i);
     CHECK_LE(current_time, timestamp);
     CHECK_LE(timestamp, end_time);
@@ -1092,8 +1092,8 @@ TEST(TickLines) {
 
   i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast((*env)->Global()->Get(v8_str(func_name))));
-  CHECK_NE(NULL, func->shared());
-  CHECK_NE(NULL, func->shared()->code());
+  CHECK(func->shared());
+  CHECK(func->shared()->code());
   i::Code* code = NULL;
   if (func->code()->is_optimized_code()) {
     code = func->code();
@@ -1101,9 +1101,9 @@ TEST(TickLines) {
     CHECK(func->shared()->code() == func->code() || !i::FLAG_crankshaft);
     code = func->shared()->code();
   }
-  CHECK_NE(NULL, code);
+  CHECK(code);
   i::Address code_address = code->instruction_start();
-  CHECK_NE(NULL, code_address);
+  CHECK(code_address);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -1126,22 +1126,22 @@ TEST(TickLines) {
   processor->StopSynchronously();
 
   CpuProfile* profile = profiles->StopProfiling("");
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
 
   // Check the state of profile generator.
   CodeEntry* func_entry = generator.code_map()->FindEntry(code_address);
-  CHECK_NE(NULL, func_entry);
+  CHECK(func_entry);
   CHECK_EQ(func_name, func_entry->name());
   const i::JITLineInfoTable* line_info = func_entry->line_info();
-  CHECK_NE(NULL, line_info);
+  CHECK(line_info);
   CHECK(!line_info->empty());
 
   // Check the hit source lines using V8 Public APIs.
   const i::ProfileTree* tree = profile->top_down();
   ProfileNode* root = tree->root();
-  CHECK_NE(NULL, root);
+  CHECK(root);
   ProfileNode* func_node = root->FindChild(func_entry);
-  CHECK_NE(NULL, func_node);
+  CHECK(func_node);
 
   // Add 10 faked ticks to source line #5.
   int hit_line = 5;
@@ -1149,7 +1149,7 @@ TEST(TickLines) {
   for (int i = 0; i < hit_count; i++) func_node->IncrementLineTicks(hit_line);
 
   unsigned int line_count = func_node->GetHitLineCount();
-  CHECK_EQ(2, line_count);  // Expect two hit source lines - #1 and #5.
+  CHECK_EQ(2u, line_count);  // Expect two hit source lines - #1 and #5.
   ScopedVector<v8::CpuProfileNode::LineTick> entries(line_count);
   CHECK(func_node->GetLineTicks(&entries[0], line_count));
   int value = 0;
@@ -1375,7 +1375,7 @@ TEST(CpuProfileDeepStack) {
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile");
   function->Call(env->Global(), 0, NULL);
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
   // Dump collected profile to have a better diagnostic in case of failure.
   reinterpret_cast<i::CpuProfile*>(profile)->Print();
 
@@ -1663,7 +1663,7 @@ TEST(IdleTime) {
 
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
   // Dump collected profile to have a better diagnostic in case of failure.
   reinterpret_cast<i::CpuProfile*>(profile)->Print();
 
@@ -1680,12 +1680,12 @@ TEST(IdleTime) {
   const v8::CpuProfileNode* programNode =
       GetChild(env->GetIsolate(), root, ProfileGenerator::kProgramEntryName);
   CHECK_EQ(0, programNode->GetChildrenCount());
-  CHECK_GE(programNode->GetHitCount(), 3);
+  CHECK_GE(programNode->GetHitCount(), 3u);
 
   const v8::CpuProfileNode* idleNode =
       GetChild(env->GetIsolate(), root, ProfileGenerator::kIdleEntryName);
   CHECK_EQ(0, idleNode->GetChildrenCount());
-  CHECK_GE(idleNode->GetHitCount(), 3);
+  CHECK_GE(idleNode->GetHitCount(), 3u);
 
   profile->Delete();
 }
@@ -1695,10 +1695,10 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
                                  const v8::CpuProfileNode* node,
                                  const char* name, const char* script_name,
                                  int script_id, int line, int column) {
-  CHECK_EQ(v8::String::NewFromUtf8(isolate, name),
-           node->GetFunctionName());
-  CHECK_EQ(v8::String::NewFromUtf8(isolate, script_name),
-           node->GetScriptResourceName());
+  CHECK(
+      v8::String::NewFromUtf8(isolate, name)->Equals(node->GetFunctionName()));
+  CHECK(v8::String::NewFromUtf8(isolate, script_name)
+            ->Equals(node->GetScriptResourceName()));
   CHECK_EQ(script_id, node->GetScriptId());
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());

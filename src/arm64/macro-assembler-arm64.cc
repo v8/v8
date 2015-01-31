@@ -3675,10 +3675,15 @@ void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
 }
 
 
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
+void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   Mov(value, Operand(cell));
   Ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
 }
 
@@ -3936,7 +3941,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(
   Cmp(index, index_type == kIndexIsSmi ? scratch : Operand::UntagSmi(scratch));
   Check(lt, kIndexIsTooLarge);
 
-  DCHECK_EQ(0, Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   Cmp(index, 0);
   Check(ge, kIndexIsNegative);
 }

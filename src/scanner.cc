@@ -599,6 +599,15 @@ void Scanner::Scan() {
           token = ScanNumber(true);
         } else {
           token = Token::PERIOD;
+          if (c0_ == '.') {
+            Advance();
+            if (c0_ == '.') {
+              Advance();
+              token = Token::ELLIPSIS;
+            } else {
+              PushBack('.');
+            }
+          }
         }
         break;
 

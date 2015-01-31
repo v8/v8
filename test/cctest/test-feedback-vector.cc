@@ -233,7 +233,7 @@ TEST(VectorCallICStates) {
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // CallIC doesn't return map feedback.
-  CHECK_EQ(NULL, nexus.FindFirstMap());
+  CHECK(!nexus.FindFirstMap());
 
   CompileRun("f(function() { return 16; })");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
@@ -299,7 +299,7 @@ TEST(VectorLoadICStates) {
   // Finally driven megamorphic.
   CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
-  CHECK_EQ(NULL, nexus.FindFirstMap());
+  CHECK(!nexus.FindFirstMap());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);

@@ -36,7 +36,7 @@ class FunctionTester : public InitializedHandleScope {
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
                                      CompilationInfo::kInliningEnabled |
                                      CompilationInfo::kTypingEnabled;
-    CHECK_EQ(0, flags_ & ~supported_flags);
+    CHECK_EQ(0u, flags_ & ~supported_flags);
   }
 
   explicit FunctionTester(Graph* graph)

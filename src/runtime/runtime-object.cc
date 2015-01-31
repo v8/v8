@@ -601,33 +601,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
       DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
-      if (receiver->HasFastProperties()) {
-        // Attempt to use lookup cache.
-        Handle<Map> receiver_map(receiver->map(), isolate);
-        KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-        int index = keyed_lookup_cache->Lookup(receiver_map, key);
-        if (index != -1) {
-          // Doubles are not cached, so raw read the value.
-          return receiver->RawFastPropertyAt(
-              FieldIndex::ForKeyedLookupCacheIndex(*receiver_map, index));
-        }
-        // Lookup cache miss.  Perform lookup and update the cache if
-        // appropriate.
-        LookupIterator it(receiver, key, LookupIterator::OWN);
-        if (it.state() == LookupIterator::DATA &&
-            it.property_details().type() == DATA) {
-          FieldIndex field_index = it.GetFieldIndex();
-          // Do not track double fields in the keyed lookup cache. Reading
-          // double values requires boxing.
-          if (!it.representation().IsDouble()) {
-            keyed_lookup_cache->Update(receiver_map, key,
-                                       field_index.GetKeyedLookupCacheIndex());
-          }
-          AllowHeapAllocation allow_allocation;
-          return *JSObject::FastPropertyAt(receiver, it.representation(),
-                                           field_index);
-        }
-      } else {
+      if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
         NameDictionary* dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(key);

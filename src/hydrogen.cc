@@ -8222,6 +8222,18 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
 }
 
 
+// static
+bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
+    Handle<Map> receiver_map) {
+  return !receiver_map.is_null() &&
+         receiver_map->instance_type() == JS_ARRAY_TYPE &&
+         IsFastElementsKind(receiver_map->elements_kind()) &&
+         !receiver_map->is_dictionary_map() &&
+         !JSArray::IsReadOnlyLengthDescriptor(receiver_map) &&
+         !receiver_map->is_observed() && receiver_map->is_extensible();
+}
+
+
 bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     Call* expr, Handle<JSFunction> function, Handle<Map> receiver_map,
     int args_count_no_receiver) {
@@ -8341,13 +8353,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       }
       break;
     case kArrayPop: {
-      if (receiver_map.is_null()) return false;
-      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      if (!CanInlineArrayResizeOperation(receiver_map)) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
-      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
-      if (!IsFastElementsKind(elements_kind)) return false;
-      if (receiver_map->is_observed()) return false;
-      if (!receiver_map->is_extensible()) return false;
 
       Drop(args_count_no_receiver);
       HValue* result;
@@ -8404,13 +8411,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       return true;
     }
     case kArrayPush: {
-      if (receiver_map.is_null()) return false;
-      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      if (!CanInlineArrayResizeOperation(receiver_map)) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
-      if (!IsFastElementsKind(elements_kind)) return false;
-      if (receiver_map->is_observed()) return false;
-      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
-      if (!receiver_map->is_extensible()) return false;
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.
@@ -8457,13 +8459,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       return true;
     }
     case kArrayShift: {
-      if (receiver_map.is_null()) return false;
-      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      if (!CanInlineArrayResizeOperation(receiver_map)) return false;
       ElementsKind kind = receiver_map->elements_kind();
-      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
-      if (!IsFastElementsKind(kind)) return false;
-      if (receiver_map->is_observed()) return false;
-      if (!receiver_map->is_extensible()) return false;
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.
@@ -8721,7 +8718,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     case kCallApiGetter:
       // Receiver and prototype chain cannot have changed.
       DCHECK_EQ(0, argc);
-      DCHECK_EQ(NULL, receiver);
+      DCHECK_NULL(receiver);
       // Receiver is on expression stack.
       receiver = Pop();
       Add<HPushArguments>(receiver);
@@ -8731,7 +8728,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
         is_store = true;
         // Receiver and prototype chain cannot have changed.
         DCHECK_EQ(1, argc);
-        DCHECK_EQ(NULL, receiver);
+        DCHECK_NULL(receiver);
         // Receiver and value are on expression stack.
         HValue* value = Pop();
         receiver = Pop();
@@ -11812,7 +11809,7 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 
 void HOptimizedGraphBuilder::GenerateDateField(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 2);
-  DCHECK_NE(NULL, call->arguments()->at(1)->AsLiteral());
+  DCHECK_NOT_NULL(call->arguments()->at(1)->AsLiteral());
   Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->value()));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* date = Pop();

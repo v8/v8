@@ -3243,7 +3243,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 
   // Push the frame pointer, context, state, and code object.
   if (kind == StackHandler::JS_ENTRY) {
-    DCHECK_EQ(Smi::FromInt(0), 0);
+    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
     // The second zero_reg indicates no context.
     // The first zero_reg is the NULL frame pointer.
     // The operands are reversed to match the order of MultiPush/Pop.

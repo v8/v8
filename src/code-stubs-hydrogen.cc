@@ -1907,6 +1907,9 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     }
     if_dict_properties.Else();
     {
+      // TODO(dcarney): don't use keyed lookup cache, but convert to use
+      // megamorphic stub cache.
+      UNREACHABLE();
       //  Key is string, properties are fast mode
       HValue* hash = BuildKeyedLookupCacheHash(receiver, key);
 
@@ -2168,15 +2171,16 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
   }
   array_checker.Else();
   {
-    // Check if the IC is in generic state.
-    IfBuilder generic_checker(this);
-    HConstant* generic_symbol =
-        Add<HConstant>(isolate()->factory()->generic_symbol());
-    generic_checker.If<HCompareObjectEqAndBranch>(feedback, generic_symbol);
-    generic_checker.Then();
+    // Check if the IC is in megamorphic state.
+    IfBuilder megamorphic_checker(this);
+    HConstant* megamorphic_symbol =
+        Add<HConstant>(isolate()->factory()->megamorphic_symbol());
+    megamorphic_checker.If<HCompareObjectEqAndBranch>(feedback,
+                                                      megamorphic_symbol);
+    megamorphic_checker.Then();
     {
-      // Tail-call to the generic KeyedLoadIC, treating it like a handler.
-      Handle<Code> stub = KeyedLoadIC::generic_stub(isolate());
+      // Tail-call to the megamorphic KeyedLoadIC, treating it like a handler.
+      Handle<Code> stub = KeyedLoadIC::ChooseMegamorphicStub(isolate());
       HValue* constant_stub = Add<HConstant>(stub);
       LoadDescriptor descriptor(isolate());
       HValue* op_vals[] = {context(), receiver, name};
@@ -2184,7 +2188,7 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
                                Vector<HValue*>(op_vals, 3), TAIL_CALL);
       // We never return here, it is a tail call.
     }
-    generic_checker.End();
+    megamorphic_checker.End();
   }
   array_checker.End();
 

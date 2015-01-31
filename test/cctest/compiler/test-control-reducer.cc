@@ -221,7 +221,7 @@ TEST(Trim1_dead) {
   CHECK(IsUsedBy(T.start, T.p0));
   T.Trim();
   CHECK(!IsUsedBy(T.start, T.p0));
-  CHECK_EQ(NULL, T.p0->InputAt(0));
+  CHECK(!T.p0->InputAt(0));
 }
 
 
@@ -252,9 +252,9 @@ TEST(Trim2_dead) {
   CHECK(!IsUsedBy(T.one, phi));
   CHECK(!IsUsedBy(T.half, phi));
   CHECK(!IsUsedBy(T.start, phi));
-  CHECK_EQ(NULL, phi->InputAt(0));
-  CHECK_EQ(NULL, phi->InputAt(1));
-  CHECK_EQ(NULL, phi->InputAt(2));
+  CHECK(!phi->InputAt(0));
+  CHECK(!phi->InputAt(1));
+  CHECK(!phi->InputAt(2));
 }
 
 
@@ -274,7 +274,7 @@ TEST(Trim_chain1) {
   T.Trim();
   for (int i = 0; i < kDepth; i++) {
     CHECK(!IsUsedBy(live[i], dead[i]));
-    CHECK_EQ(NULL, dead[i]->InputAt(0));
+    CHECK(!dead[i]->InputAt(0));
     CHECK_EQ(i == 0 ? T.start : live[i - 1], live[i]->InputAt(0));
   }
 }
@@ -354,9 +354,9 @@ TEST(Trim_cycle2) {
   CHECK(!IsUsedBy(loop, phi));
   CHECK(!IsUsedBy(T.one, phi));
   CHECK(!IsUsedBy(T.half, phi));
-  CHECK_EQ(NULL, phi->InputAt(0));
-  CHECK_EQ(NULL, phi->InputAt(1));
-  CHECK_EQ(NULL, phi->InputAt(2));
+  CHECK(!phi->InputAt(0));
+  CHECK(!phi->InputAt(1));
+  CHECK(!phi->InputAt(2));
 }
 
 
@@ -365,8 +365,8 @@ void CheckTrimConstant(ControlReducerTester* T, Node* k) {
   CHECK(IsUsedBy(k, phi));
   T->Trim();
   CHECK(!IsUsedBy(k, phi));
-  CHECK_EQ(NULL, phi->InputAt(0));
-  CHECK_EQ(NULL, phi->InputAt(1));
+  CHECK(!phi->InputAt(0));
+  CHECK(!phi->InputAt(1));
 }
 
 
@@ -954,7 +954,7 @@ TEST(CMergeReduce_dead_chain1) {
     R.graph.SetEnd(end);
     R.ReduceGraph();
     CHECK(merge->IsDead());
-    CHECK_EQ(NULL, end->InputAt(0));  // end dies.
+    CHECK(!end->InputAt(0));  // end dies.
   }
 }
 

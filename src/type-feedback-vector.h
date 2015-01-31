@@ -175,9 +175,6 @@ class TypeFeedbackVector : public FixedArray {
   // The object that indicates a premonomorphic state.
   static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
 
-  // The object that indicates a generic state.
-  static inline Handle<Object> GenericSentinel(Isolate* isolate);
-
   // The object that indicates a monomorphic state of Array with
   // ElementsKind
   static inline Handle<Object> MonomorphicArraySentinel(
@@ -348,7 +345,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureGeneric();
+  void ConfigureMegamorphic();
   void ConfigurePremonomorphic();
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<HeapType> type,

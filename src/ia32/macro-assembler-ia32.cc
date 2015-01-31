@@ -2403,10 +2403,15 @@ void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
 }
 
 
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
+void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, cell);
   mov(value, FieldOperand(value, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
 }
 

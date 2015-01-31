@@ -827,9 +827,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ sw(hole_lower, MemOperand(scratch3, Register::kMantissaOffset));
   // exponent
   __ sw(hole_upper, MemOperand(scratch3, Register::kExponentOffset));
-  __ bind(&entry);
   __ addiu(scratch3, scratch3, kDoubleSize);
 
+  __ bind(&entry);
   __ Branch(&loop, lt, scratch3, Operand(array_end));
 
   __ bind(&done);

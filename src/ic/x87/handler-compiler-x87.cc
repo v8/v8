@@ -290,16 +290,10 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
                                      Register holder, Register name,
                                      Handle<JSObject> holder_obj) {
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
   __ push(name);
-  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
-  DCHECK(!masm->isolate()->heap()->InNewSpace(*interceptor));
-  Register scratch = name;
-  __ mov(scratch, Immediate(interceptor));
-  __ push(scratch);
   __ push(receiver);
   __ push(holder);
 }
@@ -568,12 +562,17 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   __ push(receiver());  // receiver
   // Push data from ExecutableAccessorInfo.
-  if (isolate()->heap()->InNewSpace(callback->data())) {
-    DCHECK(!scratch2().is(reg));
-    __ mov(scratch2(), Immediate(callback));
-    __ push(FieldOperand(scratch2(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ push(Immediate(data));
   } else {
-    __ push(Immediate(Handle<Object>(callback->data(), isolate())));
+    DCHECK(!scratch2().is(reg));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch2(), cell);
+    __ push(scratch2());
   }
   __ push(Immediate(isolate()->factory()->undefined_value()));  // ReturnValue
   // ReturnValue default value
@@ -691,14 +690,13 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
   Register holder_reg = Frontend(name);
 
   __ pop(scratch1());  // remove the return address
   __ push(receiver());
   __ push(holder_reg);
-  __ Push(callback);
+  __ Push(Smi::FromInt(accessor_index));
   __ Push(name);
   __ push(value());
   __ push(scratch1());  // restore return address

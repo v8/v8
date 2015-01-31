@@ -109,8 +109,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
-  DCHECK_NE(0, output_count);
+  DCHECK_NE(0u, input_count);
+  DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 

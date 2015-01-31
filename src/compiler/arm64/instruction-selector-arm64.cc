@@ -215,8 +215,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
-  DCHECK_NE(0, output_count);
+  DCHECK_NE(0u, input_count);
+  DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
@@ -507,7 +507,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
       // The mask must be contiguous, and occupy the least-significant bits.
-      DCHECK_EQ(0, base::bits::CountTrailingZeros32(mask));
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
 
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
@@ -544,7 +544,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
     uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
       // The mask must be contiguous, and occupy the least-significant bits.
-      DCHECK_EQ(0, base::bits::CountTrailingZeros64(mask));
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
 
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
@@ -628,7 +628,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
-    int32_t lsb = m.right().Value();
+    uint32_t lsb = m.right().Value();
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
@@ -653,7 +653,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
   Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
-    int64_t lsb = m.right().Value();
+    uint64_t lsb = m.right().Value();
     Int64BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
