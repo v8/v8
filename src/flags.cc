@@ -30,8 +30,8 @@ namespace {
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
 struct Flag {
-  enum FlagType { TYPE_BOOL, TYPE_MAYBE_BOOL, TYPE_INT, TYPE_FLOAT,
-                  TYPE_STRING, TYPE_ARGS };
+  enum FlagType { TYPE_BOOL, TYPE_MAYBE_BOOL, TYPE_INT, TYPE_INTPTR,
+                  TYPE_FLOAT, TYPE_STRING, TYPE_ARGS };
 
   FlagType type_;           // What type of flag, bool, int, or string.
   const char* name_;        // Name of the flag, ex "my_flag".
@@ -59,6 +59,11 @@ struct Flag {
   int* int_variable() const {
     DCHECK(type_ == TYPE_INT);
     return reinterpret_cast<int*>(valptr_);
+  }
+
+  intptr_t* intptr_variable() const {
+    DCHECK(type_ == TYPE_INTPTR);
+    return reinterpret_cast<intptr_t*>(valptr_);
   }
 
   double* float_variable() const {
@@ -94,6 +99,11 @@ struct Flag {
     return *reinterpret_cast<const int*>(defptr_);
   }
 
+  int intptr_default() const {
+    DCHECK(type_ == TYPE_INTPTR);
+    return *reinterpret_cast<const intptr_t*>(defptr_);
+  }
+
   double float_default() const {
     DCHECK(type_ == TYPE_FLOAT);
     return *reinterpret_cast<const double*>(defptr_);
@@ -118,6 +128,8 @@ struct Flag {
         return maybe_bool_variable()->has_value == false;
       case TYPE_INT:
         return *int_variable() == int_default();
+      case TYPE_INTPTR:
+        return *intptr_variable() == intptr_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
       case TYPE_STRING: {
@@ -145,6 +157,9 @@ struct Flag {
         break;
       case TYPE_INT:
         *int_variable() = int_default();
+        break;
+      case TYPE_INTPTR:
+        *intptr_variable() = intptr_default();
         break;
       case TYPE_FLOAT:
         *float_variable() = float_default();
@@ -174,6 +189,7 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_BOOL: return "bool";
     case Flag::TYPE_MAYBE_BOOL: return "maybe_bool";
     case Flag::TYPE_INT: return "int";
+    case Flag::TYPE_INTPTR: return "intptr_t";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_STRING: return "string";
     case Flag::TYPE_ARGS: return "arguments";
@@ -195,6 +211,9 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_INT:
       os << *flag.int_variable();
+      break;
+    case Flag::TYPE_INTPTR:
+      os << *flag.intptr_variable();
       break;
     case Flag::TYPE_FLOAT:
       os << *flag.float_variable();
@@ -395,6 +414,11 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           break;
         case Flag::TYPE_INT:
           *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
+          break;
+        case Flag::TYPE_INTPTR:
+          // TODO(bnoordhuis) Use strtoll()?  C++11 library feature
+          // that may not be available everywhere yet.
+          *flag->intptr_variable() = strtol(value, &endp, 10);  // NOLINT
           break;
         case Flag::TYPE_FLOAT:
           *flag->float_variable() = strtod(value, &endp);
