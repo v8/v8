@@ -7,7 +7,9 @@
 
 #include <deque>
 #include <list>
+#include <map>
 #include <queue>
+#include <set>
 #include <stack>
 #include <vector>
 
@@ -80,6 +82,31 @@ class ZoneStack : public std::stack<T, ZoneDeque<T>> {
   // Constructs an empty stack.
   explicit ZoneStack(Zone* zone)
       : std::stack<T, ZoneDeque<T>>(ZoneDeque<T>(zone)) {}
+};
+
+
+// A wrapper subclass for std::set to make it easy to construct one that uses
+// a zone allocator.
+template <typename K, typename Compare = std::less<K>>
+class ZoneSet : public std::set<K, Compare, zone_allocator<K>> {
+ public:
+  // Constructs an empty set.
+  explicit ZoneSet(Zone* zone)
+      : std::set<K, Compare, zone_allocator<K>>(Compare(),
+                                                zone_allocator<K>(zone)) {}
+};
+
+
+// A wrapper subclass for std::map to make it easy to construct one that uses
+// a zone allocator.
+template <typename K, typename V, typename Compare = std::less<K>>
+class ZoneMap
+    : public std::map<K, V, Compare, zone_allocator<std::pair<K, V>>> {
+ public:
+  // Constructs an empty map.
+  explicit ZoneMap(Zone* zone)
+      : std::map<K, V, Compare, zone_allocator<std::pair<K, V>>>(
+            Compare(), zone_allocator<std::pair<K, V>>(zone)) {}
 };
 
 
