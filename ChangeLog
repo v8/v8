@@ -1,3 +1,11 @@
+2015-01-31: Version 4.2.41
+
+        Layout descriptor sharing issue fixed (issue 3832, Chromium issue
+        437713).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-30: Version 4.2.40
 
         Performance and stability improvements on all platforms.
