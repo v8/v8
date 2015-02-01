@@ -240,13 +240,9 @@ struct PhiData : public ZoneObject {
   IntVector operands;
 };
 
-typedef std::map<int, PhiData*, std::less<int>,
-                 zone_allocator<std::pair<int, PhiData*>>> PhiMapBase;
-
-class PhiMap : public PhiMapBase, public ZoneObject {
+class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
  public:
-  explicit PhiMap(Zone* zone)
-      : PhiMapBase(key_compare(), allocator_type(zone)) {}
+  explicit PhiMap(Zone* zone) : ZoneMap<int, PhiData*>(zone) {}
 };
 
 struct OperandLess {
@@ -271,13 +267,11 @@ class OperandMap : public ZoneObject {
     int succ_vreg;       // valid if propagated back from successor block.
   };
 
-  typedef std::map<
-      const InstructionOperand*, MapValue*, OperandLess,
-      zone_allocator<std::pair<const InstructionOperand*, MapValue*>>> MapBase;
-
-  class Map : public MapBase {
+  class Map
+      : public ZoneMap<const InstructionOperand*, MapValue*, OperandLess> {
    public:
-    explicit Map(Zone* zone) : MapBase(key_compare(), allocator_type(zone)) {}
+    explicit Map(Zone* zone)
+        : ZoneMap<const InstructionOperand*, MapValue*, OperandLess>(zone) {}
 
     // Remove all entries with keys not in other.
     void Intersect(const Map& other) {
