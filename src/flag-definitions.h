@@ -151,7 +151,6 @@ struct MaybeBoolFlag {
 #define DEFINE_MAYBE_BOOL(nam, cmt) \
   FLAG(MAYBE_BOOL, MaybeBoolFlag, nam, {false COMMA false}, cmt)
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
-#define DEFINE_INTPTR(nam, def, cmt) FLAG(INTPTR, intptr_t, nam, def, cmt)
 #define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
 #define DEFINE_ARGS(nam, cmt) FLAG(ARGS, JSArguments, nam, {0 COMMA NULL}, cmt)
@@ -543,8 +542,8 @@ DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
 // execution.cc
-DEFINE_INTPTR(stack_size, V8_DEFAULT_STACK_SIZE_KB,
-              "default size of stack region v8 is allowed to use (in kBytes)")
+DEFINE_INT(stack_size, V8_DEFAULT_STACK_SIZE_KB,
+           "default size of stack region v8 is allowed to use (in kBytes)")
 
 // frames.cc
 DEFINE_INT(max_stack_trace_source_length, 300,
@@ -555,22 +554,21 @@ DEFINE_BOOL(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
-DEFINE_INTPTR(min_semi_space_size, 0,
-              "min size of a semi-space (in MBytes), the new space consists "
-              "of two semi-spaces")
-DEFINE_INTPTR(target_semi_space_size, 0,
-              "target size of a semi-space (in MBytes) before triggering a GC")
-DEFINE_INTPTR(max_semi_space_size, 0,
-              "max size of a semi-space (in MBytes), the new space consists "
-              "of two semi-spaces")
+DEFINE_INT(min_semi_space_size, 0,
+           "min size of a semi-space (in MBytes), the new space consists of two"
+           "semi-spaces")
+DEFINE_INT(target_semi_space_size, 0,
+           "target size of a semi-space (in MBytes) before triggering a GC")
+DEFINE_INT(max_semi_space_size, 0,
+           "max size of a semi-space (in MBytes), the new space consists of two"
+           "semi-spaces")
 DEFINE_INT(semi_space_growth_factor, 2, "factor by which to grow the new space")
 DEFINE_BOOL(experimental_new_space_growth_heuristic, false,
             "Grow the new space based on the percentage of survivors instead "
             "of their absolute value.")
-DEFINE_INTPTR(max_old_space_size, 0, "max size of the old space (in Mbytes)")
-DEFINE_INTPTR(initial_old_space_size, 0, "initial old space size (in Mbytes)")
-DEFINE_INTPTR(max_executable_size, 0,
-              "max size of executable memory (in Mbytes)")
+DEFINE_INT(max_old_space_size, 0, "max size of the old space (in Mbytes)")
+DEFINE_INT(initial_old_space_size, 0, "initial old space size (in Mbytes)")
+DEFINE_INT(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_BOOL(trace_gc, false,
