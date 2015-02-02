@@ -7,7 +7,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/osr.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
 #include "src/scopes.h"
@@ -974,8 +973,7 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  Frame* frame = this->frame();
-  int stack_slots = frame->GetSpillSlotCount();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     // Assemble a prologue similar the to cdecl calling convention.
     __ push(ebp);
@@ -988,18 +986,18 @@ void CodeGenerator::AssemblePrologue() {
         __ push(Register::from_code(i));
         register_save_area_size += kPointerSize;
       }
-      frame->SetRegisterSaveAreaSize(register_save_area_size);
+      frame()->SetRegisterSaveAreaSize(register_save_area_size);
     }
   } else if (descriptor->IsJSFunctionCall()) {
     // TODO(turbofan): this prologue is redundant with OSR, but needed for
     // code aging.
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
-    frame->SetRegisterSaveAreaSize(
+    frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   } else {
     __ StubPrologue();
-    frame->SetRegisterSaveAreaSize(
+    frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
 
@@ -1013,10 +1011,8 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    int unoptimized_slots =
-        static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
-    DCHECK(stack_slots >= unoptimized_slots);
-    stack_slots -= unoptimized_slots;
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
   }
 
   if (stack_slots > 0) {

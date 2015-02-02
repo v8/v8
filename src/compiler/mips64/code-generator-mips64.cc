@@ -6,7 +6,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/osr.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/scopes.h"
 
@@ -1086,10 +1085,8 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    int unoptimized_slots =
-        static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
-    DCHECK(stack_slots >= unoptimized_slots);
-    stack_slots -= unoptimized_slots;
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
   }
 
   if (stack_slots > 0) {

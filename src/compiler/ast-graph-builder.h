@@ -116,7 +116,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builder for stack-check guards.
   Node* BuildStackCheck();
 
-  bool IsOsrLoopEntry(IterationStatement* stmt);
+  // Check if the given statement is an OSR entry.
+  // If so, record the stack height into the compilation and return {true}.
+  bool CheckOsrEntry(IterationStatement* stmt);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
 

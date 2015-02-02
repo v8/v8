@@ -20,7 +20,8 @@ namespace compiler {
 
 OsrHelper::OsrHelper(CompilationInfo* info)
     : parameter_count_(info->scope()->num_parameters()),
-      stack_slot_count_(info->scope()->num_stack_slots()) {}
+      stack_slot_count_(info->scope()->num_stack_slots() +
+                        info->osr_expr_stack_height()) {}
 
 
 bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
@@ -75,6 +76,8 @@ void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving
   // the first spill slots.
   frame->ReserveSpillSlots(UnoptimizedFrameSlots());
+  // The frame needs to be adjusted by the number of unoptimized frame slots.
+  frame->SetOsrStackSlotCount(static_cast<int>(UnoptimizedFrameSlots()));
 }
 
 
