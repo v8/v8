@@ -1092,8 +1092,8 @@ class StoreGlobalStub : public HandlerStub {
                                        Handle<PropertyCell> cell) {
     if (check_global()) {
       Code::FindAndReplacePattern pattern;
-      pattern.Add(Handle<Map>(global_placeholder(isolate())->map()), global);
-      pattern.Add(isolate()->factory()->meta_map(), Handle<Map>(global->map()));
+      pattern.Add(isolate()->factory()->meta_map(),
+                  Map::WeakCellForMap(Handle<Map>(global->map())));
       pattern.Add(isolate()->factory()->global_property_cell_map(), cell);
       return CodeStub::GetCodeCopy(pattern);
     } else {
