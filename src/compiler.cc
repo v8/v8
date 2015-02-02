@@ -57,7 +57,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -71,7 +72,8 @@ CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(isolate, STUB, zone);
 }
 
@@ -87,7 +89,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -104,7 +107,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -118,7 +122,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -136,7 +141,8 @@ CompilationInfo::CompilationInfo(
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false) {
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
   Initialize(isolate, BASE, zone);
 }
 
