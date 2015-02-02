@@ -7,7 +7,7 @@
 
 #include "src/v8.h"
 
-#include "src/compiler/graph-builder.h"
+#include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/node.h"
 
 namespace v8 {
@@ -19,8 +19,7 @@ namespace compiler {
 // used to model breakable statements.
 class ControlBuilder {
  public:
-  explicit ControlBuilder(StructuredGraphBuilder* builder)
-      : builder_(builder) {}
+  explicit ControlBuilder(AstGraphBuilder* builder) : builder_(builder) {}
   virtual ~ControlBuilder() {}
 
   // Interface for break and continue.
@@ -28,8 +27,8 @@ class ControlBuilder {
   virtual void Continue() { UNREACHABLE(); }
 
  protected:
-  typedef StructuredGraphBuilder Builder;
-  typedef StructuredGraphBuilder::Environment Environment;
+  typedef AstGraphBuilder Builder;
+  typedef AstGraphBuilder::Environment Environment;
 
   Zone* zone() const { return builder_->local_zone(); }
   Environment* environment() { return builder_->environment(); }
@@ -42,7 +41,7 @@ class ControlBuilder {
 // Tracks control flow for a conditional statement.
 class IfBuilder FINAL : public ControlBuilder {
  public:
-  explicit IfBuilder(StructuredGraphBuilder* builder)
+  explicit IfBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
         then_environment_(NULL),
         else_environment_(NULL) {}
@@ -62,7 +61,7 @@ class IfBuilder FINAL : public ControlBuilder {
 // Tracks control flow for an iteration statement.
 class LoopBuilder FINAL : public ControlBuilder {
  public:
-  explicit LoopBuilder(StructuredGraphBuilder* builder)
+  explicit LoopBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
         loop_environment_(NULL),
         continue_environment_(NULL),
@@ -91,7 +90,7 @@ class LoopBuilder FINAL : public ControlBuilder {
 // Tracks control flow for a switch statement.
 class SwitchBuilder FINAL : public ControlBuilder {
  public:
-  explicit SwitchBuilder(StructuredGraphBuilder* builder, int case_count)
+  explicit SwitchBuilder(AstGraphBuilder* builder, int case_count)
       : ControlBuilder(builder),
         body_environment_(NULL),
         label_environment_(NULL),
@@ -124,7 +123,7 @@ class SwitchBuilder FINAL : public ControlBuilder {
 // Tracks control flow for a block statement.
 class BlockBuilder FINAL : public ControlBuilder {
  public:
-  explicit BlockBuilder(StructuredGraphBuilder* builder)
+  explicit BlockBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder), break_environment_(NULL) {}
 
   // Primitive control commands.

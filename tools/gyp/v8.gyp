@@ -441,7 +441,6 @@
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
         '../../src/compiler/generic-algorithm.h',
-        '../../src/compiler/graph-builder.cc',
         '../../src/compiler/graph-builder.h',
         '../../src/compiler/graph-inl.h',
         '../../src/compiler/graph-reducer.cc',

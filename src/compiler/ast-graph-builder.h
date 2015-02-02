@@ -8,23 +8,26 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
-#include "src/compiler/graph-builder.h"
 #include "src/compiler/js-graph.h"
 
 namespace v8 {
 namespace internal {
+
+class BitVector;
+
 namespace compiler {
 
 class ControlBuilder;
 class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
+class Node;
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
 // underlying AST. The produced graph can either be compiled into a
 // stand-alone function or be wired into another graph for the purposes
 // of function inlining.
-class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
+class AstGraphBuilder : public AstVisitor {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
                   LoopAssignmentAnalysis* loop_assignment = NULL);
@@ -32,7 +35,30 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Creates a graph by visiting the entire AST.
   bool CreateGraph();
 
+  // Helpers to create new control nodes.
+  Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
+  Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewMerge() { return NewNode(common()->Merge(1), true); }
+  Node* NewLoop() { return NewNode(common()->Loop(1), true); }
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
+    return NewNode(common()->Branch(hint), condition);
+  }
+
  protected:
+#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+  // Visiting functions for AST nodes make this an AstVisitor.
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  // Visiting function for declarations list is overridden.
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+
+  // Get the node that represents the outer function context.
+  Node* GetFunctionContext();
+  // Get the node that represents the outer function closure.
+  Node* GetFunctionClosure();
+
+ private:
   class AstContext;
   class AstEffectContext;
   class AstValueContext;
@@ -40,28 +66,129 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   class BreakableScope;
   class ContextScope;
   class Environment;
+  friend class ControlBuilder;
 
-  Environment* environment() {
-    return reinterpret_cast<Environment*>(
-        StructuredGraphBuilder::environment());
-  }
+  Zone* local_zone_;
+  CompilationInfo* info_;
+  JSGraph* jsgraph_;
+  Environment* environment_;
+  AstContext* ast_context_;
 
+  // List of global declarations for functions and variables.
+  ZoneVector<Handle<Object>> globals_;
+
+  // Stack of breakable statements entered by the visitor.
+  BreakableScope* breakable_;
+
+  // Stack of context objects pushed onto the chain by the visitor.
+  ContextScope* execution_context_;
+
+  // Nodes representing values in the activation record.
+  SetOncePointer<Node> function_closure_;
+  SetOncePointer<Node> function_context_;
+
+  // Temporary storage for building node input lists.
+  int input_buffer_size_;
+  Node** input_buffer_;
+
+  // Node representing the control dependency for dead code.
+  SetOncePointer<Node> dead_control_;
+
+  // Node representing the current context within the function body.
+  Node* current_context_;
+
+  // Merge of all control nodes that exit the function body.
+  Node* exit_control_;
+
+  // Result of loop assignment analysis performed before graph creation.
+  LoopAssignmentAnalysis* loop_assignment_analysis_;
+
+  // Growth increment for the temporary buffer used to construct input lists to
+  // new nodes.
+  static const int kInputBufferSizeIncrement = 64;
+
+  Zone* local_zone() const { return local_zone_; }
+  Environment* environment() { return environment_; }
   AstContext* ast_context() const { return ast_context_; }
   BreakableScope* breakable() const { return breakable_; }
   ContextScope* execution_context() const { return execution_context_; }
+  CommonOperatorBuilder* common() const { return jsgraph_->common(); }
+  CompilationInfo* info() const { return info_; }
+  StrictMode strict_mode() const;
+  JSGraph* jsgraph() { return jsgraph_; }
+  Graph* graph() { return jsgraph_->graph(); }
+  Zone* graph_zone() { return graph()->zone(); }
+  JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
+  ZoneVector<Handle<Object>>* globals() { return &globals_; }
+  inline Scope* current_scope() const;
+  Node* current_context() const { return current_context_; }
+  Node* dead_control();
+  Node* exit_control() const { return exit_control_; }
 
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
   void set_breakable(BreakableScope* brk) { breakable_ = brk; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
+  void set_exit_control(Node* exit) { exit_control_ = exit; }
+  void set_current_context(Node* ctx) { current_context_ = ctx; }
+  void set_environment(Environment* env) { environment_ = env; }
 
-  // Support for control flow builders. The concrete type of the environment
-  // depends on the graph builder, but environments themselves are not virtual.
-  typedef StructuredGraphBuilder::Environment BaseEnvironment;
-  BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
+  // Node creation helpers.
+  Node* NewNode(const Operator* op, bool incomplete = false) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL), incomplete);
+  }
 
-  // Getters for values in the activation record.
-  Node* GetFunctionClosure();
-  Node* GetFunctionContext();
+  Node* NewNode(const Operator* op, Node* n1) {
+    return MakeNode(op, 1, &n1, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes, false);
+  }
+
+  Node* NewNode(const Operator* op, int value_input_count, Node** value_inputs,
+                bool incomplete = false) {
+    return MakeNode(op, value_input_count, value_inputs, incomplete);
+  }
+
+  // Creates a new Phi node having {count} input values.
+  Node* NewPhi(int count, Node* input, Node* control);
+  Node* NewEffectPhi(int count, Node* input, Node* control);
+
+  // Helpers for merging control, effect or value dependencies.
+  Node* MergeControl(Node* control, Node* other);
+  Node* MergeEffect(Node* value, Node* other, Node* control);
+  Node* MergeValue(Node* value, Node* other, Node* control);
+
+  // The main node creation chokepoint. Adds context, frame state, effect,
+  // and control dependencies depending on the operator.
+  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
+                 bool incomplete);
+
+  // Helper to indicate a node exits the function body.
+  void UpdateControlDependencyToLeaveFunction(Node* exit);
 
   //
   // The following build methods all generate graph fragments and return one
@@ -120,47 +247,13 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // If so, record the stack height into the compilation and return {true}.
   bool CheckOsrEntry(IterationStatement* stmt);
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+  // Helper to wrap a Handle<T> into a Unique<T>.
+  template <class T>
+  Unique<T> MakeUnique(Handle<T> object) {
+    return Unique<T>::CreateUninitialized(object);
+  }
 
-  // Visiting functions for AST nodes make this an AstVisitor.
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  // Visiting function for declarations list is overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
-
- private:
-  CompilationInfo* info_;
-  AstContext* ast_context_;
-  JSGraph* jsgraph_;
-
-  // List of global declarations for functions and variables.
-  ZoneVector<Handle<Object>> globals_;
-
-  // Stack of breakable statements entered by the visitor.
-  BreakableScope* breakable_;
-
-  // Stack of context objects pushed onto the chain by the visitor.
-  ContextScope* execution_context_;
-
-  // Nodes representing values in the activation record.
-  SetOncePointer<Node> function_closure_;
-  SetOncePointer<Node> function_context_;
-
-  // The node representing the OSR entry into the loop, if any.
-  SetOncePointer<Node> osr_loop_entry_;
-
-  // Result of loop assignment analysis performed before graph creation.
-  LoopAssignmentAnalysis* loop_assignment_analysis_;
-
-  CompilationInfo* info() const { return info_; }
-  inline StrictMode strict_mode() const;
-  JSGraph* jsgraph() { return jsgraph_; }
-  JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
-  ZoneVector<Handle<Object>>* globals() { return &globals_; }
-
-  // Current scope during visitation.
-  inline Scope* current_scope() const;
+  Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
   VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
@@ -226,11 +319,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 //
 //  [parameters (+receiver)] [locals] [operand stack]
 //
-class AstGraphBuilder::Environment
-    : public StructuredGraphBuilder::Environment {
+class AstGraphBuilder::Environment : public ZoneObject {
  public:
   Environment(AstGraphBuilder* builder, Scope* scope, Node* control_dependency);
-  Environment(const Environment& copy);
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }
@@ -295,20 +386,67 @@ class AstGraphBuilder::Environment
   // further mutation of the environment will not affect checkpoints.
   Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine);
 
- protected:
-  AstGraphBuilder* builder() const {
-    return reinterpret_cast<AstGraphBuilder*>(
-        StructuredGraphBuilder::Environment::builder());
+  // Control dependency tracked by this environment.
+  Node* GetControlDependency() { return control_dependency_; }
+  void UpdateControlDependency(Node* dependency) {
+    control_dependency_ = dependency;
+  }
+
+  // Effect dependency tracked by this environment.
+  Node* GetEffectDependency() { return effect_dependency_; }
+  void UpdateEffectDependency(Node* dependency) {
+    effect_dependency_ = dependency;
+  }
+
+  // Mark this environment as being unreachable.
+  void MarkAsUnreachable() {
+    UpdateControlDependency(builder()->dead_control());
+  }
+  bool IsMarkedAsUnreachable() {
+    return GetControlDependency()->opcode() == IrOpcode::kDead;
+  }
+
+  // Merge another environment into this one.
+  void Merge(Environment* other);
+
+  // Copies this environment at a control-flow split point.
+  Environment* CopyForConditional() { return Copy(); }
+
+  // Copies this environment to a potentially unreachable control-flow point.
+  Environment* CopyAsUnreachable() {
+    Environment* env = Copy();
+    env->MarkAsUnreachable();
+    return env;
+  }
+
+  // Copies this environment at a loop header control-flow point.
+  Environment* CopyForLoop(BitVector* assigned, bool is_osr = false) {
+    PrepareForLoop(assigned, is_osr);
+    return Copy();
   }
 
  private:
-  void UpdateStateValues(Node** state_values, int offset, int count);
-
+  AstGraphBuilder* builder_;
   int parameters_count_;
   int locals_count_;
+  NodeVector values_;
+  Node* control_dependency_;
+  Node* effect_dependency_;
   Node* parameters_node_;
   Node* locals_node_;
   Node* stack_node_;
+
+  explicit Environment(const Environment* copy);
+  Environment* Copy() { return new (zone()) Environment(this); }
+  void UpdateStateValues(Node** state_values, int offset, int count);
+  Zone* zone() const { return builder_->local_zone(); }
+  Graph* graph() const { return builder_->graph(); }
+  AstGraphBuilder* builder() const { return builder_; }
+  CommonOperatorBuilder* common() { return builder_->common(); }
+  NodeVector* values() { return &values_; }
+
+  // Prepare environment to be used as loop header.
+  void PrepareForLoop(BitVector* assigned, bool is_osr = false);
 };
 
 
