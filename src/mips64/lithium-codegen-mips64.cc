@@ -2337,6 +2337,8 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 
   Register scratch = scratch0();
   __ FmoveHigh(scratch, input_reg);
+  __ dsll32(scratch, scratch, 0);  // FmoveHigh (mfhc1) sign-extends.
+  __ dsrl32(scratch, scratch, 0);  // Use only low 32-bits.
   EmitBranch(instr, eq, scratch, Operand(kHoleNanUpper32));
 }
 
@@ -3248,7 +3250,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   __ ldc1(result, MemOperand(scratch));
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ lw(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
+    __ lwu(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
     DeoptimizeIf(eq, instr, "hole", scratch, Operand(kHoleNanUpper32));
   }
 }
@@ -4189,6 +4191,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register object = ToRegister(instr->object());
   Register scratch2 = scratch1();
   Register scratch1 = scratch0();
+
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
   if (access.IsExternalMemory()) {
@@ -4203,7 +4206,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   DCHECK(!representation.IsSmi() ||
          !instr->value()->IsConstantOperand() ||
          IsSmi(LConstantOperand::cast(instr->value())));
-  if (representation.IsDouble()) {
+  if (!FLAG_unbox_double_fields && representation.IsDouble()) {
     DCHECK(access.IsInobject());
     DCHECK(!instr->hydrogen()->has_transition());
     DCHECK(!instr->hydrogen()->NeedsWriteBarrier());
@@ -4234,7 +4237,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
        destination = scratch1;
     __ ld(destination, FieldMemOperand(object, JSObject::kPropertiesOffset));
   }
-  Register value = ToRegister(instr->value());
+
   if (representation.IsSmi() && SmiValuesAre32Bits() &&
       instr->hydrogen()->value()->representation().IsInteger32()) {
     DCHECK(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
@@ -4242,16 +4245,25 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ Load(scratch2, FieldMemOperand(destination, offset), representation);
       __ AssertSmi(scratch2);
     }
-
     // Store int value directly to upper half of the smi.
     offset += kPointerSize / 2;
     representation = Representation::Integer32();
   }
-
   MemOperand operand = FieldMemOperand(destination, offset);
-  __ Store(value, operand, representation);
+
+  if (FLAG_unbox_double_fields && representation.IsDouble()) {
+    DCHECK(access.IsInobject());
+    DoubleRegister value = ToDoubleRegister(instr->value());
+    __ sdc1(value, operand);
+  } else {
+    DCHECK(instr->value()->IsRegister());
+    Register value = ToRegister(instr->value());
+    __ Store(value, operand, representation);
+  }
+
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Update the write barrier for the object for in-object properties.
+    Register value = ToRegister(instr->value());
     __ RecordWriteField(destination,
                         offset,
                         value,
