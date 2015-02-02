@@ -37,7 +37,10 @@ const InstructionCode kSourcePositionInstruction = -2;
 
 class InstructionOperand : public ZoneObject {
  public:
+  static const int kInvalidVirtualRegister = -1;
+
   enum Kind {
+    INVALID,
     UNALLOCATED,
     CONSTANT,
     IMMEDIATE,
@@ -47,7 +50,11 @@ class InstructionOperand : public ZoneObject {
     DOUBLE_REGISTER
   };
 
-  InstructionOperand(Kind kind, int index) { ConvertTo(kind, index); }
+  InstructionOperand(Kind kind, int index)
+      : virtual_register_(kInvalidVirtualRegister) {
+    DCHECK(kind != INVALID);
+    ConvertTo(kind, index);
+  }
 
   Kind kind() const { return KindField::decode(value_); }
   int index() const { return static_cast<int>(value_) >> KindField::kSize; }
@@ -65,6 +72,7 @@ class InstructionOperand : public ZoneObject {
     value_ = KindField::encode(kind);
     value_ |= bit_cast<unsigned>(index << KindField::kSize);
     DCHECK(this->index() == index);
+    if (kind != UNALLOCATED) virtual_register_ = kInvalidVirtualRegister;
   }
 
   // Calls SetUpCache()/TearDownCache() for each subclass.
@@ -72,11 +80,15 @@ class InstructionOperand : public ZoneObject {
   static void TearDownCaches();
 
  protected:
-  // TODO(dcarney): remove.  used to construct the Instruction operand array.
-  InstructionOperand() : value_(0xffffffff) {}
+  InstructionOperand(Kind kind, int index, int virtual_register)
+      : virtual_register_(virtual_register) {
+    ConvertTo(kind, index);
+  }
   typedef BitField<Kind, 0, 3> KindField;
 
   uint32_t value_;
+  // TODO(dcarney): this should really be unsigned.
+  int32_t virtual_register_;
 };
 
 typedef ZoneVector<InstructionOperand*> InstructionOperandVector;
@@ -116,28 +128,30 @@ class UnallocatedOperand : public InstructionOperand {
     USED_AT_END
   };
 
+  // TODO(dcarney): remove this.
   static const int kInvalidVirtualRegister = -1;
 
-  explicit UnallocatedOperand(ExtendedPolicy policy)
-      : InstructionOperand(UNALLOCATED, 0),
-        virtual_register_(kInvalidVirtualRegister) {
+  // This is only for array initialization.
+  UnallocatedOperand()
+      : InstructionOperand(INVALID, 0, kInvalidVirtualRegister) {}
+
+  UnallocatedOperand(ExtendedPolicy policy, int virtual_register)
+      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
   }
 
-  UnallocatedOperand(BasicPolicy policy, int index)
-      : InstructionOperand(UNALLOCATED, 0),
-        virtual_register_(kInvalidVirtualRegister) {
+  UnallocatedOperand(BasicPolicy policy, int index, int virtual_register)
+      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
     DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= static_cast<int32_t>(index) << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
   }
 
-  UnallocatedOperand(ExtendedPolicy policy, int index)
-      : InstructionOperand(UNALLOCATED, 0),
-        virtual_register_(kInvalidVirtualRegister) {
+  UnallocatedOperand(ExtendedPolicy policy, int index, int virtual_register)
+      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
     DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
@@ -145,18 +159,16 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= FixedRegisterField::encode(index);
   }
 
-  UnallocatedOperand(ExtendedPolicy policy, Lifetime lifetime)
-      : InstructionOperand(UNALLOCATED, 0),
-        virtual_register_(kInvalidVirtualRegister) {
+  UnallocatedOperand(ExtendedPolicy policy, Lifetime lifetime,
+                     int virtual_register)
+      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(lifetime);
   }
 
   UnallocatedOperand* CopyUnconstrained(Zone* zone) {
-    UnallocatedOperand* result = new (zone) UnallocatedOperand(ANY);
-    result->set_virtual_register(virtual_register());
-    return result;
+    return new (zone) UnallocatedOperand(ANY, virtual_register());
   }
 
   static const UnallocatedOperand* cast(const InstructionOperand* op) {
@@ -233,7 +245,10 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   // [basic_policy]: Distinguish between FIXED_SLOT and all other policies.
-  BasicPolicy basic_policy() const { return BasicPolicyField::decode(value_); }
+  BasicPolicy basic_policy() const {
+    DCHECK_EQ(UNALLOCATED, kind());
+    return BasicPolicyField::decode(value_);
+  }
 
   // [extended_policy]: Only for non-FIXED_SLOT. The finer-grained policy.
   ExtendedPolicy extended_policy() const {
@@ -255,22 +270,22 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   // [virtual_register]: The virtual register ID for this operand.
-  int32_t virtual_register() const { return virtual_register_; }
-  void set_virtual_register(int32_t id) { virtual_register_ = id; }
+  int32_t virtual_register() const {
+    DCHECK_EQ(UNALLOCATED, kind());
+    return virtual_register_;
+  }
+
+  // TODO(dcarney): remove this.
+  void set_virtual_register(int32_t id) {
+    DCHECK_EQ(UNALLOCATED, kind());
+    virtual_register_ = id;
+  }
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() const {
     DCHECK(basic_policy() == EXTENDED_POLICY);
     return LifetimeField::decode(value_) == USED_AT_START;
   }
-
- private:
-  friend class Instruction;
-  UnallocatedOperand()
-      : InstructionOperand(), virtual_register_(kInvalidVirtualRegister) {}
-
-  // TODO(dcarney): this should really be unsigned.
-  int32_t virtual_register_;
 };
 
 
@@ -783,9 +798,8 @@ class PhiInstruction FINAL : public ZoneObject {
         operands_(zone),
         output_(nullptr),
         inputs_(zone) {
-    UnallocatedOperand* output =
-        new (zone) UnallocatedOperand(UnallocatedOperand::NONE);
-    output->set_virtual_register(virtual_register);
+    UnallocatedOperand* output = new (zone)
+        UnallocatedOperand(UnallocatedOperand::NONE, virtual_register);
     output_ = output;
     inputs_.reserve(reserved_input_count);
     operands_.reserve(reserved_input_count);
@@ -795,9 +809,8 @@ class PhiInstruction FINAL : public ZoneObject {
   const IntVector& operands() const { return operands_; }
 
   void Extend(Zone* zone, int virtual_register) {
-    UnallocatedOperand* input =
-        new (zone) UnallocatedOperand(UnallocatedOperand::ANY);
-    input->set_virtual_register(virtual_register);
+    UnallocatedOperand* input = new (zone)
+        UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
     operands_.push_back(virtual_register);
     inputs_.push_back(input);
   }

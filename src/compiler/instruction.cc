@@ -50,6 +50,8 @@ std::ostream& operator<<(std::ostream& os,
       return os << "[" << conf->general_register_name(op.index()) << "|R]";
     case InstructionOperand::DOUBLE_REGISTER:
       return os << "[" << conf->double_register_name(op.index()) << "|R]";
+    case InstructionOperand::INVALID:
+      return os << "(x)";
   }
   UNREACHABLE();
   return os;
