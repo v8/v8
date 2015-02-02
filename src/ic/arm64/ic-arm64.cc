@@ -533,9 +533,23 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
   __ Ldr(scratch3, FieldMemOperand(scratch2, HeapObject::kMapOffset));
   __ JumpIfRoot(scratch3, Heap::kHashTableMapRootIndex, &probe_dictionary);
 
+  if (FLAG_vector_ics) {
+    // When vector ics are in use, the handlers in the stub cache expect a
+    // vector and slot. Since we won't change the IC from any downstream
+    // misses, a dummy vector can be used.
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(vector, slot, scratch1, scratch2, scratch3, scratch4));
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        masm->isolate()->factory()->keyed_load_dummy_vector());
+    int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ LoadRoot(vector, Heap::kKeyedLoadDummyVectorRootIndex);
+    __ Mov(slot, Operand(Smi::FromInt(int_slot)));
+  }
+
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, flags,
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                false, receiver, key, scratch1,
                                                scratch2, scratch3, scratch4);
   // Cache miss.
@@ -578,7 +592,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ Bind(&check_name);
   GenerateKeyNameCheck(masm, key, x0, x3, &index_name, &slow);
 
-  GenerateKeyedLoadWithNameKey(masm, key, receiver, x7, x3, x4, x5, x6, &slow);
+  GenerateKeyedLoadWithNameKey(masm, key, receiver, x4, x5, x6, x7, x3, &slow);
 
   __ Bind(&index_name);
   __ IndexFromHash(x3, key);

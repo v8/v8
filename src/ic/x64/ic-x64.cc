@@ -332,10 +332,26 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
                  Heap::kHashTableMapRootIndex);
   __ j(equal, &probe_dictionary);
 
+  Register megamorphic_scratch = rdi;
+  if (FLAG_vector_ics) {
+    // When vector ics are in use, the handlers in the stub cache expect a
+    // vector and slot. Since we won't change the IC from any downstream
+    // misses, a dummy vector can be used.
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(megamorphic_scratch, vector, slot));
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        masm->isolate()->factory()->keyed_load_dummy_vector());
+    int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ Move(vector, dummy_vector);
+    __ Move(slot, Smi::FromInt(int_slot));
+  }
+
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::LOAD_IC, flags, false, receiver, key, rbx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
+                                               false, receiver, key,
+                                               megamorphic_scratch, no_reg);
   // Cache miss.
   GenerateMiss(masm);
 
