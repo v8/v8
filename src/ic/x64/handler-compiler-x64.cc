@@ -206,9 +206,10 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     Register scratch, Label* miss) {
   Handle<PropertyCell> cell = JSGlobalObject::EnsurePropertyCell(global, name);
   DCHECK(cell->value()->IsTheHole());
-  __ Move(scratch, cell);
-  __ Cmp(FieldOperand(scratch, Cell::kValueOffset),
-         masm->isolate()->factory()->the_hole_value());
+  Factory* factory = masm->isolate()->factory();
+  Handle<WeakCell> weak_cell = factory->NewWeakCell(cell);
+  __ LoadWeakValue(scratch, weak_cell, miss);
+  __ Cmp(FieldOperand(scratch, Cell::kValueOffset), factory->the_hole_value());
   __ j(not_equal, miss);
 }
 
