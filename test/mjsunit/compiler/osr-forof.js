@@ -15,7 +15,7 @@ function f(a) {
   return sum;
 }
 
-var a = new Array();
+var a = new Array(10000);
 for (var i = 0; i < 10000; i++) {
   a[i] = (i * 999) % 77;
 }
