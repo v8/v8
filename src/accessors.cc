@@ -136,6 +136,12 @@ bool SetPropertyOnInstanceIfInherited(
     // This behaves sloppy since we lost the actual strict-mode.
     // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
     // properties.
+    if (object->IsJSGlobalProxy()) {
+      PrototypeIterator iter(isolate, object);
+      if (iter.IsAtEnd()) return true;
+      DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+      object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    }
     if (!object->map()->is_extensible()) return true;
     JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
                                              value, NONE).Check();
