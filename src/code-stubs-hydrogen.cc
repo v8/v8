@@ -1310,9 +1310,6 @@ Handle<Code> ToBooleanStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   StoreGlobalStub* stub = casted_stub();
-  Handle<Object> placeholer_value(Smi::FromInt(0), isolate());
-  Handle<PropertyCell> placeholder_cell =
-      isolate()->factory()->NewPropertyCell(placeholer_value);
   HParameter* value = GetParameter(StoreDescriptor::kValueIndex);
   if (stub->check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
@@ -1334,7 +1331,10 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     map_check.End();
   }
 
-  HValue* cell = Add<HConstant>(placeholder_cell);
+  HValue* weak_cell = Add<HConstant>(isolate()->factory()->NewWeakCell(
+      StoreGlobalStub::property_cell_placeholder(isolate())));
+  HValue* cell = Add<HLoadNamedField>(weak_cell, nullptr,
+                                      HObjectAccess::ForWeakCellValue());
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
   HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 
@@ -1354,7 +1354,8 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     builder.Then();
     builder.Deopt("Unexpected cell contents in global store");
     builder.Else();
-    Add<HStoreNamedField>(cell, access, value);
+    HStoreNamedField* store = Add<HStoreNamedField>(cell, access, value);
+    store->MarkReceiverAsCell();
     builder.End();
   }
 

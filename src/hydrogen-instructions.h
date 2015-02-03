@@ -6969,6 +6969,14 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
     SetChangesFlag(kMaps);
   }
 
+  void MarkReceiverAsCell() {
+    bit_field_ = ReceiverIsCellField::update(bit_field_, true);
+  }
+
+  bool receiver_is_cell() const {
+    return ReceiverIsCellField::decode(bit_field_);
+  }
+
   bool NeedsWriteBarrier() const {
     DCHECK(!field_representation().IsDouble() ||
            (FLAG_unbox_double_fields && access_.IsInobject()) ||
@@ -6977,6 +6985,7 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;
     if (field_representation().IsExternal()) return false;
+    if (receiver_is_cell()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), value(), dominator());
   }
@@ -7036,6 +7045,7 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
 
   class HasTransitionField : public BitField<bool, 0, 1> {};
   class StoreModeField : public BitField<StoreFieldOrKeyedMode, 1, 1> {};
+  class ReceiverIsCellField : public BitField<bool, 2, 1> {};
 
   HObjectAccess access_;
   HValue* dominator_;
