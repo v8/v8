@@ -124,17 +124,17 @@ class AstGraphBuilder : public AstVisitor {
   Zone* graph_zone() { return graph()->zone(); }
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
-  inline Scope* current_scope() const;
+  Scope* current_scope() const;
   Node* current_context() const { return current_context_; }
   Node* dead_control();
   Node* exit_control() const { return exit_control_; }
 
+  void set_environment(Environment* env) { environment_ = env; }
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
   void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
-  void set_exit_control(Node* exit) { exit_control_ = exit; }
   void set_current_context(Node* ctx) { current_context_ = ctx; }
-  void set_environment(Environment* env) { environment_ = env; }
+  void set_exit_control(Node* exit) { exit_control_ = exit; }
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
@@ -456,119 +456,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned, bool is_osr = false);
 };
-
-
-// Each expression in the AST is evaluated in a specific context. This context
-// decides how the evaluation result is passed up the visitor.
-class AstGraphBuilder::AstContext BASE_EMBEDDED {
- public:
-  bool IsEffect() const { return kind_ == Expression::kEffect; }
-  bool IsValue() const { return kind_ == Expression::kValue; }
-  bool IsTest() const { return kind_ == Expression::kTest; }
-
-  // Determines how to combine the frame state with the value
-  // that is about to be plugged into this AstContext.
-  OutputFrameStateCombine GetStateCombine() {
-    return IsEffect() ? OutputFrameStateCombine::Ignore()
-                      : OutputFrameStateCombine::Push();
-  }
-
-  // Plug a node into this expression context.  Call this function in tail
-  // position in the Visit functions for expressions.
-  virtual void ProduceValue(Node* value) = 0;
-
-  // Unplugs a node from this expression context.  Call this to retrieve the
-  // result of another Visit function that already plugged the context.
-  virtual Node* ConsumeValue() = 0;
-
-  // Shortcut for "context->ProduceValue(context->ConsumeValue())".
-  void ReplaceValue() { ProduceValue(ConsumeValue()); }
-
- protected:
-  AstContext(AstGraphBuilder* owner, Expression::Context kind);
-  virtual ~AstContext();
-
-  AstGraphBuilder* owner() const { return owner_; }
-  Environment* environment() const { return owner_->environment(); }
-
-// We want to be able to assert, in a context-specific way, that the stack
-// height makes sense when the context is filled.
-#ifdef DEBUG
-  int original_height_;
-#endif
-
- private:
-  Expression::Context kind_;
-  AstGraphBuilder* owner_;
-  AstContext* outer_;
-};
-
-
-// Context to evaluate expression for its side effects only.
-class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
- public:
-  explicit AstEffectContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kEffect) {}
-  ~AstEffectContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
-};
-
-
-// Context to evaluate expression for its value (and side effects).
-class AstGraphBuilder::AstValueContext FINAL : public AstContext {
- public:
-  explicit AstValueContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kValue) {}
-  ~AstValueContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
-};
-
-
-// Context to evaluate expression for a condition value (and side effects).
-class AstGraphBuilder::AstTestContext FINAL : public AstContext {
- public:
-  explicit AstTestContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kTest) {}
-  ~AstTestContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
-};
-
-
-// Scoped class tracking context objects created by the visitor. Represents
-// mutations of the context chain within the function body and allows to
-// change the current {scope} and {context} during visitation.
-class AstGraphBuilder::ContextScope BASE_EMBEDDED {
- public:
-  ContextScope(AstGraphBuilder* owner, Scope* scope, Node* context)
-      : owner_(owner),
-        next_(owner->execution_context()),
-        outer_(owner->current_context()),
-        scope_(scope) {
-    owner_->set_execution_context(this);  // Push.
-    owner_->set_current_context(context);
-  }
-
-  ~ContextScope() {
-    owner_->set_execution_context(next_);  // Pop.
-    owner_->set_current_context(outer_);
-  }
-
-  // Current scope during visitation.
-  Scope* scope() const { return scope_; }
-
- private:
-  AstGraphBuilder* owner_;
-  ContextScope* next_;
-  Node* outer_;
-  Scope* scope_;
-};
-
-Scope* AstGraphBuilder::current_scope() const {
-  return execution_context_->scope();
-}
 
 }  // namespace compiler
 }  // namespace internal
