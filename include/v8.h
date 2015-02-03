@@ -1536,6 +1536,31 @@ class V8_EXPORT JSON {
 };
 
 
+/**
+ * A map whose keys are referenced weakly. It is similar to JavaScript WeakMap
+ * but can be created without entering a v8::Context and hence shouldn't
+ * escape to JavaScript.
+ */
+class V8_EXPORT WeakMap {
+ public:
+  static WeakMap* New(Isolate* isolate);
+  void Set(Handle<Value> key, Handle<Value> value);
+  Local<Value> Get(Handle<Value> key);
+  bool Has(Handle<Value> key);
+  bool Delete(Handle<Value> key);
+
+ private:
+  WeakMap(Isolate* isolate, Handle<Object> weak_map)
+      : isolate_(isolate), map_(isolate, weak_map) {}
+  Isolate* isolate_;
+  UniquePersistent<Object> map_;
+
+  // Disallow copying and assigning.
+  WeakMap(WeakMap&);
+  void operator=(WeakMap&);
+};
+
+
 // --- Value ---
 
 
