@@ -1,3 +1,8 @@
+2015-02-03: Version 4.2.48
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-02: Version 4.2.47
 
         Check global object behind global proxy for extensibility (Chromium
