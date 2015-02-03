@@ -3906,9 +3906,33 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     }
     Address clone_address = clone->address();
     CopyBlock(clone_address, source->address(), object_size);
-    // Update write barrier for all fields that lie beyond the header.
-    RecordWrites(clone_address, JSObject::kHeaderSize,
-                 (object_size - JSObject::kHeaderSize) / kPointerSize);
+
+    // Update write barrier for all tagged fields that lie beyond the header.
+    const int start_offset = JSObject::kHeaderSize;
+    const int end_offset = object_size;
+
+#if V8_DOUBLE_FIELDS_UNBOXING
+    LayoutDescriptorHelper helper(map);
+    bool has_only_tagged_fields = helper.all_fields_tagged();
+
+    if (!has_only_tagged_fields) {
+      for (int offset = start_offset; offset < end_offset;) {
+        int end_of_region_offset;
+        if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
+          RecordWrites(clone_address, offset,
+                       (end_of_region_offset - offset) / kPointerSize);
+        }
+        offset = end_of_region_offset;
+      }
+    } else {
+#endif
+      // Object has only tagged fields.
+      RecordWrites(clone_address, start_offset,
+                   (end_offset - start_offset) / kPointerSize);
+#if V8_DOUBLE_FIELDS_UNBOXING
+    }
+#endif
+
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
 
