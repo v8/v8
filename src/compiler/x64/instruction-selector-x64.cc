@@ -16,11 +16,6 @@ class X64OperandGenerator FINAL : public OperandGenerator {
   explicit X64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
 
-  InstructionOperand* TempRegister(Register reg) {
-    return new (zone()) UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                                           Register::ToAllocationIndex(reg));
-  }
-
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:

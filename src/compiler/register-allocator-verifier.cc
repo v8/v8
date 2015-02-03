@@ -40,8 +40,6 @@ void RegisterAllocatorVerifier::VerifyTemp(
   CHECK_NE(kSameAsFirst, constraint.type_);
   CHECK_NE(kImmediate, constraint.type_);
   CHECK_NE(kConstant, constraint.type_);
-  CHECK_EQ(UnallocatedOperand::kInvalidVirtualRegister,
-           constraint.virtual_register_);
 }
 
 

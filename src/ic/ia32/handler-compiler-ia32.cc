@@ -227,14 +227,11 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     Register scratch, Label* miss) {
   Handle<PropertyCell> cell = JSGlobalObject::EnsurePropertyCell(global, name);
   DCHECK(cell->value()->IsTheHole());
-  Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
-  if (masm->serializer_enabled()) {
-    __ mov(scratch, Immediate(cell));
-    __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
-           Immediate(the_hole));
-  } else {
-    __ cmp(Operand::ForCell(cell), Immediate(the_hole));
-  }
+  Factory* factory = masm->isolate()->factory();
+  Handle<WeakCell> weak_cell = factory->NewWeakCell(cell);
+  __ LoadWeakValue(scratch, weak_cell, miss);
+  __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
+         Immediate(factory->the_hole_value()));
   __ j(not_equal, miss);
 }
 

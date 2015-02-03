@@ -405,6 +405,12 @@ class CompilationInfo {
     ast_value_factory_owned_ = owned;
   }
 
+  int osr_expr_stack_height() { return osr_expr_stack_height_; }
+  void set_osr_expr_stack_height(int height) {
+    DCHECK(height >= 0);
+    osr_expr_stack_height_ = height;
+  }
+
 #if DEBUG
   void PrintAstForTesting();
 #endif
@@ -530,6 +536,8 @@ class CompilationInfo {
   // This flag is used by the main thread to track whether this compilation
   // should be abandoned due to dependency change.
   bool aborted_due_to_dependency_change_;
+
+  int osr_expr_stack_height_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

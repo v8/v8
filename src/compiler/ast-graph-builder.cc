@@ -604,7 +604,7 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
-  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
   VisitIterationBody(stmt, &while_loop, 0);
   while_loop.EndBody();
   VisitForTest(stmt->cond());
@@ -616,7 +616,7 @@ void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   LoopBuilder while_loop(this);
-  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
   while_loop.BreakUnless(condition);
@@ -629,7 +629,7 @@ void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
 void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
   LoopBuilder for_loop(this);
   VisitIfNotNull(stmt->init());
-  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
   if (stmt->cond() != NULL) {
     VisitForTest(stmt->cond());
     Node* condition = environment()->Pop();
@@ -714,7 +714,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 // TODO(dcarney): this is a big function.  Try to clean up some.
 void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   LoopBuilder for_loop(this);
-  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
 
   // These stack values are renamed in the case of OSR, so reload them
   // from the environment.
@@ -793,7 +793,7 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
 void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
   LoopBuilder for_loop(this);
   VisitForEffect(stmt->assign_iterator());
-  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), IsOsrLoopEntry(stmt));
+  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
   VisitForEffect(stmt->next_result());
   VisitForTest(stmt->result_done());
   Node* condition = environment()->Pop();
@@ -2412,8 +2412,13 @@ Node* AstGraphBuilder::BuildStackCheck() {
 }
 
 
-bool AstGraphBuilder::IsOsrLoopEntry(IterationStatement* stmt) {
-  return info()->osr_ast_id() == stmt->OsrEntryId();
+bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
+  if (info()->osr_ast_id() == stmt->OsrEntryId()) {
+    info()->set_osr_expr_stack_height(std::max(
+        environment()->stack_height(), info()->osr_expr_stack_height()));
+    return true;
+  }
+  return false;
 }
 
 

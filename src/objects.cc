@@ -12115,6 +12115,13 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
       real_receiver =
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       iter.Advance();
+      if (!real_receiver->map()->is_extensible()) {
+        Handle<Object> args[] = {object};
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError("non_extensible_proto",
+                                     HandleVector(args, arraysize(args))),
+                        Object);
+      }
     }
   }
 

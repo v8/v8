@@ -90,10 +90,7 @@ class InstructionTester : public HandleAndZoneScope {
   }
 
   UnallocatedOperand* NewUnallocated(int vreg) {
-    UnallocatedOperand* unallocated =
-        new (zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-    unallocated->set_virtual_register(vreg);
-    return unallocated;
+    return new (zone()) UnallocatedOperand(UnallocatedOperand::ANY, vreg);
   }
 
   InstructionBlock* BlockAt(BasicBlock* block) {
@@ -298,23 +295,36 @@ TEST(InstructionOperands) {
     CHECK_EQ(0, static_cast<int>(i->TempCount()));
   }
 
+  int vreg = 15;
   InstructionOperand* outputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   InstructionOperand* inputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   InstructionOperand* temps[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      new (&zone)
+          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   for (size_t i = 0; i < arraysize(outputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {

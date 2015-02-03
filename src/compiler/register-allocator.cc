@@ -1076,9 +1076,8 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
 
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
-        UnallocatedOperand* output_copy =
-            new (code_zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-        output_copy->set_virtual_register(output_vreg);
+        UnallocatedOperand* output_copy = new (code_zone())
+            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg);
 
         AddGapMove(gap_index, GapInstruction::START, output, output_copy);
       }
