@@ -77,8 +77,8 @@ class GraphBuilder {
   Graph* graph_;
 };
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GRAPH_BUILDER_H__

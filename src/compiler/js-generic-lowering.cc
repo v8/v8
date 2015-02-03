@@ -104,7 +104,6 @@ REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE)
 REPLACE_RUNTIME_CALL(JSTypeOf, Runtime::kTypeof)
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
-REPLACE_RUNTIME_CALL(JSCreateCatchContext, Runtime::kPushCatchContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
@@ -361,6 +360,13 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
                             static_cast<int>(access.index()))));
   PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
                                                            kFullWriteBarrier)));
+}
+
+
+void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
+  Unique<String> name = OpParameter<Unique<String>>(node);
+  PatchInsertInput(node, 0, jsgraph()->HeapConstant(name));
+  ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
 

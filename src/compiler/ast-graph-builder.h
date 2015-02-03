@@ -63,8 +63,12 @@ class AstGraphBuilder : public AstVisitor {
   class AstEffectContext;
   class AstValueContext;
   class AstTestContext;
-  class BreakableScope;
   class ContextScope;
+  class ControlScope;
+  class ControlScopeForBreakable;
+  class ControlScopeForIteration;
+  class ControlScopeForCatch;
+  class ControlScopeForFinally;
   class Environment;
   friend class ControlBuilder;
 
@@ -77,8 +81,8 @@ class AstGraphBuilder : public AstVisitor {
   // List of global declarations for functions and variables.
   ZoneVector<Handle<Object>> globals_;
 
-  // Stack of breakable statements entered by the visitor.
-  BreakableScope* breakable_;
+  // Stack of control scopes currently entered by the visitor.
+  ControlScope* execution_control_;
 
   // Stack of context objects pushed onto the chain by the visitor.
   ContextScope* execution_context_;
@@ -110,7 +114,7 @@ class AstGraphBuilder : public AstVisitor {
   Zone* local_zone() const { return local_zone_; }
   Environment* environment() { return environment_; }
   AstContext* ast_context() const { return ast_context_; }
-  BreakableScope* breakable() const { return breakable_; }
+  ControlScope* execution_control() const { return execution_control_; }
   ContextScope* execution_context() const { return execution_context_; }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   CompilationInfo* info() const { return info_; }
@@ -126,7 +130,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* exit_control() const { return exit_control_; }
 
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
-  void set_breakable(BreakableScope* brk) { breakable_ = brk; }
+  void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
   void set_exit_control(Node* exit) { exit_control_ = exit; }
   void set_current_context(Node* ctx) { current_context_ = ctx; }
@@ -236,6 +240,10 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildHoleCheckSilent(Node* value, Node* for_hole, Node* not_hole);
   Node* BuildHoleCheckThrow(Node* value, Variable* var, Node* not_hole,
                             BailoutId bailout_id);
+
+  // Builders for non-local control flow.
+  Node* BuildReturn(Node* return_value);
+  Node* BuildThrow(Node* exception_value);
 
   // Builders for binary operations.
   Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
@@ -526,42 +534,6 @@ class AstGraphBuilder::AstTestContext FINAL : public AstContext {
   ~AstTestContext() FINAL;
   void ProduceValue(Node* value) FINAL;
   Node* ConsumeValue() FINAL;
-};
-
-
-// Scoped class tracking breakable statements entered by the visitor. Allows to
-// properly 'break' and 'continue' iteration statements as well as to 'break'
-// from blocks within switch statements.
-class AstGraphBuilder::BreakableScope BASE_EMBEDDED {
- public:
-  BreakableScope(AstGraphBuilder* owner, BreakableStatement* target,
-                 ControlBuilder* control, int drop_extra)
-      : owner_(owner),
-        target_(target),
-        next_(owner->breakable()),
-        control_(control),
-        drop_extra_(drop_extra) {
-    owner_->set_breakable(this);  // Push.
-  }
-
-  ~BreakableScope() {
-    owner_->set_breakable(next_);  // Pop.
-  }
-
-  // Either 'break' or 'continue' the target statement.
-  void BreakTarget(BreakableStatement* target);
-  void ContinueTarget(BreakableStatement* target);
-
- private:
-  AstGraphBuilder* owner_;
-  BreakableStatement* target_;
-  BreakableScope* next_;
-  ControlBuilder* control_;
-  int drop_extra_;
-
-  // Find the correct scope for the target statement. Note that this also drops
-  // extra operands from the environment for each scope skipped along the way.
-  BreakableScope* FindBreakable(BreakableStatement* target);
 };
 
 

@@ -21,6 +21,244 @@ namespace internal {
 namespace compiler {
 
 
+// Scoped class tracking control statements entered by the visitor. There are
+// different types of statements participating in this stack to properly track
+// local as well as non-local control flow:
+//  - IterationStatement : Allows proper 'break' and 'continue' behavior.
+//  - BreakableStatement : Allows 'break' from block and switch statements.
+//  - TryCatchStatement  : Intercepts 'throw' and implicit exceptional edges.
+//  - TryFinallyStatement: Intercepts 'break', 'continue', 'throw' and 'return'.
+class AstGraphBuilder::ControlScope BASE_EMBEDDED {
+ public:
+  ControlScope(AstGraphBuilder* builder, int stack_delta)
+      : builder_(builder),
+        next_(builder->execution_control()),
+        stack_delta_(stack_delta) {
+    builder_->set_execution_control(this);  // Push.
+  }
+
+  virtual ~ControlScope() {
+    builder_->set_execution_control(next_);  // Pop.
+  }
+
+  // Either 'break' or 'continue' to the target statement.
+  void BreakTo(BreakableStatement* target);
+  void ContinueTo(BreakableStatement* target);
+
+  // Either 'return' or 'throw' the given value.
+  void ReturnValue(Node* return_value);
+  void ThrowValue(Node* exception_value);
+
+  class DeferredCommands;
+
+ protected:
+  enum Command { CMD_BREAK, CMD_CONTINUE, CMD_RETURN, CMD_THROW };
+
+  // Performs one of the above commands on this stack of control scopes. This
+  // walks through the stack giving each scope a chance to execute or defer the
+  // given command by overriding the {Execute} method appropriately. Note that
+  // this also drops extra operands from the environment for each skipped scope.
+  void PerformCommand(Command cmd, Statement* target, Node* value);
+
+  // Interface to execute a given command in this scope. Returning {true} here
+  // indicates successful execution whereas {false} requests to skip scope.
+  virtual bool Execute(Command cmd, Statement* target, Node* value) {
+    // For function-level control.
+    switch (cmd) {
+      case CMD_THROW:
+        builder()->BuildThrow(value);
+        return true;
+      case CMD_RETURN:
+        builder()->BuildReturn(value);
+        return true;
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+        break;
+    }
+    return false;
+  }
+
+  Environment* environment() { return builder_->environment(); }
+  AstGraphBuilder* builder() const { return builder_; }
+  int stack_delta() const { return stack_delta_; }
+
+ private:
+  AstGraphBuilder* builder_;
+  ControlScope* next_;
+  int stack_delta_;
+};
+
+
+// Helper class for a try-finally control scope. It can record intercepted
+// control-flow commands that cause entry into a finally-block, and re-apply
+// them after again leaving that block. Special tokens are used to identify
+// paths going through the finally-block to dispatch after leaving the block.
+class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
+ public:
+  explicit DeferredCommands(AstGraphBuilder* owner)
+      : owner_(owner), deferred_(owner->zone()) {}
+
+  // One recorded control-flow command.
+  struct Entry {
+    Command command;       // The command type being applied on this path.
+    Statement* statement;  // The target statement for the command or {NULL}.
+    Node* value;           // The passed value node for the command or {NULL}.
+    Node* token;           // A token identifying this particular path.
+  };
+
+  // Records a control-flow command while entering the finally-block. This also
+  // generates a new dispatch token that identifies one particular path.
+  Node* RecordCommand(Command cmd, Statement* stmt, Node* value) {
+    Node* token = NewPathTokenForDeferredCommand();
+    deferred_.push_back({cmd, stmt, value, token});
+    return token;
+  }
+
+  // Returns the dispatch token to be used to identify the implicit fall-through
+  // path at the end of a try-block into the corresponding finally-block.
+  Node* GetFallThroughToken() { return NewPathTokenForImplicitFallThrough(); }
+
+  // Applies all recorded control-flow commands after the finally-block again.
+  // This generates a dynamic dispatch on the token from the entry point.
+  void ApplyDeferredCommands(Node* token) {
+    SwitchBuilder dispatch(owner_, static_cast<int>(deferred_.size()));
+    dispatch.BeginSwitch();
+    for (size_t i = 0; i < deferred_.size(); ++i) {
+      Node* condition = NewPathDispatchCondition(token, deferred_[i].token);
+      dispatch.BeginLabel(static_cast<int>(i), condition);
+      dispatch.EndLabel();
+    }
+    for (size_t i = 0; i < deferred_.size(); ++i) {
+      dispatch.BeginCase(static_cast<int>(i));
+      owner_->execution_control()->PerformCommand(
+          deferred_[i].command, deferred_[i].statement, deferred_[i].value);
+      dispatch.EndCase();
+    }
+    dispatch.EndSwitch();
+  }
+
+ protected:
+  Node* NewPathTokenForDeferredCommand() {
+    return owner_->jsgraph()->Constant(static_cast<int>(deferred_.size()));
+  }
+  Node* NewPathTokenForImplicitFallThrough() {
+    return owner_->jsgraph()->Constant(-1);
+  }
+  Node* NewPathDispatchCondition(Node* t1, Node* t2) {
+    // TODO(mstarzinger): This should be machine()->WordEqual(), but our Phi
+    // nodes all have kRepTagged|kTypeAny, which causes representation mismatch.
+    return owner_->NewNode(owner_->javascript()->StrictEqual(), t1, t2);
+  }
+
+ private:
+  AstGraphBuilder* owner_;
+  ZoneVector<Entry> deferred_;
+};
+
+
+// Control scope implementation for a BreakableStatement.
+class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
+ public:
+  ControlScopeForBreakable(AstGraphBuilder* owner, BreakableStatement* target,
+                           ControlBuilder* control)
+      : ControlScope(owner, 0), target_(target), control_(control) {}
+
+ protected:
+  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+    if (target != target_) return false;  // We are not the command target.
+    switch (cmd) {
+      case CMD_BREAK:
+        control_->Break();
+        return true;
+      case CMD_CONTINUE:
+      case CMD_THROW:
+      case CMD_RETURN:
+        break;
+    }
+    return false;
+  }
+
+ private:
+  BreakableStatement* target_;
+  ControlBuilder* control_;
+};
+
+
+// Control scope implementation for an IterationStatement.
+class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
+ public:
+  ControlScopeForIteration(AstGraphBuilder* owner, IterationStatement* target,
+                           LoopBuilder* control, int stack_delta)
+      : ControlScope(owner, stack_delta), target_(target), control_(control) {}
+
+ protected:
+  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+    if (target != target_) return false;  // We are not the command target.
+    switch (cmd) {
+      case CMD_BREAK:
+        control_->Break();
+        return true;
+      case CMD_CONTINUE:
+        control_->Continue();
+        return true;
+      case CMD_THROW:
+      case CMD_RETURN:
+        break;
+    }
+    return false;
+  }
+
+ private:
+  BreakableStatement* target_;
+  LoopBuilder* control_;
+};
+
+
+// Control scope implementation for a TryCatchStatement.
+class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
+ public:
+  ControlScopeForCatch(AstGraphBuilder* owner, TryCatchBuilder* control)
+      : ControlScope(owner, 0), control_(control) {}
+
+ protected:
+  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+    switch (cmd) {
+      case CMD_THROW:
+        control_->Throw(value);
+        return true;
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+      case CMD_RETURN:
+        break;
+    }
+    return false;
+  }
+
+ private:
+  TryCatchBuilder* control_;
+};
+
+
+// Control scope implementation for a TryFinallyStatement.
+class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
+ public:
+  ControlScopeForFinally(AstGraphBuilder* owner, DeferredCommands* commands,
+                         TryFinallyBuilder* control)
+      : ControlScope(owner, 0), commands_(commands), control_(control) {}
+
+ protected:
+  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+    Node* token = commands_->RecordCommand(cmd, target, value);
+    control_->LeaveTry(token);
+    return true;
+  }
+
+ private:
+  DeferredCommands* commands_;
+  TryFinallyBuilder* control_;
+};
+
+
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop)
     : local_zone_(local_zone),
@@ -29,7 +267,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       environment_(nullptr),
       ast_context_(nullptr),
       globals_(0, local_zone),
-      breakable_(nullptr),
+      execution_control_(nullptr),
       execution_context_(nullptr),
       input_buffer_size_(0),
       input_buffer_(nullptr),
@@ -70,9 +308,11 @@ bool AstGraphBuilder::CreateGraph() {
   int parameter_count = info()->num_parameters();
   graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
 
-  Node* start = graph()->start();
+  // Initialize control scope.
+  ControlScope control(this, 0);
+
   // Initialize the top-level environment.
-  Environment env(this, scope, start);
+  Environment env(this, scope, graph()->start());
   set_environment(&env);
 
   if (info()->is_osr()) {
@@ -130,8 +370,7 @@ bool AstGraphBuilder::CreateGraph() {
   }
 
   // Return 'undefined' in case we can fall off the end.
-  Node* control = NewNode(common()->Return(), jsgraph()->UndefinedConstant());
-  UpdateControlDependencyToLeaveFunction(control);
+  BuildReturn(jsgraph()->UndefinedConstant());
 
   // Finish the basic structure of the graph.
   environment()->UpdateControlDependency(exit_control());
@@ -302,25 +541,39 @@ Node* AstGraphBuilder::AstTestContext::ConsumeValue() {
 }
 
 
-AstGraphBuilder::BreakableScope* AstGraphBuilder::BreakableScope::FindBreakable(
-    BreakableStatement* target) {
-  BreakableScope* current = this;
-  while (current != NULL && current->target_ != target) {
-    owner_->environment()->Drop(current->drop_extra_);
+void AstGraphBuilder::ControlScope::PerformCommand(Command command,
+                                                   Statement* target,
+                                                   Node* value) {
+  Environment* env = environment()->CopyAsUnreachable();
+  ControlScope* current = this;
+  while (current != NULL) {
+    if (current->Execute(command, target, value)) break;
+    environment()->Drop(current->stack_delta());
     current = current->next_;
   }
-  DCHECK(current != NULL);  // Always found (unless stack is malformed).
-  return current;
+  // TODO(mstarzinger): Unconditionally kill environment once throw is control.
+  if (command != CMD_THROW) builder()->set_environment(env);
+  DCHECK(current != NULL);  // Always handled (unless stack is malformed).
 }
 
 
-void AstGraphBuilder::BreakableScope::BreakTarget(BreakableStatement* stmt) {
-  FindBreakable(stmt)->control_->Break();
+void AstGraphBuilder::ControlScope::BreakTo(BreakableStatement* stmt) {
+  PerformCommand(CMD_BREAK, stmt, nullptr);
 }
 
 
-void AstGraphBuilder::BreakableScope::ContinueTarget(BreakableStatement* stmt) {
-  FindBreakable(stmt)->control_->Continue();
+void AstGraphBuilder::ControlScope::ContinueTo(BreakableStatement* stmt) {
+  PerformCommand(CMD_CONTINUE, stmt, nullptr);
+}
+
+
+void AstGraphBuilder::ControlScope::ReturnValue(Node* return_value) {
+  PerformCommand(CMD_RETURN, nullptr, return_value);
+}
+
+
+void AstGraphBuilder::ControlScope::ThrowValue(Node* exception_value) {
+  PerformCommand(CMD_THROW, nullptr, exception_value);
 }
 
 
@@ -483,7 +736,7 @@ void AstGraphBuilder::VisitModuleUrl(ModuleUrl* modl) { UNREACHABLE(); }
 
 void AstGraphBuilder::VisitBlock(Block* stmt) {
   BlockBuilder block(this);
-  BreakableScope scope(this, stmt, &block, 0);
+  ControlScopeForBreakable scope(this, stmt, &block);
   if (stmt->labels() != NULL) block.BeginBlock();
   if (stmt->scope() == NULL) {
     // Visit statements in the same scope, no declarations.
@@ -528,24 +781,19 @@ void AstGraphBuilder::VisitIfStatement(IfStatement* stmt) {
 
 
 void AstGraphBuilder::VisitContinueStatement(ContinueStatement* stmt) {
-  Environment* env = environment()->CopyAsUnreachable();
-  breakable()->ContinueTarget(stmt->target());
-  set_environment(env);
+  execution_control()->ContinueTo(stmt->target());
 }
 
 
 void AstGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
-  Environment* env = environment()->CopyAsUnreachable();
-  breakable()->BreakTarget(stmt->target());
-  set_environment(env);
+  execution_control()->BreakTo(stmt->target());
 }
 
 
 void AstGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
   VisitForValue(stmt->expression());
   Node* result = environment()->Pop();
-  Node* control = NewNode(common()->Return(), result);
-  UpdateControlDependencyToLeaveFunction(control);
+  execution_control()->ReturnValue(result);
 }
 
 
@@ -563,7 +811,7 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
 void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   ZoneList<CaseClause*>* clauses = stmt->cases();
   SwitchBuilder compare_switch(this, clauses->length());
-  BreakableScope scope(this, stmt, &compare_switch, 0);
+  ControlScopeForBreakable scope(this, stmt, &compare_switch);
   compare_switch.BeginSwitch();
   int default_index = -1;
 
@@ -816,14 +1064,70 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
 
 
 void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  // TODO(turbofan): Implement try-catch here.
-  SetStackOverflow();
+  TryCatchBuilder try_control(this);
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting 'throw' control commands.
+  try_control.BeginTry();
+  {
+    ControlScopeForCatch scope(this, &try_control);
+    Visit(stmt->try_block());
+  }
+  try_control.EndTry();
+
+  // Create a catch scope that binds the exception.
+  Node* exception = try_control.GetExceptionNode();
+  if (exception == NULL) exception = jsgraph()->NullConstant();
+  Unique<String> name = MakeUnique(stmt->variable()->name());
+  const Operator* op = javascript()->CreateCatchContext(name);
+  Node* context = NewNode(op, exception, GetFunctionClosure());
+  PrepareFrameState(context, BailoutId::None());
+  ContextScope scope(this, stmt->scope(), context);
+  DCHECK(stmt->scope()->declarations()->is_empty());
+
+  // Evaluate the catch-block.
+  Visit(stmt->catch_block());
+  try_control.EndCatch();
+
+  // TODO(mstarzinger): Remove bailout once everything works.
+  if (!FLAG_turbo_exceptions) SetStackOverflow();
 }
 
 
 void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  // TODO(turbofan): Implement try-catch here.
-  SetStackOverflow();
+  TryFinallyBuilder try_control(this);
+
+  // We keep a record of all paths that enter the finally-block to be able to
+  // dispatch to the correct continuation point after the statements in the
+  // finally-block have been evaluated.
+  //
+  // The try-finally construct can enter the finally-block in three ways:
+  // 1. By exiting the try-block normally, falling through at the end.
+  // 2. By exiting the try-block with a function-local control flow transfer
+  //    (i.e. through break/continue/return statements).
+  // 3. By exiting the try-block with a thrown exception.
+  ControlScope::DeferredCommands* commands =
+      new (zone()) ControlScope::DeferredCommands(this);
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting all control commands.
+  try_control.BeginTry();
+  {
+    ControlScopeForFinally scope(this, commands, &try_control);
+    Visit(stmt->try_block());
+  }
+  try_control.EndTry(commands->GetFallThroughToken());
+
+  // Evaluate the finally-block.
+  Visit(stmt->finally_block());
+  try_control.EndFinally();
+
+  // Dynamic dispatch after the finally-block.
+  Node* token = try_control.GetDispatchTokenNode();
+  commands->ApplyDeferredCommands(token);
+
+  // TODO(mstarzinger): Remove bailout once everything works.
+  if (!FLAG_turbo_exceptions) SetStackOverflow();
 }
 
 
@@ -1387,10 +1691,16 @@ void AstGraphBuilder::VisitYield(Yield* expr) {
 void AstGraphBuilder::VisitThrow(Throw* expr) {
   VisitForValue(expr->exception());
   Node* exception = environment()->Pop();
-  const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
-  Node* value = NewNode(op, exception);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
-  ast_context()->ProduceValue(value);
+  if (FLAG_turbo_exceptions) {
+    execution_control()->ThrowValue(exception);
+    ast_context()->ProduceValue(exception);
+  } else {
+    // TODO(mstarzinger): Temporary workaround for bailout-id for debugger.
+    const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
+    Node* value = NewNode(op, exception);
+    PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+    ast_context()->ProduceValue(value);
+  }
 }
 
 
@@ -1832,8 +2142,8 @@ void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
 
 
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
-                                         LoopBuilder* loop, int drop_extra) {
-  BreakableScope scope(this, stmt, loop, drop_extra);
+                                         LoopBuilder* loop, int stack_delta) {
+  ControlScopeForIteration scope(this, stmt, loop, stack_delta);
   Visit(stmt->body());
 }
 
@@ -2357,6 +2667,23 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
   return call;
+}
+
+
+Node* AstGraphBuilder::BuildReturn(Node* return_value) {
+  Node* control = NewNode(common()->Return(), return_value);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
+}
+
+
+Node* AstGraphBuilder::BuildThrow(Node* exception_value) {
+  const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
+  Node* control = NewNode(op, exception_value);
+  // TODO(mstarzinger): Thread through the correct bailout id to this point.
+  // PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  PrepareFrameState(control, BailoutId::None());
+  return control;
 }
 
 

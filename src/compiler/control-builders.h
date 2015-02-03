@@ -15,16 +15,15 @@ namespace internal {
 namespace compiler {
 
 // Base class for all control builders. Also provides a common interface for
-// control builders to handle 'break' and 'continue' statements when they are
-// used to model breakable statements.
+// control builders to handle 'break' statements when they are used to model
+// breakable statements.
 class ControlBuilder {
  public:
   explicit ControlBuilder(AstGraphBuilder* builder) : builder_(builder) {}
   virtual ~ControlBuilder() {}
 
-  // Interface for break and continue.
+  // Interface for break.
   virtual void Break() { UNREACHABLE(); }
-  virtual void Continue() { UNREACHABLE(); }
 
  protected:
   typedef AstGraphBuilder Builder;
@@ -69,11 +68,11 @@ class LoopBuilder FINAL : public ControlBuilder {
 
   // Primitive control commands.
   void BeginLoop(BitVector* assigned, bool is_osr = false);
+  void Continue();
   void EndBody();
   void EndLoop();
 
-  // Primitive support for break and continue.
-  void Continue() FINAL;
+  // Primitive support for break.
   void Break() FINAL;
 
   // Compound control commands for conditional break.
@@ -135,6 +134,54 @@ class BlockBuilder FINAL : public ControlBuilder {
 
  private:
   Environment* break_environment_;  // Environment after the block exits.
+};
+
+
+// Tracks control flow for a try-catch statement.
+class TryCatchBuilder FINAL : public ControlBuilder {
+ public:
+  explicit TryCatchBuilder(AstGraphBuilder* builder)
+      : ControlBuilder(builder),
+        catch_environment_(NULL),
+        exit_environment_(NULL),
+        exception_node_(NULL) {}
+
+  // Primitive control commands.
+  void BeginTry();
+  void Throw(Node* exception);
+  void EndTry();
+  void EndCatch();
+
+  // Returns the exception value inside the 'catch' body.
+  Node* GetExceptionNode() const { return exception_node_; }
+
+ private:
+  Environment* catch_environment_;  // Environment for the 'catch' body.
+  Environment* exit_environment_;   // Environment after the statement.
+  Node* exception_node_;            // Node for exception in 'catch' body.
+};
+
+
+// Tracks control flow for a try-finally statement.
+class TryFinallyBuilder FINAL : public ControlBuilder {
+ public:
+  explicit TryFinallyBuilder(AstGraphBuilder* builder)
+      : ControlBuilder(builder),
+        finally_environment_(NULL),
+        token_node_(NULL) {}
+
+  // Primitive control commands.
+  void BeginTry();
+  void LeaveTry(Node* token);
+  void EndTry(Node* token);
+  void EndFinally();
+
+  // Returns the dispatch token value inside the 'finally' body.
+  Node* GetDispatchTokenNode() const { return token_node_; }
+
+ private:
+  Environment* finally_environment_;  // Environment for the 'finally' body.
+  Node* token_node_;                  // Node for token in 'finally' body.
 };
 
 }  // namespace compiler
