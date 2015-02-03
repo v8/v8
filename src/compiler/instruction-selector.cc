@@ -521,7 +521,8 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       return VisitReturn(value);
     }
     case BasicBlock::kThrow:
-      return VisitThrow(input);
+      DCHECK_EQ(IrOpcode::kThrow, input->opcode());
+      return VisitThrow(input->InputAt(0));
     case BasicBlock::kNone: {
       // TODO(titzer): exit block doesn't have control.
       DCHECK(input == NULL);
@@ -1049,7 +1050,7 @@ void InstructionSelector::VisitReturn(Node* value) {
 
 
 void InstructionSelector::VisitThrow(Node* value) {
-  UNIMPLEMENTED();  // TODO(titzer)
+  Emit(kArchNop, NULL);  // TODO(titzer)
 }
 
 

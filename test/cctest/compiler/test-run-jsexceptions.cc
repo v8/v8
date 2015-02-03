@@ -10,6 +10,7 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 TEST(Throw) {
+  i::FLAG_turbo_exceptions = true;
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
 
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));

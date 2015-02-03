@@ -337,6 +337,10 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectReturn(node);
         break;
+      case IrOpcode::kThrow:
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
+        ConnectThrow(node);
+        break;
       default:
         break;
     }
@@ -446,6 +450,13 @@ class CFGBuilder : public ZoneObject {
     BasicBlock* return_block = schedule_->block(return_block_node);
     TraceConnect(ret, return_block, NULL);
     schedule_->AddReturn(return_block, ret);
+  }
+
+  void ConnectThrow(Node* thr) {
+    Node* throw_block_node = NodeProperties::GetControlInput(thr);
+    BasicBlock* throw_block = schedule_->block(throw_block_node);
+    TraceConnect(thr, throw_block, NULL);
+    schedule_->AddThrow(throw_block, thr);
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {

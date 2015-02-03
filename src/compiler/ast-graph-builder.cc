@@ -665,8 +665,7 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
     environment()->Drop(current->stack_delta());
     current = current->next_;
   }
-  // TODO(mstarzinger): Unconditionally kill environment once throw is control.
-  if (command != CMD_THROW) builder()->set_environment(env);
+  builder()->set_environment(env);
   DCHECK(current != NULL);  // Always handled (unless stack is malformed).
 }
 
@@ -2792,11 +2791,9 @@ Node* AstGraphBuilder::BuildReturn(Node* return_value) {
 
 
 Node* AstGraphBuilder::BuildThrow(Node* exception_value) {
-  const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
-  Node* control = NewNode(op, exception_value);
-  // TODO(mstarzinger): Thread through the correct bailout id to this point.
-  // PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
-  PrepareFrameState(control, BailoutId::None());
+  NewNode(javascript()->CallRuntime(Runtime::kReThrow, 1), exception_value);
+  Node* control = NewNode(common()->Throw(), exception_value);
+  UpdateControlDependencyToLeaveFunction(control);
   return control;
 }
 
