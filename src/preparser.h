@@ -520,8 +520,9 @@ class ParserBase : public Traits {
                                 bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
-      ObjectLiteralCheckerBase* checker, bool in_class, bool is_static,
-      bool* is_computed_name, bool* has_seen_constructor, bool* ok);
+      ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
+      bool is_static, bool* is_computed_name, bool* has_seen_constructor,
+      bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool* ok);
@@ -1315,7 +1316,8 @@ class PreParserTraits {
       const char* type, Handle<Object> arg, int pos) {
     return PreParserExpression::Default();
   }
-  PreParserScope NewScope(PreParserScope* outer_scope, ScopeType scope_type) {
+  PreParserScope NewScope(PreParserScope* outer_scope, ScopeType scope_type,
+                          FunctionKind kind = kNormalFunction) {
     return PreParserScope(outer_scope, scope_type);
   }
 
@@ -2082,7 +2084,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
 template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT
 ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
-                                            bool in_class, bool is_static,
+                                            bool in_class, bool has_extends,
+                                            bool is_static,
                                             bool* is_computed_name,
                                             bool* has_seen_constructor,
                                             bool* ok) {
@@ -2129,7 +2132,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
 
     if (in_class && !is_static && this->IsConstructor(name)) {
       *has_seen_constructor = true;
-      kind = FunctionKind::kNormalFunction;
+      kind = has_extends ? FunctionKind::kSubclassConstructor
+                         : FunctionKind::kNormalFunction;
     }
 
     value = this->ParseFunctionLiteral(
@@ -2145,9 +2149,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
 
   } else if (in_class && name_is_static && !is_static) {
     // static MethodDefinition
-    return ParsePropertyDefinition(checker, true, true, is_computed_name,
-                                   nullptr, ok);
-
+    return ParsePropertyDefinition(checker, true, has_extends, true,
+                                   is_computed_name, nullptr, ok);
   } else if (is_get || is_set) {
     // Accessor
     name = this->EmptyIdentifier();
@@ -2227,9 +2230,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
 
     const bool in_class = false;
     const bool is_static = false;
+    const bool has_extends = false;
     bool is_computed_name = false;
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        &checker, in_class, is_static, &is_computed_name, nullptr, CHECK_OK);
+        &checker, in_class, has_extends, is_static, &is_computed_name, NULL,
+        CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;

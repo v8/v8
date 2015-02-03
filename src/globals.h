@@ -778,7 +778,8 @@ enum FunctionKind {
   kGeneratorFunction = 2,
   kConciseMethod = 4,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kDefaultConstructor = 8
+  kDefaultConstructor = 8,
+  kSubclassConstructor = 16
 };
 
 
@@ -788,7 +789,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
-         kind == FunctionKind::kDefaultConstructor;
+         kind == FunctionKind::kDefaultConstructor ||
+         kind == FunctionKind::kSubclassConstructor;
 }
 
 
@@ -815,7 +817,10 @@ inline bool IsDefaultConstructor(FunctionKind kind) {
   return kind & FunctionKind::kDefaultConstructor;
 }
 
-
+inline bool IsSubclassConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kSubclassConstructor;
+}
 } }  // namespace v8::internal
 
 namespace i = v8::internal;

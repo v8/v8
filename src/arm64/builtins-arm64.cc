@@ -706,6 +706,80 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0     : number of arguments
+  //  -- x1     : constructor function
+  //  -- x2     : allocation site or undefined
+  //  -- x3    : original constructor
+  //  -- lr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_JSConstructStubForDerived");
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+    __ Mov(x4, x0);
+    __ SmiTag(x4);
+    __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
+    __ Push(x4, x10);
+    // sp[0]: number of arguments
+    // sp[1]: receiver (the hole)
+
+
+    // Set up pointer to last argument.
+    __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
+
+    // Copy arguments and receiver to the expression stack.
+    // Copy 2 values every loop to use ldp/stp.
+    // x0: number of arguments
+    // x1: constructor function
+    // x2: address of last argument (caller sp)
+    // jssp[0]: receiver
+    // jssp[1]: number of arguments (smi-tagged)
+    // Compute the start address of the copy in x4.
+    __ Add(x4, x2, Operand(x0, LSL, kPointerSizeLog2));
+    Label loop, entry, done_copying_arguments;
+    __ B(&entry);
+    __ Bind(&loop);
+    __ Ldp(x10, x11, MemOperand(x4, -2 * kPointerSize, PreIndex));
+    __ Push(x11, x10);
+    __ Bind(&entry);
+    __ Cmp(x4, x2);
+    __ B(gt, &loop);
+    // Because we copied values 2 by 2 we may have copied one extra value.
+    // Drop it if that is the case.
+    __ B(eq, &done_copying_arguments);
+    __ Drop(1);
+    __ Bind(&done_copying_arguments);
+
+    // Call the function.
+    // x0: number of arguments
+    // x1: constructor function
+    ParameterCount actual(x0);
+    __ InvokeFunction(x1, actual, CALL_FUNCTION, NullCallWrapper());
+
+
+    // Restore the context from the frame.
+    // x0: result
+    // jssp[0]: number of arguments (smi-tagged)
+    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+
+    // Load number of arguments (smi).
+    __ Peek(x1, 0);
+
+    // Leave construct frame
+  }
+
+  __ DropBySMI(x1);
+  __ Drop(1);
+  __ Ret();
+}
+
+
 // Input:
 //   x0: code entry.
 //   x1: function.

@@ -563,7 +563,8 @@ class ParserTraits {
   ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
-  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type);
+  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
+                            FunctionKind kind = kNormalFunction);
 
   // Utility functions
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
@@ -852,7 +853,8 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Factory methods.
 
-  Scope* NewScope(Scope* parent, ScopeType type);
+  Scope* NewScope(Scope* parent, ScopeType type,
+                  FunctionKind kind = kNormalFunction);
 
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                       int end_pos);
@@ -913,8 +915,9 @@ bool ParserTraits::IsFutureStrictReserved(
 }
 
 
-Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type) {
-  return parser_->NewScope(parent_scope, scope_type);
+Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
+                              FunctionKind kind) {
+  return parser_->NewScope(parent_scope, scope_type, kind);
 }
 
 

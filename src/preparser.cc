@@ -1004,7 +1004,8 @@ PreParserExpression PreParser::ParseClassLiteral(
   scope_->SetStrictMode(STRICT);
   scope_->SetScopeName(name);
 
-  if (Check(Token::EXTENDS)) {
+  bool has_extends = Check(Token::EXTENDS);
+  if (has_extends) {
     ParseLeftHandSideExpression(CHECK_OK);
   }
 
@@ -1018,8 +1019,8 @@ PreParserExpression PreParser::ParseClassLiteral(
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
-    ParsePropertyDefinition(&checker, in_class, is_static, &is_computed_name,
-                            &has_seen_constructor, CHECK_OK);
+    ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
+                            &is_computed_name, &has_seen_constructor, CHECK_OK);
   }
 
   Expect(Token::RBRACE, CHECK_OK);

@@ -291,7 +291,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 }
 
 
-void Scope::Initialize() {
+void Scope::Initialize(bool uninitialized_this) {
   DCHECK(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
@@ -311,13 +311,12 @@ void Scope::Initialize() {
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
   if (is_declaration_scope()) {
-    Variable* var =
-        variables_.Declare(this,
-                           ast_value_factory_->this_string(),
-                           VAR,
-                           false,
-                           Variable::THIS,
-                           kCreatedInitialized);
+    DCHECK(!uninitialized_this || is_function_scope());
+    DCHECK(FLAG_experimental_classes || !uninitialized_this);
+    Variable* var = variables_.Declare(
+        this, ast_value_factory_->this_string(),
+        uninitialized_this ? CONST : VAR, false, Variable::THIS,
+        uninitialized_this ? kNeedsInitialization : kCreatedInitialized);
     var->AllocateTo(Variable::PARAMETER, -1);
     receiver_ = var;
   } else {
