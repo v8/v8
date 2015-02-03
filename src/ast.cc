@@ -578,15 +578,28 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  return (call_type != POSSIBLY_EVAL_CALL);
+  if (IsUsingCallFeedbackSlot(isolate) || call_type == POSSIBLY_EVAL_CALL) {
+    return false;
+  }
+  return true;
+}
+
+
+bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+  // SuperConstructorCall uses a CallConstructStub, which wants
+  // a Slot, not an IC slot.
+  return FLAG_experimental_classes && GetCallType(isolate) == SUPER_CALL;
 }
 
 
 FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
-  int ic_slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
-  return FeedbackVectorRequirements(0, ic_slots);
+  int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
+  int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
+  // A Call uses either a slot or an IC slot.
+  DCHECK((ic_slots & slots) == 0);
+  return FeedbackVectorRequirements(slots, ic_slots);
 }
 
 
