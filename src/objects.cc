@@ -717,7 +717,9 @@ Object* Object::GetHash() {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber()) {
-    uint32_t hash = ComputeLongHash(double_to_uint64(Number()));
+    uint32_t hash = std::isnan(Number())
+                        ? Smi::kMaxValue
+                        : ComputeLongHash(double_to_uint64(Number()));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (IsName()) {
