@@ -3574,6 +3574,7 @@ void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   ASM_LOCATION("CompareICStub[KnownObjects]");
 
   Label miss;
+  Handle<WeakCell> cell = Map::WeakCellForMap(known_map_);
 
   Register result = x0;
   Register rhs = x0;
@@ -3583,11 +3584,13 @@ void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
 
   Register rhs_map = x10;
   Register lhs_map = x11;
+  Register map = x12;
+  __ GetWeakValue(map, cell);
   __ Ldr(rhs_map, FieldMemOperand(rhs, HeapObject::kMapOffset));
   __ Ldr(lhs_map, FieldMemOperand(lhs, HeapObject::kMapOffset));
-  __ Cmp(rhs_map, Operand(known_map_));
+  __ Cmp(rhs_map, map);
   __ B(ne, &miss);
-  __ Cmp(lhs_map, Operand(known_map_));
+  __ Cmp(lhs_map, map);
   __ B(ne, &miss);
 
   __ Sub(result, rhs, lhs);

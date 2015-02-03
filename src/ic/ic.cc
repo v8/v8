@@ -1747,6 +1747,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         if (holder->IsGlobalObject()) {
           Handle<PropertyCell> cell = lookup->GetPropertyCell();
           Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
+          DCHECK(holder.is_identical_to(receiver) ||
+                 receiver->map()->prototype() == *holder);
           StoreGlobalStub stub(isolate(), union_type->IsConstant(),
                                receiver->IsJSGlobalProxy());
           Handle<Code> code = stub.GetCodeCopyFromTemplate(

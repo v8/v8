@@ -3718,14 +3718,16 @@ void CompareICStub::GenerateObjects(MacroAssembler* masm) {
 
 void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   Label miss;
+  Handle<WeakCell> cell = Map::WeakCellForMap(known_map_);
   Condition either_smi = masm->CheckEitherSmi(rdx, rax);
   __ j(either_smi, &miss, Label::kNear);
 
+  __ GetWeakValue(rdi, cell);
   __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movp(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ Cmp(rcx, known_map_);
+  __ cmpp(rcx, rdi);
   __ j(not_equal, &miss, Label::kNear);
-  __ Cmp(rbx, known_map_);
+  __ cmpp(rbx, rdi);
   __ j(not_equal, &miss, Label::kNear);
 
   __ subp(rax, rdx);
