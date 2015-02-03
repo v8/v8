@@ -4256,7 +4256,26 @@ void Parser::ThrowPendingError() {
         pending_error_is_reference_error_
             ? factory->NewReferenceError(pending_error_message_, array)
             : factory->NewSyntaxError(pending_error_message_, array);
-    if (maybe_error.ToHandle(&error)) isolate()->Throw(*error, &location);
+
+    if (maybe_error.ToHandle(&error)) {
+      Handle<JSObject> jserror = Handle<JSObject>::cast(error);
+
+      Handle<Name> key_start_pos = factory->error_start_pos_symbol();
+      JSObject::SetProperty(
+          jserror, key_start_pos,
+          handle(Smi::FromInt(location.start_pos()), isolate()),
+          SLOPPY).Check();
+
+      Handle<Name> key_end_pos = factory->error_end_pos_symbol();
+      JSObject::SetProperty(jserror, key_end_pos,
+                            handle(Smi::FromInt(location.end_pos()), isolate()),
+                            SLOPPY).Check();
+
+      Handle<Name> key_script = factory->error_script_symbol();
+      JSObject::SetProperty(jserror, key_script, script(), SLOPPY).Check();
+
+      isolate()->Throw(*error, &location);
+    }
   }
 }
 

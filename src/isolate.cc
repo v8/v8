@@ -1069,6 +1069,33 @@ void Isolate::ComputeLocation(MessageLocation* target) {
 }
 
 
+bool Isolate::ComputeLocationFromException(MessageLocation* target,
+                                           Handle<Object> exception) {
+  if (!exception->IsJSObject()) return false;
+
+  Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
+  Handle<Object> start_pos = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), start_pos_symbol);
+  if (!start_pos->IsSmi()) return false;
+  int start_pos_value = Handle<Smi>::cast(start_pos)->value();
+
+  Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
+  Handle<Object> end_pos = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), end_pos_symbol);
+  if (!end_pos->IsSmi()) return false;
+  int end_pos_value = Handle<Smi>::cast(end_pos)->value();
+
+  Handle<Name> script_symbol = factory()->error_script_symbol();
+  Handle<Object> script = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), script_symbol);
+  if (!script->IsScript()) return false;
+
+  Handle<Script> cast_script(Script::cast(*script));
+  *target = MessageLocation(cast_script, start_pos_value, end_pos_value);
+  return true;
+}
+
+
 bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
                                             Handle<Object> exception) {
   *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
@@ -1181,9 +1208,12 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     }
   }
   if (!location) {
-    if (!ComputeLocationFromStackTrace(&potential_computed_location,
-                                       exception)) {
-      ComputeLocation(&potential_computed_location);
+    if (!ComputeLocationFromException(&potential_computed_location,
+                                      exception)) {
+      if (!ComputeLocationFromStackTrace(&potential_computed_location,
+                                         exception)) {
+        ComputeLocation(&potential_computed_location);
+      }
     }
     location = &potential_computed_location;
   }
