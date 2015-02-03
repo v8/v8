@@ -266,6 +266,11 @@ class SlotsBuffer {
 
   void Add(ObjectSlot slot) {
     DCHECK(0 <= idx_ && idx_ < kNumberOfElements);
+#ifdef DEBUG
+    if (slot >= reinterpret_cast<ObjectSlot>(NUMBER_OF_SLOT_TYPES)) {
+      DCHECK_NOT_NULL(*slot);
+    }
+#endif
     slots_[idx_++] = slot;
   }
 
