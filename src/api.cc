@@ -3290,37 +3290,6 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 }
 
 
-static bool GetPredefinedToString(i::Handle<i::String> tag,
-                                  Local<String>* result) {
-  i::Isolate* i_isolate = tag->GetIsolate();
-  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  i::Factory* factory = i_isolate->factory();
-
-  if (i::String::Equals(tag, factory->Arguments_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Arguments]");
-  } else if (i::String::Equals(tag, factory->Array_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Array]");
-  } else if (i::String::Equals(tag, factory->Boolean_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Boolean]");
-  } else if (i::String::Equals(tag, factory->Date_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Date]");
-  } else if (i::String::Equals(tag, factory->Error_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Error]");
-  } else if (i::String::Equals(tag, factory->Function_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Function]");
-  } else if (i::String::Equals(tag, factory->Number_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~Number]");
-  } else if (i::String::Equals(tag, factory->RegExp_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~RegExp]");
-  } else if (i::String::Equals(tag, factory->String_string())) {
-    *result = v8::String::NewFromUtf8(isolate, "[object ~String]");
-  } else {
-    return false;
-  }
-  return true;
-}
-
-
 Local<String> v8::Object::ObjectProtoToString() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
@@ -3354,16 +3323,8 @@ Local<String> v8::Object::ObjectProtoToString() {
                  .ToHandle(&tag);
         EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::String>());
 
-        if (!tag->IsUndefined()) {
-          if (!tag->IsString())
-            return v8::String::NewFromUtf8(isolate, "[object ???]");
-          i::Handle<i::String> tag_name = i::Handle<i::String>::cast(tag);
-          if (!i::String::Equals(class_name, tag_name)) {
-            Local<String> result;
-            if (GetPredefinedToString(tag_name, &result)) return result;
-
-            class_name = tag_name;
-          }
+        if (tag->IsString()) {
+          class_name = i::Handle<i::String>::cast(tag);
         }
       }
       const char* prefix = "[object ";

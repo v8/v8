@@ -14002,18 +14002,57 @@ TEST(ObjectProtoToStringES6) {
   } while (0)
 
   TEST_TOSTRINGTAG(Array, Object, Object);
-  TEST_TOSTRINGTAG(Object, Arguments, ~Arguments);
-  TEST_TOSTRINGTAG(Object, Array, ~Array);
-  TEST_TOSTRINGTAG(Object, Boolean, ~Boolean);
-  TEST_TOSTRINGTAG(Object, Date, ~Date);
-  TEST_TOSTRINGTAG(Object, Error, ~Error);
-  TEST_TOSTRINGTAG(Object, Function, ~Function);
-  TEST_TOSTRINGTAG(Object, Number, ~Number);
-  TEST_TOSTRINGTAG(Object, RegExp, ~RegExp);
-  TEST_TOSTRINGTAG(Object, String, ~String);
+  TEST_TOSTRINGTAG(Object, Arguments, Arguments);
+  TEST_TOSTRINGTAG(Object, Array, Array);
+  TEST_TOSTRINGTAG(Object, Boolean, Boolean);
+  TEST_TOSTRINGTAG(Object, Date, Date);
+  TEST_TOSTRINGTAG(Object, Error, Error);
+  TEST_TOSTRINGTAG(Object, Function, Function);
+  TEST_TOSTRINGTAG(Object, Number, Number);
+  TEST_TOSTRINGTAG(Object, RegExp, RegExp);
+  TEST_TOSTRINGTAG(Object, String, String);
   TEST_TOSTRINGTAG(Object, Foo, Foo);
 
 #undef TEST_TOSTRINGTAG
+
+  Local<v8::RegExp> valueRegExp = v8::RegExp::New(v8_str("^$"),
+                                                  v8::RegExp::kNone);
+  Local<Value> valueNumber = v8_num(123);
+  Local<v8::Symbol> valueSymbol = v8_symbol("TestSymbol");
+  Local<v8::Function> valueFunction =
+      CompileRun("function fn() {}").As<v8::Function>();
+  Local<v8::Object> valueObject = v8::Object::New(v8::Isolate::GetCurrent());
+  Local<v8::Primitive> valueNull = v8::Null(v8::Isolate::GetCurrent());
+  Local<v8::Primitive> valueUndef = v8::Undefined(v8::Isolate::GetCurrent());
+
+#define TEST_TOSTRINGTAG(type, tagValue, expected)          \
+  do {                                                      \
+    object = CompileRun("new " #type "()");                 \
+    object.As<v8::Object>()->Set(toStringTag, tagValue);    \
+    value = object.As<v8::Object>()->ObjectProtoToString(); \
+    CHECK(value->IsString() &&                              \
+          value->Equals(v8_str("[object " #expected "]"))); \
+  } while (0)
+
+#define TEST_TOSTRINGTAG_TYPES(tagValue)                    \
+  TEST_TOSTRINGTAG(Array, tagValue, Array);                 \
+  TEST_TOSTRINGTAG(Object, tagValue, Object);               \
+  TEST_TOSTRINGTAG(Function, tagValue, Function);           \
+  TEST_TOSTRINGTAG(Date, tagValue, Date);                   \
+  TEST_TOSTRINGTAG(RegExp, tagValue, RegExp);               \
+  TEST_TOSTRINGTAG(Error, tagValue, Error);                 \
+
+  // Test non-String-valued @@toStringTag
+  TEST_TOSTRINGTAG_TYPES(valueRegExp);
+  TEST_TOSTRINGTAG_TYPES(valueNumber);
+  TEST_TOSTRINGTAG_TYPES(valueSymbol);
+  TEST_TOSTRINGTAG_TYPES(valueFunction);
+  TEST_TOSTRINGTAG_TYPES(valueObject);
+  TEST_TOSTRINGTAG_TYPES(valueNull);
+  TEST_TOSTRINGTAG_TYPES(valueUndef);
+
+#undef TEST_TOSTRINGTAG
+#undef TEST_TOSTRINGTAG_TYPES
 
   // @@toStringTag getter throws
   Local<Value> obj = v8::Object::New(isolate);
