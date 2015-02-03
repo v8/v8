@@ -548,7 +548,10 @@ struct ComputeSchedulePhase {
   static const char* phase_name() { return "scheduling"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph());
+    Schedule* schedule = Scheduler::ComputeSchedule(
+        temp_zone, data->graph(), data->info()->is_splitting_enabled()
+                                      ? Scheduler::kSplitNodes
+                                      : Scheduler::kNoFlags);
     TraceSchedule(schedule);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     data->set_schedule(schedule);

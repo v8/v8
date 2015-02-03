@@ -90,7 +90,8 @@ class CompilationInfo {
     kTypingEnabled = 1 << 18,
     kDisableFutureOptimization = 1 << 19,
     kModule = 1 << 20,
-    kToplevel = 1 << 21
+    kToplevel = 1 << 21,
+    kSplittingEnabled = 1 << 22
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -221,6 +222,10 @@ class CompilationInfo {
   void MarkAsToplevel() { SetFlag(kToplevel); }
 
   bool is_toplevel() const { return GetFlag(kToplevel); }
+
+  void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
+
+  bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&

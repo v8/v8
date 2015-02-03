@@ -397,6 +397,7 @@ DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
 DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
+DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")

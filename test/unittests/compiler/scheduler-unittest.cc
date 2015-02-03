@@ -32,7 +32,8 @@ class SchedulerTest : public TestWithZone {
       os << AsDOT(*graph);
     }
 
-    Schedule* schedule = Scheduler::ComputeSchedule(graph->zone(), graph);
+    Schedule* schedule = Scheduler::ComputeSchedule(graph->zone(), graph,
+                                                    Scheduler::kSplitNodes);
 
     if (FLAG_trace_turbo_scheduler) {
       OFStream os(stdout);
@@ -151,7 +152,7 @@ const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
 TEST_F(SchedulerTest, BuildScheduleEmpty) {
   graph()->SetStart(graph()->NewNode(common()->Start(0)));
   graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
-  USE(Scheduler::ComputeSchedule(zone(), graph()));
+  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
 }
 
 
@@ -164,7 +165,7 @@ TEST_F(SchedulerTest, BuildScheduleOneParameter) {
 
   graph()->SetEnd(graph()->NewNode(common()->End(), ret));
 
-  USE(Scheduler::ComputeSchedule(zone(), graph()));
+  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
 }
 
 
@@ -1734,7 +1735,7 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(35, graph());
+  ComputeAndVerifySchedule(36, graph());
 }
 
 
