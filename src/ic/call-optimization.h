@@ -45,6 +45,10 @@ class CallOptimization BASE_EMBEDDED {
   bool IsCompatibleReceiver(Handle<Object> receiver,
                             Handle<JSObject> holder) const;
 
+  // Check if the api holder is between the receiver and the holder.
+  bool IsCompatibleReceiverType(Handle<Map> receiver_map,
+                                Handle<JSObject> holder) const;
+
  private:
   void Initialize(Handle<JSFunction> function);
 

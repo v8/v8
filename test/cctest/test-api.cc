@@ -117,6 +117,11 @@ static void IncrementingSignatureCallback(
 }
 
 
+static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(42);
+}
+
+
 // Tests that call v8::V8::Dispose() cannot be threaded.
 UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
   CHECK(v8::V8::Initialize());
@@ -2222,6 +2227,33 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
   ExpectBoolean("child.hasOwnProperty('age')", false);
   ExpectInt32("child.age", 10);
   ExpectInt32("child.accessor_age", 10);
+}
+
+
+THREADED_TEST(EmptyInterceptorDoesNotShadowApiAccessors) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Handle<FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  auto returns_42 = FunctionTemplate::New(isolate, Returns42);
+  parent->PrototypeTemplate()->SetAccessorProperty(v8_str("age"), returns_42);
+  Handle<FunctionTemplate> child = FunctionTemplate::New(isolate);
+  child->Inherit(parent);
+  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun(
+      "var child = new Child;"
+      "var parent = child.__proto__;");
+  ExpectBoolean("child.hasOwnProperty('age')", false);
+  ExpectInt32("child.age", 42);
+  // Check interceptor followup.
+  ExpectInt32(
+      "var result;"
+      "for (var i = 0; i < 4; ++i) {"
+      "  result = child.age;"
+      "}"
+      "result",
+      42);
 }
 
 
@@ -23497,11 +23529,6 @@ TEST(FunctionCallOptimization) {
   i::FLAG_allow_natives_syntax = true;
   ApiCallOptimizationChecker checker;
   checker.RunAll();
-}
-
-
-static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(42);
 }
 
 
