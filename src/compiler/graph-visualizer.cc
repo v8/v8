@@ -24,6 +24,34 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+
+FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
+                            const char* suffix, const char* mode) {
+  EmbeddedVector<char, 256> filename;
+  SmartArrayPointer<char> function_name;
+  if (!info->shared_info().is_null()) {
+    function_name = info->shared_info()->DebugName()->ToCString();
+    if (strlen(function_name.get()) > 0) {
+      SNPrintF(filename, "turbo-%s", function_name.get());
+    } else {
+      SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
+    }
+  } else {
+    SNPrintF(filename, "turbo-none-%s", phase);
+  }
+  std::replace(filename.start(), filename.start() + filename.length(), ' ',
+               '_');
+
+  EmbeddedVector<char, 256> full_filename;
+  if (phase == NULL) {
+    SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
+  } else {
+    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
+  }
+  return base::OS::FOpen(full_filename.start(), mode);
+}
+
+
 static int SafeId(Node* node) { return node == NULL ? -1 : node->id(); }
 static const char* SafeMnemonic(Node* node) {
   return node == NULL ? "null" : node->op()->mnemonic();

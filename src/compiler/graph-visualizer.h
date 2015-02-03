@@ -20,6 +20,8 @@ class RegisterAllocator;
 class Schedule;
 class SourcePositionTable;
 
+FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
+                            const char* suffix, const char* mode);
 
 struct AsDOT {
   explicit AsDOT(const Graph& g) : graph(g) {}
