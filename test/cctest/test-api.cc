@@ -14020,7 +14020,7 @@ TEST(ObjectProtoToStringES6) {
   Local<Value> valueNumber = v8_num(123);
   Local<v8::Symbol> valueSymbol = v8_symbol("TestSymbol");
   Local<v8::Function> valueFunction =
-      CompileRun("function fn() {}").As<v8::Function>();
+      CompileRun("(function fn() {})").As<v8::Function>();
   Local<v8::Object> valueObject = v8::Object::New(v8::Isolate::GetCurrent());
   Local<v8::Primitive> valueNull = v8::Null(v8::Isolate::GetCurrent());
   Local<v8::Primitive> valueUndef = v8::Undefined(v8::Isolate::GetCurrent());
