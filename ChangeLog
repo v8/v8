@@ -1,3 +1,10 @@
+2015-02-03: Version 4.2.49
+
+        Compute the same hash for all NaN values (issue 3859).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-03: Version 4.2.48
 
         Performance and stability improvements on all platforms.
