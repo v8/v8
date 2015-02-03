@@ -296,11 +296,12 @@ RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
 }
 
 
-void Runtime::WeakCollectionInitialize(
+static Handle<JSWeakCollection> WeakCollectionInitialize(
     Isolate* isolate, Handle<JSWeakCollection> weak_collection) {
   DCHECK(weak_collection->map()->inobject_properties() == 0);
   Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
+  return weak_collection;
 }
 
 
@@ -308,8 +309,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  Runtime::WeakCollectionInitialize(isolate, weak_collection);
-  return *weak_collection;
+  return *WeakCollectionInitialize(isolate, weak_collection);
 }
 
 
@@ -341,24 +341,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
 }
 
 
-bool Runtime::WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key) {
-  DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  DCHECK(table->IsKey(*key));
-  bool was_present = false;
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Remove(table, key, &was_present);
-  weak_collection->set_table(*new_table);
-  if (*table != *new_table) {
-    // Zap the old table since we didn't record slots for its elements.
-    table->FillWithHoles(0, table->length());
-  }
-  return was_present;
-}
-
-
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -368,23 +350,15 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  bool was_present = Runtime::WeakCollectionDelete(weak_collection, key);
-  return isolate->heap()->ToBoolean(was_present);
-}
-
-
-void Runtime::WeakCollectionSet(Handle<JSWeakCollection> weak_collection,
-                                Handle<Object> key, Handle<Object> value) {
-  DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  DCHECK(table->IsKey(*key));
-  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
+  bool was_present = false;
+  Handle<ObjectHashTable> new_table =
+      ObjectHashTable::Remove(table, key, &was_present);
   weak_collection->set_table(*new_table);
   if (*table != *new_table) {
     // Zap the old table since we didn't record slots for its elements.
     table->FillWithHoles(0, table->length());
   }
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 
@@ -398,7 +372,12 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  Runtime::WeakCollectionSet(weak_collection, key, value);
+  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
+  weak_collection->set_table(*new_table);
+  if (*table != *new_table) {
+    // Zap the old table since we didn't record slots for its elements.
+    table->FillWithHoles(0, table->length());
+  }
   return *weak_collection;
 }
 
@@ -435,9 +414,14 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
 RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
-  Runtime::WeakCollectionInitialize(isolate, weakmap);
-  return *weakmap;
+  // TODO(adamk): Currently this runtime function is only called three times per
+  // isolate. If it's called more often, the map should be moved into the
+  // strong root list.
+  Handle<Map> map =
+      isolate->factory()->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  Handle<JSWeakMap> weakmap =
+      Handle<JSWeakMap>::cast(isolate->factory()->NewJSObjectFromMap(map));
+  return *WeakCollectionInitialize(isolate, weakmap);
 }
 }
 }  // namespace v8::internal

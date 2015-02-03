@@ -879,13 +879,6 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate, Handle<FixedArray> literals,
       Handle<FixedArray> elements);
-
-  static void WeakCollectionInitialize(
-      Isolate* isolate, Handle<JSWeakCollection> weak_collection);
-  static void WeakCollectionSet(Handle<JSWeakCollection> weak_collection,
-                                Handle<Object> key, Handle<Object> value);
-  static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key);
 };
 
 

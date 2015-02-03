@@ -42,7 +42,10 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 
 static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  Factory* factory = isolate->factory();
+  Handle<Map> map = factory->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  Handle<JSObject> weakmap_obj = factory->NewJSObjectFromMap(map);
+  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
   // Do not leak handles for the hash table, it would make entries strong.
   {
     HandleScope scope(isolate);
@@ -55,7 +58,11 @@ static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
 static void PutIntoWeakMap(Handle<JSWeakMap> weakmap,
                            Handle<JSObject> key,
                            Handle<Object> value) {
-  Runtime::WeakCollectionSet(weakmap, key, value);
+  Handle<ObjectHashTable> table = ObjectHashTable::Put(
+      Handle<ObjectHashTable>(ObjectHashTable::cast(weakmap->table())),
+      Handle<JSObject>(JSObject::cast(*key)),
+      value);
+  weakmap->set_table(*table);
 }
 
 static int NumberOfWeakCalls = 0;
