@@ -75,6 +75,9 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));
+#ifdef DEBUG
+  code->VerifyEmbeddedObjects();
+#endif
   return code;
 }
 
