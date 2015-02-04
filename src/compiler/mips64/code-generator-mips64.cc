@@ -1061,7 +1061,7 @@ void CodeGenerator::AssemblePrologue() {
     // global proxy when called as functions (without an explicit receiver
     // object).
     // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-    if (info->strict_mode() == SLOPPY && !info->is_native()) {
+    if (is_sloppy(info->language_mode()) && !info->is_native()) {
       Label ok;
       // +2 for return address and saved frame pointer.
       int receiver_slot = info->scope()->num_parameters() + 2;
