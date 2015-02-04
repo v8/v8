@@ -235,6 +235,9 @@ bool ObjectLiteral::Property::emit_store() {
 
 
 void ObjectLiteral::CalculateEmitStore(Zone* zone) {
+  const auto GETTER = ObjectLiteral::Property::GETTER;
+  const auto SETTER = ObjectLiteral::Property::SETTER;
+
   ZoneAllocationPolicy allocator(zone);
 
   ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
@@ -242,19 +245,23 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
     Literal* literal = property->key()->AsLiteral();
-    if (literal->value()->IsNull()) continue;
+    DCHECK(!literal->value()->IsNull());
+
+    // If there is an existing entry do not emit a store unless the previous
+    // entry was also an accessor.
     uint32_t hash = literal->Hash();
-    // If the key of a computed property value is in the table, do not emit
-    // a store for the property later.
-    if ((property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
-         property->kind() == ObjectLiteral::Property::COMPUTED) &&
-        table.Lookup(literal, hash, false, allocator) != NULL) {
-      property->set_emit_store(false);
-    } else if (property->kind() != ObjectLiteral::Property::PROTOTYPE) {
-      // Add key to the table.
-      table.Lookup(literal, hash, true, allocator);
+    ZoneHashMap::Entry* entry = table.Lookup(literal, hash, true, allocator);
+    if (entry->value != NULL) {
+      auto previous_kind =
+          static_cast<ObjectLiteral::Property*>(entry->value)->kind();
+      if (!((property->kind() == GETTER && previous_kind == SETTER) ||
+            (property->kind() == SETTER && previous_kind == GETTER))) {
+        property->set_emit_store(false);
+      }
     }
+    entry->value = property;
   }
 }
 

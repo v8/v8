@@ -1520,10 +1520,14 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         break;
       }
       case ObjectLiteral::Property::GETTER:
-        accessor_table.lookup(key)->second->getter = property->value();
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->getter = property->value();
+        }
         break;
       case ObjectLiteral::Property::SETTER:
-        accessor_table.lookup(key)->second->setter = property->value();
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->setter = property->value();
+        }
         break;
     }
   }
