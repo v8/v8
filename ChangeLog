@@ -1,3 +1,16 @@
+2015-02-03: Version 4.2.50
+
+        Reset inlining limits due to overly long compilation times in
+        Speedometer, Dart2JS (Chromium issue 454625).
+
+        Add WeakMap to v8.h (Chromium issue 437416).
+
+        [V8] Added line, column and script symbols for SyntaxError (Chromium
+        issue 443140).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-03: Version 4.2.49
 
         Compute the same hash for all NaN values (issue 3859).
