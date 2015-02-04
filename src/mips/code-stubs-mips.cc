@@ -1001,6 +1001,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
+  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
@@ -2797,7 +2798,27 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(t0, a2, Operand(t0));
   __ lw(t0, FieldMemOperand(t0, FixedArray::kHeaderSize));
-  __ Branch(&extra_checks_or_miss, ne, a1, Operand(t0));
+
+  // We don't know that we have a weak cell. We might have a private symbol
+  // or an AllocationSite, but the memory is safe to examine.
+  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
+  // FixedArray.
+  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
+  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // computed, meaning that it can't appear to be a pointer. If the low bit is
+  // 0, then hash is computed, but the 0 bit prevents the field from appearing
+  // to be a pointer.
+  STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+                    WeakCell::kValueOffset &&
+                WeakCell::kValueOffset == Symbol::kHashFieldSlot);
+
+  __ lw(t1, FieldMemOperand(t0, WeakCell::kValueOffset));
+  __ Branch(&extra_checks_or_miss, ne, a1, Operand(t1));
+
+  // The compare above could have been a SMI/SMI comparison. Guard against this
+  // convincing us that we have a monomorphic JSFunction.
+  __ JumpIfSmi(a1, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -2874,16 +2895,18 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Addu(t0, t0, Operand(Smi::FromInt(1)));
   __ sw(t0, FieldMemOperand(a2, with_types_offset));
 
-  // Store the function.
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
-  __ Addu(t0, t0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sw(a1, MemOperand(t0, 0));
+  // Store the function. Use a stub since we need a frame for allocation.
+  // a2 - vector
+  // a3 - slot
+  // a1 - function
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    CreateWeakCellStub create_stub(masm->isolate());
+    __ Push(a1);
+    __ CallStub(&create_stub);
+    __ Pop(a1);
+  }
 
-  // Update the write barrier.
-  __ mov(t1, a1);
-  __ RecordWrite(a2, t0, t1, kRAHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ Branch(&have_js_function);
 
   // We are here because tracing is on or we encountered a MISS case we can't
