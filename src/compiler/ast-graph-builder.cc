@@ -1343,15 +1343,17 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
         break;
       }
       case ObjectLiteral::Property::GETTER: {
+        Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineGetterPropertyUnchecked, 3);
-        NewNode(op, receiver, key, value);
+            Runtime::kDefineGetterPropertyUnchecked, 4);
+        NewNode(op, receiver, key, value, attr);
         break;
       }
       case ObjectLiteral::Property::SETTER: {
+        Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineSetterPropertyUnchecked, 3);
-        NewNode(op, receiver, key, value);
+            Runtime::kDefineSetterPropertyUnchecked, 4);
+        NewNode(op, receiver, key, value, attr);
         break;
       }
     }
@@ -1587,16 +1589,18 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         break;
       }
       case ObjectLiteral::Property::GETTER: {
+        Node* attr = jsgraph()->Constant(NONE);
         const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineGetterPropertyUnchecked, 3);
-        Node* call = NewNode(op, receiver, key, value);
+            Runtime::kDefineGetterPropertyUnchecked, 4);
+        Node* call = NewNode(op, receiver, key, value, attr);
         PrepareFrameState(call, BailoutId::None());
         break;
       }
       case ObjectLiteral::Property::SETTER: {
+        Node* attr = jsgraph()->Constant(NONE);
         const Operator* op = javascript()->CallRuntime(
-            Runtime::kDefineSetterPropertyUnchecked, 3);
-        Node* call = NewNode(op, receiver, key, value);
+            Runtime::kDefineSetterPropertyUnchecked, 4);
+        Node* call = NewNode(op, receiver, key, value, attr);
         PrepareFrameState(call, BailoutId::None());
         break;
       }

@@ -23,7 +23,9 @@ function ID(x) {
   assertEquals('B', new C().b());
   assertEquals('C', new C().c());
   assertEquals('D', new C().d());
-  assertArrayEquals(['a', 'b', 'c', 'd'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['constructor', 'a', 'b', 'c', 'd'],
+                    Object.getOwnPropertyNames(C.prototype));
 })();
 
 
@@ -39,7 +41,9 @@ function ID(x) {
   assertEquals('C', new C().c());
   assertEquals('D', new C()[2]());
   // Array indexes first.
-  assertArrayEquals(['1', '2', 'a', 'c'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['1', '2', 'constructor', 'a', 'c'],
+                    Object.getOwnPropertyNames(C.prototype));
 })();
 
 
@@ -56,7 +60,9 @@ function ID(x) {
   assertEquals('B', new C()[sym1]());
   assertEquals('C', new C().c());
   assertEquals('D', new C()[sym2]());
-  assertArrayEquals(['a', 'c'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['constructor', 'a', 'c'],
+                    Object.getOwnPropertyNames(C.prototype));
   assertArrayEquals([sym1, sym2], Object.getOwnPropertySymbols(C.prototype));
 })();
 
@@ -73,7 +79,13 @@ function ID(x) {
   assertEquals('B', C.b());
   assertEquals('C', C.c());
   assertEquals('D', C.d());
-  assertArrayEquals(['a', 'b', 'c', 'd'], Object.keys(C));
+  assertArrayEquals([], Object.keys(C));
+  // TODO(arv): It is not clear that we are adding the "standard" properties
+  // in the right order. As far as I can tell the spec adds them in alphabetical
+  // order.
+  assertArrayEquals(['length', 'name', 'arguments', 'caller', 'prototype',
+      'a', 'b', 'c', 'd'],
+      Object.getOwnPropertyNames(C));
 })();
 
 
@@ -89,7 +101,9 @@ function ID(x) {
   assertEquals('C', C.c());
   assertEquals('D', C[2]());
   // Array indexes first.
-  assertArrayEquals(['1', '2', 'a', 'c'], Object.keys(C));
+  assertArrayEquals([], Object.keys(C));
+  assertArrayEquals(['1', '2', 'length', 'name', 'arguments', 'caller',
+      'prototype', 'a', 'c'], Object.getOwnPropertyNames(C));
 })();
 
 
@@ -106,7 +120,10 @@ function ID(x) {
   assertEquals('B', C[sym1]());
   assertEquals('C', C.c());
   assertEquals('D', C[sym2]());
-  assertArrayEquals(['a', 'c'], Object.keys(C));
+  assertArrayEquals([], Object.keys(C));
+  assertArrayEquals(['length', 'name', 'arguments', 'caller', 'prototype',
+      'a', 'c'],
+      Object.getOwnPropertyNames(C));
   assertArrayEquals([sym1, sym2], Object.getOwnPropertySymbols(C));
 })();
 
@@ -128,7 +145,9 @@ function assertIteratorResult(value, done, result) {
   assertIteratorResult(1, false, iter.next());
   assertIteratorResult(2, false, iter.next());
   assertIteratorResult(undefined, true, iter.next());
-  assertArrayEquals(['a'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['constructor', 'a'],
+                    Object.getOwnPropertyNames(C.prototype));
 })();
 
 
@@ -157,7 +176,9 @@ function assertIteratorResult(value, done, result) {
   assertEquals('B', new C().b());
   assertEquals('C', new C().c());
   assertEquals('D', new C().d());
-  assertArrayEquals(['a', 'b', 'c', 'd'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['constructor', 'a', 'b', 'c', 'd'],
+                    Object.getOwnPropertyNames(C.prototype));
 })();
 
 
@@ -190,7 +211,9 @@ function assertIteratorResult(value, done, result) {
   assertEquals('C', new C().c());
   assertEquals('D', new C()[2]());
   // Array indexes first.
-  assertArrayEquals(['1', '2', 'a', 'c'], Object.keys(C.prototype));
+  assertArrayEquals([], Object.keys(C.prototype));
+  assertArrayEquals(['1', '2', 'constructor', 'a', 'c'],
+                    Object.getOwnPropertyNames(C.prototype));
 })();
 
 

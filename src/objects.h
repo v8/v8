@@ -1113,7 +1113,7 @@ class Object {
                                           Handle<Context> context);
 
   // Converts this to a Smi if possible.
-  static MUST_USE_RESULT inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
                                                        Handle<Object> object);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
@@ -1932,9 +1932,13 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, uint32_t index, Handle<Object> value,
       LanguageMode language_mode, bool check_prototype);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElement(
+  MUST_USE_RESULT static inline MaybeHandle<Object> SetOwnElement(
       Handle<JSObject> object, uint32_t index, Handle<Object> value,
       LanguageMode language_mode);
+
+  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElement(
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(

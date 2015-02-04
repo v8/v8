@@ -2192,6 +2192,14 @@ bool JSObject::HasFastProperties() {
 }
 
 
+MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            LanguageMode language_mode) {
+  return JSObject::SetOwnElement(object, index, value, NONE, language_mode);
+}
+
+
 bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
   if (unused_property_fields() != 0) return false;
   if (is_prototype_map()) return false;
