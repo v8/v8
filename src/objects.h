@@ -6726,7 +6726,11 @@ class SharedFunctionInfo: public HeapObject {
   // Removed a specific optimized code object from the optimized code map.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
+  // Unconditionally clear the type feedback vector (including vector ICs).
   void ClearTypeFeedbackInfo();
+
+  // Clear the type feedback vector with a more subtle policy at GC time.
+  void ClearTypeFeedbackInfoAtGCTime();
 
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);

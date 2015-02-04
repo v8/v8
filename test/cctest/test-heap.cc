@@ -3320,7 +3320,7 @@ TEST(Regress2211) {
 }
 
 
-TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
+TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3355,16 +3355,16 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   CHECK_EQ(expected_slots, feedback_vector->ICSlots());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsJSFunction());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsJSFunction());
+  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsWeakCell());
+  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(slot1)),
-           *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
-  CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(slot2)),
-           *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
+  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot1)))
+             ->cleared());
+  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot2)))
+             ->cleared());
 }
 
 

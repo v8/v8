@@ -62,12 +62,23 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorSlot slot) {
 
 Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
   DCHECK(slot.ToInt() >= 0 && slot.ToInt() < feedback_vector_->length());
+  Handle<Object> undefined =
+      Handle<Object>::cast(isolate()->factory()->undefined_value());
   Object* obj = feedback_vector_->Get(slot);
+
+  // Vector-based ICs do not embed direct pointers to maps, functions.
+  // Instead a WeakCell is always used.
+  if (obj->IsWeakCell()) {
+    WeakCell* cell = WeakCell::cast(obj);
+    if (cell->cleared()) return undefined;
+    obj = cell->value();
+  }
+
   if (!obj->IsJSFunction() ||
       !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
     return Handle<Object>(obj, isolate());
   }
-  return Handle<Object>::cast(isolate()->factory()->undefined_value());
+  return undefined;
 }
 
 

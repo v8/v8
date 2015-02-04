@@ -682,6 +682,9 @@ void FastCloneShallowObjectStub::InitializeDescriptor(
 void CreateAllocationSiteStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
+void CreateWeakCellStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
@@ -737,6 +740,12 @@ void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
+  stub.GetCode();
+}
+
+
+void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
+  CreateWeakCellStub stub(isolate);
   stub.GetCode();
 }
 

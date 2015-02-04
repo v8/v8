@@ -63,6 +63,7 @@ namespace internal {
   V(BinaryOpWithAllocationSite)             \
   V(CompareNilIC)                           \
   V(CreateAllocationSite)                   \
+  V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
   V(FastCloneShallowArray)                  \
   V(FastCloneShallowObject)                 \
@@ -674,6 +675,17 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
   DEFINE_HYDROGEN_CODE_STUB(CreateAllocationSite, HydrogenCodeStub);
+};
+
+
+class CreateWeakCellStub : public HydrogenCodeStub {
+ public:
+  explicit CreateWeakCellStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
+  DEFINE_HYDROGEN_CODE_STUB(CreateWeakCell, HydrogenCodeStub);
 };
 
 
