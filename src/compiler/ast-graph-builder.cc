@@ -105,28 +105,28 @@ class AstGraphBuilder::AstTestContext FINAL : public AstContext {
 // change the current {scope} and {context} during visitation.
 class AstGraphBuilder::ContextScope BASE_EMBEDDED {
  public:
-  ContextScope(AstGraphBuilder* owner, Scope* scope, Node* context)
-      : owner_(owner),
-        next_(owner->execution_context()),
-        outer_(owner->current_context()),
-        scope_(scope) {
-    owner_->set_execution_context(this);  // Push.
-    owner_->set_current_context(context);
+  ContextScope(AstGraphBuilder* builder, Scope* scope, Node* context)
+      : builder_(builder),
+        outer_(builder->execution_context()),
+        scope_(scope),
+        context_(context) {
+    builder_->set_execution_context(this);  // Push.
   }
 
   ~ContextScope() {
-    owner_->set_execution_context(next_);  // Pop.
-    owner_->set_current_context(outer_);
+    builder_->set_execution_context(outer_);  // Pop.
   }
 
   // Current scope during visitation.
   Scope* scope() const { return scope_; }
+  // Current context node during visitation.
+  Node* context() const { return context_; }
 
  private:
-  AstGraphBuilder* owner_;
-  ContextScope* next_;
-  Node* outer_;
+  AstGraphBuilder* builder_;
+  ContextScope* outer_;
   Scope* scope_;
+  Node* context_;
 };
 
 
@@ -141,13 +141,13 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
  public:
   ControlScope(AstGraphBuilder* builder, int stack_delta)
       : builder_(builder),
-        next_(builder->execution_control()),
+        outer_(builder->execution_control()),
         stack_delta_(stack_delta) {
     builder_->set_execution_control(this);  // Push.
   }
 
   virtual ~ControlScope() {
-    builder_->set_execution_control(next_);  // Pop.
+    builder_->set_execution_control(outer_);  // Pop.
   }
 
   // Either 'break' or 'continue' to the target statement.
@@ -193,7 +193,7 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 
  private:
   AstGraphBuilder* builder_;
-  ControlScope* next_;
+  ControlScope* outer_;
   int stack_delta_;
 };
 
@@ -380,7 +380,6 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       execution_context_(nullptr),
       input_buffer_size_(0),
       input_buffer_(nullptr),
-      current_context_(nullptr),
       exit_control_(nullptr),
       loop_assignment_analysis_(loop) {
   InitializeAstVisitor(info->isolate(), local_zone);
@@ -431,8 +430,8 @@ bool AstGraphBuilder::CreateGraph() {
   }
 
   // Initialize the incoming context.
-  Node* outer_context = GetFunctionContext();
-  set_current_context(outer_context);
+  Node* incoming_context = GetFunctionContext();
+  ContextScope incoming(this, scope, incoming_context);
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
@@ -442,9 +441,9 @@ bool AstGraphBuilder::CreateGraph() {
 
   // Build node to initialize local function context.
   Node* closure = GetFunctionClosure();
-  Node* inner_context = BuildLocalFunctionContext(outer_context, closure);
+  Node* inner_context = BuildLocalFunctionContext(incoming_context, closure);
 
-  // Push top-level function scope for the function body.
+  // Push top-level function context for the function body.
   ContextScope top_context(this, scope, inner_context);
 
   // Build the arguments object if it is used.
@@ -655,6 +654,11 @@ Scope* AstGraphBuilder::current_scope() const {
 }
 
 
+Node* AstGraphBuilder::current_context() const {
+  return execution_context_->context();
+}
+
+
 void AstGraphBuilder::ControlScope::PerformCommand(Command command,
                                                    Statement* target,
                                                    Node* value) {
@@ -663,7 +667,7 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
   while (current != NULL) {
     if (current->Execute(command, target, value)) break;
     environment()->Drop(current->stack_delta());
-    current = current->next_;
+    current = current->outer_;
   }
   builder()->set_environment(env);
   DCHECK(current != NULL);  // Always handled (unless stack is malformed).
@@ -2409,7 +2413,6 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
   // Allocate a new local context.
   const Operator* op = javascript()->CreateFunctionContext();
   Node* local_context = NewNode(op, closure);
-  set_current_context(local_context);
 
   // Copy parameters into context if necessary.
   int num_parameters = info()->scope()->num_parameters();

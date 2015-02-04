@@ -98,9 +98,6 @@ class AstGraphBuilder : public AstVisitor {
   // Node representing the control dependency for dead code.
   SetOncePointer<Node> dead_control_;
 
-  // Node representing the current context within the function body.
-  Node* current_context_;
-
   // Merge of all control nodes that exit the function body.
   Node* exit_control_;
 
@@ -125,7 +122,7 @@ class AstGraphBuilder : public AstVisitor {
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   Scope* current_scope() const;
-  Node* current_context() const { return current_context_; }
+  Node* current_context() const;
   Node* dead_control();
   Node* exit_control() const { return exit_control_; }
 
@@ -133,7 +130,6 @@ class AstGraphBuilder : public AstVisitor {
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
   void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
-  void set_current_context(Node* ctx) { current_context_ = ctx; }
   void set_exit_control(Node* exit) { exit_control_ = exit; }
 
   // Node creation helpers.
