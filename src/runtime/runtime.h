@@ -823,7 +823,7 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
-      Handle<Object> value, StrictMode strict_mode);
+      Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
       Handle<JSObject> object, Handle<Object> key, Handle<Object> value,
@@ -892,7 +892,8 @@ class AllocateTargetSpace : public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
-class DeclareGlobalsStrictMode : public BitField<StrictMode, 2, 1> {};
+STATIC_ASSERT(LANGUAGE_END == 2);
+class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 1> {};
 
 }  // namespace internal
 }  // namespace v8

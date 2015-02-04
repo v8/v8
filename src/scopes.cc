@@ -165,7 +165,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the strict mode from the parent scope.
-  strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
+  language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   inner_scope_uses_arguments_ = false;
@@ -187,7 +187,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   end_position_ = RelocInfo::kNoPosition;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
-    strict_mode_ = scope_info->strict_mode();
+    language_mode_ = scope_info->language_mode();
   }
 }
 
@@ -888,7 +888,7 @@ void Scope::Print(int n) {
   if (HasTrivialOuterContext()) {
     Indent(n1, "// scope has trivial outer context\n");
   }
-  if (strict_mode() == STRICT) {
+  if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
@@ -1290,7 +1290,7 @@ void Scope::AllocateParameterLocals() {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    uses_sloppy_arguments = strict_mode() == SLOPPY;
+    uses_sloppy_arguments = is_sloppy(language_mode());
   }
 
   if (rest_parameter_ && !MustAllocate(rest_parameter_)) {

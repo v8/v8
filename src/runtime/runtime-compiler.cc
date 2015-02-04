@@ -394,7 +394,7 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                     Handle<SharedFunctionInfo> outer_info,
                                     Handle<Object> receiver,
-                                    StrictMode strict_mode,
+                                    LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> native_context = Handle<Context>(context->native_context());
@@ -418,7 +418,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source, outer_info, context, strict_mode,
+      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
                                     restriction, scope_position),
       MakePair(isolate->heap()->exception(), NULL));
   return MakePair(*compiled, *receiver);
@@ -442,13 +442,13 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   }
 
   DCHECK(args[4]->IsSmi());
-  DCHECK(args.smi_at(4) == SLOPPY || args.smi_at(4) == STRICT);
-  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(4));
+  DCHECK(is_valid_language_mode(args.smi_at(4)));
+  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(4));
   DCHECK(args[5]->IsSmi());
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
-                           args.at<Object>(3), strict_mode, args.smi_at(5));
+                           args.at<Object>(3), language_mode, args.smi_at(5));
 }
 }
 }  // namespace v8::internal

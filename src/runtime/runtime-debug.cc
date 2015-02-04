@@ -632,7 +632,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject() && shared->strict_mode() == SLOPPY &&
+  if (!receiver->IsJSObject() && is_sloppy(shared->language_mode()) &&
       !function->IsBuiltin()) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a

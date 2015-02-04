@@ -2189,8 +2189,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  StrictMode function_strict_mode() {
-    return function_state()->compilation_info()->strict_mode();
+  LanguageMode function_language_mode() {
+    return function_state()->compilation_info()->language_mode();
   }
 
   // Generators for inline runtime functions.

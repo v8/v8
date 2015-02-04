@@ -3083,7 +3083,7 @@ bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
 
 i::MaybeHandle<i::Object> DeleteObjectProperty(
     i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
-    i::Handle<i::Object> key, i::StrictMode strict_mode) {
+    i::Handle<i::Object> key, i::LanguageMode language_mode) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
@@ -3097,7 +3097,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
       return isolate->factory()->true_value();
     }
 
-    return i::JSReceiver::DeleteElement(receiver, index, strict_mode);
+    return i::JSReceiver::DeleteElement(receiver, index, language_mode);
   }
 
   i::Handle<i::Name> name;
@@ -3115,7 +3115,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
   if (name->IsString()) {
     name = i::String::Flatten(i::Handle<i::String>::cast(name));
   }
-  return i::JSReceiver::DeleteProperty(receiver, name, strict_mode);
+  return i::JSReceiver::DeleteProperty(receiver, name, language_mode);
 }
 
 

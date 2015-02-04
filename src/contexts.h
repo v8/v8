@@ -572,20 +572,20 @@ class Context: public FixedArray {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
-  static int FunctionMapIndex(StrictMode strict_mode, FunctionKind kind) {
+  static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
     if (IsGeneratorFunction(kind)) {
-      return strict_mode == SLOPPY ? SLOPPY_GENERATOR_FUNCTION_MAP_INDEX
-                                   : STRICT_GENERATOR_FUNCTION_MAP_INDEX;
+      return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
+                                      : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
     }
 
     if (IsArrowFunction(kind) || IsConciseMethod(kind)) {
-      return strict_mode == SLOPPY
-                 ? SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX
-                 : STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+      return is_strict(language_mode)
+                 ? STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX
+                 : SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
     }
 
-    return strict_mode == SLOPPY ? SLOPPY_FUNCTION_MAP_INDEX
-                                 : STRICT_FUNCTION_MAP_INDEX;
+    return is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
+                                    : SLOPPY_FUNCTION_MAP_INDEX;
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;

@@ -193,7 +193,7 @@ class Token {
     return token_type[tok] == 'K';
   }
 
-  static bool IsIdentifier(Value tok, StrictMode strict_mode,
+  static bool IsIdentifier(Value tok, LanguageMode language_mode,
                            bool is_generator) {
     switch (tok) {
       case IDENTIFIER:
@@ -201,9 +201,9 @@ class Token {
       case FUTURE_STRICT_RESERVED_WORD:
       case LET:
       case STATIC:
-        return strict_mode == SLOPPY;
+        return is_sloppy(language_mode);
       case YIELD:
-        return !is_generator && strict_mode == SLOPPY;
+        return !is_generator && is_sloppy(language_mode);
       default:
         return false;
     }

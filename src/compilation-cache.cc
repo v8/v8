@@ -203,7 +203,7 @@ void CompilationCacheScript::Put(Handle<String> source,
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    StrictMode strict_mode, int scope_position) {
+    LanguageMode language_mode, int scope_position) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -212,7 +212,8 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   int generation;
   for (generation = 0; generation < generations(); generation++) {
     Handle<CompilationCacheTable> table = GetTable(generation);
-    result = table->LookupEval(source, outer_info, strict_mode, scope_position);
+    result =
+        table->LookupEval(source, outer_info, language_mode, scope_position);
     if (result->IsSharedFunctionInfo()) break;
   }
   if (result->IsSharedFunctionInfo()) {
@@ -302,16 +303,16 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
 
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, StrictMode strict_mode, int scope_position) {
+    Handle<Context> context, LanguageMode language_mode, int scope_position) {
   if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   MaybeHandle<SharedFunctionInfo> result;
   if (context->IsNativeContext()) {
     result =
-        eval_global_.Lookup(source, outer_info, strict_mode, scope_position);
+        eval_global_.Lookup(source, outer_info, language_mode, scope_position);
   } else {
     DCHECK(scope_position != RelocInfo::kNoPosition);
-    result = eval_contextual_.Lookup(source, outer_info, strict_mode,
+    result = eval_contextual_.Lookup(source, outer_info, language_mode,
                                      scope_position);
   }
   return result;

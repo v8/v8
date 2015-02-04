@@ -190,8 +190,8 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (FLAG_turbo_types) MarkAsTypingEnabled();
 
   if (!shared_info_.is_null()) {
-    DCHECK(strict_mode() == SLOPPY);
-    SetStrictMode(shared_info_->strict_mode());
+    DCHECK(is_sloppy(language_mode()));
+    SetLanguageMode(shared_info_->language_mode());
   }
   bailout_reason_ = kNoReason;
 
@@ -631,7 +631,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_allows_lazy_compilation_without_context(
       lit->AllowsLazyCompilationWithoutContext());
-  function_info->set_strict_mode(lit->strict_mode());
+  function_info->set_language_mode(lit->language_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
@@ -700,7 +700,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   if (!Parser::Parse(info)) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info->shared_info();
   FunctionLiteral* lit = info->function();
-  shared->set_strict_mode(lit->strict_mode());
+  shared->set_language_mode(lit->language_mode());
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
@@ -1223,7 +1223,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, StrictMode strict_mode,
+    Handle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
@@ -1232,7 +1232,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<SharedFunctionInfo> maybe_shared_info =
-      compilation_cache->LookupEval(source, outer_info, context, strict_mode,
+      compilation_cache->LookupEval(source, outer_info, context, language_mode,
                                     scope_position);
   Handle<SharedFunctionInfo> shared_info;
 
@@ -1241,7 +1241,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     CompilationInfoWithZone info(script);
     info.MarkAsEval();
     if (context->IsNativeContext()) info.MarkAsGlobal();
-    info.SetStrictMode(strict_mode);
+    info.SetLanguageMode(language_mode);
     info.SetParseRestriction(restriction);
     info.SetContext(context);
 
@@ -1259,7 +1259,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
 
       // If caller is strict mode, the result must be in strict mode as well.
-      DCHECK(strict_mode == SLOPPY || shared_info->strict_mode() == STRICT);
+      DCHECK(is_sloppy(language_mode) ||
+             is_strict(shared_info->language_mode()));
       if (!shared_info->dont_cache()) {
         compilation_cache->PutEval(source, outer_info, context, shared_info,
                                    scope_position);
@@ -1352,7 +1353,10 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();
     }
-    if (FLAG_use_strict) info.SetStrictMode(STRICT);
+    if (FLAG_use_strict) {
+      info.SetLanguageMode(
+          static_cast<LanguageMode>(info.language_mode() | STRICT));
+    }
 
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
@@ -1383,7 +1387,10 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  if (FLAG_use_strict) info->SetStrictMode(STRICT);
+  if (FLAG_use_strict) {
+    info->SetLanguageMode(
+        static_cast<LanguageMode>(info->language_mode() | STRICT));
+  }
   // TODO(marja): FLAG_serialize_toplevel is not honoured and won't be; when the
   // real code caching lands, streaming needs to be adapted to use it.
   return CompileToplevel(info);
@@ -1397,7 +1404,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   CompilationInfoWithZone info(script);
   info.SetFunction(literal);
   info.PrepareForCompilation(literal->scope());
-  info.SetStrictMode(literal->scope()->strict_mode());
+  info.SetLanguageMode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
 
   Isolate* isolate = info.isolate();

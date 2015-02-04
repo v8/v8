@@ -166,8 +166,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate,
 
   // In sloppy mode, convert receiver.
   if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() &&
-      func->shared()->strict_mode() == SLOPPY) {
+      !func->shared()->native() && is_sloppy(func->shared()->language_mode())) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       receiver = handle(func->global_proxy());
       DCHECK(!receiver->IsJSBuiltinsObject());

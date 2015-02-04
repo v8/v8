@@ -31,7 +31,7 @@ class FunctionEntry BASE_EMBEDDED {
     kEndPositionIndex,
     kLiteralCountIndex,
     kPropertyCountIndex,
-    kStrictModeIndex,
+    kLanguageModeIndex,
     kSize
   };
 
@@ -44,10 +44,9 @@ class FunctionEntry BASE_EMBEDDED {
   int end_pos() { return backing_[kEndPositionIndex]; }
   int literal_count() { return backing_[kLiteralCountIndex]; }
   int property_count() { return backing_[kPropertyCountIndex]; }
-  StrictMode strict_mode() {
-    DCHECK(backing_[kStrictModeIndex] == SLOPPY ||
-           backing_[kStrictModeIndex] == STRICT);
-    return static_cast<StrictMode>(backing_[kStrictModeIndex]);
+  LanguageMode language_mode() {
+    DCHECK(is_valid_language_mode(backing_[kLanguageModeIndex]));
+    return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
   }
 
   bool is_valid() { return !backing_.is_empty(); }
@@ -671,7 +670,7 @@ class Parser : public ParserBase<ParserTraits> {
     Parser parser(info, &parse_info);
     parser.set_allow_lazy(allow_lazy);
     if (parser.Parse()) {
-      info->SetStrictMode(info->function()->strict_mode());
+      info->SetLanguageMode(info->function()->language_mode());
       return true;
     }
     return false;

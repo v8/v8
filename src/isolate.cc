@@ -404,7 +404,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       // mode function.  The number of sloppy frames is stored as
       // first element in the result array.
       if (!encountered_strict_function) {
-        if (fun->shared()->strict_mode() == STRICT) {
+        if (is_strict(fun->shared()->language_mode())) {
           encountered_strict_function = true;
         } else {
           sloppy_frames++;

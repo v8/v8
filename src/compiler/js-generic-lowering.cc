@@ -286,24 +286,24 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  StrictMode strict_mode = OpParameter<StrictMode>(node);
-  Callable callable = CodeFactory::KeyedStoreIC(isolate(), strict_mode);
+  LanguageMode language_mode = OpParameter<LanguageMode>(node);
+  Callable callable = CodeFactory::KeyedStoreIC(isolate(), language_mode);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  Callable callable = CodeFactory::StoreIC(isolate(), p.strict_mode());
+  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
-  StrictMode strict_mode = OpParameter<StrictMode>(node);
+  LanguageMode language_mode = OpParameter<LanguageMode>(node);
   ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
-  PatchInsertInput(node, 4, jsgraph()->SmiConstant(strict_mode));
+  PatchInsertInput(node, 4, jsgraph()->SmiConstant(language_mode));
 }
 
 

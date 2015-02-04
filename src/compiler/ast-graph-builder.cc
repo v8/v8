@@ -1357,7 +1357,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     if (FunctionLiteral::NeedsHomeObject(property->value())) {
       Unique<Name> name =
           MakeUnique(isolate()->factory()->home_object_symbol());
-      Node* store = NewNode(javascript()->StoreNamed(strict_mode(), name),
+      Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
                             value, receiver);
       PrepareFrameState(store, BailoutId::None());
     }
@@ -1477,8 +1477,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForValue(property->value());
             Node* value = environment()->Pop();
             Unique<Name> name = MakeUnique(key->AsPropertyName());
-            Node* store = NewNode(javascript()->StoreNamed(strict_mode(), name),
-                                  literal, value);
+            Node* store =
+                NewNode(javascript()->StoreNamed(language_mode(), name),
+                        literal, value);
             PrepareFrameState(store, key->id());
           } else {
             VisitForEffect(property->value());
@@ -1492,10 +1493,10 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* key = environment()->Pop();
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
-          Node* strict = jsgraph()->Constant(SLOPPY);
+          Node* language = jsgraph()->Constant(SLOPPY);
           const Operator* op =
               javascript()->CallRuntime(Runtime::kSetProperty, 4);
-          NewNode(op, receiver, key, value, strict);
+          NewNode(op, receiver, key, value, language);
         }
         break;
       }
@@ -1639,7 +1640,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForValue(subexpr);
     Node* value = environment()->Pop();
     Node* index = jsgraph()->Constant(i);
-    Node* store = NewNode(javascript()->StoreProperty(strict_mode()), literal,
+    Node* store = NewNode(javascript()->StoreProperty(language_mode()), literal,
                           index, value);
     PrepareFrameState(store, expr->GetIdForElement(i));
   }
@@ -1671,8 +1672,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       value = environment()->Pop();
       Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store =
-          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
+      Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
+                            object, value);
       PrepareFrameState(store, bailout_id);
       break;
     }
@@ -1683,8 +1684,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       value = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
-                            key, value);
+      Node* store = NewNode(javascript()->StoreProperty(language_mode()),
+                            object, key, value);
       PrepareFrameState(store, bailout_id);
       break;
     }
@@ -1773,8 +1774,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store =
-          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
+      Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
+                            object, value);
       PrepareFrameState(store, expr->AssignmentId(),
                         ast_context()->GetStateCombine());
       break;
@@ -1782,8 +1783,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
-                            key, value);
+      Node* store = NewNode(javascript()->StoreProperty(language_mode()),
+                            object, key, value);
       PrepareFrameState(store, expr->AssignmentId(),
                         ast_context()->GetStateCombine());
       break;
@@ -1932,12 +1933,12 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     // provide a fully resolved callee and the corresponding receiver.
     Node* function = GetFunctionClosure();
     Node* receiver = environment()->Lookup(info()->scope()->receiver());
-    Node* strict = jsgraph()->Constant(strict_mode());
+    Node* language = jsgraph()->Constant(language_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
     const Operator* op =
         javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
     Node* pair =
-        NewNode(op, callee, source, function, receiver, strict, position);
+        NewNode(op, callee, source, function, receiver, language, position);
     PrepareFrameState(pair, expr->EvalOrLookupId(),
                       OutputFrameStateCombine::PokeAt(arg_count + 1));
     Node* new_callee = NewNode(common()->Projection(0), pair);
@@ -2120,8 +2121,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Pop();
       Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store =
-          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
+      Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
+                            object, value);
       environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId());
       environment()->Pop();
@@ -2130,8 +2131,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
-                            key, value);
+      Node* store = NewNode(javascript()->StoreProperty(language_mode()),
+                            object, key, value);
       environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId());
       environment()->Pop();
@@ -2239,7 +2240,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
   int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
                       DeclareGlobalsNativeFlag::encode(info()->is_native()) |
-                      DeclareGlobalsStrictMode::encode(strict_mode());
+                      DeclareGlobalsLanguageMode::encode(language_mode());
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
   const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
@@ -2267,7 +2268,7 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     // Delete of an unqualified identifier is only allowed in classic mode but
     // deleting "this" is allowed in all language modes.
     Variable* variable = expr->expression()->AsVariableProxy()->var();
-    DCHECK(strict_mode() == SLOPPY || variable->is_this());
+    DCHECK(is_sloppy(language_mode()) || variable->is_this());
     value = BuildVariableDelete(variable, expr->id(),
                                 ast_context()->GetStateCombine());
   } else if (expr->expression()->IsProperty()) {
@@ -2276,7 +2277,7 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     VisitForValue(property->key());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = NewNode(javascript()->DeleteProperty(strict_mode()), object, key);
+    value = NewNode(javascript()->DeleteProperty(language_mode()), object, key);
     PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   } else {
     VisitForEffect(expr->expression());
@@ -2352,8 +2353,8 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 }
 
 
-StrictMode AstGraphBuilder::strict_mode() const {
-  return info()->strict_mode();
+LanguageMode AstGraphBuilder::language_mode() const {
+  return info()->language_mode();
 }
 
 
@@ -2378,7 +2379,7 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object). Otherwise there is nothing left to do here.
-  if (strict_mode() != SLOPPY || info()->is_native()) return receiver;
+  if (is_strict(language_mode()) || info()->is_native()) return receiver;
 
   // There is no need to perform patching if the receiver is never used. Note
   // that scope predicates are purely syntactical, a call to eval might still
@@ -2573,7 +2574,7 @@ Node* AstGraphBuilder::BuildVariableDelete(
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->DeleteProperty(strict_mode());
+      const Operator* op = javascript()->DeleteProperty(language_mode());
       Node* result = NewNode(op, global, name);
       PrepareFrameState(result, bailout_id, state_combine);
       return result;
@@ -2608,7 +2609,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Unique<Name> name = MakeUnique(variable->name());
-      const Operator* op = javascript()->StoreNamed(strict_mode(), name);
+      const Operator* op = javascript()->StoreNamed(language_mode(), name);
       Node* store = NewNode(op, global, value);
       PrepareFrameState(store, bailout_id, combine);
       return store;
@@ -2626,7 +2627,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         // Non-initializing assignments to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
-        if (strict_mode() == STRICT) {
+        if (is_strict(language_mode())) {
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
@@ -2660,7 +2661,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         // Non-initializing assignments to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
-        if (strict_mode() == STRICT) {
+        if (is_strict(language_mode())) {
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
@@ -2680,12 +2681,12 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
-      Node* strict = jsgraph()->Constant(strict_mode());
+      Node* language = jsgraph()->Constant(language_mode());
       // TODO(mstarzinger): Use Runtime::kInitializeLegacyConstLookupSlot for
       // initializations of const declarations.
       const Operator* op =
           javascript()->CallRuntime(Runtime::kStoreLookupSlot, 4);
-      Node* store = NewNode(op, value, current_context(), name, strict);
+      Node* store = NewNode(op, value, current_context(), name, language);
       PrepareFrameState(store, bailout_id, combine);
       return store;
     }

@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 
 static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
                             Handle<Object> receiver, Handle<Name> name,
-                            Handle<Object> value, StrictMode strict_mode) {
+                            Handle<Object> value, LanguageMode language_mode) {
   if (home_object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(home_object, name, v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
@@ -303,7 +303,7 @@ static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Object::SetProperty(&it, value, strict_mode,
+      Object::SetProperty(&it, value, language_mode,
                           Object::CERTAINLY_NOT_STORE_FROM_KEYED,
                           Object::SUPER_PROPERTY));
   return *result;
@@ -314,7 +314,7 @@ static Object* StoreElementToSuper(Isolate* isolate,
                                    Handle<JSObject> home_object,
                                    Handle<Object> receiver, uint32_t index,
                                    Handle<Object> value,
-                                   StrictMode strict_mode) {
+                                   LanguageMode language_mode) {
   if (home_object->IsAccessCheckNeeded() &&
       !isolate->MayIndexedAccess(home_object, index, v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
@@ -329,7 +329,7 @@ static Object* StoreElementToSuper(Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Object::SetElementWithReceiver(isolate, proto, receiver, index, value,
-                                     strict_mode));
+                                     language_mode));
   return *result;
 }
 
@@ -360,21 +360,23 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
 
 static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
                                  Handle<Object> receiver, Handle<Object> key,
-                                 Handle<Object> value, StrictMode strict_mode) {
+                                 Handle<Object> value,
+                                 LanguageMode language_mode) {
   uint32_t index;
 
   if (key->ToArrayIndex(&index)) {
     return StoreElementToSuper(isolate, home_object, receiver, index, value,
-                               strict_mode);
+                               language_mode);
   }
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
   if (name->AsArrayIndex(&index)) {
     return StoreElementToSuper(isolate, home_object, receiver, index, value,
-                               strict_mode);
+                               language_mode);
   }
-  return StoreToSuper(isolate, home_object, receiver, name, value, strict_mode);
+  return StoreToSuper(isolate, home_object, receiver, name, value,
+                      language_mode);
 }
 
 

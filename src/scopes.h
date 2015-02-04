@@ -226,8 +226,10 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code uses "this".
   void RecordThisUsage() { scope_uses_this_ = true; }
 
-  // Set the strict mode flag (unless disabled by a global flag).
-  void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
+  // Set the language mode flag (unless disabled by a global flag).
+  void SetLanguageMode(LanguageMode language_mode) {
+    language_mode_ = language_mode;
+  }
 
   // Set the ASM module flag.
   void SetAsmModule() { asm_module_ = true; }
@@ -291,13 +293,13 @@ class Scope: public ZoneObject {
         is_module_scope() || is_script_scope();
   }
   bool is_strict_eval_scope() const {
-    return is_eval_scope() && strict_mode_ == STRICT;
+    return is_eval_scope() && is_strict(language_mode_);
   }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
   bool calls_sloppy_eval() {
-    return scope_calls_eval_ && strict_mode_ == SLOPPY;
+    return scope_calls_eval_ && is_sloppy(language_mode_);
   }
   bool outer_scope_calls_sloppy_eval() const {
     return outer_scope_calls_sloppy_eval_;
@@ -340,7 +342,7 @@ class Scope: public ZoneObject {
   ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
-  StrictMode strict_mode() const { return strict_mode_; }
+  LanguageMode language_mode() const { return language_mode_; }
 
   // The variable corresponding the 'this' value.
   Variable* receiver() { return receiver_; }
@@ -547,8 +549,8 @@ class Scope: public ZoneObject {
   bool asm_module_;
   // This scope's outer context is an asm module.
   bool asm_function_;
-  // The strict mode of this scope.
-  StrictMode strict_mode_;
+  // The language mode of this scope.
+  LanguageMode language_mode_;
   // Source positions.
   int start_position_;
   int end_position_;

@@ -39,12 +39,12 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
 
   static Handle<Code> ComputeKeyedStoreMonomorphic(
-      Handle<Map> receiver_map, StrictMode strict_mode,
+      Handle<Map> receiver_map, LanguageMode language_mode,
       KeyedAccessStoreMode store_mode);
   static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps);
   static Handle<Code> ComputeKeyedStorePolymorphic(
       MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
-      StrictMode strict_mode);
+      LanguageMode language_mode);
 
   // Compare nil
   static Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
@@ -54,7 +54,7 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   // TODO(verwaest): Move all uses of these helpers to the PropertyICCompiler
   // and make the helpers private.
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode);
+                                         LanguageMode language_mode);
 
 
  private:

@@ -133,11 +133,11 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
 
 
 Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
-    Handle<Map> receiver_map, StrictMode strict_mode,
+    Handle<Map> receiver_map, LanguageMode language_mode,
     KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_map->GetIsolate();
   ExtraICState extra_state =
-      KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
+      KeyedStoreIC::ComputeExtraICState(language_mode, store_mode);
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, extra_state);
 
@@ -299,7 +299,7 @@ Handle<Code> PropertyICCompiler::ComputePolymorphic(
 
 Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
     MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
-    StrictMode strict_mode) {
+    LanguageMode language_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
@@ -308,7 +308,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
   Handle<PolymorphicCodeCache> cache =
       isolate->factory()->polymorphic_code_cache();
   ExtraICState extra_state =
-      KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
+      KeyedStoreIC::ComputeExtraICState(language_mode, store_mode);
   Code::Flags flags =
       Code::ComputeFlags(Code::KEYED_STORE_IC, POLYMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
@@ -358,8 +358,8 @@ Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
 
 Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  StrictMode strict_mode = StoreIC::GetStrictMode(extra_state);
-  GenerateRuntimeSetProperty(masm(), strict_mode);
+  LanguageMode language_mode = StoreIC::GetLanguageMode(extra_state);
+  GenerateRuntimeSetProperty(masm(), language_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
   return code;

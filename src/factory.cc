@@ -1258,7 +1258,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         MaybeHandle<Code> code) {
   Handle<Context> context(isolate()->native_context());
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name, code);
-  DCHECK((info->strict_mode() == SLOPPY) &&
+  DCHECK(is_sloppy(info->language_mode()) &&
          (map.is_identical_to(isolate()->sloppy_function_map()) ||
           map.is_identical_to(
               isolate()->sloppy_function_without_prototype_map()) ||
@@ -1369,7 +1369,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  int map_index = Context::FunctionMapIndex(info->strict_mode(), info->kind());
+  int map_index =
+      Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> map(Map::cast(context->native_context()->get(map_index)));
   Handle<JSFunction> result = NewFunction(map, info, context, pretenure);
 
@@ -2219,7 +2220,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
-  bool strict_mode_callee = callee->shared()->strict_mode() == STRICT;
+  bool strict_mode_callee = is_strict(callee->shared()->language_mode());
   Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
                                        : isolate()->sloppy_arguments_map();
 

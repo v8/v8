@@ -109,7 +109,7 @@ class CompilationCacheEval: public CompilationSubCache {
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
                                          Handle<SharedFunctionInfo> outer_info,
-                                         StrictMode strict_mode,
+                                         LanguageMode language_mode,
                                          int scope_position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
@@ -155,7 +155,7 @@ class CompilationCache {
   // contain a script for the given source string.
   MaybeHandle<SharedFunctionInfo> LookupEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, StrictMode strict_mode, int scope_position);
+      Handle<Context> context, LanguageMode language_mode, int scope_position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
