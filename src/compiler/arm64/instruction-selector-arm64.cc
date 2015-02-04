@@ -30,7 +30,7 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
   explicit Arm64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
 
-  InstructionOperand* UseOperand(Node* node, ImmediateMode mode) {
+  InstructionOperand UseOperand(Node* node, ImmediateMode mode) {
     if (CanBeImmediate(node, mode)) {
       return UseImmediate(node);
     }
@@ -174,9 +174,9 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
                        FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
   Matcher m(node);
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
-  InstructionOperand* outputs[2];
+  InstructionOperand outputs[2];
   size_t output_count = 0;
   bool try_ror_operand = true;
 
@@ -313,8 +313,8 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
-    InstructionOperand* temps[] = {g.TempRegister(x11), g.TempRegister(x12)};
-    Emit(kArm64StoreWriteBarrier, NULL, g.UseFixed(base, x10),
+    InstructionOperand temps[] = {g.TempRegister(x11), g.TempRegister(x12)};
+    Emit(kArm64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, x10),
          g.UseFixed(index, x11), g.UseFixed(value, x12), arraysize(temps),
          temps);
     return;
@@ -354,10 +354,10 @@ void InstructionSelector::VisitStore(Node* node) {
       return;
   }
   if (g.CanBeImmediate(index, immediate_mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
          g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MRR), NULL,
+    Emit(opcode | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
          g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
   }
 }
@@ -424,7 +424,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+  Emit(opcode, g.NoOutput(), g.UseRegister(buffer), g.UseRegister(offset),
        g.UseOperand(length, kArithmeticImm), g.UseRegister(value));
 }
 
@@ -864,7 +864,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   // TODO(arm64): Can we do better here?
   Arm64OperandGenerator g(this);
-  InstructionOperand* const smull_operand = g.TempRegister();
+  InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Smull, smull_operand, g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)));
   Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
@@ -874,7 +874,7 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   // TODO(arm64): Can we do better here?
   Arm64OperandGenerator g(this);
-  InstructionOperand* const smull_operand = g.TempRegister();
+  InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)));
   Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
@@ -1107,7 +1107,7 @@ void InstructionSelector::VisitCall(Node* node) {
   if (aligned_push_count > 0) {
     // TODO(dcarney): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
-    Emit(kArm64Claim | MiscField::encode(aligned_push_count), NULL);
+    Emit(kArm64Claim | MiscField::encode(aligned_push_count), g.NoOutput());
   }
   // Move arguments to the stack.
   {
@@ -1115,12 +1115,13 @@ void InstructionSelector::VisitCall(Node* node) {
     // Emit the uneven pushes.
     if (pushed_count_uneven) {
       Node* input = buffer.pushed_nodes[slot];
-      Emit(kArm64Poke | MiscField::encode(slot), NULL, g.UseRegister(input));
+      Emit(kArm64Poke | MiscField::encode(slot), g.NoOutput(),
+           g.UseRegister(input));
       slot--;
     }
     // Now all pushes can be done in pairs.
     for (; slot >= 0; slot -= 2) {
-      Emit(kArm64PokePair | MiscField::encode(slot), NULL,
+      Emit(kArm64PokePair | MiscField::encode(slot), g.NoOutput(),
            g.UseRegister(buffer.pushed_nodes[slot]),
            g.UseRegister(buffer.pushed_nodes[slot - 1]));
     }
@@ -1143,7 +1144,7 @@ void InstructionSelector::VisitCall(Node* node) {
   opcode |= MiscField::encode(descriptor->flags());
 
   // Emit the call instruction.
-  InstructionOperand** first_output =
+  InstructionOperand* first_output =
       buffer.outputs.size() > 0 ? &buffer.outputs.front() : NULL;
   Instruction* call_instr =
       Emit(opcode, buffer.outputs.size(), first_output,
@@ -1154,12 +1155,13 @@ void InstructionSelector::VisitCall(Node* node) {
 
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         InstructionOperand* left, InstructionOperand* right,
+                         InstructionOperand left, InstructionOperand right,
                          FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
   opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
-    selector->Emit(opcode, NULL, left, right, g.Label(cont->true_block()),
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
@@ -1348,7 +1350,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          Emit(cont.Encode(kArm64TestAndBranch32), NULL,
+          Emit(cont.Encode(kArm64TestAndBranch32), g.NoOutput(),
                g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros32(m.right().Value())),
@@ -1366,7 +1368,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
           // If the mask has only one bit set, we can use tbz/tbnz.
           DCHECK((cont.condition() == kEqual) ||
                  (cont.condition() == kNotEqual));
-          Emit(cont.Encode(kArm64TestAndBranch), NULL,
+          Emit(cont.Encode(kArm64TestAndBranch), g.NoOutput(),
                g.UseRegister(m.left().node()),
                g.TempImmediate(
                    base::bits::CountTrailingZeros64(m.right().Value())),
@@ -1383,8 +1385,8 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   }
 
   // Branch could not be combined with a compare, compare against 0 and branch.
-  Emit(cont.Encode(kArm64CompareAndBranch32), NULL, g.UseRegister(value),
-       g.Label(cont.true_block()),
+  Emit(cont.Encode(kArm64CompareAndBranch32), g.NoOutput(),
+       g.UseRegister(value), g.Label(cont.true_block()),
        g.Label(cont.false_block()))->MarkAsControl();
 }
 

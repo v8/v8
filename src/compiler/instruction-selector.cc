@@ -73,30 +73,30 @@ void InstructionSelector::SelectInstructions() {
 
 
 Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand* output,
+                                       InstructionOperand output,
                                        size_t temp_count,
-                                       InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
+                                       InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 0, NULL, temp_count, temps);
 }
 
 
 Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand* output,
-                                       InstructionOperand* a, size_t temp_count,
-                                       InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
+                                       InstructionOperand output,
+                                       InstructionOperand a, size_t temp_count,
+                                       InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 1, &a, temp_count, temps);
 }
 
 
 Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand* output,
-                                       InstructionOperand* a,
-                                       InstructionOperand* b, size_t temp_count,
-                                       InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b};
+                                       InstructionOperand output,
+                                       InstructionOperand a,
+                                       InstructionOperand b, size_t temp_count,
+                                       InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b};
   size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
@@ -104,13 +104,13 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
 
 
 Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand* output,
-                                       InstructionOperand* a,
-                                       InstructionOperand* b,
-                                       InstructionOperand* c, size_t temp_count,
-                                       InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c};
+                                       InstructionOperand output,
+                                       InstructionOperand a,
+                                       InstructionOperand b,
+                                       InstructionOperand c, size_t temp_count,
+                                       InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b, c};
   size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
@@ -118,11 +118,11 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
 
 
 Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, InstructionOperand* output, InstructionOperand* a,
-    InstructionOperand* b, InstructionOperand* c, InstructionOperand* d,
-    size_t temp_count, InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c, d};
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, InstructionOperand c, InstructionOperand d,
+    size_t temp_count, InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b, c, d};
   size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
@@ -130,11 +130,11 @@ Instruction* InstructionSelector::Emit(
 
 
 Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, InstructionOperand* output, InstructionOperand* a,
-    InstructionOperand* b, InstructionOperand* c, InstructionOperand* d,
-    InstructionOperand* e, size_t temp_count, InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c, d, e};
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, InstructionOperand c, InstructionOperand d,
+    InstructionOperand e, size_t temp_count, InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b, c, d, e};
   size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
@@ -142,12 +142,12 @@ Instruction* InstructionSelector::Emit(
 
 
 Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, InstructionOperand* output, InstructionOperand* a,
-    InstructionOperand* b, InstructionOperand* c, InstructionOperand* d,
-    InstructionOperand* e, InstructionOperand* f, size_t temp_count,
-    InstructionOperand** temps) {
-  size_t output_count = output == NULL ? 0 : 1;
-  InstructionOperand* inputs[] = {a, b, c, d, e, f};
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, InstructionOperand c, InstructionOperand d,
+    InstructionOperand e, InstructionOperand f, size_t temp_count,
+    InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b, c, d, e, f};
   size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
@@ -155,9 +155,9 @@ Instruction* InstructionSelector::Emit(
 
 
 Instruction* InstructionSelector::Emit(
-    InstructionCode opcode, size_t output_count, InstructionOperand** outputs,
-    size_t input_count, InstructionOperand** inputs, size_t temp_count,
-    InstructionOperand** temps) {
+    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+    size_t input_count, InstructionOperand* inputs, size_t temp_count,
+    InstructionOperand* temps) {
   Instruction* instr =
       Instruction::New(instruction_zone(), opcode, output_count, outputs,
                        input_count, inputs, temp_count, temps);
@@ -271,15 +271,15 @@ void InstructionSelector::MarkAsReference(Node* node) {
 
 
 void InstructionSelector::MarkAsRepresentation(MachineType rep,
-                                               InstructionOperand* op) {
-  UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
+                                               const InstructionOperand& op) {
+  UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
   switch (RepresentationOf(rep)) {
     case kRepFloat32:
     case kRepFloat64:
-      sequence()->MarkAsDouble(unalloc->virtual_register());
+      sequence()->MarkAsDouble(unalloc.virtual_register());
       break;
     case kRepTagged:
-      sequence()->MarkAsReference(unalloc->virtual_register());
+      sequence()->MarkAsReference(unalloc.virtual_register());
       break;
     default:
       break;
@@ -363,7 +363,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
             buffer->descriptor->GetReturnLocation(static_cast<int>(i));
 
         Node* output = buffer->output_nodes[i];
-        InstructionOperand* op =
+        InstructionOperand op =
             output == NULL ? g.TempLocation(location, type)
                            : g.DefineAsLocation(output, location, type);
         MarkAsRepresentation(type, op);
@@ -427,11 +427,11 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     DCHECK(iter != call->inputs().end());
     DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
     if (index == 0) continue;  // The first argument (callee) is already done.
-    InstructionOperand* op =
+    InstructionOperand op =
         g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index),
                       buffer->descriptor->GetInputType(index));
-    if (UnallocatedOperand::cast(op)->HasFixedSlotPolicy()) {
-      int stack_index = -UnallocatedOperand::cast(op)->fixed_slot_index() - 1;
+    if (UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
+      int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
         buffer->pushed_nodes.resize(stack_index + 1, NULL);
       }
@@ -1034,23 +1034,25 @@ void InstructionSelector::VisitConstant(Node* node) {
 void InstructionSelector::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);
-  Emit(kArchJmp, NULL, g.Label(target))->MarkAsControl();
+  Emit(kArchJmp, g.NoOutput(), g.Label(target))->MarkAsControl();
 }
 
 
 void InstructionSelector::VisitReturn(Node* value) {
   OperandGenerator g(this);
   if (value != NULL) {
-    Emit(kArchRet, NULL, g.UseLocation(value, linkage()->GetReturnLocation(),
-                                       linkage()->GetReturnType()));
+    Emit(kArchRet, g.NoOutput(),
+         g.UseLocation(value, linkage()->GetReturnLocation(),
+                       linkage()->GetReturnType()));
   } else {
-    Emit(kArchRet, NULL);
+    Emit(kArchRet, g.NoOutput());
   }
 }
 
 
 void InstructionSelector::VisitThrow(Node* value) {
-  Emit(kArchNop, NULL);  // TODO(titzer)
+  OperandGenerator g(this);
+  Emit(kArchNop, g.NoOutput());  // TODO(titzer)
 }
 
 
@@ -1089,7 +1091,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 
-static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
+static InstructionOperand UseOrImmediate(OperandGenerator* g, Node* input) {
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kNumberConstant:

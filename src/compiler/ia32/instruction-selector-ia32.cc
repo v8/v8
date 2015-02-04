@@ -16,7 +16,7 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
   explicit IA32OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
 
-  InstructionOperand* UseByteRegister(Node* node) {
+  InstructionOperand UseByteRegister(Node* node) {
     // TODO(dcarney): relax constraint.
     return UseFixed(node, edx);
   }
@@ -41,7 +41,7 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
 
   AddressingMode GenerateMemoryOperandInputs(Node* index, int scale, Node* base,
                                              Node* displacement_node,
-                                             InstructionOperand* inputs[],
+                                             InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
     int32_t displacement = (displacement_node == NULL)
@@ -99,7 +99,7 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
   }
 
   AddressingMode GetEffectiveAddressMemoryOperand(Node* node,
-                                                  InstructionOperand* inputs[],
+                                                  InstructionOperand inputs[],
                                                   size_t* input_count) {
     BaseWithIndexAndDisplacement32Matcher m(node, true);
     DCHECK(m.matches());
@@ -157,9 +157,9 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 
   IA32OperandGenerator g(this);
-  InstructionOperand* outputs[1];
+  InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand* inputs[3];
+  InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
@@ -181,8 +181,8 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
-    InstructionOperand* temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
-    Emit(kIA32StoreWriteBarrier, NULL, g.UseFixed(base, ebx),
+    InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
+    Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
          g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
          temps);
     return;
@@ -213,7 +213,7 @@ void InstructionSelector::VisitStore(Node* node) {
       return;
   }
 
-  InstructionOperand* val;
+  InstructionOperand val;
   if (g.CanBeImmediate(value)) {
     val = g.UseImmediate(value);
   } else if (rep == kRepWord8 || rep == kRepBit) {
@@ -222,13 +222,13 @@ void InstructionSelector::VisitStore(Node* node) {
     val = g.UseRegister(value);
   }
 
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   inputs[input_count++] = val;
-  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
+  Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
 }
 
 
@@ -260,8 +260,8 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* offset_operand = g.UseRegister(offset);
-  InstructionOperand* length_operand =
+  InstructionOperand offset_operand = g.UseRegister(offset);
+  InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
   if (g.CanBeImmediate(buffer)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
@@ -303,20 +303,20 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* value_operand =
+  InstructionOperand value_operand =
       g.CanBeImmediate(value)
           ? g.UseImmediate(value)
           : ((rep == kRepWord8 || rep == kRepBit) ? g.UseByteRegister(value)
                                                   : g.UseRegister(value));
-  InstructionOperand* offset_operand = g.UseRegister(offset);
-  InstructionOperand* length_operand =
+  InstructionOperand offset_operand = g.UseRegister(offset);
+  InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
   if (g.CanBeImmediate(buffer)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), nullptr,
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
          offset_operand, length_operand, value_operand, offset_operand,
          g.UseImmediate(buffer));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MR1), nullptr,
+    Emit(opcode | AddressingModeField::encode(kMode_MR1), g.NoOutput(),
          offset_operand, length_operand, value_operand, g.UseRegister(buffer),
          offset_operand);
   }
@@ -330,9 +330,9 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
-  InstructionOperand* outputs[2];
+  InstructionOperand outputs[2];
   size_t output_count = 0;
 
   // TODO(turbofan): match complex addressing modes.
@@ -344,7 +344,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     //   mov eax, [ebp-0x10]
     //   add eax, [ebp-0x10]
     //   jo label
-    InstructionOperand* const input = g.UseRegister(left);
+    InstructionOperand const input = g.UseRegister(left);
     inputs[input_count++] = input;
     inputs[input_count++] = input;
   } else if (g.CanBeImmediate(right)) {
@@ -440,7 +440,7 @@ void VisitMulHigh(InstructionSelector* selector, Node* node,
 
 void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  InstructionOperand* temps[] = {g.TempRegister(edx)};
+  InstructionOperand temps[] = {g.TempRegister(edx)};
   selector->Emit(opcode, g.DefineAsFixed(node, eax),
                  g.UseFixed(node->InputAt(0), eax),
                  g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
@@ -457,7 +457,7 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
 void EmitLea(InstructionSelector* selector, Node* result, Node* index,
              int scale, Node* base, Node* displacement) {
   IA32OperandGenerator g(selector);
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode = g.GenerateMemoryOperandInputs(
       index, scale, base, displacement, inputs, &input_count);
@@ -465,7 +465,7 @@ void EmitLea(InstructionSelector* selector, Node* result, Node* index,
   DCHECK_NE(0, static_cast<int>(input_count));
   DCHECK_GE(arraysize(inputs), input_count);
 
-  InstructionOperand* outputs[1];
+  InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(result);
 
   InstructionCode opcode = AddressingModeField::encode(mode) | kIA32Lea;
@@ -510,7 +510,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   BaseWithIndexAndDisplacement32Matcher m(node);
   if (m.matches() &&
       (m.displacement() == NULL || g.CanBeImmediate(m.displacement()))) {
-    InstructionOperand* inputs[4];
+    InstructionOperand inputs[4];
     size_t input_count = 0;
     AddressingMode mode = g.GenerateMemoryOperandInputs(
         m.index(), m.scale(), m.base(), m.displacement(), inputs, &input_count);
@@ -518,7 +518,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     DCHECK_NE(0, static_cast<int>(input_count));
     DCHECK_GE(arraysize(inputs), input_count);
 
-    InstructionOperand* outputs[1];
+    InstructionOperand outputs[1];
     outputs[0] = g.DefineAsRegister(node);
 
     InstructionCode opcode = AddressingModeField::encode(mode) | kIA32Lea;
@@ -682,7 +682,7 @@ void InstructionSelector::VisitFloat64Div(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand* temps[] = {g.TempRegister(eax)};
+  InstructionOperand temps[] = {g.TempRegister(eax)};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
        temps);
@@ -738,11 +738,11 @@ void InstructionSelector::VisitCall(Node* node) {
   for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
        ++i) {
     // TODO(titzer): handle pushing double parameters.
-    InstructionOperand* value =
+    InstructionOperand value =
         g.CanBeImmediate(*i) ? g.UseImmediate(*i) : IsSupported(ATOM)
                                                         ? g.UseRegister(*i)
                                                         : g.Use(*i);
-    Emit(kIA32Push, nullptr, value);
+    Emit(kIA32Push, g.NoOutput(), value);
   }
 
   // Select the appropriate opcode based on the call type.
@@ -762,7 +762,7 @@ void InstructionSelector::VisitCall(Node* node) {
   opcode |= MiscField::encode(descriptor->flags());
 
   // Emit the call instruction.
-  InstructionOperand** first_output =
+  InstructionOperand* first_output =
       buffer.outputs.size() > 0 ? &buffer.outputs.front() : NULL;
   Instruction* call_instr =
       Emit(opcode, buffer.outputs.size(), first_output,
@@ -775,11 +775,11 @@ namespace {
 
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                  InstructionOperand* left, InstructionOperand* right,
+                  InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
   if (cont->IsBranch()) {
-    selector->Emit(cont->Encode(opcode), NULL, left, right,
+    selector->Emit(cont->Encode(opcode), g.NoOutput(), left, right,
                    g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
