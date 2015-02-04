@@ -12,6 +12,7 @@
 #include "include/v8-debug.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
+#include "src/api-natives.h"
 #include "src/assert-scope.h"
 #include "src/background-parsing-task.h"
 #include "src/base/functional.h"
@@ -5331,7 +5332,8 @@ Local<v8::Object> ObjectTemplate::NewInstance() {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
-  has_pending_exception = !i::Execution::InstantiateObject(info).ToHandle(&obj);
+  has_pending_exception =
+      !i::ApiNatives::InstantiateObject(info).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(obj));
 }
@@ -5347,7 +5349,7 @@ Local<v8::Function> FunctionTemplate::GetFunction() {
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
   has_pending_exception =
-      !i::Execution::InstantiateFunction(info).ToHandle(&obj);
+      !i::ApiNatives::InstantiateFunction(info).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Function>());
   return Utils::ToLocal(i::Handle<i::JSFunction>::cast(obj));
 }

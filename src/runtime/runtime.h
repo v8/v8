@@ -232,9 +232,6 @@ namespace internal {
                                                        \
   F(SetCode, 2, 1)                                     \
                                                        \
-  F(CreateApiFunction, 2, 1)                           \
-  F(IsTemplate, 1, 1)                                  \
-  F(GetTemplateField, 2, 1)                            \
   F(DisableAccessChecks, 1, 1)                         \
   F(EnableAccessChecks, 1, 1)                          \
                                                        \
@@ -254,10 +251,8 @@ namespace internal {
   F(GlobalProxy, 1, 1)                                 \
                                                        \
   F(AddNamedProperty, 4, 1)                            \
-  F(AddPropertyForTemplate, 4, 1)                      \
   F(SetProperty, 4, 1)                                 \
   F(AddElement, 4, 1)                                  \
-  F(DefineApiAccessorProperty, 5, 1)                   \
   F(DefineDataPropertyUnchecked, 4, 1)                 \
   F(DefineAccessorPropertyUnchecked, 5, 1)             \
   F(GetDataProperty, 2, 1)                             \

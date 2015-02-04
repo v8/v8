@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/api.h"
+#include "src/api-natives.h"
 #include "src/arguments.h"
 #include "src/base/once.h"
 #include "src/bootstrapper.h"
@@ -1035,8 +1036,8 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
   if (is_construct) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, fun_data,
-        isolate->factory()->ConfigureInstance(
-            fun_data, Handle<JSObject>::cast(args.receiver())),
+        ApiNatives::ConfigureInstance(isolate, fun_data,
+                                      Handle<JSObject>::cast(args.receiver())),
         Object);
   }
 
