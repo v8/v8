@@ -3377,6 +3377,15 @@ void Assembler::RecordComment(const char* msg) {
 }
 
 
+void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+  if (FLAG_trace_deopt) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+  }
+}
+
+
 void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.

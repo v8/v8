@@ -2347,6 +2347,15 @@ void Assembler::RecordComment(const char* msg) {
 }
 
 
+void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+  if (FLAG_trace_deopt) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+  }
+}
+
+
 int Assembler::RelocateInternalReference(byte* pc, intptr_t pc_delta) {
   Instr instr = instr_at(pc);
   DCHECK(IsJ(instr) || IsLui(instr));
