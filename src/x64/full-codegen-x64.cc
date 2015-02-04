@@ -1497,7 +1497,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
           skip_init_check = false;
         } else if (var->is_this()) {
-          CHECK((info_->shared_info()->kind() & kSubclassConstructor) != 0);
+          CHECK(info_->function() != nullptr &&
+                (info_->function()->kind() & kSubclassConstructor) != 0);
           // TODO(dslomov): implement 'this' hole check elimination.
           skip_init_check = false;
         } else {
