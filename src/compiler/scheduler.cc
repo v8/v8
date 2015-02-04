@@ -27,20 +27,21 @@ static inline void Trace(const char* msg, ...) {
 }
 
 
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
+Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
+      flags_(flags),
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
       schedule_queue_(zone),
       node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone) {}
 
 
-Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph) {
+Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
   Schedule* schedule = new (graph->zone())
       Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-  Scheduler scheduler(zone, graph, schedule);
+  Scheduler scheduler(zone, graph, schedule, flags);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
@@ -336,6 +337,10 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectReturn(node);
         break;
+      case IrOpcode::kThrow:
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
+        ConnectThrow(node);
+        break;
       default:
         break;
     }
@@ -445,6 +450,13 @@ class CFGBuilder : public ZoneObject {
     BasicBlock* return_block = schedule_->block(return_block_node);
     TraceConnect(ret, return_block, NULL);
     schedule_->AddReturn(return_block, ret);
+  }
+
+  void ConnectThrow(Node* thr) {
+    Node* throw_block_node = NodeProperties::GetControlInput(thr);
+    BasicBlock* throw_block = schedule_->block(throw_block_node);
+    TraceConnect(thr, throw_block, NULL);
+    schedule_->AddThrow(throw_block, thr);
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {
@@ -1226,7 +1238,10 @@ void Scheduler::ScheduleEarly() {
 class ScheduleLateNodeVisitor {
  public:
   ScheduleLateNodeVisitor(Zone* zone, Scheduler* scheduler)
-      : scheduler_(scheduler), schedule_(scheduler_->schedule_) {}
+      : scheduler_(scheduler),
+        schedule_(scheduler_->schedule_),
+        marked_(scheduler->zone_),
+        marking_queue_(scheduler->zone_) {}
 
   // Run the schedule late algorithm on a set of fixed root nodes.
   void Run(NodeVector* roots) {
@@ -1248,10 +1263,11 @@ class ScheduleLateNodeVisitor {
       if (scheduler_->GetData(node)->unscheduled_count_ != 0) continue;
 
       queue->push(node);
-      while (!queue->empty()) {
-        VisitNode(queue->front());
+      do {
+        Node* const node = queue->front();
         queue->pop();
-      }
+        VisitNode(node);
+      } while (!queue->empty());
     }
   }
 
@@ -1282,13 +1298,19 @@ class ScheduleLateNodeVisitor {
     // into enclosing loop pre-headers until they would preceed their schedule
     // early position.
     BasicBlock* hoist_block = GetPreHeader(block);
-    while (hoist_block != NULL &&
-           hoist_block->dominator_depth() >= min_block->dominator_depth()) {
-      Trace("  hoisting #%d:%s to block B%d\n", node->id(),
-            node->op()->mnemonic(), hoist_block->id().ToInt());
-      DCHECK_LT(hoist_block->loop_depth(), block->loop_depth());
-      block = hoist_block;
-      hoist_block = GetPreHeader(hoist_block);
+    if (hoist_block &&
+        hoist_block->dominator_depth() >= min_block->dominator_depth()) {
+      do {
+        Trace("  hoisting #%d:%s to block B%d\n", node->id(),
+              node->op()->mnemonic(), hoist_block->id().ToInt());
+        DCHECK_LT(hoist_block->loop_depth(), block->loop_depth());
+        block = hoist_block;
+        hoist_block = GetPreHeader(hoist_block);
+      } while (hoist_block &&
+               hoist_block->dominator_depth() >= min_block->dominator_depth());
+    } else if (scheduler_->flags_ & Scheduler::kSplitNodes) {
+      // Split the {node} if beneficial and return the new {block} for it.
+      block = SplitNode(block, node);
     }
 
     // Schedule the node or a floating control structure.
@@ -1297,6 +1319,101 @@ class ScheduleLateNodeVisitor {
     } else {
       ScheduleNode(block, node);
     }
+  }
+
+  // Mark {block} and push its non-marked predecessor on the marking queue.
+  void MarkBlock(BasicBlock* block) {
+    DCHECK_LT(block->id().ToSize(), marked_.size());
+    marked_[block->id().ToSize()] = true;
+    for (BasicBlock* pred_block : block->predecessors()) {
+      DCHECK_LT(pred_block->id().ToSize(), marked_.size());
+      if (marked_[pred_block->id().ToSize()]) continue;
+      marking_queue_.push_back(pred_block);
+    }
+  }
+
+  BasicBlock* SplitNode(BasicBlock* block, Node* node) {
+    // For now, we limit splitting to pure nodes.
+    if (!node->op()->HasProperty(Operator::kPure)) return block;
+
+    // The {block} is common dominator of all uses of {node}, so we cannot
+    // split anything unless the {block} has at least two successors.
+    DCHECK_EQ(block, GetCommonDominatorOfUses(node));
+    if (block->SuccessorCount() < 2) return block;
+
+    // Clear marking bits.
+    DCHECK(marking_queue_.empty());
+    std::fill(marked_.begin(), marked_.end(), false);
+    marked_.resize(schedule_->BasicBlockCount() + 1, false);
+
+    // Check if the {node} has uses in {block}.
+    for (Edge edge : node->use_edges()) {
+      BasicBlock* use_block = GetBlockForUse(edge);
+      if (use_block == nullptr || marked_[use_block->id().ToSize()]) continue;
+      if (use_block == block) {
+        Trace("  not splitting #%d:%s, it is used in B%d\n", node->id(),
+              node->op()->mnemonic(), block->id().ToInt());
+        marking_queue_.clear();
+        return block;
+      }
+      MarkBlock(use_block);
+    }
+
+    // Compute transitive marking closure; a block is marked if all its
+    // successors are marked.
+    do {
+      BasicBlock* top_block = marking_queue_.front();
+      marking_queue_.pop_front();
+      if (marked_[top_block->id().ToSize()]) continue;
+      bool marked = true;
+      for (BasicBlock* successor : top_block->successors()) {
+        if (!marked_[successor->id().ToSize()]) {
+          marked = false;
+          break;
+        }
+      }
+      if (marked) MarkBlock(top_block);
+    } while (!marking_queue_.empty());
+
+    // If the (common dominator) {block} is marked, we know that all paths from
+    // {block} to the end contain at least one use of {node}, and hence there's
+    // no point in splitting the {node} in this case.
+    if (marked_[block->id().ToSize()]) {
+      Trace("  not splitting #%d:%s, its common dominator B%d is perfect\n",
+            node->id(), node->op()->mnemonic(), block->id().ToInt());
+      return block;
+    }
+
+    // Split {node} for uses according to the previously computed marking
+    // closure. Every marking partition has a unique dominator, which get's a
+    // copy of the {node} with the exception of the first partition, which get's
+    // the {node} itself.
+    ZoneMap<BasicBlock*, Node*> dominators(scheduler_->zone_);
+    for (Edge edge : node->use_edges()) {
+      BasicBlock* use_block = GetBlockForUse(edge);
+      if (use_block == nullptr) continue;
+      while (marked_[use_block->dominator()->id().ToSize()]) {
+        use_block = use_block->dominator();
+      }
+      auto& use_node = dominators[use_block];
+      if (use_node == nullptr) {
+        if (dominators.size() == 1u) {
+          // Place the {node} at {use_block}.
+          block = use_block;
+          use_node = node;
+          Trace("  pushing #%d:%s down to B%d\n", node->id(),
+                node->op()->mnemonic(), block->id().ToInt());
+        } else {
+          // Place a copy of {node} at {use_block}.
+          use_node = CloneNode(node);
+          Trace("  cloning #%d:%s for B%d\n", use_node->id(),
+                use_node->op()->mnemonic(), use_block->id().ToInt());
+          scheduler_->schedule_queue_.push(use_node);
+        }
+      }
+      edge.UpdateTo(use_node);
+    }
+    return block;
   }
 
   BasicBlock* GetPreHeader(BasicBlock* block) {
@@ -1310,7 +1427,7 @@ class ScheduleLateNodeVisitor {
   }
 
   BasicBlock* GetCommonDominatorOfUses(Node* node) {
-    BasicBlock* block = NULL;
+    BasicBlock* block = nullptr;
     for (Edge edge : node->use_edges()) {
       BasicBlock* use_block = GetBlockForUse(edge);
       block = block == NULL ? use_block : use_block == NULL
@@ -1361,8 +1478,25 @@ class ScheduleLateNodeVisitor {
     scheduler_->UpdatePlacement(node, Scheduler::kScheduled);
   }
 
+  Node* CloneNode(Node* node) {
+    int const input_count = node->InputCount();
+    Node** const inputs = scheduler_->zone_->NewArray<Node*>(input_count);
+    for (int index = 0; index < input_count; ++index) {
+      Node* const input = node->InputAt(index);
+      scheduler_->IncrementUnscheduledUseCount(input, index, node);
+      inputs[index] = input;
+    }
+    Node* copy = scheduler_->graph_->NewNode(node->op(), input_count, inputs);
+    scheduler_->node_data_.resize(copy->id() + 1,
+                                  scheduler_->DefaultSchedulerData());
+    scheduler_->node_data_[copy->id()] = scheduler_->node_data_[node->id()];
+    return copy;
+  }
+
   Scheduler* scheduler_;
   Schedule* schedule_;
+  BoolVector marked_;
+  ZoneDeque<BasicBlock*> marking_queue_;
 };
 
 

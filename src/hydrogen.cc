@@ -7885,6 +7885,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
+  // Always inline small methods (<= 10 nodes).
   if (inlined_count_ > Min(FLAG_max_inlined_nodes_cumulative,
                            kUnlimitedMaxInlinedNodesCumulative)) {
     TraceInline(target, caller, "cumulative AST node limit reached");

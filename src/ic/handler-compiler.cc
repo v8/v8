@@ -289,13 +289,25 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
       break;
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();
-      inline_followup = accessors->IsExecutableAccessorInfo();
-      if (!inline_followup) break;
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(accessors);
-      inline_followup = info->getter() != NULL &&
-                        ExecutableAccessorInfo::IsCompatibleReceiverType(
-                            isolate(), info, type());
+      if (accessors->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(accessors);
+        inline_followup = info->getter() != NULL &&
+                          ExecutableAccessorInfo::IsCompatibleReceiverType(
+                              isolate(), info, type());
+      } else if (accessors->IsAccessorPair()) {
+        Handle<JSObject> property_holder(it->GetHolder<JSObject>());
+        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                              isolate());
+        if (!getter->IsJSFunction()) break;
+        if (!property_holder->HasFastProperties()) break;
+        auto function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
+        inline_followup = call_optimization.is_simple_api_call() &&
+                          call_optimization.IsCompatibleReceiverType(
+                              receiver_map, property_holder);
+      }
     }
   }
 
@@ -345,10 +357,20 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
       break;
     }
     case LookupIterator::ACCESSOR:
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
-      DCHECK_NOT_NULL(info->getter());
-      GenerateLoadCallback(reg, info);
+      if (it->GetAccessors()->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
+        DCHECK_NOT_NULL(info->getter());
+        GenerateLoadCallback(reg, info);
+      } else {
+        auto function = handle(JSFunction::cast(
+            AccessorPair::cast(*it->GetAccessors())->getter()));
+        CallOptimization call_optimization(function);
+        Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
+        GenerateApiAccessorCall(masm(), call_optimization, receiver_map,
+                                receiver(), scratch2(), false, no_reg, reg,
+                                it->GetAccessorIndex());
+      }
   }
 }
 

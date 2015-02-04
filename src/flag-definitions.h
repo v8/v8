@@ -286,11 +286,11 @@ DEFINE_BOOL(use_local_allocation_folding, false, "only fold in basic blocks")
 DEFINE_BOOL(use_write_barrier_elimination, true,
             "eliminate write barriers targeting allocations in optimized code")
 DEFINE_INT(max_inlining_levels, 5, "maximum number of inlining levels")
-DEFINE_INT(max_inlined_source_size, 1150,
+DEFINE_INT(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
-DEFINE_INT(max_inlined_nodes, 200,
+DEFINE_INT(max_inlined_nodes, 196,
            "maximum number of AST nodes considered for a single inlining")
-DEFINE_INT(max_inlined_nodes_cumulative, 3000,
+DEFINE_INT(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_BOOL(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
@@ -397,9 +397,11 @@ DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
 DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
+DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
+DEFINE_IMPLICATION(trace_turbo, turbo_source_positions)
 DEFINE_BOOL(context_specialization, false,
             "enable context specialization in TurboFan")
 DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
@@ -416,6 +418,7 @@ DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_osr, false, "enable OSR in TurboFan")
+DEFINE_BOOL(turbo_exceptions, false, "enable exception handling in TurboFan")
 DEFINE_BOOL(turbo_stress_loop_peeling, false,
             "stress loop peeling optimization")
 

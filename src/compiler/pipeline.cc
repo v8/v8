@@ -548,7 +548,10 @@ struct ComputeSchedulePhase {
   static const char* phase_name() { return "scheduling"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph());
+    Schedule* schedule = Scheduler::ComputeSchedule(
+        temp_zone, data->graph(), data->info()->is_splitting_enabled()
+                                      ? Scheduler::kSplitNodes
+                                      : Scheduler::kNoFlags);
     TraceSchedule(schedule);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     data->set_schedule(schedule);
@@ -691,35 +694,6 @@ struct GenerateCodePhase {
 };
 
 
-namespace {
-
-FILE* OpenLogFile(CompilationInfo* info, const char* phase, const char* suffix,
-                  const char* mode) {
-  EmbeddedVector<char, 256> filename;
-  SmartArrayPointer<char> function_name;
-  if (!info->shared_info().is_null()) {
-    function_name = info->shared_info()->DebugName()->ToCString();
-    if (strlen(function_name.get()) > 0) {
-      SNPrintF(filename, "turbo-%s", function_name.get());
-    } else {
-      SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
-    }
-  } else {
-    SNPrintF(filename, "turbo-none-%s", phase);
-  }
-  std::replace(filename.start(), filename.start() + filename.length(), ' ',
-               '_');
-
-  EmbeddedVector<char, 256> full_filename;
-  if (phase == NULL) {
-    SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else {
-    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
-  }
-  return base::OS::FOpen(full_filename.start(), mode);
-}
-}
-
 struct PrintGraphPhase {
   static const char* phase_name() { return nullptr; }
 
@@ -728,7 +702,7 @@ struct PrintGraphPhase {
     Graph* graph = data->graph();
 
     {  // Print dot.
-      FILE* dot_file = OpenLogFile(info, phase, "dot", "w+");
+      FILE* dot_file = OpenVisualizerLogFile(info, phase, "dot", "w+");
       if (dot_file == nullptr) return;
       OFStream dot_of(dot_file);
       dot_of << AsDOT(*graph);
@@ -736,7 +710,7 @@ struct PrintGraphPhase {
     }
 
     {  // Print JSON.
-      FILE* json_file = OpenLogFile(info, NULL, "json", "a+");
+      FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
       if (json_file == nullptr) return;
       OFStream json_of(json_file);
       json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
@@ -808,7 +782,7 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenLogFile(info(), NULL, "json", "w+");
+    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "w+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
@@ -947,7 +921,7 @@ Handle<Code> Pipeline::GenerateCode() {
   v8::internal::CodeGenerator::PrintCode(code, info());
 
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenLogFile(info(), NULL, "json", "a+");
+    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "a+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       json_of

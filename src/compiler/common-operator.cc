@@ -204,11 +204,12 @@ struct CommonOperatorGlobalCache FINAL {
   template <int kIndex>
   struct ParameterOperator FINAL : public Operator1<int> {
     ParameterOperator()
-        : Operator1<int>(                             // --
-              IrOpcode::kParameter, Operator::kPure,  // opcode
-              "Parameter",                            // name
-              1, 0, 0, 1, 0, 0,                       // counts,
-              kIndex) {}                              // parameter
+        : Operator1<int>(                                // --
+              IrOpcode::kParameter,                      // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // flags
+              "Parameter",                               // name
+              1, 0, 0, 1, 0, 0,                          // counts,
+              kIndex) {}                                 // parameter
   };
 #define CACHED_PARAMETER(index) \
   ParameterOperator<index> kParameter##index##Operator;
@@ -306,11 +307,12 @@ const Operator* CommonOperatorBuilder::Parameter(int index) {
       break;
   }
   // Uncached.
-  return new (zone()) Operator1<int>(         // --
-      IrOpcode::kParameter, Operator::kPure,  // opcode
-      "Parameter",                            // name
-      1, 0, 0, 1, 0, 0,                       // counts
-      index);                                 // parameter
+  return new (zone()) Operator1<int>(            // --
+      IrOpcode::kParameter,                      // opcode
+      Operator::kFoldable | Operator::kNoThrow,  // flags
+      "Parameter",                               // name
+      1, 0, 0, 1, 0, 0,                          // counts
+      index);                                    // parameter
 }
 
 
@@ -487,11 +489,12 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
 
 
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
-  return new (zone()) Operator1<size_t>(       // --
-      IrOpcode::kProjection, Operator::kPure,  // opcode
-      "Projection",                            // name
-      1, 0, 0, 1, 0, 0,                        // counts
-      index);                                  // parameter
+  return new (zone()) Operator1<size_t>(         // --
+      IrOpcode::kProjection,                     // opcode
+      Operator::kFoldable | Operator::kNoThrow,  // flags
+      "Projection",                              // name
+      1, 0, 0, 1, 0, 0,                          // counts
+      index);                                    // parameter
 }
 
 

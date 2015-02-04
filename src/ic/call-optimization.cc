@@ -49,8 +49,14 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
 bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {
   DCHECK(is_simple_api_call());
-  if (!receiver->IsJSObject()) return false;
-  Handle<Map> map(JSObject::cast(*receiver)->map());
+  if (!receiver->IsHeapObject()) return false;
+  Handle<Map> map(HeapObject::cast(*receiver)->map());
+  return IsCompatibleReceiverType(map, holder);
+}
+
+
+bool CallOptimization::IsCompatibleReceiverType(Handle<Map> map,
+                                                Handle<JSObject> holder) const {
   HolderLookup holder_lookup;
   Handle<JSObject> api_holder = LookupHolderOfExpectedType(map, &holder_lookup);
   switch (holder_lookup) {

@@ -5256,6 +5256,8 @@ class Code: public HeapObject {
   // function replaces the corresponding placeholder in the code with the
   // object-to-replace. The function assumes that pairs in the pattern come in
   // the same order as the placeholders in the code.
+  // If the placeholder is a weak cell, then the value of weak cell is matched
+  // against the map-to-find.
   void FindAndReplace(const FindAndReplacePattern& pattern);
 
   // The entire code object including its header is copied verbatim to the

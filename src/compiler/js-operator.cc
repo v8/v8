@@ -402,7 +402,7 @@ const Operator* JSOperatorBuilder::CreateCatchContext(
   return new (zone()) Operator1<Unique<String>>(                 // --
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
-      1, 1, 1, 1, 1, 0,                                          // counts
+      2, 1, 1, 1, 1, 0,                                          // counts
       name);                                                     // parameter
 }
 
