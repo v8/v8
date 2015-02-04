@@ -427,27 +427,23 @@ static void AddWeakObjectToCodeDependency(Isolate* isolate,
 void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
   DCHECK(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
-  ZoneList<Handle<JSObject> > objects(1, zone());
-  ZoneList<Handle<Cell> > cells(1, zone());
+  ZoneList<Handle<HeapObject> > objects(1, zone());
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::CELL &&
         code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
-      Handle<Cell> cell(it.rinfo()->target_cell());
-      cells.Add(cell, zone());
+      objects.Add(Handle<HeapObject>(it.rinfo()->target_cell()), zone());
     } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
                code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
       if (it.rinfo()->target_object()->IsMap()) {
         Handle<Map> map(Map::cast(it.rinfo()->target_object()));
         maps.Add(map, zone());
-      } else if (it.rinfo()->target_object()->IsJSObject()) {
-        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
+      } else {
+        Handle<HeapObject> object(
+            HeapObject::cast(it.rinfo()->target_object()));
         objects.Add(object, zone());
-      } else if (it.rinfo()->target_object()->IsCell()) {
-        Handle<Cell> cell(Cell::cast(it.rinfo()->target_object()));
-        cells.Add(cell, zone());
       }
     }
   }
@@ -456,9 +452,6 @@ void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
   }
   for (int i = 0; i < objects.length(); i++) {
     AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
-  }
-  for (int i = 0; i < cells.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate(), cells.at(i), code);
   }
   if (FLAG_enable_ool_constant_pool) {
     code->constant_pool()->set_weak_object_state(

@@ -5234,9 +5234,16 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;
   }
-  if (object->IsJSObject() ||
-      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
+  if (object->IsCell()) object = Cell::cast(object)->value();
+  if (object->IsJSObject()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+  if (object->IsFixedArray()) {
+    // Contexts of inlined functions are embedded in optimized code.
+    Map* map = HeapObject::cast(object)->map();
+    Heap* heap = map->GetHeap();
+    return FLAG_weak_embedded_objects_in_optimized_code &&
+           map == heap->function_context_map();
   }
   return false;
 }
