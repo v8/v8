@@ -9346,14 +9346,15 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       HCallFunction* call_function =
           New<HCallFunction>(function, argument_count);
       call = call_function;
-      if (expr->is_uninitialized() && expr->HasCallFeedbackSlot()) {
+      if (expr->is_uninitialized() &&
+          expr->IsUsingCallFeedbackICSlot(isolate())) {
         // We've never seen this call before, so let's have Crankshaft learn
         // through the type vector.
         Handle<SharedFunctionInfo> current_shared =
             function_state()->compilation_info()->shared_info();
         Handle<TypeFeedbackVector> vector =
             handle(current_shared->feedback_vector(), isolate());
-        FeedbackVectorICSlot slot = expr->CallFeedbackSlot();
+        FeedbackVectorICSlot slot = expr->CallFeedbackICSlot();
         call_function->SetVectorAndSlot(vector, slot);
       }
     }

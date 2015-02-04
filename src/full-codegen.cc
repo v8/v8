@@ -351,7 +351,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
 #ifdef DEBUG
   // Check that no context-specific object has been embedded.
-  code->VerifyEmbeddedObjectsInFullCode();
+  code->VerifyEmbeddedObjects(Code::kNoContextSpecificPointers);
 #endif  // DEBUG
   return true;
 }

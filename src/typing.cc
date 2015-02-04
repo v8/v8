@@ -532,8 +532,8 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   bool is_uninitialized = true;
-  if (expr->IsUsingCallFeedbackSlot(isolate())) {
-    FeedbackVectorICSlot slot = expr->CallFeedbackSlot();
+  if (expr->IsUsingCallFeedbackICSlot(isolate())) {
+    FeedbackVectorICSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
     if (!expr->expression()->IsProperty() &&
         oracle()->CallIsMonomorphic(slot)) {

@@ -88,7 +88,7 @@ class Scope: public ZoneObject {
     scope_name_ = scope_name;
   }
 
-  void Initialize();
+  void Initialize(bool uninitialized_this = false);
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope

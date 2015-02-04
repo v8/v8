@@ -1236,20 +1236,41 @@ bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
 }
 
 
-void Code::VerifyEmbeddedObjectsInFullCode() {
-  // Check that no context-specific object has been embedded.
-  Heap* heap = GetIsolate()->heap();
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    Object* obj = it.rinfo()->target_object();
-    if (obj->IsCell()) obj = Cell::cast(obj)->value();
-    if (obj->IsPropertyCell()) obj = PropertyCell::cast(obj)->value();
-    if (!obj->IsHeapObject()) continue;
-    Map* map = obj->IsMap() ? Map::cast(obj) : HeapObject::cast(obj)->map();
-    int i = 0;
-    while (map != heap->roots_array_start()[i++]) {
-      CHECK_LT(i, Heap::kStrongRootListLength);
+// Estimates if there is a path from the object to a context.
+// This function is not precise, and can return false even if
+// there is a path to a context.
+bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
+  if (!obj->IsHeapObject()) return false;
+  if (obj->IsWeakCell()) {
+    if (skip_weak_cell) return false;
+    return CanLeak(WeakCell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsCell()) {
+    return CanLeak(Cell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsPropertyCell()) {
+    return CanLeak(PropertyCell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsContext()) return true;
+  if (obj->IsMap()) {
+    Map* map = Map::cast(obj);
+    for (int i = 0; i < Heap::kStrongRootListLength; i++) {
+      if (map == heap->roots_array_start()[i]) return false;
     }
+    return true;
+  }
+  return CanLeak(HeapObject::cast(obj)->map(), heap, skip_weak_cell);
+}
+
+
+void Code::VerifyEmbeddedObjects(VerifyMode mode) {
+  if (kind() == OPTIMIZED_FUNCTION) return;
+  Heap* heap = GetIsolate()->heap();
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+             RelocInfo::ModeMask(RelocInfo::CELL);
+  bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    CHECK(!CanLeak(it.rinfo()->target_object(), heap, skip_weak_cell));
   }
 }
 

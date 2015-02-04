@@ -500,6 +500,57 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax: number of arguments
+  //  -- edi: constructor function
+  //  -- ebx: allocation site or undefined
+  //  -- edx: original constructor
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    // Preserve actual arguments count.
+    __ SmiTag(eax);
+    __ push(eax);
+    __ SmiUntag(eax);
+
+    // receiver is the hole.
+    __ push(Immediate(masm->isolate()->factory()->the_hole_value()));
+
+    // Set up pointer to last argument.
+    __ lea(ebx, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    Label loop, entry;
+    __ mov(ecx, eax);
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ push(Operand(ebx, ecx, times_4, 0));
+    __ bind(&entry);
+    __ dec(ecx);
+    __ j(greater_equal, &loop);
+
+    ParameterCount actual(eax);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+
+    __ mov(ebx, Operand(esp, 0));
+  }
+
+  __ pop(ecx);  // Return address.
+  __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));
+  __ push(ecx);
+  __ ret(0);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);

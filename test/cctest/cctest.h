@@ -347,6 +347,11 @@ static inline v8::Local<v8::String> v8_str(const char* x) {
 }
 
 
+static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
+  return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
+}
+
+
 static inline v8::Local<v8::Script> v8_compile(const char* x) {
   return v8::Script::Compile(v8_str(x));
 }

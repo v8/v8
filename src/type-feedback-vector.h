@@ -120,6 +120,7 @@ class TypeFeedbackVector : public FixedArray {
   // Conversion from a slot or ic slot to an integer index to the underlying
   // array.
   int GetIndex(FeedbackVectorSlot slot) const {
+    DCHECK(slot.ToInt() < first_ic_slot_index());
     return kReservedIndexCount + ic_metadata_length() + slot.ToInt();
   }
 

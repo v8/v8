@@ -1813,14 +1813,21 @@ class Call FINAL : public Expression {
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate) OVERRIDE;
   void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
-    call_feedback_slot_ = slot;
+    ic_slot_or_slot_ = slot.ToInt();
+  }
+  void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
+    ic_slot_or_slot_ = slot.ToInt();
   }
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE { return Code::CALL_IC; }
 
-  bool HasCallFeedbackSlot() const { return !call_feedback_slot_.IsInvalid(); }
-  FeedbackVectorICSlot CallFeedbackSlot() const {
-    DCHECK(!call_feedback_slot_.IsInvalid());
-    return call_feedback_slot_;
+  FeedbackVectorSlot CallFeedbackSlot() const {
+    DCHECK(ic_slot_or_slot_ != FeedbackVectorSlot::Invalid().ToInt());
+    return FeedbackVectorSlot(ic_slot_or_slot_);
+  }
+
+  FeedbackVectorICSlot CallFeedbackICSlot() const {
+    DCHECK(ic_slot_or_slot_ != FeedbackVectorICSlot::Invalid().ToInt());
+    return FeedbackVectorICSlot(ic_slot_or_slot_);
   }
 
   SmallMapList* GetReceiverTypes() OVERRIDE {
@@ -1881,6 +1888,7 @@ class Call FINAL : public Expression {
   // Helpers to determine how to handle the call.
   CallType GetCallType(Isolate* isolate) const;
   bool IsUsingCallFeedbackSlot(Isolate* isolate) const;
+  bool IsUsingCallFeedbackICSlot(Isolate* isolate) const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1891,7 +1899,7 @@ class Call FINAL : public Expression {
   Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
        int pos)
       : Expression(zone, pos),
-        call_feedback_slot_(FeedbackVectorICSlot::Invalid()),
+        ic_slot_or_slot_(FeedbackVectorICSlot::Invalid().ToInt()),
         expression_(expression),
         arguments_(arguments),
         bit_field_(IsUninitializedField::encode(false)) {
@@ -1904,7 +1912,9 @@ class Call FINAL : public Expression {
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
-  FeedbackVectorICSlot call_feedback_slot_;
+  // We store this as an integer because we don't know if we have a slot or
+  // an ic slot until scoping time.
+  int ic_slot_or_slot_;
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   Handle<JSFunction> target_;
@@ -2626,7 +2636,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 4> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 5> {};
 };
 
 

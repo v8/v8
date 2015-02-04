@@ -741,6 +741,70 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0     : number of arguments
+  //  -- r1     : constructor function
+  //  -- r2     : allocation site or undefined
+  //  -- r3     : original constructor
+  //  -- lr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ mov(r4, r0);
+    __ SmiTag(r4);
+    __ push(r4);  // Smi-tagged arguments count.
+
+    // receiver is the hole.
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ push(ip);
+
+    // Set up pointer to last argument.
+    __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    // r0: number of arguments
+    // r1: constructor function
+    // r2: address of last argument (caller sp)
+    // r4: number of arguments (smi-tagged)
+    // sp[0]: receiver
+    // sp[1]: number of arguments (smi-tagged)
+    Label loop, entry;
+    __ b(&entry);
+    __ bind(&loop);
+    __ ldr(ip, MemOperand(r2, r4, LSL, kPointerSizeLog2 - 1));
+    __ push(ip);
+    __ bind(&entry);
+    __ sub(r4, r4, Operand(2), SetCC);
+    __ b(ge, &loop);
+
+    // Call the function.
+    // r0: number of arguments
+    // r1: constructor function
+    ParameterCount actual(r0);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    // r0: result
+    // sp[0]: number of arguments (smi-tagged)
+    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ ldr(r1, MemOperand(sp, 0));
+
+    // Leave construct frame.
+  }
+
+  __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
+  __ add(sp, sp, Operand(kPointerSize));
+  __ Jump(lr);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from Generate_JS_Entry

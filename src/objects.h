@@ -5401,7 +5401,8 @@ class Code: public HeapObject {
 #endif
 
 #ifdef DEBUG
-  void VerifyEmbeddedObjectsInFullCode();
+  enum VerifyMode { kNoContextSpecificPointers, kNoContextRetainingPointers };
+  void VerifyEmbeddedObjects(VerifyMode mode = kNoContextRetainingPointers);
 #endif  // DEBUG
 
   inline bool CanContainWeakObjects() {
@@ -7216,12 +7217,13 @@ class SharedFunctionInfo: public HeapObject {
     kIsGenerator,
     kIsConciseMethod,
     kIsDefaultConstructor,
+    kIsSubclassConstructor,
     kIsAsmFunction,
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
   };
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 4> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

@@ -263,12 +263,17 @@ void Parser::SetCachedData() {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, ScopeType scope_type) {
+Scope* Parser::NewScope(Scope* parent, ScopeType scope_type,
+                        FunctionKind kind) {
   DCHECK(ast_value_factory());
   DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
+  DCHECK((scope_type == FUNCTION_SCOPE && IsValidFunctionKind(kind)) ||
+         kind == kNormalFunction);
   Scope* result = new (zone())
       Scope(isolate(), zone(), parent, scope_type, ast_value_factory());
-  result->Initialize();
+  bool uninitialized_this =
+      FLAG_experimental_classes && IsSubclassConstructor(kind);
+  result->Initialize(uninitialized_this);
   return result;
 }
 
@@ -281,7 +286,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   int parameter_count = 0;
   const AstRawString* name = ast_value_factory()->empty_string();
 
-  Scope* function_scope = NewScope(scope, FUNCTION_SCOPE);
+  Scope* function_scope =
+      NewScope(scope, FUNCTION_SCOPE, FunctionKind::kDefaultConstructor);
   function_scope->SetStrictMode(STRICT);
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
@@ -3629,11 +3635,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope =
       function_type == FunctionLiteral::DECLARATION &&
-      (!allow_harmony_scoping() || strict_mode() == SLOPPY) &&
-      (original_scope_ == original_declaration_scope ||
-       declaration_scope != original_declaration_scope)
-          ? NewScope(declaration_scope, FUNCTION_SCOPE)
-          : NewScope(scope_, FUNCTION_SCOPE);
+              (!allow_harmony_scoping() || strict_mode() == SLOPPY) &&
+              (original_scope_ == original_declaration_scope ||
+               declaration_scope != original_declaration_scope)
+          ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
+          : NewScope(scope_, FUNCTION_SCOPE, kind);
   ZoneList<Statement*>* body = NULL;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -4053,6 +4059,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
+  const bool has_extends = extends != nullptr;
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     if (fni_ != NULL) fni_->Enter();
@@ -4061,8 +4068,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ObjectLiteral::Property* property = ParsePropertyDefinition(
-        &checker, in_class, is_static, &is_computed_name, &has_seen_constructor,
-        CHECK_OK);
+        &checker, in_class, has_extends, is_static, &is_computed_name,
+        &has_seen_constructor, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();

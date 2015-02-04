@@ -767,6 +767,74 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0     : number of arguments
+  //  -- a1     : constructor function
+  //  -- a2     : allocation site or undefined
+  //  -- a3     : original constructor
+  //  -- ra     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ mov(a4, a0);
+    __ SmiTag(a4);
+    __ push(a4);  // Smi-tagged arguments count.
+
+    // receiver is the hole.
+    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+    __ push(at);
+
+    // Set up pointer to last argument.
+    __ Daddu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    // a0: number of arguments
+    // a1: constructor function
+    // a2: address of last argument (caller sp)
+    // a4: number of arguments (smi-tagged)
+    // sp[0]: receiver
+    // sp[1]: number of arguments (smi-tagged)
+    Label loop, entry;
+    __ SmiUntag(a4);
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ dsll(at, a4, kPointerSizeLog2);
+    __ Daddu(at, a2, Operand(at));
+    __ ld(at, MemOperand(at));
+    __ push(at);
+    __ bind(&entry);
+    __ Daddu(a4, a4, Operand(-1));
+    __ Branch(&loop, ge, a4, Operand(zero_reg));
+
+    // Call the function.
+    // a0: number of arguments
+    // a1: constructor function
+    ParameterCount actual(a0);
+    __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    // v0: result
+    // sp[0]: number of arguments (smi-tagged)
+    __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ ld(a1, MemOperand(sp, 0));
+
+    // Leave construct frame.
+  }
+
+  __ SmiScale(at, a1, kPointerSizeLog2);
+  __ Daddu(sp, sp, Operand(at));
+  __ Daddu(sp, sp, Operand(kPointerSize));
+  __ Jump(ra);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from JSEntryStub::GenerateBody
