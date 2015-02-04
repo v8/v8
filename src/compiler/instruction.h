@@ -89,6 +89,7 @@ class InstructionOperand {
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
   }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 
  protected:
   InstructionOperand(Kind kind, int index, int virtual_register)
