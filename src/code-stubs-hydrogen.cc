@@ -228,7 +228,7 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
     IfBuilder builder(this);
     builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
     builder.Then();
-    builder.ElseDeopt(Deoptimizer::kForcedDeoptToRuntime);
+    builder.ElseDeopt("Forced deopt to runtime");
     return undefined;
   }
 
@@ -369,7 +369,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   if_fixed_cow.End();
   zero_capacity.End();
 
-  checker.ElseDeopt(Deoptimizer::kUninitializedBoilerplateLiterals);
+  checker.ElseDeopt("Uninitialized boilerplate literals");
   checker.End();
 
   return environment()->Pop();
@@ -436,7 +436,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   }
 
   environment()->Push(object);
-  checker.ElseDeopt(Deoptimizer::kUninitializedBoilerplateInFastClone);
+  checker.ElseDeopt("Uninitialized boilerplate in fast clone");
   checker.End();
 
   return environment()->Pop();
@@ -669,7 +669,7 @@ HValue* CodeStubGraphBuilderBase::UnmappedCase(HValue* elements, HValue* key) {
     result = Add<HLoadKeyed>(backing_store, key, nullptr, FAST_HOLEY_ELEMENTS,
                              NEVER_RETURN_HOLE);
   }
-  in_unmapped_range.ElseDeopt(Deoptimizer::kOutsideOfRange);
+  in_unmapped_range.ElseDeopt("Outside of range");
   in_unmapped_range.End();
   return result;
 }
@@ -710,7 +710,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
   IfBuilder positive_smi(this);
   positive_smi.If<HCompareNumericAndBranch>(key, graph()->GetConstant0(),
                                             Token::LT);
-  positive_smi.ThenDeopt(Deoptimizer::kKeyIsNegative);
+  positive_smi.ThenDeopt("key is negative");
   positive_smi.End();
 
   HValue* constant_two = Add<HConstant>(2);
@@ -1346,7 +1346,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Add<HLoadNamedField>(global, nullptr, HObjectAccess::ForMap());
     IfBuilder map_check(this);
     map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
-    map_check.ThenDeopt(Deoptimizer::kUnknownMap);
+    map_check.ThenDeopt("Unknown map");
     map_check.End();
   }
 
@@ -1361,8 +1361,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
-    builder.ElseDeopt(
-        Deoptimizer::kUnexpectedCellContentsInConstantGlobalStore);
+    builder.ElseDeopt("Unexpected cell contents in constant global store");
     builder.End();
   } else {
     // Load the payload of the global parameter cell. A hole indicates that the
@@ -1372,7 +1371,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     HValue* hole_value = graph()->GetConstantHole();
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
-    builder.Deopt(Deoptimizer::kUnexpectedCellContentsInGlobalStore);
+    builder.Deopt("Unexpected cell contents in global store");
     builder.Else();
     HStoreNamedField* store = Add<HStoreNamedField>(cell, access, value);
     store->MarkReceiverAsCell();
@@ -1397,8 +1396,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>(Deoptimizer::kTracingElementsTransitions,
-                     Deoptimizer::EAGER);
+    Add<HDeoptimize>("Tracing elements transitions", Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 
@@ -1861,7 +1859,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     BuildElementsKindLimitCheck(&kind_if, bit_field2,
                                 SLOPPY_ARGUMENTS_ELEMENTS);
     // Non-strict elements are not handled.
-    Add<HDeoptimize>(Deoptimizer::kNonStrictElementsInKeyedLoadGenericStub,
+    Add<HDeoptimize>("non-strict elements in KeyedLoadGenericStub",
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
 
@@ -1901,8 +1899,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
                              EXTERNAL_UINT8_CLAMPED_ELEMENTS);
 
-    kind_if.ElseDeopt(
-        Deoptimizer::kElementsKindUnhandledInKeyedLoadGenericStub);
+    kind_if.ElseDeopt("ElementsKind unhandled in KeyedLoadGenericStub");
 
     kind_if.End();
   }

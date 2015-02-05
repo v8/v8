@@ -256,7 +256,6 @@ int Label::pos() const {
 //   position:            01
 //   statement_position:  10
 //   comment:             11 (not used in short_data_record)
-//   deopt_reason:        11 (not used in long_data_record)
 //
 //  Long record format:
 //    4-bit middle_tag:
@@ -328,10 +327,6 @@ const int kCodeWithIdTag = 0;
 const int kNonstatementPositionTag = 1;
 const int kStatementPositionTag = 2;
 const int kCommentTag = 3;
-
-// Reuse the same value for deopt reason tag in short record format.
-// It is possible because we use kCommentTag only for the long record format.
-const int kDeoptReasonTag = 3;
 
 const int kPoolExtraTag = kPCJumpExtraTag - 2;
 const int kConstPoolTag = 0;
@@ -447,10 +442,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteExtraTaggedIntData(id_delta, kCodeWithIdTag);
     }
     last_id_ = static_cast<int>(rinfo->data());
-  } else if (rmode == RelocInfo::DEOPT_REASON) {
-    DCHECK(rinfo->data() < (1 << kSmallDataBits));
-    WriteTaggedPC(pc_delta, kLocatableTag);
-    WriteTaggedData(rinfo->data(), kDeoptReasonTag);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for position.
     DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
@@ -592,12 +583,6 @@ inline void RelocIterator::ReadTaggedPosition() {
 }
 
 
-inline void RelocIterator::ReadTaggedData() {
-  uint8_t unsigned_b = *pos_;
-  rinfo_.data_ = unsigned_b >> kTagBits;
-}
-
-
 static inline RelocInfo::Mode GetPositionModeFromTag(int tag) {
   DCHECK(tag == kNonstatementPositionTag ||
          tag == kStatementPositionTag);
@@ -631,10 +616,9 @@ void RelocIterator::next() {
           ReadTaggedId();
           return;
         }
-      } else if (locatable_tag == kDeoptReasonTag) {
-        ReadTaggedData();
-        if (SetMode(RelocInfo::DEOPT_REASON)) return;
       } else {
+        // Compact encoding is never used for comments,
+        // so it must be a position.
         DCHECK(locatable_tag == kNonstatementPositionTag ||
                locatable_tag == kStatementPositionTag);
         if (mode_mask_ & RelocInfo::kPositionMask) {
@@ -799,8 +783,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "external reference";
     case RelocInfo::INTERNAL_REFERENCE:
       return "internal reference";
-    case RelocInfo::DEOPT_REASON:
-      return "deopt reason";
     case RelocInfo::CONST_POOL:
       return "constant pool";
     case RelocInfo::VENEER_POOL:
@@ -821,9 +803,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
-  } else if (rmode_ == DEOPT_REASON) {
-    os << "  (" << Deoptimizer::GetDeoptReason(
-                       static_cast<Deoptimizer::DeoptReason>(data_)) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
@@ -884,7 +863,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
     case INTERNAL_REFERENCE:
-    case DEOPT_REASON:
     case CONST_POOL:
     case VENEER_POOL:
     case DEBUG_BREAK_SLOT:

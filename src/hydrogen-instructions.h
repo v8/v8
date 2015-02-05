@@ -1363,8 +1363,7 @@ class HGoto FINAL : public HTemplateControlInstruction<1, 0> {
 class HDeoptimize FINAL : public HTemplateControlInstruction<1, 0> {
  public:
   static HDeoptimize* New(Isolate* isolate, Zone* zone, HValue* context,
-                          Deoptimizer::DeoptReason reason,
-                          Deoptimizer::BailoutType type,
+                          const char* reason, Deoptimizer::BailoutType type,
                           HBasicBlock* unreachable_continuation) {
     return new(zone) HDeoptimize(reason, type, unreachable_continuation);
   }
@@ -1378,20 +1377,20 @@ class HDeoptimize FINAL : public HTemplateControlInstruction<1, 0> {
     return Representation::None();
   }
 
-  Deoptimizer::DeoptReason reason() const { return reason_; }
+  const char* reason() const { return reason_; }
   Deoptimizer::BailoutType type() { return type_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
  private:
-  explicit HDeoptimize(Deoptimizer::DeoptReason reason,
+  explicit HDeoptimize(const char* reason,
                        Deoptimizer::BailoutType type,
                        HBasicBlock* unreachable_continuation)
       : reason_(reason), type_(type) {
     SetSuccessorAt(0, unreachable_continuation);
   }
 
-  Deoptimizer::DeoptReason reason_;
+  const char* reason_;
   Deoptimizer::BailoutType type_;
 };
 
