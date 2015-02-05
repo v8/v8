@@ -11,7 +11,7 @@
 // system so their names cannot be changed without changing the scripts.
 #define MAJOR_VERSION     4
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      52
+#define BUILD_NUMBER      53
 #define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)

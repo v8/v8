@@ -1,3 +1,12 @@
+2015-02-05: Version 4.2.53
+
+        Fix issue with multiple properties and emit store (issue 3856).
+
+        Class methods should be non enumerable (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-04: Version 4.2.52
 
         Add WeakKeyMap to v8.h (Chromium issue 437416).
