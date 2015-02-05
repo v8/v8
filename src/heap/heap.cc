@@ -854,6 +854,9 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     }
 
     GarbageCollectionEpilogue();
+    if (collector == MARK_COMPACTOR && FLAG_track_detached_contexts) {
+      isolate()->CheckDetachedContextsAfterGC();
+    }
     tracer()->Stop(collector);
   }
 
@@ -3070,6 +3073,8 @@ void Heap::CreateInitialObjects() {
   } else {
     set_keyed_load_dummy_vector(empty_fixed_array());
   }
+
+  set_detached_contexts(empty_fixed_array());
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
       SeededNumberDictionary::New(isolate(), 0, TENURED);

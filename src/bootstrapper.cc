@@ -374,6 +374,9 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
   global_proxy->map()->set_constructor(*factory->null_value());
+  if (FLAG_track_detached_contexts) {
+    env->GetIsolate()->AddDetachedContext(env);
+  }
 }
 
 

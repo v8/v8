@@ -2568,6 +2568,54 @@ std::string Isolate::GetTurboCfgFileName() {
 }
 
 
+// Heap::detached_contexts tracks detached contexts as pairs
+// (number of GC since the context was detached, the context).
+void Isolate::AddDetachedContext(Handle<Context> context) {
+  HandleScope scope(this);
+  Handle<WeakCell> cell = factory()->NewWeakCell(context);
+  Handle<FixedArray> detached_contexts(heap()->detached_contexts());
+  int length = detached_contexts->length();
+  detached_contexts = FixedArray::CopySize(detached_contexts, length + 2);
+  detached_contexts->set(length, Smi::FromInt(0));
+  detached_contexts->set(length + 1, *cell);
+  heap()->set_detached_contexts(*detached_contexts);
+}
+
+
+void Isolate::CheckDetachedContextsAfterGC() {
+  HandleScope scope(this);
+  Handle<FixedArray> detached_contexts(heap()->detached_contexts());
+  int length = detached_contexts->length();
+  if (length == 0) return;
+  int new_length = 0;
+  for (int i = 0; i < length; i += 2) {
+    int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+    if (!cell->cleared()) {
+      detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
+      detached_contexts->set(new_length + 1, cell);
+      new_length += 2;
+    }
+  }
+  PrintF("%d detached contexts are collected out of %d\n", length - new_length,
+         length);
+  for (int i = 0; i < new_length; i += 2) {
+    int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+    if (mark_sweeps > 3) {
+      PrintF("detached context 0x%p\n survived %d GCs (leak?)\n",
+             static_cast<void*>(cell->value()), mark_sweeps);
+    }
+  }
+  if (length == new_length) {
+    heap()->set_detached_contexts(heap()->empty_fixed_array());
+  } else {
+    heap()->RightTrimFixedArray<Heap::FROM_GC>(*detached_contexts,
+                                               length - new_length);
+  }
+}
+
+
 bool StackLimitCheck::JsHasOverflowed() const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR
