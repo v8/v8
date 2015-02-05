@@ -1,3 +1,10 @@
+2015-02-04: Version 4.2.52
+
+        Add WeakKeyMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-04: Version 4.2.51
 
         Performance and stability improvements on all platforms.
