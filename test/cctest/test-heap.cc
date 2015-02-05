@@ -3393,15 +3393,6 @@ static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
 }
 
 
-static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
-  Handle<TypeFeedbackVector> vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorICSlot slot(ic_slot_index);
-  LoadICNexus nexus(vector, slot);
-  CHECK(IC::IsCleared(&nexus));
-}
-
-
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
@@ -3433,50 +3424,6 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
     CHECK(ic_after->ic_state() == DEFAULT);
   } else {
     CHECK(ic_after->ic_state() == MONOMORPHIC);
-  }
-}
-
-
-TEST(IncrementalMarkingClearsMonomorphicIC) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Value> obj1;
-
-  {
-    LocalContext env;
-    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(v8_str("obj"));
-  }
-
-  // Prepare function f that contains a monomorphic IC for object
-  // originating from a different native context.
-  CcTest::global()->Set(v8_str("obj1"), obj1);
-  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
-
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, MONOMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == MONOMORPHIC);
-  }
-
-  // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
-  SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorICCleared(f, 0);
-    CHECK(ic_after->ic_state() == DEFAULT);
-  } else {
-    CHECK(IC::IsCleared(ic_after));
   }
 }
 
@@ -3525,57 +3472,6 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
     CHECK(ic_after->ic_state() == DEFAULT);
   } else {
     CHECK(ic_after->ic_state() == POLYMORPHIC);
-  }
-}
-
-
-TEST(IncrementalMarkingClearsPolymorphicIC) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Value> obj1, obj2;
-
-  {
-    LocalContext env;
-    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(v8_str("obj"));
-  }
-
-  {
-    LocalContext env;
-    CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
-    obj2 = env->Global()->Get(v8_str("obj"));
-  }
-
-  // Prepare function f that contains a polymorphic IC for objects
-  // originating from two different native contexts.
-  CcTest::global()->Set(v8_str("obj1"), obj1);
-  CcTest::global()->Set(v8_str("obj2"), obj2);
-  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
-
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, POLYMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == POLYMORPHIC);
-  }
-
-  // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
-  SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorICCleared(f, 0);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(IC::IsCleared(ic_after));
   }
 }
 
