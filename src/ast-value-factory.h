@@ -259,6 +259,7 @@ class AstValue : public ZoneObject {
   F(prototype, "prototype")                             \
   F(this, "this")                                       \
   F(use_asm, "use asm")                                 \
+  F(use_strong, "use strong")                           \
   F(use_strict, "use strict")                           \
   F(value, "value")
 

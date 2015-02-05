@@ -90,7 +90,8 @@ class ParserBase : public Traits {
         allow_harmony_object_literals_(false),
         allow_harmony_sloppy_(false),
         allow_harmony_computed_property_names_(false),
-        allow_harmony_rest_params_(false) {}
+        allow_harmony_rest_params_(false),
+        allow_strong_mode_(false) {}
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -117,6 +118,8 @@ class ParserBase : public Traits {
   bool allow_harmony_rest_params() const {
     return allow_harmony_rest_params_;
   }
+
+  bool allow_strong_mode() const { return allow_strong_mode_; }
 
   // Setters that determine whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -155,6 +158,7 @@ class ParserBase : public Traits {
   void set_allow_harmony_rest_params(bool allow) {
     allow_harmony_rest_params_ = allow;
   }
+  void set_allow_strong_mode(bool allow) { allow_strong_mode_ = allow; }
 
  protected:
   enum AllowEvalOrArgumentsAsIdentifier {
@@ -634,6 +638,7 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_;
   bool allow_harmony_computed_property_names_;
   bool allow_harmony_rest_params_;
+  bool allow_strong_mode_;
 };
 
 
@@ -754,13 +759,17 @@ class PreParserExpression {
   }
 
   static PreParserExpression StringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseStrictField::encode(false));
+    return PreParserExpression(TypeField::encode(kStringLiteralExpression));
   }
 
   static PreParserExpression UseStrictStringLiteral() {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
                                IsUseStrictField::encode(true));
+  }
+
+  static PreParserExpression UseStrongStringLiteral() {
+    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
+                               IsUseStrongField::encode(true));
   }
 
   static PreParserExpression This() {
@@ -812,6 +821,11 @@ class PreParserExpression {
   bool IsUseStrictLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression &&
            IsUseStrictField::decode(code_);
+  }
+
+  bool IsUseStrongLiteral() const {
+    return TypeField::decode(code_) == kStringLiteralExpression &&
+           IsUseStrongField::decode(code_);
   }
 
   bool IsThis() const {
@@ -922,6 +936,7 @@ class PreParserExpression {
   typedef BitField<ExpressionType, ParenthesizationField::kNext, 3>
       ExpressionTypeField;
   typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
+  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
   typedef BitField<bool, ParenthesizationField::kNext, 1>
       IsValidArrowParamListField;
   typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
@@ -963,6 +978,9 @@ class PreParserStatement {
     if (expression.IsUseStrictLiteral()) {
       return PreParserStatement(kUseStrictExpressionStatement);
     }
+    if (expression.IsUseStrongLiteral()) {
+      return PreParserStatement(kUseStrongExpressionStatement);
+    }
     if (expression.IsStringLiteral()) {
       return PreParserStatement(kStringLiteralExpressionStatement);
     }
@@ -977,6 +995,8 @@ class PreParserStatement {
     return code_ == kUseStrictExpressionStatement;
   }
 
+  bool IsUseStrongLiteral() { return code_ == kUseStrongExpressionStatement; }
+
   bool IsFunctionDeclaration() {
     return code_ == kFunctionDeclaration;
   }
@@ -986,6 +1006,7 @@ class PreParserStatement {
     kUnknownStatement,
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
+    kUseStrongExpressionStatement,
     kFunctionDeclaration
   };
 

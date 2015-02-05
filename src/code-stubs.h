@@ -593,9 +593,9 @@ class FastNewClosureStub : public HydrogenCodeStub {
   bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
 
  private:
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  class LanguageModeBits : public BitField<LanguageMode, 0, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 1, 4> {};
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
+  class FunctionKindBits : public BitField<FunctionKind, 2, 4> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);

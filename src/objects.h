@@ -4325,12 +4325,12 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsEvalField : public BitField<bool, 4, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  class LanguageModeField : public BitField<LanguageMode, 5, 1> {};
-  class FunctionVariableField : public BitField<FunctionVariableInfo, 6, 2> {};
-  class FunctionVariableMode : public BitField<VariableMode, 8, 3> {};
-  class AsmModuleField : public BitField<bool, 11, 1> {};
-  class AsmFunctionField : public BitField<bool, 12, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeField : public BitField<LanguageMode, 5, 2> {};
+  class FunctionVariableField : public BitField<FunctionVariableInfo, 7, 2> {};
+  class FunctionVariableMode : public BitField<VariableMode, 9, 3> {};
+  class AsmModuleField : public BitField<bool, 12, 1> {};
+  class AsmFunctionField : public BitField<bool, 13, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -7181,6 +7181,7 @@ class SharedFunctionInfo: public HeapObject {
     kAllowLazyCompilationWithoutContext,
     kOptimizationDisabled,
     kStrictModeFunction,
+    kStrongModeFunction,
     kUsesArguments,
     kUsesSuperProperty,
     kUsesSuperConstructorCall,
@@ -7203,7 +7204,7 @@ class SharedFunctionInfo: public HeapObject {
     kCompilerHintsCount  // Pseudo entry
   };
   // Add hints for other modes when they're added.
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LANGUAGE_END == 3);
 
   class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
 

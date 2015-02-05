@@ -7618,8 +7618,8 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   class FunctionKindField : public BitField<FunctionKind, 0, 4> {};
   class PretenureField : public BitField<bool, 5, 1> {};
   class HasNoLiteralsField : public BitField<bool, 6, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  class LanguageModeField : public BitField<LanguageMode, 7, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeField : public BitField<LanguageMode, 7, 2> {};
 
   Handle<SharedFunctionInfo> shared_info_;
   uint32_t bit_field_;

@@ -14039,8 +14039,9 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script(Script::cast(shared->script()));
       hash ^= String::cast(script->source())->Hash();
-      STATIC_ASSERT(LANGUAGE_END == 2);
+      STATIC_ASSERT(LANGUAGE_END == 3);
       if (is_strict(language_mode)) hash ^= 0x8000;
+      if (is_strong(language_mode)) hash ^= 0x10000;
       hash += scope_position;
     }
     return hash;
