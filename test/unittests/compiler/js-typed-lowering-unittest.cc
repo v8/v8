@@ -62,7 +62,8 @@ Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
                           Type::Number(),    Type::String(), Type::Object()};
 
 
-const StrictMode kStrictModes[] = {SLOPPY, STRICT};
+STATIC_ASSERT(LANGUAGE_END == 2);
+const LanguageMode kLanguageModes[] = {SLOPPY, STRICT};
 
 }  // namespace
 
@@ -665,7 +666,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
+    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
       Handle<JSTypedArray> array =
           factory()->NewJSTypedArray(type, buffer, 0, kLength);
       int const element_size = static_cast<int>(array->element_size());
@@ -678,7 +679,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
+      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
       if (FLAG_turbo_deoptimization) {
         node->AppendInput(zone(), UndefinedConstant());
@@ -711,7 +712,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
+    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
       Handle<JSTypedArray> array =
           factory()->NewJSTypedArray(type, buffer, 0, kLength);
       int const element_size = static_cast<int>(array->element_size());
@@ -723,7 +724,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
+      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
       if (FLAG_turbo_deoptimization) {
         node->AppendInput(zone(), UndefinedConstant());
@@ -767,7 +768,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
+    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
       Handle<JSTypedArray> array =
           factory()->NewJSTypedArray(type, buffer, 0, kLength);
       ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
@@ -781,7 +782,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
+      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
       if (FLAG_turbo_deoptimization) {
         node->AppendInput(zone(), UndefinedConstant());

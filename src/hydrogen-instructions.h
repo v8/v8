@@ -6227,6 +6227,10 @@ class HObjectAccess FINAL {
     return HObjectAccess(kInobject, WeakCell::kValueOffset);
   }
 
+  static HObjectAccess ForWeakCellNext() {
+    return HObjectAccess(kInobject, WeakCell::kNextOffset);
+  }
+
   static HObjectAccess ForAllocationMementoSite() {
     return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }
@@ -7057,12 +7061,12 @@ class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreNamedGeneric, HValue*,
                                               Handle<String>, HValue*,
-                                              StrictMode);
+                                              LanguageMode);
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
   Handle<String> name() const { return name_; }
-  StrictMode strict_mode() const { return strict_mode_; }
+  LanguageMode language_mode() const { return language_mode_; }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
@@ -7073,13 +7077,9 @@ class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric)
 
  private:
-  HStoreNamedGeneric(HValue* context,
-                     HValue* object,
-                     Handle<String> name,
-                     HValue* value,
-                     StrictMode strict_mode)
-      : name_(name),
-        strict_mode_(strict_mode) {
+  HStoreNamedGeneric(HValue* context, HValue* object, Handle<String> name,
+                     HValue* value, LanguageMode language_mode)
+      : name_(name), language_mode_(language_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, value);
     SetOperandAt(2, context);
@@ -7087,7 +7087,7 @@ class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
   }
 
   Handle<String> name_;
-  StrictMode strict_mode_;
+  LanguageMode language_mode_;
 };
 
 
@@ -7278,13 +7278,13 @@ class HStoreKeyed FINAL
 class HStoreKeyedGeneric FINAL : public HTemplateInstruction<4> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreKeyedGeneric, HValue*,
-                                              HValue*, HValue*, StrictMode);
+                                              HValue*, HValue*, LanguageMode);
 
   HValue* object() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* value() const { return OperandAt(2); }
   HValue* context() const { return OperandAt(3); }
-  StrictMode strict_mode() const { return strict_mode_; }
+  LanguageMode language_mode() const { return language_mode_; }
 
   Representation RequiredInputRepresentation(int index) OVERRIDE {
     // tagged[tagged] = tagged
@@ -7296,12 +7296,9 @@ class HStoreKeyedGeneric FINAL : public HTemplateInstruction<4> {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
 
  private:
-  HStoreKeyedGeneric(HValue* context,
-                     HValue* object,
-                     HValue* key,
-                     HValue* value,
-                     StrictMode strict_mode)
-      : strict_mode_(strict_mode) {
+  HStoreKeyedGeneric(HValue* context, HValue* object, HValue* key,
+                     HValue* value, LanguageMode language_mode)
+      : language_mode_(language_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
     SetOperandAt(2, value);
@@ -7309,7 +7306,7 @@ class HStoreKeyedGeneric FINAL : public HTemplateInstruction<4> {
     SetAllSideEffects();
   }
 
-  StrictMode strict_mode_;
+  LanguageMode language_mode_;
 };
 
 
@@ -7598,7 +7595,9 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   bool is_concise_method() const { return IsConciseMethod(kind()); }
   bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
   FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
-  StrictMode strict_mode() const { return StrictModeField::decode(bit_field_); }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(bit_field_);
+  }
 
  private:
   HFunctionLiteral(HValue* context, Handle<SharedFunctionInfo> shared,
@@ -7608,7 +7607,7 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
         bit_field_(FunctionKindField::encode(shared->kind()) |
                    PretenureField::encode(pretenure) |
                    HasNoLiteralsField::encode(shared->num_literals() == 0) |
-                   StrictModeField::encode(shared->strict_mode())) {
+                   LanguageModeField::encode(shared->language_mode())) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetChangesFlag(kNewSpacePromotion);
@@ -7619,7 +7618,8 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   class FunctionKindField : public BitField<FunctionKind, 0, 4> {};
   class PretenureField : public BitField<bool, 5, 1> {};
   class HasNoLiteralsField : public BitField<bool, 6, 1> {};
-  class StrictModeField : public BitField<StrictMode, 7, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  class LanguageModeField : public BitField<LanguageMode, 7, 1> {};
 
   Handle<SharedFunctionInfo> shared_info_;
   uint32_t bit_field_;

@@ -15,8 +15,8 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                                    StrictMode strict_mode) {
+void PropertyICCompiler::GenerateRuntimeSetProperty(
+    MacroAssembler* masm, LanguageMode language_mode) {
   // Return address is on the stack.
   DCHECK(!rbx.is(StoreDescriptor::ReceiverRegister()) &&
          !rbx.is(StoreDescriptor::NameRegister()) &&
@@ -26,7 +26,7 @@ void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
   __ Push(StoreDescriptor::ReceiverRegister());
   __ Push(StoreDescriptor::NameRegister());
   __ Push(StoreDescriptor::ValueRegister());
-  __ Push(Smi::FromInt(strict_mode));
+  __ Push(Smi::FromInt(language_mode));
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.

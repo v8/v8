@@ -559,24 +559,7 @@ class Factory FINAL {
     return NumberToString(NewNumberFromUint(value));
   }
 
-  enum ApiInstanceType {
-    JavaScriptObjectType,
-    GlobalObjectType,
-    GlobalProxyType
-  };
-
-  Handle<JSFunction> CreateApiFunction(
-      Handle<FunctionTemplateInfo> data,
-      Handle<Object> prototype,
-      ApiInstanceType type = JavaScriptObjectType);
-
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
-
-  // Installs interceptors on the instance.  'desc' is a function template,
-  // and instance is an object instance created by the function of this
-  // function template.
-  MUST_USE_RESULT MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
-      Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance);
 
 #define ROOT_ACCESSOR(type, name, camel_name)                         \
   inline Handle<type> name() {                                        \

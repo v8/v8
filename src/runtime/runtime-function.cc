@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_IsSloppyModeFunction) {
   }
   JSFunction* function = JSFunction::cast(callable);
   SharedFunctionInfo* shared = function->shared();
-  return isolate->heap()->ToBoolean(shared->strict_mode() == SLOPPY);
+  return isolate->heap()->ToBoolean(is_sloppy(shared->language_mode()));
 }
 
 
@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_GetDefaultReceiver) {
   JSFunction* function = JSFunction::cast(callable);
 
   SharedFunctionInfo* shared = function->shared();
-  if (shared->native() || shared->strict_mode() == STRICT) {
+  if (shared->native() || is_strict(shared->language_mode())) {
     return isolate->heap()->undefined_value();
   }
   // Returns undefined for strict or native functions, or

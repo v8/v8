@@ -2476,7 +2476,7 @@ class FunctionLiteral FINAL : public Expression {
   int SourceSize() const { return end_position() - start_position(); }
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
-  StrictMode strict_mode() const;
+  LanguageMode language_mode() const;
   bool uses_super_property() const;
   bool uses_super_constructor_call() const;
 

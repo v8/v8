@@ -121,12 +121,12 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 #define __ ACCESS_MASM(masm)
 
 
-void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                                    StrictMode strict_mode) {
+void PropertyICCompiler::GenerateRuntimeSetProperty(
+    MacroAssembler* masm, LanguageMode language_mode) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister());
 
-  __ li(a0, Operand(Smi::FromInt(strict_mode)));
+  __ li(a0, Operand(Smi::FromInt(language_mode)));
   __ Push(a0);
 
   // Do tail-call to runtime routine.

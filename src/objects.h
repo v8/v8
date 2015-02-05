@@ -1121,23 +1121,23 @@ class Object {
   // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       Handle<Object> object, Handle<Name> key, Handle<Object> value,
-      StrictMode strict_mode,
+      LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
-      LookupIterator* it, Handle<Object> value, StrictMode strict_mode,
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode,
       StorePropertyMode data_store_mode = NORMAL_PROPERTY);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
-      LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyElement(
       Isolate* isolate, Handle<Object> receiver, uint32_t index,
-      Handle<Object> value, StrictMode strict_mode);
+      Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
       LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      StrictMode strict_mode, StoreFromKeyed store_mode);
+      LanguageMode language_mode, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
@@ -1157,7 +1157,7 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithAccessor(
       Handle<Object> receiver, Handle<Name> name, Handle<Object> value,
       Handle<JSObject> holder, Handle<Object> structure,
-      StrictMode strict_mode);
+      LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
       Handle<Object> receiver,
@@ -1180,7 +1180,7 @@ class Object {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithReceiver(
       Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
-      uint32_t index, Handle<Object> value, StrictMode strict_mode);
+      uint32_t index, Handle<Object> value, LanguageMode language_mode);
 
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
@@ -1592,11 +1592,8 @@ class JSReceiver: public HeapObject {
   DECLARE_CAST(JSReceiver)
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
-      Handle<JSReceiver> object,
-      uint32_t index,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode);
+      Handle<JSReceiver> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
@@ -1611,10 +1608,10 @@ class JSReceiver: public HeapObject {
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
-      StrictMode strict_mode = SLOPPY);
+      LanguageMode language_mode = SLOPPY);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
-      StrictMode strict_mode = SLOPPY);
+      LanguageMode language_mode = SLOPPY);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -1932,27 +1929,18 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetFastElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      bool check_prototype);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      LanguageMode language_mode, bool check_prototype);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      StrictMode strict_mode);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      LanguageMode language_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode,
-      bool check_prototype = true,
-      SetPropertyMode set_mode = SET_PROPERTY);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode,
+      bool check_prototype = true, SetPropertyMode set_mode = SET_PROPERTY);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
@@ -2284,47 +2272,30 @@ class JSObject: public JSReceiver {
                                             bool continue_search);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithCallback(
       Handle<Object> object, Handle<Object> structure, uint32_t index,
-      Handle<Object> value, Handle<JSObject> holder, StrictMode strict_mode);
+      Handle<Object> value, Handle<JSObject> holder,
+      LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithInterceptor(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode,
-      bool check_prototype,
-      SetPropertyMode set_mode);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode,
+      bool check_prototype, SetPropertyMode set_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithoutInterceptor(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode,
-      bool check_prototype,
-      SetPropertyMode set_mode);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode,
+      bool check_prototype, SetPropertyMode set_mode);
   MUST_USE_RESULT
   static MaybeHandle<Object> SetElementWithCallbackSetterInPrototypes(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      bool* found,
-      StrictMode strict_mode);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      bool* found, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetDictionaryElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode,
-      bool check_prototype,
-      SetPropertyMode set_mode = SET_PROPERTY);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes, LanguageMode language_mode,
+      bool check_prototype, SetPropertyMode set_mode = SET_PROPERTY);
   MUST_USE_RESULT static MaybeHandle<Object> SetFastDoubleElement(
-      Handle<JSObject> object,
-      uint32_t index,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      bool check_prototype = true);
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      LanguageMode language_mode, bool check_prototype = true);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
-      LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
@@ -2333,7 +2304,7 @@ class JSObject: public JSReceiver {
                               PropertyAttributes attributes);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
-      Handle<JSObject> object, Handle<Name> name, StrictMode strict_mode);
+      Handle<JSObject> object, Handle<Name> name, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
       Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name);
 
@@ -2342,7 +2313,7 @@ class JSObject: public JSReceiver {
                                        Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
-      Handle<JSObject> object, uint32_t index, StrictMode strict_mode);
+      Handle<JSObject> object, uint32_t index, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithInterceptor(
       Handle<JSObject> object,
       uint32_t index);
@@ -4159,11 +4130,11 @@ class ScopeInfo : public FixedArray {
   // Does this scope call eval?
   bool CallsEval();
 
-  // Return the strict mode of this scope.
-  StrictMode strict_mode();
+  // Return the language mode of this scope.
+  LanguageMode language_mode();
 
   // Does this scope make a sloppy eval call?
-  bool CallsSloppyEval() { return CallsEval() && strict_mode() == SLOPPY; }
+  bool CallsSloppyEval() { return CallsEval() && is_sloppy(language_mode()); }
 
   // Return the total number of locals allocated on the stack and in the
   // context. This includes the parameters that are allocated in the context.
@@ -4350,7 +4321,8 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsEvalField : public BitField<bool, 4, 1> {};
-  class StrictModeField : public BitField<StrictMode, 5, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  class LanguageModeField : public BitField<LanguageMode, 5, 1> {};
   class FunctionVariableField : public BitField<FunctionVariableInfo, 6, 2> {};
   class FunctionVariableMode : public BitField<VariableMode, 8, 3> {};
   class AsmModuleField : public BitField<bool, 11, 1> {};
@@ -6754,7 +6726,11 @@ class SharedFunctionInfo: public HeapObject {
   // Removed a specific optimized code object from the optimized code map.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
+  // Unconditionally clear the type feedback vector (including vector ICs).
   void ClearTypeFeedbackInfo();
+
+  // Clear the type feedback vector with a more subtle policy at GC time.
+  void ClearTypeFeedbackInfoAtGCTime();
 
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);
@@ -6910,8 +6886,8 @@ class SharedFunctionInfo: public HeapObject {
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates the language mode.
-  inline StrictMode strict_mode();
-  inline void set_strict_mode(StrictMode strict_mode);
+  inline LanguageMode language_mode();
+  inline void set_language_mode(LanguageMode language_mode);
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
@@ -7222,6 +7198,8 @@ class SharedFunctionInfo: public HeapObject {
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
   };
+  // Add hints for other modes when they're added.
+  STATIC_ASSERT(LANGUAGE_END == 2);
 
   class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
 
@@ -8081,7 +8059,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
   Handle<Object> Lookup(Handle<String> src, Handle<Context> context);
   Handle<Object> LookupEval(Handle<String> src,
                             Handle<SharedFunctionInfo> shared,
-                            StrictMode strict_mode, int scope_position);
+                            LanguageMode language_mode, int scope_position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(
       Handle<CompilationCacheTable> cache, Handle<String> src,
@@ -9820,7 +9798,7 @@ class JSProxy: public JSReceiver {
   MUST_USE_RESULT
   static MaybeHandle<Object> SetPropertyViaPrototypesWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, StrictMode strict_mode, bool* done);
+      Handle<Object> value, LanguageMode language_mode, bool* done);
 
   MUST_USE_RESULT static Maybe<PropertyAttributes>
       GetPropertyAttributesWithHandler(Handle<JSProxy> proxy,
@@ -9832,7 +9810,7 @@ class JSProxy: public JSReceiver {
                                      uint32_t index);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, StrictMode strict_mode);
+      Handle<Object> value, LanguageMode language_mode);
 
   // Turn the proxy into an (empty) JSObject.
   static void Fix(Handle<JSProxy> proxy);
@@ -9873,11 +9851,8 @@ class JSProxy: public JSReceiver {
   friend class JSReceiver;
 
   MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
-      uint32_t index,
-      Handle<Object> value,
-      StrictMode strict_mode);
+      Handle<JSProxy> proxy, Handle<JSReceiver> receiver, uint32_t index,
+      Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name);
@@ -9885,9 +9860,9 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
-      Handle<JSProxy> proxy, Handle<Name> name, StrictMode strict_mode);
+      Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithHandler(
-      Handle<JSProxy> proxy, uint32_t index, StrictMode strict_mode);
+      Handle<JSProxy> proxy, uint32_t index, LanguageMode language_mode);
 
   MUST_USE_RESULT Object* GetIdentityHash();
 

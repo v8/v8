@@ -146,8 +146,8 @@ int FunctionLiteral::end_position() const {
 }
 
 
-StrictMode FunctionLiteral::strict_mode() const {
-  return scope()->strict_mode();
+LanguageMode FunctionLiteral::language_mode() const {
+  return scope()->language_mode();
 }
 
 

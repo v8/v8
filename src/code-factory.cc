@@ -66,17 +66,18 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 
 // static
-Callable CodeFactory::StoreIC(Isolate* isolate, StrictMode mode) {
-  return Callable(StoreIC::initialize_stub(isolate, mode),
+Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
+  return Callable(StoreIC::initialize_stub(isolate, language_mode),
                   StoreDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::KeyedStoreIC(Isolate* isolate, StrictMode mode) {
-  Handle<Code> ic = mode == SLOPPY
-                        ? isolate->builtins()->KeyedStoreIC_Initialize()
-                        : isolate->builtins()->KeyedStoreIC_Initialize_Strict();
+Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
+                                   LanguageMode language_mode) {
+  Handle<Code> ic = is_strict(language_mode)
+                        ? isolate->builtins()->KeyedStoreIC_Initialize_Strict()
+                        : isolate->builtins()->KeyedStoreIC_Initialize();
   return Callable(ic, StoreDescriptor(isolate));
 }
 

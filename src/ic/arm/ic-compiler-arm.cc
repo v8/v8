@@ -15,12 +15,12 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                                    StrictMode strict_mode) {
+void PropertyICCompiler::GenerateRuntimeSetProperty(
+    MacroAssembler* masm, LanguageMode language_mode) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister());
 
-  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
+  __ mov(r0, Operand(Smi::FromInt(language_mode)));
   __ Push(r0);
 
   // Do tail-call to runtime routine.

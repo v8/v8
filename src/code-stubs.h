@@ -63,6 +63,7 @@ namespace internal {
   V(BinaryOpWithAllocationSite)             \
   V(CompareNilIC)                           \
   V(CreateAllocationSite)                   \
+  V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
   V(FastCloneShallowArray)                  \
   V(FastCloneShallowObject)                 \
@@ -571,16 +572,16 @@ class NumberToStringStub FINAL : public HydrogenCodeStub {
 
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
-  FastNewClosureStub(Isolate* isolate, StrictMode strict_mode,
+  FastNewClosureStub(Isolate* isolate, LanguageMode language_mode,
                      FunctionKind kind)
       : HydrogenCodeStub(isolate) {
     DCHECK(IsValidFunctionKind(kind));
-    set_sub_minor_key(StrictModeBits::encode(strict_mode) |
+    set_sub_minor_key(LanguageModeBits::encode(language_mode) |
                       FunctionKindBits::encode(kind));
   }
 
-  StrictMode strict_mode() const {
-    return StrictModeBits::decode(sub_minor_key());
+  LanguageMode language_mode() const {
+    return LanguageModeBits::decode(sub_minor_key());
   }
 
   FunctionKind kind() const {
@@ -592,7 +593,8 @@ class FastNewClosureStub : public HydrogenCodeStub {
   bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
 
  private:
-  class StrictModeBits : public BitField<StrictMode, 0, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  class LanguageModeBits : public BitField<LanguageMode, 0, 1> {};
   class FunctionKindBits : public BitField<FunctionKind, 1, 4> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
@@ -673,6 +675,17 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
   DEFINE_HYDROGEN_CODE_STUB(CreateAllocationSite, HydrogenCodeStub);
+};
+
+
+class CreateWeakCellStub : public HydrogenCodeStub {
+ public:
+  explicit CreateWeakCellStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
+  DEFINE_HYDROGEN_CODE_STUB(CreateWeakCell, HydrogenCodeStub);
 };
 
 

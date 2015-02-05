@@ -102,13 +102,13 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    StrictMode strict_mode, bool is_generator, ParserRecorder* log) {
+    LanguageMode language_mode, bool is_generator, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   PreParserScope top_scope(scope_, SCRIPT_SCOPE);
   PreParserFactory top_factory(NULL);
   FunctionState top_state(&function_state_, &scope_, &top_scope, &top_factory);
-  scope_->SetStrictMode(strict_mode);
+  scope_->SetLanguageMode(language_mode);
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
   PreParserFactory function_factory(NULL);
   FunctionState function_state(&function_state_, &scope_, &function_scope,
@@ -123,7 +123,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     ReportUnexpectedToken(scanner()->current_token());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
-    if (scope_->strict_mode() == STRICT) {
+    if (is_strict(scope_->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
     }
@@ -188,7 +188,7 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
       return ParseVariableStatement(kSourceElement, ok);
     case Token::LET:
       DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
+      if (is_strict(language_mode())) {
         return ParseVariableStatement(kSourceElement, ok);
       }
       // Fall through.
@@ -211,7 +211,8 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
     Statement statement = ParseSourceElement(CHECK_OK);
     if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
-        scope_->SetStrictMode(STRICT);
+        scope_->SetLanguageMode(
+            static_cast<LanguageMode>(scope_->language_mode() | STRICT));
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }
@@ -300,7 +301,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       Scanner::Location start_location = scanner()->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
       Scanner::Location end_location = scanner()->location();
-      if (strict_mode() == STRICT) {
+      if (is_strict(language_mode())) {
         PreParserTraits::ReportMessageAt(start_location.beg_pos,
                                          end_location.end_pos,
                                          "strict_function");
@@ -321,7 +322,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       // In ES6 CONST is not allowed as a Statement, only as a
       // LexicalDeclaration, however we continue to allow it in sloppy mode for
       // backwards compatibility.
-      if (strict_mode() == SLOPPY) {
+      if (is_sloppy(language_mode())) {
         return ParseVariableStatement(kStatement, ok);
       }
 
@@ -355,7 +356,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 
 PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   Expect(Token::CLASS, CHECK_OK);
-  if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+  if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
     ReportMessage("sloppy_lexical");
     *ok = false;
     return Statement::Default();
@@ -380,7 +381,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
-    if (allow_harmony_scoping() && strict_mode() == STRICT) {
+    if (allow_harmony_scoping() && is_strict(language_mode())) {
       ParseSourceElement(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
@@ -445,7 +446,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // existing pages. Therefore we keep allowing const with the old
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
-    if (strict_mode() == STRICT) {
+    if (is_strict(language_mode())) {
       DCHECK(var_context != kStatement);
       if (!allow_harmony_scoping()) {
         Scanner::Location location = scanner()->peek_location();
@@ -456,7 +457,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       is_strict_const = true;
       require_initializer = var_context != kForStatement;
     }
-  } else if (peek() == Token::LET && strict_mode() == STRICT) {
+  } else if (peek() == Token::LET && is_strict(language_mode())) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
   } else {
@@ -518,7 +519,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     // Expression is a single identifier, and not, e.g., a parenthesized
     // identifier.
     DCHECK(!expr.AsIdentifier().IsFutureReserved());
-    DCHECK(strict_mode() == SLOPPY ||
+    DCHECK(is_sloppy(language_mode()) ||
            !IsFutureStrictReserved(expr.AsIdentifier()));
     Consume(Token::COLON);
     return ParseStatement(ok);
@@ -528,7 +529,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   }
   // Parsed expression statement.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
       expr.IsIdentifier() && expr.AsIdentifier().IsLet()) {
     ReportMessage("sloppy_lexical", NULL);
     *ok = false;
@@ -622,7 +623,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
   Expect(Token::WITH, CHECK_OK);
-  if (strict_mode() == STRICT) {
+  if (is_strict(language_mode())) {
     ReportMessageAt(scanner()->location(), "strict_mode_with");
     *ok = false;
     return Statement::Default();
@@ -716,9 +717,9 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST ||
-        (peek() == Token::LET && strict_mode() == STRICT)) {
+        (peek() == Token::LET && is_strict(language_mode()))) {
       bool is_lexical = peek() == Token::LET ||
-                        (peek() == Token::CONST && strict_mode() == STRICT);
+                        (peek() == Token::CONST && is_strict(language_mode()));
       int decl_count;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       ParseVariableDeclarations(
@@ -749,7 +750,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
   // Parsed initializer at this point.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
       is_let_identifier_expression) {
     ReportMessage("sloppy_lexical", NULL);
     *ok = false;
@@ -934,7 +935,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Validate strict mode. We can do this only after parsing the function,
   // since the function can declare itself strict.
   // Concise methods use StrictFormalParameters.
-  if (strict_mode() == STRICT || IsConciseMethod(kind) || is_rest) {
+  if (is_strict(language_mode()) || IsConciseMethod(kind) || is_rest) {
     if (function_name.IsEvalOrArguments()) {
       ReportMessageAt(function_name_location, "strict_eval_arguments");
       *ok = false;
@@ -977,10 +978,9 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  log_->LogFunction(body_start, body_end,
-                    function_state_->materialized_literal_count(),
-                    function_state_->expected_property_count(),
-                    strict_mode());
+  log_->LogFunction(
+      body_start, body_end, function_state_->materialized_literal_count(),
+      function_state_->expected_property_count(), language_mode());
 }
 
 
@@ -1001,7 +1001,8 @@ PreParserExpression PreParser::ParseClassLiteral(
 
   PreParserScope scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, &scope);
-  scope_->SetStrictMode(STRICT);
+  scope_->SetLanguageMode(
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
   scope_->SetScopeName(name);
 
   bool has_extends = Check(Token::EXTENDS);

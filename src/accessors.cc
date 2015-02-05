@@ -1412,7 +1412,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (caller->shared()->strict_mode() == STRICT) {
+  if (is_strict(caller->shared()->language_mode())) {
     return MaybeHandle<JSFunction>();
   }
   // Don't return caller from another security context.

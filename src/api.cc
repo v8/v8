@@ -12,6 +12,7 @@
 #include "include/v8-debug.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
+#include "src/api-natives.h"
 #include "src/assert-scope.h"
 #include "src/background-parsing-task.h"
 #include "src/base/functional.h"
@@ -3083,7 +3084,7 @@ bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
 
 i::MaybeHandle<i::Object> DeleteObjectProperty(
     i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
-    i::Handle<i::Object> key, i::StrictMode strict_mode) {
+    i::Handle<i::Object> key, i::LanguageMode language_mode) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
@@ -3097,7 +3098,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
       return isolate->factory()->true_value();
     }
 
-    return i::JSReceiver::DeleteElement(receiver, index, strict_mode);
+    return i::JSReceiver::DeleteElement(receiver, index, language_mode);
   }
 
   i::Handle<i::Name> name;
@@ -3115,7 +3116,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
   if (name->IsString()) {
     name = i::String::Flatten(i::Handle<i::String>::cast(name));
   }
-  return i::JSReceiver::DeleteProperty(receiver, name, strict_mode);
+  return i::JSReceiver::DeleteProperty(receiver, name, language_mode);
 }
 
 
@@ -5218,7 +5219,8 @@ Local<v8::Object> ObjectTemplate::NewInstance() {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
-  has_pending_exception = !i::Execution::InstantiateObject(info).ToHandle(&obj);
+  has_pending_exception =
+      !i::ApiNatives::InstantiateObject(info).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(obj));
 }
@@ -5234,7 +5236,7 @@ Local<v8::Function> FunctionTemplate::GetFunction() {
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
   has_pending_exception =
-      !i::Execution::InstantiateFunction(info).ToHandle(&obj);
+      !i::ApiNatives::InstantiateFunction(info).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Function>());
   return Utils::ToLocal(i::Handle<i::JSFunction>::cast(obj));
 }

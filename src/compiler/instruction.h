@@ -35,7 +35,7 @@ const InstructionCode kSourcePositionInstruction = -2;
   V(Register, REGISTER, RegisterConfiguration::kMaxGeneralRegisters) \
   V(DoubleRegister, DOUBLE_REGISTER, RegisterConfiguration::kMaxDoubleRegisters)
 
-class InstructionOperand : public ZoneObject {
+class InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
@@ -50,6 +50,10 @@ class InstructionOperand : public ZoneObject {
     DOUBLE_REGISTER
   };
 
+  InstructionOperand() : virtual_register_(kInvalidVirtualRegister) {
+    ConvertTo(INVALID, 0);
+  }
+
   InstructionOperand(Kind kind, int index)
       : virtual_register_(kInvalidVirtualRegister) {
     DCHECK(kind != INVALID);
@@ -62,6 +66,7 @@ class InstructionOperand : public ZoneObject {
   bool Is##name() const { return kind() == type; }
   INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_PREDICATE)
   INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED, 0)
+  INSTRUCTION_OPERAND_PREDICATE(Invalid, INVALID, 0)
 #undef INSTRUCTION_OPERAND_PREDICATE
   bool Equals(const InstructionOperand* other) const {
     return value_ == other->value_;
@@ -79,6 +84,13 @@ class InstructionOperand : public ZoneObject {
   static void SetUpCaches();
   static void TearDownCaches();
 
+  // TODO(dcarney): get rid of these
+  void* operator new(size_t, void* location) { return location; }
+  void* operator new(size_t size, Zone* zone) {
+    return zone->New(static_cast<int>(size));
+  }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+
  protected:
   InstructionOperand(Kind kind, int index, int virtual_register)
       : virtual_register_(virtual_register) {
@@ -90,8 +102,6 @@ class InstructionOperand : public ZoneObject {
   // TODO(dcarney): this should really be unsigned.
   int32_t virtual_register_;
 };
-
-typedef ZoneVector<InstructionOperand*> InstructionOperandVector;
 
 struct PrintableInstructionOperand {
   const RegisterConfiguration* register_configuration_;
@@ -130,10 +140,6 @@ class UnallocatedOperand : public InstructionOperand {
 
   // TODO(dcarney): remove this.
   static const int kInvalidVirtualRegister = -1;
-
-  // This is only for array initialization.
-  UnallocatedOperand()
-      : InstructionOperand(INVALID, 0, kInvalidVirtualRegister) {}
 
   UnallocatedOperand(ExtendedPolicy policy, int virtual_register)
       : InstructionOperand(UNALLOCATED, 0, virtual_register) {
@@ -179,6 +185,11 @@ class UnallocatedOperand : public InstructionOperand {
   static UnallocatedOperand* cast(InstructionOperand* op) {
     DCHECK(op->IsUnallocated());
     return static_cast<UnallocatedOperand*>(op);
+  }
+
+  static UnallocatedOperand cast(const InstructionOperand& op) {
+    DCHECK(op.IsUnallocated());
+    return *static_cast<const UnallocatedOperand*>(&op);
   }
 
   // The encoding used for UnallocatedOperand operands depends on the policy
@@ -341,6 +352,9 @@ std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
 template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
 class SubKindOperand FINAL : public InstructionOperand {
  public:
+  explicit SubKindOperand(int index)
+      : InstructionOperand(kOperandKind, index) {}
+
   static SubKindOperand* Create(int index, Zone* zone) {
     DCHECK(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
@@ -357,6 +371,11 @@ class SubKindOperand FINAL : public InstructionOperand {
     return reinterpret_cast<const SubKindOperand*>(op);
   }
 
+  static SubKindOperand cast(const InstructionOperand& op) {
+    DCHECK(op.kind() == kOperandKind);
+    return *static_cast<const SubKindOperand*>(&op);
+  }
+
   static void SetUpCache();
   static void TearDownCache();
 
@@ -364,8 +383,6 @@ class SubKindOperand FINAL : public InstructionOperand {
   static SubKindOperand* cache;
 
   SubKindOperand() : InstructionOperand(kOperandKind, 0) {}  // For the caches.
-  explicit SubKindOperand(int index)
-      : InstructionOperand(kOperandKind, index) {}
 };
 
 
@@ -492,9 +509,9 @@ class Instruction : public ZoneObject {
   }
 
   static Instruction* New(Zone* zone, InstructionCode opcode,
-                          size_t output_count, InstructionOperand** outputs,
-                          size_t input_count, InstructionOperand** inputs,
-                          size_t temp_count, InstructionOperand** temps) {
+                          size_t output_count, InstructionOperand* outputs,
+                          size_t input_count, InstructionOperand* inputs,
+                          size_t temp_count, InstructionOperand* temps) {
     DCHECK(opcode >= 0);
     DCHECK(output_count == 0 || outputs != NULL);
     DCHECK(input_count == 0 || inputs != NULL);
@@ -502,8 +519,8 @@ class Instruction : public ZoneObject {
     size_t total_extra_ops = output_count + input_count + temp_count;
     if (total_extra_ops != 0) total_extra_ops--;
     int size = static_cast<int>(
-        RoundUp(sizeof(Instruction), sizeof(UnallocatedOperand)) +
-        total_extra_ops * sizeof(UnallocatedOperand));
+        RoundUp(sizeof(Instruction), sizeof(InstructionOperand)) +
+        total_extra_ops * sizeof(InstructionOperand));
     return new (zone->New(size)) Instruction(
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
@@ -559,9 +576,9 @@ class Instruction : public ZoneObject {
  protected:
   explicit Instruction(InstructionCode opcode);
   Instruction(InstructionCode opcode, size_t output_count,
-              InstructionOperand** outputs, size_t input_count,
-              InstructionOperand** inputs, size_t temp_count,
-              InstructionOperand** temps);
+              InstructionOperand* outputs, size_t input_count,
+              InstructionOperand* inputs, size_t temp_count,
+              InstructionOperand* temps);
 
  protected:
   typedef BitField<size_t, 0, 8> OutputCountField;
@@ -573,7 +590,7 @@ class Instruction : public ZoneObject {
   InstructionCode opcode_;
   uint32_t bit_field_;
   PointerMap* pointer_map_;
-  UnallocatedOperand operands_[1];
+  InstructionOperand operands_[1];
 };
 
 

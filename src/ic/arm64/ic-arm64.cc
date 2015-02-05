@@ -747,7 +747,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
 
 void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                       StrictMode strict_mode) {
+                                       LanguageMode language_mode) {
   ASM_LOCATION("KeyedStoreIC::GenerateMegamorphic");
   Label slow;
   Label array;
@@ -802,7 +802,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   //  x0: value
   //  x1: key
   //  x2: receiver
-  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, language_mode);
   // Never returns to here.
 
   __ bind(&maybe_name_key);

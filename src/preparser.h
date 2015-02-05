@@ -470,7 +470,7 @@ class ParserBase : public Traits {
     return function_state_->factory();
   }
 
-  StrictMode strict_mode() { return scope_->strict_mode(); }
+  LanguageMode language_mode() { return scope_->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
   // Report syntax errors.
@@ -1011,12 +1011,14 @@ class PreParserScope {
   explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type,
                           void* = NULL)
       : scope_type_(scope_type) {
-    strict_mode_ = outer_scope ? outer_scope->strict_mode() : SLOPPY;
+    language_mode_ = outer_scope ? outer_scope->language_mode() : SLOPPY;
   }
 
   ScopeType type() { return scope_type_; }
-  StrictMode strict_mode() const { return strict_mode_; }
-  void SetStrictMode(StrictMode strict_mode) { strict_mode_ = strict_mode; }
+  LanguageMode language_mode() const { return language_mode_; }
+  void SetLanguageMode(LanguageMode language_mode) {
+    language_mode_ = language_mode;
+  }
   void SetScopeName(PreParserIdentifier name) {}
 
   // When PreParser is in use, lazy compilation is already being done,
@@ -1038,7 +1040,7 @@ class PreParserScope {
 
  private:
   ScopeType scope_type_;
-  StrictMode strict_mode_;
+  LanguageMode language_mode_;
 };
 
 
@@ -1529,7 +1531,7 @@ class PreParser : public ParserBase<PreParserTraits> {
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
-    } else if (scope_->strict_mode() == STRICT) {
+    } else if (is_strict(scope_->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
     }
@@ -1547,9 +1549,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(StrictMode strict_mode,
-                                      bool is_generator,
-                                      ParserRecorder* log);
+  PreParseResult PreParseLazyFunction(LanguageMode language_mode,
+                                      bool is_generator, ParserRecorder* log);
 
  private:
   friend class PreParserTraits;
@@ -1708,8 +1709,10 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
     case Token::STATIC:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessageAt(source_location, strict_mode() == SLOPPY
-          ? "unexpected_token_identifier" : "unexpected_strict_reserved");
+      return ReportMessageAt(source_location,
+                             is_strict(language_mode())
+                                 ? "unexpected_strict_reserved"
+                                 : "unexpected_token_identifier");
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
       return Traits::ReportMessageAt(source_location,
@@ -1730,14 +1733,14 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
   if (next == Token::IDENTIFIER) {
     IdentifierT name = this->GetSymbol(scanner());
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
-        strict_mode() == STRICT && this->IsEvalOrArguments(name)) {
+        is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
       ReportMessage("strict_eval_arguments");
       *ok = false;
     }
     if (name->IsArguments(this->ast_value_factory()))
       scope_->RecordArgumentsUsage();
     return name;
-  } else if (strict_mode() == SLOPPY &&
+  } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
               next == Token::LET || next == Token::STATIC ||
               (next == Token::YIELD && !is_generator()))) {
@@ -1934,7 +1937,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::CLASS: {
       Consume(Token::CLASS);
-      if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+      if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
         ReportMessage("sloppy_lexical", NULL);
         *ok = false;
         break;
@@ -2189,7 +2192,7 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
         is_static, *is_computed_name);
 
   } else if (!in_class && allow_harmony_object_literals_ &&
-             Token::IsIdentifier(name_token, strict_mode(),
+             Token::IsIdentifier(name_token, language_mode(),
                                  this->is_generator())) {
     DCHECK(!*is_computed_name);
     DCHECK(!is_static);
@@ -2512,7 +2515,7 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
 
     // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && strict_mode() == STRICT &&
+    if (op == Token::DELETE && is_strict(language_mode()) &&
         this->IsIdentifier(expression)) {
       ReportMessage("strict_delete");
       *ok = false;
@@ -2880,12 +2883,12 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
         CHECK_OK);
 
     // Validate strict mode.
-    if (strict_mode() == STRICT) {
+    if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(start_pos, scanner()->location().end_pos,
                               CHECK_OK);
     }
 
-    if (allow_harmony_scoping() && strict_mode() == STRICT)
+    if (allow_harmony_scoping() && is_strict(language_mode()))
       this->CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
@@ -3002,7 +3005,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
     Traits>::CheckAndRewriteReferenceExpression(ExpressionT expression,
                                                 Scanner::Location location,
                                                 const char* message, bool* ok) {
-  if (strict_mode() == STRICT && this->IsIdentifier(expression) &&
+  if (is_strict(language_mode()) && this->IsIdentifier(expression) &&
       this->IsEvalOrArguments(this->AsIdentifier(expression))) {
     this->ReportMessageAt(location, "strict_eval_arguments", false);
     *ok = false;

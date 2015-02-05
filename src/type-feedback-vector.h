@@ -166,6 +166,12 @@ class TypeFeedbackVector : public FixedArray {
 
   // Clears the vector slots and the vector ic slots.
   void ClearSlots(SharedFunctionInfo* shared);
+  void ClearICSlots(SharedFunctionInfo* shared) {
+    ClearICSlotsImpl(shared, true);
+  }
+  void ClearICSlotsAtGCTime(SharedFunctionInfo* shared) {
+    ClearICSlotsImpl(shared, false);
+  }
 
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
@@ -200,6 +206,8 @@ class TypeFeedbackVector : public FixedArray {
 
   typedef BitSetComputer<VectorICKind, kVectorICKindBits, kSmiValueSize,
                          uint32_t> VectorICComputer;
+
+  void ClearICSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
 };

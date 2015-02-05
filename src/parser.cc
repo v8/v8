@@ -288,7 +288,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
   Scope* function_scope =
       NewScope(scope, FUNCTION_SCOPE, FunctionKind::kDefaultConstructor);
-  function_scope->SetStrictMode(STRICT);
+  function_scope->SetLanguageMode(
+      static_cast<LanguageMode>(scope->language_mode() | STRICT));
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -924,7 +925,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     }
     original_scope_ = *scope;
     if (info->is_eval()) {
-      if (!(*scope)->is_script_scope() || info->strict_mode() == STRICT) {
+      if (!(*scope)->is_script_scope() || is_strict(info->language_mode())) {
         *scope = NewScope(*scope, EVAL_SCOPE);
       }
     } else if (info->is_global()) {
@@ -946,7 +947,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     FunctionState function_state(&function_state_, &scope_, *scope,
                                  &function_factory);
 
-    scope_->SetStrictMode(info->strict_mode());
+    scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
@@ -962,11 +963,11 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
       ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
     }
 
-    if (ok && strict_mode() == STRICT) {
+    if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
 
-    if (ok && allow_harmony_scoping() && strict_mode() == STRICT) {
+    if (ok && allow_harmony_scoping() && is_strict(language_mode())) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -1065,9 +1066,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
-    DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
-    DCHECK(info()->strict_mode() == shared_info->strict_mode());
-    scope->SetStrictMode(shared_info->strict_mode());
+    DCHECK(is_sloppy(scope->language_mode()) ||
+           is_strict(info()->language_mode()));
+    DCHECK(info()->language_mode() == shared_info->language_mode());
+    scope->SetLanguageMode(shared_info->language_mode());
     FunctionLiteral::FunctionType function_type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
@@ -1145,7 +1147,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           literal->raw_value()->IsString()) {
         // Check "use strict" directive (ES5 14.1) and "use asm" directive. Only
         // one can be present.
-        if (strict_mode() == SLOPPY &&
+        if (is_sloppy(language_mode()) &&
             literal->raw_value()->AsString() ==
                 ast_value_factory()->use_strict_string() &&
             token_loc.end_pos - token_loc.beg_pos ==
@@ -1167,7 +1169,8 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
             }
             mode_ = PARSE_EAGERLY;
           }
-          scope_->SetStrictMode(STRICT);
+          scope_->SetLanguageMode(
+              static_cast<LanguageMode>(scope_->language_mode() | STRICT));
           // "use strict" is the only directive for now.
           directive_prologue = false;
         } else if (literal->raw_value()->AsString() ==
@@ -1208,7 +1211,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
       return ParseVariableStatement(kStatementListItem, NULL, ok);
     case Token::LET:
       DCHECK(allow_harmony_scoping());
-      if (strict_mode() == STRICT) {
+      if (is_strict(language_mode())) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
       // Fall through.
@@ -1253,7 +1256,8 @@ Module* Parser::ParseModule(bool* ok) {
   Scope* scope = NewScope(scope_, MODULE_SCOPE);
 
   scope->set_start_position(scanner()->location().beg_pos);
-  scope->SetStrictMode(STRICT);
+  scope->SetLanguageMode(
+      static_cast<LanguageMode>(scope->language_mode() | STRICT));
 
   {
     BlockState block_state(&scope_, scope);
@@ -1734,7 +1738,7 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       // In Harmony mode, this case also handles the extension:
       // Statement:
       //    GeneratorDeclaration
-      if (strict_mode() == STRICT) {
+      if (is_strict(language_mode())) {
         ReportMessageAt(scanner()->peek_location(), "strict_function");
         *ok = false;
         return NULL;
@@ -1752,7 +1756,7 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       // In ES6 CONST is not allowed as a Statement, only as a
       // LexicalDeclaration, however we continue to allow it in sloppy mode for
       // backwards compatibility.
-      if (strict_mode() == SLOPPY) {
+      if (is_sloppy(language_mode())) {
         return ParseVariableStatement(kStatement, NULL, ok);
       }
 
@@ -1820,7 +1824,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
       DCHECK(IsDeclaredVariableMode(var->mode()));
-      if (allow_harmony_scoping() && strict_mode() == STRICT) {
+      if (allow_harmony_scoping() && is_strict(language_mode())) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         ParserTraits::ReportMessage("var_redeclaration", name);
@@ -1861,7 +1865,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         Variable(declaration_scope, name, mode, true, kind,
                  kNeedsInitialization, kNotAssigned, proxy->interface());
   } else if (declaration_scope->is_eval_scope() &&
-             declaration_scope->strict_mode() == SLOPPY) {
+             is_sloppy(declaration_scope->language_mode())) {
     // For variable declarations in a sloppy eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
     // DeclareLookupSlot runtime function.
@@ -1995,9 +1999,11 @@ Statement* Parser::ParseFunctionDeclaration(
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
-      allow_harmony_scoping() && strict_mode() == STRICT &&
-      !(scope_->is_script_scope() || scope_->is_eval_scope() ||
-          scope_->is_function_scope()) ? LET : VAR;
+      allow_harmony_scoping() && is_strict(language_mode()) &&
+              !(scope_->is_script_scope() || scope_->is_eval_scope() ||
+                scope_->is_function_scope())
+          ? LET
+          : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
@@ -2023,7 +2029,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   // so rewrite it as such.
 
   Expect(Token::CLASS, CHECK_OK);
-  if (!allow_harmony_sloppy() && strict_mode() == SLOPPY) {
+  if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
     ReportMessage("sloppy_lexical");
     *ok = false;
     return NULL;
@@ -2052,7 +2058,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
 
 
 Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
-  if (allow_harmony_scoping() && strict_mode() == STRICT) {
+  if (allow_harmony_scoping() && is_strict(language_mode())) {
     return ParseScopedBlock(labels, ok);
   }
 
@@ -2163,25 +2169,23 @@ Block* Parser::ParseVariableDeclarations(
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
-    switch (strict_mode()) {
-      case SLOPPY:
-        mode = CONST_LEGACY;
-        init_op = Token::INIT_CONST_LEGACY;
-        break;
-      case STRICT:
-        DCHECK(var_context != kStatement);
-        // In ES5 const is not allowed in strict mode.
-        if (!allow_harmony_scoping()) {
-          ReportMessage("strict_const");
-          *ok = false;
-          return NULL;
-        }
-        mode = CONST;
-        init_op = Token::INIT_CONST;
+    if (is_sloppy(language_mode())) {
+      mode = CONST_LEGACY;
+      init_op = Token::INIT_CONST_LEGACY;
+    } else {
+      DCHECK(var_context != kStatement);
+      // In ES5 const is not allowed in strict mode.
+      if (!allow_harmony_scoping()) {
+        ReportMessage("strict_const");
+        *ok = false;
+        return NULL;
+      }
+      mode = CONST;
+      init_op = Token::INIT_CONST;
     }
     is_const = true;
     needs_init = true;
-  } else if (peek() == Token::LET && strict_mode() == STRICT) {
+  } else if (peek() == Token::LET && is_strict(language_mode())) {
     DCHECK(allow_harmony_scoping());
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
@@ -2352,10 +2356,10 @@ Block* Parser::ParseVariableDeclarations(
             Runtime::FunctionForId(Runtime::kInitializeConstGlobal), arguments,
             pos);
       } else {
-        // Add strict mode.
+        // Add language mode.
         // We may want to pass singleton to avoid Literal allocations.
-        StrictMode strict_mode = initialization_scope->strict_mode();
-        arguments->Add(factory()->NewNumberLiteral(strict_mode, pos), zone());
+        LanguageMode language_mode = initialization_scope->language_mode();
+        arguments->Add(factory()->NewNumberLiteral(language_mode, pos), zone());
 
         // Be careful not to assign a value to the global variable if
         // we're in a with. The initialization value should not
@@ -2664,7 +2668,7 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::WITH, CHECK_OK);
   int pos = position();
 
-  if (strict_mode() == STRICT) {
+  if (is_strict(language_mode())) {
     ReportMessage("strict_mode_with");
     *ok = false;
     return NULL;
@@ -3234,7 +3238,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR ||
-        (peek() == Token::CONST && strict_mode() == SLOPPY)) {
+        (peek() == Token::CONST && is_sloppy(language_mode()))) {
       bool is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
@@ -3273,7 +3277,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         init = variable_statement;
       }
     } else if ((peek() == Token::LET || peek() == Token::CONST) &&
-               strict_mode() == STRICT) {
+               is_strict(language_mode())) {
       bool is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
@@ -3380,7 +3384,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   // Parsed initializer at this point.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && strict_mode() == SLOPPY &&
+  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
       is_let_identifier_expression) {
     ReportMessage("sloppy_lexical", NULL);
     *ok = false;
@@ -3635,7 +3639,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope =
       function_type == FunctionLiteral::DECLARATION &&
-              (!allow_harmony_scoping() || strict_mode() == SLOPPY) &&
+              (!allow_harmony_scoping() || is_sloppy(language_mode())) &&
               (original_scope_ == original_declaration_scope ||
                declaration_scope != original_declaration_scope)
           ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
@@ -3709,7 +3713,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
 
       Variable* var = scope_->DeclareParameter(param_name, VAR, is_rest);
-      if (scope->strict_mode() == SLOPPY) {
+      if (is_sloppy(scope->language_mode())) {
         // TODO(sigurds) Mark every parameter as maybe assigned. This is a
         // conservative approximation necessary to account for parameters
         // that are assigned via the arguments array.
@@ -3746,12 +3750,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Variable* fvar = NULL;
     Token::Value fvar_init_op = Token::INIT_CONST_LEGACY;
     if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
-      if (allow_harmony_scoping() && strict_mode() == STRICT) {
+      if (allow_harmony_scoping() && is_strict(language_mode())) {
         fvar_init_op = Token::INIT_CONST;
       }
       VariableMode fvar_mode =
-          allow_harmony_scoping() && strict_mode() == STRICT
-              ? CONST : CONST_LEGACY;
+          allow_harmony_scoping() && is_strict(language_mode()) ? CONST
+                                                                : CONST_LEGACY;
       DCHECK(function_name != NULL);
       fvar = new (zone())
           Variable(scope_, function_name, fvar_mode, true /* is valid LHS */,
@@ -3816,7 +3820,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Concise methods use StrictFormalParameters.
     // Functions for which IsSimpleParameterList() returns false use
     // StrictFormalParameters.
-    if (strict_mode() == STRICT || IsConciseMethod(kind) || is_rest) {
+    if (is_strict(language_mode()) || IsConciseMethod(kind) || is_rest) {
       CheckStrictFunctionNameAndParameters(function_name,
                                            name_is_strict_reserved,
                                            function_name_location,
@@ -3825,11 +3829,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                            reserved_loc,
                                            CHECK_OK);
     }
-    if (strict_mode() == STRICT) {
+    if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
     }
-    if (allow_harmony_scoping() && strict_mode() == STRICT) {
+    if (allow_harmony_scoping() && is_strict(language_mode())) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
     }
   }
@@ -3872,7 +3876,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
       total_preparse_skipped_ += scope_->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
-      scope_->SetStrictMode(entry.strict_mode());
+      scope_->SetLanguageMode(entry.language_mode());
       return;
     }
     cached_parse_data_->Reject();
@@ -3903,13 +3907,13 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
   total_preparse_skipped_ += scope_->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
-  scope_->SetStrictMode(logger.strict_mode());
+  scope_->SetLanguageMode(logger.language_mode());
   if (produce_cached_parse_data()) {
     DCHECK(log_);
     // Position right after terminal '}'.
     int body_end = scanner()->location().end_pos;
     log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
-                      *expected_property_count, scope_->strict_mode());
+                      *expected_property_count, scope_->language_mode());
   }
 }
 
@@ -4004,10 +4008,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_rest_params(
         allow_harmony_rest_params());
   }
-  PreParser::PreParseResult result =
-      reusable_preparser_->PreParseLazyFunction(strict_mode(),
-                                                is_generator(),
-                                                logger);
+  PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
+      language_mode(), is_generator(), logger);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }
@@ -4033,7 +4035,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
 
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, block_scope);
-  scope_->SetStrictMode(STRICT);
+  scope_->SetLanguageMode(
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
   scope_->SetScopeName(name);
 
   VariableProxy* proxy = NULL;

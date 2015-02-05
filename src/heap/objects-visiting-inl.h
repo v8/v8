@@ -446,7 +446,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
     shared->ResetForNewContext(heap->global_ic_age());
   }
   if (FLAG_cleanup_code_caches_at_gc) {
-    shared->ClearTypeFeedbackInfo();
+    shared->ClearTypeFeedbackInfoAtGCTime();
   }
   if (FLAG_cache_optimized_code && FLAG_flush_optimized_code_cache &&
       !shared->optimized_code_map()->IsSmi()) {

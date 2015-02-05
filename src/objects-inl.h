@@ -1197,10 +1197,10 @@ MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
                                                    Handle<JSReceiver> receiver,
                                                    uint32_t index,
                                                    Handle<Object> value,
-                                                   StrictMode strict_mode) {
+                                                   LanguageMode language_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return SetPropertyWithHandler(proxy, receiver, name, value, strict_mode);
+  return SetPropertyWithHandler(proxy, receiver, name, value, language_mode);
 }
 
 
@@ -5804,17 +5804,20 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-StrictMode SharedFunctionInfo::strict_mode() {
+LanguageMode SharedFunctionInfo::language_mode() {
+  STATIC_ASSERT(LANGUAGE_END == 2);
   return BooleanBit::get(compiler_hints(), kStrictModeFunction)
       ? STRICT : SLOPPY;
 }
 
 
-void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
-  // We only allow mode transitions from sloppy to strict.
-  DCHECK(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
+void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  // We only allow language mode transitions that set the same language mode
+  // again or go up in the chain:
+  DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
   int hints = compiler_hints();
-  hints = BooleanBit::set(hints, kStrictModeFunction, strict_mode == STRICT);
+  hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
   set_compiler_hints(hints);
 }
 

@@ -362,7 +362,7 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
   CHECK(Compiler::ParseAndAnalyze(&info));
   CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
-  if (info.scope()->arguments() != NULL && info.strict_mode() != STRICT) {
+  if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
     SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
     if (FLAG_trace_turbo_inlining) {

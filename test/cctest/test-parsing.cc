@@ -1070,7 +1070,7 @@ TEST(ScopePositions) {
     const char* inner_source;
     const char* outer_suffix;
     i::ScopeType scope_type;
-    i::StrictMode strict_mode;
+    i::LanguageMode language_mode;
   };
 
   const SourceData source_data[] = {
@@ -1277,7 +1277,7 @@ TEST(ScopePositions) {
     parser.set_allow_harmony_scoping(true);
     parser.set_allow_harmony_arrow_functions(true);
     info.MarkAsGlobal();
-    info.SetStrictMode(source_data[i].strict_mode);
+    info.SetLanguageMode(source_data[i].language_mode);
     parser.Parse();
     CHECK(info.function() != NULL);
 

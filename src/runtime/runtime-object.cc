@@ -99,7 +99,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
                                                Handle<Object> value,
-                                               StrictMode strict_mode) {
+                                               LanguageMode language_mode) {
   if (object->IsUndefined() || object->IsNull()) {
     Handle<Object> args[2] = {key, object};
     THROW_NEW_ERROR(isolate, NewTypeError("non_object_property_store",
@@ -117,7 +117,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
     Handle<Name> name = Handle<Name>::cast(name_object);
     return Object::SetProperty(Handle<JSProxy>::cast(object), name, value,
-                               strict_mode);
+                               language_mode);
   }
 
   // Check if the given key is an array index.
@@ -148,7 +148,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     MaybeHandle<Object> result = JSObject::SetElement(
-        js_object, index, value, NONE, strict_mode, true, SET_PROPERTY);
+        js_object, index, value, NONE, language_mode, true, SET_PROPERTY);
     JSObject::ValidateElements(js_object);
 
     return result.is_null() ? result : value;
@@ -166,11 +166,11 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
               isolate, value, Execution::ToNumber(isolate, value), Object);
         }
       }
-      return JSObject::SetElement(js_object, index, value, NONE, strict_mode,
+      return JSObject::SetElement(js_object, index, value, NONE, language_mode,
                                   true, SET_PROPERTY);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-      return Object::SetProperty(object, name, value, strict_mode);
+      return Object::SetProperty(object, name, value, language_mode);
     }
   }
 
@@ -184,10 +184,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     // TODO(verwaest): Support non-JSObject receivers.
     if (!object->IsJSObject()) return value;
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    return JSObject::SetElement(js_object, index, value, NONE, strict_mode,
+    return JSObject::SetElement(js_object, index, value, NONE, language_mode,
                                 true, SET_PROPERTY);
   }
-  return Object::SetProperty(object, name, value, strict_mode);
+  return Object::SetProperty(object, name, value, language_mode);
 }
 
 
@@ -695,13 +695,13 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode_arg, 3);
-  StrictMode strict_mode = strict_mode_arg;
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 3);
+  LanguageMode language_mode = language_mode_arg;
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::SetObjectProperty(isolate, object, key, value, strict_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
   return *result;
 }
 
@@ -738,10 +738,10 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-  CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 2);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 2);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::DeleteProperty(object, key, strict_mode));
+      isolate, result, JSReceiver::DeleteProperty(object, key, language_mode));
   return *result;
 }
 

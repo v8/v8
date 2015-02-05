@@ -28,6 +28,7 @@ class PlatformInterfaceDescriptor;
   V(FastCloneShallowArray)                    \
   V(FastCloneShallowObject)                   \
   V(CreateAllocationSite)                     \
+  V(CreateWeakCell)                           \
   V(CallFunction)                             \
   V(CallFunctionWithFeedback)                 \
   V(CallFunctionWithFeedbackAndVector)        \
@@ -315,6 +316,19 @@ class FastCloneShallowObjectDescriptor : public CallInterfaceDescriptor {
 class CreateAllocationSiteDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CreateAllocationSiteDescriptor, CallInterfaceDescriptor)
+};
+
+
+class CreateWeakCellDescriptor : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices {
+    kVectorIndex,
+    kSlotIndex,
+    kValueIndex,
+    kParameterCount
+  };
+
+  DECLARE_DESCRIPTOR(CreateWeakCellDescriptor, CallInterfaceDescriptor)
 };
 
 

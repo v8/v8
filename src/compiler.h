@@ -108,7 +108,8 @@ class CompilationInfo {
   bool is_eval() const { return GetFlag(kEval); }
   bool is_global() const { return GetFlag(kGlobal); }
   bool is_module() const { return GetFlag(kModule); }
-  StrictMode strict_mode() const {
+  LanguageMode language_mode() const {
+    STATIC_ASSERT(LANGUAGE_END == 2);
     return GetFlag(kStrictMode) ? STRICT : SLOPPY;
   }
   FunctionLiteral* function() const { return function_; }
@@ -165,8 +166,9 @@ class CompilationInfo {
 
   bool this_has_uses() { return GetFlag(kThisHasUses); }
 
-  void SetStrictMode(StrictMode strict_mode) {
-    SetFlag(kStrictMode, strict_mode == STRICT);
+  void SetLanguageMode(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    SetFlag(kStrictMode, language_mode & STRICT);
   }
 
   void MarkAsNative() { SetFlag(kNative); }
@@ -715,7 +717,7 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, StrictMode strict_mode,
+      Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int scope_position);
 
   // Compile a String source within a context.

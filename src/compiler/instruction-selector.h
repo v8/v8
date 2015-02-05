@@ -23,6 +23,9 @@ class FlagsContinuation;
 class Linkage;
 
 
+typedef ZoneVector<InstructionOperand> InstructionOperandVector;
+
+
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector FINAL {
  public:
@@ -41,36 +44,36 @@ class InstructionSelector FINAL {
   // ============= Architecture-independent code emission methods. =============
   // ===========================================================================
 
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    InstructionOperand* e, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    InstructionOperand* e, InstructionOperand* f,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    InstructionOperand e, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    InstructionOperand e, InstructionOperand f,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
-                    InstructionOperand** outputs, size_t input_count,
-                    InstructionOperand** inputs, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
+                    InstructionOperand* outputs, size_t input_count,
+                    InstructionOperand* inputs, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
@@ -154,7 +157,7 @@ class InstructionSelector FINAL {
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
-  void MarkAsRepresentation(MachineType rep, InstructionOperand* op);
+  void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding

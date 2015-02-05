@@ -124,7 +124,23 @@ void CreateAllocationSiteDescriptor::Initialize(
   // x2: feedback vector
   // x3: call feedback slot
   Register registers[] = {cp, x2, x3};
-  data->Initialize(arraysize(registers), registers, NULL);
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::Tagged(),
+                                      Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void CreateWeakCellDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  // cp: context
+  // x2: feedback vector
+  // x3: call feedback slot
+  // x1: tagged value to put in the weak cell
+  Register registers[] = {cp, x2, x3, x1};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
 }
 
 

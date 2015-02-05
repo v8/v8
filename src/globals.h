@@ -225,8 +225,26 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum StrictMode { SLOPPY, STRICT };
+enum LanguageMode {
+  // LanguageMode is expressed as a bitmask. Descriptions of the bits:
+  STRICT = 1 << 0,
+  LANGUAGE_END,
 
+  // Shorthands for some common language modes.
+  SLOPPY = 0
+};
+
+inline bool is_strict(LanguageMode language_mode) {
+  return language_mode & STRICT;
+}
+
+inline bool is_sloppy(LanguageMode language_mode) {
+  return (language_mode & STRICT) == 0;
+}
+
+inline bool is_valid_language_mode(int language_mode) {
+  return language_mode == SLOPPY || language_mode == STRICT;
+}
 
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;

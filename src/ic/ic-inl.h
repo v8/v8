@@ -106,11 +106,11 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
   // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
-  // ICs as strict mode. The strict-ness of the IC must be preserved.
+  // ICs as language mode. The language mode of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    DCHECK(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
-           StoreIC::GetStrictMode(target->extra_ic_state()));
+    DCHECK(StoreIC::GetLanguageMode(old_target->extra_ic_state()) ==
+           StoreIC::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
   Assembler::set_target_address_at(address, constant_pool,
@@ -140,16 +140,16 @@ void LoadIC::set_target(Code* code) {
 
 
 void StoreIC::set_target(Code* code) {
-  // Strict mode must be preserved across IC patching.
-  DCHECK(GetStrictMode(code->extra_ic_state()) ==
-         GetStrictMode(target()->extra_ic_state()));
+  // Language mode must be preserved across IC patching.
+  DCHECK(GetLanguageMode(code->extra_ic_state()) ==
+         GetLanguageMode(target()->extra_ic_state()));
   IC::set_target(code);
 }
 
 
 void KeyedStoreIC::set_target(Code* code) {
-  // Strict mode must be preserved across IC patching.
-  DCHECK(GetStrictMode(code->extra_ic_state()) == strict_mode());
+  // Language mode must be preserved across IC patching.
+  DCHECK(GetLanguageMode(code->extra_ic_state()) == language_mode());
   IC::set_target(code);
 }
 

@@ -520,24 +520,26 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  class StrictModeState : public BitField<StrictMode, 1, 1> {};
-  static ExtraICState ComputeExtraICState(StrictMode flag) {
-    return StrictModeState::encode(flag);
+  STATIC_ASSERT(i::LANGUAGE_END == 2);
+  class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
+  static ExtraICState ComputeExtraICState(LanguageMode flag) {
+    return LanguageModeState::encode(flag);
   }
-  static StrictMode GetStrictMode(ExtraICState state) {
-    return StrictModeState::decode(state);
+  static LanguageMode GetLanguageMode(ExtraICState state) {
+    return LanguageModeState::decode(state);
   }
 
   // For convenience, a statically declared encoding of strict mode extra
   // IC state.
-  static const ExtraICState kStrictModeState = 1 << StrictModeState::kShift;
+  static const ExtraICState kStrictModeState = STRICT
+                                               << LanguageModeState::kShift;
 
   StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     DCHECK(IsStoreStub());
   }
 
-  StrictMode strict_mode() const {
-    return StrictModeState::decode(extra_ic_state());
+  LanguageMode language_mode() const {
+    return LanguageModeState::decode(extra_ic_state());
   }
 
   // Code generators for stub routines. Only called once at startup.
@@ -550,9 +552,10 @@ class StoreIC : public IC {
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode);
+                                         LanguageMode language_mode);
 
-  static Handle<Code> initialize_stub(Isolate* isolate, StrictMode strict_mode);
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      LanguageMode language_mode);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -568,11 +571,11 @@ class StoreIC : public IC {
   Handle<Code> slow_stub() const;
 
   virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), strict_mode());
+    return pre_monomorphic_stub(isolate(), language_mode());
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictMode strict_mode);
+                                           LanguageMode language_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -607,9 +610,9 @@ class KeyedStoreIC : public StoreIC {
 
   class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
 
-  static ExtraICState ComputeExtraICState(StrictMode flag,
+  static ExtraICState ComputeExtraICState(LanguageMode flag,
                                           KeyedAccessStoreMode mode) {
-    return StrictModeState::encode(flag) |
+    return LanguageModeState::encode(flag) |
            ExtraICStateKeyedAccessStoreMode::encode(mode) |
            IcCheckTypeField::encode(ELEMENT);
   }
@@ -638,16 +641,17 @@ class KeyedStoreIC : public StoreIC {
   }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm, StrictMode strict_mode);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  LanguageMode language_mode);
   static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:
   virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), strict_mode());
+    return pre_monomorphic_stub(isolate(), language_mode());
   }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictMode strict_mode) {
-    if (strict_mode == STRICT) {
+                                           LanguageMode language_mode) {
+    if (is_strict(language_mode)) {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
     } else {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();

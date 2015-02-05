@@ -56,7 +56,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
               CallsEvalField::encode(scope->calls_eval()) |
-              StrictModeField::encode(scope->strict_mode()) |
+              LanguageModeField::encode(scope->language_mode()) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
@@ -146,8 +146,8 @@ bool ScopeInfo::CallsEval() {
 }
 
 
-StrictMode ScopeInfo::strict_mode() {
-  return length() > 0 ? StrictModeField::decode(Flags()) : SLOPPY;
+LanguageMode ScopeInfo::language_mode() {
+  return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY;
 }
 
 

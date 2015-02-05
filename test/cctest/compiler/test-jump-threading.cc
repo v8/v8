@@ -31,7 +31,7 @@ class TestCode : public HandleAndZoneScope {
 
   int Jump(int target) {
     Start();
-    InstructionOperand* ops[] = {UseRpo(target)};
+    InstructionOperand ops[] = {UseRpo(target)};
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, NULL, 1,
                                               ops, 0, NULL)->MarkAsControl());
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
@@ -44,7 +44,7 @@ class TestCode : public HandleAndZoneScope {
   }
   int Branch(int ttarget, int ftarget) {
     Start();
-    InstructionOperand* ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
+    InstructionOperand ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
     sequence_.AddInstruction(Instruction::New(main_zone(), code, 0, NULL, 2,
@@ -81,9 +81,9 @@ class TestCode : public HandleAndZoneScope {
     current_ = NULL;
     rpo_number_ = RpoNumber::FromInt(rpo_number_.ToInt() + 1);
   }
-  InstructionOperand* UseRpo(int num) {
+  InstructionOperand UseRpo(int num) {
     int index = sequence_.AddImmediate(Constant(RpoNumber::FromInt(num)));
-    return ImmediateOperand::Create(index, main_zone());
+    return ImmediateOperand(index);
   }
   void Start(bool deferred = false) {
     if (current_ == NULL) {

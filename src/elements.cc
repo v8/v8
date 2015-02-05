@@ -691,7 +691,8 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) OVERRIDE = 0;
+      Handle<JSObject> obj, uint32_t key,
+      LanguageMode language_mode) OVERRIDE = 0;
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
                                FixedArrayBase* to, ElementsKind from_kind,
@@ -914,7 +915,7 @@ class FastElementsAccessor
   }
 
   static Handle<Object> DeleteCommon(Handle<JSObject> obj, uint32_t key,
-                                     StrictMode strict_mode) {
+                                     LanguageMode language_mode) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
@@ -972,8 +973,8 @@ class FastElementsAccessor
   }
 
   virtual MaybeHandle<Object> Delete(Handle<JSObject> obj, uint32_t key,
-                                     StrictMode strict_mode) FINAL {
-    return DeleteCommon(obj, key, strict_mode);
+                                     LanguageMode language_mode) FINAL {
+    return DeleteCommon(obj, key, language_mode);
   }
 
   static bool HasElementImpl(
@@ -1295,7 +1296,7 @@ class TypedElementsAccessor
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
+      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) FINAL {
     // External arrays always ignore deletes.
     return obj->GetIsolate()->factory()->true_value();
   }
@@ -1394,7 +1395,7 @@ class DictionaryElementsAccessor
   }
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteCommon(
-      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) {
+      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> backing_store(FixedArray::cast(obj->elements()),
                                      isolate);
@@ -1410,7 +1411,7 @@ class DictionaryElementsAccessor
       Handle<Object> result =
           SeededNumberDictionary::DeleteProperty(dictionary, entry);
       if (*result == *isolate->factory()->false_value()) {
-        if (strict_mode == STRICT) {
+        if (is_strict(language_mode)) {
           // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
           Handle<Object> args[2] = { name, obj };
@@ -1445,8 +1446,8 @@ class DictionaryElementsAccessor
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
-    return DeleteCommon(obj, key, strict_mode);
+      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) FINAL {
+    return DeleteCommon(obj, key, language_mode);
   }
 
   MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
@@ -1617,7 +1618,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, StrictMode strict_mode) FINAL {
+      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) FINAL {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map(FixedArray::cast(obj->elements()));
     Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
@@ -1629,13 +1630,14 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       if (arguments->IsDictionary()) {
-        return DictionaryElementsAccessor::DeleteCommon(obj, key, strict_mode);
+        return DictionaryElementsAccessor::DeleteCommon(obj, key,
+                                                        language_mode);
       } else {
         // It's difficult to access the version of DeleteCommon that is declared
         // in the templatized super class, call the concrete implementation in
         // the class for the most generalized ElementsKind subclass.
         return FastHoleyObjectElementsAccessor::DeleteCommon(obj, key,
-                                                             strict_mode);
+                                                             language_mode);
       }
     }
     return isolate->factory()->true_value();

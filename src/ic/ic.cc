@@ -584,7 +584,7 @@ void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
   if (IsCleared(target)) return;
   SetTargetAtAddress(
       address, *pre_monomorphic_stub(
-                   isolate, StoreIC::GetStrictMode(target->extra_ic_state())),
+                   isolate, StoreIC::GetLanguageMode(target->extra_ic_state())),
       constant_pool);
 }
 
@@ -1216,7 +1216,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         if (!holder->HasFastProperties()) break;
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         if (!receiver->IsJSObject() && !function->IsBuiltin() &&
-            function->shared()->strict_mode() == SLOPPY) {
+            is_sloppy(function->shared()->language_mode())) {
           // Calling sloppy non-builtins with a value as the receiver
           // requires boxing.
           break;
@@ -1540,7 +1540,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Object::SetProperty(object, name, value, strict_mode()), Object);
+        Object::SetProperty(object, name, value, language_mode()), Object);
     return result;
   }
 
@@ -1561,7 +1561,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        JSObject::SetElement(receiver, index, value, NONE, strict_mode()),
+        JSObject::SetElement(receiver, index, value, NONE, language_mode()),
         Object);
     return value;
   }
@@ -1572,7 +1572,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Object::SetProperty(object, name, value, strict_mode(), store_mode),
+        Object::SetProperty(object, name, value, language_mode(), store_mode),
         Object);
     return result;
   }
@@ -1584,7 +1584,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result,
-      Object::SetProperty(&it, value, strict_mode(), store_mode), Object);
+      Object::SetProperty(&it, value, language_mode(), store_mode), Object);
   return result;
 }
 
@@ -1606,8 +1606,8 @@ Handle<Code> CallIC::initialize_stub_in_optimized_code(
 
 
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      StrictMode strict_mode) {
-  ExtraICState extra_state = ComputeExtraICState(strict_mode);
+                                      LanguageMode language_mode) {
+  ExtraICState extra_state = ComputeExtraICState(language_mode);
   Handle<Code> ic =
       PropertyICCompiler::ComputeStore(isolate, UNINITIALIZED, extra_state);
   return ic;
@@ -1620,7 +1620,7 @@ Handle<Code> StoreIC::megamorphic_stub() {
                                             extra_ic_state());
   } else {
     DCHECK(kind() == Code::KEYED_STORE_IC);
-    if (strict_mode() == STRICT) {
+    if (is_strict(language_mode())) {
       return isolate()->builtins()->KeyedStoreIC_Megamorphic_Strict();
     } else {
       return isolate()->builtins()->KeyedStoreIC_Megamorphic();
@@ -1640,8 +1640,8 @@ Handle<Code> StoreIC::slow_stub() const {
 
 
 Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
-                                           StrictMode strict_mode) {
-  ExtraICState state = ComputeExtraICState(strict_mode);
+                                           LanguageMode language_mode) {
+  ExtraICState state = ComputeExtraICState(language_mode);
   return PropertyICCompiler::ComputeStore(isolate, PREMONOMORPHIC, state);
 }
 
@@ -1813,7 +1813,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
     return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
-        monomorphic_map, strict_mode(), store_mode);
+        monomorphic_map, language_mode(), store_mode);
   }
 
   // There are several special cases where an IC that is MONOMORPHIC can still
@@ -1838,7 +1838,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
-          transitioned_receiver_map, strict_mode(), store_mode);
+          transitioned_receiver_map, language_mode(), store_mode);
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
                (store_mode == STORE_AND_GROW_NO_TRANSITION ||
@@ -1848,7 +1848,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
       return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
-          receiver_map, strict_mode(), store_mode);
+          receiver_map, language_mode(), store_mode);
     }
   }
 
@@ -1909,7 +1909,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   return PropertyICCompiler::ComputeKeyedStorePolymorphic(
-      &target_receiver_maps, store_mode, strict_mode());
+      &target_receiver_maps, store_mode, language_mode());
 }
 
 
@@ -2039,7 +2039,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result, Runtime::SetObjectProperty(isolate(), object, key,
-                                                      value, strict_mode()),
+                                                      value, language_mode()),
         Object);
     return result;
   }
@@ -2089,7 +2089,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       bool key_is_smi_like = !Object::ToSmi(isolate(), key).is_null();
       if (receiver->elements()->map() ==
           isolate()->heap()->sloppy_arguments_elements_map()) {
-        if (strict_mode() == SLOPPY) {
+        if (is_sloppy(language_mode())) {
           stub = sloppy_arguments_stub();
         } else {
           TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
@@ -2118,7 +2118,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), store_handle,
         Runtime::SetObjectProperty(isolate(), object, key, value,
-                                   strict_mode()),
+                                   language_mode()),
         Object);
   }
 
@@ -2212,7 +2212,7 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
   // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
   DCHECK(!feedback->IsSmi());
 
-  if (feedback->IsJSFunction() || !function->IsJSFunction()) {
+  if (feedback->IsWeakCell() || !function->IsJSFunction()) {
     // We are going generic.
     nexus->ConfigureGeneric();
   } else {
@@ -2448,11 +2448,11 @@ RUNTIME_FUNCTION(StoreIC_Slow) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictMode strict_mode = ic.strict_mode();
+  LanguageMode language_mode = ic.language_mode();
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::SetObjectProperty(isolate, object, key, value, strict_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
   return *result;
 }
 
@@ -2464,11 +2464,11 @@ RUNTIME_FUNCTION(KeyedStoreIC_Slow) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictMode strict_mode = ic.strict_mode();
+  LanguageMode language_mode = ic.language_mode();
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::SetObjectProperty(isolate, object, key, value, strict_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
   return *result;
 }
 
@@ -2482,7 +2482,7 @@ RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
   Handle<Map> map = args.at<Map>(1);
   Handle<Object> key = args.at<Object>(2);
   Handle<Object> object = args.at<Object>(3);
-  StrictMode strict_mode = ic.strict_mode();
+  LanguageMode language_mode = ic.language_mode();
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
@@ -2490,7 +2490,7 @@ RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::SetObjectProperty(isolate, object, key, value, strict_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
   return *result;
 }
 
@@ -2941,7 +2941,7 @@ RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::SetProperty(receiver, name, value, ic.strict_mode()));
+      JSObject::SetProperty(receiver, name, value, ic.language_mode()));
   return *result;
 }
 

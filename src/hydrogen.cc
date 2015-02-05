@@ -1297,7 +1297,7 @@ HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         HConstant::cast(function)->handle(isolate()));
     SharedFunctionInfo* shared = f->shared();
-    if (shared->strict_mode() == STRICT || shared->native()) return object;
+    if (is_strict(shared->language_mode()) || shared->native()) return object;
   }
   return Add<HWrapReceiver>(object, function);
 }
@@ -6205,8 +6205,8 @@ Handle<Map> HOptimizedGraphBuilder::PropertyAccessInfo::map() {
 
 static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
   return type->Is(Type::NumberOrString()) &&
-      target->shared()->strict_mode() == SLOPPY &&
-      !target->shared()->native();
+         is_sloppy(target->shared()->language_mode()) &&
+         !target->shared()->native();
 }
 
 
@@ -6582,9 +6582,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* global_object = Add<HLoadNamedField>(
         context(), nullptr,
         HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-    HStoreNamedGeneric* instr =
-        Add<HStoreNamedGeneric>(global_object, var->name(),
-                                 value, function_strict_mode());
+    HStoreNamedGeneric* instr = Add<HStoreNamedGeneric>(
+        global_object, var->name(), value, function_language_mode());
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -6904,7 +6903,8 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     }
     return result;
   } else {
-    return New<HStoreNamedGeneric>(object, name, value, function_strict_mode());
+    return New<HStoreNamedGeneric>(object, name, value,
+                                   function_language_mode());
   }
 }
 
@@ -6928,7 +6928,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     }
     return result;
   } else {
-    return New<HStoreKeyedGeneric>(object, key, value, function_strict_mode());
+    return New<HStoreKeyedGeneric>(object, key, value,
+                                   function_language_mode());
   }
 }
 
@@ -8940,7 +8941,7 @@ void HOptimizedGraphBuilder::BuildFunctionCall(Call* expr) {
 HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
                                                     Handle<JSFunction> target) {
   SharedFunctionInfo* shared = target->shared();
-  if (shared->strict_mode() == SLOPPY && !shared->native()) {
+  if (is_sloppy(shared->language_mode()) && !shared->native()) {
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
@@ -10028,7 +10029,7 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     HValue* key = Pop();
     HValue* obj = Pop();
     HValue* function = AddLoadJSBuiltin(Builtins::DELETE);
-    Add<HPushArguments>(obj, key, Add<HConstant>(function_strict_mode()));
+    Add<HPushArguments>(obj, key, Add<HConstant>(function_language_mode()));
     // TODO(olivf) InvokeFunction produces a check for the parameter count,
     // even though we are certain to pass the correct number of arguments here.
     HInstruction* instr = New<HInvokeFunction>(function, 3);
@@ -11435,9 +11436,10 @@ void HOptimizedGraphBuilder::VisitDeclarations(
     Handle<FixedArray> array =
        isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
     for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
-    int flags = DeclareGlobalsEvalFlag::encode(current_info()->is_eval()) |
+    int flags =
+        DeclareGlobalsEvalFlag::encode(current_info()->is_eval()) |
         DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
-        DeclareGlobalsStrictMode::encode(current_info()->strict_mode());
+        DeclareGlobalsLanguageMode::encode(current_info()->language_mode());
     Add<HDeclareGlobals>(array, flags);
     globals_.Rewind(0);
   }

@@ -132,13 +132,9 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
-// TODO(mvstanton): with weak handling of all vector ics, this logic should
-// actually be completely eliminated and we no longer need to clear the
-// vector ICs.
-static bool ClearLogic(Heap* heap, int ic_age, Code::Kind kind,
-                       InlineCacheState state) {
+static bool ClearLogic(Heap* heap, int ic_age) {
   if (FLAG_cleanup_code_caches_at_gc &&
-      (kind == Code::CALL_IC || heap->flush_monomorphic_ics() ||
+      (heap->flush_monomorphic_ics() ||
        // TODO(mvstanton): is this ic_age granular enough? it comes from
        // the SharedFunctionInfo which may change on a different schedule
        // than ic targets.
@@ -171,16 +167,22 @@ void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
       }
     }
   }
+}
 
-  slots = ICSlots();
-  if (slots == 0) return;
 
-  // Now clear vector-based ICs.
-  // Try and pass the containing code (the "host").
-  Heap* heap = isolate->heap();
-  Code* host = shared->code();
+void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
+                                          bool force_clear) {
+  Heap* heap = GetIsolate()->heap();
+
   // I'm not sure yet if this ic age is the correct one.
   int ic_age = shared->ic_age();
+
+  if (!force_clear && !ClearLogic(heap, ic_age)) return;
+
+  int slots = ICSlots();
+  Code* host = shared->code();
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(heap);
   for (int i = 0; i < slots; i++) {
     FeedbackVectorICSlot slot(i);
     Object* obj = Get(slot);
@@ -188,19 +190,13 @@ void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
       Code::Kind kind = GetKind(slot);
       if (kind == Code::CALL_IC) {
         CallICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       } else if (kind == Code::LOAD_IC) {
         LoadICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       } else if (kind == Code::KEYED_LOAD_IC) {
         KeyedLoadICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       }
     }
   }
@@ -285,7 +281,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;
-  } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
+  } else if (feedback->IsAllocationSite() || feedback->IsWeakCell()) {
     return MONOMORPHIC;
   }
 
@@ -319,7 +315,8 @@ void CallICNexus::ConfigureUninitialized() {
 
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
-  SetFeedback(*function);
+  Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
+  SetFeedback(*new_cell);
 }
 
 

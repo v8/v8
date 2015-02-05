@@ -153,13 +153,13 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   RUNTIME_ASSERT(args.length() == 3);
 
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 1);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
 
   Handle<GlobalObject> global(isolate->context()->global_object());
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::SetProperty(global, name, value, strict_mode));
+      isolate, result, Object::SetProperty(global, name, value, language_mode));
   return *result;
 }
 
@@ -477,7 +477,7 @@ RUNTIME_FUNCTION(Runtime_NewArguments) {
   // Determine parameter location on the stack and dispatch on language mode.
   int argument_count = frame->GetArgumentsLength();
   Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
-  return callee->shared()->strict_mode() == STRICT
+  return is_strict(callee->shared()->language_mode())
              ? *NewStrictArguments(isolate, callee, parameters, argument_count)
              : *NewSloppyArguments(isolate, callee, parameters, argument_count);
 }
@@ -949,7 +949,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   CONVERT_ARG_HANDLE_CHECKED(Context, context, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
-  CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 3);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   int index;
   PropertyAttributes attributes;
@@ -964,7 +964,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   if (index >= 0) {
     if ((attributes & READ_ONLY) == 0) {
       Handle<Context>::cast(holder)->set(index, *value);
-    } else if (strict_mode == STRICT) {
+    } else if (is_strict(language_mode)) {
       // Setting read only property in strict mode.
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
@@ -980,7 +980,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   if (attributes != ABSENT) {
     // The property exists on the holder.
     object = Handle<JSReceiver>::cast(holder);
-  } else if (strict_mode == STRICT) {
+  } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
@@ -990,7 +990,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, Object::SetProperty(object, name, value, strict_mode));
+      isolate, Object::SetProperty(object, name, value, language_mode));
 
   return *value;
 }
@@ -1057,7 +1057,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
   }
   if (String::Equals(isolate->factory()->callee_string(), key)) {
     JSFunction* function = frame->function();
-    if (function->shared()->strict_mode() == STRICT) {
+    if (is_strict(function->shared()->language_mode())) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError("strict_arguments_callee",
                                 HandleVector<Object>(NULL, 0)));

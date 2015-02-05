@@ -119,16 +119,6 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
-static void SetOperand(UnallocatedOperand* loc, InstructionOperand* value) {
-  if (value->IsUnallocated()) {
-    loc[0] = *UnallocatedOperand::cast(value);
-  } else {
-    InstructionOperand* casted = static_cast<InstructionOperand*>(loc);
-    casted[0] = *value;
-  }
-}
-
-
 Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
@@ -138,9 +128,9 @@ Instruction::Instruction(InstructionCode opcode)
 
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,
-                         InstructionOperand** outputs, size_t input_count,
-                         InstructionOperand** inputs, size_t temp_count,
-                         InstructionOperand** temps)
+                         InstructionOperand* outputs, size_t input_count,
+                         InstructionOperand* inputs, size_t temp_count,
+                         InstructionOperand* temps)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(output_count) |
                  InputCountField::encode(input_count) |
@@ -149,13 +139,16 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
       pointer_map_(NULL) {
   size_t offset = 0;
   for (size_t i = 0; i < output_count; ++i) {
-    SetOperand(&operands_[offset++], outputs[i]);
+    DCHECK(!outputs[i].IsInvalid());
+    operands_[offset++] = outputs[i];
   }
   for (size_t i = 0; i < input_count; ++i) {
-    SetOperand(&operands_[offset++], inputs[i]);
+    DCHECK(!inputs[i].IsInvalid());
+    operands_[offset++] = inputs[i];
   }
   for (size_t i = 0; i < temp_count; ++i) {
-    SetOperand(&operands_[offset++], temps[i]);
+    DCHECK(!temps[i].IsInvalid());
+    operands_[offset++] = temps[i];
   }
 }
 

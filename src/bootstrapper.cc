@@ -5,6 +5,7 @@
 #include "src/bootstrapper.h"
 
 #include "src/accessors.h"
+#include "src/api-natives.h"
 #include "src/code-stubs.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -809,10 +810,9 @@ Handle<GlobalObject> Genesis::CreateNewGlobals(
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
         FunctionTemplateInfo::cast(js_global_object_template->constructor()));
-    js_global_object_function =
-        factory()->CreateApiFunction(js_global_object_constructor,
-                                     factory()->the_hole_value(),
-                                     factory()->GlobalObjectType);
+    js_global_object_function = ApiNatives::CreateApiFunction(
+        isolate(), js_global_object_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalObjectType);
   }
 
   js_global_object_function->initial_map()->set_is_hidden_prototype();
@@ -833,10 +833,9 @@ Handle<GlobalObject> Genesis::CreateNewGlobals(
         v8::Utils::OpenHandle(*global_proxy_template);
     Handle<FunctionTemplateInfo> global_constructor(
             FunctionTemplateInfo::cast(data->constructor()));
-    global_proxy_function =
-        factory()->CreateApiFunction(global_constructor,
-                                     factory()->the_hole_value(),
-                                     factory()->GlobalProxyType);
+    global_proxy_function = ApiNatives::CreateApiFunction(
+        isolate(), global_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalProxyType);
   }
 
   Handle<String> global_name = factory()->global_string();
@@ -1533,11 +1532,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
   INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
-  INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
-  INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
-                 configure_instance_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
-  INSTALL_NATIVE(JSObject, "functionCache", function_cache);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 
@@ -2041,6 +2036,8 @@ bool Genesis::InstallNatives() {
   }
 
   InstallNativeFunctions();
+
+  native_context()->set_function_cache(heap()->empty_fixed_array());
 
   // Store the map for the string prototype after the natives has been compiled
   // and the String function has been set up.
@@ -2575,7 +2572,7 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
              ->IsTemplateFor(object->map()));;
 
   MaybeHandle<JSObject> maybe_obj =
-      Execution::InstantiateObject(object_template);
+      ApiNatives::InstantiateObject(object_template);
   Handle<JSObject> obj;
   if (!maybe_obj.ToHandle(&obj)) {
     DCHECK(isolate()->has_pending_exception());

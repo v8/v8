@@ -296,35 +296,23 @@ TEST(InstructionOperands) {
   }
 
   int vreg = 15;
-  InstructionOperand* outputs[] = {
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
+  InstructionOperand outputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* inputs[] = {
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
+  InstructionOperand inputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* temps[] = {
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
-      new (&zone)
-          UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
+  InstructionOperand temps[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   for (size_t i = 0; i < arraysize(outputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
@@ -336,15 +324,15 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK(outputs[z]->Equals(m->OutputAt(z)));
+          CHECK(outputs[z].Equals(m->OutputAt(z)));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK(inputs[z]->Equals(m->InputAt(z)));
+          CHECK(inputs[z].Equals(m->InputAt(z)));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK(temps[z]->Equals(m->TempAt(z)));
+          CHECK(temps[z].Equals(m->TempAt(z)));
         }
       }
     }

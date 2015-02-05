@@ -23325,10 +23325,10 @@ THREADED_TEST(FunctionNew) {
       i::Smi::cast(v8::Utils::OpenHandle(*func)
           ->shared()->get_api_func_data()->serial_number())->value();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSObject> cache(i_isolate->native_context()->function_cache());
-  i::Handle<i::Object> elm =
-      i::Object::GetElement(i_isolate, cache, serial_number).ToHandleChecked();
-  CHECK(elm->IsUndefined());
+  i::Handle<i::FixedArray> cache(i_isolate->native_context()->function_cache());
+  if (serial_number < cache->length()) {
+    CHECK(cache->get(serial_number)->IsUndefined());
+  }
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;

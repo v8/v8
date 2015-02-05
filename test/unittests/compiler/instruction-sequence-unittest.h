@@ -179,32 +179,32 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   int EmitFallThrough();
   int EmitJump();
   Instruction* NewInstruction(InstructionCode code, size_t outputs_size,
-                              InstructionOperand** outputs,
+                              InstructionOperand* outputs,
                               size_t inputs_size = 0,
-                              InstructionOperand* *inputs = nullptr,
+                              InstructionOperand* inputs = nullptr,
                               size_t temps_size = 0,
-                              InstructionOperand* *temps = nullptr);
-  InstructionOperand* Unallocated(TestOperand op,
-                                  UnallocatedOperand::ExtendedPolicy policy);
-  InstructionOperand* Unallocated(TestOperand op,
-                                  UnallocatedOperand::ExtendedPolicy policy,
-                                  UnallocatedOperand::Lifetime lifetime);
-  InstructionOperand* Unallocated(TestOperand op,
-                                  UnallocatedOperand::ExtendedPolicy policy,
-                                  int index);
-  InstructionOperand* Unallocated(TestOperand op,
-                                  UnallocatedOperand::BasicPolicy policy,
-                                  int index);
-  InstructionOperand** ConvertInputs(size_t input_size, TestOperand* inputs);
-  InstructionOperand* ConvertInputOp(TestOperand op);
-  InstructionOperand* ConvertOutputOp(VReg vreg, TestOperand op);
+                              InstructionOperand* temps = nullptr);
+  InstructionOperand Unallocated(TestOperand op,
+                                 UnallocatedOperand::ExtendedPolicy policy);
+  InstructionOperand Unallocated(TestOperand op,
+                                 UnallocatedOperand::ExtendedPolicy policy,
+                                 UnallocatedOperand::Lifetime lifetime);
+  InstructionOperand Unallocated(TestOperand op,
+                                 UnallocatedOperand::ExtendedPolicy policy,
+                                 int index);
+  InstructionOperand Unallocated(TestOperand op,
+                                 UnallocatedOperand::BasicPolicy policy,
+                                 int index);
+  InstructionOperand* ConvertInputs(size_t input_size, TestOperand* inputs);
+  InstructionOperand ConvertInputOp(TestOperand op);
+  InstructionOperand ConvertOutputOp(VReg vreg, TestOperand op);
   InstructionBlock* NewBlock();
   void WireBlock(size_t block_offset, int jump_offset);
 
   int Emit(int instruction_index, InstructionCode code, size_t outputs_size = 0,
-           InstructionOperand* *outputs = nullptr, size_t inputs_size = 0,
-           InstructionOperand* *inputs = nullptr, size_t temps_size = 0,
-           InstructionOperand* *temps = nullptr, bool is_call = false);
+           InstructionOperand* outputs = nullptr, size_t inputs_size = 0,
+           InstructionOperand* inputs = nullptr, size_t temps_size = 0,
+           InstructionOperand* temps = nullptr, bool is_call = false);
 
   int AddInstruction(int instruction_index, Instruction* instruction);
 

@@ -166,8 +166,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate,
 
   // In sloppy mode, convert receiver.
   if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() &&
-      func->shared()->strict_mode() == SLOPPY) {
+      !func->shared()->native() && is_sloppy(func->shared()->language_mode())) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       receiver = handle(func->global_proxy());
       DCHECK(!receiver->IsJSBuiltinsObject());
@@ -627,73 +626,6 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
     return factory->undefined_value();
   }
   return result;
-}
-
-
-MaybeHandle<JSFunction> Execution::InstantiateFunction(
-    Handle<FunctionTemplateInfo> data) {
-  Isolate* isolate = data->GetIsolate();
-  if (!data->do_not_cache()) {
-    // Fast case: see if the function has already been instantiated
-    int serial_number = Smi::cast(data->serial_number())->value();
-    Handle<JSObject> cache(isolate->native_context()->function_cache());
-    Handle<Object> elm =
-        Object::GetElement(isolate, cache, serial_number).ToHandleChecked();
-    if (elm->IsJSFunction()) return Handle<JSFunction>::cast(elm);
-  }
-  // The function has not yet been instantiated in this context; do it.
-  Handle<Object> args[] = { data };
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Call(isolate,
-           isolate->instantiate_fun(),
-           isolate->js_builtins_object(),
-           arraysize(args),
-           args),
-      JSFunction);
-  return Handle<JSFunction>::cast(result);
-}
-
-
-MaybeHandle<JSObject> Execution::InstantiateObject(
-    Handle<ObjectTemplateInfo> data) {
-  Isolate* isolate = data->GetIsolate();
-  Handle<Object> result;
-  if (data->property_list()->IsUndefined() &&
-      !data->constructor()->IsUndefined()) {
-    Handle<FunctionTemplateInfo> cons_template =
-        Handle<FunctionTemplateInfo>(
-            FunctionTemplateInfo::cast(data->constructor()));
-    Handle<JSFunction> cons;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons, InstantiateFunction(cons_template), JSObject);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, New(cons, 0, NULL), JSObject);
-  } else {
-    Handle<Object> args[] = { data };
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        Call(isolate,
-             isolate->instantiate_fun(),
-             isolate->js_builtins_object(),
-             arraysize(args),
-             args),
-        JSObject);
-  }
-  return Handle<JSObject>::cast(result);
-}
-
-
-MaybeHandle<Object> Execution::ConfigureInstance(
-    Isolate* isolate,
-    Handle<Object> instance,
-    Handle<Object> instance_template) {
-  Handle<Object> args[] = { instance, instance_template };
-  return Execution::Call(isolate,
-                         isolate->configure_instance_fun(),
-                         isolate->js_builtins_object(),
-                         arraysize(args),
-                         args);
 }
 
 
