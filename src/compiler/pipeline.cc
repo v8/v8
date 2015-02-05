@@ -290,11 +290,11 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
                                LoopAssignmentAnalysis* loop_assignment,
                                SourcePositionTable* source_positions)
       : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment),
-        source_positions_(source_positions) {}
+        source_positions_(source_positions),
+        start_position_(info->shared_info()->start_position()) {}
 
   bool CreateGraph() {
-    SourcePositionTable::Scope pos(source_positions_,
-                                   SourcePosition::Unknown());
+    SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
     return AstGraphBuilder::CreateGraph();
   }
 
@@ -311,8 +311,44 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
 
  private:
   SourcePositionTable* source_positions_;
+  SourcePosition start_position_;
 };
 
+
+namespace {
+
+class SourcePositionWrapper : public Reducer {
+ public:
+  SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
+      : reducer_(reducer), table_(table) {}
+  virtual ~SourcePositionWrapper() {}
+
+  virtual Reduction Reduce(Node* node) {
+    SourcePosition pos = table_->GetSourcePosition(node);
+    SourcePositionTable::Scope position(table_, pos);
+    return reducer_->Reduce(node);
+  }
+
+ private:
+  Reducer* reducer_;
+  SourcePositionTable* table_;
+
+  DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
+};
+
+
+static void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
+                       Reducer* reducer) {
+  if (FLAG_turbo_source_positions) {
+    void* buffer = data->graph_zone()->New(sizeof(SourcePositionWrapper));
+    SourcePositionWrapper* wrapper =
+        new (buffer) SourcePositionWrapper(reducer, data->source_positions());
+    graph_reducer->AddReducer(wrapper);
+  } else {
+    graph_reducer->AddReducer(reducer);
+  }
+}
+}  // namespace
 
 class PipelineRunScope {
  public:
@@ -382,7 +418,7 @@ struct ContextSpecializerPhase {
     JSContextSpecializer spec(data->info(), data->jsgraph(),
                               data->context_node());
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&spec);
+    AddReducer(data, &graph_reducer, &spec);
     graph_reducer.ReduceGraph();
   }
 };
@@ -435,13 +471,13 @@ struct TypedLoweringPhase {
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&vn_reducer);
-    graph_reducer.AddReducer(&builtin_reducer);
-    graph_reducer.AddReducer(&typed_lowering);
-    graph_reducer.AddReducer(&intrinsic_lowering);
-    graph_reducer.AddReducer(&load_elimination);
-    graph_reducer.AddReducer(&simple_reducer);
-    graph_reducer.AddReducer(&common_reducer);
+    AddReducer(data, &graph_reducer, &vn_reducer);
+    AddReducer(data, &graph_reducer, &builtin_reducer);
+    AddReducer(data, &graph_reducer, &typed_lowering);
+    AddReducer(data, &graph_reducer, &intrinsic_lowering);
+    AddReducer(data, &graph_reducer, &load_elimination);
+    AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
 };
@@ -453,17 +489,18 @@ struct SimplifiedLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    SimplifiedLowering lowering(data->jsgraph(), temp_zone);
+    SimplifiedLowering lowering(data->jsgraph(), temp_zone,
+                                data->source_positions());
     lowering.LowerAllNodes();
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&vn_reducer);
-    graph_reducer.AddReducer(&simple_reducer);
-    graph_reducer.AddReducer(&machine_reducer);
-    graph_reducer.AddReducer(&common_reducer);
+    AddReducer(data, &graph_reducer, &vn_reducer);
+    AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &machine_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
 };
@@ -483,10 +520,10 @@ struct ChangeLoweringPhase {
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
     graph_reducer.AddReducer(&vn_reducer);
-    graph_reducer.AddReducer(&simple_reducer);
-    graph_reducer.AddReducer(&lowering);
-    graph_reducer.AddReducer(&machine_reducer);
-    graph_reducer.AddReducer(&common_reducer);
+    AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &lowering);
+    AddReducer(data, &graph_reducer, &machine_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
 };
@@ -537,8 +574,8 @@ struct GenericLoweringPhase {
     JSGenericLowering generic(data->info(), data->jsgraph());
     SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&generic);
-    graph_reducer.AddReducer(&select);
+    AddReducer(data, &graph_reducer, &generic);
+    AddReducer(data, &graph_reducer, &select);
     graph_reducer.ReduceGraph();
   }
 };

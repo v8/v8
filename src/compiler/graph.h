@@ -82,7 +82,7 @@ class Graph : public ZoneObject {
 
   int NodeCount() const { return next_node_id_; }
 
-  void Decorate(Node* node);
+  void Decorate(Node* node, bool incomplete);
   void AddDecorator(GraphDecorator* decorator);
   void RemoveDecorator(GraphDecorator* decorator);
 
@@ -107,7 +107,7 @@ class Graph : public ZoneObject {
 class GraphDecorator : public ZoneObject {
  public:
   virtual ~GraphDecorator() {}
-  virtual void Decorate(Node* node) = 0;
+  virtual void Decorate(Node* node, bool incomplete) = 0;
 };
 
 }  // namespace compiler
