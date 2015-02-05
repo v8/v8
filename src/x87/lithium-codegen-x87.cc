@@ -2001,10 +2001,9 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  double v = instr->value();
-  uint64_t int_val = bit_cast<uint64_t, double>(v);
-  int32_t lower = static_cast<int32_t>(int_val);
-  int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+  uint64_t const bits = instr->bits();
+  uint32_t const lower = static_cast<uint32_t>(bits);
+  uint32_t const upper = static_cast<uint32_t>(bits >> 32);
   DCHECK(instr->result()->IsDoubleRegister());
 
   __ push(Immediate(upper));
@@ -2613,7 +2612,9 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 
   __ add(esp, Immediate(kDoubleSize));
   int offset = sizeof(kHoleNanUpper32);
-  __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
+  // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
+  // so we check the upper with 0xffffffff for hole as a temporary fix.
+  __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
   EmitBranch(instr, equal);
 }
 
@@ -4242,10 +4243,11 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ jmp(&done, Label::kNear);
 
   __ bind(&nan_result);
-  ExternalReference nan =
-      ExternalReference::address_of_canonical_non_hole_nan();
   X87PrepareToWrite(input_reg);
-  __ fld_d(Operand::StaticVariable(nan));
+  __ push(Immediate(0xffffffff));
+  __ push(Immediate(0x7fffffff));
+  __ fld_d(MemOperand(esp, 0));
+  __ lea(esp, Operand(esp, kDoubleSize));
   X87CommitWrite(input_reg);
   __ jmp(&done, Label::kNear);
 
@@ -4640,8 +4642,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   Operand double_store_operand = BuildFastArrayOperand(
       instr->elements(),
       instr->key(),
@@ -4649,25 +4649,21 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       FAST_DOUBLE_ELEMENTS,
       instr->base_offset());
 
-  // Can't use SSE2 in the serializer
+  uint64_t int_val = kHoleNanInt64;
+  int32_t lower = static_cast<int32_t>(int_val);
+  int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+  Operand double_store_operand2 = BuildFastArrayOperand(
+      instr->elements(), instr->key(),
+      instr->hydrogen()->key()->representation(), FAST_DOUBLE_ELEMENTS,
+      instr->base_offset() + kPointerSize);
+
   if (instr->hydrogen()->IsConstantHoleStore()) {
     // This means we should store the (double) hole. No floating point
     // registers required.
-    double nan_double = FixedDoubleArray::hole_nan_as_double();
-    uint64_t int_val = bit_cast<uint64_t, double>(nan_double);
-    int32_t lower = static_cast<int32_t>(int_val);
-    int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-
     __ mov(double_store_operand, Immediate(lower));
-    Operand double_store_operand2 = BuildFastArrayOperand(
-        instr->elements(),
-        instr->key(),
-        instr->hydrogen()->key()->representation(),
-        FAST_DOUBLE_ELEMENTS,
-        instr->base_offset() + kPointerSize);
     __ mov(double_store_operand2, Immediate(upper));
   } else {
-    Label no_special_nan_handling;
+    Label no_special_nan_handling, done;
     X87Register value = ToX87Register(instr->value());
     X87Fxch(value);
 
@@ -4675,23 +4671,27 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ fld(0);
       __ fld(0);
       __ FCmp();
-
       __ j(parity_odd, &no_special_nan_handling, Label::kNear);
-      __ sub(esp, Immediate(kDoubleSize));
+      // All NaNs are Canonicalized to 0x7fffffffffffffff
+      __ mov(double_store_operand, Immediate(0xffffffff));
+      __ mov(double_store_operand2, Immediate(0x7fffffff));
+      __ jmp(&done, Label::kNear);
+    } else {
+      __ lea(esp, Operand(esp, -kDoubleSize));
       __ fst_d(MemOperand(esp, 0));
-      __ cmp(MemOperand(esp, sizeof(kHoleNanLower32)),
-             Immediate(kHoleNanUpper32));
-      __ add(esp, Immediate(kDoubleSize));
-      Label canonicalize;
-      __ j(not_equal, &canonicalize, Label::kNear);
-      __ jmp(&no_special_nan_handling, Label::kNear);
-      __ bind(&canonicalize);
-      __ fstp(0);
-      __ fld_d(Operand::StaticVariable(canonical_nan_reference));
+      __ lea(esp, Operand(esp, kDoubleSize));
+      int offset = sizeof(kHoleNanUpper32);
+      // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
+      // so we check the upper with 0xffffffff for hole as a temporary fix.
+      __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+      __ j(not_equal, &no_special_nan_handling, Label::kNear);
+      __ mov(double_store_operand, Immediate(lower));
+      __ mov(double_store_operand2, Immediate(upper));
+      __ jmp(&done, Label::kNear);
     }
-
     __ bind(&no_special_nan_handling);
     __ fst_d(double_store_operand);
+    __ bind(&done);
   }
 }
 
@@ -5189,9 +5189,10 @@ void LCodeGen::EmitNumberUntagDNoSSE2(LNumberUntagD* instr, Register input_reg,
       DeoptimizeIf(not_equal, instr, "not a heap number/undefined");
 
       __ bind(&convert);
-      ExternalReference nan =
-          ExternalReference::address_of_canonical_non_hole_nan();
-      __ fld_d(Operand::StaticVariable(nan));
+      __ push(Immediate(0xffffffff));
+      __ push(Immediate(0x7fffffff));
+      __ fld_d(MemOperand(esp, 0));
+      __ lea(esp, Operand(esp, kDoubleSize));
       __ jmp(&done, Label::kNear);
 
       __ bind(&heap_number);

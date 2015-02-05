@@ -597,30 +597,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  cmp(FieldOperand(maybe_number, offset),
-      Immediate(kNaNOrInfinityLowerBoundUpper32));
-  j(greater_equal, &maybe_nan, Label::kNear);
-
-  bind(&not_nan);
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   fld_d(FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  bind(&have_double_value);
-  fstp_d(FieldOperand(elements, key, times_4,
-                      FixedDoubleArray::kHeaderSize - elements_offset));
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  j(greater, &is_nan, Label::kNear);
-  cmp(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
-  j(zero, &not_nan);
-  bind(&is_nan);
-  fld_d(Operand::StaticVariable(canonical_nan_reference));
-  jmp(&have_double_value, Label::kNear);
+  jmp(&done, Label::kNear);
 
   bind(&smi_value);
   // Value is a smi. Convert to a double and store.
@@ -630,9 +608,9 @@ void MacroAssembler::StoreNumberToDoubleElements(
   push(scratch);
   fild_s(Operand(esp, 0));
   pop(scratch);
+  bind(&done);
   fstp_d(FieldOperand(elements, key, times_4,
                       FixedDoubleArray::kHeaderSize - elements_offset));
-  bind(&done);
 }
 
 

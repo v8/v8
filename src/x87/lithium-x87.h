@@ -1350,7 +1350,7 @@ class LConstantD FINAL : public LTemplateInstruction<1, 0, 1> {
   DECLARE_CONCRETE_INSTRUCTION(ConstantD, "constant-d")
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
-  double value() const { return hydrogen()->DoubleValue(); }
+  uint64_t bits() const { return hydrogen()->DoubleValueAsBits(); }
 };
 
 
