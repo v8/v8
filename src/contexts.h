@@ -574,7 +574,8 @@ class Context: public FixedArray {
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
     }
 
-    if (IsArrowFunction(kind) || IsConciseMethod(kind)) {
+    if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
+        IsAccessorFunction(kind)) {
       return is_strict(language_mode)
                  ? STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX
                  : SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;

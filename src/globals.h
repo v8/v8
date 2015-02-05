@@ -814,12 +814,13 @@ enum Signedness { kSigned, kUnsigned };
 
 enum FunctionKind {
   kNormalFunction = 0,
-  kArrowFunction = 1,
-  kGeneratorFunction = 2,
-  kConciseMethod = 4,
+  kArrowFunction = 1 << 0,
+  kGeneratorFunction = 1 << 1,
+  kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kDefaultConstructor = 8,
-  kSubclassConstructor = 16
+  kAccessorFunction = 1 << 3,
+  kDefaultConstructor = 1 << 4,
+  kSubclassConstructor = 1 << 5
 };
 
 
@@ -829,6 +830,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultConstructor ||
          kind == FunctionKind::kSubclassConstructor;
 }
@@ -852,10 +854,17 @@ inline bool IsConciseMethod(FunctionKind kind) {
 }
 
 
+inline bool IsAccessorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kAccessorFunction;
+}
+
+
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kDefaultConstructor;
 }
+
 
 inline bool IsSubclassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));

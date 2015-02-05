@@ -587,15 +587,11 @@ class FastNewClosureStub : public HydrogenCodeStub {
   FunctionKind kind() const {
     return FunctionKindBits::decode(sub_minor_key());
   }
-  bool is_arrow() const { return IsArrowFunction(kind()); }
-  bool is_generator() const { return IsGeneratorFunction(kind()); }
-  bool is_concise_method() const { return IsConciseMethod(kind()); }
-  bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
 
  private:
   STATIC_ASSERT(LANGUAGE_END == 3);
   class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
-  class FunctionKindBits : public BitField<FunctionKind, 2, 4> {};
+  class FunctionKindBits : public BitField<FunctionKind, 2, 6> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);

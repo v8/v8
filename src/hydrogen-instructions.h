@@ -7591,10 +7591,6 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   bool has_no_literals() const {
     return HasNoLiteralsField::decode(bit_field_);
   }
-  bool is_arrow() const { return IsArrowFunction(kind()); }
-  bool is_generator() const { return IsGeneratorFunction(kind()); }
-  bool is_concise_method() const { return IsConciseMethod(kind()); }
-  bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
   FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(bit_field_);
@@ -7616,11 +7612,11 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
 
   bool IsDeletable() const OVERRIDE { return true; }
 
-  class FunctionKindField : public BitField<FunctionKind, 0, 4> {};
-  class PretenureField : public BitField<bool, 5, 1> {};
-  class HasNoLiteralsField : public BitField<bool, 6, 1> {};
+  class FunctionKindField : public BitField<FunctionKind, 0, 6> {};
+  class PretenureField : public BitField<bool, 6, 1> {};
+  class HasNoLiteralsField : public BitField<bool, 7, 1> {};
   STATIC_ASSERT(LANGUAGE_END == 3);
-  class LanguageModeField : public BitField<LanguageMode, 7, 2> {};
+  class LanguageModeField : public BitField<LanguageMode, 8, 2> {};
 
   Handle<SharedFunctionInfo> shared_info_;
   uint32_t bit_field_;

@@ -2548,18 +2548,6 @@ class FunctionLiteral FINAL : public Expression {
   }
 
   FunctionKind kind() { return FunctionKindBits::decode(bitfield_); }
-  bool is_arrow() {
-    return IsArrowFunction(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_generator() {
-    return IsGeneratorFunction(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_concise_method() {
-    return IsConciseMethod(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_default_constructor() {
-    return IsDefaultConstructor(FunctionKindBits::decode(bitfield_));
-  }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2630,7 +2618,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 6> {};
 };
 
 

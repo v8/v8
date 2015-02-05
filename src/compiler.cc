@@ -804,7 +804,7 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
   if (FLAG_experimental_classes) return true;
   if (!function->uses_super_constructor_call()) return true;
-  if (function->is_default_constructor()) return true;
+  if (IsDefaultConstructor(function->kind())) return true;
 
   ZoneList<Statement*>* body = function->body();
   CHECK(body->length() > 0);
