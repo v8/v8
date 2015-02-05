@@ -240,7 +240,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       decoder(isolate()->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start() + non_ascii_start,
                  length - non_ascii_start);
-  int utf16_length = decoder->Utf16Length();
+  int utf16_length = static_cast<int>(decoder->Utf16Length());
   DCHECK(utf16_length > 0);
   // Allocate string.
   Handle<SeqTwoByteString> result;

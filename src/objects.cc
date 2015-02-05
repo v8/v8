@@ -9115,10 +9115,10 @@ bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
     return false;
   }
   int i;
-  unsigned remaining_in_str = static_cast<unsigned>(str_len);
+  size_t remaining_in_str = static_cast<size_t>(str_len);
   const uint8_t* utf8_data = reinterpret_cast<const uint8_t*>(str.start());
   for (i = 0; i < slen && remaining_in_str > 0; i++) {
-    unsigned cursor = 0;
+    size_t cursor = 0;
     uint32_t r = unibrow::Utf8::ValueOf(utf8_data, remaining_in_str, &cursor);
     DCHECK(cursor > 0 && cursor <= remaining_in_str);
     if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
@@ -9292,13 +9292,13 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
   // Start with a fake length which won't affect computation.
   // It will be updated later.
   StringHasher hasher(String::kMaxArrayIndexSize, seed);
-  unsigned remaining = static_cast<unsigned>(vector_length);
+  size_t remaining = static_cast<size_t>(vector_length);
   const uint8_t* stream = reinterpret_cast<const uint8_t*>(chars.start());
   int utf16_length = 0;
   bool is_index = true;
   DCHECK(hasher.is_array_index_);
   while (remaining > 0) {
-    unsigned consumed = 0;
+    size_t consumed = 0;
     uint32_t c = unibrow::Utf8::ValueOf(stream, remaining, &consumed);
     DCHECK(consumed > 0 && consumed <= remaining);
     stream += consumed;

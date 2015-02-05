@@ -696,7 +696,7 @@ TEST(Utf8CharacterStream) {
   int i = 0;
   while (stream.pos() < kMaxUC16CharU) {
     CHECK_EQU(i, stream.pos());
-    unsigned progress = stream.SeekForward(12);
+    int progress = static_cast<int>(stream.SeekForward(12));
     i += progress;
     int32_t c = stream.Advance();
     if (i <= kMaxUC16Char) {

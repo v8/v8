@@ -3999,9 +3999,9 @@ static inline void WriteOneByteData(Vector<const char> vector, uint8_t* chars,
 static inline void WriteTwoByteData(Vector<const char> vector, uint16_t* chars,
                                     int len) {
   const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
-  unsigned stream_length = vector.length();
+  size_t stream_length = vector.length();
   while (stream_length != 0) {
-    unsigned consumed = 0;
+    size_t consumed = 0;
     uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
     DCHECK(c != unibrow::Utf8::kBadChar);
     DCHECK(consumed <= stream_length);

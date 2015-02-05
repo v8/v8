@@ -733,9 +733,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
-inline int CompareCharsUnsigned(const lchar* lhs,
-                                const rchar* rhs,
-                                int chars) {
+inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
+                                size_t chars) {
   const lchar* limit = lhs + chars;
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
@@ -751,8 +750,8 @@ inline int CompareCharsUnsigned(const lchar* lhs,
   return 0;
 }
 
-template<typename lchar, typename rchar>
-inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+template <typename lchar, typename rchar>
+inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
   DCHECK(sizeof(lchar) <= 2);
   DCHECK(sizeof(rchar) <= 2);
   if (sizeof(lchar) == 1) {
@@ -1317,27 +1316,30 @@ Vector<const char> ReadFile(FILE* file,
 
 
 template <typename sourcechar, typename sinkchar>
-INLINE(static void CopyCharsUnsigned(sinkchar* dest,
-                                     const sourcechar* src,
-                                     int chars));
+INLINE(static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,
+                                     size_t chars));
 #if defined(V8_HOST_ARCH_ARM)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src,
+                              size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
 #elif defined(V8_HOST_ARCH_MIPS)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
 #elif defined(V8_HOST_ARCH_PPC)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
 #endif
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
-INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
+INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars));
 
-template<typename sourcechar, typename sinkchar>
-void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+template <typename sourcechar, typename sinkchar>
+void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars) {
   DCHECK(sizeof(sourcechar) <= 2);
   DCHECK(sizeof(sinkchar) <= 2);
   if (sizeof(sinkchar) == 1) {
@@ -1364,7 +1366,7 @@ void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 template <typename sourcechar, typename sinkchar>
-void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
+void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, size_t chars) {
   sinkchar* limit = dest + chars;
   if ((sizeof(*dest) == sizeof(*src)) &&
       (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
@@ -1376,7 +1378,7 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
 
 
 #if defined(V8_HOST_ARCH_ARM)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
@@ -1432,7 +1434,7 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
 }
 
 
-void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, size_t chars) {
   if (chars >= kMinComplexConvertMemCopy) {
     MemCopyUint16Uint8(dest, src, chars);
   } else {
@@ -1441,7 +1443,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
 }
 
 
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
@@ -1474,7 +1476,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
 
 
 #elif defined(V8_HOST_ARCH_MIPS)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
   if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars);
   } else {
@@ -1482,7 +1484,7 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
   }
 }
 
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
   if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars * sizeof(*dest));
   } else {
@@ -1494,7 +1496,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
   case n:                 \
     memcpy(dest, src, n); \
     break
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
@@ -1575,7 +1577,7 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
   case n:                     \
     memcpy(dest, src, n * 2); \
     break
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
