@@ -133,17 +133,8 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
 static bool ClearLogic(Heap* heap, int ic_age) {
-  if (FLAG_cleanup_code_caches_at_gc &&
-      (heap->flush_monomorphic_ics() ||
-       // TODO(mvstanton): is this ic_age granular enough? it comes from
-       // the SharedFunctionInfo which may change on a different schedule
-       // than ic targets.
-       // ic_age != heap->global_ic_age() ||
-       // is_invalidated_weak_stub ||
-       heap->isolate()->serializer_enabled())) {
-    return true;
-  }
-  return false;
+  return FLAG_cleanup_code_caches_at_gc &&
+         heap->isolate()->serializer_enabled();
 }
 
 

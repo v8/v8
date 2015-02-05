@@ -1351,8 +1351,6 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
-  bool flush_monomorphic_ics() { return flush_monomorphic_ics_; }
-
   int64_t amount_of_external_allocated_memory() {
     return amount_of_external_allocated_memory_;
   }
@@ -1538,8 +1536,6 @@ class Heap {
   int contexts_disposed_;
 
   int global_ic_age_;
-
-  bool flush_monomorphic_ics_;
 
   int scan_on_scavenge_pages_;
 

@@ -81,7 +81,6 @@ Heap::Heap()
       always_allocate_scope_depth_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
-      flush_monomorphic_ics_(false),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -880,7 +879,6 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     // Flush the queued recompilation tasks.
     isolate()->optimizing_compiler_thread()->Flush();
   }
-  flush_monomorphic_ics_ = true;
   AgeInlineCaches();
   tracer()->AddContextDisposalTime(base::OS::TimeCurrentMillis());
   return ++contexts_disposed_;
@@ -1247,8 +1245,6 @@ void Heap::MarkCompactEpilogue() {
   gc_state_ = NOT_IN_GC;
 
   isolate_->counters()->objs_since_last_full()->Set(0);
-
-  flush_monomorphic_ics_ = false;
 
   incremental_marking()->Epilogue();
 }
