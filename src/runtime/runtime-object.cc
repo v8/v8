@@ -194,7 +194,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
                                                   Handle<Object> key,
                                                   Handle<Object> value,
-                                                  PropertyAttributes attr) {
+                                                  PropertyAttributes attrs) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index;
@@ -210,19 +210,19 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
       return value;
     }
 
-    return JSObject::SetElement(js_object, index, value, attr, SLOPPY, false,
+    return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
                                 DEFINE_PROPERTY);
   }
 
   if (key->IsName()) {
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      return JSObject::SetElement(js_object, index, value, attr, SLOPPY, false,
+      return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
                                   DEFINE_PROPERTY);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                      attr);
+                                                      attrs);
     }
   }
 
@@ -233,11 +233,11 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return JSObject::SetElement(js_object, index, value, attr, SLOPPY, false,
+    return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
                                 DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                    attr);
+                                                    attrs);
   }
 }
 
@@ -664,12 +664,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
-  RUNTIME_ASSERT(
-      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  // Compute attributes.
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(unchecked_attributes);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
 #ifdef DEBUG
   uint32_t index = 0;
@@ -683,7 +678,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::SetOwnPropertyIgnoreAttributes(object, key, value, attributes));
+      JSObject::SetOwnPropertyIgnoreAttributes(object, key, value, attrs));
   return *result;
 }
 
@@ -715,20 +710,15 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
-  RUNTIME_ASSERT(
-      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  // Compute attributes.
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(unchecked_attributes);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   uint32_t index = 0;
   key->ToArrayIndex(&index);
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetElement(object, index, value, attributes,
-                                            SLOPPY, false, DEFINE_PROPERTY));
+      isolate, result, JSObject::SetElement(object, index, value, attrs, SLOPPY,
+                                            false, DEFINE_PROPERTY));
   return *result;
 }
 
@@ -1037,9 +1027,9 @@ RUNTIME_FUNCTION(Runtime_GetOwnElementNames) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
-  int n = obj->NumberOfOwnElements(static_cast<PropertyAttributes>(NONE));
+  int n = obj->NumberOfOwnElements(NONE);
   Handle<FixedArray> names = isolate->factory()->NewFixedArray(n);
-  obj->GetOwnElementKeys(*names, static_cast<PropertyAttributes>(NONE));
+  obj->GetOwnElementKeys(*names, NONE);
   return *isolate->factory()->NewJSArrayWithElements(names);
 }
 
@@ -1444,12 +1434,10 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   RUNTIME_ASSERT(IsValidAccessor(getter));
   CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
   RUNTIME_ASSERT(IsValidAccessor(setter));
-  CONVERT_SMI_ARG_CHECKED(unchecked, 4);
-  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 4);
 
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::DefineAccessor(obj, name, getter, setter, attr));
+      isolate, JSObject::DefineAccessor(obj, name, getter, setter, attrs));
   return isolate->heap()->undefined_value();
 }
 
@@ -1466,9 +1454,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, obj_value, 2);
-  CONVERT_SMI_ARG_CHECKED(unchecked, 3);
-  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   LookupIterator it(js_object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.IsFound() && it.state() == LookupIterator::ACCESS_CHECK) {
@@ -1487,14 +1473,14 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
-            js_object, name, obj_value, attr, JSObject::DONT_FORCE_FIELD));
+            js_object, name, obj_value, attrs, JSObject::DONT_FORCE_FIELD));
     return *result;
   }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::DefineObjectProperty(js_object, name, obj_value, attr));
+      Runtime::DefineObjectProperty(js_object, name, obj_value, attrs));
   return *result;
 }
 
@@ -1589,30 +1575,32 @@ RUNTIME_FUNCTION(RuntimeReference_ClassOf) {
 
 RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       JSObject::DefineAccessor(object, name, getter,
-                               isolate->factory()->null_value(), NONE));
+                               isolate->factory()->null_value(), attrs));
   return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       JSObject::DefineAccessor(object, name, isolate->factory()->null_value(),
-                               setter, NONE));
+                               setter, attrs));
   return isolate->heap()->undefined_value();
 }
 }

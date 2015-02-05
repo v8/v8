@@ -87,6 +87,16 @@ namespace internal {
   RUNTIME_ASSERT(args[index]->ToInt32(&name));
 
 
+// Cast the given argument to PropertyAttributes and store its value in a
+// variable with the given name.  If the argument is not a Smi call or the
+// enum value is out of range, call IllegalOperation and return.
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                   \
+  RUNTIME_ASSERT(args[index]->IsSmi());                                    \
+  RUNTIME_ASSERT(                                                          \
+      (args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+  PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
+
+
 // A mechanism to return a pair of Object pointers in registers (if possible).
 // How this is achieved is calling convention-dependent.
 // All currently supported x86 compiles uses calling conventions that are cdecl

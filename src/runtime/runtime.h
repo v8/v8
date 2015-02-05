@@ -256,8 +256,8 @@ namespace internal {
   F(DefineDataPropertyUnchecked, 4, 1)                 \
   F(DefineAccessorPropertyUnchecked, 5, 1)             \
   F(GetDataProperty, 2, 1)                             \
-  F(DefineGetterPropertyUnchecked, 3, 1)               \
-  F(DefineSetterPropertyUnchecked, 3, 1)               \
+  F(DefineGetterPropertyUnchecked, 4, 1)               \
+  F(DefineSetterPropertyUnchecked, 4, 1)               \
                                                        \
   /* Arrays */                                         \
   F(RemoveArrayHoles, 2, 1)                            \

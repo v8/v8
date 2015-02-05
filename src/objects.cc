@@ -12717,9 +12717,11 @@ MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
 MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
                                             uint32_t index,
                                             Handle<Object> value,
+                                            PropertyAttributes attributes,
                                             LanguageMode language_mode) {
   DCHECK(!object->HasExternalArrayElements());
-  return JSObject::SetElement(object, index, value, NONE, language_mode, false);
+  return JSObject::SetElement(object, index, value, attributes, language_mode,
+                              false);
 }
 
 

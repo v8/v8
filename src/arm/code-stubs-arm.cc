@@ -2789,8 +2789,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
 
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ ldr(r4, MemOperand(sp, (arg_count() + 1) * kPointerSize));
+  // Get the receiver of the function from the stack.
+  __ ldr(r4, MemOperand(sp, arg_count() * kPointerSize));
 
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);

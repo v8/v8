@@ -2246,8 +2246,8 @@ TEST(ErrorsNameOfStrictFunction) {
     "interface() {\"use strict\";}",
     "yield() {\"use strict\";}",
     // Future reserved words are always illegal
-    "function super() { }",
-    "function super() {\"use strict\";}",
+    "super() { }",
+    "super() {\"use strict\";}",
     NULL
   };
 

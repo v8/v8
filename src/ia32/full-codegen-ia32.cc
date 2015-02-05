@@ -1683,10 +1683,14 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ CallRuntime(Runtime::kInternalSetPrototype, 2);
         break;
       case ObjectLiteral::Property::GETTER:
-        accessor_table.lookup(key)->second->getter = value;
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->getter = value;
+        }
         break;
       case ObjectLiteral::Property::SETTER:
-        accessor_table.lookup(key)->second->setter = value;
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->setter = value;
+        }
         break;
     }
   }
@@ -1752,11 +1756,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           break;
 
         case ObjectLiteral::Property::GETTER:
-          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
+          __ push(Immediate(Smi::FromInt(NONE)));
+          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
           break;
 
         case ObjectLiteral::Property::SETTER:
-          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
+          __ push(Immediate(Smi::FromInt(NONE)));
+          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
           break;
       }
     }
@@ -2477,11 +2483,13 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         break;
 
       case ObjectLiteral::Property::GETTER:
-        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
+        __ push(Immediate(Smi::FromInt(DONT_ENUM)));
+        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
+        __ push(Immediate(Smi::FromInt(DONT_ENUM)));
+        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
         break;
     }
   }

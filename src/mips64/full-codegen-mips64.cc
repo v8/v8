@@ -1519,7 +1519,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
           skip_init_check = false;
         } else if (var->is_this()) {
-          CHECK((info_->shared_info()->kind() & kSubclassConstructor) != 0);
+          CHECK(info_->function() != nullptr &&
+                (info_->function()->kind() & kSubclassConstructor) != 0);
           // TODO(dslomov): implement 'this' hole check elimination.
           skip_init_check = false;
         } else {
@@ -1739,10 +1740,14 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ CallRuntime(Runtime::kInternalSetPrototype, 2);
         break;
       case ObjectLiteral::Property::GETTER:
-        accessor_table.lookup(key)->second->getter = value;
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->getter = value;
+        }
         break;
       case ObjectLiteral::Property::SETTER:
-        accessor_table.lookup(key)->second->setter = value;
+        if (property->emit_store()) {
+          accessor_table.lookup(key)->second->setter = value;
+        }
         break;
     }
   }
@@ -1812,11 +1817,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           break;
 
         case ObjectLiteral::Property::GETTER:
-          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
+          __ li(a0, Operand(Smi::FromInt(NONE)));
+          __ push(a0);
+          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
           break;
 
         case ObjectLiteral::Property::SETTER:
-          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
+          __ li(a0, Operand(Smi::FromInt(NONE)));
+          __ push(a0);
+          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
           break;
       }
     }
@@ -2538,11 +2547,15 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         break;
 
       case ObjectLiteral::Property::GETTER:
-        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 3);
+        __ li(a0, Operand(Smi::FromInt(DONT_ENUM)));
+        __ push(a0);
+        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
         break;
 
       case ObjectLiteral::Property::SETTER:
-        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 3);
+        __ li(a0, Operand(Smi::FromInt(DONT_ENUM)));
+        __ push(a0);
+        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
         break;
 
       default:

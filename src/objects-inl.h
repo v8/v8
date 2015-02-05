@@ -2192,6 +2192,14 @@ bool JSObject::HasFastProperties() {
 }
 
 
+MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            LanguageMode language_mode) {
+  return JSObject::SetOwnElement(object, index, value, NONE, language_mode);
+}
+
+
 bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
   if (unused_property_fields() != 0) return false;
   if (is_prototype_map()) return false;
@@ -5234,9 +5242,16 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;
   }
-  if (object->IsJSObject() ||
-      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
+  if (object->IsCell()) object = Cell::cast(object)->value();
+  if (object->IsJSObject()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+  if (object->IsFixedArray()) {
+    // Contexts of inlined functions are embedded in optimized code.
+    Map* map = HeapObject::cast(object)->map();
+    Heap* heap = map->GetHeap();
+    return FLAG_weak_embedded_objects_in_optimized_code &&
+           map == heap->function_context_map();
   }
   return false;
 }
