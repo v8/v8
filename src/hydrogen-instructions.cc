@@ -2810,7 +2810,7 @@ HConstant::HConstant(double double_value, Representation r,
                                            !std::isnan(double_value)) |
                  IsUndetectableField::encode(false) |
                  InstanceTypeField::encode(kUnknownInstanceType)),
-      int32_value_(HasInteger32Value() ? DoubleToInt32(double_value) : 0),
+      int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   bit_field_ = HasSmiValueField::update(
       bit_field_, HasInteger32Value() && Smi::IsValid(int32_value_));
