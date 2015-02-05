@@ -456,31 +456,6 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-bool BinaryOperation::ResultOverwriteAllowed() const {
-  switch (op()) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-      return false;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      return true;
-    default:
-      UNREACHABLE();
-  }
-  return false;
-}
-
-
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;

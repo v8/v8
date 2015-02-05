@@ -45,8 +45,7 @@ class CodeFactory FINAL {
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
-                             OverwriteMode mode = NO_OVERWRITE);
+  static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.

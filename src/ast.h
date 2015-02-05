@@ -337,10 +337,6 @@ class Expression : public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() const { return false; }
 
-  // True iff the result can be safely overwritten (to avoid allocation).
-  // False for operations that can return one of their operands.
-  virtual bool ResultOverwriteAllowed() const { return false; }
-
   // True iff the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 
@@ -2077,8 +2073,6 @@ class UnaryOperation FINAL : public Expression {
 class BinaryOperation FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(BinaryOperation)
-
-  bool ResultOverwriteAllowed() const OVERRIDE;
 
   Token::Value op() const { return static_cast<Token::Value>(op_); }
   Expression* left() const { return left_; }
