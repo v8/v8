@@ -365,7 +365,7 @@ class RelocInfo {
     CODE_TARGET,  // Code target which is not any of the above.
     CODE_TARGET_WITH_ID,
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    DEBUG_BREAK,  // Code target for the debugger statement.
+    DEBUG_BREAK,     // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     CELL,
 
@@ -373,9 +373,9 @@ class RelocInfo {
     RUNTIME_ENTRY,
     JS_RETURN,  // Marks start of the ExitJSFrame code.
     COMMENT,
-    POSITION,  // See comment for kNoPosition above.
+    POSITION,            // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
-    DEBUG_BREAK_SLOT,  // Additional code inserted for debug break slot.
+    DEBUG_BREAK_SLOT,    // Additional code inserted for debug break slot.
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -384,11 +384,13 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
+    DEOPT_REASON,  // Deoptimization reason index.
+
     // add more as needed
     // Pseudo-types
-    NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
-    NONE32,  // never recorded 32-bit value
-    NONE64,  // never recorded 64-bit value
+    NUMBER_OF_MODES,    // There are at most 15 modes with noncompact encoding.
+    NONE32,             // never recorded 32-bit value
+    NONE64,             // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
@@ -733,6 +735,7 @@ class RelocIterator: public Malloced {
   int GetLocatableTypeTag();
   void ReadTaggedId();
   void ReadTaggedPosition();
+  void ReadTaggedData();
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.

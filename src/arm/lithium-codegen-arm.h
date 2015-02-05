@@ -228,9 +228,10 @@ class LCodeGen: public LCodeGenBase {
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* detail, Deoptimizer::BailoutType bailout_type);
+                    Deoptimizer::DeoptReason deopt_reason,
+                    Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* detail);
+                    Deoptimizer::DeoptReason deopt_reason);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,

@@ -1398,6 +1398,10 @@ class Assembler : public AssemblerBase {
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
 
+  // Record a deoptimization reason that can be used by a log or cpu profiler.
+  // Use --trace-deopt to enable.
+  void RecordDeoptReason(const int reason, const int raw_position);
+
   // Record the emission of a constant pool.
   //
   // The emission of constant pool depends on the size of the code generated and

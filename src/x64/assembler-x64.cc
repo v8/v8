@@ -3386,6 +3386,15 @@ void Assembler::RecordComment(const char* msg, bool force) {
 }
 
 
+void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+  if (FLAG_trace_deopt) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+  }
+}
+
+
 Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
   // No out-of-line constant pool support.
   DCHECK(!FLAG_enable_ool_constant_pool);
