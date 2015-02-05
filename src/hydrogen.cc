@@ -5382,6 +5382,14 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
                                        &lookup)) {
           Handle<Context> script_context = ScriptContextTable::GetContext(
               script_contexts, lookup.context_index);
+          Handle<Object> current_value =
+              FixedArray::get(script_context, lookup.context_index);
+
+          // If the values is not the hole, it will stay initialized,
+          // so no need to generate a check.
+          if (*current_value == *isolate()->factory()->the_hole_value()) {
+            return Bailout(kReferenceToUninitializedVariable);
+          }
           HInstruction* result = New<HLoadNamedField>(
               Add<HConstant>(script_context), nullptr,
               HObjectAccess::ForContextSlot(lookup.slot_index));

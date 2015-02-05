@@ -725,13 +725,21 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
     ScriptContextTable::LookupResult lookup_result;
     if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
+      Handle<Object> result =
+          FixedArray::get(ScriptContextTable::GetContext(
+                              script_contexts, lookup_result.context_index),
+                          lookup_result.slot_index);
+      if (*result == *isolate()->factory()->the_hole_value()) {
+        // Do not install stubs and stay pre-monomorphic for
+        // uninitialized accesses.
+        return ReferenceError("not_defined", name);
+      }
+
       if (use_ic && LoadScriptContextFieldStub::Accepted(&lookup_result)) {
         LoadScriptContextFieldStub stub(isolate(), &lookup_result);
         PatchCache(name, stub.GetCode());
       }
-      return FixedArray::get(ScriptContextTable::GetContext(
-                                 script_contexts, lookup_result.context_index),
-                             lookup_result.slot_index);
+      return result;
     }
   }
 

@@ -1145,3 +1145,21 @@ TEST(CrossScriptAssignmentToConst) {
     context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
   }
 }
+
+
+TEST(Regress425510) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+
+    context.Check("'use strict'; o; const o = 10", EXPECT_EXCEPTION);
+
+    for (int i = 0; i < 100; i++) {
+      context.Check("o.prototype", EXPECT_EXCEPTION);
+    }
+  }
+}
