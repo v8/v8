@@ -348,10 +348,10 @@ class CallIC : public IC {
 
   void PatchMegamorphic(Handle<Object> function);
 
-  void HandleMiss(Handle<Object> receiver, Handle<Object> function);
+  void HandleMiss(Handle<Object> function);
 
   // Returns true if a custom handler was installed.
-  bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
+  bool DoCustomHandler(Handle<Object> function,
                        const CallICState& callic_state);
 
   // Code generator routines.

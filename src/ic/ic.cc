@@ -2138,7 +2138,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-bool CallIC::DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
+bool CallIC::DoCustomHandler(Handle<Object> function,
                              const CallICState& callic_state) {
   DCHECK(FLAG_use_ic && function->IsJSFunction());
 
@@ -2203,7 +2203,7 @@ void CallIC::PatchMegamorphic(Handle<Object> function) {
 }
 
 
-void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
+void CallIC::HandleMiss(Handle<Object> function) {
   CallICState callic_state(target()->extra_ic_state());
   Handle<Object> name = isolate()->factory()->empty_string();
   CallICNexus* nexus = casted_nexus<CallICNexus>();
@@ -2226,7 +2226,7 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
            feedback->IsAllocationSite());
 
     // Do we want to install a custom handler?
-    if (FLAG_use_ic && DoCustomHandler(receiver, function, callic_state)) {
+    if (FLAG_use_ic && DoCustomHandler(function, callic_state)) {
       return;
     }
 
@@ -2255,15 +2255,14 @@ void CallIC::HandleMiss(Handle<Object> receiver, Handle<Object> function) {
 RUNTIME_FUNCTION(CallIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> function = args.at<Object>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Smi> slot = args.at<Smi>(3);
+  DCHECK(args.length() == 3);
+  Handle<Object> function = args.at<Object>(0);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
+  Handle<Smi> slot = args.at<Smi>(2);
   FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
   CallICNexus nexus(vector, vector_slot);
   CallIC ic(isolate, &nexus);
-  ic.HandleMiss(receiver, function);
+  ic.HandleMiss(function);
   return *function;
 }
 
@@ -2271,10 +2270,10 @@ RUNTIME_FUNCTION(CallIC_Miss) {
 RUNTIME_FUNCTION(CallIC_Customization_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  Handle<Object> function = args.at<Object>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Smi> slot = args.at<Smi>(3);
+  DCHECK(args.length() == 3);
+  Handle<Object> function = args.at<Object>(0);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
+  Handle<Smi> slot = args.at<Smi>(2);
   FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
   CallICNexus nexus(vector, vector_slot);
   // A miss on a custom call ic always results in going megamorphic.
