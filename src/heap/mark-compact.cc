@@ -2128,11 +2128,12 @@ void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize() {
     marking_deque_memory_ = new base::VirtualMemory(4 * MB);
   }
   if (!marking_deque_memory_committed_) {
-    bool success = marking_deque_memory_->Commit(
-        reinterpret_cast<Address>(marking_deque_memory_->address()),
-        marking_deque_memory_->size(),
-        false);  // Not executable.
-    CHECK(success);
+    if (!marking_deque_memory_->Commit(
+            reinterpret_cast<Address>(marking_deque_memory_->address()),
+            marking_deque_memory_->size(),
+            false)) {  // Not executable.
+      V8::FatalProcessOutOfMemory("EnsureMarkingDequeIsCommitted");
+    }
     marking_deque_memory_committed_ = true;
     InitializeMarkingDeque();
   }
