@@ -195,6 +195,11 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         } else {
           out.AddFormatted("    ;; debug: position %d", relocinfo.data());
         }
+      } else if (rmode == RelocInfo::DEOPT_REASON) {
+        Deoptimizer::DeoptReason reason =
+            static_cast<Deoptimizer::DeoptReason>(relocinfo.data());
+        out.AddFormatted("    ;; debug: deopt reason '%s'",
+                         Deoptimizer::GetDeoptReason(reason));
       } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);

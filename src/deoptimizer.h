@@ -87,6 +87,83 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 };
 
 
+#define DEOPT_MESSAGES_LIST(V)                                                 \
+  V(kNoReason, "no reason")                                                    \
+  V(kConstantGlobalVariableAssignment, "Constant global variable assignment")  \
+  V(kConversionOverflow, "conversion overflow")                                \
+  V(kDivisionByZero, "division by zero")                                       \
+  V(kElementsKindUnhandledInKeyedLoadGenericStub,                              \
+    "ElementsKind unhandled in KeyedLoadGenericStub")                          \
+  V(kExpectedHeapNumber, "Expected heap number")                               \
+  V(kExpectedSmi, "Expected smi")                                              \
+  V(kForcedDeoptToRuntime, "Forced deopt to runtime")                          \
+  V(kHole, "hole")                                                             \
+  V(kHoleyArrayDespitePackedElements_kindFeedback,                             \
+    "Holey array despite packed elements_kind feedback")                       \
+  V(kInstanceMigrationFailed, "instance migration failed")                     \
+  V(kInsufficientTypeFeedbackForCallWithArguments,                             \
+    "Insufficient type feedback for call with arguments")                      \
+  V(kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                 \
+    "Insufficient type feedback for combined type of binary operation")        \
+  V(kInsufficientTypeFeedbackForGenericNamedAccess,                            \
+    "Insufficient type feedback for generic named access")                     \
+  V(kInsufficientTypeFeedbackForKeyedLoad,                                     \
+    "Insufficient type feedback for keyed load")                               \
+  V(kInsufficientTypeFeedbackForKeyedStore,                                    \
+    "Insufficient type feedback for keyed store")                              \
+  V(kInsufficientTypeFeedbackForLHSOfBinaryOperation,                          \
+    "Insufficient type feedback for LHS of binary operation")                  \
+  V(kInsufficientTypeFeedbackForRHSOfBinaryOperation,                          \
+    "Insufficient type feedback for RHS of binary operation")                  \
+  V(kKeyIsNegative, "key is negative")                                         \
+  V(kLostPrecision, "lost precision")                                          \
+  V(kLostPrecisionOrNaN, "lost precision or NaN")                              \
+  V(kMementoFound, "memento found")                                            \
+  V(kMinusZero, "minus zero")                                                  \
+  V(kNaN, "NaN")                                                               \
+  V(kNegativeKeyEncountered, "Negative key encountered")                       \
+  V(kNegativeValue, "negative value")                                          \
+  V(kNoCache, "no cache")                                                      \
+  V(kNonStrictElementsInKeyedLoadGenericStub,                                  \
+    "non-strict elements in KeyedLoadGenericStub")                             \
+  V(kNotADateObject, "not a date object")                                      \
+  V(kNotAHeapNumber, "not a heap number")                                      \
+  V(kNotAHeapNumberUndefinedBoolean, "not a heap number/undefined/true/false") \
+  V(kNotAHeapNumberUndefined, "not a heap number/undefined")                   \
+  V(kNotAJavaScriptObject, "not a JavaScript object")                          \
+  V(kNotASmi, "not a Smi")                                                     \
+  V(kNotHeapNumber, "not heap number")                                         \
+  V(kNull, "null")                                                             \
+  V(kOutOfBounds, "out of bounds")                                             \
+  V(kOutsideOfRange, "Outside of range")                                       \
+  V(kOverflow, "overflow")                                                     \
+  V(kReceiverWasAGlobalObject, "receiver was a global object")                 \
+  V(kSmi, "Smi")                                                               \
+  V(kTooManyArguments, "too many arguments")                                   \
+  V(kTooManyUndetectableTypes, "Too many undetectable types")                  \
+  V(kTracingElementsTransitions, "Tracing elements transitions")               \
+  V(kTypeMismatchBetweenFeedbackAndConstant,                                   \
+    "Type mismatch between feedback and constant")                             \
+  V(kUndefined, "undefined")                                                   \
+  V(kUnexpectedCellContentsInConstantGlobalStore,                              \
+    "Unexpected cell contents in constant global store")                       \
+  V(kUnexpectedCellContentsInGlobalStore,                                      \
+    "Unexpected cell contents in global store")                                \
+  V(kUnexpectedObject, "unexpected object")                                    \
+  V(kUnexpectedRHSOfBinaryOperation, "Unexpected RHS of binary operation")     \
+  V(kUninitializedBoilerplateInFastClone,                                      \
+    "Uninitialized boilerplate in fast clone")                                 \
+  V(kUninitializedBoilerplateLiterals, "Uninitialized boilerplate literals")   \
+  V(kUnknownMapInPolymorphicAccess, "Unknown map in polymorphic access")       \
+  V(kUnknownMapInPolymorphicCall, "Unknown map in polymorphic call")           \
+  V(kUnknownMapInPolymorphicElementAccess,                                     \
+    "Unknown map in polymorphic element access")                               \
+  V(kUnknownMap, "Unknown map")                                                \
+  V(kValueMismatch, "value mismatch")                                          \
+  V(kWrongInstanceType, "wrong instance type")                                 \
+  V(kWrongMap, "wrong map")
+
+
 class Deoptimizer : public Malloced {
  public:
   enum BailoutType {
@@ -99,21 +176,29 @@ class Deoptimizer : public Malloced {
     kBailoutTypesWithCodeEntry = SOFT + 1
   };
 
+#define DEOPT_MESSAGES_CONSTANTS(C, T) C,
+  enum DeoptReason {
+    DEOPT_MESSAGES_LIST(DEOPT_MESSAGES_CONSTANTS) kLastDeoptReason
+  };
+#undef DEOPT_MESSAGES_CONSTANTS
+
+  static const char* GetDeoptReason(DeoptReason deopt_reason);
+
   struct Reason {
-    Reason(int r, const char* m, const char* d)
-        : raw_position(r), mnemonic(m), detail(d) {}
+    Reason(int r, const char* m, DeoptReason d)
+        : raw_position(r), mnemonic(m), deopt_reason(d) {}
 
     bool operator==(const Reason& other) const {
       return raw_position == other.raw_position &&
              CStringEquals(mnemonic, other.mnemonic) &&
-             CStringEquals(detail, other.detail);
+             deopt_reason == other.deopt_reason;
     }
 
     bool operator!=(const Reason& other) const { return !(*this == other); }
 
     int raw_position;
     const char* mnemonic;
-    const char* detail;
+    DeoptReason deopt_reason;
   };
 
   struct JumpTableEntry : public ZoneObject {
