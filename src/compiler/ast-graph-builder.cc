@@ -1194,7 +1194,6 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
-  if (exception == NULL) exception = jsgraph()->NullConstant();
   Unique<String> name = MakeUnique(stmt->variable()->name());
   const Operator* op = javascript()->CreateCatchContext(name);
   Node* context = NewNode(op, exception, GetFunctionClosure());
