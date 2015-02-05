@@ -2250,6 +2250,101 @@ bool StackFrame::IsConstructor() const {
 }
 
 
+// --- N a t i v e W e a k M a p ---
+
+Local<NativeWeakMap> NativeWeakMap::New(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::Handle<i::JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  i::Runtime::WeakCollectionInitialize(isolate, weakmap);
+  return Utils::NativeWeakMapToLocal(weakmap);
+}
+
+
+void NativeWeakMap::Set(Handle<Value> v8_key, Handle<Value> v8_value) {
+  i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
+  i::Isolate* isolate = weak_collection->GetIsolate();
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
+  i::Handle<i::Object> value = Utils::OpenHandle(*v8_value);
+  if (!key->IsJSReceiver() && !key->IsSymbol()) {
+    DCHECK(false);
+    return;
+  }
+  i::Handle<i::ObjectHashTable> table(
+      i::ObjectHashTable::cast(weak_collection->table()));
+  if (!table->IsKey(*key)) {
+    DCHECK(false);
+    return;
+  }
+  i::Runtime::WeakCollectionSet(weak_collection, key, value);
+}
+
+
+Local<Value> NativeWeakMap::Get(Handle<Value> v8_key) {
+  i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
+  i::Isolate* isolate = weak_collection->GetIsolate();
+  ENTER_V8(isolate);
+  i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
+  if (!key->IsJSReceiver() && !key->IsSymbol()) {
+    DCHECK(false);
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
+  i::Handle<i::ObjectHashTable> table(
+      i::ObjectHashTable::cast(weak_collection->table()));
+  if (!table->IsKey(*key)) {
+    DCHECK(false);
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
+  i::Handle<i::Object> lookup(table->Lookup(key), isolate);
+  if (lookup->IsTheHole())
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  return Utils::ToLocal(lookup);
+}
+
+
+bool NativeWeakMap::Has(Handle<Value> v8_key) {
+  i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
+  i::Isolate* isolate = weak_collection->GetIsolate();
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
+  if (!key->IsJSReceiver() && !key->IsSymbol()) {
+    DCHECK(false);
+    return false;
+  }
+  i::Handle<i::ObjectHashTable> table(
+      i::ObjectHashTable::cast(weak_collection->table()));
+  if (!table->IsKey(*key)) {
+    DCHECK(false);
+    return false;
+  }
+  i::Handle<i::Object> lookup(table->Lookup(key), isolate);
+  return !lookup->IsTheHole();
+}
+
+
+bool NativeWeakMap::Delete(Handle<Value> v8_key) {
+  i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
+  i::Isolate* isolate = weak_collection->GetIsolate();
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
+  if (!key->IsJSReceiver() && !key->IsSymbol()) {
+    DCHECK(false);
+    return false;
+  }
+  i::Handle<i::ObjectHashTable> table(
+      i::ObjectHashTable::cast(weak_collection->table()));
+  if (!table->IsKey(*key)) {
+    DCHECK(false);
+    return false;
+  }
+  return i::Runtime::WeakCollectionDelete(weak_collection, key);
+}
+
+
 // --- J S O N ---
 
 Local<Value> JSON::Parse(Local<String> json_string) {

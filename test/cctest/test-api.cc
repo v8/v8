@@ -46,6 +46,7 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/parser.h"
+#include "src/smart-pointers.h"
 #include "src/snapshot.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
@@ -4734,6 +4735,77 @@ TEST(MessageHandler5) {
   CHECK(message_received);
   // clear out the message listener
   v8::V8::RemoveMessageListeners(check_message_5b);
+}
+
+
+TEST(NativeWeakMap) {
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  Local<v8::NativeWeakMap> weak_map(v8::NativeWeakMap::New(isolate));
+  CHECK(!weak_map.IsEmpty());
+
+  LocalContext env;
+  Local<Object> value = v8::Object::New(isolate);
+
+  Local<Object> local1 = v8::Object::New(isolate);
+  CHECK(!weak_map->Has(local1));
+  CHECK(weak_map->Get(local1)->IsUndefined());
+  weak_map->Set(local1, value);
+  CHECK(weak_map->Has(local1));
+  CHECK(value->Equals(weak_map->Get(local1)));
+
+  WeakCallCounter counter(1234);
+  WeakCallCounterAndPersistent<Value> o1(&counter);
+  WeakCallCounterAndPersistent<Value> o2(&counter);
+  WeakCallCounterAndPersistent<Value> s1(&counter);
+  {
+    HandleScope scope(isolate);
+    Local<v8::Object> obj1 = v8::Object::New(isolate);
+    Local<v8::Object> obj2 = v8::Object::New(isolate);
+    Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
+
+    weak_map->Set(obj1, value);
+    weak_map->Set(obj2, value);
+    weak_map->Set(sym1, value);
+
+    o1.handle.Reset(isolate, obj1);
+    o2.handle.Reset(isolate, obj2);
+    s1.handle.Reset(isolate, sym1);
+
+    CHECK(weak_map->Has(local1));
+    CHECK(weak_map->Has(obj1));
+    CHECK(weak_map->Has(obj2));
+    CHECK(weak_map->Has(sym1));
+
+    CHECK(value->Equals(weak_map->Get(local1)));
+    CHECK(value->Equals(weak_map->Get(obj1)));
+    CHECK(value->Equals(weak_map->Get(obj2)));
+    CHECK(value->Equals(weak_map->Get(sym1)));
+  }
+  CcTest::heap()->CollectAllGarbage(TestHeap::Heap::kNoGCFlags);
+  {
+    HandleScope scope(isolate);
+    CHECK(value->Equals(weak_map->Get(local1)));
+    CHECK(value->Equals(weak_map->Get(Local<Value>::New(isolate, o1.handle))));
+    CHECK(value->Equals(weak_map->Get(Local<Value>::New(isolate, o2.handle))));
+    CHECK(value->Equals(weak_map->Get(Local<Value>::New(isolate, s1.handle))));
+  }
+
+  o1.handle.SetWeak(&o1, &WeakPointerCallback);
+  o2.handle.SetWeak(&o2, &WeakPointerCallback);
+  s1.handle.SetWeak(&s1, &WeakPointerCallback);
+
+  CcTest::heap()->CollectAllGarbage(TestHeap::Heap::kNoGCFlags);
+  CHECK_EQ(3, counter.NumberOfWeakCalls());
+
+  CHECK(o1.handle.IsEmpty());
+  CHECK(o2.handle.IsEmpty());
+  CHECK(s1.handle.IsEmpty());
+
+  CHECK(value->Equals(weak_map->Get(local1)));
+  CHECK(weak_map->Delete(local1));
+  CHECK(!weak_map->Has(local1));
+  CHECK(weak_map->Get(local1)->IsUndefined());
 }
 
 
