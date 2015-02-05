@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-unicode
+// Flags: --expose-debug-as debug --harmony-unicode-regexps
 // Test the mirror object for regular expression values
 
 var all_attributes = debug.PropertyAttribute.ReadOnly |

@@ -4631,7 +4631,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           // If the 'u' flag is present, only syntax characters can be escaped,
           // no other identity escapes are allowed. If the 'u' flag is not
           // present, all identity escapes are allowed.
-          if (!FLAG_harmony_unicode || !unicode_) {
+          if (!FLAG_harmony_unicode_regexps || !unicode_) {
             builder->AddCharacter(first_digit);
             Advance(2);
           } else {
@@ -4692,7 +4692,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         uc32 value;
         if (ParseHexEscape(2, &value)) {
           builder->AddCharacter(value);
-        } else if (!FLAG_harmony_unicode || !unicode_) {
+        } else if (!FLAG_harmony_unicode_regexps || !unicode_) {
           builder->AddCharacter('x');
         } else {
           // If the 'u' flag is present, invalid escapes are not treated as
@@ -4706,7 +4706,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         uc32 value;
         if (ParseUnicodeEscape(&value)) {
           builder->AddCharacter(value);
-        } else if (!FLAG_harmony_unicode || !unicode_) {
+        } else if (!FLAG_harmony_unicode_regexps || !unicode_) {
           builder->AddCharacter('u');
         } else {
           // If the 'u' flag is present, invalid escapes are not treated as
@@ -4720,7 +4720,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         // If the 'u' flag is present, only syntax characters can be escaped, no
         // other identity escapes are allowed. If the 'u' flag is not present,
         // all identity escapes are allowed.
-        if (!FLAG_harmony_unicode || !unicode_ ||
+        if (!FLAG_harmony_unicode_regexps || !unicode_ ||
             IsSyntaxCharacter(current())) {
           builder->AddCharacter(current());
           Advance();
@@ -4991,7 +4991,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
-  if (current() == '{' && FLAG_harmony_unicode && unicode_) {
+  if (current() == '{' && FLAG_harmony_unicode_regexps && unicode_) {
     int start = position();
     Advance();
     if (ParseUnlimitedLengthHexNumber(0x10ffff, value)) {
@@ -5081,7 +5081,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseHexEscape(2, &value)) {
         return value;
       }
-      if (!FLAG_harmony_unicode || !unicode_) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_) {
         // If \x is not followed by a two-digit hexadecimal, treat it
         // as an identity escape.
         return 'x';
@@ -5097,7 +5097,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseUnicodeEscape(&value)) {
         return value;
       }
-      if (!FLAG_harmony_unicode || !unicode_) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_) {
         return 'u';
       }
       // If the 'u' flag is present, invalid escapes are not treated as
@@ -5110,7 +5110,8 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       // If the 'u' flag is present, only syntax characters can be escaped, no
       // other identity escapes are allowed. If the 'u' flag is not present, all
       // identity escapes are allowed.
-      if (!FLAG_harmony_unicode || !unicode_ || IsSyntaxCharacter(result)) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_ ||
+          IsSyntaxCharacter(result)) {
         Advance();
         return result;
       }
