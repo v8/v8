@@ -38,6 +38,15 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("constructor_noncallable", HandleVector<Object>(NULL, 0)));
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

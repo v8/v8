@@ -34,14 +34,17 @@ class Subclass extends Base {
 let b = new Base(1, 2);
 assertSame(3, b.prp);
 
+
 let s = new Subclass(2, -1);
 assertSame(1, s.prp);
 assertSame(undefined, s.prp1);
 assertFalse(s.hasOwnProperty("prp1"));
 
 class Subclass2 extends Base {
-  constructor() {
+  constructor(x) {
     super(1,2);
+
+    if (x < 0) return;
 
     let called = false;
     function tmp() { called = true; return 3; }
@@ -54,4 +57,11 @@ class Subclass2 extends Base {
   }
 }
 
-new Subclass2();
+var s2 = new Subclass2(1);
+assertSame(3, s2.prp);
+
+var s3 = new Subclass2(-1);
+assertSame(3, s3.prp);
+
+assertThrows(function() { Subclass.call(new Object(), 1, 2); }, TypeError);
+assertThrows(function() { Base.call(new Object(), 1, 2); }, TypeError);

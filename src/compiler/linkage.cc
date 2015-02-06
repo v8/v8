@@ -213,6 +213,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kStringMatch:
     case Runtime::kStringReplaceGlobalRegExpWithString:
     case Runtime::kThrowConstAssignError:
+    case Runtime::kThrowConstructorNonCallableError:
     case Runtime::kThrowNonMethodError:
     case Runtime::kThrowNotDateError:
     case Runtime::kThrowReferenceError:

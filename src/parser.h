@@ -583,7 +583,7 @@ class ParserTraits {
                                       int* expected_property_count, bool* ok);
   V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, bool is_generator, bool* ok);
+      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
@@ -871,7 +871,7 @@ class Parser : public ParserBase<ParserTraits> {
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* function_name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, bool is_generator, bool* ok);
+      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   void ThrowPendingError();
 
@@ -936,9 +936,9 @@ void ParserTraits::SkipLazyFunctionBody(const AstRawString* function_name,
 
 ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
     const AstRawString* name, int pos, Variable* fvar,
-    Token::Value fvar_init_op, bool is_generator, bool* ok) {
-  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op,
-                                         is_generator, ok);
+    Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
+  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op, kind,
+                                         ok);
 }
 
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,

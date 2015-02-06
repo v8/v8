@@ -104,18 +104,18 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    LanguageMode language_mode, bool is_generator, ParserRecorder* log) {
+    LanguageMode language_mode, FunctionKind kind, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   PreParserScope top_scope(scope_, SCRIPT_SCOPE);
   PreParserFactory top_factory(NULL);
-  FunctionState top_state(&function_state_, &scope_, &top_scope, &top_factory);
+  FunctionState top_state(&function_state_, &scope_, &top_scope,
+                          kNormalFunction, &top_factory);
   scope_->SetLanguageMode(language_mode);
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
   PreParserFactory function_factory(NULL);
-  FunctionState function_state(&function_state_, &scope_, &function_scope,
+  FunctionState function_state(&function_state_, &scope_, &function_scope, kind,
                                &function_factory);
-  function_state.set_is_generator(is_generator);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
@@ -869,9 +869,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   ScopeType outer_scope_type = scope_->type();
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
   PreParserFactory factory(NULL);
-  FunctionState function_state(&function_state_, &scope_, &function_scope,
+  FunctionState function_state(&function_state_, &scope_, &function_scope, kind,
                                &factory);
-  function_state.set_is_generator(IsGeneratorFunction(kind));
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(Token::LPAREN, CHECK_OK);
