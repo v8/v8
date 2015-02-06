@@ -56,6 +56,7 @@ class V8 : public AllStatic {
   static void TearDown();
 
   // Report process out of memory. Implementation found in api.cc.
+  // This function will not return, but will terminate the execution.
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
 

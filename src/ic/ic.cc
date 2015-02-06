@@ -2508,19 +2508,6 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result, Execution::Call(isolate(), function, left, 1, &right),
       Object);
-  if (result->IsHeapNumber()) {
-    // If the result of this BinaryOpIC is used as left or right hand side of
-    // another binary operation, full-codegen.cc might have decided that its
-    // safe to reuse the double box returned by this BinaryOpIC, but the builtin
-    // above does not know or care about this fact and might return a canonical
-    // value (i.e. the global minus zero constant), which we would then
-    // overwrite in the surrounding binary operation. So to be safe, we need to
-    // take a copy of heap numbers here.
-    result = isolate()->factory()->NewHeapNumber(result->Number());
-  }
-  DCHECK(!result.is_identical_to(isolate()->factory()->nan_value()));
-  DCHECK(!result.is_identical_to(isolate()->factory()->infinity_value()));
-  DCHECK(!result.is_identical_to(isolate()->factory()->minus_zero_value()));
 
   // Execution::Call can execute arbitrary JavaScript, hence potentially
   // update the state of this very IC, so we must update the stored state.

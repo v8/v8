@@ -55,9 +55,11 @@ void StoreBuffer::SetUp() {
   old_limit_ = old_start_ + initial_length;
   old_reserved_limit_ = old_start_ + kOldStoreBufferLength;
 
-  CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_start_),
-                                    (old_limit_ - old_start_) * kPointerSize,
-                                    false));
+  if (!old_virtual_memory_->Commit(reinterpret_cast<void*>(old_start_),
+                                   (old_limit_ - old_start_) * kPointerSize,
+                                   false)) {
+    V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
+  }
 
   DCHECK(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
   DCHECK(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
@@ -71,9 +73,11 @@ void StoreBuffer::SetUp() {
   DCHECK((reinterpret_cast<uintptr_t>(limit_ - 1) & kStoreBufferOverflowBit) ==
          0);
 
-  CHECK(virtual_memory_->Commit(reinterpret_cast<Address>(start_),
-                                kStoreBufferSize,
-                                false));  // Not executable.
+  if (!virtual_memory_->Commit(reinterpret_cast<Address>(start_),
+                               kStoreBufferSize,
+                               false)) {  // Not executable.
+    V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
+  }
   heap_->public_set_store_buffer_top(start_);
 
   hash_set_1_ = new uintptr_t[kHashSetLength];
@@ -133,8 +137,10 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   while (old_limit_ - old_top_ < space_needed &&
          old_limit_ < old_reserved_limit_) {
     size_t grow = old_limit_ - old_start_;  // Double size.
-    CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
-                                      grow * kPointerSize, false));
+    if (!old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
+                                     grow * kPointerSize, false)) {
+      V8::FatalProcessOutOfMemory("StoreBuffer::EnsureSpace");
+    }
     old_limit_ += grow;
   }
 

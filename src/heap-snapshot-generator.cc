@@ -3102,7 +3102,7 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
           WriteUChar(writer_, *s);
         } else {
           // Convert UTF-8 into \u UTF-16 literal.
-          unsigned length = 1, cursor = 0;
+          size_t length = 1, cursor = 0;
           for ( ; length <= 4 && *(s + length) != '\0'; ++length) { }
           unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
           if (c != unibrow::Utf8::kBadChar) {

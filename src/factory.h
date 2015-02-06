@@ -359,6 +359,8 @@ class Factory FINAL {
     return NewJSObjectFromMap(neander_map());
   }
 
+  Handle<JSWeakMap> NewJSWeakMap();
+
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
   // JS objects are pretenured when allocated by the bootstrapper and

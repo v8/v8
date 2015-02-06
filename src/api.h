@@ -169,7 +169,8 @@ class RegisteredExtension {
   V(Context, Context)                        \
   V(External, Object)                        \
   V(StackTrace, JSArray)                     \
-  V(StackFrame, JSObject)
+  V(StackFrame, JSObject)                    \
+  V(NativeWeakMap, JSWeakMap)
 
 class Utils {
  public:
@@ -255,6 +256,8 @@ class Utils {
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<NativeWeakMap> NativeWeakMapToLocal(
+      v8::internal::Handle<v8::internal::JSWeakMap> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -361,6 +364,7 @@ MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
+MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL

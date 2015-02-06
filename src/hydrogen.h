@@ -1475,7 +1475,7 @@ class HGraphBuilder {
   HValue* EnforceNumberType(HValue* number, Type* expected);
   HValue* TruncateToNumber(HValue* value, Type** expected);
 
-  void FinishExitWithHardDeoptimization(const char* reason);
+  void FinishExitWithHardDeoptimization(Deoptimizer::DeoptReason reason);
 
   void AddIncrementCounter(StatsCounter* counter);
 
@@ -1623,12 +1623,12 @@ class HGraphBuilder {
     void Else();
     void End();
 
-    void Deopt(const char* reason);
-    void ThenDeopt(const char* reason) {
+    void Deopt(Deoptimizer::DeoptReason reason);
+    void ThenDeopt(Deoptimizer::DeoptReason reason) {
       Then();
       Deopt(reason);
     }
-    void ElseDeopt(const char* reason) {
+    void ElseDeopt(Deoptimizer::DeoptReason reason) {
       Else();
       Deopt(reason);
     }
@@ -1938,9 +1938,9 @@ class HGraphBuilder {
 };
 
 
-template<>
+template <>
 inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
-    const char* reason, Deoptimizer::BailoutType type) {
+    Deoptimizer::DeoptReason reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
     if (FLAG_always_opt) return NULL;
@@ -1958,9 +1958,9 @@ inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
 }
 
 
-template<>
+template <>
 inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
-    const char* reason, Deoptimizer::BailoutType type) {
+    Deoptimizer::DeoptReason reason, Deoptimizer::BailoutType type) {
   return Add<HDeoptimize>(reason, type);
 }
 

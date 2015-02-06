@@ -3077,6 +3077,15 @@ void Assembler::RecordComment(const char* msg) {
 }
 
 
+void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+  if (FLAG_trace_deopt) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+  }
+}
+
+
 int Assembler::buffer_space() const {
   return reloc_info_writer.pos() - reinterpret_cast<byte*>(pc_);
 }

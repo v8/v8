@@ -3628,4 +3628,13 @@ void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
+
+const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
+  DCHECK(deopt_reason < kLastDeoptReason);
+#define DEOPT_MESSAGES_TEXTS(C, T) T,
+  static const char* deopt_messages_[] = {
+      DEOPT_MESSAGES_LIST(DEOPT_MESSAGES_TEXTS)};
+#undef DEOPT_MESSAGES_TEXTS
+  return deopt_messages_[deopt_reason];
+}
 } }  // namespace v8::internal

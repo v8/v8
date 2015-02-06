@@ -240,7 +240,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       decoder(isolate()->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start() + non_ascii_start,
                  length - non_ascii_start);
-  int utf16_length = decoder->Utf16Length();
+  int utf16_length = static_cast<int>(decoder->Utf16Length());
   DCHECK(utf16_length > 0);
   // Allocate string.
   Handle<SeqTwoByteString> result;
@@ -1018,7 +1018,7 @@ Handle<Object> Factory::NewNumber(double value,
   // We need to distinguish the minus zero value and this cannot be
   // done after conversion to int. Doing this by comparing bit
   // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) return minus_zero_value();
+  if (IsMinusZero(value)) return NewHeapNumber(-0.0, IMMUTABLE, pretenure);
 
   int int_value = FastD2IChecked(value);
   if (value == int_value && Smi::IsValid(int_value)) {
@@ -2234,6 +2234,15 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
     Object::SetProperty(result, callee_string(), callee, STRICT).Assert();
   }
   return result;
+}
+
+
+Handle<JSWeakMap> Factory::NewJSWeakMap() {
+  // TODO(adamk): Currently the map is only created three times per
+  // isolate. If it's created more often, the map should be moved into the
+  // strong root list.
+  Handle<Map> map = NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  return Handle<JSWeakMap>::cast(NewJSObjectFromMap(map));
 }
 
 

@@ -9115,10 +9115,10 @@ bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
     return false;
   }
   int i;
-  unsigned remaining_in_str = static_cast<unsigned>(str_len);
+  size_t remaining_in_str = static_cast<size_t>(str_len);
   const uint8_t* utf8_data = reinterpret_cast<const uint8_t*>(str.start());
   for (i = 0; i < slen && remaining_in_str > 0; i++) {
-    unsigned cursor = 0;
+    size_t cursor = 0;
     uint32_t r = unibrow::Utf8::ValueOf(utf8_data, remaining_in_str, &cursor);
     DCHECK(cursor > 0 && cursor <= remaining_in_str);
     if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
@@ -9292,13 +9292,13 @@ uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
   // Start with a fake length which won't affect computation.
   // It will be updated later.
   StringHasher hasher(String::kMaxArrayIndexSize, seed);
-  unsigned remaining = static_cast<unsigned>(vector_length);
+  size_t remaining = static_cast<size_t>(vector_length);
   const uint8_t* stream = reinterpret_cast<const uint8_t*>(chars.start());
   int utf16_length = 0;
   bool is_index = true;
   DCHECK(hasher.is_array_index_);
   while (remaining > 0) {
-    unsigned consumed = 0;
+    size_t consumed = 0;
     uint32_t c = unibrow::Utf8::ValueOf(stream, remaining, &consumed);
     DCHECK(consumed > 0 && consumed <= remaining);
     stream += consumed;
@@ -11007,14 +11007,18 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 
 
 void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
-  const char* last_comment = NULL;
-  int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
-      | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+  int last_position = 0;
+  Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
+  int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
+             RelocInfo::ModeMask(RelocInfo::POSITION) |
+             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::COMMENT) {
-      last_comment = reinterpret_cast<const char*>(info->data());
-    } else if (last_comment != NULL) {
+    if (info->rmode() == RelocInfo::POSITION) {
+      last_position = static_cast<int>(info->data());
+    } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
+      last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
+    } else if (last_reason != Deoptimizer::kNoReason) {
       if ((bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
           (bailout_id == Deoptimizer::GetDeoptimizationId(
@@ -11022,7 +11026,8 @@ void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
           (bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF(out, "            %s\n", last_comment);
+        PrintF(out, "            ;;; deoptimize at %d: %s\n", last_position,
+               Deoptimizer::GetDeoptReason(last_reason));
         return;
       }
     }
