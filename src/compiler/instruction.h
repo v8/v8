@@ -27,13 +27,13 @@ namespace compiler {
 const InstructionCode kGapInstruction = -1;
 const InstructionCode kSourcePositionInstruction = -2;
 
-#define INSTRUCTION_OPERAND_LIST(V)                                  \
-  V(Constant, CONSTANT, 0)                                           \
-  V(Immediate, IMMEDIATE, 0)                                         \
-  V(StackSlot, STACK_SLOT, 128)                                      \
-  V(DoubleStackSlot, DOUBLE_STACK_SLOT, 128)                         \
-  V(Register, REGISTER, RegisterConfiguration::kMaxGeneralRegisters) \
-  V(DoubleRegister, DOUBLE_REGISTER, RegisterConfiguration::kMaxDoubleRegisters)
+#define INSTRUCTION_OPERAND_LIST(V)     \
+  V(Constant, CONSTANT)                 \
+  V(Immediate, IMMEDIATE)               \
+  V(StackSlot, STACK_SLOT)              \
+  V(DoubleStackSlot, DOUBLE_STACK_SLOT) \
+  V(Register, REGISTER)                 \
+  V(DoubleRegister, DOUBLE_REGISTER)
 
 class InstructionOperand {
  public:
@@ -62,11 +62,11 @@ class InstructionOperand {
 
   Kind kind() const { return KindField::decode(value_); }
   int index() const { return static_cast<int>(value_) >> KindField::kSize; }
-#define INSTRUCTION_OPERAND_PREDICATE(name, type, number) \
+#define INSTRUCTION_OPERAND_PREDICATE(name, type) \
   bool Is##name() const { return kind() == type; }
   INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_PREDICATE)
-  INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED, 0)
-  INSTRUCTION_OPERAND_PREDICATE(Invalid, INVALID, 0)
+  INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
+  INSTRUCTION_OPERAND_PREDICATE(Invalid, INVALID)
 #undef INSTRUCTION_OPERAND_PREDICATE
   bool Equals(const InstructionOperand* other) const {
     return value_ == other->value_;
@@ -79,10 +79,6 @@ class InstructionOperand {
     DCHECK(this->index() == index);
     if (kind != UNALLOCATED) virtual_register_ = kInvalidVirtualRegister;
   }
-
-  // Calls SetUpCache()/TearDownCache() for each subclass.
-  static void SetUpCaches();
-  static void TearDownCaches();
 
   // TODO(dcarney): get rid of these
   void* operator new(size_t, void* location) { return location; }
@@ -137,9 +133,6 @@ class UnallocatedOperand : public InstructionOperand {
     // register for any other operand inside instruction.
     USED_AT_END
   };
-
-  // TODO(dcarney): remove this.
-  static const int kInvalidVirtualRegister = -1;
 
   UnallocatedOperand(ExtendedPolicy policy, int virtual_register)
       : InstructionOperand(UNALLOCATED, 0, virtual_register) {
@@ -349,47 +342,33 @@ struct PrintableMoveOperands {
 std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
 
 
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-class SubKindOperand FINAL : public InstructionOperand {
- public:
-  explicit SubKindOperand(int index)
-      : InstructionOperand(kOperandKind, index) {}
-
-  static SubKindOperand* Create(int index, Zone* zone) {
-    DCHECK(index >= 0);
-    if (index < kNumCachedOperands) return &cache[index];
-    return new (zone) SubKindOperand(index);
-  }
-
-  static SubKindOperand* cast(InstructionOperand* op) {
-    DCHECK(op->kind() == kOperandKind);
-    return reinterpret_cast<SubKindOperand*>(op);
-  }
-
-  static const SubKindOperand* cast(const InstructionOperand* op) {
-    DCHECK(op->kind() == kOperandKind);
-    return reinterpret_cast<const SubKindOperand*>(op);
-  }
-
-  static SubKindOperand cast(const InstructionOperand& op) {
-    DCHECK(op.kind() == kOperandKind);
-    return *static_cast<const SubKindOperand*>(&op);
-  }
-
-  static void SetUpCache();
-  static void TearDownCache();
-
- private:
-  static SubKindOperand* cache;
-
-  SubKindOperand() : InstructionOperand(kOperandKind, 0) {}  // For the caches.
-};
-
-
-#define INSTRUCTION_TYPEDEF_SUBKIND_OPERAND_CLASS(name, type, number) \
-  typedef SubKindOperand<InstructionOperand::type, number> name##Operand;
-INSTRUCTION_OPERAND_LIST(INSTRUCTION_TYPEDEF_SUBKIND_OPERAND_CLASS)
-#undef INSTRUCTION_TYPEDEF_SUBKIND_OPERAND_CLASS
+#define INSTRUCTION_SUBKIND_OPERAND_CLASS(SubKind, kOperandKind)        \
+  class SubKind##Operand FINAL : public InstructionOperand {            \
+   public:                                                              \
+    explicit SubKind##Operand(int index)                                \
+        : InstructionOperand(kOperandKind, index) {}                    \
+                                                                        \
+    static SubKind##Operand* New(int index, Zone* zone) {               \
+      return new (zone) SubKind##Operand(index);                        \
+    }                                                                   \
+                                                                        \
+    static SubKind##Operand* cast(InstructionOperand* op) {             \
+      DCHECK(op->kind() == kOperandKind);                               \
+      return reinterpret_cast<SubKind##Operand*>(op);                   \
+    }                                                                   \
+                                                                        \
+    static const SubKind##Operand* cast(const InstructionOperand* op) { \
+      DCHECK(op->kind() == kOperandKind);                               \
+      return reinterpret_cast<const SubKind##Operand*>(op);             \
+    }                                                                   \
+                                                                        \
+    static SubKind##Operand cast(const InstructionOperand& op) {        \
+      DCHECK(op.kind() == kOperandKind);                                \
+      return *static_cast<const SubKind##Operand*>(&op);                \
+    }                                                                   \
+  };
+INSTRUCTION_OPERAND_LIST(INSTRUCTION_SUBKIND_OPERAND_CLASS)
+#undef INSTRUCTION_SUBKIND_OPERAND_CLASS
 
 
 class ParallelMove FINAL : public ZoneObject {

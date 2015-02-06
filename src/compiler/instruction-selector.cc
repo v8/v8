@@ -30,7 +30,7 @@ InstructionSelector::InstructionSelector(Zone* zone, size_t node_count,
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
       virtual_registers_(node_count,
-                         UnallocatedOperand::kInvalidVirtualRegister, zone) {
+                         InstructionOperand::kInvalidVirtualRegister, zone) {
   instructions_.reserve(node_count);
 }
 
@@ -182,7 +182,7 @@ int InstructionSelector::GetVirtualRegister(const Node* node) {
   size_t const id = node->id();
   DCHECK_LT(id, virtual_registers_.size());
   int virtual_register = virtual_registers_[id];
-  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+  if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
     virtual_register = sequence()->NextVirtualRegister();
     virtual_registers_[id] = virtual_register;
   }
@@ -194,7 +194,7 @@ const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
     const {
   std::map<NodeId, int> virtual_registers;
   for (size_t n = 0; n < virtual_registers_.size(); ++n) {
-    if (virtual_registers_[n] != UnallocatedOperand::kInvalidVirtualRegister) {
+    if (virtual_registers_[n] != InstructionOperand::kInvalidVirtualRegister) {
       NodeId const id = static_cast<NodeId>(n);
       virtual_registers.insert(std::make_pair(id, virtual_registers_[n]));
     }
@@ -239,7 +239,7 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 bool InstructionSelector::IsDouble(const Node* node) const {
   DCHECK_NOT_NULL(node);
   int const virtual_register = virtual_registers_[node->id()];
-  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+  if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
     return false;
   }
   return sequence()->IsDouble(virtual_register);
@@ -256,7 +256,7 @@ void InstructionSelector::MarkAsDouble(Node* node) {
 bool InstructionSelector::IsReference(const Node* node) const {
   DCHECK_NOT_NULL(node);
   int const virtual_register = virtual_registers_[node->id()];
-  if (virtual_register == UnallocatedOperand::kInvalidVirtualRegister) {
+  if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
     return false;
   }
   return sequence()->IsReference(virtual_register);

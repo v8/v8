@@ -173,6 +173,33 @@ class UsePosition FINAL : public ZoneObject {
 
 class SpillRange;
 
+
+// TODO(dcarney): remove this cache.
+class InstructionOperandCache FINAL : public ZoneObject {
+ public:
+  InstructionOperandCache();
+
+  InstructionOperand* RegisterOperand(int index) {
+    DCHECK(index >= 0 &&
+           index < static_cast<int>(arraysize(general_register_operands_)));
+    return &general_register_operands_[index];
+  }
+  InstructionOperand* DoubleRegisterOperand(int index) {
+    DCHECK(index >= 0 &&
+           index < static_cast<int>(arraysize(double_register_operands_)));
+    return &double_register_operands_[index];
+  }
+
+ private:
+  InstructionOperand
+      general_register_operands_[RegisterConfiguration::kMaxGeneralRegisters];
+  InstructionOperand
+      double_register_operands_[RegisterConfiguration::kMaxDoubleRegisters];
+
+  DISALLOW_COPY_AND_ASSIGN(InstructionOperandCache);
+};
+
+
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
 class LiveRange FINAL : public ZoneObject {
@@ -193,10 +220,12 @@ class LiveRange FINAL : public ZoneObject {
   int id() const { return id_; }
   bool IsFixed() const { return id_ < 0; }
   bool IsEmpty() const { return first_interval() == nullptr; }
-  InstructionOperand* CreateAssignedOperand(Zone* zone) const;
+  // TODO(dcarney): remove this.
+  InstructionOperand* GetAssignedOperand(InstructionOperandCache* cache) const;
+  InstructionOperand GetAssignedOperand() const;
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
-  void set_assigned_register(int reg, Zone* zone);
+  void set_assigned_register(int reg, InstructionOperandCache* cache);
   void MakeSpilled();
   bool is_phi() const { return is_phi_; }
   void set_is_phi(bool is_phi) { is_phi_ = is_phi; }
@@ -558,6 +587,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
+  InstructionOperandCache* operand_cache() const { return operand_cache_; }
   ZoneVector<LiveRange*>& live_ranges() { return live_ranges_; }
   ZoneVector<LiveRange*>& fixed_live_ranges() { return fixed_live_ranges_; }
   ZoneVector<LiveRange*>& fixed_double_live_ranges() {
@@ -570,7 +600,6 @@ class RegisterAllocator FINAL : public ZoneObject {
   ZoneVector<LiveRange*>& inactive_live_ranges() {
     return inactive_live_ranges_;
   }
-  ZoneVector<LiveRange*>& reusable_slots() { return reusable_slots_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
 
   struct PhiMapValue {
@@ -588,7 +617,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   const char* const debug_name_;
 
   const RegisterConfiguration* config_;
-
+  InstructionOperandCache* const operand_cache_;
   PhiMap phi_map_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
@@ -604,7 +633,6 @@ class RegisterAllocator FINAL : public ZoneObject {
   ZoneVector<LiveRange*> unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
   ZoneVector<LiveRange*> inactive_live_ranges_;
-  ZoneVector<LiveRange*> reusable_slots_;
   ZoneVector<SpillRange*> spill_ranges_;
 
   RegisterKind mode_;

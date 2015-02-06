@@ -763,9 +763,9 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
+                            Deoptimizer::DeoptReason deopt_reason,
                             Deoptimizer::BailoutType bailout_type,
-                            const char* detail, Register src1,
-                            const Operand& src2) {
+                            Register src1, const Operand& src2) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   DCHECK(environment->HasBeenRegistered());
@@ -807,7 +807,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
   }
 
   Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
-                             instr->Mnemonic(), detail);
+                             instr->Mnemonic(), deopt_reason);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
   // restore caller doubles.
@@ -830,12 +830,12 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
 
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
-                            const char* detail, Register src1,
-                            const Operand& src2) {
+                            Deoptimizer::DeoptReason deopt_reason,
+                            Register src1, const Operand& src2) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(condition, instr, bailout_type, detail, src1, src2);
+  DeoptimizeIf(condition, instr, deopt_reason, bailout_type, src1, src2);
 }
 
 
@@ -3275,7 +3275,8 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ lwu(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
-    DeoptimizeIf(eq, instr, Deopt::kHole, scratch, Operand(kHoleNanUpper32));
+    DeoptimizeIf(eq, instr, Deoptimizer::kHole, scratch,
+                 Operand(kHoleNanUpper32));
   }
 }
 
@@ -5055,7 +5056,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     __ bind(&check_false);
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
-    DeoptimizeIf(ne, instr, Deoptimizer::kNotAHeapNumberUndefinedTrueFalse,
+    DeoptimizeIf(ne, instr, Deoptimizer::kNotAHeapNumberUndefinedBoolean,
                  scratch2, Operand(at));
     __ Branch(USE_DELAY_SLOT, &done);
     __ mov(input_reg, zero_reg);  // In delay slot.
@@ -5817,7 +5818,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
     type = Deoptimizer::LAZY;
   }
 
-  DeoptimizeIf(al, instr, type, instr->hydrogen()->reason(), zero_reg,
+  DeoptimizeIf(al, instr, instr->hydrogen()->reason(), type, zero_reg,
                Operand(zero_reg));
 }
 

@@ -698,13 +698,13 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
     PrintIndent();
     os_ << range->id() << " " << type;
     if (range->HasRegisterAssigned()) {
-      InstructionOperand* op = range->CreateAssignedOperand(zone());
-      int assigned_reg = op->index();
-      if (op->IsDoubleRegister()) {
+      InstructionOperand op = range->GetAssignedOperand();
+      int assigned_reg = op.index();
+      if (op.IsDoubleRegister()) {
         os_ << " \"" << DoubleRegister::AllocationIndexToString(assigned_reg)
             << "\"";
       } else {
-        DCHECK(op->IsRegister());
+        DCHECK(op.IsRegister());
         os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
       }
     } else if (range->IsSpilled()) {

@@ -128,7 +128,7 @@ class OperandGenerator {
   InstructionOperand TempRegister(Register reg) {
     return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                               Register::ToAllocationIndex(reg),
-                              UnallocatedOperand::kInvalidVirtualRegister);
+                              InstructionOperand::kInvalidVirtualRegister);
   }
 
   InstructionOperand TempImmediate(int32_t imm) {

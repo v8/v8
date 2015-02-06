@@ -7,13 +7,14 @@
 
 #include "src/v8.h"
 
+// Clients of this interface shouldn't depend on lots of compiler internals.
+// Do not include anything from src/compiler here!
 #include "src/compiler.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
@@ -49,9 +50,6 @@ class Pipeline {
 
   static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
   static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
-
-  static void SetUp();
-  static void TearDown();
 
  private:
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,

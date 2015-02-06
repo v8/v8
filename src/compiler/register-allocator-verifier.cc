@@ -29,7 +29,7 @@ void RegisterAllocatorVerifier::VerifyInput(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
   if (constraint.type_ != kImmediate) {
-    CHECK_NE(UnallocatedOperand::kInvalidVirtualRegister,
+    CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
              constraint.virtual_register_);
   }
 }
@@ -46,7 +46,7 @@ void RegisterAllocatorVerifier::VerifyTemp(
 void RegisterAllocatorVerifier::VerifyOutput(
     const OperandConstraint& constraint) {
   CHECK_NE(kImmediate, constraint.type_);
-  CHECK_NE(UnallocatedOperand::kInvalidVirtualRegister,
+  CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
            constraint.virtual_register_);
 }
 
@@ -120,7 +120,7 @@ void RegisterAllocatorVerifier::VerifyAssignment() {
 void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
                                                 OperandConstraint* constraint) {
   constraint->value_ = kMinInt;
-  constraint->virtual_register_ = UnallocatedOperand::kInvalidVirtualRegister;
+  constraint->virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
   if (op->IsConstant()) {
     constraint->type_ = kConstant;
     constraint->value_ = ConstantOperand::cast(op)->index();
@@ -217,7 +217,7 @@ namespace {
 
 typedef BasicBlock::RpoNumber Rpo;
 
-static const int kInvalidVreg = UnallocatedOperand::kInvalidVirtualRegister;
+static const int kInvalidVreg = InstructionOperand::kInvalidVirtualRegister;
 
 struct PhiData : public ZoneObject {
   PhiData(Rpo definition_rpo, const PhiInstruction* phi, int first_pred_vreg,
