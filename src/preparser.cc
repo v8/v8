@@ -936,36 +936,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
   Expect(Token::RBRACE, CHECK_OK);
 
-  // Validate strict mode. We can do this only after parsing the function,
-  // since the function can declare itself strict.
-  // Concise methods use StrictFormalParameters.
-  if (is_strict(language_mode()) || IsConciseMethod(kind) || is_rest) {
-    if (function_name.IsEvalOrArguments()) {
-      ReportMessageAt(function_name_location, "strict_eval_arguments");
-      *ok = false;
-      return Expression::Default();
-    }
-    if (name_is_strict_reserved) {
-      ReportMessageAt(function_name_location, "unexpected_strict_reserved");
-      *ok = false;
-      return Expression::Default();
-    }
-    if (eval_args_error_loc.IsValid()) {
-      ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
-      *ok = false;
-      return Expression::Default();
-    }
-    if (dupe_error_loc.IsValid()) {
-      ReportMessageAt(dupe_error_loc, "strict_param_dupe");
-      *ok = false;
-      return Expression::Default();
-    }
-    if (reserved_error_loc.IsValid()) {
-      ReportMessageAt(reserved_error_loc, "unexpected_strict_reserved");
-      *ok = false;
-      return Expression::Default();
-    }
+  // Validate name and parameter names. We can do this only after parsing the
+  // function, since the function can declare itself strict.
+  CheckFunctionName(language_mode(), kind, function_name,
+                    name_is_strict_reserved, function_name_location, CHECK_OK);
+  const bool use_strict_params = is_rest || IsConciseMethod(kind);
+  CheckFunctionParameterNames(language_mode(), use_strict_params,
+                              eval_args_error_loc, dupe_error_loc,
+                              reserved_error_loc, CHECK_OK);
 
+  if (is_strict(language_mode())) {
     int end_position = scanner()->location().end_pos;
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }

@@ -3676,9 +3676,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // We don't yet know if the function will be strict, so we cannot yet
     // produce errors for parameter names or duplicates. However, we remember
     // the locations of these errors if they occur and produce the errors later.
-    Scanner::Location eval_args_error_log = Scanner::Location::invalid();
+    Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
-    Scanner::Location reserved_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_error_loc = Scanner::Location::invalid();
 
     bool is_rest = false;
     bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
@@ -3695,11 +3695,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
 
       // Store locations for possible future error reports.
-      if (!eval_args_error_log.IsValid() && IsEvalOrArguments(param_name)) {
-        eval_args_error_log = scanner()->location();
+      if (!eval_args_error_loc.IsValid() && IsEvalOrArguments(param_name)) {
+        eval_args_error_loc = scanner()->location();
       }
-      if (!reserved_loc.IsValid() && is_strict_reserved) {
-        reserved_loc = scanner()->location();
+      if (!reserved_error_loc.IsValid() && is_strict_reserved) {
+        reserved_error_loc = scanner()->location();
       }
       if (!dupe_error_loc.IsValid() && scope_->IsDeclared(param_name)) {
         duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
@@ -3810,19 +3810,16 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       handler_count = function_state.handler_count();
     }
 
-    // Validate strict mode.
-    // Concise methods use StrictFormalParameters.
-    // Functions for which IsSimpleParameterList() returns false use
-    // StrictFormalParameters.
-    if (is_strict(language_mode()) || IsConciseMethod(kind) || is_rest) {
-      CheckStrictFunctionNameAndParameters(function_name,
-                                           name_is_strict_reserved,
-                                           function_name_location,
-                                           eval_args_error_log,
-                                           dupe_error_loc,
-                                           reserved_loc,
-                                           CHECK_OK);
-    }
+    // Validate name and parameter names. We can do this only after parsing the
+    // function, since the function can declare itself strict.
+    CheckFunctionName(language_mode(), kind, function_name,
+                      name_is_strict_reserved, function_name_location,
+                      CHECK_OK);
+    const bool use_strict_params = is_rest || IsConciseMethod(kind);
+    CheckFunctionParameterNames(language_mode(), use_strict_params,
+                                eval_args_error_loc, dupe_error_loc,
+                                reserved_error_loc, CHECK_OK);
+
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
