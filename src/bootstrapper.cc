@@ -211,6 +211,8 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   void InstallExperimentalNativeFunctions();
+  // Typed arrays are not serializable and have to initialized afterwards.
+  void InitializeBuiltinTypedArrays();
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
   void InstallNativeFunctions_##id();             \
@@ -1579,6 +1581,60 @@ void Genesis::InstallExperimentalNativeFunctions() {
 }
 
 
+template <typename Data>
+Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
+                           ExternalArrayType type, Data* data,
+                           size_t num_elements, const char* name) {
+  size_t byte_length = num_elements * sizeof(*data);
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  bool should_be_freed = false;
+  if (data == NULL) {
+    data = reinterpret_cast<Data*>(malloc(byte_length));
+    should_be_freed = true;
+  }
+  Runtime::SetupArrayBuffer(isolate, buffer, true, data, byte_length);
+  buffer->set_should_be_freed(should_be_freed);
+
+  Handle<JSTypedArray> typed_array =
+      isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements);
+  Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
+  // Reset property cell type before (re)initializing.
+  JSBuiltinsObject::InvalidatePropertyCell(builtins, name_string);
+  JSObject::SetOwnPropertyIgnoreAttributes(builtins, name_string, typed_array,
+                                           DONT_DELETE).Assert();
+  return data;
+}
+
+
+void Genesis::InitializeBuiltinTypedArrays() {
+  Handle<JSBuiltinsObject> builtins(native_context()->builtins());
+  {  // Initially seed the per-context random number generator using the
+    // per-isolate random number generator.
+    const size_t num_elements = 2;
+    const size_t num_bytes = num_elements * sizeof(uint32_t);
+    uint32_t* state = SetBuiltinTypedArray<uint32_t>(isolate(), builtins,
+                                                     kExternalUint32Array, NULL,
+                                                     num_elements, "rngstate");
+    do {
+      isolate()->random_number_generator()->NextBytes(state, num_bytes);
+    } while (state[0] == 0 || state[1] == 0);
+  }
+
+  {  // Initialize trigonometric lookup tables and constants.
+    const size_t num_elements = arraysize(fdlibm::MathConstants::constants);
+    double* data = const_cast<double*>(fdlibm::MathConstants::constants);
+    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
+                                 data, num_elements, "kMath");
+  }
+
+  {  // Initialize a result array for rempio2 calculation
+    const size_t num_elements = 2;
+    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
+                                 NULL, num_elements, "rempio2result");
+  }
+}
+
+
 #define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id) \
   void Genesis::InstallNativeFunctions_##id() {}
 
@@ -2816,46 +2872,7 @@ Genesis::Genesis(Isolate* isolate,
 
   // The serializer cannot serialize typed arrays. Reset those typed arrays
   // for each new context.
-  {
-    // Initially seed the per-context random number generator using the
-    // per-isolate random number generator.
-    const int num_elems = 2;
-    const int num_bytes = num_elems * sizeof(uint32_t);
-    uint32_t* state = reinterpret_cast<uint32_t*>(malloc(num_bytes));
-
-    do {
-      isolate->random_number_generator()->NextBytes(state, num_bytes);
-    } while (state[0] == 0 || state[1] == 0);
-
-    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate), state, num_bytes);
-    Utils::OpenHandle(*buffer)->set_should_be_freed(true);
-    v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
-    Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-
-    Handle<String> rngstate =
-        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("rngstate"));
-    // Reset property cell type before (re)initializing.
-    JSBuiltinsObject::InvalidatePropertyCell(builtins, rngstate);
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        builtins, rngstate, Utils::OpenHandle(*ta), DONT_DELETE).Assert();
-
-    // Initialize trigonometric lookup tables and constants.
-    const int constants_size = arraysize(fdlibm::MathConstants::constants);
-    const int table_num_bytes = constants_size * kDoubleSize;
-    v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate),
-        const_cast<double*>(fdlibm::MathConstants::constants), table_num_bytes);
-    v8::Local<v8::Float64Array> trig_table =
-        v8::Float64Array::New(trig_buffer, 0, constants_size);
-
-    Handle<String> kmath =
-        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath"));
-    // Reset property cell type before (re)initializing.
-    JSBuiltinsObject::InvalidatePropertyCell(builtins, kmath);
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        builtins, kmath, Utils::OpenHandle(*trig_table), DONT_DELETE).Assert();
-  }
+  InitializeBuiltinTypedArrays();
 
   result_ = native_context();
 }
