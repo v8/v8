@@ -2077,7 +2077,7 @@ Block* Parser::ParseScopedBlock(ZoneList<const AstRawString*>* labels,
   // The harmony mode uses block elements instead of statements.
   //
   // Block ::
-  //   '{' BlockElement* '}'
+  //   '{' StatementList '}'
 
   // Construct block expecting 16 statements.
   Block* body =

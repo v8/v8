@@ -156,14 +156,7 @@ PreParserExpression PreParserTraits::ParseClassLiteral(
 // it is used) are generally omitted.
 
 
-#define CHECK_OK  ok);                      \
-  if (!*ok) return kUnknownSourceElements;  \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
-
-
-PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
+PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
   // ECMA 262 6th Edition
   // StatementListItem[Yield, Return] :
   //   Statement[?Yield, ?Return]
@@ -200,8 +193,7 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
 }
 
 
-PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
-                                                         bool* ok) {
+void PreParser::ParseStatementList(int end_token, bool* ok) {
   // SourceElements ::
   //   (Statement)* <end_token>
 
@@ -210,7 +202,8 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
     if (directive_prologue && peek() != Token::STRING) {
       directive_prologue = false;
     }
-    Statement statement = ParseSourceElement(CHECK_OK);
+    Statement statement = ParseStatementListItem(ok);
+    if (!*ok) return;
     if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
         scope_->SetLanguageMode(
@@ -223,11 +216,9 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
       }
     }
   }
-  return kUnknownSourceElements;
 }
 
 
-#undef CHECK_OK
 #define CHECK_OK  ok);                   \
   if (!*ok) return Statement::Default();  \
   ((void)0
@@ -387,7 +378,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
     if (allow_harmony_scoping() && is_strict(language_mode())) {
-      ParseSourceElement(CHECK_OK);
+      ParseStatementListItem(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
     }
@@ -932,7 +923,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_lazily_parsed) {
     ParseLazyFunctionLiteralBody(CHECK_OK);
   } else {
-    ParseSourceElements(Token::RBRACE, ok);
+    ParseStatementList(Token::RBRACE, CHECK_OK);
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -956,7 +947,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   int body_start = position();
-  ParseSourceElements(Token::RBRACE, ok);
+  ParseStatementList(Token::RBRACE, ok);
   if (!*ok) return;
 
   // Position right after terminal '}'.

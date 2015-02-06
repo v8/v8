@@ -1564,7 +1564,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
-    ParseSourceElements(Token::EOS, &ok);
+    ParseStatementList(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -1609,17 +1609,12 @@ class PreParser : public ParserBase<PreParserTraits> {
     kHasNoInitializers
   };
 
-
-  enum SourceElements {
-    kUnknownSourceElements
-  };
-
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseSourceElement(bool* ok);
-  SourceElements ParseSourceElements(int end_token, bool* ok);
+  Statement ParseStatementListItem(bool* ok);
+  void ParseStatementList(int end_token, bool* ok);
   Statement ParseStatement(bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
@@ -1682,7 +1677,7 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseSourceElements(Token::RBRACE, ok);
+  ParseStatementList(Token::RBRACE, ok);
   if (!*ok) return PreParserStatementList();
 
   Expect(Token::RBRACE, ok);
