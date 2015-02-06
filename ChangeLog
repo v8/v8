@@ -1,3 +1,12 @@
+2015-02-05: Version 4.2.54
+
+        Fix HConstant(double, ...) constructor (issue 3865).
+
+        Add NativeWeakMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-05: Version 4.2.53
 
         Fix issue with multiple properties and emit store (issue 3856).
