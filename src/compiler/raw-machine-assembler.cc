@@ -12,7 +12,7 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         MachineSignature* machine_sig,
+                                         const MachineSignature* machine_sig,
                                          MachineType word,
                                          MachineOperatorBuilder::Flags flags)
     : GraphBuilder(isolate, graph),

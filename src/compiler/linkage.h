@@ -64,8 +64,9 @@ class CallDescriptor FINAL : public ZoneObject {
   typedef base::Flags<Flag> Flags;
 
   CallDescriptor(Kind kind, MachineType target_type, LinkageLocation target_loc,
-                 MachineSignature* machine_sig, LocationSignature* location_sig,
-                 size_t js_param_count, Operator::Properties properties,
+                 const MachineSignature* machine_sig,
+                 LocationSignature* location_sig, size_t js_param_count,
+                 Operator::Properties properties,
                  RegList callee_saved_registers, Flags flags,
                  const char* debug_name = "")
       : kind_(kind),
@@ -209,7 +210,7 @@ class Linkage : public ZoneObject {
   // integers and pointers of one word size each, i.e. no floating point,
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,
-                                                  MachineSignature* sig);
+                                                  const MachineSignature* sig);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {

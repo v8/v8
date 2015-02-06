@@ -45,7 +45,7 @@ class RawMachineAssembler : public GraphBuilder {
   };
 
   RawMachineAssembler(Isolate* isolate, Graph* graph,
-                      MachineSignature* machine_sig,
+                      const MachineSignature* machine_sig,
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
@@ -56,7 +56,7 @@ class RawMachineAssembler : public GraphBuilder {
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
   size_t parameter_count() const { return machine_sig_->parameter_count(); }
-  MachineSignature* machine_sig() const { return machine_sig_; }
+  const MachineSignature* machine_sig() const { return machine_sig_; }
 
   Node* UndefinedConstant() {
     Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
@@ -448,7 +448,7 @@ class RawMachineAssembler : public GraphBuilder {
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
-  MachineSignature* machine_sig_;
+  const MachineSignature* machine_sig_;
   CallDescriptor* call_descriptor_;
   Node** parameters_;
   Label exit_label_;
