@@ -732,6 +732,16 @@ int CountBuiltins() {
 }
 
 
+static Handle<SharedFunctionInfo> CompileScript(
+    Isolate* isolate, Handle<String> source, Handle<String> name,
+    ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
+  return Compiler::CompileScript(source, name, 0, 0, false, false,
+                                 Handle<Context>(isolate->native_context()),
+                                 NULL, cached_data, options, NOT_NATIVES_CODE,
+                                 false);
+}
+
+
 TEST(SerializeToplevelOnePlusOne) {
   FLAG_serialize_toplevel = true;
   LocalContext context;
@@ -753,20 +763,17 @@ TEST(SerializeToplevelOnePlusOne) {
 
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      orig_source, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, orig_source, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   int builtins_count = CountBuiltins();
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        copy_source, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, copy_source, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
 
   CHECK_NE(*orig, *copy);
@@ -808,10 +815,9 @@ TEST(SerializeToplevelInternalizedString) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      orig_source, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, orig_source, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
   Handle<JSFunction> orig_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           orig, isolate->native_context());
@@ -824,10 +830,8 @@ TEST(SerializeToplevelInternalizedString) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        copy_source, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, copy_source, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
   CHECK(Script::cast(copy->script())->source() == *copy_source);
@@ -867,20 +871,17 @@ TEST(SerializeToplevelLargeCodeObject) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_str, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   CHECK(isolate->heap()->InSpace(orig->code(), LO_SPACE));
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 
@@ -923,18 +924,15 @@ TEST(SerializeToplevelLargeStrings) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_str, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 
@@ -996,18 +994,15 @@ TEST(SerializeToplevelThreeBigStrings) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_str, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 
@@ -1104,18 +1099,15 @@ TEST(SerializeToplevelExternalString) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_string, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_string, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_string, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_string, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 
@@ -1166,18 +1158,15 @@ TEST(SerializeToplevelLargeExternalString) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_str, Handle<String>(), 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_str, Handle<String>(), &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_str, Handle<String>(), 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_str, Handle<String>(), &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 
@@ -1220,18 +1209,15 @@ TEST(SerializeToplevelExternalScriptName) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
-      source_string, name, 0, 0, false, false,
-      Handle<Context>(isolate->native_context()), NULL, &cache,
-      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig =
+      CompileScript(isolate, source_string, name, &cache,
+                    v8::ScriptCompiler::kProduceCodeCache);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(
-        source_string, name, 0, 0, false, false,
-        Handle<Context>(isolate->native_context()), NULL, &cache,
-        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+    copy = CompileScript(isolate, source_string, name, &cache,
+                         v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
 

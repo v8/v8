@@ -728,7 +728,7 @@ class Compiler : public AllStatic {
       int column_offset, bool is_debugger_script, bool is_shared_cross_origin,
       Handle<Context> context, v8::Extension* extension,
       ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code, bool is_module);
 
   static Handle<SharedFunctionInfo> CompileStreamedScript(CompilationInfo* info,
                                                           int source_length);

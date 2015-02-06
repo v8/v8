@@ -138,6 +138,7 @@
         'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
+        'test-modules.cc',
         'test-object-observe.cc',
         'test-ordered-hash-table.cc',
         'test-parsing.cc',

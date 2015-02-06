@@ -1135,7 +1135,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   isolate->debug()->OnBeforeCompile(script);
 
-  DCHECK(info->is_eval() || info->is_global());
+  DCHECK(info->is_eval() || info->is_global() || info->is_module());
 
   info->MarkAsToplevel();
 
@@ -1280,7 +1280,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     int column_offset, bool is_embedder_debug_script,
     bool is_shared_cross_origin, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
-    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
+    bool is_module) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
@@ -1345,7 +1346,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
 
     // Compile the function and add it to the cache.
     CompilationInfoWithZone info(script);
-    info.MarkAsGlobal();
+    if (FLAG_harmony_modules && is_module) {
+      info.MarkAsModule();
+    } else {
+      info.MarkAsGlobal();
+    }
     info.SetCachedData(cached_data, compile_options);
     info.SetExtension(extension);
     info.SetContext(context);

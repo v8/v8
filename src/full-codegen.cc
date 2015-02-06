@@ -725,9 +725,14 @@ void FullCodeGenerator::VisitDeclarations(
   AstVisitor::VisitDeclarations(declarations);
 
   if (scope_->num_modules() != 0) {
+    // TODO(ES6): This step, which creates module instance objects,
+    // can probably be delayed until an "import *" declaration
+    // reifies a module instance. Until imports are implemented,
+    // we skip it altogether.
+    //
     // Initialize modules from descriptor array.
-    DCHECK(module_index_ == modules_->length());
-    DeclareModules(modules_);
+    //  DCHECK(module_index_ == modules_->length());
+    //  DeclareModules(modules_);
     modules_ = saved_modules;
     module_index_ = saved_module_index;
   }

@@ -1308,6 +1308,24 @@ class V8_EXPORT ScriptCompiler {
    *   compared when it is being used.
    */
   static uint32_t CachedDataVersionTag();
+
+  /**
+   * Compile an ES6 module.
+   *
+   * This is an experimental feature.
+   *
+   * TODO(adamk): Script is likely the wrong return value for this;
+   * should return some new Module type.
+   */
+  static Local<Script> CompileModule(
+      Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions);
+
+ private:
+  static Local<UnboundScript> CompileUnboundInternal(Isolate* isolate,
+                                                     Source* source,
+                                                     CompileOptions options,
+                                                     bool is_module);
 };
 
 

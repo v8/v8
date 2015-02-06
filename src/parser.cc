@@ -955,11 +955,9 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     int beg_pos = scanner()->location().beg_pos;
     if (info->is_module()) {
       DCHECK(allow_harmony_modules());
-      Module* module = ParseModule(&ok);
+      Statement* stmt = ParseModule(&ok);
       if (ok) {
-        // TODO(adamk): Do something with returned Module
-        CHECK(module);
-        body->Add(factory()->NewEmptyStatement(RelocInfo::kNoPosition), zone());
+        body->Add(stmt, zone());
       }
     } else {
       ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
@@ -1255,7 +1253,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 }
 
 
-Module* Parser::ParseModule(bool* ok) {
+Statement* Parser::ParseModule(bool* ok) {
   // (Ecma 262 6th Edition, 15.2):
   // Module :
   //    ModuleBody?
@@ -1263,21 +1261,14 @@ Module* Parser::ParseModule(bool* ok) {
   // ModuleBody :
   //    ModuleItem*
 
-  int pos = peek_position();
-  // Construct block expecting 16 statements.
   Block* body = factory()->NewBlock(NULL, 16, false, RelocInfo::kNoPosition);
-#ifdef DEBUG
-  if (FLAG_print_interface_details) PrintF("# Literal ");
-#endif
   Scope* scope = NewScope(scope_, MODULE_SCOPE);
-
   scope->set_start_position(scanner()->location().beg_pos);
   scope->SetLanguageMode(
       static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
 
   {
     BlockState block_state(&scope_, scope);
-    Target target(&this->target_stack_, body);
 
     while (peek() != Token::EOS) {
       Statement* stat = ParseModuleItem(CHECK_OK);
@@ -1305,36 +1296,17 @@ Module* Parser::ParseModule(bool* ok) {
   DCHECK(*ok);
   interface->Freeze(ok);
   DCHECK(*ok);
-  return factory()->NewModuleLiteral(body, interface, pos);
+  return body;
 }
 
 
-Module* Parser::ParseModuleSpecifier(bool* ok) {
-  // Module:
-  //    String
+Literal* Parser::ParseModuleSpecifier(bool* ok) {
+  // ModuleSpecifier :
+  //    StringLiteral
 
   int pos = peek_position();
   Expect(Token::STRING, CHECK_OK);
-  const AstRawString* symbol = GetSymbol(scanner());
-
-  // TODO(ES6): Request JS resource from environment...
-
-#ifdef DEBUG
-  if (FLAG_print_interface_details) PrintF("# Url ");
-#endif
-
-  // Create an empty literal as long as the feature isn't finished.
-  USE(symbol);
-  Scope* scope = NewScope(scope_, MODULE_SCOPE);
-  Block* body = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
-  body->set_scope(scope);
-  Interface* interface = scope->interface();
-  Module* result = factory()->NewModuleLiteral(body, interface, pos);
-  interface->Freeze(ok);
-  DCHECK(*ok);
-  interface->Unify(scope->interface(), zone(), ok);
-  DCHECK(*ok);
-  return result;
+  return factory()->NewStringLiteral(GetSymbol(scanner()), pos);
 }
 
 
@@ -1487,7 +1459,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-  Module* module = ParseModuleSpecifier(CHECK_OK);
+  Literal* module = ParseModuleSpecifier(CHECK_OK);
   USE(module);
 
   ExpectSemicolon(CHECK_OK);
@@ -1563,7 +1535,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::MUL: {
       Consume(Token::MUL);
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-      Module* module = ParseModuleSpecifier(CHECK_OK);
+      Literal* module = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
       // TODO(ES6): Do something with the return value
       // of ParseModuleSpecifier.
@@ -1588,7 +1560,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ParseExportClause(&names, &reserved_loc, CHECK_OK);
       if (CheckContextualKeyword(CStrVector("from"))) {
-        Module* module = ParseModuleSpecifier(CHECK_OK);
+        Literal* module = ParseModuleSpecifier(CHECK_OK);
         // TODO(ES6): Do something with the return value
         // of ParseModuleSpecifier.
         USE(module);
