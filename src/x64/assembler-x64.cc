@@ -219,6 +219,13 @@ Operand::Operand(Register index,
 }
 
 
+Operand::Operand(Label* label) : rex_(0), len_(1) {
+  DCHECK_NOT_NULL(label);
+  set_modrm(0, rbp);
+  set_disp64(reinterpret_cast<intptr_t>(label));
+}
+
+
 Operand::Operand(const Operand& operand, int32_t offset) {
   DCHECK(operand.len_ >= 1);
   // Operand encodes REX ModR/M [SIB] [Disp].
@@ -365,15 +372,30 @@ void Assembler::bind_to(Label* L, int pos) {
     int current = L->pos();
     int next = long_at(current);
     while (next != current) {
-      // Relative address, relative to point after address.
-      int imm32 = pos - (current + sizeof(int32_t));
-      long_at_put(current, imm32);
+      if (current >= 4 && long_at(current - 4) == 0) {
+        // Absolute address.
+        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+        *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
+        internal_reference_positions_.push_back(current - 4);
+      } else {
+        // Relative address, relative to point after address.
+        int imm32 = pos - (current + sizeof(int32_t));
+        long_at_put(current, imm32);
+      }
       current = next;
       next = long_at(next);
     }
     // Fix up last fixup on linked list.
-    int last_imm32 = pos - (current + sizeof(int32_t));
-    long_at_put(current, last_imm32);
+    if (current >= 4 && long_at(current - 4) == 0) {
+      // Absolute address.
+      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+      *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
+      internal_reference_positions_.push_back(current - 4);
+    } else {
+      // Relative address, relative to point after address.
+      int imm32 = pos - (current + sizeof(int32_t));
+      long_at_put(current, imm32);
+    }
   }
   while (L->is_near_linked()) {
     int fixup_pos = L->near_link_pos();
@@ -441,15 +463,10 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      intptr_t* p = reinterpret_cast<intptr_t*>(it.rinfo()->pc());
-      if (*p != 0) {  // 0 means uninitialized.
-        *p += pc_delta;
-      }
-    }
+  // Relocate internal references.
+  for (auto pos : internal_reference_positions_) {
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    *p += pc_delta;
   }
 
   DCHECK(!buffer_overflow());
@@ -463,11 +480,29 @@ void Assembler::emit_operand(int code, const Operand& adr) {
 
   // Emit updated ModR/M byte containing the given register.
   DCHECK((adr.buf_[0] & 0x38) == 0);
-  pc_[0] = adr.buf_[0] | code << 3;
+  *pc_++ = adr.buf_[0] | code << 3;
 
-  // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
-  pc_ += length;
+  // Recognize RIP relative addressing.
+  if (adr.buf_[0] == 5) {
+    DCHECK_EQ(9u, length);
+    Label* label = *reinterpret_cast<Label* const*>(&adr.buf_[1]);
+    if (label->is_bound()) {
+      int offset = label->pos() - pc_offset() - sizeof(int32_t);
+      DCHECK_GE(0, offset);
+      emitl(offset);
+    } else if (label->is_linked()) {
+      emitl(label->pos());
+      label->link_to(pc_offset() - sizeof(int32_t));
+    } else {
+      DCHECK(label->is_unused());
+      int32_t current = pc_offset();
+      emitl(current);
+      label->link_to(current);
+    }
+  } else {
+    // Emit the rest of the encoded operand.
+    for (unsigned i = 1; i < length; i++) *pc_++ = adr.buf_[i];
+  }
 }
 
 
@@ -1812,6 +1847,13 @@ void Assembler::ret(int imm16) {
     emit(imm16 & 0xFF);
     emit((imm16 >> 8) & 0xFF);
   }
+}
+
+
+void Assembler::ud2() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x0B);
 }
 
 
@@ -3344,6 +3386,27 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data) {
   EnsureSpace ensure_space(this);
   emitl(data);
+}
+
+
+void Assembler::dq(Label* label) {
+  EnsureSpace ensure_space(this);
+  if (label->is_bound()) {
+    internal_reference_positions_.push_back(pc_offset());
+    emitp(buffer_ + label->pos(), RelocInfo::INTERNAL_REFERENCE);
+  } else {
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+    emitl(0);  // Zero for the first 32bit marks it as 64bit absolute address.
+    if (label->is_linked()) {
+      emitl(label->pos());
+      label->link_to(pc_offset() - sizeof(int32_t));
+    } else {
+      DCHECK(label->is_unused());
+      int32_t current = pc_offset();
+      emitl(current);
+      label->link_to(current);
+    }
+  }
 }
 
 
