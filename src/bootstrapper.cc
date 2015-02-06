@@ -1596,6 +1596,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_tostring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_templates)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
 
@@ -1627,6 +1628,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_templates)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 
@@ -1642,14 +1644,15 @@ void Genesis::InitializeGlobal_harmony_regexps() {
 }
 
 
-void Genesis::InitializeGlobal_harmony_unicode() {
+void Genesis::InitializeGlobal_harmony_unicode_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
 
-  Handle<HeapObject> flag(FLAG_harmony_unicode ? heap()->true_value()
-                                               : heap()->false_value());
+  Handle<HeapObject> flag(FLAG_harmony_unicode_regexps ? heap()->true_value()
+                                                       : heap()->false_value());
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  Runtime::DefineObjectProperty(builtins, factory()->harmony_unicode_string(),
+  Runtime::DefineObjectProperty(builtins,
+                                factory()->harmony_unicode_regexps_string(),
                                 flag, attributes).Assert();
 }
 
@@ -2209,6 +2212,7 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-templates.js", NULL};
   static const char* harmony_sloppy_natives[] = {NULL};
   static const char* harmony_unicode_natives[] = {NULL};
+  static const char* harmony_unicode_regexps_natives[] = {NULL};
   static const char* harmony_computed_property_names_natives[] = {NULL};
   static const char* harmony_rest_parameters_natives[] = {NULL};
 

@@ -348,10 +348,10 @@ class CallIC : public IC {
 
   void PatchMegamorphic(Handle<Object> function);
 
-  void HandleMiss(Handle<Object> receiver, Handle<Object> function);
+  void HandleMiss(Handle<Object> function);
 
   // Returns true if a custom handler was installed.
-  bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
+  bool DoCustomHandler(Handle<Object> function,
                        const CallICState& callic_state);
 
   // Code generator routines.
@@ -520,8 +520,8 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  STATIC_ASSERT(i::LANGUAGE_END == 2);
-  class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
+  STATIC_ASSERT(i::LANGUAGE_END == 3);
+  class LanguageModeState : public BitField<LanguageMode, 1, 2> {};
   static ExtraICState ComputeExtraICState(LanguageMode flag) {
     return LanguageModeState::encode(flag);
   }
@@ -605,10 +605,12 @@ class KeyedStoreIC : public StoreIC {
  public:
   // ExtraICState bits (building on IC)
   // ExtraICState bits
+  // When more language modes are added, these BitFields need to move too.
+  STATIC_ASSERT(i::LANGUAGE_END == 3);
   class ExtraICStateKeyedAccessStoreMode
-      : public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
+      : public BitField<KeyedAccessStoreMode, 3, 4> {};  // NOLINT
 
-  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
+  class IcCheckTypeField : public BitField<IcCheckType, 7, 1> {};
 
   static ExtraICState ComputeExtraICState(LanguageMode flag,
                                           KeyedAccessStoreMode mode) {

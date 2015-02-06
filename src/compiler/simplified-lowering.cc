@@ -17,6 +17,7 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/source-position.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -65,7 +66,8 @@ class RepresentationSelector {
   };
 
   RepresentationSelector(JSGraph* jsgraph, Zone* zone,
-                         RepresentationChanger* changer)
+                         RepresentationChanger* changer,
+                         SourcePositionTable* source_positions)
       : jsgraph_(jsgraph),
         count_(jsgraph->graph()->NodeCount()),
         info_(zone->NewArray<NodeInfo>(count_)),
@@ -73,7 +75,8 @@ class RepresentationSelector {
         replacements_(zone),
         phase_(PROPAGATE),
         changer_(changer),
-        queue_(zone) {
+        queue_(zone),
+        source_positions_(source_positions) {
     memset(info_, 0, sizeof(NodeInfo) * count_);
 
     safe_int_additive_range_ =
@@ -106,7 +109,13 @@ class RepresentationSelector {
       Node* node = *i;
       TRACE((" visit #%d: %s\n", node->id(), node->op()->mnemonic()));
       // Reuse {VisitNode()} so the representation rules are in one place.
-      VisitNode(node, GetUseInfo(node), lowering);
+      if (FLAG_turbo_source_positions) {
+        SourcePositionTable::Scope scope(
+            source_positions_, source_positions_->GetSourcePosition(node));
+        VisitNode(node, GetUseInfo(node), lowering);
+      } else {
+        VisitNode(node, GetUseInfo(node), lowering);
+      }
     }
 
     // Perform the final replacements.
@@ -1071,6 +1080,12 @@ class RepresentationSelector {
   Phase phase_;                     // current phase of algorithm
   RepresentationChanger* changer_;  // for inserting representation changes
   ZoneQueue<Node*> queue_;          // queue for traversing the graph
+  // TODO(danno): RepresentationSelector shouldn't know anything about the
+  // source positions table, but must for now since there currently is no other
+  // way to pass down source position information to nodes created during
+  // lowering. Once this phase becomes a vanilla reducer, it should get source
+  // position information via the SourcePositionWrapper like all other reducers.
+  SourcePositionTable* source_positions_;
   Type* safe_int_additive_range_;
 
   NodeInfo* GetInfo(Node* node) {
@@ -1094,7 +1109,8 @@ Node* SimplifiedLowering::IsTagged(Node* node) {
 void SimplifiedLowering::LowerAllNodes() {
   SimplifiedOperatorBuilder simplified(graph()->zone());
   RepresentationChanger changer(jsgraph(), &simplified, jsgraph()->isolate());
-  RepresentationSelector selector(jsgraph(), zone_, &changer);
+  RepresentationSelector selector(jsgraph(), zone_, &changer,
+                                  source_positions_);
   selector.Run(this);
 }
 

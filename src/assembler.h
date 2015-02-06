@@ -373,7 +373,6 @@ class RelocInfo {
     RUNTIME_ENTRY,
     JS_RETURN,  // Marks start of the ExitJSFrame code.
     COMMENT,
-    DEOPT_REASON,        // Deoptimization reason index.
     POSITION,            // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
     DEBUG_BREAK_SLOT,    // Additional code inserted for debug break slot.
@@ -384,6 +383,8 @@ class RelocInfo {
     // They use a custom noncompact encoding.
     CONST_POOL,
     VENEER_POOL,
+
+    DEOPT_REASON,  // Deoptimization reason index.
 
     // add more as needed
     // Pseudo-types

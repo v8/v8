@@ -55,6 +55,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Get the node that represents the outer function context.
   Node* GetFunctionContext();
+
   // Get the node that represents the outer function closure.
   Node* GetFunctionClosure();
 

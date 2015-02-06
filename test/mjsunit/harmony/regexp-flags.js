@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexps --harmony-unicode
+// Flags: --harmony-regexps --harmony-unicode-regexps
 
 RegExp.prototype.flags = 'setter should be undefined';
 

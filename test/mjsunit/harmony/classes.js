@@ -198,6 +198,7 @@ function assertGetterDescriptor(object, name) {
   assertTrue(descr.configurable);
   assertFalse(descr.enumerable);
   assertEquals('function', typeof descr.get);
+  assertFalse('prototype' in descr.get);
   assertEquals(undefined, descr.set);
 }
 
@@ -208,6 +209,7 @@ function assertSetterDescriptor(object, name) {
   assertFalse(descr.enumerable);
   assertEquals(undefined, descr.get);
   assertEquals('function', typeof descr.set);
+  assertFalse('prototype' in descr.set);
 }
 
 
@@ -217,6 +219,8 @@ function assertAccessorDescriptor(object, name) {
   assertFalse(descr.enumerable);
   assertEquals('function', typeof descr.get);
   assertEquals('function', typeof descr.set);
+  assertFalse('prototype' in descr.get);
+  assertFalse('prototype' in descr.set);
 }
 
 

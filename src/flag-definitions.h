@@ -177,15 +177,16 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                   \
-  V(harmony_modules, "harmony modules (implies block scoping)") \
-  V(harmony_arrays, "harmony array methods")                    \
-  V(harmony_array_includes, "harmony Array.prototype.includes") \
-  V(harmony_regexps, "harmony regular expression extensions")   \
-  V(harmony_arrow_functions, "harmony arrow functions")         \
-  V(harmony_proxies, "harmony proxies")                         \
-  V(harmony_sloppy, "harmony features in sloppy mode")          \
-  V(harmony_unicode, "harmony unicode escapes")                 \
+#define HARMONY_INPROGRESS(V)                                           \
+  V(harmony_modules, "harmony modules (implies block scoping)")         \
+  V(harmony_arrays, "harmony array methods")                            \
+  V(harmony_array_includes, "harmony Array.prototype.includes")         \
+  V(harmony_regexps, "harmony regular expression extensions")           \
+  V(harmony_arrow_functions, "harmony arrow functions")                 \
+  V(harmony_proxies, "harmony proxies")                                 \
+  V(harmony_sloppy, "harmony features in sloppy mode")                  \
+  V(harmony_unicode, "harmony unicode escapes")                         \
+  V(harmony_unicode_regexps, "harmony unicode regexps")                 \
   V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_rest_parameters, "harmony rest parameters")
 
@@ -231,6 +232,7 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
+DEFINE_IMPLICATION(harmony_unicode_regexps, harmony_unicode)
 
 
 // Flags for experimental implementation features.
@@ -259,6 +261,7 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(vector_ics, false, "support vector-based ics")
 DEFINE_BOOL(experimental_classes, false,
             "experimental new semantics for super() calls")
+DEFINE_BOOL(strong_mode, false, "experimental strong language mode")
 DEFINE_IMPLICATION(experimental_classes, harmony_classes)
 DEFINE_IMPLICATION(experimental_classes, harmony_object_literals)
 

@@ -289,7 +289,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   Scope* function_scope =
       NewScope(scope, FUNCTION_SCOPE, FunctionKind::kDefaultConstructor);
   function_scope->SetLanguageMode(
-      static_cast<LanguageMode>(scope->language_mode() | STRICT));
+      static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -824,6 +824,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_harmony_computed_property_names(
       FLAG_harmony_computed_property_names);
   set_allow_harmony_rest_params(FLAG_harmony_rest_parameters);
+  set_allow_strong_mode(FLAG_strong_mode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1145,34 +1146,48 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
           literal->raw_value()->IsString()) {
-        // Check "use strict" directive (ES5 14.1) and "use asm" directive. Only
-        // one can be present.
-        if (is_sloppy(language_mode()) &&
+        // Check "use strict" directive (ES5 14.1), "use asm" directive, and
+        // "use strong" directive (experimental).
+        bool use_strict_found =
             literal->raw_value()->AsString() ==
                 ast_value_factory()->use_strict_string() &&
             token_loc.end_pos - token_loc.beg_pos ==
-                ast_value_factory()->use_strict_string()->length() + 2) {
-          // TODO(mstarzinger): Global strict eval calls, need their own scope
-          // as specified in ES5 10.4.2(3). The correct fix would be to always
-          // add this scope in DoParseProgram(), but that requires adaptations
-          // all over the code base, so we go with a quick-fix for now.
-          // In the same manner, we have to patch the parsing mode.
-          if (is_eval && !scope_->is_eval_scope()) {
-            DCHECK(scope_->is_script_scope());
-            Scope* scope = NewScope(scope_, EVAL_SCOPE);
-            scope->set_start_position(scope_->start_position());
-            scope->set_end_position(scope_->end_position());
-            scope_ = scope;
-            if (eval_scope != NULL) {
-              // Caller will correct the positions of the ad hoc eval scope.
-              *eval_scope = scope;
+                ast_value_factory()->use_strict_string()->length() + 2;
+        bool use_strong_found =
+            allow_strong_mode() &&
+            literal->raw_value()->AsString() ==
+                ast_value_factory()->use_strong_string() &&
+            token_loc.end_pos - token_loc.beg_pos ==
+                ast_value_factory()->use_strong_string()->length() + 2;
+        if (use_strict_found || use_strong_found) {
+          // Strong mode implies strict mode. If there are several "use strict"
+          // / "use strong" directives, do the strict mode changes only once.
+          if (is_sloppy(scope_->language_mode())) {
+            // TODO(mstarzinger): Global strict eval calls, need their own scope
+            // as specified in ES5 10.4.2(3). The correct fix would be to always
+            // add this scope in DoParseProgram(), but that requires adaptations
+            // all over the code base, so we go with a quick-fix for now.
+            // In the same manner, we have to patch the parsing mode.
+            if (is_eval && !scope_->is_eval_scope()) {
+              DCHECK(scope_->is_script_scope());
+              Scope* scope = NewScope(scope_, EVAL_SCOPE);
+              scope->set_start_position(scope_->start_position());
+              scope->set_end_position(scope_->end_position());
+              scope_ = scope;
+              if (eval_scope != NULL) {
+                // Caller will correct the positions of the ad hoc eval scope.
+                *eval_scope = scope;
+              }
+              mode_ = PARSE_EAGERLY;
             }
-            mode_ = PARSE_EAGERLY;
+            scope_->SetLanguageMode(static_cast<LanguageMode>(
+                scope_->language_mode() | STRICT_BIT));
           }
-          scope_->SetLanguageMode(
-              static_cast<LanguageMode>(scope_->language_mode() | STRICT));
-          // "use strict" is the only directive for now.
-          directive_prologue = false;
+
+          if (use_strong_found) {
+            scope_->SetLanguageMode(static_cast<LanguageMode>(
+                scope_->language_mode() | STRONG_BIT));
+          }
         } else if (literal->raw_value()->AsString() ==
                        ast_value_factory()->use_asm_string() &&
                    token_loc.end_pos - token_loc.beg_pos ==
@@ -1257,7 +1272,7 @@ Module* Parser::ParseModule(bool* ok) {
 
   scope->set_start_position(scanner()->location().beg_pos);
   scope->SetLanguageMode(
-      static_cast<LanguageMode>(scope->language_mode() | STRICT));
+      static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
 
   {
     BlockState block_state(&scope_, scope);
@@ -4007,6 +4022,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
         allow_harmony_computed_property_names());
     reusable_preparser_->set_allow_harmony_rest_params(
         allow_harmony_rest_params());
+    reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       language_mode(), is_generator(), logger);
@@ -4036,7 +4052,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, block_scope);
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
   scope_->SetScopeName(name);
 
   VariableProxy* proxy = NULL;
@@ -4615,7 +4631,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           // If the 'u' flag is present, only syntax characters can be escaped,
           // no other identity escapes are allowed. If the 'u' flag is not
           // present, all identity escapes are allowed.
-          if (!FLAG_harmony_unicode || !unicode_) {
+          if (!FLAG_harmony_unicode_regexps || !unicode_) {
             builder->AddCharacter(first_digit);
             Advance(2);
           } else {
@@ -4676,7 +4692,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         uc32 value;
         if (ParseHexEscape(2, &value)) {
           builder->AddCharacter(value);
-        } else if (!FLAG_harmony_unicode || !unicode_) {
+        } else if (!FLAG_harmony_unicode_regexps || !unicode_) {
           builder->AddCharacter('x');
         } else {
           // If the 'u' flag is present, invalid escapes are not treated as
@@ -4690,7 +4706,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         uc32 value;
         if (ParseUnicodeEscape(&value)) {
           builder->AddCharacter(value);
-        } else if (!FLAG_harmony_unicode || !unicode_) {
+        } else if (!FLAG_harmony_unicode_regexps || !unicode_) {
           builder->AddCharacter('u');
         } else {
           // If the 'u' flag is present, invalid escapes are not treated as
@@ -4704,7 +4720,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         // If the 'u' flag is present, only syntax characters can be escaped, no
         // other identity escapes are allowed. If the 'u' flag is not present,
         // all identity escapes are allowed.
-        if (!FLAG_harmony_unicode || !unicode_ ||
+        if (!FLAG_harmony_unicode_regexps || !unicode_ ||
             IsSyntaxCharacter(current())) {
           builder->AddCharacter(current());
           Advance();
@@ -4975,7 +4991,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
-  if (current() == '{' && FLAG_harmony_unicode && unicode_) {
+  if (current() == '{' && FLAG_harmony_unicode_regexps && unicode_) {
     int start = position();
     Advance();
     if (ParseUnlimitedLengthHexNumber(0x10ffff, value)) {
@@ -5065,7 +5081,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseHexEscape(2, &value)) {
         return value;
       }
-      if (!FLAG_harmony_unicode || !unicode_) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_) {
         // If \x is not followed by a two-digit hexadecimal, treat it
         // as an identity escape.
         return 'x';
@@ -5081,7 +5097,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseUnicodeEscape(&value)) {
         return value;
       }
-      if (!FLAG_harmony_unicode || !unicode_) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_) {
         return 'u';
       }
       // If the 'u' flag is present, invalid escapes are not treated as
@@ -5094,7 +5110,8 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       // If the 'u' flag is present, only syntax characters can be escaped, no
       // other identity escapes are allowed. If the 'u' flag is not present, all
       // identity escapes are allowed.
-      if (!FLAG_harmony_unicode || !unicode_ || IsSyntaxCharacter(result)) {
+      if (!FLAG_harmony_unicode_regexps || !unicode_ ||
+          IsSyntaxCharacter(result)) {
         Advance();
         return result;
       }

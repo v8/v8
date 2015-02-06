@@ -804,7 +804,7 @@ static bool CheckSuperConstructorCall(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
   if (FLAG_experimental_classes) return true;
   if (!function->uses_super_constructor_call()) return true;
-  if (function->is_default_constructor()) return true;
+  if (IsDefaultConstructor(function->kind())) return true;
 
   ZoneList<Statement*>* body = function->body();
   CHECK(body->length() > 0);
@@ -1355,7 +1355,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     }
     if (FLAG_use_strict) {
       info.SetLanguageMode(
-          static_cast<LanguageMode>(info.language_mode() | STRICT));
+          static_cast<LanguageMode>(info.language_mode() | STRICT_BIT));
     }
 
     result = CompileToplevel(&info);
@@ -1389,7 +1389,7 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
 
   if (FLAG_use_strict) {
     info->SetLanguageMode(
-        static_cast<LanguageMode>(info->language_mode() | STRICT));
+        static_cast<LanguageMode>(info->language_mode() | STRICT_BIT));
   }
   // TODO(marja): FLAG_serialize_toplevel is not honoured and won't be; when the
   // real code caching lands, streaming needs to be adapted to use it.

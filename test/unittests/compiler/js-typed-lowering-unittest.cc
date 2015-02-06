@@ -62,8 +62,8 @@ Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
                           Type::Number(),    Type::String(), Type::Object()};
 
 
-STATIC_ASSERT(LANGUAGE_END == 2);
-const LanguageMode kLanguageModes[] = {SLOPPY, STRICT};
+STATIC_ASSERT(LANGUAGE_END == 3);
+const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
 
 }  // namespace
 

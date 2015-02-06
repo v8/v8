@@ -73,25 +73,26 @@ class CompilationInfo {
     kEval = 1 << 1,
     kGlobal = 1 << 2,
     kStrictMode = 1 << 3,
-    kThisHasUses = 1 << 4,
-    kNative = 1 << 5,
-    kDeferredCalling = 1 << 6,
-    kNonDeferredCalling = 1 << 7,
-    kSavesCallerDoubles = 1 << 8,
-    kRequiresFrame = 1 << 9,
-    kMustNotHaveEagerFrame = 1 << 10,
-    kDeoptimizationSupport = 1 << 11,
-    kDebug = 1 << 12,
-    kCompilingForDebugging = 1 << 13,
-    kParseRestriction = 1 << 14,
-    kSerializing = 1 << 15,
-    kContextSpecializing = 1 << 16,
-    kInliningEnabled = 1 << 17,
-    kTypingEnabled = 1 << 18,
-    kDisableFutureOptimization = 1 << 19,
-    kModule = 1 << 20,
-    kToplevel = 1 << 21,
-    kSplittingEnabled = 1 << 22
+    kStrongMode = 1 << 4,
+    kThisHasUses = 1 << 5,
+    kNative = 1 << 6,
+    kDeferredCalling = 1 << 7,
+    kNonDeferredCalling = 1 << 8,
+    kSavesCallerDoubles = 1 << 9,
+    kRequiresFrame = 1 << 10,
+    kMustNotHaveEagerFrame = 1 << 11,
+    kDeoptimizationSupport = 1 << 12,
+    kDebug = 1 << 13,
+    kCompilingForDebugging = 1 << 14,
+    kParseRestriction = 1 << 15,
+    kSerializing = 1 << 16,
+    kContextSpecializing = 1 << 17,
+    kInliningEnabled = 1 << 18,
+    kTypingEnabled = 1 << 19,
+    kDisableFutureOptimization = 1 << 20,
+    kModule = 1 << 21,
+    kToplevel = 1 << 22,
+    kSplittingEnabled = 1 << 23
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -109,8 +110,8 @@ class CompilationInfo {
   bool is_global() const { return GetFlag(kGlobal); }
   bool is_module() const { return GetFlag(kModule); }
   LanguageMode language_mode() const {
-    STATIC_ASSERT(LANGUAGE_END == 2);
-    return GetFlag(kStrictMode) ? STRICT : SLOPPY;
+    STATIC_ASSERT(LANGUAGE_END == 3);
+    return construct_language_mode(GetFlag(kStrictMode), GetFlag(kStrongMode));
   }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -167,8 +168,9 @@ class CompilationInfo {
   bool this_has_uses() { return GetFlag(kThisHasUses); }
 
   void SetLanguageMode(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
-    SetFlag(kStrictMode, language_mode & STRICT);
+    STATIC_ASSERT(LANGUAGE_END == 3);
+    SetFlag(kStrictMode, language_mode & STRICT_BIT);
+    SetFlag(kStrongMode, language_mode & STRONG_BIT);
   }
 
   void MarkAsNative() { SetFlag(kNative); }

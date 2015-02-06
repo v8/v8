@@ -1270,7 +1270,10 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
              RelocInfo::ModeMask(RelocInfo::CELL);
   bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    CHECK(!CanLeak(it.rinfo()->target_object(), heap, skip_weak_cell));
+    Object* target = it.rinfo()->rmode() == RelocInfo::CELL
+                         ? it.rinfo()->target_cell()
+                         : it.rinfo()->target_object();
+    CHECK(!CanLeak(target, heap, skip_weak_cell));
   }
 }
 

@@ -13,6 +13,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"
+#include "src/compiler/source-position.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
@@ -40,11 +41,13 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
                 this->machine()),
-        lowering(&jsgraph, this->zone()) {}
+        source_positions(jsgraph.graph()),
+        lowering(&jsgraph, this->zone(), &source_positions) {}
 
   Typer typer;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
+  SourcePositionTable source_positions;
   SimplifiedLowering lowering;
 
   void LowerAllNodes() {
@@ -699,7 +702,10 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     CHECK_EQ(expected, node->opcode());
   }
 
-  void Lower() { SimplifiedLowering(&jsgraph, jsgraph.zone()).LowerAllNodes(); }
+  void Lower() {
+    SourcePositionTable table(jsgraph.graph());
+    SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
+  }
 
   // Inserts the node as the return value of the graph.
   Node* Return(Node* node) {

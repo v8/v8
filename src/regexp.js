@@ -22,7 +22,7 @@ function DoConstructRegExp(object, pattern, flags) {
     flags = (pattern.global ? 'g' : '')
         + (pattern.ignoreCase ? 'i' : '')
         + (pattern.multiline ? 'm' : '');
-    if (harmony_unicode)
+    if (harmony_unicode_regexps)
         flags += (pattern.unicode ? 'u' : '');
     if (harmony_regexps)
         flags += (pattern.sticky ? 'y' : '');
@@ -237,7 +237,7 @@ function RegExpToString() {
   if (this.global) result += 'g';
   if (this.ignoreCase) result += 'i';
   if (this.multiline) result += 'm';
-  if (harmony_unicode && this.unicode) result += 'u';
+  if (harmony_unicode_regexps && this.unicode) result += 'u';
   if (harmony_regexps && this.sticky) result += 'y';
   return result;
 }

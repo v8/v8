@@ -434,6 +434,12 @@ MINIDUMP_MEMORY_LIST = Descriptor([
   ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
 ])
 
+MINIDUMP_MEMORY_LIST_Mac = Descriptor([
+  ("range_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
+  ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
+])
+
 MINIDUMP_MEMORY_LIST64 = Descriptor([
   ("range_count", ctypes.c_uint64),
   ("base_rva", ctypes.c_uint64),
@@ -452,6 +458,12 @@ MINIDUMP_THREAD = Descriptor([
 
 MINIDUMP_THREAD_LIST = Descriptor([
   ("thread_count", ctypes.c_uint32),
+  ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
+])
+
+MINIDUMP_THREAD_LIST_Mac = Descriptor([
+  ("thread_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
   ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
 ])
 
@@ -486,6 +498,12 @@ MINIDUMP_RAW_MODULE = Descriptor([
 
 MINIDUMP_MODULE_LIST = Descriptor([
   ("number_of_modules", ctypes.c_uint32),
+  ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
+])
+
+MINIDUMP_MODULE_LIST_Mac = Descriptor([
+  ("number_of_modules", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
   ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
 ])
 
@@ -570,6 +588,9 @@ class MinidumpReader(object):
         DebugPrint(self.exception_context)
       elif d.stream_type == MD_THREAD_LIST_STREAM:
         thread_list = MINIDUMP_THREAD_LIST.Read(self.minidump, d.location.rva)
+        if ctypes.sizeof(thread_list) + 4 == d.location.data_size:
+          thread_list = MINIDUMP_THREAD_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(thread_list) == d.location.data_size
         DebugPrint(thread_list)
         for thread in thread_list.threads:
@@ -579,12 +600,19 @@ class MinidumpReader(object):
         assert self.module_list is None
         self.module_list = MINIDUMP_MODULE_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.module_list) + 4 == d.location.data_size:
+          self.module_list = MINIDUMP_MODULE_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.module_list) == d.location.data_size
+        DebugPrint(self.module_list)
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
         print >>sys.stderr, "Warning: This is not a full minidump!"
         assert self.memory_list is None
         self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.memory_list) + 4 == d.location.data_size:
+          self.memory_list = MINIDUMP_MEMORY_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.memory_list) == d.location.data_size
         DebugPrint(self.memory_list)
       elif d.stream_type == MD_MEMORY_64_LIST_STREAM:

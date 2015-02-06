@@ -227,24 +227,46 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 enum LanguageMode {
   // LanguageMode is expressed as a bitmask. Descriptions of the bits:
-  STRICT = 1 << 0,
+  STRICT_BIT = 1 << 0,
+  STRONG_BIT = 1 << 1,
   LANGUAGE_END,
 
   // Shorthands for some common language modes.
-  SLOPPY = 0
+  SLOPPY = 0,
+  STRICT = STRICT_BIT,
+  STRONG = STRICT_BIT | STRONG_BIT
 };
 
-inline bool is_strict(LanguageMode language_mode) {
-  return language_mode & STRICT;
-}
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return (language_mode & STRICT) == 0;
+  return (language_mode & STRICT_BIT) == 0;
 }
 
-inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT;
+
+inline bool is_strict(LanguageMode language_mode) {
+  return language_mode & STRICT_BIT;
 }
+
+
+inline bool is_strong(LanguageMode language_mode) {
+  return language_mode & STRONG_BIT;
+}
+
+
+inline bool is_valid_language_mode(int language_mode) {
+  return language_mode == SLOPPY || language_mode == STRICT ||
+         language_mode == STRONG;
+}
+
+
+inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
+  int language_mode = 0;
+  if (strict_bit) language_mode |= STRICT_BIT;
+  if (strong_bit) language_mode |= STRONG_BIT;
+  DCHECK(is_valid_language_mode(language_mode));
+  return static_cast<LanguageMode>(language_mode);
+}
+
 
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
@@ -792,12 +814,13 @@ enum Signedness { kSigned, kUnsigned };
 
 enum FunctionKind {
   kNormalFunction = 0,
-  kArrowFunction = 1,
-  kGeneratorFunction = 2,
-  kConciseMethod = 4,
+  kArrowFunction = 1 << 0,
+  kGeneratorFunction = 1 << 1,
+  kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kDefaultConstructor = 8,
-  kSubclassConstructor = 16
+  kAccessorFunction = 1 << 3,
+  kDefaultConstructor = 1 << 4,
+  kSubclassConstructor = 1 << 5
 };
 
 
@@ -807,6 +830,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultConstructor ||
          kind == FunctionKind::kSubclassConstructor;
 }
@@ -830,10 +854,17 @@ inline bool IsConciseMethod(FunctionKind kind) {
 }
 
 
+inline bool IsAccessorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kAccessorFunction;
+}
+
+
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kDefaultConstructor;
 }
+
 
 inline bool IsSubclassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));

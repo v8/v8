@@ -32,6 +32,7 @@ class ControlBuilder {
   Zone* zone() const { return builder_->local_zone(); }
   Environment* environment() { return builder_->environment(); }
   void set_environment(Environment* env) { builder_->set_environment(env); }
+  Node* the_hole() const { return builder_->jsgraph()->TheHoleConstant(); }
 
   Builder* builder_;
 };

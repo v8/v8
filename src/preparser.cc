@@ -80,6 +80,8 @@ PreParserExpression PreParserTraits::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) {
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
+  } else if (scanner->UnescapedLiteralMatches("use strong", 10)) {
+    return PreParserExpression::UseStrongStringLiteral();
   }
   return PreParserExpression::StringLiteral();
 }
@@ -212,7 +214,10 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
     if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
         scope_->SetLanguageMode(
-            static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+            static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
+      } else if (statement.IsUseStrongLiteral() && allow_strong_mode()) {
+        scope_->SetLanguageMode(static_cast<LanguageMode>(
+            scope_->language_mode() | STRICT_BIT | STRONG_BIT));
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }
@@ -1002,7 +1007,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   PreParserScope scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, &scope);
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
   scope_->SetScopeName(name);
 
   bool has_extends = Check(Token::EXTENDS);

@@ -4325,12 +4325,12 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsEvalField : public BitField<bool, 4, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  class LanguageModeField : public BitField<LanguageMode, 5, 1> {};
-  class FunctionVariableField : public BitField<FunctionVariableInfo, 6, 2> {};
-  class FunctionVariableMode : public BitField<VariableMode, 8, 3> {};
-  class AsmModuleField : public BitField<bool, 11, 1> {};
-  class AsmFunctionField : public BitField<bool, 12, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeField : public BitField<LanguageMode, 5, 2> {};
+  class FunctionVariableField : public BitField<FunctionVariableInfo, 7, 2> {};
+  class FunctionVariableMode : public BitField<VariableMode, 9, 3> {};
+  class AsmModuleField : public BitField<bool, 12, 1> {};
+  class AsmFunctionField : public BitField<bool, 13, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -5051,11 +5051,6 @@ class Code: public HeapObject {
   // it is only used by the garbage collector itself.
   DECL_ACCESSORS(gc_metadata, Object)
 
-  // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
-  // at the moment when this object was created.
-  inline void set_ic_age(int count);
-  inline int ic_age() const;
-
   // [prologue_offset]: Offset of the function prologue, used for aging
   // FUNCTIONs and OPTIMIZED_FUNCTIONs.
   inline int prologue_offset() const;
@@ -5411,17 +5406,15 @@ class Code: public HeapObject {
       kDeoptimizationDataOffset + kPointerSize;
   static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
-  static const int kInstructionSizeOffset = kGCMetadataOffset + kPointerSize;
-  static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;
-  static const int kFlagsOffset = kICAgeOffset + kIntSize;
+  static const int kConstantPoolOffset = kGCMetadataOffset + kPointerSize;
+  static const int kInstructionSizeOffset = kConstantPoolOffset + kPointerSize;
+  static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlags2Offset =
       kKindSpecificFlags1Offset + kIntSize;
   // Note: We might be able to squeeze this into the flags above.
   static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
-  static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
-
-  static const int kHeaderPaddingStart = kConstantPoolOffset + kPointerSize;
+  static const int kHeaderPaddingStart = kPrologueOffset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -6947,6 +6940,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a concise method.
   DECL_BOOLEAN_ACCESSORS(is_concise_method)
 
+  // Indicates that this function is an accessor (getter or setter).
+  DECL_BOOLEAN_ACCESSORS(is_accessor_function)
+
   // Indicates that this function is a default constructor.
   DECL_BOOLEAN_ACCESSORS(is_default_constructor)
 
@@ -7181,6 +7177,7 @@ class SharedFunctionInfo: public HeapObject {
     kAllowLazyCompilationWithoutContext,
     kOptimizationDisabled,
     kStrictModeFunction,
+    kStrongModeFunction,
     kUsesArguments,
     kUsesSuperProperty,
     kUsesSuperConstructorCall,
@@ -7196,6 +7193,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsArrow,
     kIsGenerator,
     kIsConciseMethod,
+    kIsAccessorFunction,
     kIsDefaultConstructor,
     kIsSubclassConstructor,
     kIsAsmFunction,
@@ -7203,9 +7201,9 @@ class SharedFunctionInfo: public HeapObject {
     kCompilerHintsCount  // Pseudo entry
   };
   // Add hints for other modes when they're added.
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LANGUAGE_END == 3);
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 6> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

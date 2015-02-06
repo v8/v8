@@ -337,10 +337,6 @@ class Expression : public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() const { return false; }
 
-  // True iff the result can be safely overwritten (to avoid allocation).
-  // False for operations that can return one of their operands.
-  virtual bool ResultOverwriteAllowed() const { return false; }
-
   // True iff the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 
@@ -2078,8 +2074,6 @@ class BinaryOperation FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(BinaryOperation)
 
-  bool ResultOverwriteAllowed() const OVERRIDE;
-
   Token::Value op() const { return static_cast<Token::Value>(op_); }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
@@ -2554,18 +2548,6 @@ class FunctionLiteral FINAL : public Expression {
   }
 
   FunctionKind kind() { return FunctionKindBits::decode(bitfield_); }
-  bool is_arrow() {
-    return IsArrowFunction(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_generator() {
-    return IsGeneratorFunction(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_concise_method() {
-    return IsConciseMethod(FunctionKindBits::decode(bitfield_));
-  }
-  bool is_default_constructor() {
-    return IsDefaultConstructor(FunctionKindBits::decode(bitfield_));
-  }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2636,7 +2618,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 5> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 6> {};
 };
 
 

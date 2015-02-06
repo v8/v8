@@ -151,7 +151,7 @@ void BlockBuilder::EndBlock() {
 
 void TryCatchBuilder::BeginTry() {
   catch_environment_ = environment()->CopyAsUnreachable();
-  catch_environment_->Push(nullptr);
+  catch_environment_->Push(the_hole());
 }
 
 
@@ -178,7 +178,7 @@ void TryCatchBuilder::EndCatch() {
 
 void TryFinallyBuilder::BeginTry() {
   finally_environment_ = environment()->CopyAsUnreachable();
-  finally_environment_->Push(nullptr);
+  finally_environment_->Push(the_hole());
 }
 
 

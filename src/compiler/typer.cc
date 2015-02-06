@@ -143,7 +143,7 @@ class LazyTypeCache FINAL : public ZoneObject {
 class Typer::Decorator FINAL : public GraphDecorator {
  public:
   explicit Decorator(Typer* typer) : typer_(typer) {}
-  void Decorate(Node* node) FINAL;
+  void Decorate(Node* node, bool incomplete) FINAL;
 
  private:
   Typer* typer_;
@@ -408,7 +408,8 @@ void Typer::Run() {
 }
 
 
-void Typer::Decorator::Decorate(Node* node) {
+void Typer::Decorator::Decorate(Node* node, bool incomplete) {
+  if (incomplete) return;
   if (node->op()->ValueOutputCount() > 0) {
     // Only eagerly type-decorate nodes with known input types.
     // Other cases will generally require a proper fixpoint iteration with Run.

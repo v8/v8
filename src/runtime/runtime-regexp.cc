@@ -819,7 +819,7 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
         flag = JSRegExp::MULTILINE;
         break;
       case 'u':
-        if (!FLAG_harmony_unicode) return JSRegExp::Flags(0);
+        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
         flag = JSRegExp::UNICODE_ESCAPES;
         break;
       case 'y':
@@ -867,7 +867,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 
   Map* map = regexp->map();
   Object* constructor = map->constructor();
-  if (!FLAG_harmony_regexps && !FLAG_harmony_unicode &&
+  if (!FLAG_harmony_regexps && !FLAG_harmony_unicode_regexps &&
       constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
@@ -902,7 +902,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
       JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->sticky_string(),
                                                sticky, final).Check();
     }
-    if (FLAG_harmony_unicode) {
+    if (FLAG_harmony_unicode_regexps) {
       JSObject::SetOwnPropertyIgnoreAttributes(
           regexp, factory->unicode_string(), unicode, final).Check();
     }
