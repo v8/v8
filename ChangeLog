@@ -1,3 +1,11 @@
+2015-02-06: Version 4.2.55
+
+        Protect against uninitialized lexical variables at top-level (Chromium
+        issue 452510).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-05: Version 4.2.54
 
         Fix HConstant(double, ...) constructor (issue 3865).
