@@ -4538,6 +4538,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
 
 
 bool Heap::IdleNotification(double deadline_in_seconds) {
+  CHECK(HasBeenSetUp());  // http://crbug.com/425035
   double deadline_in_ms =
       deadline_in_seconds *
       static_cast<double>(base::Time::kMillisecondsPerSecond);
