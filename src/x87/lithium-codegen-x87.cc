@@ -4598,7 +4598,32 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     X87Mov(operand, ToX87Register(instr->value()), kX87FloatOperand);
   } else if (elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
              elements_kind == FLOAT64_ELEMENTS) {
-    X87Mov(operand, ToX87Register(instr->value()));
+    uint64_t int_val = kHoleNanInt64;
+    int32_t lower = static_cast<int32_t>(int_val);
+    int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+    Operand operand2 = BuildFastArrayOperand(
+        instr->elements(), instr->key(),
+        instr->hydrogen()->key()->representation(), elements_kind,
+        instr->base_offset() + kPointerSize);
+
+    Label no_special_nan_handling, done;
+    X87Register value = ToX87Register(instr->value());
+    X87Fxch(value);
+    __ lea(esp, Operand(esp, -kDoubleSize));
+    __ fst_d(MemOperand(esp, 0));
+    __ lea(esp, Operand(esp, kDoubleSize));
+    int offset = sizeof(kHoleNanUpper32);
+    // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
+    // so we check the upper with 0xffffffff for hole as a temporary fix.
+    __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+    __ j(not_equal, &no_special_nan_handling, Label::kNear);
+    __ mov(operand, Immediate(lower));
+    __ mov(operand2, Immediate(upper));
+    __ jmp(&done, Label::kNear);
+
+    __ bind(&no_special_nan_handling);
+    __ fst_d(operand);
+    __ bind(&done);
   } else {
     Register value = ToRegister(instr->value());
     switch (elements_kind) {
