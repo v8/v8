@@ -58,44 +58,6 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-SubKindOperand<kOperandKind, kNumCachedOperands>*
-    SubKindOperand<kOperandKind, kNumCachedOperands>::cache = NULL;
-
-
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-void SubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
-  if (cache) return;
-  cache = new SubKindOperand[kNumCachedOperands];
-  for (int i = 0; i < kNumCachedOperands; i++) {
-    cache[i].ConvertTo(kOperandKind, i);
-  }
-}
-
-
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-void SubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
-  delete[] cache;
-  cache = NULL;
-}
-
-
-void InstructionOperand::SetUpCaches() {
-#define INSTRUCTION_OPERAND_SETUP(name, type, number) \
-  name##Operand::SetUpCache();
-  INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_SETUP)
-#undef INSTRUCTION_OPERAND_SETUP
-}
-
-
-void InstructionOperand::TearDownCaches() {
-#define INSTRUCTION_OPERAND_TEARDOWN(name, type, number) \
-  name##Operand::TearDownCache();
-  INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_TEARDOWN)
-#undef INSTRUCTION_OPERAND_TEARDOWN
-}
-
-
 std::ostream& operator<<(std::ostream& os,
                          const PrintableMoveOperands& printable) {
   const MoveOperands& mo = *printable.move_operands_;
@@ -488,7 +450,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
 
 int InstructionSequence::NextVirtualRegister() {
   int virtual_register = next_virtual_register_++;
-  CHECK_NE(virtual_register, UnallocatedOperand::kInvalidVirtualRegister);
+  CHECK_NE(virtual_register, InstructionOperand::kInvalidVirtualRegister);
   return virtual_register;
 }
 

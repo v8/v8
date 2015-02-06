@@ -1174,16 +1174,6 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   }
 }
 
-
-void Pipeline::SetUp() {
-  InstructionOperand::SetUpCaches();
-}
-
-
-void Pipeline::TearDown() {
-  InstructionOperand::TearDownCaches();
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
