@@ -157,7 +157,11 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+    i::Zone zone;
+    i::AstValueFactory ast_value_factory(
+        &zone, CcTest::i_isolate()->heap()->HashSeed());
+    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                           &ast_value_factory, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -171,7 +175,11 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+    i::Zone zone;
+    i::AstValueFactory ast_value_factory(
+        &zone, CcTest::i_isolate()->heap()->HashSeed());
+    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                           &ast_value_factory, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
@@ -317,7 +325,11 @@ TEST(StandAlonePreParser) {
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
 
-    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+    i::Zone zone;
+    i::AstValueFactory ast_value_factory(
+        &zone, CcTest::i_isolate()->heap()->HashSeed());
+    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                           &ast_value_factory, &log, stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     preparser.set_allow_harmony_arrow_functions(true);
@@ -351,7 +363,11 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize(&stream);
 
     // Preparser defaults to disallowing natives syntax.
-    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+    i::Zone zone;
+    i::AstValueFactory ast_value_factory(
+        &zone, CcTest::i_isolate()->heap()->HashSeed());
+    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                           &ast_value_factory, &log, stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -416,7 +432,11 @@ TEST(RegressChromium62639) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log,
+  i::Zone zone;
+  i::AstValueFactory ast_value_factory(&zone,
+                                       CcTest::i_isolate()->heap()->HashSeed());
+  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                         &ast_value_factory, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -448,7 +468,11 @@ TEST(Regress928) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log,
+  i::Zone zone;
+  i::AstValueFactory ast_value_factory(&zone,
+                                       CcTest::i_isolate()->heap()->HashSeed());
+  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                         &ast_value_factory, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -497,7 +521,11 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
-  i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+  i::Zone zone;
+  i::AstValueFactory ast_value_factory(&zone,
+                                       CcTest::i_isolate()->heap()->HashSeed());
+  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                         &ast_value_factory, &log, stack_limit);
   preparser.set_allow_lazy(true);
   preparser.set_allow_harmony_arrow_functions(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -1411,7 +1439,11 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    i::PreParser preparser(CcTest::i_isolate(), &scanner, &log, stack_limit);
+    i::Zone zone;
+    i::AstValueFactory ast_value_factory(
+        &zone, CcTest::i_isolate()->heap()->HashSeed());
+    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
+                           &ast_value_factory, &log, stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
     i::PreParser::PreParseResult result = preparser.PreParseProgram(

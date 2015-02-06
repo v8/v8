@@ -671,7 +671,7 @@ const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
   char array[100];
   const char* string =
       DoubleToCString(double_value, Vector<char>(array, arraysize(array)));
-  return ast_value_factory()->GetOneByteString(string);
+  return parser_->ast_value_factory()->GetOneByteString(string);
 }
 
 
@@ -794,8 +794,8 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
 
 Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
     : ParserBase<ParserTraits>(info->isolate(), info->zone(), &scanner_,
-                               parse_info->stack_limit, info->extension(), NULL,
-                               this),
+                               parse_info->stack_limit, info->extension(),
+                               info->ast_value_factory(), NULL, this),
       scanner_(parse_info->unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
@@ -833,6 +833,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
     // info takes ownership of AstValueFactory.
     info->SetAstValueFactory(
         new AstValueFactory(zone(), parse_info->hash_seed));
+    ast_value_factory_ = info->ast_value_factory();
   }
 }
 
@@ -4037,8 +4038,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
   if (reusable_preparser_ == NULL) {
-    reusable_preparser_ =
-        new PreParser(isolate(), &scanner_, NULL, stack_limit_);
+    reusable_preparser_ = new PreParser(
+        isolate(), zone(), &scanner_, ast_value_factory(), NULL, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_natives(allow_natives());
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());

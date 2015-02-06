@@ -42,7 +42,6 @@ namespace internal {
 //     // Used by FunctionState and BlockState.
 //     typedef Scope;
 //     typedef GeneratorVariable;
-//     typedef Zone;
 //     // Return types for traversing functions.
 //     typedef Identifier;
 //     typedef Expression;
@@ -68,15 +67,17 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
 
-  ParserBase(Isolate* isolate, typename Traits::Type::Zone* zone,
-             Scanner* scanner, uintptr_t stack_limit, v8::Extension* extension,
-             ParserRecorder* log, typename Traits::Type::Parser this_object)
+  ParserBase(Isolate* isolate, Zone* zone, Scanner* scanner,
+             uintptr_t stack_limit, v8::Extension* extension,
+             AstValueFactory* ast_value_factory, ParserRecorder* log,
+             typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
         scope_(NULL),
         function_state_(NULL),
         extension_(extension),
         fni_(NULL),
+        ast_value_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         stack_limit_(stack_limit),
@@ -257,7 +258,6 @@ class ParserBase : public Traits {
     FunctionState* outer_function_state_;
     typename Traits::Type::Scope** scope_stack_;
     typename Traits::Type::Scope* outer_scope_;
-    typename Traits::Type::Zone* extra_param_;
     typename Traits::Type::Factory* factory_;
 
     friend class ParserTraits;
@@ -310,12 +310,13 @@ class ParserBase : public Traits {
 
   Isolate* isolate() const { return isolate_; }
   Scanner* scanner() const { return scanner_; }
+  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() { return scanner_->location().beg_pos; }
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
   Mode mode() const { return mode_; }
-  typename Traits::Type::Zone* zone() const { return zone_; }
+  Zone* zone() const { return zone_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -620,13 +621,14 @@ class ParserBase : public Traits {
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
+  AstValueFactory* ast_value_factory_;  // Not owned.
   ParserRecorder* log_;
   Mode mode_;
   uintptr_t stack_limit_;
 
  private:
   Isolate* isolate_;
-  typename Traits::Type::Zone* zone_;  // Only used by Parser.
+  Zone* zone_;
 
   Scanner* scanner_;
   bool stack_overflow_;
@@ -1210,8 +1212,6 @@ class PreParserTraits {
 
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
-    // No interaction with Zones.
-    typedef void Zone;
 
     typedef int AstProperties;
     typedef Vector<PreParserIdentifier> ParameterIdentifierVector;
@@ -1432,15 +1432,15 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpressionList NewExpressionList(int size, void* zone) {
+  static PreParserExpressionList NewExpressionList(int size, Zone* zone) {
     return PreParserExpressionList();
   }
 
-  static PreParserStatementList NewStatementList(int size, void* zone) {
+  static PreParserStatementList NewStatementList(int size, Zone* zone) {
     return PreParserStatementList();
   }
 
-  static PreParserExpressionList NewPropertyList(int size, void* zone) {
+  static PreParserExpressionList NewPropertyList(int size, Zone* zone) {
     return PreParserExpressionList();
   }
 
@@ -1488,7 +1488,6 @@ class PreParserTraits {
   static bool IsTaggedTemplate(const PreParserExpression tag) {
     return !tag.IsNoTemplateTag();
   }
-  static AstValueFactory* ast_value_factory() { return NULL; }
 
   void CheckConflictingVarDeclarations(PreParserScope scope, bool* ok) {}
 
@@ -1533,10 +1532,11 @@ class PreParser : public ParserBase<PreParserTraits> {
     kPreParseSuccess
   };
 
-  PreParser(Isolate* isolate, Scanner* scanner, ParserRecorder* log,
+  PreParser(Isolate* isolate, Zone* zone, Scanner* scanner,
+            AstValueFactory* ast_value_factory, ParserRecorder* log,
             uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(isolate, NULL, scanner, stack_limit, NULL,
-                                    log, this) {}
+      : ParserBase<PreParserTraits>(isolate, zone, scanner, stack_limit, NULL,
+                                    ast_value_factory, log, this) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1759,8 +1759,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
       ReportMessage("strict_eval_arguments");
       *ok = false;
     }
-    if (name->IsArguments(this->ast_value_factory()))
-      scope_->RecordArgumentsUsage();
+    if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
     return name;
   } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
@@ -1793,8 +1792,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(this->ast_value_factory()))
-    scope_->RecordArgumentsUsage();
+  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -1812,8 +1810,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(this->ast_value_factory()))
-    scope_->RecordArgumentsUsage();
+  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -2836,7 +2833,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
   int handler_count = 0;
 
   {
-    typename Traits::Type::Factory function_factory(this->ast_value_factory());
+    typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_,
                                  Traits::Type::ptr_to_scope(scope),
                                  kArrowFunction, &function_factory);
@@ -2914,7 +2911,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
-      this->EmptyIdentifierString(), this->ast_value_factory(), scope, body,
+      this->EmptyIdentifierString(), ast_value_factory(), scope, body,
       materialized_literal_count, expected_property_count, handler_count,
       num_parameters, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,

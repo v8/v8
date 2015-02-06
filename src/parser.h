@@ -364,7 +364,6 @@ class ParserTraits {
     inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
 
     typedef Variable GeneratorVariable;
-    typedef v8::internal::Zone Zone;
 
     typedef v8::internal::AstProperties AstProperties;
     typedef Vector<VariableProxy*> ParameterIdentifierVector;
@@ -569,7 +568,6 @@ class ParserTraits {
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
                                            Scanner::Location* dupe_loc,
                                            bool* ok);
-  V8_INLINE AstValueFactory* ast_value_factory();
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -716,9 +714,6 @@ class Parser : public ParserBase<ParserTraits> {
   Isolate* isolate() { return info_->isolate(); }
   CompilationInfo* info() const { return info_; }
   Handle<Script> script() const { return info_->script(); }
-  AstValueFactory* ast_value_factory() const {
-    return info_->ast_value_factory();
-  }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info, Scope** scope,
@@ -944,11 +939,6 @@ ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                    bool* ok) {
   parser_->CheckConflictingVarDeclarations(scope, ok);
-}
-
-
-AstValueFactory* ParserTraits::ast_value_factory() {
-  return parser_->ast_value_factory();
 }
 
 
