@@ -21765,7 +21765,7 @@ TEST(StreamingWithHarmonyScopes) {
 
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
-  const char* garbage = "garbage garbage garbage garbage.";
+  const char* garbage = "garbage garbage garbage garbage garbage garbage";
   const uint8_t* data = reinterpret_cast<const uint8_t*>(garbage);
   int length = 16;
   v8::ScriptCompiler::CachedData* cached_data =
