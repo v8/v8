@@ -808,7 +808,7 @@ int Assembler::target_at(int pos) {
     return pos + kPcLoadDelta + imm26;
   }
   // Internal reference to the label.
-  DCHECK_EQ(15 * B28 | 7 * B25 | 1 * B0, instr & (15 * B28 | 7 * B25 | 1 * B0));
+  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
   int imm26 = (((instr >> 1) & kImm24Mask) << 8) >> 6;
   return pos + imm26;
 }
@@ -901,7 +901,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     return;
   }
   // Patch internal reference to label.
-  DCHECK_EQ(15 * B28 | 7 * B25 | 1 * B0, instr & (15 * B28 | 7 * B25 | 1 * B0));
+  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
   instr_at_put(pos, reinterpret_cast<Instr>(buffer_ + target_pos));
 }
 
@@ -3516,9 +3516,9 @@ void Assembler::dd(Label* label) {
     DCHECK_EQ(0, imm26 & 3);
     int imm24 = imm26 >> 2;
     DCHECK(is_int24(imm24));
-    // We use bit pattern 1111111<imm24>1 because that doesn't match any branch
+    // We use bit pattern 0000111<imm24>1 because that doesn't match any branch
     // or load that would also appear on the label chain.
-    emit(15 * B28 | 7 * B25 | ((imm24 & kImm24Mask) << 1) | 1 * B0);
+    emit(7 * B25 | ((imm24 & kImm24Mask) << 1) | 1 * B0);
   }
 }
 
