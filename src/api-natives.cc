@@ -10,42 +10,70 @@ namespace internal {
 
 namespace {
 
-// Transform getter or setter into something DefineAccessor can handle.
-Handle<Object> InstantiateAccessorComponent(Isolate* isolate,
-                                            Handle<Object> component) {
-  if (component->IsUndefined()) return isolate->factory()->undefined_value();
-  Handle<FunctionTemplateInfo> info =
-      Handle<FunctionTemplateInfo>::cast(component);
-  // TODO(dcarney): instantiate directly.
-  return Utils::OpenHandle(*Utils::ToLocal(info)->GetFunction());
+MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
+                                        Handle<ObjectTemplateInfo> data);
+
+
+MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
+                                            Handle<FunctionTemplateInfo> data,
+                                            Handle<Name> name = Handle<Name>());
+
+
+MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
+                                Handle<Name> name = Handle<Name>()) {
+  if (data->IsFunctionTemplateInfo()) {
+    return InstantiateFunction(isolate,
+                               Handle<FunctionTemplateInfo>::cast(data), name);
+  } else if (data->IsObjectTemplateInfo()) {
+    return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data));
+  } else {
+    return data;
+  }
 }
 
 
-MaybeHandle<Object> DefineApiAccessorProperty(
+MaybeHandle<Object> DefineAccessorProperty(
     Isolate* isolate, Handle<JSObject> object, Handle<Name> name,
-    Handle<Object> getter, Handle<Object> setter, Smi* attribute) {
+    Handle<Object> getter, Handle<Object> setter, Smi* attributes) {
   DCHECK(PropertyDetails::AttributesField::is_valid(
-      static_cast<PropertyAttributes>(attribute->value())));
-  RETURN_ON_EXCEPTION(
-      isolate, JSObject::DefineAccessor(
-                   object, name, InstantiateAccessorComponent(isolate, getter),
-                   InstantiateAccessorComponent(isolate, setter),
-                   static_cast<PropertyAttributes>(attribute->value())),
-      Object);
+      static_cast<PropertyAttributes>(attributes->value())));
+  if (!getter->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, getter,
+        InstantiateFunction(isolate,
+                            Handle<FunctionTemplateInfo>::cast(getter)),
+        Object);
+  }
+  if (!setter->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, setter,
+        InstantiateFunction(isolate,
+                            Handle<FunctionTemplateInfo>::cast(setter)),
+        Object);
+  }
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::DefineAccessor(
+                          object, name, getter, setter,
+                          static_cast<PropertyAttributes>(attributes->value())),
+                      Object);
   return object;
 }
 
 
-MaybeHandle<Object> AddPropertyForTemplate(Isolate* isolate,
-                                           Handle<JSObject> object,
-                                           Handle<Object> key,
-                                           Handle<Object> value,
-                                           Smi* unchecked_attributes) {
+MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
+                                       Handle<JSObject> object,
+                                       Handle<Name> key,
+                                       Handle<Object> prop_data,
+                                       Smi* unchecked_attributes) {
   DCHECK((unchecked_attributes->value() &
           ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   // Compute attributes.
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(unchecked_attributes->value());
+
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             Instantiate(isolate, prop_data, key), Object);
 
 #ifdef DEBUG
   bool duplicate;
@@ -95,29 +123,6 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
 }
 
 
-MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
-                                        Handle<ObjectTemplateInfo> data);
-
-
-MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
-                                            Handle<FunctionTemplateInfo> data,
-                                            Handle<Name> name = Handle<Name>());
-
-
-MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
-                                Handle<Name> name = Handle<Name>()) {
-  if (data->IsFunctionTemplateInfo()) {
-    return InstantiateFunction(isolate,
-                               Handle<FunctionTemplateInfo>::cast(data), name);
-  } else if (data->IsObjectTemplateInfo()) {
-    return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data));
-  } else {
-    // TODO(dcarney): CHECK data is JSObject or Primitive.
-    return data;
-  }
-}
-
-
 class AccessCheckDisableScope {
  public:
   AccessCheckDisableScope(Isolate* isolate, Handle<JSObject> obj)
@@ -157,23 +162,18 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       auto name = handle(Name::cast(properties.get(i + 1)), isolate);
       auto prop_data = handle(properties.get(i + 2), isolate);
       auto attributes = Smi::cast(properties.get(i + 3));
-      Handle<Object> value;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, value, Instantiate(isolate, prop_data, name), JSObject);
-      RETURN_ON_EXCEPTION(isolate, AddPropertyForTemplate(isolate, obj, name,
-                                                          value, attributes),
+      RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                      prop_data, attributes),
                           JSObject);
     } else {
-      DCHECK(length == 4 || length == 5);
-      // TODO(verwaest): The 5th value used to be access_control. Remove once
-      // the bindings are updated.
+      DCHECK(length == 4);
       auto name = handle(Name::cast(properties.get(i + 1)), isolate);
       auto getter = handle(properties.get(i + 2), isolate);
       auto setter = handle(properties.get(i + 3), isolate);
       auto attributes = Smi::cast(properties.get(i + 4));
       RETURN_ON_EXCEPTION(isolate,
-                          DefineApiAccessorProperty(isolate, obj, name, getter,
-                                                    setter, attributes),
+                          DefineAccessorProperty(isolate, obj, name, getter,
+                                                 setter, attributes),
                           JSObject);
     }
     i += length + 1;
@@ -313,6 +313,25 @@ class InvokeScope {
   SaveContext save_context_;
 };
 
+
+void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
+                               int length, Handle<Object>* data) {
+  auto list = handle(templ->property_list(), isolate);
+  if (list->IsUndefined()) {
+    list = NeanderArray(isolate).value();
+    templ->set_property_list(*list);
+  }
+  NeanderArray array(list);
+  array.add(isolate, isolate->factory()->NewNumberFromInt(length));
+  for (int i = 0; i < length; i++) {
+    Handle<Object> value =
+        data[i].is_null()
+            ? Handle<Object>::cast(isolate->factory()->undefined_value())
+            : data[i];
+    array.add(isolate, value);
+  }
+}
+
 }  // namespace
 
 
@@ -345,6 +364,46 @@ MaybeHandle<FunctionTemplateInfo> ApiNatives::ConfigureInstance(
                                    isolate, instance, instance_template),
                       FunctionTemplateInfo);
   return desc;
+}
+
+
+void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                                 Handle<Name> name, Handle<Object> value,
+                                 PropertyAttributes attributes) {
+  const int kSize = 3;
+  DCHECK(Smi::IsValid(static_cast<int>(attributes)));
+  auto attribute_handle =
+      handle(Smi::FromInt(static_cast<int>(attributes)), isolate);
+  Handle<Object> data[kSize] = {name, value, attribute_handle};
+  AddPropertyToPropertyList(isolate, info, kSize, data);
+}
+
+
+void ApiNatives::AddAccessorProperty(Isolate* isolate,
+                                     Handle<TemplateInfo> info,
+                                     Handle<Name> name,
+                                     Handle<FunctionTemplateInfo> getter,
+                                     Handle<FunctionTemplateInfo> setter,
+                                     PropertyAttributes attributes) {
+  const int kSize = 4;
+  DCHECK(Smi::IsValid(static_cast<int>(attributes)));
+  auto attribute_handle =
+      handle(Smi::FromInt(static_cast<int>(attributes)), isolate);
+  Handle<Object> data[kSize] = {name, getter, setter, attribute_handle};
+  AddPropertyToPropertyList(isolate, info, kSize, data);
+}
+
+
+void ApiNatives::AddNativeDataProperty(Isolate* isolate,
+                                       Handle<TemplateInfo> info,
+                                       Handle<AccessorInfo> property) {
+  auto list = handle(info->property_accessors(), isolate);
+  if (list->IsUndefined()) {
+    list = NeanderArray(isolate).value();
+    info->set_property_accessors(*list);
+  }
+  NeanderArray array(list);
+  array.add(isolate, property);
 }
 
 

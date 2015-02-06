@@ -766,39 +766,17 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 }
 
 
-static void TemplateSet(i::Isolate* isolate,
-                        v8::Template* templ,
-                        int length,
-                        v8::Handle<v8::Data>* data) {
-  i::Handle<i::Object> list(Utils::OpenHandle(templ)->property_list(), isolate);
-  if (list->IsUndefined()) {
-    list = NeanderArray(isolate).value();
-    Utils::OpenHandle(templ)->set_property_list(*list);
-  }
-  NeanderArray array(list);
-  array.add(isolate, isolate->factory()->NewNumberFromInt(length));
-  for (int i = 0; i < length; i++) {
-    i::Handle<i::Object> value = data[i].IsEmpty() ?
-        i::Handle<i::Object>(isolate->factory()->undefined_value()) :
-        Utils::OpenHandle(*data[i]);
-    array.add(isolate, value);
-  }
-}
-
-
 void Template::Set(v8::Handle<Name> name,
                    v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto templ = Utils::OpenHandle(this);
+  i::Isolate* isolate = templ->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  const int kSize = 3;
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Handle<v8::Data> data[kSize] = {
-    name,
-    value,
-    v8::Integer::New(v8_isolate, attribute)};
-  TemplateSet(isolate, this, kSize, data);
+  // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
+  i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
+                                 Utils::OpenHandle(*value),
+                                 static_cast<PropertyAttributes>(attribute));
 }
 
 
@@ -810,19 +788,16 @@ void Template::SetAccessorProperty(
     v8::AccessControl access_control) {
   // TODO(verwaest): Remove |access_control|.
   DCHECK_EQ(v8::DEFAULT, access_control);
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto templ = Utils::OpenHandle(this);
+  auto isolate = templ->GetIsolate();
   ENTER_V8(isolate);
   DCHECK(!name.IsEmpty());
   DCHECK(!getter.IsEmpty() || !setter.IsEmpty());
   i::HandleScope scope(isolate);
-  const int kSize = 5;
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Handle<v8::Data> data[kSize] = {
-    name,
-    getter,
-    setter,
-    v8::Integer::New(v8_isolate, attribute)};
-  TemplateSet(isolate, this, kSize, data);
+  i::ApiNatives::AddAccessorProperty(
+      isolate, templ, Utils::OpenHandle(*name),
+      Utils::OpenHandle(*getter, true), Utils::OpenHandle(*setter, true),
+      static_cast<PropertyAttributes>(attribute));
 }
 
 
@@ -1144,20 +1119,6 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 }
 
 
-static inline void AddPropertyToTemplate(
-    i::Handle<i::TemplateInfo> info,
-    i::Handle<i::AccessorInfo> obj) {
-  i::Isolate* isolate = info->GetIsolate();
-  i::Handle<i::Object> list(info->property_accessors(), isolate);
-  if (list->IsUndefined()) {
-    list = NeanderArray(isolate).value();
-    info->set_property_accessors(*list);
-  }
-  NeanderArray array(list);
-  array.add(isolate, obj);
-}
-
-
 static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
     i::Isolate* isolate,
     Template* template_obj) {
@@ -1184,14 +1145,14 @@ static bool TemplateSetAccessor(
     AccessControl settings,
     PropertyAttribute attribute,
     v8::Local<AccessorSignature> signature) {
-  i::Isolate* isolate = Utils::OpenHandle(template_obj)->GetIsolate();
+  auto isolate = Utils::OpenHandle(template_obj)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(
-      name, getter, setter, data, settings, attribute, signature);
+  auto obj = MakeAccessorInfo(name, getter, setter, data, settings, attribute,
+                              signature);
   if (obj.is_null()) return false;
-  i::Handle<i::TemplateInfo> info = GetTemplateInfo(isolate, template_obj);
-  AddPropertyToTemplate(info, obj);
+  auto info = GetTemplateInfo(isolate, template_obj);
+  i::ApiNatives::AddNativeDataProperty(isolate, info, obj);
   return true;
 }
 
