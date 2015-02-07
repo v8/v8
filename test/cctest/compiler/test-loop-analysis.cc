@@ -470,6 +470,41 @@ TEST(LaNestedLoop1c) {
 }
 
 
+TEST(LaNestedLoop1x) {
+  // One loop nested in another.
+  LoopFinderTester t;
+  While w1(t, t.p0);
+  While w2(t, t.p0);
+  w2.nest(w1);
+
+  const Operator* op = t.common.Phi(kMachInt32, 2);
+  Node* p1a = t.graph.NewNode(op, t.p0, t.p0, w1.loop);
+  Node* p1b = t.graph.NewNode(op, t.p0, t.p0, w1.loop);
+  Node* p2a = t.graph.NewNode(op, p1a, t.p0, w2.loop);
+  Node* p2b = t.graph.NewNode(op, p1b, t.p0, w2.loop);
+
+  p1a->ReplaceInput(1, p2b);
+  p1b->ReplaceInput(1, p2a);
+
+  p2a->ReplaceInput(1, p2b);
+  p2b->ReplaceInput(1, p2a);
+
+  t.Return(t.p0, p1a, w1.exit);
+
+  Node* chain[] = {w1.loop, w2.loop};
+  t.CheckNestedLoops(chain, 2);
+
+  Node* h1[] = {w1.loop, p1a, p1b};
+  Node* b1[] = {w1.branch, w1.if_true, w2.loop,    p2a,
+                p2b,       w2.branch,  w2.if_true, w2.exit};
+  t.CheckLoop(h1, 3, b1, 8);
+
+  Node* h2[] = {w2.loop, p2a, p2b};
+  Node* b2[] = {w2.branch, w2.if_true};
+  t.CheckLoop(h2, 3, b2, 2);
+}
+
+
 TEST(LaNestedLoop2) {
   // Two loops nested in an outer loop.
   LoopFinderTester t;
@@ -975,3 +1010,6 @@ TEST(LaManyNested_34) { RunManyNestedLoops_i(34); }
 TEST(LaManyNested_62) { RunManyNestedLoops_i(62); }
 TEST(LaManyNested_63) { RunManyNestedLoops_i(63); }
 TEST(LaManyNested_64) { RunManyNestedLoops_i(64); }
+
+
+TEST(LaPhiTangle) { LoopFinderTester t; }

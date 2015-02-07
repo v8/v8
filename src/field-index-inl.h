@@ -14,9 +14,10 @@ namespace internal {
 inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
   DCHECK((offset % kPointerSize) == 0);
   int index = offset / kPointerSize;
-  return (map == NULL || offset < map->GetInObjectPropertyOffset(0))
-             ? FieldIndex(true, index, false, 0, 0, true)
-             : FieldIndex::ForPropertyIndex(map, index);
+  DCHECK(map == NULL ||
+         index < (map->GetInObjectPropertyOffset(0) / kPointerSize +
+                  map->inobject_properties()));
+  return FieldIndex(true, index, false, 0, 0, true);
 }
 
 

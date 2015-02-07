@@ -30,6 +30,8 @@ void ALAA::Enter(IterationStatement* loop) {
   int num_variables = 1 + info()->scope()->num_parameters() +
                       info()->scope()->num_stack_slots();
   BitVector* bits = new (zone()) BitVector(num_variables, zone());
+  if (info()->is_osr() && info()->osr_ast_id() == loop->OsrEntryId())
+    bits->AddAll();
   loop_stack_.push_back(bits);
 }
 

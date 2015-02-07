@@ -364,7 +364,6 @@ class ParserTraits {
     inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
 
     typedef Variable GeneratorVariable;
-    typedef v8::internal::Zone Zone;
 
     typedef v8::internal::AstProperties AstProperties;
     typedef Vector<VariableProxy*> ParameterIdentifierVector;
@@ -569,7 +568,6 @@ class ParserTraits {
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
                                            Scanner::Location* dupe_loc,
                                            bool* ok);
-  V8_INLINE AstValueFactory* ast_value_factory();
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -583,7 +581,7 @@ class ParserTraits {
                                       int* expected_property_count, bool* ok);
   V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, bool is_generator, bool* ok);
+      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
@@ -716,9 +714,6 @@ class Parser : public ParserBase<ParserTraits> {
   Isolate* isolate() { return info_->isolate(); }
   CompilationInfo* info() const { return info_; }
   Handle<Script> script() const { return info_->script(); }
-  AstValueFactory* ast_value_factory() const {
-    return info_->ast_value_factory();
-  }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info, Scope** scope,
@@ -871,7 +866,7 @@ class Parser : public ParserBase<ParserTraits> {
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* function_name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, bool is_generator, bool* ok);
+      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   void ThrowPendingError();
 
@@ -936,19 +931,14 @@ void ParserTraits::SkipLazyFunctionBody(const AstRawString* function_name,
 
 ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
     const AstRawString* name, int pos, Variable* fvar,
-    Token::Value fvar_init_op, bool is_generator, bool* ok) {
-  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op,
-                                         is_generator, ok);
+    Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
+  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op, kind,
+                                         ok);
 }
 
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                    bool* ok) {
   parser_->CheckConflictingVarDeclarations(scope, ok);
-}
-
-
-AstValueFactory* ParserTraits::ast_value_factory() {
-  return parser_->ast_value_factory();
 }
 
 

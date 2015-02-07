@@ -89,7 +89,7 @@ namespace internal {
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
-#define V8_DOUBLE_FIELDS_UNBOXING 1
+#define V8_DOUBLE_FIELDS_UNBOXING 0
 #else
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
@@ -820,7 +820,8 @@ enum FunctionKind {
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kAccessorFunction = 1 << 3,
   kDefaultConstructor = 1 << 4,
-  kSubclassConstructor = 1 << 5
+  kSubclassConstructor = 1 << 5,
+  kBaseConstructor = 1 << 6,
 };
 
 
@@ -832,6 +833,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultConstructor ||
+         kind == FunctionKind::kBaseConstructor ||
          kind == FunctionKind::kSubclassConstructor;
 }
 
@@ -866,9 +868,23 @@ inline bool IsDefaultConstructor(FunctionKind kind) {
 }
 
 
+inline bool IsBaseConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kBaseConstructor;
+}
+
+
 inline bool IsSubclassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kSubclassConstructor;
+}
+
+
+inline bool IsConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind &
+         (FunctionKind::kBaseConstructor | FunctionKind::kSubclassConstructor |
+          FunctionKind::kDefaultConstructor);
 }
 } }  // namespace v8::internal
 

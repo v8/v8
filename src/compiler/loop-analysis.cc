@@ -235,6 +235,7 @@ class LoopFinderImpl {
     // Setup loop mark for phis attached to loop header.
     for (Node* use : node->uses()) {
       if (NodeProperties::IsPhi(use)) {
+        info(use);  // create the NodeInfo
         SetBackwardMark(use, loop_num);
         loop_tree_->node_to_loop_num_[use->id()] = loop_num;
       }

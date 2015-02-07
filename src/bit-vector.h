@@ -103,6 +103,8 @@ class BitVector : public ZoneObject {
     data_[i / kDataBits] |= (kOne << (i % kDataBits));
   }
 
+  void AddAll() { memset(data_, -1, sizeof(uintptr_t) * data_length_); }
+
   void Remove(int i) {
     DCHECK(i >= 0 && i < length());
     data_[i / kDataBits] &= ~(kOne << (i % kDataBits));

@@ -7195,6 +7195,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsConciseMethod,
     kIsAccessorFunction,
     kIsDefaultConstructor,
+    kIsBaseConstructor,
     kIsSubclassConstructor,
     kIsAsmFunction,
     kDeserialized,
@@ -7203,7 +7204,7 @@ class SharedFunctionInfo: public HeapObject {
   // Add hints for other modes when they're added.
   STATIC_ASSERT(LANGUAGE_END == 3);
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 6> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 7> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

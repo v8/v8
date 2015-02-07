@@ -14,8 +14,10 @@ class ApiNatives {
  public:
   MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
       Handle<FunctionTemplateInfo> data);
+
   MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
       Handle<ObjectTemplateInfo> data);
+
   MUST_USE_RESULT static MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
       Isolate* isolate, Handle<FunctionTemplateInfo> instance,
       Handle<JSObject> data);
@@ -30,6 +32,19 @@ class ApiNatives {
                                               Handle<FunctionTemplateInfo> obj,
                                               Handle<Object> prototype,
                                               ApiInstanceType instance_type);
+
+  static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                              Handle<Name> name, Handle<Object> value,
+                              PropertyAttributes attributes);
+
+  static void AddAccessorProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                                  Handle<Name> name,
+                                  Handle<FunctionTemplateInfo> getter,
+                                  Handle<FunctionTemplateInfo> setter,
+                                  PropertyAttributes attributes);
+
+  static void AddNativeDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                                    Handle<AccessorInfo> property);
 };
 
 }  // namespace internal

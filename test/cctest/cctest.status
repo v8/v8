@@ -143,6 +143,7 @@
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
   'test-api/Threading1': [SKIP],
+  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {

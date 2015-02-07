@@ -192,8 +192,8 @@ class LinkageHelper {
         descriptor.DebugName(isolate));
   }
 
-  static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,
-                                                  MachineSignature* msig) {
+  static CallDescriptor* GetSimplifiedCDescriptor(
+      Zone* zone, const MachineSignature* msig) {
     LocationSignature::Builder locations(zone, msig->return_count(),
                                          msig->parameter_count());
     // Add return location(s).

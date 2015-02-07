@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <iostream>
 
 #include "src/v8.h"
 
@@ -1186,4 +1187,100 @@ TEST(AssemblerX64FMA_ss) {
   F8 f = FUNCTION_CAST<F8>(code->entry());
   CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
+
+
+TEST(AssemblerX64JumpTables1) {
+  // Test jump tables with forward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ leaq(arg2, Operand(&table));
+  __ jmp(Operand(arg2, arg1, times_8, 0));
+  __ ud2();
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dq(&labels[i]);
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ movq(rax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    PrintF("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
+TEST(AssemblerX64JumpTables2) {
+  // Test jump tables with backwards jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ leaq(arg2, Operand(&table));
+  __ jmp(Operand(arg2, arg1, times_8, 0));
+  __ ud2();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ movq(rax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dq(&labels[i]);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    PrintF("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
 #undef __

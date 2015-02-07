@@ -42,7 +42,6 @@ namespace internal {
 //     // Used by FunctionState and BlockState.
 //     typedef Scope;
 //     typedef GeneratorVariable;
-//     typedef Zone;
 //     // Return types for traversing functions.
 //     typedef Identifier;
 //     typedef Expression;
@@ -68,15 +67,17 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
 
-  ParserBase(Isolate* isolate, typename Traits::Type::Zone* zone,
-             Scanner* scanner, uintptr_t stack_limit, v8::Extension* extension,
-             ParserRecorder* log, typename Traits::Type::Parser this_object)
+  ParserBase(Isolate* isolate, Zone* zone, Scanner* scanner,
+             uintptr_t stack_limit, v8::Extension* extension,
+             AstValueFactory* ast_value_factory, ParserRecorder* log,
+             typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
         scope_(NULL),
         function_state_(NULL),
         extension_(extension),
         fni_(NULL),
+        ast_value_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         stack_limit_(stack_limit),
@@ -200,7 +201,7 @@ class ParserBase : public Traits {
    public:
     FunctionState(FunctionState** function_state_stack,
                   typename Traits::Type::Scope** scope_stack,
-                  typename Traits::Type::Scope* scope,
+                  typename Traits::Type::Scope* scope, FunctionKind kind,
                   typename Traits::Type::Factory* factory);
     ~FunctionState();
 
@@ -217,15 +218,15 @@ class ParserBase : public Traits {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
-    bool is_generator() const { return is_generator_; }
+    bool is_generator() const { return IsGeneratorFunction(kind_); }
+
+    FunctionKind kind() const { return kind_; }
 
     void set_generator_object_variable(
         typename Traits::Type::GeneratorVariable* variable) {
       DCHECK(variable != NULL);
-      DCHECK(!is_generator());
+      DCHECK(is_generator());
       generator_object_variable_ = variable;
-      is_generator_ = true;
     }
     typename Traits::Type::GeneratorVariable* generator_object_variable()
         const {
@@ -246,18 +247,17 @@ class ParserBase : public Traits {
     // Properties count estimation.
     int expected_property_count_;
 
-    // Whether the function is a generator.
-    bool is_generator_;
+    FunctionKind kind_;
     // For generators, this variable may hold the generator object. It variable
     // is used by yield expressions and return statements. It is not necessary
     // for generator functions to have this variable set.
     Variable* generator_object_variable_;
 
+
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
     typename Traits::Type::Scope** scope_stack_;
     typename Traits::Type::Scope* outer_scope_;
-    typename Traits::Type::Zone* extra_param_;
     typename Traits::Type::Factory* factory_;
 
     friend class ParserTraits;
@@ -310,12 +310,13 @@ class ParserBase : public Traits {
 
   Isolate* isolate() const { return isolate_; }
   Scanner* scanner() const { return scanner_; }
+  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() { return scanner_->location().beg_pos; }
   int peek_position() { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
   Mode mode() const { return mode_; }
-  typename Traits::Type::Zone* zone() const { return zone_; }
+  Zone* zone() const { return zone_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -620,13 +621,14 @@ class ParserBase : public Traits {
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
+  AstValueFactory* ast_value_factory_;  // Not owned.
   ParserRecorder* log_;
   Mode mode_;
   uintptr_t stack_limit_;
 
  private:
   Isolate* isolate_;
-  typename Traits::Type::Zone* zone_;  // Only used by Parser.
+  Zone* zone_;
 
   Scanner* scanner_;
   bool stack_overflow_;
@@ -1210,8 +1212,6 @@ class PreParserTraits {
 
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
-    // No interaction with Zones.
-    typedef void Zone;
 
     typedef int AstProperties;
     typedef Vector<PreParserIdentifier> ParameterIdentifierVector;
@@ -1432,15 +1432,15 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpressionList NewExpressionList(int size, void* zone) {
+  static PreParserExpressionList NewExpressionList(int size, Zone* zone) {
     return PreParserExpressionList();
   }
 
-  static PreParserStatementList NewStatementList(int size, void* zone) {
+  static PreParserStatementList NewStatementList(int size, Zone* zone) {
     return PreParserStatementList();
   }
 
-  static PreParserExpressionList NewPropertyList(int size, void* zone) {
+  static PreParserExpressionList NewPropertyList(int size, Zone* zone) {
     return PreParserExpressionList();
   }
 
@@ -1451,9 +1451,9 @@ class PreParserTraits {
   }
 
   V8_INLINE PreParserStatementList
-      ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
-                             Variable* fvar, Token::Value fvar_init_op,
-                             bool is_generator, bool* ok);
+  ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
+                         Variable* fvar, Token::Value fvar_init_op,
+                         FunctionKind kind, bool* ok);
 
   // Utility functions
   int DeclareArrowParametersFromExpression(PreParserExpression expression,
@@ -1488,7 +1488,6 @@ class PreParserTraits {
   static bool IsTaggedTemplate(const PreParserExpression tag) {
     return !tag.IsNoTemplateTag();
   }
-  static AstValueFactory* ast_value_factory() { return NULL; }
 
   void CheckConflictingVarDeclarations(PreParserScope scope, bool* ok) {}
 
@@ -1533,10 +1532,11 @@ class PreParser : public ParserBase<PreParserTraits> {
     kPreParseSuccess
   };
 
-  PreParser(Isolate* isolate, Scanner* scanner, ParserRecorder* log,
+  PreParser(Isolate* isolate, Zone* zone, Scanner* scanner,
+            AstValueFactory* ast_value_factory, ParserRecorder* log,
             uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(isolate, NULL, scanner, stack_limit, NULL,
-                                    log, this) {}
+      : ParserBase<PreParserTraits>(isolate, zone, scanner, stack_limit, NULL,
+                                    ast_value_factory, log, this) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1545,7 +1545,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParseResult PreParseProgram(int* materialized_literals = 0) {
     PreParserScope scope(scope_, SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
-    FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
+    FunctionState top_scope(&function_state_, &scope_, &scope, kNormalFunction,
+                            &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     ParseSourceElements(Token::EOS, &ok);
@@ -1571,7 +1572,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseLazyFunction(LanguageMode language_mode,
-                                      bool is_generator, ParserRecorder* log);
+                                      FunctionKind kind, ParserRecorder* log);
 
  private:
   friend class PreParserTraits;
@@ -1635,9 +1636,9 @@ class PreParser : public ParserBase<PreParserTraits> {
                                       int* materialized_literal_count,
                                       int* expected_property_count, bool* ok);
   V8_INLINE PreParserStatementList
-      ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
-                             Variable* fvar, Token::Value fvar_init_op,
-                             bool is_generator, bool* ok);
+  ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
+                         Variable* fvar, Token::Value fvar_init_op,
+                         FunctionKind kind, bool* ok);
 
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,
@@ -1663,7 +1664,7 @@ void PreParserTraits::MaterializeTemplateCallsiteLiterals() {
 
 PreParserStatementList PreParser::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos, Variable* fvar,
-    Token::Value fvar_init_op, bool is_generator, bool* ok) {
+    Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
   ParseSourceElements(Token::RBRACE, ok);
@@ -1676,9 +1677,9 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
 
 PreParserStatementList PreParserTraits::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos, Variable* fvar,
-    Token::Value fvar_init_op, bool is_generator, bool* ok) {
+    Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
   return pre_parser_->ParseEagerFunctionBody(function_name, pos, fvar,
-                                             fvar_init_op, is_generator, ok);
+                                             fvar_init_op, kind, ok);
 }
 
 
@@ -1686,12 +1687,12 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope* scope,
+    typename Traits::Type::Scope* scope, FunctionKind kind,
     typename Traits::Type::Factory* factory)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
-      is_generator_(false),
+      kind_(kind),
       generator_object_variable_(NULL),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
@@ -1758,8 +1759,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
       ReportMessage("strict_eval_arguments");
       *ok = false;
     }
-    if (name->IsArguments(this->ast_value_factory()))
-      scope_->RecordArgumentsUsage();
+    if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
     return name;
   } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
@@ -1792,8 +1792,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(this->ast_value_factory()))
-    scope_->RecordArgumentsUsage();
+  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -1811,8 +1810,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(this->ast_value_factory()))
-    scope_->RecordArgumentsUsage();
+  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -2157,7 +2155,7 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
     if (in_class && !is_static && this->IsConstructor(name)) {
       *has_seen_constructor = true;
       kind = has_extends ? FunctionKind::kSubclassConstructor
-                         : FunctionKind::kNormalFunction;
+                         : FunctionKind::kBaseConstructor;
     }
 
     value = this->ParseFunctionLiteral(
@@ -2835,10 +2833,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
   int handler_count = 0;
 
   {
-    typename Traits::Type::Factory function_factory(this->ast_value_factory());
+    typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_,
                                  Traits::Type::ptr_to_scope(scope),
-                                 &function_factory);
+                                 kArrowFunction, &function_factory);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     num_parameters = Traits::DeclareArrowParametersFromExpression(
         params_ast, scope_, &dupe_error_loc, ok);
@@ -2871,8 +2869,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
       } else {
         body = this->ParseEagerFunctionBody(
             this->EmptyIdentifier(), RelocInfo::kNoPosition, NULL,
-            Token::INIT_VAR, false,  // Not a generator.
-            CHECK_OK);
+            Token::INIT_VAR, kArrowFunction, CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
@@ -2914,7 +2911,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
-      this->EmptyIdentifierString(), this->ast_value_factory(), scope, body,
+      this->EmptyIdentifierString(), ast_value_factory(), scope, body,
       materialized_literal_count, expected_property_count, handler_count,
       num_parameters, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,

@@ -2500,7 +2500,11 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   AllocateData(size);
 
   // Set header values.
-  SetHeaderValue(kCheckSumOffset, CheckSum(cs.source()));
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
+  SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
+  SetHeaderValue(kCpuFeaturesOffset,
+                 static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
+  SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
   SetHeaderValue(kReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
@@ -2521,13 +2525,12 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
 
 
 bool SerializedCodeData::IsSane(String* source) {
-  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
+         GetHeaderValue(kSourceHashOffset) == SourceHash(source) &&
+         GetHeaderValue(kCpuFeaturesOffset) ==
+             static_cast<uint32_t>(CpuFeatures::SupportedFeatures()) &&
+         GetHeaderValue(kFlagHashOffset) == FlagList::Hash() &&
          Payload().length() >= SharedFunctionInfo::kSize;
-}
-
-
-int SerializedCodeData::CheckSum(String* string) {
-  return Version::Hash() ^ string->length();
 }
 
 
