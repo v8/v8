@@ -4815,7 +4815,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ mov(FieldOperand(object_reg, HeapObject::kMapOffset),
            Immediate(to_map));
     // Write barrier.
-    DCHECK_NE(instr->temp(), NULL);
+    DCHECK_NOT_NULL(instr->temp());
     __ RecordWriteForMap(object_reg, to_map, new_map_reg,
                          ToRegister(instr->temp()), kDontSaveFPRegs);
   } else {
