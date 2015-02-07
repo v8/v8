@@ -163,7 +163,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
-  Register callee = eax;
+  Register callee = edi;
   Register data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
