@@ -5104,3 +5104,48 @@ TEST(LanguageModeDirectives) {
   TestLanguageMode("\"use some future directive\"; \"use strict\";", i::STRICT);
   TestLanguageMode("\"use some future directive\"; \"use strong\";", i::STRONG);
 }
+
+
+TEST(PropertyNameEvalArguments) {
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"'use strong';", ""},
+                                   {NULL, NULL}};
+
+  const char* statement_data[] = {
+      "({eval: 1})",
+      "({arguments: 1})",
+      "({eval() {}})",
+      "({arguments() {}})",
+      "({*eval() {}})",
+      "({*arguments() {}})",
+      "({get eval() {}})",
+      "({get arguments() {}})",
+      "({set eval(_) {}})",
+      "({set arguments(_) {}})",
+
+      "class C {eval() {}}",
+      "class C {arguments() {}}",
+      "class C {*eval() {}}",
+      "class C {*arguments() {}}",
+      "class C {get eval() {}}",
+      "class C {get arguments() {}}",
+      "class C {set eval(_) {}}",
+      "class C {set arguments(_) {}}",
+
+      "class C {static eval() {}}",
+      "class C {static arguments() {}}",
+      "class C {static *eval() {}}",
+      "class C {static *arguments() {}}",
+      "class C {static get eval() {}}",
+      "class C {static get arguments() {}}",
+      "class C {static set eval(_) {}}",
+      "class C {static set arguments(_) {}}",
+
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyClasses, kAllowHarmonyObjectLiterals, kAllowHarmonyScoping,
+      kAllowStrongMode};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

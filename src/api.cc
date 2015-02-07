@@ -1524,10 +1524,9 @@ Local<UnboundScript> Script::GetUnboundScript() {
 }
 
 
-Local<UnboundScript> ScriptCompiler::CompileUnbound(
-    Isolate* v8_isolate,
-    Source* source,
-    CompileOptions options) {
+Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
+    Isolate* v8_isolate, Source* source, CompileOptions options,
+    bool is_module) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileUnbound()",
              return Local<UnboundScript>());
@@ -1588,7 +1587,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_embedder_debug_script,
         is_shared_cross_origin, isolate->native_context(), NULL, &script_data,
-        options, i::NOT_NATIVES_CODE);
+        options, i::NOT_NATIVES_CODE, is_module);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -1617,15 +1616,37 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
 }
 
 
+Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
+                                                    Source* source,
+                                                    CompileOptions options) {
+  return CompileUnboundInternal(v8_isolate, source, options, false);
+}
+
+
 Local<Script> ScriptCompiler::Compile(
     Isolate* v8_isolate,
     Source* source,
     CompileOptions options) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()", return Local<Script>());
-  LOG_API(isolate, "ScriptCompiler::CompiletBound()");
+  LOG_API(isolate, "ScriptCompiler::CompileBound()");
   ENTER_V8(isolate);
   Local<UnboundScript> generic = CompileUnbound(v8_isolate, source, options);
+  if (generic.IsEmpty()) return Local<Script>();
+  return generic->BindToCurrentContext();
+}
+
+
+Local<Script> ScriptCompiler::CompileModule(Isolate* v8_isolate, Source* source,
+                                            CompileOptions options) {
+  CHECK(i::FLAG_harmony_modules);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileModule()",
+             return Local<Script>());
+  LOG_API(isolate, "ScriptCompiler::CompileModule()");
+  ENTER_V8(isolate);
+  Local<UnboundScript> generic =
+      CompileUnboundInternal(v8_isolate, source, options, true);
   if (generic.IsEmpty()) return Local<Script>();
   return generic->BindToCurrentContext();
 }

@@ -426,17 +426,18 @@ class ParserBase : public Traits {
     CheckOctalLiteral(beg_pos, end_pos, "template_octal_literal", ok);
   }
 
-  // Validates strict mode for function parameter lists. This has to be
-  // done after parsing the function, since the function can declare
-  // itself strict.
-  void CheckStrictFunctionNameAndParameters(
-      IdentifierT function_name,
-      bool function_name_is_strict_reserved,
-      const Scanner::Location& function_name_loc,
-      const Scanner::Location& eval_args_error_loc,
-      const Scanner::Location& dupe_error_loc,
-      const Scanner::Location& reserved_loc,
-      bool* ok) {
+  // Checking the name of a function literal. This has to be done after parsing
+  // the function, since the function can declare itself strict.
+  void CheckFunctionName(LanguageMode language_mode, FunctionKind kind,
+                         IdentifierT function_name,
+                         bool function_name_is_strict_reserved,
+                         const Scanner::Location& function_name_loc,
+                         bool* ok) {
+    // Property names are never checked.
+    if (IsConciseMethod(kind) || IsAccessorFunction(kind)) return;
+    // The function name needs to be checked in strict mode.
+    if (is_sloppy(language_mode)) return;
+
     if (this->IsEvalOrArguments(function_name)) {
       Traits::ReportMessageAt(function_name_loc, "strict_eval_arguments");
       *ok = false;
@@ -447,11 +448,25 @@ class ParserBase : public Traits {
       *ok = false;
       return;
     }
+  }
+
+  // Checking the parameter names of a function literal. This has to be done
+  // after parsing the function, since the function can declare itself strict.
+  void CheckFunctionParameterNames(LanguageMode language_mode,
+                                   bool strict_params,
+                                   const Scanner::Location& eval_args_error_loc,
+                                   const Scanner::Location& dupe_error_loc,
+                                   const Scanner::Location& reserved_loc,
+                                   bool* ok) {
+    if (is_sloppy(language_mode) && !strict_params) return;
+
     if (eval_args_error_loc.IsValid()) {
       Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
       *ok = false;
       return;
     }
+    // TODO(arv): When we add support for destructuring in setters we also need
+    // to check for duplicate names.
     if (dupe_error_loc.IsValid()) {
       Traits::ReportMessageAt(dupe_error_loc, "strict_param_dupe");
       *ok = false;
@@ -1549,7 +1564,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
-    ParseSourceElements(Token::EOS, &ok);
+    ParseStatementList(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -1594,17 +1609,12 @@ class PreParser : public ParserBase<PreParserTraits> {
     kHasNoInitializers
   };
 
-
-  enum SourceElements {
-    kUnknownSourceElements
-  };
-
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseSourceElement(bool* ok);
-  SourceElements ParseSourceElements(int end_token, bool* ok);
+  Statement ParseStatementListItem(bool* ok);
+  void ParseStatementList(int end_token, bool* ok);
   Statement ParseStatement(bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
@@ -1667,7 +1677,7 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseSourceElements(Token::RBRACE, ok);
+  ParseStatementList(Token::RBRACE, ok);
   if (!*ok) return PreParserStatementList();
 
   Expect(Token::RBRACE, ok);
@@ -2838,6 +2848,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
                                  Traits::Type::ptr_to_scope(scope),
                                  kArrowFunction, &function_factory);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
+    // TODO(arv): Pass in eval_args_error_loc and reserved_loc here.
     num_parameters = Traits::DeclareArrowParametersFromExpression(
         params_ast, scope_, &dupe_error_loc, ok);
     if (!*ok) {
@@ -2891,14 +2902,13 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     scope->set_end_position(scanner()->location().end_pos);
 
     // Arrow function *parameter lists* are always checked as in strict mode.
-    bool function_name_is_strict_reserved = false;
-    Scanner::Location function_name_loc = Scanner::Location::invalid();
+    // TODO(arv): eval_args_error_loc and reserved_loc needs to be set by
+    // DeclareArrowParametersFromExpression.
     Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
-    this->CheckStrictFunctionNameAndParameters(
-        this->EmptyIdentifier(), function_name_is_strict_reserved,
-        function_name_loc, eval_args_error_loc, dupe_error_loc, reserved_loc,
-        CHECK_OK);
+    const bool use_strict_params = true;
+    this->CheckFunctionParameterNames(language_mode(), use_strict_params,
+        eval_args_error_loc, dupe_error_loc, reserved_loc, CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {

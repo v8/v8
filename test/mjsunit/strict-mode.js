@@ -292,7 +292,7 @@ CheckStrictMode("const x = 0;", SyntaxError);
 CheckStrictMode("for (const x = 0; false;) {}", SyntaxError);
 CheckStrictMode("function strict() { const x = 0; }", SyntaxError);
 
-// Strict mode only allows functions in SourceElements
+// Strict mode only allows functions in StatementList
 CheckStrictMode("if (true) { function invalid() {} }", SyntaxError);
 CheckStrictMode("for (;false;) { function invalid() {} }", SyntaxError);
 CheckStrictMode("{ function invalid() {} }", SyntaxError);

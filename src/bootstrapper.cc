@@ -1454,7 +1454,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
     function_info = Compiler::CompileScript(
         source, script_name, 0, 0, false, false, top_context, extension, NULL,
         ScriptCompiler::kNoCompileOptions,
-        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
+        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE, false);
     if (function_info.is_null()) return false;
     if (cache != NULL) cache->Add(name, function_info);
   }
