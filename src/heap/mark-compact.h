@@ -672,6 +672,8 @@ class MarkCompactCollector {
 
   void UncommitMarkingDeque();
 
+  void OverApproximateWeakClosure();
+
  private:
   class SweeperTask;
 

@@ -613,6 +613,8 @@ DEFINE_BOOL(age_code, true,
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_steps, true, "do incremental marking steps")
+DEFINE_BOOL(overapproximate_weak_closure, false,
+            "overapproximate weak closer to reduce atomic pause time")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")

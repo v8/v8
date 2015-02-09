@@ -759,6 +759,15 @@ class Heap {
   // Making the heap iterable requires us to abort incremental marking.
   static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
 
+  // Invoked when GC was requested via the stack guard.
+  void HandleGCRequest();
+
+  // Attempt to over-approximate the weak closure by marking object groups and
+  // implicit references from global handles, but don't atomically complete
+  // marking. If we continue to mark incrementally, we might have marked
+  // objects that die later.
+  void OverApproximateWeakClosure(const char* gc_reason);
+
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.

@@ -651,7 +651,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 
 Object* StackGuard::HandleInterrupts() {
   if (CheckAndClearInterrupt(GC_REQUEST)) {
-    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
+    isolate_->heap()->HandleGCRequest();
   }
 
   if (CheckDebugBreak() || CheckDebugCommand()) {
