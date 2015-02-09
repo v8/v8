@@ -828,11 +828,12 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
+  BackReference back_reference(source_.GetInt());
   if (space == LO_SPACE) {
-    uint32_t index = source_.GetInt();
+    CHECK(back_reference.chunk_index() == 0);
+    uint32_t index = back_reference.large_object_index();
     obj = deserialized_large_objects_[index];
   } else {
-    BackReference back_reference(source_.GetInt());
     DCHECK(space < kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
@@ -1315,7 +1316,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
         // Move to next reserved chunk.
         chunk_index = ++current_chunk_[space];
-        DCHECK_LT(chunk_index, reservation.length());
+        CHECK_LT(chunk_index, reservation.length());
         high_water_[space] = reservation[chunk_index].start;
         break;
       }
@@ -1345,14 +1346,14 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       case kSynchronize: {
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
-        UNREACHABLE();
+        CHECK(false);
       }
 
       default:
-        UNREACHABLE();
+        CHECK(false);
     }
   }
-  DCHECK_EQ(limit, current);
+  CHECK_EQ(limit, current);
 }
 
 
@@ -1448,6 +1449,7 @@ void PartialSerializer::SerializeOutdatedContextsAsFixedArray() {
     }
     for (int i = 0; i < length; i++) {
       BackReference back_ref = outdated_contexts_[i];
+      DCHECK(BackReferenceIsAlreadyAllocated(back_ref));
       sink_->Put(kBackref + back_ref.space(), "BackRef");
       sink_->PutInt(back_ref.reference(), "BackRefValue");
     }
@@ -1546,6 +1548,26 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 
+#ifdef DEBUG
+bool Serializer::BackReferenceIsAlreadyAllocated(BackReference reference) {
+  DCHECK(reference.is_valid());
+  DCHECK(!reference.is_source());
+  DCHECK(!reference.is_global_proxy());
+  AllocationSpace space = reference.space();
+  int chunk_index = reference.chunk_index();
+  if (space == LO_SPACE) {
+    return chunk_index == 0 &&
+           reference.large_object_index() < seen_large_objects_index_;
+  } else if (chunk_index == completed_chunks_[space].length()) {
+    return reference.chunk_offset() < pending_chunk_[space];
+  } else {
+    return chunk_index < completed_chunks_[space].length() &&
+           reference.chunk_offset() < completed_chunks_[space][chunk_index];
+  }
+}
+#endif  // DEBUG
+
+
 bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                                       WhereToPoint where_to_point, int skip) {
   if (how_to_code == kPlain && where_to_point == kStartOfObject) {
@@ -1600,6 +1622,7 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                    "BackRefWithSkip");
         sink_->PutInt(skip, "BackRefSkipDistance");
       }
+      DCHECK(BackReferenceIsAlreadyAllocated(back_reference));
       sink_->PutInt(back_reference.reference(), "BackRefValue");
 
       hot_objects_.Add(obj);

@@ -225,6 +225,12 @@ class BackReference {
     return ChunkOffsetBits::decode(bitfield_) << kObjectAlignmentBits;
   }
 
+  uint32_t large_object_index() const {
+    DCHECK(is_valid());
+    DCHECK(chunk_index() == 0);
+    return ChunkOffsetBits::decode(bitfield_);
+  }
+
   uint32_t chunk_index() const {
     DCHECK(is_valid());
     return ChunkIndexBits::decode(bitfield_);
@@ -699,7 +705,8 @@ class Serializer : public SerializerDeserializer {
     }
   }
 
-  void InitializeAllocators();
+  bool BackReferenceIsAlreadyAllocated(BackReference back_reference);
+
   // This will return the space for an object.
   static AllocationSpace SpaceOfObject(HeapObject* object);
   BackReference AllocateLargeObject(int size);
