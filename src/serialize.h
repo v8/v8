@@ -946,9 +946,9 @@ class SerializedCodeData : public SerializedData {
   explicit SerializedCodeData(ScriptData* data)
       : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
-  bool IsSane(String* source);
+  bool IsSane(String* source) const;
 
-  uint32_t SourceHash(String* source) { return source->length(); }
+  uint32_t SourceHash(String* source) const { return source->length(); }
 
   // The data header consists of int-sized entries:
   // [0] version hash
@@ -967,7 +967,10 @@ class SerializedCodeData : public SerializedData {
   static const int kReservationsOffset = 5;
   static const int kNumCodeStubKeysOffset = 6;
   static const int kPayloadLengthOffset = 7;
-  static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
+  static const int kChecksum1Offset = 8;
+  static const int kChecksum2Offset = 9;
+  static const int kHeaderSize =
+      POINTER_SIZE_ALIGN((kChecksum2Offset + 1) * kIntSize);
 };
 } }  // namespace v8::internal
 
