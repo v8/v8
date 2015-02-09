@@ -1651,6 +1651,33 @@ Local<Script> ScriptCompiler::CompileModule(Isolate* v8_isolate, Source* source,
 }
 
 
+Local<Function> ScriptCompiler::CompileFunctionInContext(
+    Isolate* v8_isolate, Source* source, Local<Context> v8_context,
+    size_t context_extension_count, Local<Object> context_extensions[]) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileFunctionInContext()",
+             return Local<Function>());
+  LOG_API(isolate, "ScriptCompiler::CompileFunctionInContext()");
+  ENTER_V8(isolate);
+  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
+                                              isolate);
+  for (size_t i = 0; i < context_extension_count; ++i) {
+    i::Handle<i::JSObject> extension =
+        Utils::OpenHandle(*context_extensions[i]);
+    i::Handle<i::JSFunction> closure(context->closure(), isolate);
+    context = isolate->factory()->NewWithContext(closure, context, extension);
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::MaybeHandle<i::JSFunction> result = i::Compiler::GetFunctionFromEval(
+      Utils::OpenHandle(*source->source_string), outer_info, context, i::SLOPPY,
+      i::NO_PARSE_RESTRICTION, 0 /* scope_position */);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
+  return Utils::ToLocal(result.ToHandleChecked());
+}
+
+
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
     Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

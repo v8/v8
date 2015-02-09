@@ -1321,6 +1321,20 @@ class V8_EXPORT ScriptCompiler {
       Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
 
+  /**
+   * Compile a function for a given context. This is equivalent to running
+   *
+   * with (obj) {
+   *   return function() { ... }
+   * }
+   *
+   * It is possible to specify multiple context extensions (obj in the above
+   * example).
+   */
+  static Local<Function> CompileFunctionInContext(
+      Isolate* isolate, Source* source, Local<Context> context,
+      size_t context_extension_count, Local<Object> context_extensions[]);
+
  private:
   static Local<UnboundScript> CompileUnboundInternal(Isolate* isolate,
                                                      Source* source,
