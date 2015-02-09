@@ -399,10 +399,27 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
          Immediate(isolate->factory()->hash_table_map()));
   __ j(equal, &probe_dictionary);
 
+  if (FLAG_vector_ics) {
+    // When vector ics are in use, the handlers in the stub cache expect a
+    // vector and slot. Since we won't change the IC from any downstream
+    // misses, a dummy vector can be used.
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        isolate->factory()->keyed_load_dummy_vector());
+    int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ push(Immediate(Smi::FromInt(slot)));
+    __ push(Immediate(dummy_vector));
+  }
+
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::LOAD_IC, flags, false, receiver, key, ebx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
+                                               false, receiver, key, ebx, edi);
+
+  if (FLAG_vector_ics) {
+    __ pop(VectorLoadICDescriptor::VectorRegister());
+    __ pop(VectorLoadICDescriptor::SlotRegister());
+  }
+
   // Cache miss.
   GenerateMiss(masm);
 
@@ -595,7 +612,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
 
 void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                       StrictMode strict_mode) {
+                                       LanguageMode language_mode) {
   // Return address is on the stack.
   Label slow, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
@@ -632,7 +649,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // Slow case: call runtime.
   __ bind(&slow);
-  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, language_mode);
   // Never returns to here.
 
   __ bind(&maybe_name_key);
