@@ -138,7 +138,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
                       VReg incoming_vreg_1 = VReg(),
                       VReg incoming_vreg_2 = VReg(),
                       VReg incoming_vreg_3 = VReg());
-  void Extend(PhiInstruction* phi, VReg vreg);
+  PhiInstruction* Phi(VReg incoming_vreg_0, size_t input_count);
+  void SetInput(PhiInstruction* phi, size_t input, VReg vreg);
 
   VReg DefineConstant(int32_t imm = 0);
   int EmitNop();

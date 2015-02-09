@@ -1019,7 +1019,7 @@ void InstructionSelector::VisitPhi(Node* node) {
   for (int i = 0; i < input_count; ++i) {
     Node* const input = node->InputAt(i);
     MarkAsUsed(input);
-    phi->Extend(instruction_zone(), GetVirtualRegister(input));
+    phi->SetInput(static_cast<size_t>(i), GetVirtualRegister(input));
   }
 }
 

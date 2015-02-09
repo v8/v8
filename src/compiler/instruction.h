@@ -787,31 +787,17 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
 class PhiInstruction FINAL : public ZoneObject {
  public:
-  typedef ZoneVector<InstructionOperand*> Inputs;
+  typedef ZoneVector<InstructionOperand> Inputs;
 
-  PhiInstruction(Zone* zone, int virtual_register, size_t reserved_input_count)
-      : virtual_register_(virtual_register),
-        operands_(zone),
-        output_(nullptr),
-        inputs_(zone) {
-    UnallocatedOperand* output = new (zone)
-        UnallocatedOperand(UnallocatedOperand::NONE, virtual_register);
-    output_ = output;
-    inputs_.reserve(reserved_input_count);
-    operands_.reserve(reserved_input_count);
-  }
+  PhiInstruction(Zone* zone, int virtual_register, size_t input_count);
+
+  void SetInput(size_t offset, int virtual_register);
 
   int virtual_register() const { return virtual_register_; }
   const IntVector& operands() const { return operands_; }
 
-  void Extend(Zone* zone, int virtual_register) {
-    UnallocatedOperand* input = new (zone)
-        UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
-    operands_.push_back(virtual_register);
-    inputs_.push_back(input);
-  }
-
-  InstructionOperand* output() const { return output_; }
+  const InstructionOperand& output() const { return output_; }
+  InstructionOperand& output() { return output_; }
   const Inputs& inputs() const { return inputs_; }
   Inputs& inputs() { return inputs_; }
 
@@ -819,8 +805,8 @@ class PhiInstruction FINAL : public ZoneObject {
   // TODO(dcarney): some of these fields are only for verification, move them to
   // verifier.
   const int virtual_register_;
+  InstructionOperand output_;
   IntVector operands_;
-  InstructionOperand* output_;
   Inputs inputs_;
 };
 
