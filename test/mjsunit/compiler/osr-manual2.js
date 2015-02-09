@@ -6,39 +6,27 @@
 
 var counter = 188;
 
-function gen() {  // defeat compiler cache.
+function gen(w) {  // defeat compiler cache.
  var num = counter++;
- var src =
-  "function f" + num + "(Z,a,b,c) {" +
-  "  var x = 0;" +
-  "  var y = 0;" +
-  "  var z = 0;" +
-  "  while (a > 0) { Z(0); x += 19; a--; var j=2; while(j--); }" +
-  "  while (b > 0) { Z(1); y += 23; b--; var j=2; while(j--); }" +
-  "  while (c > 0) { Z(2); z += 29; c--; var j=2; while(j--); }" +
-  "  return x + y + z;" +
-  "} f" + num;
-
+  var Z = [ "", "", "", ];
+  Z[w] = "%OptimizeOsr()";
+  var src =
+    "function f" + num + "(a,b,c) {" +
+    "  var x = 0;" +
+    "  var y = 0;" +
+    "  var z = 0;" +
+    "  while (a > 0) { " + Z[0] + "; x += 19; a--; var j=2; while(j--); }" +
+    "  while (b > 0) { " + Z[1] + "; y += 23; b--; var j=2; while(j--); }" +
+    "  while (c > 0) { " + Z[2] + "; z += 29; c--; var j=2; while(j--); }" +
+    "  return x + y + z;" +
+    "} f" + num;
   return eval(src);
 }
 
-function compiler(a) {  // manual control of OSR compiles.
-  var x = 0;
-  function count(l) {
-    if (l == a && (x++) > 0) {
-      %OptimizeFunctionOnNextCall(count.caller, "osr");
-    }
-  }
-  return count;
-}
-
 function check(x,a,b,c) {
-  function none(l) { }
-
   for (var i = 0; i < 3; i++) {
-    var f = gen();
-    assertEquals(x, f(compiler(i), a, b, c));
-    assertEquals(x, f(none, a, b, c));
+    var f = gen(i);
+    assertEquals(x, f(a, b, c));
   }
 }
 

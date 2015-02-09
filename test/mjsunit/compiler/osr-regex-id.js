@@ -9,14 +9,14 @@ function id(f) { return f; }
 function foo(a) {
   var r = /\0/;
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeFunctionOnNextCall(foo, "osr");
+    if (a) %OptimizeOsr();
   }
   return r;
 }
 
 function bar(a) {
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeFunctionOnNextCall(bar, "osr");
+    if (a) %OptimizeOsr();
     var r = /\0/;
   }
   return r;
@@ -24,7 +24,7 @@ function bar(a) {
 
 function baz(a) {
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeFunctionOnNextCall(baz, "osr");
+    if (a) %OptimizeOsr();
   }
   return /\0/;
 }
@@ -32,7 +32,7 @@ function baz(a) {
 function qux(a) {
   for (var i = 0; i < 10; i++) {
     if (i > 5 && a) {
-      %OptimizeFunctionOnNextCall(qux, "osr");
+      %OptimizeOsr();
     } else {
       var r = /\0/;
     }
