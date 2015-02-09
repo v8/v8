@@ -120,7 +120,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (state_ == TRANSITION) return;
   DCHECK(state_ != LookupIterator::ACCESSOR);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
-
+  DCHECK(!IsSpecialNumericIndex());
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
