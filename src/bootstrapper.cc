@@ -20,28 +20,10 @@
 namespace v8 {
 namespace internal {
 
-NativesExternalStringResource::NativesExternalStringResource(
-    Bootstrapper* bootstrapper,
-    const char* source,
-    size_t length)
-    : data_(source), length_(length) {
-  if (bootstrapper->delete_these_non_arrays_on_tear_down_ == NULL) {
-    bootstrapper->delete_these_non_arrays_on_tear_down_ = new List<char*>(2);
-  }
-  // The resources are small objects and we only make a fixed number of
-  // them, but let's clean them up on exit for neatness.
-  bootstrapper->delete_these_non_arrays_on_tear_down_->
-      Add(reinterpret_cast<char*>(this));
-}
-
-
 Bootstrapper::Bootstrapper(Isolate* isolate)
     : isolate_(isolate),
       nesting_(0),
-      extensions_cache_(Script::TYPE_EXTENSION),
-      delete_these_non_arrays_on_tear_down_(NULL),
-      delete_these_arrays_on_tear_down_(NULL) {
-}
+      extensions_cache_(Script::TYPE_EXTENSION) {}
 
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
@@ -51,9 +33,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
     // We can use external strings for the natives.
     Vector<const char> source = Natives::GetScriptSource(index);
     NativesExternalStringResource* resource =
-        new NativesExternalStringResource(this,
-                                          source.start(),
-                                          source.length());
+        new NativesExternalStringResource(source.start(), source.length());
     // We do not expect this to throw an exception. Change this if it does.
     Handle<String> source_code = isolate_->factory()
                                      ->NewExternalStringFromOneByte(resource)
@@ -114,39 +94,19 @@ void Bootstrapper::TearDownExtensions() {
 }
 
 
-char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
-  char* memory = new char[bytes];
-  if (memory != NULL) {
-    if (delete_these_arrays_on_tear_down_ == NULL) {
-      delete_these_arrays_on_tear_down_ = new List<char*>(2);
-    }
-    delete_these_arrays_on_tear_down_->Add(memory);
-  }
-  return memory;
-}
-
-
 void Bootstrapper::TearDown() {
-  if (delete_these_non_arrays_on_tear_down_ != NULL) {
-    int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
-    for (int i = 0; i < len; i++) {
-      delete delete_these_non_arrays_on_tear_down_->at(i);
-      delete_these_non_arrays_on_tear_down_->at(i) = NULL;
+  Object* natives_source_cache = isolate_->heap()->natives_source_cache();
+  if (natives_source_cache->IsFixedArray()) {
+    FixedArray* natives_source_array = FixedArray::cast(natives_source_cache);
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Object* natives_source = natives_source_array->get(i);
+      if (!natives_source->IsUndefined()) {
+        const NativesExternalStringResource* resource =
+            reinterpret_cast<const NativesExternalStringResource*>(
+                ExternalOneByteString::cast(natives_source)->resource());
+        delete resource;
+      }
     }
-    delete delete_these_non_arrays_on_tear_down_;
-    delete_these_non_arrays_on_tear_down_ = NULL;
-  }
-
-  if (delete_these_arrays_on_tear_down_ != NULL) {
-    int len = delete_these_arrays_on_tear_down_->length();
-    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
-    for (int i = 0; i < len; i++) {
-      delete[] delete_these_arrays_on_tear_down_->at(i);
-      delete_these_arrays_on_tear_down_->at(i) = NULL;
-    }
-    delete delete_these_arrays_on_tear_down_;
-    delete_these_arrays_on_tear_down_ = NULL;
   }
 
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
