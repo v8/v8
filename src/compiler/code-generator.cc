@@ -611,6 +611,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
 
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  UNIMPLEMENTED();
+}
+
 #endif  // !V8_TURBOFAN_BACKEND
 
 
