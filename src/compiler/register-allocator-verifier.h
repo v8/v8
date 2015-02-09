@@ -5,7 +5,6 @@
 #ifndef V8_REGISTER_ALLOCATOR_VERIFIER_H_
 #define V8_REGISTER_ALLOCATOR_VERIFIER_H_
 
-#include "src/v8.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

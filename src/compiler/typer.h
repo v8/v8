@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/graph.h"
 #include "src/compiler/opcodes.h"
 #include "src/types.h"

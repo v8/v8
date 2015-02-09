@@ -7,7 +7,6 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/v8.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

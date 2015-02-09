@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_AST_GRAPH_BUILDER_H_
 #define V8_COMPILER_AST_GRAPH_BUILDER_H_
 
-#include "src/v8.h"
-
 #include "src/ast.h"
 #include "src/compiler/js-graph.h"
 

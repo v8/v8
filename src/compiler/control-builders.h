@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_CONTROL_BUILDERS_H_
 #define V8_COMPILER_CONTROL_BUILDERS_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/node.h"
 

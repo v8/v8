@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_FRAME_H_
 #define V8_COMPILER_FRAME_H_
 
-#include "src/v8.h"
-
 #include "src/bit-vector.h"
 
 namespace v8 {

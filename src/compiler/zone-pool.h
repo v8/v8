@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-#include "src/v8.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
 #include "src/compiler/linkage.h"
