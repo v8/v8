@@ -485,7 +485,7 @@ void Assembler::emit_operand(int code, const Operand& adr) {
   // Recognize RIP relative addressing.
   if (adr.buf_[0] == 5) {
     DCHECK_EQ(9u, length);
-    Label* label = *reinterpret_cast<Label* const*>(&adr.buf_[1]);
+    Label* label = *bit_cast<Label* const*>(&adr.buf_[1]);
     if (label->is_bound()) {
       int offset = label->pos() - pc_offset() - sizeof(int32_t);
       DCHECK_GE(0, offset);
