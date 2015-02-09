@@ -2907,3 +2907,204 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   CHECK_EQ(1u, result_array->Length());
   CHECK(result_array->Get(0)->Equals(v8::Symbol::GetIterator(isolate)));
 }
+
+
+namespace {
+
+template <typename T>
+Local<Object> BuildWrappedObject(v8::Isolate* isolate, T* data) {
+  auto templ = v8::ObjectTemplate::New(isolate);
+  templ->SetInternalFieldCount(1);
+  auto instance = templ->NewInstance();
+  instance->SetAlignedPointerInInternalField(0, data);
+  return instance;
+}
+
+
+template <typename T>
+T* GetWrappedObject(Local<Value> data) {
+  return reinterpret_cast<T*>(
+      Object::Cast(*data)->GetAlignedPointerFromInternalField(0));
+}
+
+
+struct AccessCheckData {
+  int count;
+  bool result;
+};
+
+
+bool SimpleNamedAccessChecker(Local<v8::Object> global, Local<Value> name,
+                              v8::AccessType type, Local<Value> data) {
+  auto access_check_data = GetWrappedObject<AccessCheckData>(data);
+  access_check_data->count++;
+  return access_check_data->result;
+}
+
+
+bool SimpleIndexedAccessChecker(Local<v8::Object> global, uint32_t index,
+                                v8::AccessType type, Local<Value> data) {
+  auto access_check_data = GetWrappedObject<AccessCheckData>(data);
+  access_check_data->count++;
+  return access_check_data->result;
+}
+
+
+struct ShouldInterceptData {
+  int value;
+  bool should_intercept;
+};
+
+
+void ShouldNamedInterceptor(Local<Name> name,
+                            const v8::PropertyCallbackInfo<Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedInterceptor));
+  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  if (!data->should_intercept) return;
+  info.GetReturnValue().Set(v8_num(data->value));
+}
+
+
+void ShouldIndexedInterceptor(uint32_t,
+                              const v8::PropertyCallbackInfo<Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldIndexedInterceptor));
+  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  if (!data->should_intercept) return;
+  info.GetReturnValue().Set(v8_num(data->value));
+}
+
+}  // namespace
+
+
+THREADED_TEST(NamedAllCanReadInterceptor) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  AccessCheckData access_check_data;
+  access_check_data.result = false;
+  access_check_data.count = 0;
+
+  ShouldInterceptData intercept_data_0;
+  intercept_data_0.value = 239;
+  intercept_data_0.should_intercept = true;
+
+  ShouldInterceptData intercept_data_1;
+  intercept_data_1.value = 165;
+  intercept_data_1.should_intercept = false;
+
+  auto intercepted_0 = v8::ObjectTemplate::New(isolate);
+  {
+    v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kAllCanRead;
+    conf.data =
+        BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data_0);
+    intercepted_0->SetHandler(conf);
+  }
+
+  auto intercepted_1 = v8::ObjectTemplate::New(isolate);
+  {
+    v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kAllCanRead;
+    conf.data =
+        BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data_1);
+    intercepted_1->SetHandler(conf);
+  }
+
+  auto checked = v8::ObjectTemplate::New(isolate);
+  checked->SetAccessCheckCallbacks(
+      SimpleNamedAccessChecker, nullptr,
+      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
+
+  context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
+  context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
+  auto checked_instance = checked->NewInstance();
+  checked_instance->Set(v8_str("whatever"), v8_num(17));
+  context->Global()->Set(v8_str("checked"), checked_instance);
+  CompileRun(
+      "checked.__proto__ = intercepted_1;"
+      "intercepted_1.__proto__ = intercepted_0;");
+
+  checked_instance->TurnOnAccessCheck();
+  CHECK_EQ(0, access_check_data.count);
+
+  access_check_data.result = true;
+  ExpectInt32("checked.whatever", 17);
+  CHECK_EQ(1, access_check_data.count);
+
+  access_check_data.result = false;
+  ExpectInt32("checked.whatever", intercept_data_0.value);
+  CHECK_EQ(2, access_check_data.count);
+
+  intercept_data_1.should_intercept = true;
+  ExpectInt32("checked.whatever", intercept_data_1.value);
+  CHECK_EQ(3, access_check_data.count);
+}
+
+
+THREADED_TEST(IndexedAllCanReadInterceptor) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  AccessCheckData access_check_data;
+  access_check_data.result = false;
+  access_check_data.count = 0;
+
+  ShouldInterceptData intercept_data_0;
+  intercept_data_0.value = 239;
+  intercept_data_0.should_intercept = true;
+
+  ShouldInterceptData intercept_data_1;
+  intercept_data_1.value = 165;
+  intercept_data_1.should_intercept = false;
+
+  auto intercepted_0 = v8::ObjectTemplate::New(isolate);
+  {
+    v8::IndexedPropertyHandlerConfiguration conf(ShouldIndexedInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kAllCanRead;
+    conf.data =
+        BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data_0);
+    intercepted_0->SetHandler(conf);
+  }
+
+  auto intercepted_1 = v8::ObjectTemplate::New(isolate);
+  {
+    v8::IndexedPropertyHandlerConfiguration conf(ShouldIndexedInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kAllCanRead;
+    conf.data =
+        BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data_1);
+    intercepted_1->SetHandler(conf);
+  }
+
+  auto checked = v8::ObjectTemplate::New(isolate);
+  checked->SetAccessCheckCallbacks(
+      nullptr, SimpleIndexedAccessChecker,
+      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
+
+  context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
+  context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
+  auto checked_instance = checked->NewInstance();
+  context->Global()->Set(v8_str("checked"), checked_instance);
+  checked_instance->Set(15, v8_num(17));
+  CompileRun(
+      "checked.__proto__ = intercepted_1;"
+      "intercepted_1.__proto__ = intercepted_0;");
+
+  checked_instance->TurnOnAccessCheck();
+  CHECK_EQ(0, access_check_data.count);
+
+  access_check_data.result = true;
+  ExpectInt32("checked[15]", 17);
+  CHECK_EQ(1, access_check_data.count);
+
+  access_check_data.result = false;
+  ExpectInt32("checked[15]", intercept_data_0.value);
+  CHECK_EQ(2, access_check_data.count);
+
+  intercept_data_1.should_intercept = true;
+  ExpectInt32("checked[15]", intercept_data_1.value);
+  CHECK_EQ(3, access_check_data.count);
+}
