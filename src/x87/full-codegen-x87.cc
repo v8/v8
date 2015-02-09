@@ -114,7 +114,7 @@ void FullCodeGenerator::Generate() {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object).
-  if (info->strict_mode() == SLOPPY && !info->is_native()) {
+  if (is_sloppy(info->language_mode()) && !info->is_native()) {
     Label ok;
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
@@ -254,7 +254,7 @@ void FullCodeGenerator::Generate() {
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub::Type type;
-    if (strict_mode() == STRICT) {
+    if (is_strict(language_mode())) {
       type = ArgumentsAccessStub::NEW_STRICT;
     } else if (function()->has_duplicate_parameters()) {
       type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;
@@ -1211,7 +1211,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(isolate(), info->strict_mode(), info->kind());
+    FastNewClosureStub stub(isolate(), info->language_mode(), info->kind());
     __ mov(ebx, Immediate(info));
     __ CallStub(&stub);
   } else {
@@ -1658,7 +1658,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(value);
         if (property->emit_store()) {
           EmitSetHomeObjectIfNeeded(value, 2);
-          __ push(Immediate(Smi::FromInt(SLOPPY)));  // Strict mode
+          __ push(Immediate(Smi::FromInt(SLOPPY)));  // Language mode
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           __ Drop(3);
@@ -2567,7 +2567,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ pop(StoreDescriptor::ReceiverRegister());  // Receiver.
       __ pop(StoreDescriptor::ValueRegister());     // Restore value.
       Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), strict_mode()).code();
+          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       CallIC(ic);
       break;
     }
@@ -2633,7 +2633,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ push(eax);  // Value.
       __ push(esi);  // Context.
       __ push(Immediate(var->name()));
-      __ push(Immediate(Smi::FromInt(strict_mode())));
+      __ push(Immediate(Smi::FromInt(language_mode())));
       __ CallRuntime(Runtime::kStoreLookupSlot, 4);
     } else {
       // Assignment to var or initializing assignment to let/const in harmony
@@ -2648,7 +2648,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
-  } else if (IsSignallingAssignmentToConst(var, op, strict_mode())) {
+  } else if (IsSignallingAssignmentToConst(var, op, language_mode())) {
     __ CallRuntime(Runtime::kThrowConstAssignError, 0);
   }
 }
@@ -2683,8 +2683,8 @@ void FullCodeGenerator::EmitNamedSuperPropertyStore(Property* prop) {
 
   __ push(Immediate(key->value()));
   __ push(eax);
-  __ CallRuntime((strict_mode() == STRICT ? Runtime::kStoreToSuper_Strict
-                                          : Runtime::kStoreToSuper_Sloppy),
+  __ CallRuntime((is_strict(language_mode()) ? Runtime::kStoreToSuper_Strict
+                                             : Runtime::kStoreToSuper_Sloppy),
                  4);
 }
 
@@ -2695,9 +2695,10 @@ void FullCodeGenerator::EmitKeyedSuperPropertyStore(Property* prop) {
   // stack : receiver ('this'), home_object, key
 
   __ push(eax);
-  __ CallRuntime((strict_mode() == STRICT ? Runtime::kStoreKeyedToSuper_Strict
-                                          : Runtime::kStoreKeyedToSuper_Sloppy),
-                 4);
+  __ CallRuntime(
+      (is_strict(language_mode()) ? Runtime::kStoreKeyedToSuper_Strict
+                                  : Runtime::kStoreKeyedToSuper_Sloppy),
+      4);
 }
 
 
@@ -2712,7 +2713,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   DCHECK(StoreDescriptor::ValueRegister().is(eax));
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  Handle<Code> ic = CodeFactory::KeyedStoreIC(isolate(), strict_mode()).code();
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   CallIC(ic, expr->AssignmentFeedbackId());
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
@@ -2927,7 +2929,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // Push the receiver of the enclosing function.
   __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
   // Push the language mode.
-  __ push(Immediate(Smi::FromInt(strict_mode())));
+  __ push(Immediate(Smi::FromInt(language_mode())));
 
   // Push the start position of the scope the calls resides in.
   __ push(Immediate(Smi::FromInt(scope()->start_position())));
@@ -4498,14 +4500,14 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        __ push(Immediate(Smi::FromInt(strict_mode())));
+        __ push(Immediate(Smi::FromInt(language_mode())));
         __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         context()->Plug(eax);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
         // Delete of an unqualified identifier is disallowed in strict mode
         // but "delete this" is allowed.
-        DCHECK(strict_mode() == SLOPPY || var->is_this());
+        DCHECK(is_sloppy(language_mode()) || var->is_this());
         if (var->IsUnallocated()) {
           __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
@@ -4832,7 +4834,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(StoreDescriptor::NameRegister());
       __ pop(StoreDescriptor::ReceiverRegister());
       Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), strict_mode()).code();
+          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       CallIC(ic, expr->CountStoreFeedbackId());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
