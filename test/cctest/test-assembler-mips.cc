@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <iostream>  // NOLINT(readability/streams)
+
 #include "src/v8.h"
 
 #include "src/disassembler.h"
@@ -34,6 +36,7 @@
 #include "src/mips/simulator-mips.h"
 
 #include "test/cctest/cctest.h"
+
 
 using namespace v8::internal;
 
@@ -1271,5 +1274,217 @@ TEST(MIPS15) {
   __ bind(&target);
   __ nop();
 }
+
+
+TEST(jump_tables1) {
+  // Test jump tables with forward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  __ addiu(sp, sp, -4);
+  __ sw(ra, MemOperand(sp));
+
+  Label done;
+  {
+    PredictableCodeSizeScope predictable(
+        &assm, (kNumCases + 7) * Assembler::kInstrSize);
+    Label here;
+
+    __ bal(&here);
+    __ nop();
+    __ bind(&here);
+    __ sll(at, a0, 2);
+    __ addu(at, at, ra);
+    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ jr(at);
+    __ nop();
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ lui(v0, (values[i] >> 16) & 0xffff);
+    __ ori(v0, v0, values[i] & 0xffff);
+    __ b(&done);
+    __ nop();
+  }
+
+  __ bind(&done);
+  __ lw(ra, MemOperand(sp));
+  __ addiu(sp, sp, 4);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
+TEST(jump_tables2) {
+  // Test jump tables with backward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  __ addiu(sp, sp, -4);
+  __ sw(ra, MemOperand(sp));
+
+  Label done, dispatch;
+  __ b(&dispatch);
+  __ nop();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ lui(v0, (values[i] >> 16) & 0xffff);
+    __ ori(v0, v0, values[i] & 0xffff);
+    __ b(&done);
+    __ nop();
+  }
+
+  __ bind(&dispatch);
+  {
+    PredictableCodeSizeScope predictable(
+        &assm, (kNumCases + 7) * Assembler::kInstrSize);
+    Label here;
+
+    __ bal(&here);
+    __ nop();
+    __ bind(&here);
+    __ sll(at, a0, 2);
+    __ addu(at, at, ra);
+    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ jr(at);
+    __ nop();
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  __ bind(&done);
+  __ lw(ra, MemOperand(sp));
+  __ addiu(sp, sp, 4);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
+TEST(jump_tables3) {
+  // Test jump tables with backward jumps and embedded heap objects.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 256;
+  Handle<Object> values[kNumCases];
+  for (int i = 0; i < kNumCases; ++i) {
+    double value = isolate->random_number_generator()->NextDouble();
+    values[i] = isolate->factory()->NewHeapNumber(value, IMMUTABLE, TENURED);
+  }
+  Label labels[kNumCases];
+  Object* obj;
+  int32_t imm32;
+
+  __ addiu(sp, sp, -4);
+  __ sw(ra, MemOperand(sp));
+
+  Label done, dispatch;
+  __ b(&dispatch);
+
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    obj = *values[i];
+    imm32 = reinterpret_cast<intptr_t>(obj);
+    __ lui(v0, (imm32 >> 16) & 0xffff);
+    __ ori(v0, v0, imm32 & 0xffff);
+    __ b(&done);
+    __ nop();
+  }
+
+  __ bind(&dispatch);
+  {
+    PredictableCodeSizeScope predictable(
+        &assm, (kNumCases + 7) * Assembler::kInstrSize);
+    Label here;
+
+    __ bal(&here);
+    __ nop();
+    __ bind(&here);
+    __ sll(at, a0, 2);
+    __ addu(at, at, ra);
+    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ jr(at);
+    __ nop();
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  __ bind(&done);
+  __ lw(ra, MemOperand(sp));
+  __ addiu(sp, sp, 4);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    Handle<Object> result(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0), isolate);
+#ifdef OBJECT_PRINT
+    ::printf("f(%d) = ", i);
+    result->Print(std::cout);
+    ::printf("\n");
+#endif
+    CHECK(values[i].is_identical_to(result));
+  }
+}
+
 
 #undef __
