@@ -29,8 +29,8 @@ MoveOperands* PrepareInsertAfter(ParallelMove* left, MoveOperands* move,
   }
   DCHECK(!(replacement == to_eliminate && replacement != nullptr));
   if (replacement != nullptr) {
-    auto new_source = new (zone) InstructionOperand(
-        replacement->source()->kind(), replacement->source()->index());
+    auto new_source = InstructionOperand::New(
+        zone, replacement->source()->kind(), replacement->source()->index());
     move->set_source(new_source);
   }
   return to_eliminate;
@@ -186,8 +186,8 @@ void MoveOptimizer::FinalizeMoves(GapInstruction* gap) {
       loads.push_back(move);
       // Replace source with copy for later use.
       auto dest = move->destination();
-      move->set_destination(new (code_zone())
-                            InstructionOperand(dest->kind(), dest->index()));
+      move->set_destination(
+          InstructionOperand::New(code_zone(), dest->kind(), dest->index()));
       continue;
     }
     if ((found->destination()->IsStackSlot() ||
@@ -199,7 +199,7 @@ void MoveOptimizer::FinalizeMoves(GapInstruction* gap) {
       InstructionOperand::Kind found_kind = found->destination()->kind();
       int found_index = found->destination()->index();
       auto next_dest =
-          new (code_zone()) InstructionOperand(found_kind, found_index);
+          InstructionOperand::New(code_zone(), found_kind, found_index);
       auto dest = move->destination();
       found->destination()->ConvertTo(dest->kind(), dest->index());
       move->set_destination(next_dest);

@@ -948,7 +948,7 @@ void RegisterAllocator::AssignSpillSlots() {
     auto op_kind = kind == DOUBLE_REGISTERS
                        ? InstructionOperand::DOUBLE_STACK_SLOT
                        : InstructionOperand::STACK_SLOT;
-    auto op = new (code_zone()) InstructionOperand(op_kind, index);
+    auto op = InstructionOperand::New(code_zone(), op_kind, index);
     range->SetOperand(op);
   }
 }
@@ -1105,9 +1105,9 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
 
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
-        UnallocatedOperand* output_copy = new (code_zone())
-            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg);
-
+        UnallocatedOperand* output_copy =
+            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg)
+                .Copy(code_zone());
         AddGapMove(gap_index, GapInstruction::START, output, output_copy);
       }
     }
