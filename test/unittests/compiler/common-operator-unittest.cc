@@ -133,6 +133,9 @@ class CommonOperatorTest : public TestWithZone {
 const int kArguments[] = {1, 5, 6, 42, 100, 10000, 65000};
 
 
+const size_t kCases[] = {2, 3, 4, 100, 255};
+
+
 const float kFloatValues[] = {-std::numeric_limits<float>::infinity(),
                               std::numeric_limits<float>::min(),
                               -1.0f,
@@ -176,6 +179,39 @@ TEST_F(CommonOperatorTest, Branch) {
     EXPECT_EQ(0, op->ValueOutputCount());
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(2, op->ControlOutputCount());
+  }
+}
+
+
+TEST_F(CommonOperatorTest, Switch) {
+  TRACED_FOREACH(size_t, cases, kCases) {
+    const Operator* const op = common()->Switch(cases);
+    EXPECT_EQ(IrOpcode::kSwitch, op->opcode());
+    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(1, op->ValueInputCount());
+    EXPECT_EQ(0, op->EffectInputCount());
+    EXPECT_EQ(1, op->ControlInputCount());
+    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ValueOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(static_cast<int>(cases), op->ControlOutputCount());
+  }
+}
+
+
+TEST_F(CommonOperatorTest, Case) {
+  TRACED_FORRANGE(size_t, index, 0, 1024) {
+    const Operator* const op = common()->Case(index);
+    EXPECT_EQ(IrOpcode::kCase, op->opcode());
+    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(index, CaseIndexOf(op));
+    EXPECT_EQ(0, op->ValueInputCount());
+    EXPECT_EQ(0, op->EffectInputCount());
+    EXPECT_EQ(1, op->ControlInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ValueOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(1, op->ControlOutputCount());
   }
 }
 

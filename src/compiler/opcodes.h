@@ -12,6 +12,8 @@
   V(Branch)                      \
   V(IfTrue)                      \
   V(IfFalse)                     \
+  V(Switch)                      \
+  V(Case)                        \
   V(Merge)                       \
   V(Return)                      \
   V(OsrNormalEntry)              \

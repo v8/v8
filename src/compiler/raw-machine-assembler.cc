@@ -76,6 +76,20 @@ void RawMachineAssembler::Branch(Node* condition, Label* true_val,
 }
 
 
+void RawMachineAssembler::Switch(Node* index, Label** succ_labels,
+                                 size_t succ_count) {
+  DCHECK_NE(schedule()->end(), current_block_);
+  Node* sw = NewNode(common()->Switch(succ_count), index);
+  BasicBlock** succ_blocks =
+      zone()->NewArray<BasicBlock*>(static_cast<int>(succ_count));
+  for (size_t index = 0; index < succ_count; ++index) {
+    succ_blocks[index] = Use(succ_labels[index]);
+  }
+  schedule()->AddSwitch(CurrentBlock(), sw, succ_blocks, succ_count);
+  current_block_ = nullptr;
+}
+
+
 void RawMachineAssembler::Return(Node* value) {
   schedule()->AddReturn(CurrentBlock(), value);
   current_block_ = NULL;

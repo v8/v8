@@ -202,6 +202,7 @@ class InstructionSelector FINAL {
   void VisitCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
+  void VisitSwitch(Node* node, BasicBlock** branches, size_t branch_count);
   void VisitReturn(Node* value);
   void VisitThrow(Node* value);
   void VisitDeoptimize(Node* deopt);

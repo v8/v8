@@ -336,6 +336,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchSwitch:
+      AssembleArchSwitch(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArchNop:
       // don't emit code for nops.
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -737,6 +741,18 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
+void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  int const kNumLabels = static_cast<int>(instr->InputCount() - 1);
+  __ BlockConstPoolFor(kNumLabels + 2);
+  __ ldr(pc, MemOperand(pc, i.InputRegister(0), LSL, 2));
+  __ nop();
+  for (int index = 0; index < kNumLabels; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 1)));
+  }
+}
+
+
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -1006,6 +1022,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // No other combinations are possible.
     UNREACHABLE();
   }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  // On 32-bit ARM we emit the jump tables inline.
+  UNREACHABLE();
 }
 
 

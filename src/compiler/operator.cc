@@ -10,12 +10,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
 
 template <typename N>
-static inline N CheckRange(size_t val) {
-  CHECK(val <= std::numeric_limits<N>::max());
+V8_INLINE N CheckRange(size_t val) {
+  CHECK_LE(val, std::numeric_limits<N>::max());
   return static_cast<N>(val);
 }
+
+}  // namespace
 
 
 Operator::Operator(Opcode opcode, Properties properties, const char* mnemonic,

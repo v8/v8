@@ -402,6 +402,7 @@ class RawMachineAssembler : public GraphBuilder {
   Label* Exit();
   void Goto(Label* label);
   void Branch(Node* condition, Label* true_val, Label* false_val);
+  void Switch(Node* index, Label** succ_labels, size_t succ_count);
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);

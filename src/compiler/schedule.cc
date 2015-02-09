@@ -102,6 +102,8 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
       return os << "goto";
     case BasicBlock::kBranch:
       return os << "branch";
+    case BasicBlock::kSwitch:
+      return os << "switch";
     case BasicBlock::kReturn:
       return os << "return";
     case BasicBlock::kThrow:
@@ -209,6 +211,18 @@ void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
 }
 
 
+void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
+                         size_t succ_count) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kSwitch, sw->opcode());
+  block->set_control(BasicBlock::kSwitch);
+  for (size_t index = 0; index < succ_count; ++index) {
+    AddSuccessor(block, succ_blocks[index]);
+  }
+  SetControlInput(block, sw);
+}
+
+
 void Schedule::AddReturn(BasicBlock* block, Node* input) {
   DCHECK(block->control() == BasicBlock::kNone);
   block->set_control(BasicBlock::kReturn);
@@ -234,10 +248,27 @@ void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
   MoveSuccessors(block, end);
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
-  if (block->control_input() != NULL) {
+  if (block->control_input() != nullptr) {
     SetControlInput(end, block->control_input());
   }
   SetControlInput(block, branch);
+}
+
+
+void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
+                            BasicBlock** succ_blocks, size_t succ_count) {
+  DCHECK_NE(BasicBlock::kNone, block->control());
+  DCHECK_EQ(BasicBlock::kNone, end->control());
+  end->set_control(block->control());
+  block->set_control(BasicBlock::kSwitch);
+  MoveSuccessors(block, end);
+  for (size_t index = 0; index < succ_count; ++index) {
+    AddSuccessor(block, succ_blocks[index]);
+  }
+  if (block->control_input() != nullptr) {
+    SetControlInput(end, block->control_input());
+  }
+  SetControlInput(block, sw);
 }
 
 

@@ -310,6 +310,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
+    case kArchSwitch:
+      AssembleArchSwitch(instr);
+      break;
     case kArchNop:
       // don't emit code for nops.
       break;
@@ -755,6 +758,18 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
+}
+
+
+void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
+  IA32OperandConverter i(this, instr);
+  size_t const label_count = instr->InputCount() - 1;
+  Label** labels = zone()->NewArray<Label*>(label_count);
+  for (size_t index = 0; index < label_count; ++index) {
+    labels[index] = GetLabel(i.InputRpo(index + 1));
+  }
+  Label* const table = AddJumpTable(labels, label_count);
+  __ jmp(Operand::JumpTable(i.InputRegister(0), times_4, table));
 }
 
 
@@ -1210,6 +1225,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else {
     // No other combinations are possible.
     UNREACHABLE();
+  }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  for (size_t index = 0; index < target_count; ++index) {
+    __ dd(targets[index]);
   }
 }
 
