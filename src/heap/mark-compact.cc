@@ -2161,6 +2161,21 @@ void MarkCompactCollector::UncommitMarkingDeque() {
 }
 
 
+void MarkCompactCollector::OverApproximateWeakClosure() {
+  GCTracer::Scope gc_scope(heap()->tracer(),
+                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
+
+  RootMarkingVisitor root_visitor(heap());
+  isolate()->global_handles()->IterateObjectGroups(
+      &root_visitor, &IsUnmarkedHeapObjectWithHeap);
+  MarkImplicitRefGroups();
+
+  // Remove object groups after marking phase.
+  heap()->isolate()->global_handles()->RemoveObjectGroups();
+  heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
+}
+
+
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;

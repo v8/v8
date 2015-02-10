@@ -155,20 +155,35 @@ PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
                                              VReg incoming_vreg_1,
                                              VReg incoming_vreg_2,
                                              VReg incoming_vreg_3) {
-  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, 10);
   VReg inputs[] = {incoming_vreg_0, incoming_vreg_1, incoming_vreg_2,
                    incoming_vreg_3};
-  for (size_t i = 0; i < arraysize(inputs); ++i) {
-    if (inputs[i].value_ == kNoValue) break;
-    Extend(phi, inputs[i]);
+  size_t input_count = 0;
+  for (; input_count < arraysize(inputs); ++input_count) {
+    if (inputs[input_count].value_ == kNoValue) break;
+  }
+  CHECK(input_count > 0);
+  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, input_count);
+  for (size_t i = 0; i < input_count; ++i) {
+    SetInput(phi, i, inputs[i]);
   }
   current_block_->AddPhi(phi);
   return phi;
 }
 
 
-void InstructionSequenceTest::Extend(PhiInstruction* phi, VReg vreg) {
-  phi->Extend(zone(), vreg.value_);
+PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
+                                             size_t input_count) {
+  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, input_count);
+  SetInput(phi, 0, incoming_vreg_0);
+  current_block_->AddPhi(phi);
+  return phi;
+}
+
+
+void InstructionSequenceTest::SetInput(PhiInstruction* phi, size_t input,
+                                       VReg vreg) {
+  CHECK(vreg.value_ != kNoValue);
+  phi->SetInput(input, vreg.value_);
 }
 
 

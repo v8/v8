@@ -350,6 +350,8 @@ void GCTracer::PrintNVP() const {
   PrintF("misc_compaction=%.1f ",
          current_.scopes[Scope::MC_UPDATE_MISC_POINTERS]);
   PrintF("weak_closure=%.1f ", current_.scopes[Scope::MC_WEAKCLOSURE]);
+  PrintF("inc_weak_closure=%.1f ",
+         current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE]);
   PrintF("weakcollection_process=%.1f ",
          current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
   PrintF("weakcollection_clear=%.1f ",

@@ -1967,6 +1967,48 @@ TARGET_TEST_F(SchedulerTest, BranchHintFalse) {
   CHECK(!schedule->block(f)->deferred());
 }
 
+
+TARGET_TEST_F(SchedulerTest, Switch) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* sw = graph()->NewNode(common()->Switch(2), p0, start);
+  Node* c0 = graph()->NewNode(common()->Case(0), sw);
+  Node* v0 = graph()->NewNode(common()->Int32Constant(11));
+  Node* c1 = graph()->NewNode(common()->Case(1), sw);
+  Node* v1 = graph()->NewNode(common()->Int32Constant(22));
+  Node* m = graph()->NewNode(common()->Merge(2), c0, c1);
+  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 2), v0, v1, m);
+  Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
+  Node* end = graph()->NewNode(common()->End(), ret);
+
+  graph()->SetEnd(end);
+
+  ComputeAndVerifySchedule(13, graph());
+}
+
+
+TARGET_TEST_F(SchedulerTest, FloatingSwitch) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* sw = graph()->NewNode(common()->Switch(2), p0, start);
+  Node* c0 = graph()->NewNode(common()->Case(0), sw);
+  Node* v0 = graph()->NewNode(common()->Int32Constant(11));
+  Node* c1 = graph()->NewNode(common()->Case(1), sw);
+  Node* v1 = graph()->NewNode(common()->Int32Constant(22));
+  Node* m = graph()->NewNode(common()->Merge(2), c0, c1);
+  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 2), v0, v1, m);
+  Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
+  Node* end = graph()->NewNode(common()->End(), ret);
+
+  graph()->SetEnd(end);
+
+  ComputeAndVerifySchedule(13, graph());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

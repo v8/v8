@@ -218,7 +218,8 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
 class CFGBuilder : public ZoneObject {
  public:
   CFGBuilder(Zone* zone, Scheduler* scheduler)
-      : scheduler_(scheduler),
+      : zone_(zone),
+        scheduler_(scheduler),
         schedule_(scheduler->schedule_),
         queued_(scheduler->graph_, 2),
         queue_(zone),
@@ -316,7 +317,8 @@ class CFGBuilder : public ZoneObject {
         BuildBlockForNode(node);
         break;
       case IrOpcode::kBranch:
-        BuildBlocksForSuccessors(node, IrOpcode::kIfTrue, IrOpcode::kIfFalse);
+      case IrOpcode::kSwitch:
+        BuildBlocksForSuccessors(node);
         break;
       default:
         break;
@@ -332,6 +334,10 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kBranch:
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectBranch(node);
+        break;
+      case IrOpcode::kSwitch:
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
+        ConnectSwitch(node);
         break;
       case IrOpcode::kReturn:
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
@@ -357,49 +363,67 @@ class CFGBuilder : public ZoneObject {
     return block;
   }
 
-  void BuildBlocksForSuccessors(Node* node, IrOpcode::Value a,
-                                IrOpcode::Value b) {
-    Node* successors[2];
-    CollectSuccessorProjections(node, successors, a, b);
-    BuildBlockForNode(successors[0]);
-    BuildBlockForNode(successors[1]);
+  void BuildBlocksForSuccessors(Node* node) {
+    size_t const successor_count = node->op()->ControlOutputCount();
+    Node** successors =
+        zone_->NewArray<Node*>(static_cast<int>(successor_count));
+    CollectSuccessorProjections(node, successors, successor_count);
+    for (size_t index = 0; index < successor_count; ++index) {
+      BuildBlockForNode(successors[index]);
+    }
   }
 
   // Collect the branch-related projections from a node, such as IfTrue,
-  // IfFalse.
-  // TODO(titzer): consider moving this to node.h
-  void CollectSuccessorProjections(Node* node, Node** buffer,
-                                   IrOpcode::Value true_opcode,
-                                   IrOpcode::Value false_opcode) {
-    buffer[0] = NULL;
-    buffer[1] = NULL;
-    for (Node* use : node->uses()) {
-      if (use->opcode() == true_opcode) {
-        DCHECK(!buffer[0]);
-        buffer[0] = use;
+  // IfFalse, and Case.
+  void CollectSuccessorProjections(Node* node, Node** successors,
+                                   size_t successor_count) {
+#ifdef DEBUG
+    DCHECK_EQ(static_cast<int>(successor_count), node->UseCount());
+    std::memset(successors, 0, sizeof(*successors) * successor_count);
+#endif
+    for (Node* const use : node->uses()) {
+      size_t index;
+      switch (use->opcode()) {
+        default:
+          UNREACHABLE();
+        // Fall through.
+        case IrOpcode::kIfTrue:
+          DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+          index = 0;
+          break;
+        case IrOpcode::kIfFalse:
+          DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+          index = 1;
+          break;
+        case IrOpcode::kCase:
+          DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
+          index = CaseIndexOf(use->op());
+          break;
       }
-      if (use->opcode() == false_opcode) {
-        DCHECK(!buffer[1]);
-        buffer[1] = use;
-      }
+      DCHECK_LT(index, successor_count);
+      DCHECK(successors[index] == nullptr);
+      successors[index] = use;
     }
-    DCHECK(buffer[0]);
-    DCHECK(buffer[1]);
+#ifdef DEBUG
+    for (size_t index = 0; index < successor_count; ++index) {
+      DCHECK_NOT_NULL(successors[index]);
+    }
+#endif
   }
 
-  void CollectSuccessorBlocks(Node* node, BasicBlock** buffer,
-                              IrOpcode::Value true_opcode,
-                              IrOpcode::Value false_opcode) {
-    Node* successors[2];
-    CollectSuccessorProjections(node, successors, true_opcode, false_opcode);
-    buffer[0] = schedule_->block(successors[0]);
-    buffer[1] = schedule_->block(successors[1]);
+  void CollectSuccessorBlocks(Node* node, BasicBlock** successor_blocks,
+                              size_t successor_count) {
+    Node** successors = reinterpret_cast<Node**>(successor_blocks);
+    CollectSuccessorProjections(node, successors, successor_count);
+    for (size_t index = 0; index < successor_count; ++index) {
+      successor_blocks[index] = schedule_->block(successors[index]);
+    }
   }
 
   void ConnectBranch(Node* branch) {
     BasicBlock* successor_blocks[2];
-    CollectSuccessorBlocks(branch, successor_blocks, IrOpcode::kIfTrue,
-                           IrOpcode::kIfFalse);
+    CollectSuccessorBlocks(branch, successor_blocks,
+                           arraysize(successor_blocks));
 
     // Consider branch hints.
     switch (BranchHintOf(branch->op())) {
@@ -421,7 +445,7 @@ class CFGBuilder : public ZoneObject {
     } else {
       Node* branch_block_node = NodeProperties::GetControlInput(branch);
       BasicBlock* branch_block = schedule_->block(branch_block_node);
-      DCHECK(branch_block != NULL);
+      DCHECK_NOT_NULL(branch_block);
 
       TraceConnect(branch, branch_block, successor_blocks[0]);
       TraceConnect(branch, branch_block, successor_blocks[1]);
@@ -430,12 +454,36 @@ class CFGBuilder : public ZoneObject {
     }
   }
 
+  void ConnectSwitch(Node* sw) {
+    size_t const successor_count = sw->op()->ControlOutputCount();
+    BasicBlock** successor_blocks =
+        zone_->NewArray<BasicBlock*>(static_cast<int>(successor_count));
+    CollectSuccessorBlocks(sw, successor_blocks, successor_count);
+
+    if (sw == component_entry_) {
+      for (size_t index = 0; index < successor_count; ++index) {
+        TraceConnect(sw, component_start_, successor_blocks[index]);
+      }
+      schedule_->InsertSwitch(component_start_, component_end_, sw,
+                              successor_blocks, successor_count);
+    } else {
+      Node* sw_block_node = NodeProperties::GetControlInput(sw);
+      BasicBlock* sw_block = schedule_->block(sw_block_node);
+      DCHECK_NOT_NULL(sw_block);
+
+      for (size_t index = 0; index < successor_count; ++index) {
+        TraceConnect(sw, sw_block, successor_blocks[index]);
+      }
+      schedule_->AddSwitch(sw_block, sw, successor_blocks, successor_count);
+    }
+  }
+
   void ConnectMerge(Node* merge) {
     // Don't connect the special merge at the end to its predecessors.
     if (IsFinalMerge(merge)) return;
 
     BasicBlock* block = schedule_->block(merge);
-    DCHECK(block != NULL);
+    DCHECK_NOT_NULL(block);
     // For all of the merge's control inputs, add a goto at the end to the
     // merge's basic block.
     for (Node* const input : merge->inputs()) {
@@ -460,7 +508,7 @@ class CFGBuilder : public ZoneObject {
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {
-    DCHECK(block);
+    DCHECK_NOT_NULL(block);
     if (succ == NULL) {
       Trace("Connect #%d:%s, B%d -> end\n", node->id(), node->op()->mnemonic(),
             block->id().ToInt());
@@ -487,6 +535,7 @@ class CFGBuilder : public ZoneObject {
     DCHECK(control_.empty());
   }
 
+  Zone* zone_;
   Scheduler* scheduler_;
   Schedule* schedule_;
   NodeMarker<bool> queued_;      // Mark indicating whether node is queued.

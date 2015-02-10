@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_CONTROL_EQUIVALENCE_H_
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"

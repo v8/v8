@@ -90,7 +90,7 @@ class InstructionTester : public HandleAndZoneScope {
   }
 
   UnallocatedOperand* NewUnallocated(int vreg) {
-    return new (zone()) UnallocatedOperand(UnallocatedOperand::ANY, vreg);
+    return UnallocatedOperand(UnallocatedOperand::ANY, vreg).Copy(zone());
   }
 
   InstructionBlock* BlockAt(BasicBlock* block) {

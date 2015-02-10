@@ -593,7 +593,7 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       debug_name_(debug_name),
       config_(config),
       operand_cache_(new (code_zone()) InstructionOperandCache()),
-      phi_map_(PhiMap::key_compare(), PhiMap::allocator_type(local_zone())),
+      phi_map_(local_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, local_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr, local_zone()),
       fixed_live_ranges_(this->config()->num_general_registers(), nullptr,
@@ -948,7 +948,7 @@ void RegisterAllocator::AssignSpillSlots() {
     auto op_kind = kind == DOUBLE_REGISTERS
                        ? InstructionOperand::DOUBLE_STACK_SLOT
                        : InstructionOperand::STACK_SLOT;
-    auto op = new (code_zone()) InstructionOperand(op_kind, index);
+    auto op = InstructionOperand::New(code_zone(), op_kind, index);
     range->SetOperand(op);
   }
 }
@@ -1105,9 +1105,9 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
 
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
-        UnallocatedOperand* output_copy = new (code_zone())
-            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg);
-
+        UnallocatedOperand* output_copy =
+            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg)
+                .Copy(code_zone());
         AddGapMove(gap_index, GapInstruction::START, output, output_copy);
       }
     }
@@ -1372,25 +1372,25 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
 
 void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
   for (auto phi : block->phis()) {
-    auto res = phi_map_.insert(
-        std::make_pair(phi->virtual_register(), PhiMapValue(phi, block)));
+    int phi_vreg = phi->virtual_register();
+    auto res =
+        phi_map_.insert(std::make_pair(phi_vreg, PhiMapValue(phi, block)));
     DCHECK(res.second);
     USE(res);
-    auto output = phi->output();
-    int phi_vreg = phi->virtual_register();
+    auto& output = phi->output();
     if (!FLAG_turbo_delay_ssa_decon) {
       for (size_t i = 0; i < phi->operands().size(); ++i) {
         InstructionBlock* cur_block =
             code()->InstructionBlockAt(block->predecessors()[i]);
         AddGapMove(cur_block->last_instruction_index() - 1, GapInstruction::END,
-                   phi->inputs()[i], output);
+                   &phi->inputs()[i], &output);
         DCHECK(!InstructionAt(cur_block->last_instruction_index())
                     ->HasPointerMap());
       }
     }
     auto live_range = LiveRangeFor(phi_vreg);
     int gap_index = block->first_instruction_index();
-    live_range->SpillAtDefinition(local_zone(), gap_index, output);
+    live_range->SpillAtDefinition(local_zone(), gap_index, &output);
     live_range->SetSpillStartIndex(gap_index);
     // We use the phi-ness of some nodes in some later heuristics.
     live_range->set_is_phi(true);
@@ -1622,7 +1622,7 @@ void RegisterAllocator::ResolveControlFlow() {
             finder.ArrayFor(phi->virtual_register())->FindSucc(block);
         auto phi_output =
             block_bound->range_->GetAssignedOperand(operand_cache());
-        phi->output()->ConvertTo(phi_output->kind(), phi_output->index());
+        phi->output().ConvertTo(phi_output->kind(), phi_output->index());
         size_t pred_index = 0;
         for (auto pred : block->predecessors()) {
           const InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
@@ -1630,7 +1630,7 @@ void RegisterAllocator::ResolveControlFlow() {
                                  ->FindPred(pred_block);
           auto pred_op =
               pred_bound->range_->GetAssignedOperand(operand_cache());
-          phi->inputs()[pred_index] = pred_op;
+          phi->inputs()[pred_index] = *pred_op;
           ResolveControlFlow(block, phi_output, pred_block, pred_op);
           pred_index++;
         }

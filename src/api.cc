@@ -1207,21 +1207,17 @@ void ObjectTemplate::SetAccessor(v8::Handle<Name> name,
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
           typename Enumerator>
-static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
-                                                  Getter getter, Setter setter,
-                                                  Query query, Deleter remover,
-                                                  Enumerator enumerator,
-                                                  Handle<Value> data,
-                                                  bool can_intercept_symbols) {
+static void ObjectTemplateSetNamedPropertyHandler(
+    ObjectTemplate* templ, Getter getter, Setter setter, Query query,
+    Deleter remover, Enumerator enumerator, Handle<Value> data,
+    bool can_intercept_symbols, PropertyHandlerFlags flags) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
   EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
-  i::Handle<i::InterceptorInfo> obj =
-      i::Handle<i::InterceptorInfo>::cast(struct_obj);
+  auto obj = i::Handle<i::InterceptorInfo>::cast(
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
 
   if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
   if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
@@ -1230,6 +1226,8 @@ static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
   obj->set_flags(0);
   obj->set_can_intercept_symbols(can_intercept_symbols);
+  obj->set_all_can_read(static_cast<int>(flags) &
+                        static_cast<int>(PropertyHandlerFlags::kAllCanRead));
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
@@ -1244,15 +1242,16 @@ void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Handle<Value> data) {
   ObjectTemplateSetNamedPropertyHandler(this, getter, setter, query, remover,
-                                        enumerator, data, false);
+                                        enumerator, data, false,
+                                        PropertyHandlerFlags::kNone);
 }
 
 
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
-  ObjectTemplateSetNamedPropertyHandler(this, config.getter, config.setter,
-                                        config.query, config.deleter,
-                                        config.enumerator, config.data, true);
+  ObjectTemplateSetNamedPropertyHandler(
+      this, config.getter, config.setter, config.query, config.deleter,
+      config.enumerator, config.data, true, config.flags);
 }
 
 
@@ -1302,10 +1301,8 @@ void ObjectTemplate::SetHandler(
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
-  i::Handle<i::InterceptorInfo> obj =
-      i::Handle<i::InterceptorInfo>::cast(struct_obj);
+  auto obj = i::Handle<i::InterceptorInfo>::cast(
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
 
   if (config.getter != 0) SET_FIELD_WRAPPED(obj, set_getter, config.getter);
   if (config.setter != 0) SET_FIELD_WRAPPED(obj, set_setter, config.setter);
@@ -1315,6 +1312,8 @@ void ObjectTemplate::SetHandler(
     SET_FIELD_WRAPPED(obj, set_enumerator, config.enumerator);
   }
   obj->set_flags(0);
+  obj->set_all_can_read(static_cast<int>(config.flags) &
+                        static_cast<int>(PropertyHandlerFlags::kAllCanRead));
 
   v8::Local<v8::Value> data = config.data;
   if (data.IsEmpty()) {
@@ -1649,6 +1648,33 @@ Local<Script> ScriptCompiler::CompileModule(Isolate* v8_isolate, Source* source,
       CompileUnboundInternal(v8_isolate, source, options, true);
   if (generic.IsEmpty()) return Local<Script>();
   return generic->BindToCurrentContext();
+}
+
+
+Local<Function> ScriptCompiler::CompileFunctionInContext(
+    Isolate* v8_isolate, Source* source, Local<Context> v8_context,
+    size_t context_extension_count, Local<Object> context_extensions[]) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileFunctionInContext()",
+             return Local<Function>());
+  LOG_API(isolate, "ScriptCompiler::CompileFunctionInContext()");
+  ENTER_V8(isolate);
+  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
+                                              isolate);
+  for (size_t i = 0; i < context_extension_count; ++i) {
+    i::Handle<i::JSObject> extension =
+        Utils::OpenHandle(*context_extensions[i]);
+    i::Handle<i::JSFunction> closure(context->closure(), isolate);
+    context = isolate->factory()->NewWithContext(closure, context, extension);
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::MaybeHandle<i::JSFunction> result = i::Compiler::GetFunctionFromEval(
+      Utils::OpenHandle(*source->source_string), outer_info, context, i::SLOPPY,
+      i::NO_PARSE_RESTRICTION, 0 /* scope_position */);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
+  return Utils::ToLocal(result.ToHandleChecked());
 }
 
 

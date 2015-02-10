@@ -8,7 +8,6 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/contexts.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

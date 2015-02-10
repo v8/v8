@@ -337,6 +337,22 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 }
 
 
+PhiInstruction::PhiInstruction(Zone* zone, int virtual_register,
+                               size_t input_count)
+    : virtual_register_(virtual_register),
+      output_(UnallocatedOperand(UnallocatedOperand::NONE, virtual_register)),
+      operands_(input_count, zone),
+      inputs_(input_count, zone) {}
+
+
+void PhiInstruction::SetInput(size_t offset, int virtual_register) {
+  DCHECK(inputs_[offset].IsInvalid());
+  auto input = UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
+  inputs_[offset] = input;
+  operands_[offset] = virtual_register;
+}
+
+
 InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
                                    BasicBlock::RpoNumber rpo_number,
                                    BasicBlock::RpoNumber loop_header,
@@ -666,10 +682,10 @@ std::ostream& operator<<(std::ostream& os,
 
     for (auto phi : block->phis()) {
       PrintableInstructionOperand printable_op = {
-          printable.register_configuration_, phi->output()};
+          printable.register_configuration_, &phi->output()};
       os << "     phi: " << printable_op << " =";
       for (auto input : phi->inputs()) {
-        printable_op.op_ = input;
+        printable_op.op_ = &input;
         os << " " << printable_op;
       }
       os << "\n";

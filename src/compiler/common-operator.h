@@ -33,6 +33,9 @@ std::ostream& operator<<(std::ostream&, BranchHint);
 BranchHint BranchHintOf(const Operator* const);
 
 
+size_t CaseIndexOf(const Operator* const);
+
+
 class SelectParameters FINAL {
  public:
   explicit SelectParameters(MachineType type,
@@ -172,6 +175,8 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
+  const Operator* Switch(size_t control_output_count);
+  const Operator* Case(size_t index);
   const Operator* Throw();
   const Operator* Return();
 

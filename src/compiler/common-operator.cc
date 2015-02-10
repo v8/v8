@@ -36,6 +36,12 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+size_t CaseIndexOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kCase, op->opcode());
+  return OpParameter<size_t>(op);
+}
+
+
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.type() == rhs.type() && lhs.hint() == rhs.hint();
 }
@@ -247,6 +253,24 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
   }
   UNREACHABLE();
   return nullptr;
+}
+
+
+const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
+  DCHECK_GE(control_output_count, 2u);         // Disallow trivial switches.
+  return new (zone()) Operator(                // --
+      IrOpcode::kSwitch, Operator::kFoldable,  // opcode
+      "Switch",                                // name
+      1, 0, 1, 0, 0, control_output_count);    // counts
+}
+
+
+const Operator* CommonOperatorBuilder::Case(size_t index) {
+  return new (zone()) Operator1<size_t>(     // --
+      IrOpcode::kCase, Operator::kFoldable,  // opcode
+      "Case",                                // name
+      0, 0, 1, 0, 0, 1,                      // counts
+      index);                                // parameter
 }
 
 

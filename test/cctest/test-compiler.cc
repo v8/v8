@@ -404,6 +404,61 @@ TEST(OptimizedCodeSharing) {
 }
 
 
+TEST(CompileFunctionInContext) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var r = 10;");
+  v8::Local<v8::Object> math =
+      v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("Math")));
+  v8::ScriptCompiler::Source script_source(v8_str(
+      "a = PI * r * r;"
+      "x = r * cos(PI);"
+      "y = r * sin(PI / 2);"));
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &math);
+  CHECK(!fun.IsEmpty());
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(env->Global()->Has(v8_str("a")));
+  v8::Local<v8::Value> a = env->Global()->Get(v8_str("a"));
+  CHECK(a->IsNumber());
+  CHECK(env->Global()->Has(v8_str("x")));
+  v8::Local<v8::Value> x = env->Global()->Get(v8_str("x"));
+  CHECK(x->IsNumber());
+  CHECK(env->Global()->Has(v8_str("y")));
+  v8::Local<v8::Value> y = env->Global()->Get(v8_str("y"));
+  CHECK(y->IsNumber());
+  CHECK_EQ(314.1592653589793, a->NumberValue());
+  CHECK_EQ(-10.0, x->NumberValue());
+  CHECK_EQ(10.0, y->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextComplex) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun(
+      "var x = 1;"
+      "var y = 2;"
+      "var z = 4;"
+      "var a = {x: 8, y: 16};"
+      "var b = {x: 32};");
+  v8::Local<v8::Object> ext[2];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  ext[1] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("b")));
+  v8::ScriptCompiler::Source script_source(v8_str("result = x + y + z"));
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 2, ext);
+  CHECK(!fun.IsEmpty());
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(52.0, result->NumberValue());
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                  const char* property_name) {

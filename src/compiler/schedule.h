@@ -33,6 +33,7 @@ class BasicBlock FINAL : public ZoneObject {
     kNone,    // Control not initialized yet.
     kGoto,    // Goto a single successor block.
     kBranch,  // Branch if true to first successor, otherwise second.
+    kSwitch,  // Table dispatch to one of the successor blocks.
     kReturn,  // Return a value from this method.
     kThrow    // Throw an exception.
   };
@@ -233,6 +234,10 @@ class Schedule FINAL : public ZoneObject {
   void AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                  BasicBlock* fblock);
 
+  // BasicBlock building: add a switch at the end of {block}.
+  void AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
+                 size_t succ_count);
+
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input);
 
@@ -242,6 +247,10 @@ class Schedule FINAL : public ZoneObject {
   // BasicBlock mutation: insert a branch into the end of {block}.
   void InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
                     BasicBlock* tblock, BasicBlock* fblock);
+
+  // BasicBlock mutation: insert a switch into the end of {block}.
+  void InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
+                    BasicBlock** succ_blocks, size_t succ_count);
 
   // Exposed publicly for testing only.
   void AddSuccessorForTesting(BasicBlock* block, BasicBlock* succ) {

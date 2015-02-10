@@ -1244,12 +1244,8 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
 }
 
 
-TEST(SerializeToplevelIsolates) {
-  FLAG_serialize_toplevel = true;
-
-  const char* source = "function f() { return 'abc'; }; f() + 'def'";
+v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
   v8::ScriptCompiler::CachedData* cache;
-
   v8::Isolate* isolate1 = v8::Isolate::New();
   {
     v8::Isolate::Scope iscope(isolate1);
@@ -1274,6 +1270,15 @@ TEST(SerializeToplevelIsolates) {
     CHECK(result->ToString(isolate1)->Equals(v8_str("abcdef")));
   }
   isolate1->Dispose();
+  return cache;
+}
+
+
+TEST(SerializeToplevelIsolates) {
+  FLAG_serialize_toplevel = true;
+
+  const char* source = "function f() { return 'abc'; }; f() + 'def'";
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
   v8::Isolate* isolate2 = v8::Isolate::New();
   isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
@@ -1307,35 +1312,37 @@ TEST(SerializeToplevelFlagChange) {
   FLAG_serialize_toplevel = true;
 
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
-  v8::ScriptCompiler::CachedData* cache;
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
-  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate* isolate2 = v8::Isolate::New();
+  FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
   {
-    v8::Isolate::Scope iscope(isolate1);
-    v8::HandleScope scope(isolate1);
-    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
-    v8::ScriptCompiler::Source source(source_str, origin);
-    v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
-        isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
-    const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
-    CHECK(data);
-    // Persist cached data.
-    uint8_t* buffer = NewArray<uint8_t>(data->length);
-    MemCopy(buffer, data->data, data->length);
-    cache = new v8::ScriptCompiler::CachedData(
-        buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
-
-    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString(isolate1)->Equals(v8_str("abcdef")));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::ScriptCompiler::CompileUnbound(isolate2, &source,
+                                       v8::ScriptCompiler::kConsumeCodeCache);
+    CHECK(cache->rejected);
   }
-  isolate1->Dispose();
+  isolate2->Dispose();
+}
+
+
+TEST(SerializeToplevelBitFlip) {
+  FLAG_serialize_toplevel = true;
+
+  const char* source = "function f() { return 'abc'; }; f() + 'def'";
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
+
+  // Random bit flip.
+  const_cast<uint8_t*>(cache->data)[337] ^= 0x40;
 
   v8::Isolate* isolate2 = v8::Isolate::New();
-  FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);

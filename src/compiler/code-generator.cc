@@ -12,6 +12,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CodeGenerator::JumpTable FINAL : public ZoneObject {
+ public:
+  JumpTable(JumpTable* next, Label** targets, size_t target_count)
+      : next_(next), targets_(targets), target_count_(target_count) {}
+
+  Label* label() { return &label_; }
+  JumpTable* next() const { return next_; }
+  Label** targets() const { return targets_; }
+  size_t target_count() const { return target_count_; }
+
+ private:
+  Label label_;
+  JumpTable* const next_;
+  Label** const targets_;
+  size_t const target_count_;
+};
+
+
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info)
     : frame_(frame),
@@ -28,6 +46,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
       last_lazy_deopt_pc_(0),
+      jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
@@ -81,7 +100,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
     for (OutOfLineCode* ool = ools_; ool; ool = ool->next()) {
       masm()->bind(ool->entry());
       ool->Generate();
-      masm()->jmp(ool->exit());
+      if (ool->exit()->is_bound()) masm()->jmp(ool->exit());
     }
   }
 
@@ -94,6 +113,15 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
 
   FinishCode(masm());
+
+  // Emit the jump tables.
+  if (jump_tables_) {
+    masm()->Align(kPointerSize);
+    for (JumpTable* table = jump_tables_; table; table = table->next()) {
+      masm()->bind(table->label());
+      AssembleJumpTable(table->targets(), table->target_count());
+    }
+  }
 
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
@@ -289,6 +317,12 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   }
 
   code_object->set_deoptimization_data(*data);
+}
+
+
+Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
+  jump_tables_ = new (zone()) JumpTable(jump_tables_, targets, target_count);
+  return jump_tables_->label();
 }
 
 
@@ -576,6 +610,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 
 void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  UNIMPLEMENTED();
+}
 
 #endif  // !V8_TURBOFAN_BACKEND
 

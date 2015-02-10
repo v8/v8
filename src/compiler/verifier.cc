@@ -228,6 +228,27 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kSwitch: {
+      // Switch uses are Case.
+      std::vector<bool> uses;
+      uses.resize(node->UseCount());
+      for (auto use : node->uses()) {
+        CHECK_EQ(IrOpcode::kCase, use->opcode());
+        size_t const index = CaseIndexOf(use->op());
+        CHECK_LT(index, uses.size());
+        CHECK(!uses[index]);
+        uses[index] = true;
+      }
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
+    }
+    case IrOpcode::kCase:
+      CHECK_EQ(IrOpcode::kSwitch,
+               NodeProperties::GetControlInput(node)->opcode());
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kLoop:
     case IrOpcode::kMerge:
       CHECK_EQ(control_count, input_count);

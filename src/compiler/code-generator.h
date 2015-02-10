@@ -69,6 +69,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   void AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(BasicBlock::RpoNumber target);
+  void AssembleArchSwitch(Instruction* instr);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
 
@@ -90,6 +91,18 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
                     InstructionOperand* destination) FINAL;
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) FINAL;
+
+  // ===========================================================================
+  // =================== Jump table construction methods. ======================
+  // ===========================================================================
+
+  class JumpTable;
+  // Adds a jump table that is emitted after the actual code.  Returns label
+  // pointing to the beginning of the table.  {targets} is assumed to be static
+  // or zone allocated.
+  Label* AddJumpTable(Label** targets, size_t target_count);
+  // Emits a jump table.
+  void AssembleJumpTable(Label** targets, size_t target_count);
 
   // ===========================================================================
   // Deoptimization table construction
@@ -145,6 +158,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   ZoneDeque<Handle<Object> > deoptimization_literals_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
+  JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   int osr_pc_offset_;
 };

@@ -1027,6 +1027,7 @@ class Assembler : public AssemblerBase {
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dd(Label* label);
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);

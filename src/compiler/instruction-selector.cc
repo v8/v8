@@ -483,7 +483,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
 }
 
 
-static inline void CheckNoPhis(const BasicBlock* block) {
+namespace {
+
+V8_INLINE void CheckNoPhis(const BasicBlock* block) {
 #ifdef DEBUG
   // Branch targets should not have phis.
   for (BasicBlock::const_iterator i = block->begin(); i != block->end(); ++i) {
@@ -492,6 +494,8 @@ static inline void CheckNoPhis(const BasicBlock* block) {
   }
 #endif
 }
+
+}  // namespace
 
 
 void InstructionSelector::VisitControl(BasicBlock* block) {
@@ -513,6 +517,18 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       if (condition->opcode() == IrOpcode::kAlways) return VisitGoto(tbranch);
       return VisitBranch(input, tbranch, fbranch);
     }
+    case BasicBlock::kSwitch: {
+      DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
+      BasicBlock** const branches = &block->successors().front();
+      size_t const branch_count = block->SuccessorCount();
+      DCHECK_LE(2u, branch_count);
+      // SSA deconstruction requires targets of branches not to have phis.
+      // Edge split form guarantees this property, but is more strict.
+      for (size_t index = 0; index < branch_count; ++index) {
+        CheckNoPhis(branches[index]);
+      }
+      return VisitSwitch(input, branches, branch_count);
+    }
     case BasicBlock::kReturn: {
       // If the result itself is a return, return its input.
       Node* value = (input != NULL && input->opcode() == IrOpcode::kReturn)
@@ -525,7 +541,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       return VisitThrow(input->InputAt(0));
     case BasicBlock::kNone: {
       // TODO(titzer): exit block doesn't have control.
-      DCHECK(input == NULL);
+      DCHECK_NULL(input);
       break;
     }
     default:
@@ -544,6 +560,8 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kBranch:
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
+    case IrOpcode::kSwitch:
+    case IrOpcode::kCase:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kEffectSet:
     case IrOpcode::kMerge:
@@ -682,6 +700,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kBranch:
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
+    case IrOpcode::kSwitch:
+    case IrOpcode::kCase:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
       // No code needed for these graph artifacts.
@@ -999,7 +1019,7 @@ void InstructionSelector::VisitPhi(Node* node) {
   for (int i = 0; i < input_count; ++i) {
     Node* const input = node->InputAt(i);
     MarkAsUsed(input);
-    phi->Extend(instruction_zone(), GetVirtualRegister(input));
+    phi->SetInput(static_cast<size_t>(i), GetVirtualRegister(input));
   }
 }
 
@@ -1035,6 +1055,22 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);
   Emit(kArchJmp, g.NoOutput(), g.Label(target))->MarkAsControl();
+}
+
+
+void InstructionSelector::VisitSwitch(Node* node, BasicBlock** branches,
+                                      size_t branch_count) {
+  OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  size_t const input_count = branch_count + 1;
+  InstructionOperand* const inputs =
+      zone()->NewArray<InstructionOperand>(static_cast<int>(input_count));
+  inputs[0] = g.UseRegister(value);
+  for (size_t index = 0; index < branch_count; ++index) {
+    inputs[index + 1] = g.Label(branches[index]);
+  }
+  Emit(kArchSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
+      ->MarkAsControl();
 }
 
 

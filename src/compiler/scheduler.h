@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_SCHEDULER_H_
 #define V8_COMPILER_SCHEDULER_H_
 
-#include "src/v8.h"
-
 #include "src/base/flags.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"

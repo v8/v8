@@ -447,6 +447,56 @@ TEST(RunLoopIncrementFloat64) {
 }
 
 
+TEST(RunSwitch1) {
+  RawMachineAssemblerTester<int32_t> m;
+
+  int constant = 11223344;
+
+  MLabel block0, block1, end;
+  MLabel* cases[] = {&block0, &block1};
+  m.Switch(m.IntPtrConstant(0), cases, arraysize(cases));
+  m.Bind(&block0);
+  m.Goto(&end);
+  m.Bind(&block1);
+  m.Goto(&end);
+  m.Bind(&end);
+  m.Return(m.Int32Constant(constant));
+
+  CHECK_EQ(constant, m.Call());
+}
+
+
+TEST(RunSwitch2) {
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+
+  const size_t kNumCases = 255;
+  int32_t values[kNumCases];
+  m.main_isolate()->random_number_generator()->NextBytes(values,
+                                                         sizeof(values));
+  MLabel end;
+  MLabel* cases[kNumCases];
+  Node* results[kNumCases];
+  for (size_t i = 0; i < kNumCases; ++i) {
+    cases[i] = new (m.main_zone()->New(sizeof(MLabel))) MLabel;
+  }
+  m.Switch(m.ConvertInt32ToIntPtr(m.Parameter(0)), cases, arraysize(cases));
+  for (size_t i = 0; i < kNumCases; ++i) {
+    m.Bind(cases[i]);
+    results[i] = m.Int32Constant(values[i]);
+    m.Goto(&end);
+  }
+  m.Bind(&end);
+  const int num_results = static_cast<int>(arraysize(results));
+  Node* phi =
+      m.NewNode(m.common()->Phi(kMachInt32, num_results), num_results, results);
+  m.Return(phi);
+
+  for (size_t i = 0; i < kNumCases; ++i) {
+    CHECK_EQ(values[i], m.Call(static_cast<int>(i)));
+  }
+}
+
+
 TEST(RunLoadInt32) {
   RawMachineAssemblerTester<int32_t> m;
 

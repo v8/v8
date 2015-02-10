@@ -1508,6 +1508,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     }
   }
 
+  if (it->IsSpecialNumericIndex()) return false;
   it->PrepareTransitionToDataProperty(value, NONE, store_mode);
   return it->IsCacheableTransition();
 }
@@ -2948,7 +2949,7 @@ RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::GetElementWithInterceptor(receiver, receiver, index));
+      JSObject::GetElementWithInterceptor(receiver, receiver, index, true));
   return *result;
 }
 

@@ -828,11 +828,12 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
+  BackReference back_reference(source_.GetInt());
   if (space == LO_SPACE) {
-    uint32_t index = source_.GetInt();
+    CHECK(back_reference.chunk_index() == 0);
+    uint32_t index = back_reference.large_object_index();
     obj = deserialized_large_objects_[index];
   } else {
-    BackReference back_reference(source_.GetInt());
     DCHECK(space < kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
@@ -1295,11 +1296,11 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       }
 
       case kNativesStringResource: {
+        DCHECK(!isolate_->heap()->deserialization_complete());
         int index = source_.Get();
         Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(isolate->bootstrapper(),
-                                              source_vector.start(),
+            new NativesExternalStringResource(source_vector.start(),
                                               source_vector.length());
         Object* resource_obj = reinterpret_cast<Object*>(resource);
         UnalignedCopy(current++, &resource_obj);
@@ -1315,7 +1316,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
         // Move to next reserved chunk.
         chunk_index = ++current_chunk_[space];
-        DCHECK_LT(chunk_index, reservation.length());
+        CHECK_LT(chunk_index, reservation.length());
         high_water_[space] = reservation[chunk_index].start;
         break;
       }
@@ -1345,14 +1346,14 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       case kSynchronize: {
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
-        UNREACHABLE();
+        CHECK(false);
       }
 
       default:
-        UNREACHABLE();
+        CHECK(false);
     }
   }
-  DCHECK_EQ(limit, current);
+  CHECK_EQ(limit, current);
 }
 
 
@@ -1448,6 +1449,7 @@ void PartialSerializer::SerializeOutdatedContextsAsFixedArray() {
     }
     for (int i = 0; i < length; i++) {
       BackReference back_ref = outdated_contexts_[i];
+      DCHECK(BackReferenceIsAlreadyAllocated(back_ref));
       sink_->Put(kBackref + back_ref.space(), "BackRef");
       sink_->PutInt(back_ref.reference(), "BackRefValue");
     }
@@ -1546,6 +1548,26 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 
+#ifdef DEBUG
+bool Serializer::BackReferenceIsAlreadyAllocated(BackReference reference) {
+  DCHECK(reference.is_valid());
+  DCHECK(!reference.is_source());
+  DCHECK(!reference.is_global_proxy());
+  AllocationSpace space = reference.space();
+  int chunk_index = reference.chunk_index();
+  if (space == LO_SPACE) {
+    return chunk_index == 0 &&
+           reference.large_object_index() < seen_large_objects_index_;
+  } else if (chunk_index == completed_chunks_[space].length()) {
+    return reference.chunk_offset() < pending_chunk_[space];
+  } else {
+    return chunk_index < completed_chunks_[space].length() &&
+           reference.chunk_offset() < completed_chunks_[space][chunk_index];
+  }
+}
+#endif  // DEBUG
+
+
 bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                                       WhereToPoint where_to_point, int skip) {
   if (how_to_code == kPlain && where_to_point == kStartOfObject) {
@@ -1600,6 +1622,7 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                    "BackRefWithSkip");
         sink_->PutInt(skip, "BackRefSkipDistance");
       }
+      DCHECK(BackReferenceIsAlreadyAllocated(back_reference));
       sink_->PutInt(back_reference.reference(), "BackRefValue");
 
       hot_objects_.Add(obj);
@@ -2157,6 +2180,10 @@ void Serializer::Pad() {
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
     sink_->Put(kNop, "Padding");
   }
+  // Pad up to pointer size for checksum.
+  while (!IsAligned(sink_->Position(), kPointerAlignment)) {
+    sink_->Put(kNop, "Padding");
+  }
 }
 
 
@@ -2482,6 +2509,41 @@ Vector<const byte> SnapshotData::Payload() const {
 }
 
 
+class Checksum {
+ public:
+  explicit Checksum(Vector<const byte> payload) {
+    // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
+    uintptr_t a = 1;
+    uintptr_t b = 0;
+    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    DCHECK(IsAligned(payload.length(), kIntptrSize));
+    const uintptr_t* end = cur + payload.length() / kIntptrSize;
+    while (cur < end) {
+      // Unsigned overflow expected and intended.
+      a += *cur++;
+      b += a;
+    }
+#if V8_HOST_ARCH_64_BIT
+    a ^= a >> 32;
+    b ^= b >> 32;
+#endif  // V8_HOST_ARCH_64_BIT
+    a_ = static_cast<uint32_t>(a);
+    b_ = static_cast<uint32_t>(b);
+  }
+
+  bool Check(uint32_t a, uint32_t b) const { return a == a_ && b == b_; }
+
+  uint32_t a() const { return a_; }
+  uint32_t b() const { return b_; }
+
+ private:
+  uint32_t a_;
+  uint32_t b_;
+
+  DISALLOW_COPY_AND_ASSIGN(Checksum);
+};
+
+
 SerializedCodeData::SerializedCodeData(const List<byte>& payload,
                                        const CodeSerializer& cs) {
   DisallowHeapAllocation no_gc;
@@ -2510,6 +2572,10 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
+  Checksum checksum(payload.ToConstVector());
+  SetHeaderValue(kChecksum1Offset, checksum.a());
+  SetHeaderValue(kChecksum2Offset, checksum.b());
+
   // Copy reservation chunk sizes.
   CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
             reservation_size);
@@ -2524,13 +2590,14 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
 }
 
 
-bool SerializedCodeData::IsSane(String* source) {
+bool SerializedCodeData::IsSane(String* source) const {
   return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
          GetHeaderValue(kSourceHashOffset) == SourceHash(source) &&
          GetHeaderValue(kCpuFeaturesOffset) ==
              static_cast<uint32_t>(CpuFeatures::SupportedFeatures()) &&
          GetHeaderValue(kFlagHashOffset) == FlagList::Hash() &&
-         Payload().length() >= SharedFunctionInfo::kSize;
+         Checksum(Payload()).Check(GetHeaderValue(kChecksum1Offset),
+                                   GetHeaderValue(kChecksum2Offset));
 }
 
 

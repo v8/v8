@@ -60,6 +60,10 @@ class InstructionOperand {
     ConvertTo(kind, index);
   }
 
+  static InstructionOperand* New(Zone* zone, Kind kind, int index) {
+    return New(zone, InstructionOperand(kind, index));
+  }
+
   Kind kind() const { return KindField::decode(value_); }
   int index() const { return static_cast<int>(value_) >> KindField::kSize; }
 #define INSTRUCTION_OPERAND_PREDICATE(name, type) \
@@ -80,14 +84,13 @@ class InstructionOperand {
     if (kind != UNALLOCATED) virtual_register_ = kInvalidVirtualRegister;
   }
 
-  // TODO(dcarney): get rid of these
-  void* operator new(size_t, void* location) { return location; }
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
-  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
-
  protected:
+  template <typename SubKindOperand>
+  static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
+    void* buffer = zone->New(sizeof(op));
+    return new (buffer) SubKindOperand(op);
+  }
+
   InstructionOperand(Kind kind, int index, int virtual_register)
       : virtual_register_(virtual_register) {
     ConvertTo(kind, index);
@@ -166,8 +169,10 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= LifetimeField::encode(lifetime);
   }
 
+  UnallocatedOperand* Copy(Zone* zone) { return New(zone, *this); }
+
   UnallocatedOperand* CopyUnconstrained(Zone* zone) {
-    return new (zone) UnallocatedOperand(ANY, virtual_register());
+    return New(zone, UnallocatedOperand(ANY, virtual_register()));
   }
 
   static const UnallocatedOperand* cast(const InstructionOperand* op) {
@@ -349,7 +354,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
         : InstructionOperand(kOperandKind, index) {}                    \
                                                                         \
     static SubKind##Operand* New(int index, Zone* zone) {               \
-      return new (zone) SubKind##Operand(index);                        \
+      return InstructionOperand::New(zone, SubKind##Operand(index));    \
     }                                                                   \
                                                                         \
     static SubKind##Operand* cast(InstructionOperand* op) {             \
@@ -436,7 +441,7 @@ class PointerMap FINAL : public ZoneObject {
 std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
 
 // TODO(titzer): s/PointerMap/ReferenceMap/
-class Instruction : public ZoneObject {
+class Instruction {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   const InstructionOperand* OutputAt(size_t i) const {
@@ -535,12 +540,6 @@ class Instruction : public ZoneObject {
     pointer_map_ = map;
   }
 
-  // Placement new operator so that we can smash instructions into
-  // zone-allocated memory.
-  void* operator new(size_t, void* location) { return location; }
-
-  void operator delete(void* pointer, void* location) { UNREACHABLE(); }
-
   void OverwriteWithNop() {
     opcode_ = ArchOpcodeField::encode(kArchNop);
     bit_field_ = 0;
@@ -559,7 +558,6 @@ class Instruction : public ZoneObject {
               InstructionOperand* inputs, size_t temp_count,
               InstructionOperand* temps);
 
- protected:
   typedef BitField<size_t, 0, 8> OutputCountField;
   typedef BitField<size_t, 8, 16> InputCountField;
   typedef BitField<size_t, 24, 6> TempCountField;
@@ -570,6 +568,9 @@ class Instruction : public ZoneObject {
   uint32_t bit_field_;
   PointerMap* pointer_map_;
   InstructionOperand operands_[1];
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Instruction);
 };
 
 
@@ -787,31 +788,17 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
 class PhiInstruction FINAL : public ZoneObject {
  public:
-  typedef ZoneVector<InstructionOperand*> Inputs;
+  typedef ZoneVector<InstructionOperand> Inputs;
 
-  PhiInstruction(Zone* zone, int virtual_register, size_t reserved_input_count)
-      : virtual_register_(virtual_register),
-        operands_(zone),
-        output_(nullptr),
-        inputs_(zone) {
-    UnallocatedOperand* output = new (zone)
-        UnallocatedOperand(UnallocatedOperand::NONE, virtual_register);
-    output_ = output;
-    inputs_.reserve(reserved_input_count);
-    operands_.reserve(reserved_input_count);
-  }
+  PhiInstruction(Zone* zone, int virtual_register, size_t input_count);
+
+  void SetInput(size_t offset, int virtual_register);
 
   int virtual_register() const { return virtual_register_; }
   const IntVector& operands() const { return operands_; }
 
-  void Extend(Zone* zone, int virtual_register) {
-    UnallocatedOperand* input = new (zone)
-        UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
-    operands_.push_back(virtual_register);
-    inputs_.push_back(input);
-  }
-
-  InstructionOperand* output() const { return output_; }
+  const InstructionOperand& output() const { return output_; }
+  InstructionOperand& output() { return output_; }
   const Inputs& inputs() const { return inputs_; }
   Inputs& inputs() { return inputs_; }
 
@@ -819,8 +806,8 @@ class PhiInstruction FINAL : public ZoneObject {
   // TODO(dcarney): some of these fields are only for verification, move them to
   // verifier.
   const int virtual_register_;
+  InstructionOperand output_;
   IntVector operands_;
-  InstructionOperand* output_;
   Inputs inputs_;
 };
 

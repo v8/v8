@@ -115,7 +115,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
                  "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(ptr),
                  ptr - begin);
-        pc += 4;
+        pc += sizeof(ptr);
       } else {
         decode_buffer[0] = '\0';
         pc += d.InstructionDecode(decode_buffer, pc);

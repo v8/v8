@@ -428,6 +428,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
+    case kArchSwitch:
+      AssembleArchSwitch(instr);
+      break;
     case kArchNop:
       // don't emit code for nops.
       break;
@@ -802,6 +805,28 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
+void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
+  MipsOperandConverter i(this, instr);
+  int const kNumLabels = static_cast<int>(instr->InputCount() - 1);
+  v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+      masm());
+  Label here;
+
+  __ bal(&here);
+  __ nop();  // Branch delay slot nop.
+  __ bind(&here);
+  __ sll(at, i.InputRegister(0), 2);
+  __ addu(at, at, ra);
+  __ lw(at, MemOperand(at, 5 * v8::internal::Assembler::kInstrSize));
+  __ jr(at);
+  __ nop();  // Branch delay slot nop.
+
+  for (int index = 0; index < kNumLabels; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 1)));
+  }
+}
+
+
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -1123,6 +1148,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // No other combinations are possible.
     UNREACHABLE();
   }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  // On 32-bit MIPS we emit the jump tables inline.
+  UNREACHABLE();
 }
 
 

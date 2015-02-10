@@ -608,8 +608,7 @@ class RegisterAllocator FINAL : public ZoneObject {
     PhiInstruction* const phi;
     const InstructionBlock* const block;
   };
-  typedef std::map<int, PhiMapValue, std::less<int>,
-                   zone_allocator<std::pair<int, PhiMapValue>>> PhiMap;
+  typedef ZoneMap<int, PhiMapValue> PhiMap;
 
   Zone* const local_zone_;
   Frame* const frame_;

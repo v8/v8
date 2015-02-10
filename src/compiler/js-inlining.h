@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_INLINING_H_
 
 #include "src/compiler/js-graph.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
