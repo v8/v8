@@ -2475,7 +2475,7 @@ SnapshotData::SnapshotData(const SnapshotByteSink& sink,
 
   // Set header values.
   SetHeaderValue(kCheckSumOffset, Version::Hash());
-  SetHeaderValue(kReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
   // Copy reservation chunk sizes.
@@ -2496,12 +2496,12 @@ bool SnapshotData::IsSane() {
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
   return Vector<const Reservation>(
       reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kReservationsOffset));
+      GetHeaderValue(kNumReservationsOffset));
 }
 
 
 Vector<const byte> SnapshotData::Payload() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   const byte* payload = data_ + kHeaderSize + reservations_size;
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
@@ -2556,7 +2556,9 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   int reservation_size = reservations.length() * kInt32Size;
   int num_stub_keys = stub_keys->length();
   int stub_keys_size = stub_keys->length() * kInt32Size;
-  int size = kHeaderSize + reservation_size + stub_keys_size + payload.length();
+  int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
+  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  int size = padded_payload_offset + payload.length();
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -2568,7 +2570,7 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
-  SetHeaderValue(kReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
@@ -2584,9 +2586,11 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   CopyBytes(data_ + kHeaderSize + reservation_size,
             reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
 
+  memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
+
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize + reservation_size + stub_keys_size,
-            payload.begin(), static_cast<size_t>(payload.length()));
+  CopyBytes(data_ + padded_payload_offset, payload.begin(),
+            static_cast<size_t>(payload.length()));
 }
 
 
@@ -2616,15 +2620,17 @@ Vector<const SerializedData::Reservation> SerializedCodeData::Reservations()
     const {
   return Vector<const Reservation>(
       reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kReservationsOffset));
+      GetHeaderValue(kNumReservationsOffset));
 }
 
 
 Vector<const byte> SerializedCodeData::Payload() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-  const byte* payload =
-      data_ + kHeaderSize + reservations_size + code_stubs_size;
+  int payload_offset = kHeaderSize + reservations_size + code_stubs_size;
+  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  const byte* payload = data_ + padded_payload_offset;
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
@@ -2636,7 +2642,7 @@ int SerializedCodeData::NumInternalizedStrings() const {
 }
 
 Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   const byte* start = data_ + kHeaderSize + reservations_size;
   return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
                                 GetHeaderValue(kNumCodeStubKeysOffset));

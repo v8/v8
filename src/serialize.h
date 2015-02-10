@@ -501,12 +501,13 @@ class SerializedData {
 
  protected:
   void SetHeaderValue(int offset, uint32_t value) {
-    memcpy(reinterpret_cast<uint32_t*>(data_) + offset, &value, sizeof(value));
+    uint32_t* address = reinterpret_cast<uint32_t*>(data_ + offset);
+    memcpy(reinterpret_cast<uint32_t*>(address), &value, sizeof(value));
   }
 
   uint32_t GetHeaderValue(int offset) const {
     uint32_t value;
-    memcpy(&value, reinterpret_cast<int*>(data_) + offset, sizeof(value));
+    memcpy(&value, reinterpret_cast<int*>(data_ + offset), sizeof(value));
     return value;
   }
 
@@ -912,14 +913,16 @@ class SnapshotData : public SerializedData {
 
  private:
   bool IsSane();
-  // The data header consists of int-sized entries:
+  // The data header consists of uint32_t-sized entries:
   // [0] version hash
   // [1] number of reservation size entries
   // [2] payload length
+  // ... reservations
+  // ... serialized payload
   static const int kCheckSumOffset = 0;
-  static const int kReservationsOffset = 1;
-  static const int kPayloadLengthOffset = 2;
-  static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
+  static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
+  static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
+  static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
 };
 
 
@@ -957,7 +960,7 @@ class SerializedCodeData : public SerializedData {
 
   uint32_t SourceHash(String* source) const { return source->length(); }
 
-  // The data header consists of int-sized entries:
+  // The data header consists of uint32_t-sized entries:
   // [0] version hash
   // [1] source hash
   // [2] cpu features
@@ -966,18 +969,23 @@ class SerializedCodeData : public SerializedData {
   // [5] number of code stub keys
   // [6] number of reservation size entries
   // [7] payload length
+  // [8] payload checksum part 1
+  // [9] payload checksum part 2
+  // ... reservations
+  // ... code stub keys
+  // ... serialized payload
   static const int kVersionHashOffset = 0;
-  static const int kSourceHashOffset = 1;
-  static const int kCpuFeaturesOffset = 2;
-  static const int kFlagHashOffset = 3;
-  static const int kNumInternalizedStringsOffset = 4;
-  static const int kReservationsOffset = 5;
-  static const int kNumCodeStubKeysOffset = 6;
-  static const int kPayloadLengthOffset = 7;
-  static const int kChecksum1Offset = 8;
-  static const int kChecksum2Offset = 9;
-  static const int kHeaderSize =
-      POINTER_SIZE_ALIGN((kChecksum2Offset + 1) * kIntSize);
+  static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
+  static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
+  static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
+  static const int kNumInternalizedStringsOffset = kFlagHashOffset + kInt32Size;
+  static const int kNumReservationsOffset =
+      kNumInternalizedStringsOffset + kInt32Size;
+  static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
+  static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
+  static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
+  static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
+  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
 };
 } }  // namespace v8::internal
 
