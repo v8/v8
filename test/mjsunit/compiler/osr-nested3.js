@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --use-osr --turbo-osr
+// Flags: --allow-natives-syntax --use-osr --turbo-osr
 
 function f() {
   var sum = 0;
   for (var m = 99; m < 100; m++) {
     for (var i = 5; i < 6; i++) {
-      for (var j = 0; j < 1000000; j++) {
+      for (var j = 0; j < 1000; j++) {
         var x = i + 2;
         var y = x + 5;
         var z = y + 3;
         sum += z;
+        if (i == 19) %OptimizeOsr();
       }
       if (true) break;
     }
@@ -22,6 +23,6 @@ function f() {
 }
 
 
-assertEquals(15000000, f());
-assertEquals(15000000, f());
-assertEquals(15000000, f());
+assertEquals(15000, f());
+assertEquals(15000, f());
+assertEquals(15000, f());
