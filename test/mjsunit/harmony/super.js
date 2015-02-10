@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-classes
+// Flags: --harmony-classes --allow-natives-syntax
 
 (function TestSuperNamedLoads() {
   function Base() { }
@@ -40,15 +40,22 @@
 
 
 (function TestSuperKeyedLoads() {
+  'use strict';
+
   var x = 'x';
   var derivedDataProperty = 'derivedDataProperty';
   var f = 'f';
 
-  function Base() { }
-  function fBase() { return "Base " + this.toString(); }
-  Base.prototype[f] = fBase.toMethod(Base.prototype);
+  class Base {
+    f() {
+      return "Base " + this.toString();
+    }
+    toString() {
+      return "this is Base";
+    }
+  }
+
   Base.prototype[x] = 15;
-  Base.prototype.toString = function() { return "this is Base"; };
 
   function Derived() {
     this[derivedDataProperty] = "xxx";
@@ -79,7 +86,7 @@
 
   function Base() { }
   function fBase() { return "Base " + this.toString(); }
-  Base.prototype[f] = fBase.toMethod(Base.prototype);
+  Base.prototype[f] = %ToMethod(fBase, Base.prototype);
   Base.prototype[x] = 15;
   Base.prototype.toString = function() { return "this is Base"; };
 
