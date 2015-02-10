@@ -217,6 +217,7 @@ class ParserBase : public Traits {
     bool is_generator() const { return IsGeneratorFunction(kind_); }
 
     FunctionKind kind() const { return kind_; }
+    FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(
         typename Traits::Type::GeneratorVariable* variable) {
@@ -248,7 +249,6 @@ class ParserBase : public Traits {
     // is used by yield expressions and return statements. It is not necessary
     // for generator functions to have this variable set.
     Variable* generator_object_variable_;
-
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
@@ -569,6 +569,7 @@ class ParserBase : public Traits {
                                         bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   void AddTemplateExpression(ExpressionT);
+  ExpressionT ParseSuperExpression(bool is_new, bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -2666,8 +2667,9 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(bool* ok) {
     Consume(Token::NEW);
     int new_pos = position();
     ExpressionT result = this->EmptyExpression();
-    if (Check(Token::SUPER)) {
-      result = this->SuperReference(scope_, factory());
+    if (peek() == Token::SUPER) {
+      const bool is_new = true;
+      result = ParseSuperExpression(is_new, CHECK_OK);
     } else {
       result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
     }
@@ -2724,27 +2726,47 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
         function_token_position, function_type, FunctionLiteral::NORMAL_ARITY,
         CHECK_OK);
   } else if (peek() == Token::SUPER) {
-    int beg_pos = position();
-    Consume(Token::SUPER);
-    Token::Value next = peek();
-    if (next == Token::PERIOD || next == Token::LBRACK) {
-      scope_->RecordSuperPropertyUsage();
-      result = this->SuperReference(scope_, factory());
-    } else if (next == Token::LPAREN) {
-      scope_->RecordSuperConstructorCallUsage();
-      result = this->SuperReference(scope_, factory());
-    } else {
-      ReportMessageAt(Scanner::Location(beg_pos, position()),
-                      "unexpected_super");
-      *ok = false;
-      return this->EmptyExpression();
-    }
+    const bool is_new = false;
+    result = ParseSuperExpression(is_new, CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }
 
   result = ParseMemberExpressionContinuation(result, CHECK_OK);
   return result;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
+  int beg_pos = position();
+  Expect(Token::SUPER, CHECK_OK);
+
+  FunctionState* function_state = function_state_;
+  while (IsArrowFunction(function_state->kind())) {
+    function_state = function_state->outer();
+  }
+  // TODO(arv): Handle eval scopes similarly.
+
+  FunctionKind kind = function_state->kind();
+  if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
+      i::IsConstructor(kind)) {
+    if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
+      scope_->RecordSuperPropertyUsage();
+      return this->SuperReference(scope_, factory());
+    }
+    // new super() is never allowed.
+    // super() is only allowed in constructor
+    if (!is_new && peek() == Token::LPAREN && i::IsConstructor(kind)) {
+      scope_->RecordSuperConstructorCallUsage();
+      return this->SuperReference(scope_, factory());
+    }
+  }
+
+  ReportMessageAt(Scanner::Location(beg_pos, position()), "unexpected_super");
+  *ok = false;
+  return this->EmptyExpression();
 }
 
 

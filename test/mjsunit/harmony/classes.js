@@ -874,10 +874,4 @@ function assertAccessorDescriptor(object, name) {
     }
   };
   new C3();
-
-  class C4 extends Object {
-    constructor() {
-      super(new super());
-    }
-  }; new C4();
 }());
