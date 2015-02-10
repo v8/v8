@@ -110,8 +110,7 @@ def main(args):
       return ret
     # Fetch the x64 toolchain as well for official bots with 64-bit kernels.
     return FetchAndExtract('x64')
-  print "Host architecture %s is not supported." % arch
-  return 1
+  return 0
 
 
 if __name__ == '__main__':
