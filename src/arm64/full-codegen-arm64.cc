@@ -197,7 +197,7 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
     if (FLAG_harmony_scoping && info->scope()->is_script_scope()) {
-      __ Mov(x10, Operand(info->scope()->GetScopeInfo()));
+      __ Mov(x10, Operand(info->scope()->GetScopeInfo(info->isolate())));
       __ Push(x1, x10);
       __ CallRuntime(Runtime::kNewScriptContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {

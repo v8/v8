@@ -4562,7 +4562,7 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
       AddInstruction(function);
       // Allocate a block context and store it to the stack frame.
       HInstruction* inner_context = Add<HAllocateBlockContext>(
-          outer_context, function, scope->GetScopeInfo());
+          outer_context, function, scope->GetScopeInfo(isolate()));
       HInstruction* instr = Add<HStoreFrameContext>(inner_context);
       set_scope(scope);
       environment()->BindContext(inner_context);

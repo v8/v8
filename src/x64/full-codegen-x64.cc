@@ -189,7 +189,7 @@ void FullCodeGenerator::Generate() {
     // Argument to NewContext is the function, which is still in rdi.
     if (FLAG_harmony_scoping && info->scope()->is_script_scope()) {
       __ Push(rdi);
-      __ Push(info->scope()->GetScopeInfo());
+      __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
