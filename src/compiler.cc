@@ -1358,10 +1358,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();
     }
-    if (FLAG_use_strict) {
-      info.SetLanguageMode(
-          static_cast<LanguageMode>(info.language_mode() | STRICT_BIT));
-    }
+
+    LanguageMode language_mode =
+        construct_language_mode(FLAG_use_strict, FLAG_use_strong);
+    info.SetLanguageMode(
+        static_cast<LanguageMode>(info.language_mode() | language_mode));
 
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
@@ -1392,10 +1393,11 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  if (FLAG_use_strict) {
-    info->SetLanguageMode(
-        static_cast<LanguageMode>(info->language_mode() | STRICT_BIT));
-  }
+  LanguageMode language_mode =
+      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
+  info->SetLanguageMode(
+      static_cast<LanguageMode>(info->language_mode() | language_mode));
+
   // TODO(marja): FLAG_serialize_toplevel is not honoured and won't be; when the
   // real code caching lands, streaming needs to be adapted to use it.
   return CompileToplevel(info);
