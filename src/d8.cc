@@ -225,14 +225,17 @@ ScriptCompiler::CachedData* CompileForCachedData(
 
 
 // Compile a string within the current v8 context.
-Local<UnboundScript> Shell::CompileString(
+Local<Script> Shell::CompileString(
     Isolate* isolate, Local<String> source, Local<Value> name,
-    ScriptCompiler::CompileOptions compile_options) {
+    ScriptCompiler::CompileOptions compile_options, SourceType source_type) {
   ScriptOrigin origin(name);
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     ScriptCompiler::Source script_source(source, origin);
-    return ScriptCompiler::CompileUnbound(isolate, &script_source,
-                                          compile_options);
+    return source_type == SCRIPT
+               ? ScriptCompiler::Compile(isolate, &script_source,
+                                         compile_options)
+               : ScriptCompiler::CompileModule(isolate, &script_source,
+                                               compile_options);
   }
 
   ScriptCompiler::CachedData* data =
@@ -246,17 +249,17 @@ Local<UnboundScript> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
-  return ScriptCompiler::CompileUnbound(isolate, &cached_source,
-                                        compile_options);
+  return source_type == SCRIPT
+             ? ScriptCompiler::Compile(isolate, &cached_source, compile_options)
+             : ScriptCompiler::CompileModule(isolate, &cached_source,
+                                             compile_options);
 }
 
 
 // Executes a string within the current v8 context.
-bool Shell::ExecuteString(Isolate* isolate,
-                          Handle<String> source,
-                          Handle<Value> name,
-                          bool print_result,
-                          bool report_exceptions) {
+bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
+                          Handle<Value> name, bool print_result,
+                          bool report_exceptions, SourceType source_type) {
 #ifndef V8_SHARED
   bool FLAG_debugger = i::FLAG_debugger;
 #else
@@ -270,61 +273,61 @@ bool Shell::ExecuteString(Isolate* isolate,
     try_catch.SetVerbose(true);
   }
 
-  Handle<UnboundScript> script =
-      Shell::CompileString(isolate, source, name, options.compile_options);
-  if (script.IsEmpty()) {
-    // Print errors that happened during compilation.
-    if (report_exceptions && !FLAG_debugger)
-      ReportException(isolate, &try_catch);
-    return false;
-  } else {
+  Handle<Value> result;
+  {
     PerIsolateData* data = PerIsolateData::Get(isolate);
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
-    realm->Enter();
-    Handle<Value> result = script->BindToCurrentContext()->Run();
-    realm->Exit();
-    data->realm_current_ = data->realm_switch_;
-    if (result.IsEmpty()) {
-      DCHECK(try_catch.HasCaught());
-      // Print errors that happened during execution.
+    Context::Scope context_scope(realm);
+    Handle<Script> script = Shell::CompileString(
+        isolate, source, name, options.compile_options, source_type);
+    if (script.IsEmpty()) {
+      // Print errors that happened during compilation.
       if (report_exceptions && !FLAG_debugger)
         ReportException(isolate, &try_catch);
       return false;
-    } else {
-      DCHECK(!try_catch.HasCaught());
-      if (print_result) {
-#if !defined(V8_SHARED)
-        if (options.test_shell) {
-#endif
-          if (!result->IsUndefined()) {
-            // If all went well and the result wasn't undefined then print
-            // the returned value.
-            v8::String::Utf8Value str(result);
-            fwrite(*str, sizeof(**str), str.length(), stdout);
-            printf("\n");
-          }
-#if !defined(V8_SHARED)
-        } else {
-          v8::TryCatch try_catch;
-          v8::Local<v8::Context> context =
-              v8::Local<v8::Context>::New(isolate, utility_context_);
-          v8::Context::Scope context_scope(context);
-          Handle<Object> global = context->Global();
-          Handle<Value> fun =
-              global->Get(String::NewFromUtf8(isolate, "Stringify"));
-          Handle<Value> argv[1] = { result };
-          Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
-          if (try_catch.HasCaught()) return true;
-          v8::String::Utf8Value str(s);
-          fwrite(*str, sizeof(**str), str.length(), stdout);
-          printf("\n");
-        }
-#endif
-      }
-      return true;
     }
+    result = script->Run();
+    data->realm_current_ = data->realm_switch_;
   }
+  if (result.IsEmpty()) {
+    DCHECK(try_catch.HasCaught());
+    // Print errors that happened during execution.
+    if (report_exceptions && !FLAG_debugger)
+      ReportException(isolate, &try_catch);
+    return false;
+  }
+  DCHECK(!try_catch.HasCaught());
+  if (print_result) {
+#if !defined(V8_SHARED)
+    if (options.test_shell) {
+#endif
+      if (!result->IsUndefined()) {
+        // If all went well and the result wasn't undefined then print
+        // the returned value.
+        v8::String::Utf8Value str(result);
+        fwrite(*str, sizeof(**str), str.length(), stdout);
+        printf("\n");
+      }
+#if !defined(V8_SHARED)
+    } else {
+      v8::TryCatch try_catch;
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate, utility_context_);
+      v8::Context::Scope context_scope(context);
+      Handle<Object> global = context->Global();
+      Handle<Value> fun =
+          global->Get(String::NewFromUtf8(isolate, "Stringify"));
+      Handle<Value> argv[1] = {result};
+      Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
+      if (try_catch.HasCaught()) return true;
+      v8::String::Utf8Value str(s);
+      fwrite(*str, sizeof(**str), str.length(), stdout);
+      printf("\n");
+    }
+#endif
+  }
+  return true;
 }
 
 
@@ -1193,6 +1196,7 @@ void SourceGroup::Execute(Isolate* isolate) {
   bool exception_was_thrown = false;
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
+    Shell::SourceType source_type = Shell::SCRIPT;
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
@@ -1203,21 +1207,28 @@ void SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       ++i;
+      continue;
+    } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
+      // Treat the next file as a module.
+      source_type = Shell::MODULE;
+      arg = argv_[++i];
     } else if (arg[0] == '-') {
       // Ignore other options. They have been parsed already.
-    } else {
-      // Use all other arguments as names of files to load and run.
-      HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::NewFromUtf8(isolate, arg);
-      Handle<String> source = ReadFile(isolate, arg);
-      if (source.IsEmpty()) {
-        printf("Error reading '%s'\n", arg);
-        Shell::Exit(1);
-      }
-      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
-        exception_was_thrown = true;
-        break;
-      }
+      continue;
+    }
+
+    // Use all other arguments as names of files to load and run.
+    HandleScope handle_scope(isolate);
+    Handle<String> file_name = String::NewFromUtf8(isolate, arg);
+    Handle<String> source = ReadFile(isolate, arg);
+    if (source.IsEmpty()) {
+      printf("Error reading '%s'\n", arg);
+      Shell::Exit(1);
+    }
+    if (!Shell::ExecuteString(isolate, source, file_name, false, true,
+                              source_type)) {
+      exception_was_thrown = true;
+      break;
     }
   }
   if (exception_was_thrown != Shell::options.expected_to_throw) {
@@ -1402,6 +1413,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
+  bool enable_harmony_modules = false;
+
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
   SourceGroup* current = options.isolate_sources;
@@ -1412,6 +1425,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
+    } else if (strcmp(str, "--module") == 0) {
+      // Pass on to SourceGroup, which understands this option.
+      enable_harmony_modules = true;
     } else if (strncmp(argv[i], "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
     }
@@ -1420,6 +1436,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   if (!logfile_per_isolate && options.num_isolates) {
     SetFlagsFromString("--nologfile_per_isolate");
+  }
+
+  if (enable_harmony_modules) {
+    SetFlagsFromString("--harmony-modules");
   }
 
   return true;
