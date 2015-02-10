@@ -49,6 +49,10 @@
 #include "src/v8.h"
 #endif  // !V8_SHARED
 
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+#include "src/startup-data-util.h"
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -1545,90 +1549,6 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-class StartupDataHandler {
- public:
-  StartupDataHandler(const char* exec_path, const char* natives_blob,
-                     const char* snapshot_blob) {
-    // If we have (at least one) explicitly given blob, use those.
-    // If not, use the default blob locations next to the d8 binary.
-    if (natives_blob || snapshot_blob) {
-      LoadFromFiles(natives_blob, snapshot_blob);
-    } else {
-      char* natives;
-      char* snapshot;
-      LoadFromFiles(RelativePath(&natives, exec_path, "natives_blob.bin"),
-                    RelativePath(&snapshot, exec_path, "snapshot_blob.bin"));
-
-      free(natives);
-      free(snapshot);
-    }
-  }
-
-  ~StartupDataHandler() {
-    delete[] natives_.data;
-    delete[] snapshot_.data;
-  }
-
- private:
-  static char* RelativePath(char** buffer, const char* exec_path,
-                            const char* name) {
-    DCHECK(exec_path);
-    const char* last_slash = strrchr(exec_path, '/');
-    if (last_slash) {
-      int after_slash = last_slash - exec_path + 1;
-      int name_length = static_cast<int>(strlen(name));
-      *buffer =
-          reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
-      strncpy(*buffer, exec_path, after_slash);
-      strncat(*buffer, name, name_length);
-    } else {
-      *buffer = strdup(name);
-    }
-    return *buffer;
-  }
-
-  void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
-    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
-    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
-  }
-
-  void Load(const char* blob_file,
-            v8::StartupData* startup_data,
-            void (*setter_fn)(v8::StartupData*)) {
-    startup_data->data = NULL;
-    startup_data->raw_size = 0;
-
-    if (!blob_file)
-      return;
-
-    FILE* file = fopen(blob_file, "rb");
-    if (!file)
-      return;
-
-    fseek(file, 0, SEEK_END);
-    startup_data->raw_size = ftell(file);
-    rewind(file);
-
-    startup_data->data = new char[startup_data->raw_size];
-    int read_size =
-        static_cast<int>(fread(const_cast<char*>(startup_data->data), 1,
-                               startup_data->raw_size, file));
-    fclose(file);
-
-    if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
-  }
-
-  v8::StartupData natives_;
-  v8::StartupData snapshot_;
-
-  // Disallow copy & assign.
-  StartupDataHandler(const StartupDataHandler& other);
-  void operator=(const StartupDataHandler& other);
-};
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
-
-
 int Shell::Main(int argc, char* argv[]) {
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
@@ -1651,8 +1571,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  StartupDataHandler startup_data(argv[0], options.natives_blob,
-                                  options.snapshot_blob);
+  v8::StartupDataHandler startup_data(argv[0], options.natives_blob,
+                                      options.snapshot_blob);
 #endif
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
