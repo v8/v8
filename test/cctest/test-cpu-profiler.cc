@@ -493,6 +493,17 @@ static void CheckSimpleBranch(v8::Isolate* isolate,
 }
 
 
+static const v8::CpuProfileNode* GetSimpleBranch(v8::Isolate* isolate,
+                                                 const v8::CpuProfileNode* node,
+                                                 const char* names[],
+                                                 int length) {
+  for (int i = 0; i < length; i++) {
+    node = GetChild(isolate, node, names[i]);
+  }
+  return node;
+}
+
+
 static const char* cpu_profiler_test_source = "function loop(timeout) {\n"
 "  this.mmm = 0;\n"
 "  var start = Date.now();\n"
@@ -1705,4 +1716,49 @@ TEST(DontStopOnFinishedProfileDelete) {
   outer_profile->Delete();
   outer_profile = NULL;
   CHECK_EQ(0, iprofiler->GetProfilesCount());
+}
+
+
+static const char* collect_deopt_events_test_source =
+    "function opt_function(value) {\n"
+    "  return value / 10;\n"
+    "}\n"
+    "\n"
+    "function test(value) {\n"
+    "  return opt_function(value);\n"
+    "}\n"
+    "\n"
+    "startProfiling();\n"
+    "\n"
+    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "\n"
+    "%OptimizeFunctionOnNextCall(opt_function)\n"
+    "\n"
+    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "\n"
+    "for (var i = 0; i < 10; ++i) test(undefined);\n"
+    "\n"
+    "stopProfiling();\n"
+    "\n";
+
+
+TEST(CollectDeoptEvents) {
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::CpuProfiler* profiler = isolate->GetCpuProfiler();
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+
+  v8::Script::Compile(v8_str(collect_deopt_events_test_source))->Run();
+  i::CpuProfile* iprofile = iprofiler->GetProfile(0);
+  iprofile->Print();
+  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
+  const char* branch[] = {"", "test", "opt_function"};
+  const v8::CpuProfileNode* opt_function = GetSimpleBranch(
+      env->GetIsolate(), profile->GetTopDownRoot(), branch, arraysize(branch));
+  CHECK(opt_function);
+  iprofiler->DeleteProfile(iprofile);
 }

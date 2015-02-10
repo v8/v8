@@ -184,41 +184,43 @@ class Deoptimizer : public Malloced {
 
   static const char* GetDeoptReason(DeoptReason deopt_reason);
 
-  struct Reason {
-    Reason(int r, const char* m, DeoptReason d)
+  struct DeoptInfo {
+    DeoptInfo(int r, const char* m, DeoptReason d)
         : raw_position(r), mnemonic(m), deopt_reason(d) {}
 
-    bool operator==(const Reason& other) const {
+    bool operator==(const DeoptInfo& other) const {
       return raw_position == other.raw_position &&
              CStringEquals(mnemonic, other.mnemonic) &&
              deopt_reason == other.deopt_reason;
     }
 
-    bool operator!=(const Reason& other) const { return !(*this == other); }
+    bool operator!=(const DeoptInfo& other) const { return !(*this == other); }
 
     int raw_position;
     const char* mnemonic;
     DeoptReason deopt_reason;
   };
 
+  static DeoptInfo GetDeoptInfo(Code* code, int bailout_id);
+
   struct JumpTableEntry : public ZoneObject {
-    inline JumpTableEntry(Address entry, const Reason& the_reason,
+    inline JumpTableEntry(Address entry, const DeoptInfo& deopt_info,
                           Deoptimizer::BailoutType type, bool frame)
         : label(),
           address(entry),
-          reason(the_reason),
+          deopt_info(deopt_info),
           bailout_type(type),
           needs_frame(frame) {}
 
     bool IsEquivalentTo(const JumpTableEntry& other) const {
       return address == other.address && bailout_type == other.bailout_type &&
              needs_frame == other.needs_frame &&
-             (!FLAG_trace_deopt || reason == other.reason);
+             (!FLAG_trace_deopt || deopt_info == other.deopt_info);
     }
 
     Label label;
     Address address;
-    Reason reason;
+    DeoptInfo deopt_info;
     Deoptimizer::BailoutType bailout_type;
     bool needs_frame;
   };

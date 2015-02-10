@@ -11084,30 +11084,10 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 
 
 void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
-  int last_position = 0;
-  Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
-  int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
-             RelocInfo::ModeMask(RelocInfo::POSITION) |
-             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::POSITION) {
-      last_position = static_cast<int>(info->data());
-    } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
-      last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
-    } else if (last_reason != Deoptimizer::kNoReason) {
-      if ((bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
-          (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::SOFT)) ||
-          (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
-        CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        PrintF(out, "            ;;; deoptimize at %d: %s\n", last_position,
-               Deoptimizer::GetDeoptReason(last_reason));
-        return;
-      }
-    }
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, bailout_id);
+  if (info.deopt_reason != Deoptimizer::kNoReason || info.raw_position != 0) {
+    PrintF(out, "            ;;; deoptimize at %d: %s\n", info.raw_position,
+           Deoptimizer::GetDeoptReason(info.deopt_reason));
   }
 }
 
