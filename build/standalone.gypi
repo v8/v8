@@ -240,9 +240,6 @@
         'ldflags': [
           '-fsanitize=address',
         ],
-        'dependencies': [
-          '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy#target',
-        ],
       },
     }],
     ['tsan==1 and OS!="mac"', {
