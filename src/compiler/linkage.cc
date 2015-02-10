@@ -202,7 +202,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 
 
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
-                                                  MachineSignature* sig) {
+                                                  const MachineSignature* sig) {
   UNIMPLEMENTED();
   return NULL;
 }

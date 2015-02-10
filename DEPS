@@ -80,6 +80,17 @@ hooks = [
                 "-s", "v8/buildtools/linux64/clang-format.sha1",
     ],
   },
+  # Pull binutils for linux, enabled debug fission for faster linking /
+  # debugging when used with clang on Ubuntu Precise.
+  # https://code.google.com/p/chromium/issues/detail?id=352046
+  {
+    'name': 'binutils',
+    'pattern': 'v8/third_party/binutils',
+    'action': [
+        'python',
+        'v8/third_party/binutils/download.py',
+    ],
+  },
   {
     # Pull clang if needed or requested via GYP_DEFINES.
     # Note: On Win, this should run after win_toolchain, as it may use it.
