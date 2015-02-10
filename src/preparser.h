@@ -182,26 +182,22 @@ class ParserBase : public Traits {
   // used to hold the parser's per-function and per-block state.
   class BlockState BASE_EMBEDDED {
    public:
-    BlockState(typename Traits::Type::Scope** scope_stack,
-               typename Traits::Type::Scope* scope)
-        : scope_stack_(scope_stack),
-          outer_scope_(*scope_stack),
-          scope_(scope) {
+    BlockState(Scope** scope_stack, Scope* scope)
+        : scope_stack_(scope_stack), outer_scope_(*scope_stack), scope_(scope) {
       *scope_stack_ = scope_;
     }
     ~BlockState() { *scope_stack_ = outer_scope_; }
 
    private:
-    typename Traits::Type::Scope** scope_stack_;
-    typename Traits::Type::Scope* outer_scope_;
-    typename Traits::Type::Scope* scope_;
+    Scope** scope_stack_;
+    Scope* outer_scope_;
+    Scope* scope_;
   };
 
   class FunctionState BASE_EMBEDDED {
    public:
-    FunctionState(FunctionState** function_state_stack,
-                  typename Traits::Type::Scope** scope_stack,
-                  typename Traits::Type::Scope* scope, FunctionKind kind,
+    FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
+                  Scope* scope, FunctionKind kind,
                   typename Traits::Type::Factory* factory);
     ~FunctionState();
 
@@ -256,8 +252,8 @@ class ParserBase : public Traits {
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
-    typename Traits::Type::Scope** scope_stack_;
-    typename Traits::Type::Scope* outer_scope_;
+    Scope** scope_stack_;
+    Scope* outer_scope_;
     typename Traits::Type::Factory* factory_;
 
     friend class ParserTraits;
@@ -307,6 +303,20 @@ class ParserBase : public Traits {
     ParserBase* parser_;
     Mode old_mode_;
   };
+
+  Scope* NewScope(Scope* parent, ScopeType scope_type,
+                  FunctionKind kind = kNormalFunction) {
+    DCHECK(ast_value_factory());
+    DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
+    DCHECK((scope_type == FUNCTION_SCOPE && IsValidFunctionKind(kind)) ||
+           kind == kNormalFunction);
+    Scope* result = new (zone())
+        Scope(isolate(), zone(), parent, scope_type, ast_value_factory());
+    bool uninitialized_this =
+        FLAG_experimental_classes && IsSubclassConstructor(kind);
+    result->Initialize(uninitialized_this);
+    return result;
+  }
 
   Isolate* isolate() const { return isolate_; }
   Scanner* scanner() const { return scanner_; }
@@ -632,7 +642,7 @@ class ParserBase : public Traits {
   // so never lazily compile it.
   bool parenthesized_function_;
 
-  typename Traits::Type::Scope* scope_;  // Scope stack.
+  Scope* scope_;                   // Scope stack.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
@@ -742,7 +752,6 @@ class PreParserIdentifier {
   Type type_;
 
   friend class PreParserExpression;
-  friend class PreParserScope;
 };
 
 
@@ -1044,44 +1053,6 @@ class PreParserStatementList {
 };
 
 
-class PreParserScope {
- public:
-  explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type,
-                          void* = NULL)
-      : scope_type_(scope_type) {
-    language_mode_ = outer_scope ? outer_scope->language_mode() : SLOPPY;
-  }
-
-  ScopeType type() { return scope_type_; }
-  LanguageMode language_mode() const { return language_mode_; }
-  void SetLanguageMode(LanguageMode language_mode) {
-    language_mode_ = language_mode;
-  }
-  void SetScopeName(PreParserIdentifier name) {}
-
-  // When PreParser is in use, lazy compilation is already being done,
-  // things cannot get lazier than that.
-  bool AllowsLazyCompilation() const { return false; }
-
-  void set_start_position(int position) {}
-  void set_end_position(int position) {}
-
-  bool IsDeclared(const PreParserIdentifier& identifier) const { return false; }
-  void DeclareParameter(const PreParserIdentifier& identifier, VariableMode) {}
-  void RecordArgumentsUsage() {}
-  void RecordSuperPropertyUsage() {}
-  void RecordSuperConstructorCallUsage() {}
-  void RecordThisUsage() {}
-
-  // Allow scope->Foo() to work.
-  PreParserScope* operator->() { return this; }
-
- private:
-  ScopeType scope_type_;
-  LanguageMode language_mode_;
-};
-
-
 class PreParserFactory {
  public:
   explicit PreParserFactory(void* unused_value_factory) {}
@@ -1190,9 +1161,8 @@ class PreParserFactory {
   }
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, AstValueFactory* ast_value_factory,
-      const PreParserScope& scope, PreParserStatementList body,
-      int materialized_literal_count, int expected_property_count,
-      int handler_count, int parameter_count,
+      Scope* scope, PreParserStatementList body, int materialized_literal_count,
+      int expected_property_count, int handler_count, int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
@@ -1219,11 +1189,6 @@ class PreParserTraits {
     // TODO(marja): To be removed. The Traits object should contain all the data
     // it needs.
     typedef PreParser* Parser;
-
-    // Used by FunctionState and BlockState.
-    typedef PreParserScope Scope;
-    typedef PreParserScope ScopePtr;
-    inline static Scope* ptr_to_scope(ScopePtr& scope) { return &scope; }
 
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
@@ -1312,15 +1277,14 @@ class PreParserTraits {
   }
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      PreParserScope* scope, PreParserExpression property, bool* has_function) {
-  }
+      Scope* scope, PreParserExpression property, bool* has_function) {}
 
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
   // PreParser doesn't need to keep track of eval calls.
   static void CheckPossibleEvalCall(PreParserExpression expression,
-                                    PreParserScope* scope) {}
+                                    Scope* scope) {}
 
   static PreParserExpression MarkExpressionAsAssigned(
       PreParserExpression expression) {
@@ -1353,10 +1317,6 @@ class PreParserTraits {
   PreParserExpression NewThrowTypeError(
       const char* type, Handle<Object> arg, int pos) {
     return PreParserExpression::Default();
-  }
-  PreParserScope NewScope(PreParserScope* outer_scope, ScopeType scope_type,
-                          FunctionKind kind = kNormalFunction) {
-    return PreParserScope(outer_scope, scope_type);
   }
 
   // Reporting errors.
@@ -1410,19 +1370,18 @@ class PreParserTraits {
     return PreParserIdentifier::Default();
   }
 
-  static PreParserExpression ThisExpression(PreParserScope* scope,
+  static PreParserExpression ThisExpression(Scope* scope,
                                             PreParserFactory* factory) {
     return PreParserExpression::This();
   }
 
-  static PreParserExpression SuperReference(PreParserScope* scope,
+  static PreParserExpression SuperReference(Scope* scope,
                                             PreParserFactory* factory) {
     return PreParserExpression::Super();
   }
 
-  static PreParserExpression DefaultConstructor(bool call_super,
-                                                PreParserScope* scope, int pos,
-                                                int end_pos) {
+  static PreParserExpression DefaultConstructor(bool call_super, Scope* scope,
+                                                int pos, int end_pos) {
     return PreParserExpression::Default();
   }
 
@@ -1433,7 +1392,7 @@ class PreParserTraits {
   }
 
   static PreParserExpression ExpressionFromIdentifier(
-      PreParserIdentifier name, int pos, PreParserScope* scope,
+      PreParserIdentifier name, int pos, Scope* scope,
       PreParserFactory* factory) {
     return PreParserExpression::FromIdentifier(name);
   }
@@ -1472,7 +1431,7 @@ class PreParserTraits {
 
   // Utility functions
   int DeclareArrowParametersFromExpression(PreParserExpression expression,
-                                           PreParserScope* scope,
+                                           Scope* scope,
                                            Scanner::Location* dupe_loc,
                                            bool* ok) {
     // TODO(aperez): Detect duplicated identifiers in paramlists.
@@ -1504,7 +1463,7 @@ class PreParserTraits {
     return !tag.IsNoTemplateTag();
   }
 
-  void CheckConflictingVarDeclarations(PreParserScope scope, bool* ok) {}
+  void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
   // Temporary glue; these functions will move to ParserBase.
   PreParserExpression ParseV8Intrinsic(bool* ok);
@@ -1558,9 +1517,9 @@ class PreParser : public ParserBase<PreParserTraits> {
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram(int* materialized_literals = 0) {
-    PreParserScope scope(scope_, SCRIPT_SCOPE);
+    Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
-    FunctionState top_scope(&function_state_, &scope_, &scope, kNormalFunction,
+    FunctionState top_scope(&function_state_, &scope_, scope, kNormalFunction,
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
@@ -1695,10 +1654,8 @@ PreParserStatementList PreParserTraits::ParseEagerFunctionBody(
 
 template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
-    FunctionState** function_state_stack,
-    typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope* scope, FunctionKind kind,
-    typename Traits::Type::Factory* factory)
+    FunctionState** function_state_stack, Scope** scope_stack, Scope* scope,
+    FunctionKind kind, typename Traits::Type::Factory* factory)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -2835,7 +2792,7 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
                                               ExpressionT params_ast,
                                               bool* ok) {
-  typename Traits::Type::ScopePtr scope = this->NewScope(scope_, ARROW_SCOPE);
+  Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
   typename Traits::Type::StatementList body;
   int num_parameters = -1;
   int materialized_literal_count = -1;
@@ -2844,8 +2801,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
 
   {
     typename Traits::Type::Factory function_factory(ast_value_factory());
-    FunctionState function_state(&function_state_, &scope_,
-                                 Traits::Type::ptr_to_scope(scope),
+    FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     // TODO(arv): Pass in eval_args_error_loc and reserved_loc here.

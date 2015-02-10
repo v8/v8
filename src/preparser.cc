@@ -107,14 +107,14 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode language_mode, FunctionKind kind, ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
-  PreParserScope top_scope(scope_, SCRIPT_SCOPE);
+  Scope* top_scope = NewScope(scope_, SCRIPT_SCOPE);
   PreParserFactory top_factory(NULL);
-  FunctionState top_state(&function_state_, &scope_, &top_scope,
-                          kNormalFunction, &top_factory);
+  FunctionState top_state(&function_state_, &scope_, top_scope, kNormalFunction,
+                          &top_factory);
   scope_->SetLanguageMode(language_mode);
-  PreParserScope function_scope(scope_, FUNCTION_SCOPE);
+  Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE);
   PreParserFactory function_factory(NULL);
-  FunctionState function_state(&function_state_, &scope_, &function_scope, kind,
+  FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &function_factory);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
@@ -628,8 +628,8 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  PreParserScope with_scope(scope_, WITH_SCOPE);
-  BlockState block_state(&scope_, &with_scope);
+  Scope* with_scope = NewScope(scope_, WITH_SCOPE);
+  BlockState block_state(&scope_, with_scope);
   ParseStatement(CHECK_OK);
   return Statement::Default();
 }
@@ -813,8 +813,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
-      PreParserScope with_scope(scope_, WITH_SCOPE);
-      BlockState block_state(&scope_, &with_scope);
+      Scope* with_scope = NewScope(scope_, WITH_SCOPE);
+      BlockState block_state(&scope_, with_scope);
       ParseBlock(CHECK_OK);
     }
     tok = peek();
@@ -857,10 +857,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
   // Parse function body.
-  ScopeType outer_scope_type = scope_->type();
-  PreParserScope function_scope(scope_, FUNCTION_SCOPE);
+  bool outer_is_script_scope = scope_->is_script_scope();
+  Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE);
   PreParserFactory factory(NULL);
-  FunctionState function_state(&function_state_, &scope_, &function_scope, kind,
+  FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
@@ -915,8 +915,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing
   // and lazy compilation.
-  bool is_lazily_parsed = (outer_scope_type == SCRIPT_SCOPE && allow_lazy() &&
-                           !parenthesized_function_);
+  bool is_lazily_parsed =
+      (outer_is_script_scope && allow_lazy() && !parenthesized_function_);
   parenthesized_function_ = false;
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -974,11 +974,12 @@ PreParserExpression PreParser::ParseClassLiteral(
     return EmptyExpression();
   }
 
-  PreParserScope scope = NewScope(scope_, BLOCK_SCOPE);
-  BlockState block_state(&scope_, &scope);
+  Scope* scope = NewScope(scope_, BLOCK_SCOPE);
+  BlockState block_state(&scope_, scope);
   scope_->SetLanguageMode(
       static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
-  scope_->SetScopeName(name);
+  // TODO(marja): Make PreParser use scope names too.
+  // scope_->SetScopeName(name);
 
   bool has_extends = Check(Token::EXTENDS);
   if (has_extends) {
