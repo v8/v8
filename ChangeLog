@@ -1,3 +1,11 @@
+2015-02-10: Version 4.2.63
+
+        Introduce a compile method that takes context extensions (Chromium issue
+        456192).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-09: Version 4.2.62
 
         Performance and stability improvements on all platforms.
