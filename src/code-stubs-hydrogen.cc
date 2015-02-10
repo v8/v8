@@ -58,7 +58,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     return arguments_length_;
   }
   CompilationInfo* info() { return info_; }
-  HydrogenCodeStub* stub() { return info_->code_stub(); }
+  CodeStub* stub() { return info_->code_stub(); }
   HContext* context() { return context_; }
   Isolate* isolate() { return info_->isolate(); }
 
