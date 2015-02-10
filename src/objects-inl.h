@@ -5242,7 +5242,9 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;
   }
-  if (object->IsCell()) object = Cell::cast(object)->value();
+  if (object->IsCell() || object->IsPropertyCell()) {
+    object = Cell::cast(object)->value();
+  }
   if (object->IsJSObject()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
   }
