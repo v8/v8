@@ -5432,7 +5432,7 @@ inline Local<String> NewString(Isolate* v8_isolate,
                                int length) {
   i::Isolate* isolate = reinterpret_cast<internal::Isolate*>(v8_isolate);
   LOG_API(isolate, env);
-  if (length == 0 && type != String::kUndetectableString) {
+  if (length == 0) {
     return String::Empty(v8_isolate);
   }
   ENTER_V8(isolate);
@@ -5442,9 +5442,6 @@ inline Local<String> NewString(Isolate* v8_isolate,
       isolate->factory(),
       type,
       i::Vector<const Char>(data, length)).ToHandleChecked();
-  if (type == String::kUndetectableString) {
-    result->MarkAsUndetectable();
-  }
   return Utils::ToLocal(result);
 }
 

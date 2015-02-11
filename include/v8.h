@@ -2130,9 +2130,7 @@ class V8_EXPORT String : public Name {
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
-  enum NewStringType {
-    kNormalString, kInternalizedString, kUndetectableString
-  };
+  enum NewStringType { kNormalString, kInternalizedString };
 
   /** Allocates a new string from UTF-8 data.*/
   static Local<String> NewFromUtf8(Isolate* isolate,
@@ -6256,7 +6254,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 156;
+  static const int kEmptyStringRootIndex = 154;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.
