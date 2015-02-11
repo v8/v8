@@ -198,8 +198,6 @@ class ProfileTree {
   ProfileNode* AddPathFromEnd(
       const Vector<CodeEntry*>& path,
       int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
-  void AddPathFromStart(const Vector<CodeEntry*>& path,
-                        int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
 

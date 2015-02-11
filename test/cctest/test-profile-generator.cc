@@ -117,64 +117,6 @@ class ProfileTreeTestHelper {
 
 }  // namespace
 
-TEST(ProfileTreeAddPathFromStart) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileTree tree;
-  ProfileTreeTestHelper helper(&tree);
-  CHECK(!helper.Walk(&entry1));
-  CHECK(!helper.Walk(&entry2));
-  CHECK(!helper.Walk(&entry3));
-
-  CodeEntry* path[] = {NULL, &entry1, NULL, &entry2, NULL, NULL, &entry3, NULL};
-  Vector<CodeEntry*> path_vec(path, sizeof(path) / sizeof(path[0]));
-  tree.AddPathFromStart(path_vec);
-  CHECK(!helper.Walk(&entry2));
-  CHECK(!helper.Walk(&entry3));
-  ProfileNode* node1 = helper.Walk(&entry1);
-  CHECK(node1);
-  CHECK_EQ(0u, node1->self_ticks());
-  CHECK(!helper.Walk(&entry1, &entry1));
-  CHECK(!helper.Walk(&entry1, &entry3));
-  ProfileNode* node2 = helper.Walk(&entry1, &entry2);
-  CHECK(node2);
-  CHECK_NE(node1, node2);
-  CHECK_EQ(0u, node2->self_ticks());
-  CHECK(!helper.Walk(&entry1, &entry2, &entry1));
-  CHECK(!helper.Walk(&entry1, &entry2, &entry2));
-  ProfileNode* node3 = helper.Walk(&entry1, &entry2, &entry3);
-  CHECK(node3);
-  CHECK_NE(node1, node3);
-  CHECK_NE(node2, node3);
-  CHECK_EQ(1u, node3->self_ticks());
-
-  tree.AddPathFromStart(path_vec);
-  CHECK_EQ(node1, helper.Walk(&entry1));
-  CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
-  CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0u, node1->self_ticks());
-  CHECK_EQ(0u, node2->self_ticks());
-  CHECK_EQ(2u, node3->self_ticks());
-
-  CodeEntry* path2[] = {&entry1, &entry2, &entry2};
-  Vector<CodeEntry*> path2_vec(path2, sizeof(path2) / sizeof(path2[0]));
-  tree.AddPathFromStart(path2_vec);
-  CHECK(!helper.Walk(&entry2));
-  CHECK(!helper.Walk(&entry3));
-  CHECK_EQ(node1, helper.Walk(&entry1));
-  CHECK(!helper.Walk(&entry1, &entry1));
-  CHECK(!helper.Walk(&entry1, &entry3));
-  CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
-  CHECK(!helper.Walk(&entry1, &entry2, &entry1));
-  CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(2u, node3->self_ticks());
-  ProfileNode* node4 = helper.Walk(&entry1, &entry2, &entry2);
-  CHECK(node4);
-  CHECK_NE(node3, node4);
-  CHECK_EQ(1u, node4->self_ticks());
-}
-
 
 TEST(ProfileTreeAddPathFromEnd) {
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
@@ -247,7 +189,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
 
   ProfileTree single_child_tree;
-  single_child_tree.AddPathFromStart(e1_path_vec);
+  single_child_tree.AddPathFromEnd(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, single_child_tree.root()->self_ticks());
   ProfileTreeTestHelper single_child_helper(&single_child_tree);
@@ -257,17 +199,17 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(1u, node1->self_ticks());
 
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* e1_e2_path[] = {&entry1, &entry2};
-  Vector<CodeEntry*> e1_e2_path_vec(
-      e1_e2_path, sizeof(e1_e2_path) / sizeof(e1_e2_path[0]));
+  CodeEntry* e2_e1_path[] = {&entry2, &entry1};
+  Vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
+                                    sizeof(e2_e1_path) / sizeof(e2_e1_path[0]));
 
   ProfileTree flat_tree;
   ProfileTreeTestHelper flat_helper(&flat_tree);
-  flat_tree.AddPathFromStart(e1_path_vec);
-  flat_tree.AddPathFromStart(e1_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
+  flat_tree.AddPathFromEnd(e1_path_vec);
+  flat_tree.AddPathFromEnd(e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
   // Results in {root,0,0} -> {entry1,0,2} -> {entry2,0,3}
   CHECK_EQ(0u, flat_tree.root()->self_ticks());
   node1 = flat_helper.Walk(&entry1);
@@ -290,16 +232,16 @@ TEST(ProfileTreeCalculateTotalTicks) {
 
   ProfileTree wide_tree;
   ProfileTreeTestHelper wide_helper(&wide_tree);
-  wide_tree.AddPathFromStart(e1_path_vec);
-  wide_tree.AddPathFromStart(e1_path_vec);
-  wide_tree.AddPathFromStart(e1_e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
+  wide_tree.AddPathFromEnd(e1_path_vec);
+  wide_tree.AddPathFromEnd(e1_path_vec);
+  wide_tree.AddPathFromEnd(e2_e1_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
   // Results in            -> {entry1,0,2} -> {entry2,0,1}
   //            {root,0,0} -> {entry2,0,3}
   //                       -> {entry3,0,4}
