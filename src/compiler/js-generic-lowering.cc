@@ -17,10 +17,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph)
-    : info_(info),
-      jsgraph_(jsgraph),
-      linkage_(new (jsgraph->zone()) Linkage(jsgraph->zone(), info)) {}
+JSGenericLowering::JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph)
+    : is_typing_enabled_(is_typing_enabled), jsgraph_(jsgraph) {}
 
 
 void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {
@@ -45,7 +43,7 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       // TODO(mstarzinger): If typing is enabled then simplified lowering will
       // have inserted the correct ChangeBoolToBit, otherwise we need to perform
       // poor-man's representation inference here and insert manual change.
-      if (!info()->is_typing_enabled()) {
+      if (!is_typing_enabled_) {
         Node* condition = node->InputAt(0);
         if (condition->opcode() != IrOpcode::kAlways) {
           Node* test = graph()->NewNode(machine()->WordEqual(), condition,
@@ -130,8 +128,8 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   Callable callable = CodeFactory::CompareIC(isolate(), token);
   bool has_frame_state = OperatorProperties::HasFrameStateInput(node->op());
-  CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(
-      callable.descriptor(), 0,
+  CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
   NodeVector inputs(zone());
   inputs.reserve(node->InputCount() + 1);
@@ -172,8 +170,9 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags) {
   Operator::Properties properties = node->op()->properties();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      callable.descriptor(), 0, flags | FlagsForNode(node), properties);
+  CallDescriptor* desc =
+      Linkage::GetStubCallDescriptor(isolate(), zone(), callable.descriptor(),
+                                     0, flags | FlagsForNode(node), properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -186,8 +185,9 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
   Operator::Properties properties = node->op()->properties();
   Callable callable =
       CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      callable.descriptor(), nargs, FlagsForNode(node), properties);
+  CallDescriptor* desc =
+      Linkage::GetStubCallDescriptor(isolate(), zone(), callable.descriptor(),
+                                     nargs, FlagsForNode(node), properties);
   Node* global_object = graph()->NewNode(
       machine()->Load(kMachAnyTagged), NodeProperties::GetContextInput(node),
       jsgraph()->IntPtrConstant(
@@ -216,7 +216,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
   CallDescriptor* desc =
-      linkage()->GetRuntimeCallDescriptor(f, nargs, properties);
+      Linkage::GetRuntimeCallDescriptor(zone(), f, nargs, properties);
   Node* ref = jsgraph()->ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = jsgraph()->Int32Constant(nargs);
   PatchInsertInput(node, 0, jsgraph()->CEntryStubConstant(fun->result_size));
@@ -318,8 +318,8 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
       InstanceofStub::kArgsInRegisters);
   InstanceofStub stub(isolate(), flags);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, 0, FlagsForNode(node));
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(isolate(), zone(), d, 0,
+                                                        FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -374,8 +374,8 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, arity, FlagsForNode(node));
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), d, arity, FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
   Node* construct = NodeProperties::GetValueInput(node, 0);
   PatchInsertInput(node, 0, stub_code);
@@ -418,8 +418,8 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
     context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
   }
   node->ReplaceInput(index, context);
-  CallDescriptor* desc =
-      linkage()->GetJSCallDescriptor(1 + arg_count, FlagsForNode(node));
+  CallDescriptor* desc = Linkage::GetJSCallDescriptor(
+      zone(), false, 1 + arg_count, FlagsForNode(node));
   PatchOperator(node, common()->Call(desc));
   return true;
 }
@@ -434,8 +434,9 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
   int arg_count = static_cast<int>(p.arity() - 2);
   CallFunctionStub stub(isolate(), arg_count, p.flags());
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      d, static_cast<int>(p.arity() - 1), FlagsForNode(node));
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), d, static_cast<int>(p.arity() - 1),
+      FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));

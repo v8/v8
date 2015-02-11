@@ -36,7 +36,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   }
   size_t const node_count = graph()->NodeCount();
   EXPECT_NE(0u, node_count);
-  Linkage linkage(test_->isolate(), test_->zone(), call_descriptor());
+  Linkage linkage(call_descriptor());
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), schedule);
   InstructionSequence sequence(test_->isolate(), test_->zone(),

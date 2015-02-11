@@ -44,7 +44,8 @@ TEST(TestLinkageCreate) {
   InitializedHandleScope handles;
   Handle<JSFunction> function = Compile("a + b");
   CompilationInfoWithZone info(function);
-  Linkage linkage(info.zone(), &info);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
+  CHECK(descriptor);
 }
 
 
@@ -59,9 +60,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function = v8::Utils::OpenHandle(
         *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
     CompilationInfoWithZone info(function);
-    Linkage linkage(info.zone(), &info);
-
-    CallDescriptor* descriptor = linkage.GetIncomingDescriptor();
+    CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(descriptor);
 
     CHECK_EQ(1 + i, static_cast<int>(descriptor->JSParameterCount()));
@@ -75,10 +74,10 @@ TEST(TestLinkageJSFunctionIncoming) {
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   CompilationInfoWithZone info(static_cast<CodeStub*>(NULL), isolate);
-  Linkage linkage(info.zone(), &info);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   // TODO(titzer): test linkage creation with a bonafide code stub.
   // this just checks current behavior.
-  CHECK(!linkage.GetIncomingDescriptor());
+  CHECK(!descriptor);
 }
 
 
@@ -86,11 +85,10 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   CompilationInfoWithZone info(function);
-  Linkage linkage(info.zone(), &info);
 
   for (int i = 0; i < 32; i++) {
-    CallDescriptor* descriptor =
-        linkage.GetJSCallDescriptor(i, CallDescriptor::kNoFlags);
+    CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+        info.zone(), false, i, CallDescriptor::kNoFlags);
     CHECK(descriptor);
     CHECK_EQ(i, static_cast<int>(descriptor->JSParameterCount()));
     CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));

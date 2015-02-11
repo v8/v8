@@ -24,15 +24,13 @@ class ContextSpecializationTester : public HandleAndZoneScope,
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
-        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
-        info_(main_isolate(), main_zone()) {}
+        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_) {}
 
   Factory* factory() { return main_isolate()->factory(); }
   CommonOperatorBuilder* common() { return &common_; }
   JSOperatorBuilder* javascript() { return &javascript_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   JSGraph* jsgraph() { return &jsgraph_; }
-  CompilationInfo* info() { return &info_; }
 
  private:
   CommonOperatorBuilder common_;
@@ -40,7 +38,6 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   MachineOperatorBuilder machine_;
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
-  CompilationInfo info_;
 };
 
 
@@ -63,7 +60,7 @@ TEST(ReduceJSLoadContext) {
   Node* const_context = t.jsgraph()->Constant(native);
   Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
+  JSContextSpecializer spec(Handle<Context>(), t.jsgraph(), const_context);
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
@@ -135,7 +132,7 @@ TEST(ReduceJSStoreContext) {
   Node* const_context = t.jsgraph()->Constant(native);
   Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
+  JSContextSpecializer spec(Handle<Context>(), t.jsgraph(), const_context);
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
@@ -197,11 +194,10 @@ TEST(SpecializeToContext) {
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
   const int slot = Context::GLOBAL_OBJECT_INDEX;
   native->set(slot, *expected);
-  t.info()->SetContext(native);
 
   Node* const_context = t.jsgraph()->Constant(native);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
+  JSContextSpecializer spec(native, t.jsgraph(), const_context);
 
   {
     // Check that specialization replaces values and forwards effects
