@@ -954,74 +954,73 @@ TEST(ScopeUsesArgumentsSuperThis) {
     const char* suffix;
   } surroundings[] = {
     { "function f() {", "}" },
-    { "var f = () => {", "}" },
+    { "var f = () => {", "};" },
+    { "class C { constructor() {", "} }" },
   };
 
   enum Expected {
     NONE = 0,
     ARGUMENTS = 1,
-    SUPER_PROPERTY = 2,
-    SUPER_CONSTRUCTOR_CALL = 4,
-    THIS = 8,
-    INNER_ARGUMENTS = 16,
-    INNER_SUPER_PROPERTY = 32,
-    INNER_SUPER_CONSTRUCTOR_CALL = 64,
-    INNER_THIS = 128
+    SUPER_PROPERTY = 1 << 1,
+    SUPER_CONSTRUCTOR_CALL = 1 << 2,
+    THIS = 1 << 3,
+    INNER_ARGUMENTS = 1 << 4,
+    INNER_SUPER_PROPERTY = 1 << 5,
+    INNER_SUPER_CONSTRUCTOR_CALL = 1 << 6,
+    INNER_THIS = 1 << 7
   };
 
   static const struct {
     const char* body;
     int expected;
   } source_data[] = {
-        {"", NONE},
-        {"return this", THIS},
-        {"return arguments", ARGUMENTS},
-        {"return super()", SUPER_CONSTRUCTOR_CALL},
-        {"return super.x", SUPER_PROPERTY},
-        {"return arguments[0]", ARGUMENTS},
-        {"return this + arguments[0]", ARGUMENTS | THIS},
-        {"return this + arguments[0] + super.x",
-         ARGUMENTS | SUPER_PROPERTY | THIS},
-        {"return x => this + x", INNER_THIS},
-        {"return x => super() + x", INNER_SUPER_CONSTRUCTOR_CALL},
-        {"this.foo = 42;", THIS},
-        {"this.foo();", THIS},
-        {"if (foo()) { this.f() }", THIS},
-        {"if (foo()) { super.f() }", SUPER_PROPERTY},
-        {"if (arguments.length) { this.f() }", ARGUMENTS | THIS},
-        {"while (true) { this.f() }", THIS},
-        {"while (true) { super.f() }", SUPER_PROPERTY},
-        {"if (true) { while (true) this.foo(arguments) }", ARGUMENTS | THIS},
-        // Multiple nesting levels must work as well.
-        {"while (true) { while (true) { while (true) return this } }", THIS},
-        {"while (true) { while (true) { while (true) return super() } }",
-         SUPER_CONSTRUCTOR_CALL},
-        {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
-        {"if (1) { return () => { while (true) new super() } }", NONE},
-        {"if (1) { return () => { while (true) new new super() } }", NONE},
-        // Note that propagation of the inner_uses_this() value does not
-        // cross boundaries of normal functions onto parent scopes.
-        {"return function (x) { return this + x }", NONE},
-        {"return function (x) { return super() + x }", NONE},
-        {"var x = function () { this.foo = 42 };", NONE},
-        {"var x = function () { super.foo = 42 };", NONE},
-        {"if (1) { return function () { while (true) new this() } }", NONE},
-        {"if (1) { return function () { while (true) new super() } }", NONE},
-        {"return function (x) { return () => this }", NONE},
-        {"return function (x) { return () => super() }", NONE},
-        // Flags must be correctly set when using block scoping.
-        {"\"use strict\"; while (true) { let x; this, arguments; }",
-         INNER_ARGUMENTS | INNER_THIS},
-        {"\"use strict\"; while (true) { let x; this, super(), arguments; }",
-         INNER_ARGUMENTS | INNER_SUPER_CONSTRUCTOR_CALL | INNER_THIS},
-        {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
-        {"\"use strict\"; if (foo()) { let x; super.f() }",
-         INNER_SUPER_PROPERTY},
-        {"\"use strict\"; if (1) {"
-         "  let x; return function () { return this + super() + arguments }"
-         "}",
-         NONE},
-    };
+    {"", NONE},
+    {"return this", THIS},
+    {"return arguments", ARGUMENTS},
+    {"return super()", SUPER_CONSTRUCTOR_CALL},
+    {"return super.x", SUPER_PROPERTY},
+    {"return arguments[0]", ARGUMENTS},
+    {"return this + arguments[0]", ARGUMENTS | THIS},
+    {"return this + arguments[0] + super.x",
+     ARGUMENTS | SUPER_PROPERTY | THIS},
+    {"return x => this + x", INNER_THIS},
+    {"return x => super() + x", INNER_SUPER_CONSTRUCTOR_CALL},
+    {"this.foo = 42;", THIS},
+    {"this.foo();", THIS},
+    {"if (foo()) { this.f() }", THIS},
+    {"if (foo()) { super.f() }", SUPER_PROPERTY},
+    {"if (arguments.length) { this.f() }", ARGUMENTS | THIS},
+    {"while (true) { this.f() }", THIS},
+    {"while (true) { super.f() }", SUPER_PROPERTY},
+    {"if (true) { while (true) this.foo(arguments) }", ARGUMENTS | THIS},
+    // Multiple nesting levels must work as well.
+    {"while (true) { while (true) { while (true) return this } }", THIS},
+    {"while (true) { while (true) { while (true) return super() } }",
+     SUPER_CONSTRUCTOR_CALL},
+    {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
+    // Note that propagation of the inner_uses_this() value does not
+    // cross boundaries of normal functions onto parent scopes.
+    {"return function (x) { return this + x }", NONE},
+    {"return { m(x) { return super.m() + x } }", NONE},
+    {"var x = function () { this.foo = 42 };", NONE},
+    {"var x = { m() { super.foo = 42 } };", NONE},
+    {"if (1) { return function () { while (true) new this() } }", NONE},
+    {"if (1) { return { m() { while (true) super.m() } } }", NONE},
+    {"return function (x) { return () => this }", NONE},
+    {"return { m(x) { return () => super.m() } }", NONE},
+    // Flags must be correctly set when using block scoping.
+    {"\"use strict\"; while (true) { let x; this, arguments; }",
+     INNER_ARGUMENTS | INNER_THIS},
+    {"\"use strict\"; while (true) { let x; this, super(), arguments; }",
+     INNER_ARGUMENTS | INNER_SUPER_CONSTRUCTOR_CALL | INNER_THIS},
+    {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
+    {"\"use strict\"; if (foo()) { let x; super.f() }",
+     INNER_SUPER_PROPERTY},
+    {"\"use strict\"; if (1) {"
+     "  let x; return { m() { return this + super.m() + arguments } }"
+     "}",
+     NONE},
+  };
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1035,6 +1034,15 @@ TEST(ScopeUsesArgumentsSuperThis) {
 
   for (unsigned j = 0; j < arraysize(surroundings); ++j) {
     for (unsigned i = 0; i < arraysize(source_data); ++i) {
+      // Super constructor call is only allowed in constructor.
+      // Super property is only allowed in constructor and method.
+      if (((source_data[i].expected & SUPER_CONSTRUCTOR_CALL) ||
+           (source_data[i].expected & SUPER_PROPERTY) ||
+           (source_data[i].expected & INNER_SUPER_CONSTRUCTOR_CALL) ||
+           (source_data[i].expected & INNER_SUPER_PROPERTY) ||
+           (source_data[i].expected == NONE)) && j != 2) {
+        continue;
+      }
       int kProgramByteSize = i::StrLength(surroundings[j].prefix) +
                              i::StrLength(surroundings[j].suffix) +
                              i::StrLength(source_data[i].body);
@@ -1052,9 +1060,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::Parser parser(&info, &parse_info);
       parser.set_allow_harmony_arrow_functions(true);
       parser.set_allow_harmony_classes(true);
+      parser.set_allow_harmony_object_literals(true);
       parser.set_allow_harmony_scoping(true);
+      parser.set_allow_harmony_sloppy(true);
       info.MarkAsGlobal();
-      parser.Parse();
+      CHECK(parser.Parse());
       CHECK(i::Rewriter::Rewrite(&info));
       CHECK(i::Scope::Analyze(&info));
       CHECK(info.function() != NULL);
@@ -1064,6 +1074,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK_EQ(1, script_scope->inner_scopes()->length());
 
       i::Scope* scope = script_scope->inner_scopes()->at(0);
+      // Adjust for constructor scope.
+      if (j == 2) {
+        CHECK_EQ(1, scope->inner_scopes()->length());
+        scope = scope->inner_scopes()->at(0);
+      }
       CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
                scope->uses_arguments());
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
@@ -3176,7 +3191,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::Scope* script_scope =
-      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
+      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
   i::Scope* s =
       i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
@@ -3224,7 +3239,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::Scope* script_scope =
-      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
+      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
   i::Scope* s =
       i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
@@ -3272,7 +3287,7 @@ TEST(ExportsMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::Scope* script_scope =
-      new (&zone) i::Scope(isolate, &zone, NULL, i::SCRIPT_SCOPE, &avf);
+      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
   script_scope->Initialize();
   i::Scope* s =
       i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
@@ -3637,45 +3652,224 @@ TEST(NoErrorsArrowFunctions) {
 }
 
 
-TEST(NoErrorsSuper) {
+TEST(SuperNoErrors) {
   // Tests that parser and preparser accept 'super' keyword in right places.
-  const char* context_data[][2] = {{"", ";"},
-                                   {"k = ", ";"},
-                                   {"foo(", ");"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+    {"class C { m() { ", "; } }"},
+    {"class C { m() { k = ", "; } }"},
+    {"class C { m() { foo(", "); } }"},
+    {"class C { m() { () => ", "; } }"},
+    {NULL, NULL}
+  };
 
   const char* statement_data[] = {
     "super.x",
     "super[27]",
+    "new super.x",
+    "new super.x()",
+    "new super[27]",
+    "new super[27]()",
+    "z.super",  // Ok, property lookup.
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyArrowFunctions,
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(SuperErrors) {
+  const char* context_data[][2] = {
+    {"class C { m() { ", "; } }"},
+    {"class C { m() { k = ", "; } }"},
+    {"class C { m() { foo(", "); } }"},
+    {"class C { m() { () => ", "; } }"},
+    {NULL, NULL}
+  };
+
+  const char* expression_data[] = {
+    "super",
+    "super = x",
+    "y = super",
+    "f(super)",
     "new super",
     "new super()",
     "new super(12, 45)",
     "new new super",
     "new new super()",
     "new new super()()",
-    "z.super",  // Ok, property lookup.
-    NULL};
+    NULL
+  };
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyClasses};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
+  RunParserSyncTest(context_data, expression_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
 
 
-TEST(ErrorsSuper) {
-  // Tests that parser and preparser generate same errors for 'super'.
-  const char* context_data[][2] = {{"", ";"},
-                                   {"k = ", ";"},
-                                   {"foo(", ");"},
+TEST(SuperCall) {
+  const char* context_data[][2] = {{"", ""},
                                    {NULL, NULL}};
 
+  const char* success_data[] = {
+    "class C { constructor() { super(); } }",
+    "class C extends B { constructor() { super(); } }",
+    "class C extends B { constructor() { () => super(); } }",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyArrowFunctions,
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
+  RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  const char* error_data[] = {
+    "class C { method() { super(); } }",
+    "class C { method() { () => super(); } }",
+    "class C { *method() { super(); } }",
+    "class C { get x() { super(); } }",
+    "class C { set x(_) { super(); } }",
+    "({ method() { super(); } })",
+    "({ *method() { super(); } })",
+    "({ get x() { super(); } })",
+    "({ set x(_) { super(); } })",
+    "({ f: function() { super(); } })",
+    "(function() { super(); })",
+    "var f = function() { super(); }",
+    "({ f: function*() { super(); } })",
+    "(function*() { super(); })",
+    "var f = function*() { super(); }",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(SuperNewNoErrors) {
+  const char* context_data[][2] = {
+    {"class C { constructor() { ", " } }"},
+    {"class C { *method() { ", " } }"},
+    {"class C { get x() { ", " } }"},
+    {"class C { set x(_) { ", " } }"},
+    {"({ method() { ", " } })"},
+    {"({ *method() { ", " } })"},
+    {"({ get x() { ", " } })"},
+    {"({ set x(_) { ", " } })"},
+    {NULL, NULL}
+  };
+
+  const char* expression_data[] = {
+    "new super.x;",
+    "new super.x();",
+    "() => new super.x;",
+    "() => new super.x();",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyArrowFunctions,
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
+  RunParserSyncTest(context_data, expression_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(SuperNewErrors) {
+  const char* context_data[][2] = {
+    {"class C { method() { ", " } }"},
+    {"class C { *method() { ", " } }"},
+    {"class C { get x() { ", " } }"},
+    {"class C { set x(_) { ", " } }"},
+    {"({ method() { ", " } })"},
+    {"({ *method() { ", " } })"},
+    {"({ get x() { ", " } })"},
+    {"({ set x(_) { ", " } })"},
+    {"({ f: function() { ", " } })"},
+    {"(function() { ", " })"},
+    {"var f = function() { ", " }"},
+    {"({ f: function*() { ", " } })"},
+    {"(function*() { ", " })"},
+    {"var f = function*() { ", " }"},
+    {NULL, NULL}
+  };
+
   const char* statement_data[] = {
+    "new super;",
+    "new super();",
+    "() => new super;",
+    "() => new super();",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyArrowFunctions,
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(SuperErrorsNonMethods) {
+  // super is only allowed in methods, accessors and constructors.
+  const char* context_data[][2] = {
+    {"", ";"},
+    {"k = ", ";"},
+    {"foo(", ");"},
+    {"if (", ") {}"},
+    {"if (true) {", "}"},
+    {"if (false) {} else {", "}"},
+    {"while (true) {", "}"},
+    {"function f() {", "}"},
+    {"class C extends (", ") {}"},
+    {"class C { m() { function f() {", "} } }"},
+    {"({ m() { function f() {", "} } })"},
+    {NULL, NULL}
+  };
+
+  const char* statement_data[] = {
+    "super",
     "super = x",
     "y = super",
     "f(super)",
-    NULL};
+    "super.x",
+    "super[27]",
+    "super.x()",
+    "super[27]()",
+    "super()",
+    "new super.x",
+    "new super.x()",
+    "new super[27]",
+    "new super[27]()",
+    NULL
+  };
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyClasses};
+  static const ParserFlag always_flags[] = {
+    kAllowHarmonyClasses,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonySloppy
+  };
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }

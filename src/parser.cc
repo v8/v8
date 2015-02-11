@@ -263,21 +263,6 @@ void Parser::SetCachedData() {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, ScopeType scope_type,
-                        FunctionKind kind) {
-  DCHECK(ast_value_factory());
-  DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
-  DCHECK((scope_type == FUNCTION_SCOPE && IsValidFunctionKind(kind)) ||
-         kind == kNormalFunction);
-  Scope* result = new (zone())
-      Scope(isolate(), zone(), parent, scope_type, ast_value_factory());
-  bool uninitialized_this =
-      FLAG_experimental_classes && IsSubclassConstructor(kind);
-  result->Initialize(uninitialized_this);
-  return result;
-}
-
-
 FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
                                             int pos, int end_pos) {
   int materialized_literal_count = -1;

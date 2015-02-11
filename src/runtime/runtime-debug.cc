@@ -1491,7 +1491,8 @@ class ScopeIterator {
                           Handle<SharedFunctionInfo> shared_info) {
     if (scope != NULL) {
       int source_position = shared_info->code()->SourcePosition(frame_->pc());
-      scope->GetNestedScopeChain(&nested_scope_chain_, source_position);
+      scope->GetNestedScopeChain(isolate_, &nested_scope_chain_,
+                                 source_position);
     } else {
       // A failed reparse indicates that the preparser has diverged from the
       // parser or that the preparse data given to the initial parse has been

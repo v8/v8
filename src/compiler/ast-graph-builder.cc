@@ -2444,7 +2444,7 @@ Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateBlockContext();
-  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo());
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(info_->isolate()));
   Node* local_context = NewNode(op, scope_info, closure);
 
   return local_context;

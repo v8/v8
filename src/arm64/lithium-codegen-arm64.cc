@@ -856,7 +856,7 @@ bool LCodeGen::GenerateJumpTable() {
       __ Bind(&table_entry->label);
 
       Address entry = table_entry->address;
-      DeoptComment(table_entry->reason);
+      DeoptComment(table_entry->deopt_info);
 
       // Second-level deopt table entries are contiguous and small, so instead
       // of loading the full, absolute address of each one, load the base
@@ -1057,18 +1057,18 @@ void LCodeGen::DeoptimizeBranch(
     __ Bind(&dont_trap);
   }
 
-  Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
-                             instr->Mnemonic(), deopt_reason);
+  Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position().raw(),
+                                    instr->Mnemonic(), deopt_reason);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
   if (branch_type == always &&
       frame_is_built_ && !info()->saves_caller_doubles()) {
-    DeoptComment(reason);
+    DeoptComment(deopt_info);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     Deoptimizer::JumpTableEntry* table_entry =
-        new (zone()) Deoptimizer::JumpTableEntry(entry, reason, bailout_type,
-                                                 !frame_is_built_);
+        new (zone()) Deoptimizer::JumpTableEntry(
+            entry, deopt_info, bailout_type, !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||

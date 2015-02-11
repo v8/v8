@@ -72,7 +72,7 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Isolate* isolate, Zone* zone, Scope* outer_scope, ScopeType scope_type,
+  Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
         AstValueFactory* value_factory);
 
   // Compute top scope and allocate variables. For lazy compilation the top
@@ -95,7 +95,6 @@ class Scope: public ZoneObject {
   // tree and its children are reparented.
   Scope* FinalizeBlockScope();
 
-  Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
   // ---------------------------------------------------------------------------
@@ -454,13 +453,13 @@ class Scope: public ZoneObject {
   // where var declarations will be hoisted to in the implementation.
   Scope* DeclarationScope();
 
-  Handle<ScopeInfo> GetScopeInfo();
+  Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
   // Get the chain of nested scopes within this scope for the source statement
   // position. The scopes will be added to the list from the outermost scope to
   // the innermost scope. Only nested block, catch or with scopes are tracked
   // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(List<Handle<ScopeInfo> >* chain,
+  void GetNestedScopeChain(Isolate* isolate, List<Handle<ScopeInfo> >* chain,
                            int statement_position);
 
   // ---------------------------------------------------------------------------
@@ -485,8 +484,6 @@ class Scope: public ZoneObject {
   // Implementation.
  protected:
   friend class ParserFactory;
-
-  Isolate* const isolate_;
 
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
@@ -659,15 +656,15 @@ class Scope: public ZoneObject {
   // Predicates.
   bool MustAllocate(Variable* var);
   bool MustAllocateInContext(Variable* var);
-  bool HasArgumentsParameter();
+  bool HasArgumentsParameter(Isolate* isolate);
 
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
   void AllocateHeapSlot(Variable* var);
-  void AllocateParameterLocals();
-  void AllocateNonParameterLocal(Variable* var);
-  void AllocateNonParameterLocals();
-  void AllocateVariablesRecursively();
+  void AllocateParameterLocals(Isolate* isolate);
+  void AllocateNonParameterLocal(Isolate* isolate, Variable* var);
+  void AllocateNonParameterLocals(Isolate* isolate);
+  void AllocateVariablesRecursively(Isolate* isolate);
   void AllocateModulesRecursively(Scope* host_scope);
 
   // Resolve and fill in the allocation information for all variables
@@ -683,12 +680,11 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Isolate* isolate, Zone* zone, Scope* inner_scope, ScopeType type,
+  Scope(Zone* zone, Scope* inner_scope, ScopeType type,
         Handle<ScopeInfo> scope_info, AstValueFactory* value_factory);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Isolate* isolate, Zone* zone, Scope* inner_scope,
-        const AstRawString* catch_variable_name,
+  Scope(Zone* zone, Scope* inner_scope, const AstRawString* catch_variable_name,
         AstValueFactory* value_factory);
 
   void AddInnerScope(Scope* inner_scope) {

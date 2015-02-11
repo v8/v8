@@ -169,6 +169,11 @@ struct MaybeBoolFlag {
 
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
+DEFINE_BOOL(use_strong, false, "enforce strong mode")
+DEFINE_IMPLICATION(use_strong, use_strict)
+
+DEFINE_BOOL(strong_mode, false, "experimental strong language mode")
+DEFINE_IMPLICATION(use_strong, strong_mode)
 
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
@@ -261,7 +266,6 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(vector_ics, false, "support vector-based ics")
 DEFINE_BOOL(experimental_classes, false,
             "experimental new semantics for super() calls")
-DEFINE_BOOL(strong_mode, false, "experimental strong language mode")
 DEFINE_IMPLICATION(experimental_classes, harmony_classes)
 DEFINE_IMPLICATION(experimental_classes, harmony_object_literals)
 

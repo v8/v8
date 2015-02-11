@@ -592,7 +592,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
     }
   }
   compiled_code_ = FindOptimizedCode(function, optimized_code);
-
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
@@ -609,6 +608,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
+  if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
+    PROFILE(isolate_, CodeDeoptEvent(compiled_code_, bailout_id_, from_,
+                                     fp_to_sp_delta_));
+  }
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
   input_->SetFrameType(frame_type);
@@ -747,11 +750,6 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
-  // Print some helpful diagnostic information.
-  if (FLAG_log_timer_events &&
-      compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
-    LOG(isolate(), CodeDeoptEvent(compiled_code_));
-  }
   base::ElapsedTimer timer;
 
   // Determine basic deoptimization information.  The optimized frame is
@@ -3636,5 +3634,37 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
       DEOPT_MESSAGES_LIST(DEOPT_MESSAGES_TEXTS)};
 #undef DEOPT_MESSAGES_TEXTS
   return deopt_messages_[deopt_reason];
+}
+
+
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, int bailout_id) {
+  int last_position = 0;
+  Isolate* isolate = code->GetIsolate();
+  Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
+  int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
+             RelocInfo::ModeMask(RelocInfo::POSITION) |
+             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (info->rmode() == RelocInfo::POSITION) {
+      last_position = static_cast<int>(info->data());
+    } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
+      last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
+    } else if (last_reason != Deoptimizer::kNoReason) {
+      if ((bailout_id ==
+           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
+                                            Deoptimizer::EAGER)) ||
+          (bailout_id ==
+           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
+                                            Deoptimizer::SOFT)) ||
+          (bailout_id ==
+           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
+                                            Deoptimizer::LAZY))) {
+        CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
+        return DeoptInfo(last_position, NULL, last_reason);
+      }
+    }
+  }
+  return DeoptInfo(0, NULL, Deoptimizer::kNoReason);
 }
 } }  // namespace v8::internal

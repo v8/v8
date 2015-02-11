@@ -622,7 +622,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
         // Set up module context.
         DCHECK(scope->interface()->Index() >= 0);
         __ Push(Smi::FromInt(scope->interface()->Index()));
-        __ Push(scope->GetScopeInfo());
+        __ Push(scope->GetScopeInfo(isolate()));
         __ CallRuntime(Runtime::kPushModuleContext, 2);
         StoreToFrameField(StandardFrameConstants::kContextOffset,
                           context_register());
@@ -1801,7 +1801,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     codegen_->scope_ = scope;
     {
       Comment cmnt(masm(), "[ Extend block context");
-      __ Push(scope->GetScopeInfo());
+      __ Push(scope->GetScopeInfo(codegen->isolate()));
       codegen_->PushFunctionArgumentForContextAllocation();
       __ CallRuntime(Runtime::kPushBlockContext, 2);
 

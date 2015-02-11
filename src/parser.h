@@ -358,11 +358,6 @@ class ParserTraits {
     // it needs.
     typedef v8::internal::Parser* Parser;
 
-    // Used by FunctionState and BlockState.
-    typedef v8::internal::Scope Scope;
-    typedef v8::internal::Scope* ScopePtr;
-    inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
-
     typedef Variable GeneratorVariable;
 
     typedef v8::internal::AstProperties AstProperties;
@@ -846,10 +841,6 @@ class Parser : public ParserBase<ParserTraits> {
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
   // Factory methods.
-
-  Scope* NewScope(Scope* parent, ScopeType type,
-                  FunctionKind kind = kNormalFunction);
-
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                       int end_pos);
 
