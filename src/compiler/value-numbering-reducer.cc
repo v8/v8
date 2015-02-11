@@ -50,7 +50,7 @@ ValueNumberingReducer::~ValueNumberingReducer() {}
 
 
 Reduction ValueNumberingReducer::Reduce(Node* node) {
-  if (!node->op()->HasProperty(Operator::kEliminatable)) return NoChange();
+  if (!node->op()->HasProperty(Operator::kIdempotent)) return NoChange();
 
   const size_t hash = HashCode(node);
   if (!entries_) {

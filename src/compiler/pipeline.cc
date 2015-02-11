@@ -518,7 +518,7 @@ struct ChangeLoweringPhase {
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&vn_reducer);
+    AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
