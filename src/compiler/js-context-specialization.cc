@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-context-specialization.h"
 
-#include "src/compiler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"

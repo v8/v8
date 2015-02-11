@@ -37,6 +37,7 @@
 #ifndef V8_X87_ASSEMBLER_X87_H_
 #define V8_X87_ASSEMBLER_X87_H_
 
+#include "src/assembler.h"
 #include "src/isolate.h"
 #include "src/serialize.h"
 

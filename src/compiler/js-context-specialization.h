@@ -9,8 +9,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/contexts.h"
 
-#include "src/compiler.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {

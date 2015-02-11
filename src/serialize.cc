@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
@@ -2650,5 +2651,20 @@ Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
   const byte* start = data_ + kHeaderSize + reservations_size;
   return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
                                 GetHeaderValue(kNumCodeStubKeysOffset));
+}
+
+
+SerializedCodeData::SerializedCodeData(ScriptData* data)
+    : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
+
+
+SerializedCodeData* SerializedCodeData::FromCachedData(ScriptData* cached_data,
+                                                       String* source) {
+  DisallowHeapAllocation no_gc;
+  SerializedCodeData* scd = new SerializedCodeData(cached_data);
+  if (scd->IsSane(source)) return scd;
+  cached_data->Reject();
+  delete scd;
+  return NULL;
 }
 } }  // namespace v8::internal

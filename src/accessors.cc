@@ -6,7 +6,6 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
-#include "src/compiler.h"
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
