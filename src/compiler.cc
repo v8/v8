@@ -609,47 +609,6 @@ static void MaybeDisableOptimization(Handle<SharedFunctionInfo> shared_info,
 }
 
 
-// Sets the function info on a function.
-// The start_position points to the first '(' character after the function name
-// in the full script source. When counting characters in the script source the
-// the first character is number 0 (not 1).
-static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
-                            FunctionLiteral* lit,
-                            bool is_toplevel,
-                            Handle<Script> script) {
-  function_info->set_length(lit->parameter_count());
-  if (FLAG_experimental_classes && IsSubclassConstructor(lit->kind())) {
-    function_info->set_internal_formal_parameter_count(lit->parameter_count() +
-                                                       1);
-  } else {
-    function_info->set_internal_formal_parameter_count(lit->parameter_count());
-  }
-  function_info->set_script(*script);
-  function_info->set_function_token_position(lit->function_token_position());
-  function_info->set_start_position(lit->start_position());
-  function_info->set_end_position(lit->end_position());
-  function_info->set_is_expression(lit->is_expression());
-  function_info->set_is_anonymous(lit->is_anonymous());
-  function_info->set_is_toplevel(is_toplevel);
-  function_info->set_inferred_name(*lit->inferred_name());
-  function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-  function_info->set_allows_lazy_compilation_without_context(
-      lit->AllowsLazyCompilationWithoutContext());
-  function_info->set_language_mode(lit->language_mode());
-  function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
-  function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
-  function_info->set_ast_node_count(lit->ast_node_count());
-  function_info->set_is_function(lit->is_function());
-  MaybeDisableOptimization(function_info, lit->dont_optimize_reason());
-  function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
-  function_info->set_kind(lit->kind());
-  function_info->set_uses_super_property(lit->uses_super_property());
-  function_info->set_uses_super_constructor_call(
-      lit->uses_super_constructor_call());
-  function_info->set_asm_function(lit->scope()->asm_function());
-}
-
-
 static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       Handle<SharedFunctionInfo> shared) {
@@ -1194,7 +1153,9 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         info->feedback_vector());
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-    SetFunctionInfo(result, lit, true, script);
+    SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
+    result->set_script(*script);
+    result->set_is_toplevel(true);
 
     Handle<String> script_name = script->name()->IsString()
         ? Handle<String>(String::cast(script->name()))
@@ -1468,7 +1429,11 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
       literal->name(), literal->materialized_literal_count(), literal->kind(),
       info.code(), scope_info, info.feedback_vector());
-  SetFunctionInfo(result, literal, false, script);
+
+  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
+  result->set_script(*script);
+  result->set_is_toplevel(false);
+
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
   result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
