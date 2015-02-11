@@ -1186,9 +1186,8 @@ static Handle<Object> ArgumentsForInlinedFunction(
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
   SlotRefValueBuilder slot_refs(
-      frame,
-      inlined_frame_index,
-      inlined_function->shared()->formal_parameter_count());
+      frame, inlined_frame_index,
+      inlined_function->shared()->internal_formal_parameter_count());
 
   int args_count = slot_refs.args_length();
   Handle<JSObject> arguments =

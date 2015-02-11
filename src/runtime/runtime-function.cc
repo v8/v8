@@ -271,8 +271,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_feedback_vector(source_shared->feedback_vector());
-  target_shared->set_formal_parameter_count(
-      source_shared->formal_parameter_count());
+  target_shared->set_internal_formal_parameter_count(
+      source_shared->internal_formal_parameter_count());
   target_shared->set_script(source_shared->script());
   target_shared->set_start_position_and_type(
       source_shared->start_position_and_type());
@@ -383,7 +383,7 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
     JSFunction* inlined_function = functions[inlined_jsframe_index];
     SlotRefValueBuilder slot_refs(
         frame, inlined_jsframe_index,
-        inlined_function->shared()->formal_parameter_count());
+        inlined_function->shared()->internal_formal_parameter_count());
 
     int args_count = slot_refs.args_length();
 

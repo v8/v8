@@ -6770,9 +6770,11 @@ class SharedFunctionInfo: public HeapObject {
   inline int length() const;
   inline void set_length(int value);
 
-  // [formal parameter count]: The declared number of parameters.
-  inline int formal_parameter_count() const;
-  inline void set_formal_parameter_count(int value);
+  // [internal formal parameter count]: The declared number of parameters.
+  // For subclass constructors, also includes new.target.
+  // The size of function's frame is internal_formal_parameter_count + 1.
+  inline int internal_formal_parameter_count() const;
+  inline void set_internal_formal_parameter_count(int value);
 
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.

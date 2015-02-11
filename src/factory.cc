@@ -2103,7 +2103,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
-  share->set_formal_parameter_count(0);
+  share->set_internal_formal_parameter_count(0);
   share->set_expected_nof_properties(0);
   share->set_num_literals(0);
   share->set_start_position_and_type(0);

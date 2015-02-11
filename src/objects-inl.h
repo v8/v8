@@ -5718,7 +5718,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-SMI_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
+SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
@@ -5766,8 +5766,7 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        formal_parameter_count,
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
                         kFormalParameterCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
@@ -5899,7 +5898,7 @@ bool Script::HasValidSource() {
 
 void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(code()->kind() == Code::BUILTIN);
-  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+  set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
 
@@ -6080,8 +6079,8 @@ bool JSFunction::IsFromExtensionScript() {
 
 
 bool JSFunction::NeedsArgumentsAdaption() {
-  return shared()->formal_parameter_count() !=
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  return shared()->internal_formal_parameter_count() !=
+         SharedFunctionInfo::kDontAdaptArgumentsSentinel;
 }
 
 

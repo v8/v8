@@ -810,6 +810,12 @@ Handle<Code> Pipeline::GenerateCode() {
     return Handle<Code>::null();
   }
 
+  // TODO(dslomov): support turbo optimization of subclass constructors.
+  if (IsSubclassConstructor(shared->kind())) {
+    shared->DisableOptimization(kSuperReference);
+    return Handle<Code>::null();
+  }
+
   ZonePool zone_pool;
   SmartPointer<PipelineStatistics> pipeline_statistics;
 
