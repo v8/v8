@@ -21923,6 +21923,7 @@ TEST(NewStringRangeError) {
   const int length = i::String::kMaxLength + 1;
   const int buffer_size = length * sizeof(uint16_t);
   void* buffer = malloc(buffer_size);
+  if (buffer == NULL) return;
   memset(buffer, 'A', buffer_size);
   {
     v8::TryCatch try_catch;
