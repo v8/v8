@@ -249,11 +249,13 @@ class AstValue : public ZoneObject {
   F(get_template_callsite, "GetTemplateCallSite")       \
   F(initialize_const_global, "initializeConstGlobal")   \
   F(initialize_var_global, "initializeVarGlobal")       \
+  F(is_construct_call, "_IsConstructCall")              \
   F(let, "let")                                         \
   F(make_reference_error, "MakeReferenceErrorEmbedded") \
   F(make_syntax_error, "MakeSyntaxErrorEmbedded")       \
   F(make_type_error, "MakeTypeErrorEmbedded")           \
   F(native, "native")                                   \
+  F(new_target, "new.target")                           \
   F(next, "next")                                       \
   F(proto, "__proto__")                                 \
   F(prototype, "prototype")                             \
@@ -261,8 +263,7 @@ class AstValue : public ZoneObject {
   F(use_asm, "use asm")                                 \
   F(use_strong, "use strong")                           \
   F(use_strict, "use strict")                           \
-  F(value, "value")                                     \
-  F(is_construct_call, "_IsConstructCall")
+  F(value, "value")
 
 #define OTHER_CONSTANTS(F) \
   F(true_value)            \

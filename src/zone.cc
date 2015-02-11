@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+#include "src/v8.h"
+
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -237,7 +239,7 @@ Address Zone::NewExpand(int size) {
   // Guard against integer overflow.
   if (new_size_no_overhead < static_cast<size_t>(size) ||
       new_size < static_cast<size_t>(kSegmentOverhead)) {
-    FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory("Zone");
     return nullptr;
   }
   if (new_size < static_cast<size_t>(kMinimumSegmentSize)) {
@@ -250,12 +252,12 @@ Address Zone::NewExpand(int size) {
     new_size = Max(min_new_size, static_cast<size_t>(kMaximumSegmentSize));
   }
   if (new_size > INT_MAX) {
-    FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory("Zone");
     return nullptr;
   }
   Segment* segment = NewSegment(static_cast<int>(new_size));
   if (segment == nullptr) {
-    FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory("Zone");
     return nullptr;
   }
 

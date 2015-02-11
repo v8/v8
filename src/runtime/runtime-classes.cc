@@ -117,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   constructor->shared()->set_name(*name_string);
 
   if (FLAG_experimental_classes) {
-    if (!super_class->IsTheHole() && !super_class->IsNull()) {
+    if (!super_class->IsTheHole()) {
       Handle<Code> stub(isolate->builtins()->JSConstructStubForDerived());
       constructor->shared()->set_construct_stub(*stub);
     }

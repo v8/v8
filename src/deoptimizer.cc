@@ -927,7 +927,8 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
-  int parameter_count = function->shared()->formal_parameter_count() + 1;
+  int parameter_count =
+      function->shared()->internal_formal_parameter_count() + 1;
   unsigned output_offset = output_frame_size;
   unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
@@ -2724,7 +2725,8 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(JSFunction* function) const {
     CHECK_EQ(Smi::cast(function), Smi::FromInt(StackFrame::STUB));
     return 0;
   }
-  unsigned arguments = function->shared()->formal_parameter_count() + 1;
+  unsigned arguments =
+      function->shared()->internal_formal_parameter_count() + 1;
   return arguments * kPointerSize;
 }
 
@@ -2861,7 +2863,7 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(int slot_index) {
 int FrameDescription::ComputeParametersCount() {
   switch (type_) {
     case StackFrame::JAVA_SCRIPT:
-      return function_->shared()->formal_parameter_count();
+      return function_->shared()->internal_formal_parameter_count();
     case StackFrame::ARGUMENTS_ADAPTOR: {
       // Last slot contains number of incomming arguments as a smi.
       // Can't use GetExpression(0) because it would cause infinite recursion.

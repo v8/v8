@@ -6770,9 +6770,11 @@ class SharedFunctionInfo: public HeapObject {
   inline int length() const;
   inline void set_length(int value);
 
-  // [formal parameter count]: The declared number of parameters.
-  inline int formal_parameter_count() const;
-  inline void set_formal_parameter_count(int value);
+  // [internal formal parameter count]: The declared number of parameters.
+  // For subclass constructors, also includes new.target.
+  // The size of function's frame is internal_formal_parameter_count + 1.
+  inline int internal_formal_parameter_count() const;
+  inline void set_internal_formal_parameter_count(int value);
 
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
@@ -7643,6 +7645,9 @@ class GlobalObject: public JSObject {
 
   static void InvalidatePropertyCell(Handle<GlobalObject> object,
                                      Handle<Name> name);
+  // Ensure that the global object has a cell for the given property name.
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
+                                                 Handle<Name> name);
 
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
@@ -7659,10 +7664,6 @@ class GlobalObject: public JSObject {
 class JSGlobalObject: public GlobalObject {
  public:
   DECLARE_CAST(JSGlobalObject)
-
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
-                                                 Handle<Name> name);
 
   inline bool IsDetached();
 
@@ -8984,10 +8985,6 @@ class String: public Name {
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
   inline String* GetUnderlying();
-
-  // Mark the string as an undetectable object. It only applies to
-  // one-byte and two-byte string types.
-  bool MarkAsUndetectable();
 
   // String equality operations.
   inline bool Equals(String* other);

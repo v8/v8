@@ -1245,10 +1245,6 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<Object> constructor,
                                        Handle<Object> original_constructor,
                                        Handle<AllocationSite> site) {
-  // TODO(dslomov): implement prototype rewiring.
-  // The check below is a sanity check.
-  CHECK(*constructor == *original_constructor);
-
   // If the constructor isn't a proper function we throw a type error.
   if (!constructor->IsJSFunction()) {
     Vector<Handle<Object> > arguments = HandleVector(&constructor, 1);
@@ -1257,6 +1253,11 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
   }
 
   Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
+
+  CHECK(original_constructor->IsJSFunction());
+  Handle<JSFunction> original_function =
+      Handle<JSFunction>::cast(original_constructor);
+
 
   // If function should not have prototype, construction is not allowed. In this
   // case generated code bailouts here, since function has no initial_map.
@@ -1298,6 +1299,18 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
     result = isolate->factory()->NewJSObject(function);
   } else {
     result = isolate->factory()->NewJSObjectWithMemento(function, site);
+  }
+
+  // Set up the prototoype using original function.
+  // TODO(dslomov): instead of setting the __proto__,
+  // use and cache the correct map.
+  if (*original_function != *function) {
+    if (original_function->has_instance_prototype()) {
+      Handle<Object> prototype =
+          handle(original_function->instance_prototype(), isolate);
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, JSObject::SetPrototype(result, prototype, false));
+    }
   }
 
   isolate->counters()->constructed_objects()->Increment();

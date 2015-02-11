@@ -102,8 +102,6 @@ namespace internal {
   V(Map, short_external_one_byte_internalized_string_map,                      \
     ShortExternalOneByteInternalizedStringMap)                                 \
   V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
-  V(Map, undetectable_string_map, UndetectableStringMap)                       \
-  V(Map, undetectable_one_byte_string_map, UndetectableOneByteStringMap)       \
   V(Map, external_int8_array_map, ExternalInt8ArrayMap)                        \
   V(Map, external_uint8_array_map, ExternalUint8ArrayMap)                      \
   V(Map, external_int16_array_map, ExternalInt16ArrayMap)                      \

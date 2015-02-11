@@ -5775,80 +5775,6 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 }
 
 
-THREADED_TEST(UndetectableString) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  Local<String> obj = String::NewFromUtf8(env->GetIsolate(), "foo",
-                                          String::kUndetectableString);
-  env->Global()->Set(v8_str("undetectable"), obj);
-
-  ExpectString("undetectable", "foo");
-  ExpectString("typeof undetectable", "undefined");
-  ExpectString("typeof(undetectable)", "undefined");
-  ExpectBoolean("typeof undetectable == 'undefined'", true);
-  ExpectBoolean("typeof undetectable == 'string'", false);
-  ExpectBoolean("if (undetectable) { true; } else { false; }", false);
-  ExpectBoolean("!undetectable", true);
-
-  ExpectObject("true&&undetectable", obj);
-  ExpectBoolean("false&&undetectable", false);
-  ExpectBoolean("true||undetectable", true);
-  ExpectObject("false||undetectable", obj);
-
-  ExpectObject("undetectable&&true", obj);
-  ExpectObject("undetectable&&false", obj);
-  ExpectBoolean("undetectable||true", true);
-  ExpectBoolean("undetectable||false", false);
-
-  ExpectBoolean("undetectable==null", true);
-  ExpectBoolean("null==undetectable", true);
-  ExpectBoolean("undetectable==undefined", true);
-  ExpectBoolean("undefined==undetectable", true);
-  ExpectBoolean("undetectable==undetectable", true);
-
-
-  ExpectBoolean("undetectable===null", false);
-  ExpectBoolean("null===undetectable", false);
-  ExpectBoolean("undetectable===undefined", false);
-  ExpectBoolean("undefined===undetectable", false);
-  ExpectBoolean("undetectable===undetectable", true);
-}
-
-
-TEST(UndetectableOptimized) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  Local<String> obj = String::NewFromUtf8(env->GetIsolate(), "foo",
-                                          String::kUndetectableString);
-  env->Global()->Set(v8_str("undetectable"), obj);
-  env->Global()->Set(v8_str("detectable"), v8_str("bar"));
-
-  ExpectString(
-      "function testBranch() {"
-      "  if (!%_IsUndetectableObject(undetectable)) throw 1;"
-      "  if (%_IsUndetectableObject(detectable)) throw 2;"
-      "}\n"
-      "function testBool() {"
-      "  var b1 = !%_IsUndetectableObject(undetectable);"
-      "  var b2 = %_IsUndetectableObject(detectable);"
-      "  if (b1) throw 3;"
-      "  if (b2) throw 4;"
-      "  return b1 == b2;"
-      "}\n"
-      "%OptimizeFunctionOnNextCall(testBranch);"
-      "%OptimizeFunctionOnNextCall(testBool);"
-      "for (var i = 0; i < 10; i++) {"
-      "  testBranch();"
-      "  testBool();"
-      "}\n"
-      "\"PASS\"",
-      "PASS");
-}
-
-
 // The point of this test is type checking. We run it only so compilers
 // don't complain about an unused function.
 TEST(PersistentHandles) {
@@ -8710,7 +8636,9 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 
 
 TEST(SuperAccessControl) {
+  i::FLAG_allow_natives_syntax = true;
   i::FLAG_harmony_classes = true;
+  i::FLAG_harmony_object_literals = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj_template =
@@ -8723,8 +8651,8 @@ TEST(SuperAccessControl) {
   {
     v8::TryCatch try_catch;
     CompileRun(
-        "function f() { return super.hasOwnProperty; };"
-        "var m = f.toMethod(prohibited);"
+        "var f = { m() { return super.hasOwnProperty; } }.m;"
+        "var m = %ToMethod(f, prohibited);"
         "m();");
     CHECK(try_catch.HasCaught());
   }
@@ -8732,8 +8660,8 @@ TEST(SuperAccessControl) {
   {
     v8::TryCatch try_catch;
     CompileRun(
-        "function f() { return super[42]; };"
-        "var m = f.toMethod(prohibited);"
+        "var f = {m() { return super[42]; } }.m;"
+        "var m = %ToMethod(f, prohibited);"
         "m();");
     CHECK(try_catch.HasCaught());
   }
@@ -8741,8 +8669,8 @@ TEST(SuperAccessControl) {
   {
     v8::TryCatch try_catch;
     CompileRun(
-        "function f() { super.hasOwnProperty = function () {}; };"
-        "var m = f.toMethod(prohibited);"
+        "var f = {m() { super.hasOwnProperty = function () {}; } }.m;"
+        "var m = %ToMethod(f, prohibited);"
         "m();");
     CHECK(try_catch.HasCaught());
   }
@@ -8751,11 +8679,13 @@ TEST(SuperAccessControl) {
     v8::TryCatch try_catch;
     CompileRun(
         "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
-        "function f() { "
-        "     'use strict';"
-        "     super.x = function () {}; "
-        "};"
-        "var m = f.toMethod(prohibited);"
+        "var f = {"
+        "  m() { "
+        "    'use strict';"
+        "    super.x = function () {};"
+        "  }"
+        "}.m;"
+        "var m = %ToMethod(f, prohibited);"
         "m();");
     CHECK(try_catch.HasCaught());
   }
@@ -21983,4 +21913,38 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
                           " sourceMappingURL=bar2.js\n", "foo();", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true, NULL,
                    "bar2.js");
+}
+
+
+TEST(NewStringRangeError) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+  const int length = i::String::kMaxLength + 1;
+  const int buffer_size = length * sizeof(uint16_t);
+  void* buffer = malloc(buffer_size);
+  if (buffer == NULL) return;
+  memset(buffer, 'A', buffer_size);
+  {
+    v8::TryCatch try_catch;
+    char* data = reinterpret_cast<char*>(buffer);
+    CHECK(v8::String::NewFromUtf8(isolate, data, v8::String::kNormalString,
+                                  length).IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    v8::TryCatch try_catch;
+    uint8_t* data = reinterpret_cast<uint8_t*>(buffer);
+    CHECK(v8::String::NewFromOneByte(isolate, data, v8::String::kNormalString,
+                                     length).IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  {
+    v8::TryCatch try_catch;
+    uint16_t* data = reinterpret_cast<uint16_t*>(buffer);
+    CHECK(v8::String::NewFromTwoByte(isolate, data, v8::String::kNormalString,
+                                     length).IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  free(buffer);
 }

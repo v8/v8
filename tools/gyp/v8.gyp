@@ -1706,7 +1706,6 @@
           '../../src/harmony-array-includes.js',
           '../../src/harmony-tostring.js',
           '../../src/harmony-typedarray.js',
-          '../../src/harmony-classes.js',
           '../../src/harmony-templates.js',
           '../../src/harmony-regexp.js'
         ],

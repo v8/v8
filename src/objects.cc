@@ -1752,9 +1752,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
       dict->SetEntry(entry, name, cell, details);
       return;
     }
-    Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(value);
-    PropertyCell::SetValueInferType(cell, value);
-    value = cell;
+    value = isolate->factory()->NewPropertyCell(value);
   }
   PropertyDetails details(attributes, DATA, 0);
   Handle<NameDictionary> result =
@@ -3056,6 +3054,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   if (receiver->map()->is_dictionary_map()) {
     // TODO(verwaest): Probably should ensure this is done beforehand.
     it->InternalizeName();
+    // TODO(dcarney): just populate TransitionPropertyCell here?
     JSObject::AddSlowProperty(receiver, it->name(), value, attributes);
   } else {
     // Write the property value.
@@ -9169,23 +9168,6 @@ bool String::SlowEquals(Handle<String> one, Handle<String> two) {
 }
 
 
-bool String::MarkAsUndetectable() {
-  if (StringShape(this).IsInternalized()) return false;
-
-  Map* map = this->map();
-  Heap* heap = GetHeap();
-  if (map == heap->string_map()) {
-    this->set_map(heap->undetectable_string_map());
-    return true;
-  } else if (map == heap->one_byte_string_map()) {
-    this->set_map(heap->undetectable_one_byte_string_map());
-    return true;
-  }
-  // Rest cannot be marked as undetectable
-  return false;
-}
-
-
 bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.
@@ -15113,15 +15095,13 @@ void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
 }
 
 
-Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
-    Handle<JSGlobalObject> global,
-    Handle<Name> name) {
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
+    Handle<GlobalObject> global, Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
   int entry = global->property_dictionary()->FindEntry(name);
   if (entry == NameDictionary::kNotFound) {
     Isolate* isolate = global->GetIsolate();
-    Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(
-        isolate->factory()->the_hole_value());
+    Handle<PropertyCell> cell = isolate->factory()->NewPropertyCellWithHole();
     PropertyDetails details(NONE, DATA, 0);
     details = details.AsDeleted();
     Handle<NameDictionary> dictionary = NameDictionary::Add(
@@ -16920,10 +16900,12 @@ Handle<Object> PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
   const int kMaxLengthForInternalization = 200;
   if ((cell->type()->Is(HeapType::None()) ||
        cell->type()->Is(HeapType::Undefined())) &&
-      value->IsString() &&
-      Handle<String>::cast(value)->length() <= kMaxLengthForInternalization) {
-    value = cell->GetIsolate()->factory()->InternalizeString(
-        Handle<String>::cast(value));
+      value->IsString()) {
+    auto string = Handle<String>::cast(value);
+    if (string->length() <= kMaxLengthForInternalization &&
+        !string->map()->is_undetectable()) {
+      value = cell->GetIsolate()->factory()->InternalizeString(string);
+    }
   }
   cell->set_value(*value);
   if (!HeapType::Any()->Is(cell->type())) {

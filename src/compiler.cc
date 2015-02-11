@@ -113,8 +113,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
 }
 
 
-CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
-                                 Zone* zone)
+CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
     : flags_(kLazy | kThisHasUses),
       source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
@@ -619,7 +618,12 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
                             bool is_toplevel,
                             Handle<Script> script) {
   function_info->set_length(lit->parameter_count());
-  function_info->set_formal_parameter_count(lit->parameter_count());
+  if (FLAG_experimental_classes && IsSubclassConstructor(lit->kind())) {
+    function_info->set_internal_formal_parameter_count(lit->parameter_count() +
+                                                       1);
+  } else {
+    function_info->set_internal_formal_parameter_count(lit->parameter_count());
+  }
   function_info->set_script(*script);
   function_info->set_function_token_position(lit->function_token_position());
   function_info->set_start_position(lit->start_position());

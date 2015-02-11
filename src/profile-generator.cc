@@ -325,23 +325,6 @@ ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path,
 }
 
 
-void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path,
-                                   int src_line) {
-  ProfileNode* node = root_;
-  for (CodeEntry** entry = path.start();
-       entry != path.start() + path.length();
-       ++entry) {
-    if (*entry != NULL) {
-      node = node->FindOrAddChild(*entry);
-    }
-  }
-  node->IncrementSelfTicks();
-  if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
-    node->IncrementLineTicks(src_line);
-  }
-}
-
-
 struct NodesPair {
   NodesPair(ProfileNode* src, ProfileNode* dst)
       : src(src), dst(dst) { }

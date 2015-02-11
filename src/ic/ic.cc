@@ -1237,7 +1237,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           return compiler.CompileLoadCallback(lookup->name(), call_optimization,
                                               lookup->GetAccessorIndex());
         }
-        int expected_arguments = function->shared()->formal_parameter_count();
+        int expected_arguments =
+            function->shared()->internal_formal_parameter_count();
         return compiler.CompileLoadViaGetter(
             lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
       }
@@ -1676,6 +1677,19 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 }
 
 
+static Handle<Code> PropertyCellStoreHandler(
+    Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
+    Handle<Name> name, Handle<PropertyCell> cell, Handle<Object> value) {
+  auto union_type = PropertyCell::UpdatedType(cell, value);
+  StoreGlobalStub stub(isolate, union_type->IsConstant(),
+                       receiver->IsJSGlobalProxy());
+  auto code = stub.GetCodeCopyFromTemplate(holder, cell);
+  // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+  HeapObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
 Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
                                      Handle<Object> value,
                                      CacheHolderFlag cache_holder) {
@@ -1688,6 +1702,13 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
+      auto store_target = lookup->GetStoreTarget();
+      if (store_target->IsGlobalObject()) {
+        auto cell = lookup->GetTransitionPropertyCell();
+        return PropertyCellStoreHandler(
+            isolate(), store_target, Handle<GlobalObject>::cast(store_target),
+            lookup->name(), cell, value);
+      }
       Handle<Map> transition = lookup->transition_map();
       // Currently not handled by CompileStoreTransition.
       if (!holder->HasFastProperties()) {
@@ -1743,7 +1764,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
                                                call_optimization,
                                                lookup->GetAccessorIndex());
         }
-        int expected_arguments = function->shared()->formal_parameter_count();
+        int expected_arguments =
+            function->shared()->internal_formal_parameter_count();
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
                                               lookup->GetAccessorIndex(),
                                               expected_arguments);
@@ -1754,17 +1776,12 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::DATA: {
       if (lookup->is_dictionary_holder()) {
         if (holder->IsGlobalObject()) {
-          Handle<PropertyCell> cell = lookup->GetPropertyCell();
-          Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
-          StoreGlobalStub stub(isolate(), union_type->IsConstant(),
-                               receiver->IsJSGlobalProxy());
-          Handle<Code> code = stub.GetCodeCopyFromTemplate(
-              Handle<GlobalObject>::cast(holder), cell);
-          // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-          HeapObject::UpdateMapCodeCache(receiver, lookup->name(), code);
-          return code;
+          auto cell = lookup->GetPropertyCell();
+          return PropertyCellStoreHandler(isolate(), receiver,
+                                          Handle<GlobalObject>::cast(holder),
+                                          lookup->name(), cell, value);
         }
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();

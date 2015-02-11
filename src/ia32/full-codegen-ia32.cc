@@ -264,7 +264,11 @@ void FullCodeGenerator::Generate() {
     } else {
       type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
-    ArgumentsAccessStub stub(isolate(), type);
+    ArgumentsAccessStub::HasNewTarget has_new_target =
+        IsSubclassConstructor(info->function()->kind())
+            ? ArgumentsAccessStub::HAS_NEW_TARGET
+            : ArgumentsAccessStub::NO_NEW_TARGET;
+    ArgumentsAccessStub stub(isolate(), type, has_new_target);
     __ CallStub(&stub);
 
     SetVar(arguments, eax, ebx, edx);
@@ -413,7 +417,12 @@ void FullCodeGenerator::EmitReturnSequence() {
     int no_frame_start = masm_->pc_offset();
     __ pop(ebp);
 
-    int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
+    int arg_count = info_->scope()->num_parameters() + 1;
+    if (FLAG_experimental_classes &&
+        IsSubclassConstructor(info_->function()->kind())) {
+      arg_count++;
+    }
+    int arguments_bytes = arg_count * kPointerSize;
     __ Ret(arguments_bytes, ecx);
     // Check that the size of the code used for returning is large enough
     // for the debugger's requirements.
@@ -3137,6 +3146,10 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
+  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
+  GetVar(eax, new_target_var);
+  __ push(eax);
+
   SuperReference* super_ref = expr->expression()->AsSuperReference();
   EmitLoadSuperConstructor(super_ref);
   __ push(result_register());
@@ -3178,9 +3191,10 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ LoadHeapObject(ebx, FeedbackVector());
   __ mov(edx, Immediate(SmiFromSlot(expr->CallFeedbackSlot())));
 
-  // TODO(dslomov): use a different stub and propagate new.target.
-  CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
+  CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+  __ Drop(1);
 
   RecordJSReturnSite(expr);
 

@@ -5431,20 +5431,19 @@ inline Local<String> NewString(Isolate* v8_isolate,
                                String::NewStringType type,
                                int length) {
   i::Isolate* isolate = reinterpret_cast<internal::Isolate*>(v8_isolate);
+  ON_BAILOUT(isolate, location, return Local<String>());
   LOG_API(isolate, env);
-  if (length == 0 && type != String::kUndetectableString) {
+  if (length == 0) {
     return String::Empty(v8_isolate);
   }
   ENTER_V8(isolate);
   if (length == -1) length = StringLength(data);
-  // We do not expect this to fail. Change this if it does.
-  i::Handle<i::String> result = NewString(
-      isolate->factory(),
-      type,
-      i::Vector<const Char>(data, length)).ToHandleChecked();
-  if (type == String::kUndetectableString) {
-    result->MarkAsUndetectable();
-  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::String> result;
+  has_pending_exception =
+      !NewString(isolate->factory(), type, i::Vector<const Char>(data, length))
+           .ToHandle(&result);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   return Utils::ToLocal(result);
 }
 

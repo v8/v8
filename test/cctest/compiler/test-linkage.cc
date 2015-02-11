@@ -74,7 +74,7 @@ TEST(TestLinkageJSFunctionIncoming) {
 
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfoWithZone info(static_cast<HydrogenCodeStub*>(NULL), isolate);
+  CompilationInfoWithZone info(static_cast<CodeStub*>(NULL), isolate);
   Linkage linkage(info.zone(), &info);
   // TODO(titzer): test linkage creation with a bonafide code stub.
   // this just checks current behavior.

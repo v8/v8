@@ -2102,7 +2102,7 @@ bool Genesis::InstallNatives() {
     DCHECK(call->is_compiled());
 
     // Set the expected parameters for apply to 2; required by builtin.
-    apply->shared()->set_formal_parameter_count(2);
+    apply->shared()->set_internal_formal_parameter_count(2);
 
     // Set the lengths for the functions to satisfy ECMA-262.
     call->shared()->set_length(1);
@@ -2213,8 +2213,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_proxies_natives[] = {"native proxy.js", NULL};
   static const char* harmony_strings_natives[] = {"native harmony-string.js",
                                                   NULL};
-  static const char* harmony_classes_natives[] = {"native harmony-classes.js",
-                                                  NULL};
+  static const char* harmony_classes_natives[] = {NULL};
   static const char* harmony_modules_natives[] = {NULL};
   static const char* harmony_scoping_natives[] = {NULL};
   static const char* harmony_object_literals_natives[] = {NULL};

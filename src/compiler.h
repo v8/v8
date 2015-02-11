@@ -427,9 +427,7 @@ class CompilationInfo {
  protected:
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                   Zone* zone);
-  CompilationInfo(HydrogenCodeStub* stub,
-                  Isolate* isolate,
-                  Zone* zone);
+  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
   CompilationInfo(ScriptCompiler::ExternalSourceStream* source_stream,
                   ScriptCompiler::StreamedSource::Encoding encoding,
                   Isolate* isolate, Zone* zone);
@@ -562,7 +560,7 @@ class CompilationInfoWithZone: public CompilationInfo {
       : CompilationInfo(shared_info, &zone_) {}
   explicit CompilationInfoWithZone(Handle<JSFunction> closure)
       : CompilationInfo(closure, &zone_) {}
-  CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
+  CompilationInfoWithZone(CodeStub* stub, Isolate* isolate)
       : CompilationInfo(stub, isolate, &zone_) {}
   CompilationInfoWithZone(ScriptCompiler::ExternalSourceStream* stream,
                           ScriptCompiler::StreamedSource::Encoding encoding,

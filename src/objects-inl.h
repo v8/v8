@@ -2335,7 +2335,7 @@ void FixedDoubleArray::set(int index, double value) {
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
-    WRITE_UINT64_FIELD(this, offset, V8_UINT64_C(0xFFFFFFFFFFFFFFFF));
+    WRITE_DOUBLE_FIELD(this, offset, std::numeric_limits<double>::quiet_NaN());
   } else {
     WRITE_DOUBLE_FIELD(this, offset, value);
   }
@@ -5242,7 +5242,11 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;
   }
-  if (object->IsCell()) object = Cell::cast(object)->value();
+  if (object->IsCell()) {
+    object = Cell::cast(object)->value();
+  } else if (object->IsPropertyCell()) {
+    object = PropertyCell::cast(object)->value();
+  }
   if (object->IsJSObject()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
   }
@@ -5718,7 +5722,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-SMI_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
+SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
@@ -5766,8 +5770,7 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        formal_parameter_count,
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
                         kFormalParameterCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
@@ -5899,7 +5902,7 @@ bool Script::HasValidSource() {
 
 void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(code()->kind() == Code::BUILTIN);
-  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+  set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
 
@@ -6080,8 +6083,8 @@ bool JSFunction::IsFromExtensionScript() {
 
 
 bool JSFunction::NeedsArgumentsAdaption() {
-  return shared()->formal_parameter_count() !=
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  return shared()->internal_formal_parameter_count() !=
+         SharedFunctionInfo::kDontAdaptArgumentsSentinel;
 }
 
 
