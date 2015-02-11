@@ -84,11 +84,6 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
 void VariableProxy::BindTo(Variable* var) {
   DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
-  // Ideally CONST-ness should match. However, this is very hard to achieve
-  // because we don't know the exact semantics of conflicting (const and
-  // non-const) multiple variable declarations, const vars introduced via
-  // eval() etc.  Const-ness and variable declarations are a complete mess
-  // in JS. Sigh...
   set_var(var);
   set_is_resolved();
   var->set_is_used();
