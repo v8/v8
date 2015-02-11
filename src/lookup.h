@@ -88,7 +88,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   bool is_dictionary_holder() const { return holder_map_->is_dictionary_map(); }
   Handle<Map> transition_map() const {
     DCHECK_EQ(TRANSITION, state_);
-    return transition_map_;
+    return Handle<Map>::cast(transition_);
   }
   template <class T>
   Handle<T> GetHolder() const {
@@ -107,13 +107,9 @@ class LookupIterator FINAL BASE_EMBEDDED {
                                        PropertyAttributes attributes,
                                        Object::StoreFromKeyed store_mode);
   bool IsCacheableTransition() {
-    bool cacheable =
-        state_ == TRANSITION && transition_map()->GetBackPointer()->IsMap();
-    if (cacheable) {
-      property_details_ = transition_map_->GetLastDescriptorDetails();
-      has_property_ = true;
-    }
-    return cacheable;
+    if (state_ != TRANSITION) return false;
+    return transition_->IsPropertyCell() ||
+           transition_map()->GetBackPointer()->IsMap();
   }
   void ApplyTransitionToDataProperty();
   void ReconfigureDataProperty(Handle<Object> value,
@@ -135,6 +131,10 @@ class LookupIterator FINAL BASE_EMBEDDED {
   int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
+  Handle<PropertyCell> GetTransitionPropertyCell() const {
+    DCHECK_EQ(TRANSITION, state_);
+    return Handle<PropertyCell>::cast(transition_);
+  }
   Handle<Object> GetAccessors() const;
   Handle<Object> GetDataValue() const;
   // Usually returns the value that was passed in, but may perform
@@ -194,7 +194,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Isolate* isolate_;
   Handle<Name> name_;
   Handle<Map> holder_map_;
-  Handle<Map> transition_map_;
+  Handle<Object> transition_;
   Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
 

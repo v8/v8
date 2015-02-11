@@ -131,9 +131,22 @@ void LookupIterator::PrepareTransitionToDataProperty(
     return;
   }
 
-  transition_map_ = Map::TransitionToDataProperty(
+  auto transition = Map::TransitionToDataProperty(
       handle(receiver->map(), isolate_), name_, value, attributes, store_mode);
   state_ = TRANSITION;
+  transition_ = transition;
+
+  if (receiver->IsGlobalObject()) {
+    // Install a property cell.
+    InternalizeName();
+    auto cell = GlobalObject::EnsurePropertyCell(
+        Handle<GlobalObject>::cast(receiver), name());
+    DCHECK(cell->value()->IsTheHole());
+    transition_ = cell;
+  } else if (transition->GetBackPointer()->IsMap()) {
+    property_details_ = transition->GetLastDescriptorDetails();
+    has_property_ = true;
+  }
 }
 
 
@@ -141,8 +154,9 @@ void LookupIterator::ApplyTransitionToDataProperty() {
   DCHECK_EQ(TRANSITION, state_);
 
   Handle<JSObject> receiver = GetStoreTarget();
+  if (receiver->IsGlobalObject()) return;
   holder_ = receiver;
-  holder_map_ = transition_map_;
+  holder_map_ = transition_map();
   JSObject::MigrateToMap(receiver, holder_map_);
   ReloadPropertyInformation();
 }
