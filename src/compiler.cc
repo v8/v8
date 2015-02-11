@@ -113,8 +113,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
 }
 
 
-CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
-                                 Zone* zone)
+CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
     : flags_(kLazy | kThisHasUses),
       source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
