@@ -249,10 +249,13 @@ Local<Script> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
-  return source_type == SCRIPT
-             ? ScriptCompiler::Compile(isolate, &cached_source, compile_options)
-             : ScriptCompiler::CompileModule(isolate, &cached_source,
-                                             compile_options);
+  Local<Script> result =
+      source_type == SCRIPT
+          ? ScriptCompiler::Compile(isolate, &cached_source, compile_options)
+          : ScriptCompiler::CompileModule(isolate, &cached_source,
+                                          compile_options);
+  CHECK(data == NULL || !data->rejected);
+  return result;
 }
 
 
