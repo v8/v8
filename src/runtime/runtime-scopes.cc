@@ -356,11 +356,12 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
                                            Handle<JSFunction> callee,
                                            Object** parameters,
                                            int argument_count) {
+  CHECK(!IsSubclassConstructor(callee->shared()->kind()));
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
-  int parameter_count = callee->shared()->formal_parameter_count();
+  int parameter_count = callee->shared()->internal_formal_parameter_count();
   if (argument_count > 0) {
     if (parameter_count > 0) {
       int mapped_count = Min(argument_count, parameter_count);

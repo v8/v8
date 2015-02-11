@@ -2393,8 +2393,10 @@ class HInvokeFunction FINAL : public HBinaryCall {
                   int argument_count)
       : HBinaryCall(context, function, argument_count),
         known_function_(known_function) {
-    formal_parameter_count_ = known_function.is_null()
-        ? 0 : known_function->shared()->formal_parameter_count();
+    formal_parameter_count_ =
+        known_function.is_null()
+            ? 0
+            : known_function->shared()->internal_formal_parameter_count();
     has_stack_check_ = !known_function.is_null() &&
         (known_function->code()->kind() == Code::FUNCTION ||
          known_function->code()->kind() == Code::OPTIMIZED_FUNCTION);

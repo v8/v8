@@ -88,7 +88,7 @@ class Scope: public ZoneObject {
     scope_name_ = scope_name;
   }
 
-  void Initialize(bool uninitialized_this = false);
+  void Initialize(bool subclass_constructor = false);
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
@@ -343,8 +343,11 @@ class Scope: public ZoneObject {
   // The language mode of this scope.
   LanguageMode language_mode() const { return language_mode_; }
 
-  // The variable corresponding the 'this' value.
+  // The variable corresponding to the 'this' value.
   Variable* receiver() { return receiver_; }
+
+  // The variable corresponding to the 'new.target' value.
+  Variable* new_target_var() { return new_target_; }
 
   // The variable holding the function literal for named function
   // literals, or NULL.  Only valid for function scopes.
@@ -517,6 +520,8 @@ class Scope: public ZoneObject {
   Variable* receiver_;
   // Function variable, if any; function scopes only.
   VariableDeclaration* function_;
+  // new.target variable, function scopes only.
+  Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
   // Interface; module scopes only.
