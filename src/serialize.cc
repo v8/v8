@@ -657,7 +657,7 @@ void Deserializer::Initialize(Isolate* isolate) {
 
 void Deserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
-  if (!ReserveSpace()) FatalProcessOutOfMemory("deserializing context");
+  if (!ReserveSpace()) V8::FatalProcessOutOfMemory("deserializing context");
   // No active threads.
   DCHECK_NULL(isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
@@ -702,7 +702,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
     Handle<FixedArray>* outdated_contexts_out) {
   Initialize(isolate);
   if (!ReserveSpace()) {
-    FatalProcessOutOfMemory("deserialize context");
+    V8::FatalProcessOutOfMemory("deserialize context");
     return MaybeHandle<Object>();
   }
 
