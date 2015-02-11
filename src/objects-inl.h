@@ -2335,7 +2335,7 @@ void FixedDoubleArray::set(int index, double value) {
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
-    WRITE_UINT64_FIELD(this, offset, V8_UINT64_C(0xFFFFFFFFFFFFFFFF));
+    WRITE_DOUBLE_FIELD(this, offset, std::numeric_limits<double>::quiet_NaN());
   } else {
     WRITE_DOUBLE_FIELD(this, offset, value);
   }
