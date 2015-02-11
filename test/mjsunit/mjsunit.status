@@ -304,7 +304,7 @@
   'deserialize-reference': [PASS, FAIL],
 
   # BUG(v8:3884).
-  'regress/regress-builtinbust-7.js': [PASS, ['gc_stress == True', SKIP]],
+  'regress/regress-builtinbust-7': [PASS, ['gc_stress == True', SKIP]],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
