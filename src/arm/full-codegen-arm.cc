@@ -3066,8 +3066,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
 }
 
 
-void FullCodeGenerator::EmitLoadSuperConstructor(SuperReference* super_ref) {
-  DCHECK(super_ref != NULL);
+void FullCodeGenerator::EmitLoadSuperConstructor() {
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Push(r0);
   __ CallRuntime(Runtime::kGetPrototype, 1);
@@ -3193,9 +3192,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     if (FLAG_experimental_classes) {
       EmitSuperConstructorCall(expr);
     } else {
-      SuperReference* super_ref = callee->AsSuperReference();
-      EmitLoadSuperConstructor(super_ref);
+      EmitLoadSuperConstructor();
       __ Push(result_register());
+      SuperReference* super_ref = callee->AsSuperReference();
       VisitForStackValue(super_ref->this_var());
       EmitCall(expr, CallICState::METHOD);
     }
@@ -3268,10 +3267,10 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   GetVar(result_register(), new_target_var);
   __ Push(result_register());
 
-  SuperReference* super_ref = expr->expression()->AsSuperReference();
-  EmitLoadSuperConstructor(super_ref);
+  EmitLoadSuperConstructor();
   __ push(result_register());
 
+  SuperReference* super_ref = expr->expression()->AsSuperReference();
   Variable* this_var = super_ref->this_var()->var();
 
   GetVar(r0, this_var);
@@ -4174,6 +4173,60 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   __ bind(&done);
 
   context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
+  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
+  GetVar(result_register(), new_target_var);
+  __ Push(result_register());
+
+  EmitLoadSuperConstructor();
+  __ Push(result_register());
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor_frame, args_set_up, runtime;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq, &adaptor_frame);
+  // default constructor has no arguments, so no adaptor frame means no args.
+  __ mov(r0, Operand::Zero());
+  __ b(&args_set_up);
+
+  // Copy arguments from adaptor frame.
+  {
+    __ bind(&adaptor_frame);
+    __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(r1, r1);
+
+    // Subtract 1 from arguments count, for new.target.
+    __ sub(r1, r1, Operand(1));
+    __ mov(r0, r1);
+
+    // Get arguments pointer in r2.
+    __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
+    __ add(r2, r2, Operand(StandardFrameConstants::kCallerSPOffset));
+    Label loop;
+    __ bind(&loop);
+    // Pre-decrement r2 with kPointerSize on each iteration.
+    // Pre-decrement in order to skip receiver.
+    __ ldr(r3, MemOperand(r2, kPointerSize, NegPreIndex));
+    __ Push(r3);
+    __ sub(r1, r1, Operand(1));
+    __ cmp(r1, Operand::Zero());
+    __ b(ne, &loop);
+  }
+
+  __ bind(&args_set_up);
+  __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+
+  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
+  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+  __ Drop(1);
+
+  context()->Plug(result_register());
 }
 
 

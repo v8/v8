@@ -172,7 +172,7 @@
   assertEquals(10, eua.byteLength);
   assertEquals(0xFF, eua[0]);
   assertEquals(0xFA, eua[1]);
-  assertTrue(eua.__proto__ === ExtendedUint8Array.prototype);
+  assertSame(ExtendedUint8Array.prototype, eua.__proto__);
   assertEquals("[object Uint8Array]", Object.prototype.toString.call(eua));
 }());
 
@@ -224,4 +224,62 @@
   assertSame(1, s2.x);
   assertSame(8, s2.y);
   assertSame(Subclass.prototype, s.__proto__);
+}());
+
+
+(function TestDefaultConstructor() {
+  class Base1 { }
+  assertThrows(function() { Base1(); }, TypeError);
+
+  class Subclass1 extends Base1 { }
+
+  assertThrows(function() { Subclass1(); }, TypeError);
+
+  let s1 = new Subclass1();
+  assertSame(s1.__proto__, Subclass1.prototype);
+
+  class Base2 {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class Subclass2 extends Base2 {};
+
+  let s2 = new Subclass2(1, 2);
+
+  assertSame(s2.__proto__, Subclass2.prototype);
+  assertSame(1, s2.x);
+  assertSame(2, s2.y);
+
+  let f = Subclass2.bind({}, 3, 4);
+  let s2prime = new f();
+  assertSame(s2prime.__proto__, Subclass2.prototype);
+  assertSame(3, s2prime.x);
+  assertSame(4, s2prime.y);
+
+  let obj = {};
+  class Base3 {
+    constructor() {
+      return obj;
+    }
+  }
+
+  class Subclass3 extends Base3 {};
+
+  let s3 = new Subclass3();
+  assertSame(obj, s3);
+
+  class ExtendedUint8Array extends Uint8Array { }
+
+  var eua = new ExtendedUint8Array(10);
+  assertEquals(10, eua.length);
+  assertEquals(10, eua.byteLength);
+  eua[0] = 0xFF;
+  eua[1] = 0xFFA;
+  assertEquals(0xFF, eua[0]);
+  assertEquals(0xFA, eua[1]);
+  assertSame(ExtendedUint8Array.prototype, eua.__proto__);
+  assertEquals("[object Uint8Array]", Object.prototype.toString.call(eua));
 }());

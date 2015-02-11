@@ -654,6 +654,7 @@ namespace internal {
   F(IsJSProxy, 1, 1)                                        \
   F(IsConstructCall, 0, 1)                                  \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
+  F(DefaultConstructorCallSuper, 0, 1)                      \
   F(ArgumentsLength, 0, 1)                                  \
   F(Arguments, 1, 1)                                        \
   F(ValueOf, 1, 1)                                          \

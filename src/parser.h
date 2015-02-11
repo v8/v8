@@ -840,6 +840,8 @@ class Parser : public ParserBase<ParserTraits> {
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
+  void AddAssertIsConstruct(ZoneList<Statement*>* body, int pos);
+
   // Factory methods.
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                       int end_pos);

@@ -271,8 +271,11 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   int parameter_count = 0;
   const AstRawString* name = ast_value_factory()->empty_string();
 
-  Scope* function_scope =
-      NewScope(scope, FUNCTION_SCOPE, FunctionKind::kDefaultConstructor);
+
+  FunctionKind kind = call_super && !FLAG_experimental_classes
+                          ? FunctionKind::kDefaultBaseConstructor
+                          : FunctionKind::kDefaultSubclassConstructor;
+  Scope* function_scope = NewScope(scope, FUNCTION_SCOPE, kind);
   function_scope->SetLanguageMode(
       static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
   // Set start and end position to the same value
@@ -283,17 +286,26 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   {
     AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 kDefaultConstructor, &function_factory);
+                                 kind, &function_factory);
 
-    body = new (zone()) ZoneList<Statement*>(1, zone());
+    body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
+    AddAssertIsConstruct(body, pos);
     if (call_super) {
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(0, zone());
-      CallRuntime* call = factory()->NewCallRuntime(
-          ast_value_factory()->empty_string(),
-          Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
-          pos);
-      body->Add(factory()->NewExpressionStatement(call, pos), zone());
+      if (FLAG_experimental_classes) {
+        CallRuntime* call = factory()->NewCallRuntime(
+            ast_value_factory()->empty_string(),
+            Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
+            args, pos);
+        body->Add(factory()->NewReturnStatement(call, pos), zone());
+      } else {
+        CallRuntime* call = factory()->NewCallRuntime(
+            ast_value_factory()->empty_string(),
+            Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
+            pos);
+        body->Add(factory()->NewExpressionStatement(call, pos), zone());
+      }
       function_scope->RecordSuperConstructorCallUsage();
     }
 
@@ -307,8 +319,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       materialized_literal_count, expected_property_count, handler_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, FunctionKind::kDefaultConstructor,
-      pos);
+      FunctionLiteral::kNotParenthesized, kind, pos);
 
   return function_literal;
 }
@@ -3894,6 +3905,26 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
 }
 
 
+void Parser::AddAssertIsConstruct(ZoneList<Statement*>* body, int pos) {
+  if (!FLAG_experimental_classes) return;
+
+  ZoneList<Expression*>* arguments =
+      new (zone()) ZoneList<Expression*>(0, zone());
+  CallRuntime* construct_check = factory()->NewCallRuntime(
+      ast_value_factory()->is_construct_call_string(),
+      Runtime::FunctionForId(Runtime::kInlineIsConstructCall), arguments, pos);
+  CallRuntime* non_callable_error = factory()->NewCallRuntime(
+      ast_value_factory()->empty_string(),
+      Runtime::FunctionForId(Runtime::kThrowConstructorNonCallableError),
+      arguments, pos);
+  IfStatement* if_statement = factory()->NewIfStatement(
+      factory()->NewUnaryOperation(Token::NOT, construct_check, pos),
+      factory()->NewReturnStatement(non_callable_error, pos),
+      factory()->NewEmptyStatement(pos), pos);
+  body->Add(if_statement, zone());
+}
+
+
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
@@ -3916,22 +3947,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
   // For concise constructors, check that they are constructed,
   // not called.
-  if (FLAG_experimental_classes && i::IsConstructor(kind)) {
-    ZoneList<Expression*>* arguments =
-        new (zone()) ZoneList<Expression*>(0, zone());
-    CallRuntime* construct_check = factory()->NewCallRuntime(
-        ast_value_factory()->is_construct_call_string(),
-        Runtime::FunctionForId(Runtime::kInlineIsConstructCall), arguments,
-        pos);
-    CallRuntime* non_callable_error = factory()->NewCallRuntime(
-        ast_value_factory()->empty_string(),
-        Runtime::FunctionForId(Runtime::kThrowConstructorNonCallableError),
-        arguments, pos);
-    IfStatement* if_statement = factory()->NewIfStatement(
-        factory()->NewUnaryOperation(Token::NOT, construct_check, pos),
-        factory()->NewReturnStatement(non_callable_error, pos),
-        factory()->NewEmptyStatement(pos), pos);
-    body->Add(if_statement, zone());
+  if (i::IsConstructor(kind)) {
+    AddAssertIsConstruct(body, pos);
   }
 
   // For generators, allocate and yield an iterator on function entry.

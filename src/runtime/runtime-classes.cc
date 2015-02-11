@@ -414,7 +414,15 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
 }
 
 
+RUNTIME_FUNCTION(RuntimeReference_DefaultConstructorCallSuper) {
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+// TODO(dslomov): deprecated, will remove when experimenal classes is default.
 RUNTIME_FUNCTION(Runtime_DefaultConstructorSuperCall) {
+  CHECK(!FLAG_experimental_classes);
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
 

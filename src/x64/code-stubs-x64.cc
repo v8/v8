@@ -936,7 +936,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   if (has_new_target()) {
     // Subtract 1 from smi-tagged arguments count.
     __ SmiToInteger32(rcx, rcx);
-    __ decp(rcx);
+    __ decl(rcx);
     __ Integer32ToSmi(rcx, rcx);
   }
   __ movp(args.GetArgumentOperand(2), rcx);

@@ -823,7 +823,9 @@ enum FunctionKind {
   kAccessorFunction = 1 << 3,
   kDefaultConstructor = 1 << 4,
   kSubclassConstructor = 1 << 5,
-  kBaseConstructor = 1 << 6
+  kBaseConstructor = 1 << 6,
+  kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
+  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
 };
 
 
@@ -834,7 +836,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kAccessorFunction ||
-         kind == FunctionKind::kDefaultConstructor ||
+         kind == FunctionKind::kDefaultBaseConstructor ||
+         kind == FunctionKind::kDefaultSubclassConstructor ||
          kind == FunctionKind::kBaseConstructor ||
          kind == FunctionKind::kSubclassConstructor;
 }

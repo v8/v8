@@ -647,7 +647,7 @@ class FullCodeGenerator: public AstVisitor {
   // |offset| is the offset in the stack where the home object can be found.
   void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
 
-  void EmitLoadSuperConstructor(SuperReference* expr);
+  void EmitLoadSuperConstructor();
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());

@@ -12109,6 +12109,12 @@ void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateDefaultConstructorCallSuper(
+    CallRuntime* call) {
+  return Bailout(kSuperReference);
+}
+
+
 // Fast call to math functions.
 void HOptimizedGraphBuilder::GenerateMathPow(CallRuntime* call) {
   DCHECK_EQ(2, call->arguments()->length());
