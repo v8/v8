@@ -4281,11 +4281,6 @@ void HOptimizedGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs,
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
-  if (IsSubclassConstructor(current_info()->function()->kind())) {
-    Bailout(kSuperReference);
-    return false;
-  }
-
   Scope* scope = current_info()->scope();
   SetUpScope(scope);
 
@@ -7570,8 +7565,7 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
   HValue* target = Add<HConstant>(jsfun);
   // For constant functions, we try to avoid calling the
   // argument adaptor and instead call the function directly
-  int formal_parameter_count =
-      jsfun->shared()->internal_formal_parameter_count();
+  int formal_parameter_count = jsfun->shared()->formal_parameter_count();
   bool dont_adapt_arguments =
       (formal_parameter_count ==
        SharedFunctionInfo::kDontAdaptArgumentsSentinel);

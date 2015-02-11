@@ -262,10 +262,6 @@ void FullCodeGenerator::Generate() {
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub::HasNewTarget has_new_target =
-        IsSubclassConstructor(info->function()->kind())
-            ? ArgumentsAccessStub::HAS_NEW_TARGET
-            : ArgumentsAccessStub::NO_NEW_TARGET;
     ArgumentsAccessStub::Type type;
     if (is_strict(language_mode())) {
       type = ArgumentsAccessStub::NEW_STRICT;
@@ -274,7 +270,7 @@ void FullCodeGenerator::Generate() {
     } else {
       type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
-    ArgumentsAccessStub stub(isolate(), type, has_new_target);
+    ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 
     SetVar(arguments, x0, x1, x2);
@@ -459,12 +455,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ ldr_pcrel(ip0, (3 * kInstructionSize) >> kLoadLiteralScaleLog2);
       __ add(current_sp, current_sp, ip0);
       __ ret();
-      int32_t arg_count = info_->scope()->num_parameters() + 1;
-      if (FLAG_experimental_classes &&
-          IsSubclassConstructor(info_->function()->kind())) {
-        arg_count++;
-      }
-      __ dc64(kXRegSize * arg_count);
+      __ dc64(kXRegSize * (info_->scope()->num_parameters() + 1));
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
   }
@@ -2955,11 +2946,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
-  Comment cmnt(masm_, "[ SuperConstructorCall");
-  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
-  GetVar(result_register(), new_target_var);
-  __ Push(result_register());
-
   SuperReference* super_ref = expr->expression()->AsSuperReference();
   EmitLoadSuperConstructor(super_ref);
   __ push(result_register());
@@ -3002,10 +2988,9 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ LoadObject(x2, FeedbackVector());
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
 
-  CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
+  // TODO(dslomov): use a different stub and propagate new.target.
+  CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-  __ Drop(1);
 
   RecordJSReturnSite(expr);
 

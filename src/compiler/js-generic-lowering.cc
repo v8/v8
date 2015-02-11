@@ -397,9 +397,7 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
   Handle<Object> func = function_const.Value().handle();
   if (!func->IsJSFunction()) return false;  // not a function.
   Handle<JSFunction> function = Handle<JSFunction>::cast(func);
-  if (arg_count != function->shared()->internal_formal_parameter_count()) {
-    return false;
-  }
+  if (arg_count != function->shared()->formal_parameter_count()) return false;
 
   // Check the receiver doesn't need to be wrapped.
   Node* receiver = node->InputAt(1);

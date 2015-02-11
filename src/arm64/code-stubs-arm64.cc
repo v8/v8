@@ -1643,7 +1643,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  CHECK(!has_new_target());
   Register arg_count = ArgumentsAccessReadDescriptor::parameter_count();
   Register key = ArgumentsAccessReadDescriptor::index();
   DCHECK(arg_count.is(x0));
@@ -1700,8 +1699,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   //  jssp[8]:  address of receiver argument
   //  jssp[16]: function
 
-  CHECK(!has_new_target());
-
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
   Register caller_fp = x10;
@@ -1732,8 +1729,6 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   //  jssp[16]: function
   //
   // Returns pointer to result object in x0.
-
-  CHECK(!has_new_target());
 
   // Note: arg_count_smi is an alias of param_count_smi.
   Register arg_count_smi = x3;
@@ -2061,11 +2056,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
          MemOperand(caller_fp,
                     ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ SmiUntag(param_count, param_count_smi);
-  if (has_new_target()) {
-    // Skip new.target: it is not a part of arguments.
-    __ Sub(param_count, param_count, Operand(1));
-    __ SmiTag(param_count_smi, param_count);
-  }
   __ Add(x10, caller_fp, Operand(param_count, LSL, kPointerSizeLog2));
   __ Add(params, x10, StandardFrameConstants::kCallerSPOffset);
 
@@ -2949,13 +2939,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(x2, x5);
   }
 
-  if (IsSuperConstructorCall()) {
-    __ Mov(x4, Operand(1 * kPointerSize));
-    __ Add(x4, x4, Operand(x0, LSL, kPointerSizeLog2));
-    __ Peek(x3, x4);
-  } else {
-    __ Mov(x3, function);
-  }
+  __ Mov(x3, function);
 
   // Jump to the function-specific construct stub.
   Register jump_reg = x4;

@@ -1590,13 +1590,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
     NEW_STRICT
   };
 
-  enum HasNewTarget { NO_NEW_TARGET, HAS_NEW_TARGET };
-
-  ArgumentsAccessStub(Isolate* isolate, Type type,
-                      HasNewTarget has_new_target = NO_NEW_TARGET)
-      : PlatformCodeStub(isolate) {
-    minor_key_ =
-        TypeBits::encode(type) | HasNewTargetBits::encode(has_new_target);
+  ArgumentsAccessStub(Isolate* isolate, Type type) : PlatformCodeStub(isolate) {
+    minor_key_ = TypeBits::encode(type);
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
@@ -1608,9 +1603,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
 
  private:
   Type type() const { return TypeBits::decode(minor_key_); }
-  bool has_new_target() const {
-    return HasNewTargetBits::decode(minor_key_) == HAS_NEW_TARGET;
-  }
 
   void GenerateReadElement(MacroAssembler* masm);
   void GenerateNewStrict(MacroAssembler* masm);
@@ -1620,7 +1612,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class TypeBits : public BitField<Type, 0, 2> {};
-  class HasNewTargetBits : public BitField<HasNewTarget, 2, 1> {};
 
   DEFINE_PLATFORM_CODE_STUB(ArgumentsAccess, PlatformCodeStub);
 };
@@ -1702,13 +1693,9 @@ class CallConstructStub: public PlatformCodeStub {
     return (flags() & RECORD_CONSTRUCTOR_TARGET) != 0;
   }
 
-  bool IsSuperConstructorCall() const {
-    return (flags() & SUPER_CONSTRUCTOR_CALL) != 0;
-  }
-
   void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
-  class FlagBits : public BitField<CallConstructorFlags, 0, 2> {};
+  class FlagBits : public BitField<CallConstructorFlags, 0, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
   DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);

@@ -148,7 +148,6 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_name_ = ast_value_factory_->empty_string();
   dynamics_ = NULL;
   receiver_ = NULL;
-  new_target_ = nullptr;
   function_ = NULL;
   arguments_ = NULL;
   illegal_redecl_ = NULL;
@@ -288,7 +287,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 }
 
 
-void Scope::Initialize(bool subclass_constructor) {
+void Scope::Initialize(bool uninitialized_this) {
   DCHECK(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
@@ -308,22 +307,14 @@ void Scope::Initialize(bool subclass_constructor) {
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
   if (is_declaration_scope()) {
-    DCHECK(!subclass_constructor || is_function_scope());
-    DCHECK(FLAG_experimental_classes || !subclass_constructor);
+    DCHECK(!uninitialized_this || is_function_scope());
+    DCHECK(FLAG_experimental_classes || !uninitialized_this);
     Variable* var = variables_.Declare(
         this, ast_value_factory_->this_string(),
-        subclass_constructor ? CONST : VAR, false, Variable::THIS,
-        subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
+        uninitialized_this ? CONST : VAR, false, Variable::THIS,
+        uninitialized_this ? kNeedsInitialization : kCreatedInitialized);
     var->AllocateTo(Variable::PARAMETER, -1);
     receiver_ = var;
-
-    if (subclass_constructor) {
-      new_target_ = variables_.Declare(
-          this, ast_value_factory_->new_target_string(), CONST, false,
-          Variable::NEW_TARGET, kCreatedInitialized);
-      new_target_->AllocateTo(Variable::PARAMETER, -2);
-      new_target_->set_is_used();
-    }
   } else {
     DCHECK(outer_scope() != NULL);
     receiver_ = outer_scope()->receiver();
@@ -1210,10 +1201,15 @@ bool Scope::MustAllocate(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
-  if ((var->is_this() || var->is_new_target() || !var->raw_name()->IsEmpty()) &&
-      (var->has_forced_context_allocation() || scope_calls_eval_ ||
-       inner_scope_calls_eval_ || scope_contains_with_ || is_catch_scope() ||
-       is_block_scope() || is_module_scope() || is_script_scope())) {
+  if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
+      (var->has_forced_context_allocation() ||
+       scope_calls_eval_ ||
+       inner_scope_calls_eval_ ||
+       scope_contains_with_ ||
+       is_catch_scope() ||
+       is_block_scope() ||
+       is_module_scope() ||
+       is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }

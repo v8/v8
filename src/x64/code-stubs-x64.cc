@@ -539,7 +539,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  CHECK(!has_new_target());
   // The key is in rdx and the parameter count is in rax.
   DCHECK(rdx.is(ArgumentsAccessReadDescriptor::index()));
   DCHECK(rax.is(ArgumentsAccessReadDescriptor::parameter_count()));
@@ -606,8 +605,6 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Registers used over the whole function:
   //  rbx: the mapped parameter count (untagged)
   //  rax: the allocated object (tagged).
-
-  CHECK(!has_new_target());
 
   Factory* factory = isolate()->factory();
 
@@ -822,7 +819,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // rsp[8]  : number of parameters
   // rsp[16] : receiver displacement
   // rsp[24] : function
-  CHECK(!has_new_target());
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
@@ -932,11 +928,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
   __ movp(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  if (has_new_target()) {
-    // Subtract 1 from smi-tagged arguments count.
-    __ subp(rcx, Immediate(2));
-  }
   __ movp(args.GetArgumentOperand(2), rcx);
   __ SmiToInteger64(rcx, rcx);
   __ leap(rdx, Operand(rdx, rcx, times_pointer_size,
@@ -2027,11 +2018,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   }
 
   // Pass original constructor to construct stub.
-  if (IsSuperConstructorCall()) {
-    __ movp(rdx, Operand(rsp, rax, times_pointer_size, 2 * kPointerSize));
-  } else {
-    __ movp(rdx, rdi);
-  }
+  __ movp(rdx, rdi);
 
   // Jump to the function-specific construct stub.
   Register jmp_reg = rcx;

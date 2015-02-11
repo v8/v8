@@ -19,7 +19,11 @@ namespace internal {
 
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, THIS, NEW_TARGET, ARGUMENTS };
+  enum Kind {
+    NORMAL,
+    THIS,
+    ARGUMENTS
+  };
 
   enum Location {
     // Before and during variable allocation, a variable whose location is
@@ -101,7 +105,6 @@ class Variable: public ZoneObject {
   }
 
   bool is_this() const { return kind_ == THIS; }
-  bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
   // True if the variable is named eval and not known to be shadowed.

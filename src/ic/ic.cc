@@ -1237,8 +1237,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           return compiler.CompileLoadCallback(lookup->name(), call_optimization,
                                               lookup->GetAccessorIndex());
         }
-        int expected_arguments =
-            function->shared()->internal_formal_parameter_count();
+        int expected_arguments = function->shared()->formal_parameter_count();
         return compiler.CompileLoadViaGetter(
             lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
       }
@@ -1744,8 +1743,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
                                                call_optimization,
                                                lookup->GetAccessorIndex());
         }
-        int expected_arguments =
-            function->shared()->internal_formal_parameter_count();
+        int expected_arguments = function->shared()->formal_parameter_count();
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
                                               lookup->GetAccessorIndex(),
                                               expected_arguments);

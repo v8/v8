@@ -527,11 +527,9 @@ enum CallFunctionFlags {
 
 
 enum CallConstructorFlags {
-  NO_CALL_CONSTRUCTOR_FLAGS = 0,
+  NO_CALL_CONSTRUCTOR_FLAGS,
   // The call target is cached in the instruction stream.
-  RECORD_CONSTRUCTOR_TARGET = 1,
-  SUPER_CONSTRUCTOR_CALL = 1 << 1,
-  SUPER_CALL_RECORD_TARGET = SUPER_CONSTRUCTOR_CALL | RECORD_CONSTRUCTOR_TARGET
+  RECORD_CONSTRUCTOR_TARGET
 };
 
 

@@ -51,7 +51,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
     // plus the receiver.
     SharedFunctionInfo* shared = info->closure()->shared();
     return GetJSCallDescriptor(zone, info->is_osr(),
-                               1 + shared->internal_formal_parameter_count(),
+                               1 + shared->formal_parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (info->code_stub() != NULL) {
