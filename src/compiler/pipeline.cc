@@ -755,8 +755,8 @@ struct PrintGraphPhase {
       fclose(json_file);
     }
 
-    OFStream os(stdout);
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      OFStream os(stdout);
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
     }

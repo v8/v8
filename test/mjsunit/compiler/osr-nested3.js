@@ -15,9 +15,7 @@ function f() {
         sum += z;
         if (i == 19) %OptimizeOsr();
       }
-      if (true) break;
     }
-    if (true) break;
   }
   return sum;
 }
