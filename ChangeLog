@@ -1,3 +1,10 @@
+2015-02-11: Version 4.2.67
+
+        Throw on range error when creating a string via API (issue 3853).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-11: Version 4.2.66
 
         Performance and stability improvements on all platforms.
