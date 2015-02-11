@@ -66,6 +66,10 @@
 #define DCHECK(condition) assert(condition)
 #endif
 
+#ifndef CHECK
+#define CHECK(condition) assert(condition)
+#endif
+
 namespace v8 {
 
 
