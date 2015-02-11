@@ -2120,6 +2120,10 @@ int Serializer::ObjectSerializer::OutputRawData(
     }
 
     const char* description = code_object_ ? "Code" : "Byte";
+#ifdef MEMORY_SANITIZER
+    // Object sizes are usually rounded up with uninitialized padding space.
+    MSAN_MEMORY_IS_INITIALIZED(object_start + base, bytes_to_output);
+#endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
     if (code_object_) delete[] object_start;
   }
