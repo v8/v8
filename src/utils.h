@@ -1435,7 +1435,7 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
 
 
 void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, size_t chars) {
-  if (chars >= kMinComplexConvertMemCopy) {
+  if (chars >= static_cast<size_t>(kMinComplexConvertMemCopy)) {
     MemCopyUint16Uint8(dest, src, chars);
   } else {
     MemCopyUint16Uint8Wrapper(dest, src, chars);
