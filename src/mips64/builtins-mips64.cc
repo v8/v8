@@ -787,6 +787,9 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ SmiTag(a4);
     __ push(a4);  // Smi-tagged arguments count.
 
+    // Push new.target.
+    __ push(a3);
+
     // receiver is the hole.
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ push(at);
@@ -800,7 +803,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // a2: address of last argument (caller sp)
     // a4: number of arguments (smi-tagged)
     // sp[0]: receiver
-    // sp[1]: number of arguments (smi-tagged)
+    // sp[1]: new.target
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, entry;
     __ SmiUntag(a4);
     __ jmp(&entry);
@@ -816,6 +820,7 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // Call the function.
     // a0: number of arguments
     // a1: constructor function
+    __ Daddu(a0, a0, Operand(1));
     ParameterCount actual(a0);
     __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
 
