@@ -3155,18 +3155,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   EmitLoadSuperConstructor();
   __ Push(result_register());
 
-  SuperReference* super_ref = expr->expression()->AsSuperReference();
-  Variable* this_var = super_ref->this_var()->var();
-
-  GetVar(rax, this_var);
-  __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-  Label uninitialized_this;
-  __ j(equal, &uninitialized_this);
-  __ Push(this_var->name());
-  __ CallRuntime(Runtime::kThrowReferenceError, 1);
-  __ bind(&uninitialized_this);
-
-
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -3195,7 +3183,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ Move(rbx, FeedbackVector());
   __ Move(rdx, SmiFromSlot(expr->CallFeedbackSlot()));
 
-  // TODO(dslomov): use a different stub and propagate new.target.
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
 
@@ -3203,6 +3190,15 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   RecordJSReturnSite(expr);
 
+  SuperReference* super_ref = expr->expression()->AsSuperReference();
+  Variable* this_var = super_ref->this_var()->var();
+  GetVar(rcx, this_var);
+  __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
+  Label uninitialized_this;
+  __ j(equal, &uninitialized_this);
+  __ Push(this_var->name());
+  __ CallRuntime(Runtime::kThrowReferenceError, 1);
+  __ bind(&uninitialized_this);
 
   EmitVariableAssignment(this_var, Token::INIT_CONST);
   context()->Plug(rax);

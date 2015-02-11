@@ -89,8 +89,7 @@
         super(tmp(),4);
       } catch (e) { exn = e; }
       assertTrue(exn instanceof ReferenceError);
-      // TODO(dslomov): should be 'true'.
-      assertFalse(called);
+      assertTrue(called);
     }
   }
 
@@ -109,6 +108,61 @@
 
   assertThrows(function() { new BadSubclass(); }, ReferenceError);
 }());
+
+(function TestThisCheckOrdering() {
+  let baseCalled = 0;
+  class Base {
+    constructor() { baseCalled++ }
+  }
+
+  let fCalled = 0;
+  function f() { fCalled++; return 3; }
+
+  class Subclass1 extends Base {
+    constructor() {
+      baseCalled = 0;
+      super();
+      assertEquals(1, baseCalled);
+      let obj = this;
+
+      let exn = null;
+      baseCalled = 0;
+      fCalled = 0;
+      try {
+        super(f());
+      } catch (e) { exn = e; }
+      assertTrue(exn instanceof ReferenceError);
+      assertEquals(1, fCalled);
+      assertEquals(1, baseCalled);
+      assertSame(obj, this);
+
+      exn = null;
+      baseCalled = 0;
+      fCalled = 0;
+      try {
+        super(super(), f());
+      } catch (e) { exn = e; }
+      assertTrue(exn instanceof ReferenceError);
+      assertEquals(0, fCalled);
+      assertEquals(1, baseCalled);
+      assertSame(obj, this);
+
+      exn = null;
+      baseCalled = 0;
+      fCalled = 0;
+      try {
+        super(f(), super());
+      } catch (e) { exn = e; }
+      assertTrue(exn instanceof ReferenceError);
+      assertEquals(1, fCalled);
+      assertEquals(1, baseCalled);
+      assertSame(obj, this);
+    }
+  }
+
+  new Subclass1();
+}());
+
 
 (function TestPrototypeWiring() {
   class Base {
