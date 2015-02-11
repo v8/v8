@@ -118,6 +118,7 @@
   # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
   'harmony/object-literals-super': [PASS, NO_VARIANTS],
   'harmony/super': [PASS, NO_VARIANTS],
+  'harmony/computed-property-names-super': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
