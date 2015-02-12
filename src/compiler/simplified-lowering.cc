@@ -254,12 +254,17 @@ class RepresentationSelector {
          ++i, j--) {
       ProcessInput(node, (*i).index(), kMachAnyTagged);  // Context inputs
     }
+    for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
+         ++i, j--) {
+      Enqueue((*i).to());  // FrameState inputs: just visit
+    }
     for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
       Enqueue((*i).to());  // Effect inputs: just visit
     }
     for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
       Enqueue((*i).to());  // Control inputs: just visit
     }
+    DCHECK(i == node->input_edges().end());
     SetOutput(node, kMachAnyTagged);
   }
 
