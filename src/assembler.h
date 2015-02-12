@@ -647,14 +647,24 @@ class RelocInfo {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL),
-                      last_pc_(NULL),
-                      last_id_(0),
-                      last_position_(0) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos),
-                                         last_pc_(pc),
-                                         last_id_(0),
-                                         last_position_(0) {}
+  RelocInfoWriter()
+      : pos_(NULL),
+        last_pc_(NULL),
+        last_id_(0),
+        last_position_(0),
+        last_mode_(RelocInfo::NUMBER_OF_MODES),
+        next_position_candidate_pos_delta_(0),
+        next_position_candidate_pc_delta_(0),
+        next_position_candidate_flushed_(true) {}
+  RelocInfoWriter(byte* pos, byte* pc)
+      : pos_(pos),
+        last_pc_(pc),
+        last_id_(0),
+        last_position_(0),
+        last_mode_(RelocInfo::NUMBER_OF_MODES),
+        next_position_candidate_pos_delta_(0),
+        next_position_candidate_pc_delta_(0),
+        next_position_candidate_flushed_(true) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -667,6 +677,8 @@ class RelocInfoWriter BASE_EMBEDDED {
     pos_ = pos;
     last_pc_ = pc;
   }
+
+  void Finish() { FlushPosition(); }
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, ExtraTag, data_delta.
@@ -684,11 +696,19 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
+  inline void WritePosition(int pc_delta, int pos_delta, RelocInfo::Mode rmode);
+
+  void FlushPosition();
 
   byte* pos_;
   byte* last_pc_;
   int last_id_;
   int last_position_;
+  RelocInfo::Mode last_mode_;
+  int next_position_candidate_pos_delta_;
+  uint32_t next_position_candidate_pc_delta_;
+  bool next_position_candidate_flushed_;
+
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
