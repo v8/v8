@@ -32,6 +32,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/platform.h"
 #include "src/cpu-profiler-inl.h"
+#include "src/deoptimizer.h"
 #include "src/smart-pointers.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -1720,23 +1721,33 @@ TEST(DontStopOnFinishedProfileDelete) {
 
 
 static const char* collect_deopt_events_test_source =
-    "function opt_function(value) {\n"
-    "  return value / 10;\n"
+    "function opt_function(left, right, depth) {\n"
+    "  if (depth) return opt_function(left, right, depth - 1);\n"
+    "\n"
+    "  var k = left / 10;\n"
+    "  var r = 10 / right;\n"
+    "  return k + r;"
     "}\n"
     "\n"
-    "function test(value) {\n"
-    "  return opt_function(value);\n"
+    "function test(left, right) {\n"
+    "  return opt_function(left, right, 1);\n"
     "}\n"
     "\n"
     "startProfiling();\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "test(10, 10);\n"
     "\n"
     "%OptimizeFunctionOnNextCall(opt_function)\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "test(10, 10);\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(undefined);\n"
+    "test(undefined, 10);\n"
+    "\n"
+    "%OptimizeFunctionOnNextCall(opt_function)\n"
+    "\n"
+    "test(10, 10);\n"
+    "\n"
+    "test(10, 0);\n"
     "\n"
     "stopProfiling();\n"
     "\n";
@@ -1756,9 +1767,16 @@ TEST(CollectDeoptEvents) {
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
-  const char* branch[] = {"", "test", "opt_function"};
+  const char* branch[] = {"", "test", "opt_function", "opt_function"};
   const v8::CpuProfileNode* opt_function = GetSimpleBranch(
       env->GetIsolate(), profile->GetTopDownRoot(), branch, arraysize(branch));
   CHECK(opt_function);
+  const i::ProfileNode* iopt_function =
+      reinterpret_cast<const i::ProfileNode*>(opt_function);
+  CHECK_EQ(2, iopt_function->deopt_infos().length());
+  CHECK_EQ(i::Deoptimizer::GetDeoptReason(i::Deoptimizer::kNotAHeapNumber),
+           iopt_function->deopt_infos()[0].deopt_reason);
+  CHECK_EQ(i::Deoptimizer::GetDeoptReason(i::Deoptimizer::kDivisionByZero),
+           iopt_function->deopt_infos()[1].deopt_reason);
   iprofiler->DeleteProfile(iprofile);
 }
