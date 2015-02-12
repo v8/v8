@@ -788,11 +788,12 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
 }
 
 
-Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
+Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
+               UnicodeCache* unicode_cache)
     : ParserBase<ParserTraits>(info->isolate(), info->zone(), &scanner_,
-                               parse_info->stack_limit, info->extension(),
+                               stack_limit, info->extension(),
                                info->ast_value_factory(), NULL, this),
-      scanner_(parse_info->unicode_cache),
+      scanner_(unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
@@ -827,8 +828,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   }
   if (info->ast_value_factory() == NULL) {
     // info takes ownership of AstValueFactory.
-    info->SetAstValueFactory(
-        new AstValueFactory(zone(), parse_info->hash_seed));
+    info->SetAstValueFactory(new AstValueFactory(zone(), hash_seed));
     ast_value_factory_ = info->ast_value_factory();
   }
 }
@@ -5248,6 +5248,19 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
     result->capture_count = capture_count;
   }
   return !parser.failed();
+}
+
+
+bool Parser::Parse(CompilationInfo* info, bool allow_lazy) {
+  Parser parser(info, info->isolate()->stack_guard()->real_climit(),
+                info->isolate()->heap()->HashSeed(),
+                info->isolate()->unicode_cache());
+  parser.set_allow_lazy(allow_lazy);
+  if (parser.Parse()) {
+    info->SetLanguageMode(info->function()->language_mode());
+    return true;
+  }
+  return false;
 }
 
 

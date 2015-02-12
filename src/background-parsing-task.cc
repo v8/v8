@@ -45,13 +45,14 @@ void BackgroundParsingTask::Run() {
     source_->info->SetCachedData(&script_data, options_);
   }
 
-  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - stack_size_ * KB;
-  Parser::ParseInfo parse_info = {limit, source_->hash_seed,
-                                  &source_->unicode_cache};
+  uintptr_t stack_limit =
+      reinterpret_cast<uintptr_t>(&stack_limit) - stack_size_ * KB;
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread. Passing &parse_info is OK because Parser doesn't store it.
-  source_->parser.Reset(new Parser(source_->info.get(), &parse_info));
+  source_->parser.Reset(new Parser(source_->info.get(), stack_limit,
+                                   source_->hash_seed,
+                                   &source_->unicode_cache));
   source_->parser->set_allow_lazy(source_->allow_lazy);
   source_->parser->ParseOnBackground();
 

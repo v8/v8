@@ -635,16 +635,8 @@ class ParserTraits {
 
 class Parser : public ParserBase<ParserTraits> {
  public:
-  // Note that the hash seed in ParseInfo must be the hash seed from the
-  // Isolate's heap, otherwise the heap will be in an inconsistent state once
-  // the strings created by the Parser are internalized.
-  struct ParseInfo {
-    uintptr_t stack_limit;
-    uint32_t hash_seed;
-    UnicodeCache* unicode_cache;
-  };
-
-  Parser(CompilationInfo* info, ParseInfo* parse_info);
+  Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
+         UnicodeCache* unicode_cache);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
@@ -655,19 +647,7 @@ class Parser : public ParserBase<ParserTraits> {
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
-  static bool Parse(CompilationInfo* info,
-                    bool allow_lazy = false) {
-    ParseInfo parse_info = {info->isolate()->stack_guard()->real_climit(),
-                            info->isolate()->heap()->HashSeed(),
-                            info->isolate()->unicode_cache()};
-    Parser parser(info, &parse_info);
-    parser.set_allow_lazy(allow_lazy);
-    if (parser.Parse()) {
-      info->SetLanguageMode(info->function()->language_mode());
-      return true;
-    }
-    return false;
-  }
+  static bool Parse(CompilationInfo* info, bool allow_lazy = false);
   bool Parse();
   void ParseOnBackground();
 

@@ -1054,10 +1054,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
       i::CompilationInfoWithZone info(script);
-      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                         isolate->heap()->HashSeed(),
-                                         isolate->unicode_cache()};
-      i::Parser parser(&info, &parse_info);
+      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                       isolate->heap()->HashSeed(), isolate->unicode_cache());
       parser.set_allow_harmony_arrow_functions(true);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_object_literals(true);
@@ -1312,10 +1310,8 @@ TEST(ScopePositions) {
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                       isolate->heap()->HashSeed(),
-                                       isolate->unicode_cache()};
-    i::Parser parser(&info, &parse_info);
+    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                     isolate->heap()->HashSeed(), isolate->unicode_cache());
     parser.set_allow_lazy(true);
     parser.set_allow_harmony_scoping(true);
     parser.set_allow_harmony_arrow_functions(true);
@@ -1473,10 +1469,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                       isolate->heap()->HashSeed(),
-                                       isolate->unicode_cache()};
-    i::Parser parser(&info, &parse_info);
+    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                     isolate->heap()->HashSeed(), isolate->unicode_cache());
     SetParserFlags(&parser, flags);
     info.MarkAsGlobal();
     parser.Parse();
@@ -3439,10 +3433,9 @@ TEST(InnerAssignment) {
 
           i::Handle<i::Script> script = factory->NewScript(source);
           i::CompilationInfoWithZone info(script);
-          i::Parser::ParseInfo parse_info = {
-              isolate->stack_guard()->real_climit(),
-              isolate->heap()->HashSeed(), isolate->unicode_cache()};
-          i::Parser parser(&info, &parse_info);
+          i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                           isolate->heap()->HashSeed(),
+                           isolate->unicode_cache());
           parser.set_allow_harmony_scoping(true);
           CHECK(parser.Parse());
           CHECK(i::Compiler::Analyze(&info));
@@ -5052,10 +5045,8 @@ TEST(BasicImportExportParsing) {
     {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::CompilationInfoWithZone info(script);
-      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                         isolate->heap()->HashSeed(),
-                                         isolate->unicode_cache()};
-      i::Parser parser(&info, &parse_info);
+      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                       isolate->heap()->HashSeed(), isolate->unicode_cache());
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
@@ -5082,10 +5073,8 @@ TEST(BasicImportExportParsing) {
     {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::CompilationInfoWithZone info(script);
-      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                         isolate->heap()->HashSeed(),
-                                         isolate->unicode_cache()};
-      i::Parser parser(&info, &parse_info);
+      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                       isolate->heap()->HashSeed(), isolate->unicode_cache());
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
@@ -5174,10 +5163,8 @@ TEST(ImportExportParsingErrors) {
 
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                       isolate->heap()->HashSeed(),
-                                       isolate->unicode_cache()};
-    i::Parser parser(&info, &parse_info);
+    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                     isolate->heap()->HashSeed(), isolate->unicode_cache());
     parser.set_allow_harmony_classes(true);
     parser.set_allow_harmony_modules(true);
     parser.set_allow_harmony_scoping(true);
@@ -5270,10 +5257,8 @@ void TestLanguageMode(const char* source,
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::CompilationInfoWithZone info(script);
-  i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
-                                     isolate->heap()->HashSeed(),
-                                     isolate->unicode_cache()};
-  i::Parser parser(&info, &parse_info);
+  i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                   isolate->heap()->HashSeed(), isolate->unicode_cache());
   parser.set_allow_strong_mode(true);
   info.MarkAsGlobal();
   parser.Parse();
