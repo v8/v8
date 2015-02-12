@@ -1003,7 +1003,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(Isolate* isolate,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph,
                                               Schedule* schedule) {
-  CompilationInfo info(isolate, graph->zone());
+  FakeStubForTesting stub(isolate);
+  CompilationInfo info(&stub, isolate, graph->zone());
   return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
 }
 
@@ -1044,7 +1045,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  CompilationInfo info(sequence->isolate(), sequence->zone());
+  FakeStubForTesting stub(sequence->isolate());
+  CompilationInfo info(&stub, sequence->isolate(), sequence->zone());
   ZonePool zone_pool;
   PipelineData data(&zone_pool, &info);
   data.InitializeTorTesting(sequence);

@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/zone.h"
 
@@ -73,11 +74,14 @@ TEST(TestLinkageJSFunctionIncoming) {
 
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfoWithZone info(static_cast<CodeStub*>(NULL), isolate);
+  ToNumberStub stub(isolate);
+  CompilationInfoWithZone info(&stub, isolate);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
-  // TODO(titzer): test linkage creation with a bonafide code stub.
-  // this just checks current behavior.
-  CHECK(!descriptor);
+  CHECK(descriptor);
+  CHECK_EQ(1, static_cast<int>(descriptor->JSParameterCount()));
+  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
+  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
+  CHECK_EQ(false, descriptor->IsJSFunctionCall());
 }
 
 

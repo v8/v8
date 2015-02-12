@@ -97,7 +97,7 @@ class CompilationInfo {
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
   CompilationInfo(Handle<Script> script, Zone* zone);
-  CompilationInfo(Isolate* isolate, Zone* zone);
+  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
   Isolate* isolate() const {
@@ -427,7 +427,6 @@ class CompilationInfo {
  protected:
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                   Zone* zone);
-  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
   CompilationInfo(ScriptCompiler::ExternalSourceStream* source_stream,
                   ScriptCompiler::StreamedSource::Encoding encoding,
                   Isolate* isolate, Zone* zone);

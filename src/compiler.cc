@@ -63,21 +63,6 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
 }
 
 
-CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
-    : flags_(kThisHasUses),
-      script_(Handle<Script>::null()),
-      source_stream_(NULL),
-      osr_ast_id_(BailoutId::None()),
-      parameter_count_(0),
-      optimization_id_(-1),
-      ast_value_factory_(NULL),
-      ast_value_factory_owned_(false),
-      aborted_due_to_dependency_change_(false),
-      osr_expr_stack_height_(0) {
-  Initialize(isolate, STUB, zone);
-}
-
-
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
     : flags_(kLazy | kThisHasUses),

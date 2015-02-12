@@ -294,6 +294,30 @@ class CodeStub BASE_EMBEDDED {
 };
 
 
+// TODO(svenpanne) This class is only used to construct a more or less sensible
+// CompilationInfo for testing purposes, basically pretending that we are
+// currently compiling some kind of code stub. Remove this when the pipeline and
+// testing machinery is restructured in such a way that we don't have to come up
+// with a CompilationInfo out of thin air, although we only need a few parts of
+// it.
+struct FakeStubForTesting : public CodeStub {
+  explicit FakeStubForTesting(Isolate* isolate) : CodeStub(isolate) {}
+
+  // Only used by pipeline.cc's GetDebugName in DEBUG mode.
+  Major MajorKey() const OVERRIDE { return CodeStub::NoCache; }
+
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    UNREACHABLE();
+    return CallInterfaceDescriptor();
+  }
+
+  Handle<Code> GenerateCode() OVERRIDE {
+    UNREACHABLE();
+    return Handle<Code>();
+  }
+};
+
+
 #define DEFINE_CODE_STUB_BASE(NAME, SUPER)                      \
  public:                                                        \
   NAME(uint32_t key, Isolate* isolate) : SUPER(key, isolate) {} \

@@ -30,8 +30,8 @@ class InstructionTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         graph(zone()),
         schedule(zone()),
-        info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
-        linkage(Linkage::ComputeIncoming(zone(), &info)),
+        fake_stub(main_isolate()),
+        info(&fake_stub, main_isolate()),
         common(zone()),
         machine(zone()),
         code(NULL) {}
@@ -39,8 +39,8 @@ class InstructionTester : public HandleAndZoneScope {
   Isolate* isolate;
   Graph graph;
   Schedule schedule;
+  FakeStubForTesting fake_stub;
   CompilationInfoWithZone info;
-  Linkage linkage;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;
   TestInstrSeq* code;
