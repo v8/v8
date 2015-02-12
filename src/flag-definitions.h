@@ -266,6 +266,7 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(vector_ics, false, "support vector-based ics")
 DEFINE_BOOL(experimental_classes, false,
             "experimental new semantics for super() calls")
+DEFINE_IMPLICATION(harmony_classes, experimental_classes)
 DEFINE_IMPLICATION(experimental_classes, harmony_classes)
 DEFINE_IMPLICATION(experimental_classes, harmony_object_literals)
 

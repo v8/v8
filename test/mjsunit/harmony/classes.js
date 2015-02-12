@@ -139,6 +139,7 @@
 
   class C extends B {
     constructor() {
+      super();
       calls++;
       assertEquals(42, super.x);
     }
@@ -613,8 +614,8 @@ function assertAccessorDescriptor(object, name) {
 (function TestDefaultConstructorNoCrash() {
   // Regression test for https://code.google.com/p/v8/issues/detail?id=3661
   class C {}
-  assertEquals(undefined, C());
-  assertEquals(undefined, C(1));
+  assertThrows(function () {C();}, TypeError);
+  assertThrows(function () {C(1);}, TypeError);
   assertTrue(new C() instanceof C);
   assertTrue(new C(1) instanceof C);
 })();
@@ -632,8 +633,8 @@ function assertAccessorDescriptor(object, name) {
   assertEquals(1, calls);
 
   calls = 0;
-  Derived();
-  assertEquals(1, calls);
+  assertThrows(function() { Derived(); }, TypeError);
+  assertEquals(0, calls);
 })();
 
 
@@ -656,9 +657,7 @@ function assertAccessorDescriptor(object, name) {
 
   var arr = new Array(100);
   var obj = {};
-  Derived.apply(obj, arr);
-  assertEquals(100, args.length);
-  assertEquals(obj, self);
+  assertThrows(function() {Derived.apply(obj, arr);}, TypeError);
 })();
 
 
@@ -783,72 +782,73 @@ function assertAccessorDescriptor(object, name) {
 })();
 
 
-(function TestSuperCallSyntacticRestriction() {
-  assertThrows(function() {
-    class C {
+(function TestThisAccessRestriction() {
+  class Base {}
+  (function() {
+    class C extends Base {
       constructor() {
         var y;
         super();
       }
     }; new C();
-  }, TypeError);
+  }());
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super(this.x);
       }
     }; new C();
-  }, TypeError);
+  }, ReferenceError);
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super(this);
       }
     }; new C();
-  }, TypeError);
+  }, ReferenceError);
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super.method();
         super(this);
       }
     }; new C();
-  }, TypeError);
+  }, ReferenceError);
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super(super.method());
       }
     }; new C();
-  }, TypeError);
+  }, ReferenceError);
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super(super());
       }
     }; new C();
-  }, TypeError);
+  }, ReferenceError);
   assertThrows(function() {
-    class C {
+    class C extends Base {
       constructor() {
         super(1, 2, Object.getPrototypeOf(this));
       }
     }; new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
+  }, ReferenceError);
+  (function() {
+    class C extends Base {
       constructor() {
         { super(1, 2); }
       }
     }; new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
+  }());
+  (function() {
+    class C extends Base {
       constructor() {
         if (1) super();
       }
     }; new C();
-  }, TypeError);
+  }());
 
   class C1 extends Object {
     constructor() {

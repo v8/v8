@@ -863,6 +863,22 @@ void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
 }
 
 
+bool FullCodeGenerator::ValidateSuperCall(Call* expr) {
+  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
+  if (new_target_var == nullptr) {
+    // TODO(dslomov): this is not exactly correct, the spec requires us
+    // to execute the constructor and only fail when an assigment to 'this'
+    // is attempted. Will implement once we have general new.target support,
+    // but also filed spec bug 3843 to make it an early error.
+    __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+    RecordJSReturnSite(expr);
+    context()->Plug(result_register());
+    return false;
+  }
+  return true;
+}
+
+
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (!info_->is_debug()) {
     CodeGenerator::RecordPositions(masm_, expr->position());

@@ -1818,23 +1818,14 @@
   assertEquals("base", d.fromBase);
   assertEquals("derived", d.fromDerived);
 
-  class ImplicitSubclassOfFunction {
-    constructor() {
-      super();
-      this.x = 123;
-    }
-  }
-
-  var o = new ImplicitSubclassOfFunction();
-  assertEquals(123, o.x);
-
   var calls = 0;
   class G {
     constructor() {
       calls++;
     }
   }
-  class F {
+
+  class F extends Object {
     constructor() {
       super();
     }
@@ -1848,9 +1839,18 @@
 }());
 
 
+(function TestExtendsObject() {
+  'use strict';
+  class F extends Object { }
+  var f = new F(42);
+
+  // TODO(dslomov,arv): Fix this. BUG=v8:3886.
+  assertTrue(f instanceof Number);
+}());
+
 (function TestSuperCallErrorCases() {
   'use strict';
-  class T {
+  class T extends Object {
     constructor() {
       super();
     }
@@ -1858,74 +1858,4 @@
 
   T.__proto__ = null;
   assertThrows(function() { new T(); }, TypeError);
-}());
-
-
-(function TestSuperCallSyntacticRestriction() {
-  'use strict';
-  assertThrows(function() {
-    class C {
-      constructor() {
-        super(this.x);
-      }
-    }
-    new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
-      constructor() {
-        super(this);
-      }
-    }
-    new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
-      constructor() {
-        super(1, 2, Object.getPrototypeOf(this));
-      }
-    }
-    new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
-      constructor() {
-        { super(1, 2); }
-      }
-    }
-    new C();
-  }, TypeError);
-  assertThrows(function() {
-    class C {
-      constructor() {
-        if (1) super();
-      }
-    }
-    new C();
-  }, TypeError);
-
-  class C1 {
-    constructor() {
-      'use strict';
-      super();
-    }
-  }
-  new C1();
-
-  class C2 {
-    constructor() {
-      ; 'use strict';;;;;
-      super();
-    }
-  }
-  new C2();
-
-  class C3 {
-    constructor() {
-      ; 'use strict';;;;;
-      // This is a comment.
-      super();
-    }
-  }
-  new C3();
 }());
