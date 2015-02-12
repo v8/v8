@@ -9,11 +9,7 @@
 #   1. Install YCM [https://github.com/Valloric/YouCompleteMe]
 #          (Googlers should check out [go/ycm])
 #
-#   2. Point to this config file in your .vimrc:
-#          let g:ycm_global_ycm_extra_conf =
-#              '<v8_root>/tools/vim/v8.ycm_extra_conf.py'
-#
-#   3. Profit
+#   2. Profit
 #
 #
 # Usage notes:
@@ -129,7 +125,7 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
         # try to use the default flags.
         return v8_flags
 
-  sys.path.append(os.path.join(v8_root, 'tools', 'vim'))
+  sys.path.append(os.path.join(v8_root, 'tools', 'ninja'))
   from ninja_output import GetNinjaOutputDirectory
   out_dir = os.path.realpath(GetNinjaOutputDirectory(v8_root))
 

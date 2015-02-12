@@ -47,7 +47,7 @@ def path_to_build_dir(configuration):
   """Returns <v8_root>/<output_dir>/(Release|Debug)."""
 
   v8_root = path_to_source_root()
-  sys.path.append(os.path.join(v8_root, 'tools', 'vim'))
+  sys.path.append(os.path.join(v8_root, 'tools', 'ninja'))
   from ninja_output import GetNinjaOutputDirectory
   return GetNinjaOutputDirectory(v8_root, configuration)
 
