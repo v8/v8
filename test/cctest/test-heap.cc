@@ -1387,6 +1387,8 @@ TEST(CompilationCacheCachingBehavior) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   CompilationCache* compilation_cache = isolate->compilation_cache();
+  LanguageMode language_mode =
+      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
 
   v8::HandleScope scope(CcTest::isolate());
   const char* raw_source =
@@ -1407,7 +1409,8 @@ TEST(CompilationCacheCachingBehavior) {
   // On first compilation, only a hash is inserted in the code cache. We can't
   // find that value.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0, false, true, native_context);
+      source, Handle<Object>(), 0, 0, false, true, native_context,
+      language_mode);
   CHECK(info.is_null());
 
   {
@@ -1418,7 +1421,7 @@ TEST(CompilationCacheCachingBehavior) {
   // On second compilation, the hash is replaced by a real cache entry mapping
   // the source to the shared function info containing the code.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
-                                         true, native_context);
+                                         true, native_context, language_mode);
   CHECK(!info.is_null());
 
   heap->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1426,7 +1429,7 @@ TEST(CompilationCacheCachingBehavior) {
   // On second compilation, the hash is replaced by a real cache entry mapping
   // the source to the shared function info containing the code.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
-                                         true, native_context);
+                                         true, native_context, language_mode);
   CHECK(!info.is_null());
 
   while (!info.ToHandleChecked()->code()->IsOld()) {
@@ -1436,7 +1439,7 @@ TEST(CompilationCacheCachingBehavior) {
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   // Ensure code aging cleared the entry from the cache.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
-                                         true, native_context);
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 
   {
@@ -1447,7 +1450,7 @@ TEST(CompilationCacheCachingBehavior) {
   // On first compilation, only a hash is inserted in the code cache. We can't
   // find that value.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
-                                         true, native_context);
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 
   for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
@@ -1462,7 +1465,7 @@ TEST(CompilationCacheCachingBehavior) {
   // If we aged the cache before caching the script, ensure that we didn't cache
   // on next compilation.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
-                                         true, native_context);
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 }
 

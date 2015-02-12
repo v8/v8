@@ -1263,6 +1263,12 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
+  // TODO(rossberg): The natives do not yet obey strong mode rules
+  // (for example, some macros use '==').
+  bool use_strong = FLAG_use_strong && !isolate->bootstrapper()->IsActive();
+  LanguageMode language_mode =
+      construct_language_mode(FLAG_use_strict, use_strong);
+
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
@@ -1271,7 +1277,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   if (extension == NULL) {
     maybe_result = compilation_cache->LookupScript(
         source, script_name, line_offset, column_offset,
-        is_embedder_debug_script, is_shared_cross_origin, context);
+        is_embedder_debug_script, is_shared_cross_origin, context,
+        language_mode);
     if (maybe_result.is_null() && FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
@@ -1322,14 +1329,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       info.PrepareForSerializing();
     }
 
-    LanguageMode language_mode =
-        construct_language_mode(FLAG_use_strict, FLAG_use_strong);
     info.SetLanguageMode(
         static_cast<LanguageMode>(info.language_mode() | language_mode));
-
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
-      compilation_cache->PutScript(source, context, result);
+      compilation_cache->PutScript(source, context, language_mode, result);
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {
         HistogramTimerScope histogram_timer(

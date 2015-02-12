@@ -15354,11 +15354,11 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 
 
 Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
-                                             Handle<Context> context) {
+                                             Handle<Context> context,
+                                             LanguageMode language_mode) {
   Isolate* isolate = GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  LanguageMode mode = construct_language_mode(FLAG_use_strict, FLAG_use_strong);
-  StringSharedKey key(src, shared, mode, RelocInfo::kNoPosition);
+  StringSharedKey key(src, shared, language_mode, RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   int index = EntryToIndex(entry);
@@ -15395,11 +15395,10 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
 
 Handle<CompilationCacheTable> CompilationCacheTable::Put(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<Context> context, Handle<Object> value) {
+    Handle<Context> context, LanguageMode language_mode, Handle<Object> value) {
   Isolate* isolate = cache->GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  LanguageMode mode = construct_language_mode(FLAG_use_strict, FLAG_use_strong);
-  StringSharedKey key(src, shared, mode, RelocInfo::kNoPosition);
+  StringSharedKey key(src, shared, language_mode, RelocInfo::kNoPosition);
   {
     Handle<Object> k = key.AsHandle(isolate);
     DisallowHeapAllocation no_allocation_scope;

@@ -76,9 +76,11 @@ class CompilationCacheScript : public CompilationSubCache {
                                     int line_offset, int column_offset,
                                     bool is_embedder_debug_script,
                                     bool is_shared_cross_origin,
-                                    Handle<Context> context);
+                                    Handle<Context> context,
+                                    LanguageMode language_mode);
   void Put(Handle<String> source,
            Handle<Context> context,
+           LanguageMode language_mode,
            Handle<SharedFunctionInfo> function_info);
 
  private:
@@ -148,7 +150,8 @@ class CompilationCache {
   MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<String> source, Handle<Object> name, int line_offset,
       int column_offset, bool is_embedder_debug_script,
-      bool is_shared_cross_origin, Handle<Context> context);
+      bool is_shared_cross_origin, Handle<Context> context,
+      LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
@@ -166,6 +169,7 @@ class CompilationCache {
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source,
                  Handle<Context> context,
+                 LanguageMode language_mode,
                  Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple

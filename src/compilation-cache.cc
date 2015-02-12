@@ -147,7 +147,8 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     Handle<String> source, Handle<Object> name, int line_offset,
     int column_offset, bool is_embedder_debug_script,
-    bool is_shared_cross_origin, Handle<Context> context) {
+    bool is_shared_cross_origin, Handle<Context> context,
+    LanguageMode language_mode) {
   Object* result = NULL;
   int generation;
 
@@ -156,7 +157,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
-      Handle<Object> probe = table->Lookup(source, context);
+      Handle<Object> probe = table->Lookup(source, context, language_mode);
       if (probe->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> function_info =
             Handle<SharedFunctionInfo>::cast(probe);
@@ -181,7 +182,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
                      is_embedder_debug_script, is_shared_cross_origin));
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
-    if (generation != 0) Put(source, context, shared);
+    if (generation != 0) Put(source, context, language_mode, shared);
     isolate()->counters()->compilation_cache_hits()->Increment();
     return shared;
   } else {
@@ -193,11 +194,12 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
 
 void CompilationCacheScript::Put(Handle<String> source,
                                  Handle<Context> context,
+                                 LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(
-      CompilationCacheTable::Put(table, source, context, function_info));
+  SetFirstTable(CompilationCacheTable::Put(table, source, context,
+                                           language_mode, function_info));
 }
 
 
@@ -292,12 +294,13 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source, Handle<Object> name, int line_offset,
     int column_offset, bool is_embedder_debug_script,
-    bool is_shared_cross_origin, Handle<Context> context) {
+    bool is_shared_cross_origin, Handle<Context> context,
+    LanguageMode language_mode) {
   if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   return script_.Lookup(source, name, line_offset, column_offset,
                         is_embedder_debug_script, is_shared_cross_origin,
-                        context);
+                        context, language_mode);
 }
 
 
@@ -329,10 +332,11 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 
 void CompilationCache::PutScript(Handle<String> source,
                                  Handle<Context> context,
+                                 LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) return;
 
-  script_.Put(source, context, function_info);
+  script_.Put(source, context, language_mode, function_info);
 }
 
 
