@@ -907,7 +907,8 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                                             !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (jump_table_.is_empty() ||
+    if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling() ||
+        jump_table_.is_empty() ||
         !table_entry.IsEquivalentTo(jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
     }

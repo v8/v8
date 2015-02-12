@@ -188,14 +188,6 @@ class Deoptimizer : public Malloced {
     DeoptInfo(int r, const char* m, DeoptReason d)
         : raw_position(r), mnemonic(m), deopt_reason(d) {}
 
-    bool operator==(const DeoptInfo& other) const {
-      return raw_position == other.raw_position &&
-             CStringEquals(mnemonic, other.mnemonic) &&
-             deopt_reason == other.deopt_reason;
-    }
-
-    bool operator!=(const DeoptInfo& other) const { return !(*this == other); }
-
     int raw_position;
     const char* mnemonic;
     DeoptReason deopt_reason;
@@ -214,8 +206,7 @@ class Deoptimizer : public Malloced {
 
     bool IsEquivalentTo(const JumpTableEntry& other) const {
       return address == other.address && bailout_type == other.bailout_type &&
-             needs_frame == other.needs_frame &&
-             (!FLAG_trace_deopt || deopt_info == other.deopt_info);
+             needs_frame == other.needs_frame;
     }
 
     Label label;

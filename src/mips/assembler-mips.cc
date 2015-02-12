@@ -2355,7 +2355,7 @@ void Assembler::RecordComment(const char* msg) {
 
 
 void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
-  if (FLAG_trace_deopt) {
+  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);

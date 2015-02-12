@@ -1720,23 +1720,31 @@ TEST(DontStopOnFinishedProfileDelete) {
 
 
 static const char* collect_deopt_events_test_source =
-    "function opt_function(value) {\n"
-    "  return value / 10;\n"
+    "function opt_function(left, right) {\n"
+    "  var k = left / 10;\n"
+    "  var r = 10 / right;\n"
+    "  return k + r;"
     "}\n"
     "\n"
-    "function test(value) {\n"
-    "  return opt_function(value);\n"
+    "function test(left, right) {\n"
+    "  return opt_function(left, right);\n"
     "}\n"
     "\n"
     "startProfiling();\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "test(10, 10);\n"
     "\n"
     "%OptimizeFunctionOnNextCall(opt_function)\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(10);\n"
+    "test(10, 10);\n"
     "\n"
-    "for (var i = 0; i < 10; ++i) test(undefined);\n"
+    "test(undefined, 10);\n"
+    "\n"
+    "%OptimizeFunctionOnNextCall(opt_function)\n"
+    "\n"
+    "test(10, 10);\n"
+    "\n"
+    "test(10, 0);\n"
     "\n"
     "stopProfiling();\n"
     "\n";
@@ -1760,5 +1768,8 @@ TEST(CollectDeoptEvents) {
   const v8::CpuProfileNode* opt_function = GetSimpleBranch(
       env->GetIsolate(), profile->GetTopDownRoot(), branch, arraysize(branch));
   CHECK(opt_function);
+  const i::ProfileNode* iopt_function =
+      reinterpret_cast<const i::ProfileNode*>(opt_function);
+  CHECK_EQ(2, iopt_function->deopt_infos().length());
   iprofiler->DeleteProfile(iprofile);
 }
