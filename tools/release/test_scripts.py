@@ -915,10 +915,10 @@ Performance and stability improvements on all platforms."""
           change_log)
 
     expectations = [
-      Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
-      Cmd("git fetch origin +refs/branch-heads/*:refs/branch-heads/*", ""),
-      Cmd("git fetch origin +refs/pending/*:refs/pending/*", ""),
-      Cmd("git fetch origin +refs/pending-tags/*:refs/pending-tags/*", ""),
+      Cmd("git fetch origin "
+          "+refs/heads/*:refs/heads/* "
+          "+refs/pending/*:refs/pending/* "
+          "+refs/pending-tags/*:refs/pending-tags/*", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", ""),
       Cmd("git log -1 --format=\"%H %T\" push_hash", "push_hash tree_hash"),
@@ -943,12 +943,12 @@ Performance and stability improvements on all platforms."""
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git push origin "
-          "refs/heads/work-branch:refs/pending/branch-heads/3.22.5 "
-          "pending_hash:refs/pending-tags/branch-heads/3.22.5 "
-          "push_hash:refs/branch-heads/3.22.5", ""),
+          "refs/heads/work-branch:refs/pending/heads/3.22.5 "
+          "pending_hash:refs/pending-tags/heads/3.22.5 "
+          "push_hash:refs/heads/3.22.5", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
-          "\"Version 3.22.5\" branch-heads/3.22.5", "hsh_to_tag"),
+          "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
       Cmd("git push origin 3.22.5", ""),
       Cmd("git checkout -f origin/master", ""),

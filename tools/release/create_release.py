@@ -16,10 +16,12 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.Git("fetch origin +refs/heads/*:refs/heads/*")
-    self.Git("fetch origin +refs/branch-heads/*:refs/branch-heads/*")
-    self.Git("fetch origin +refs/pending/*:refs/pending/*")
-    self.Git("fetch origin +refs/pending-tags/*:refs/pending-tags/*")
+    fetchspecs = [
+      "+refs/heads/*:refs/heads/*",
+      "+refs/pending/*:refs/pending/*",
+      "+refs/pending-tags/*:refs/pending-tags/*",
+    ]
+    self.Git("fetch origin %s" % " ".join(fetchspecs))
     self.GitCheckout("origin/master")
     self.DeleteBranch("work-branch")
 
@@ -226,10 +228,10 @@ class PushBranch(Step):
 
   def RunStep(self):
     pushspecs = [
-      "refs/heads/work-branch:refs/pending/branch-heads/%s" % self["version"],
-      "%s:refs/pending-tags/branch-heads/%s" %
+      "refs/heads/work-branch:refs/pending/heads/%s" % self["version"],
+      "%s:refs/pending-tags/heads/%s" %
       (self["pending_hash"], self["version"]),
-      "%s:refs/branch-heads/%s" % (self["push_hash"], self["version"]),
+      "%s:refs/heads/%s" % (self["push_hash"], self["version"]),
     ]
     cmd = "push origin %s" % " ".join(pushspecs)
     if self._options.dry_run:
@@ -247,7 +249,7 @@ class TagRevision(Step):
              (self["commit_title"], self["version"]))
     else:
       self.vc.Tag(self["version"],
-                  "branch-heads/%s" % self["version"],
+                  "origin/%s" % self["version"],
                   self["commit_title"])
 
 
