@@ -1864,6 +1864,7 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
           TryPromoteObject(object, size)) {
         continue;
       }
+      heap()->set_promotion_failure(true);
 
       AllocationResult allocation = new_space->AllocateRaw(size);
       if (allocation.IsRetry()) {

@@ -144,7 +144,8 @@ Heap::Heap()
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
       gc_callbacks_depth_(0),
-      deserialization_complete_(false) {
+      deserialization_complete_(false),
+      promotion_failure_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -731,6 +732,7 @@ void Heap::GarbageCollectionEpilogue() {
   // Remember the last top pointer so that we can later find out
   // whether we allocated in new space since the last GC.
   new_space_top_after_last_gc_ = new_space()->top();
+  set_promotion_failure(false);
 }
 
 
@@ -1732,29 +1734,86 @@ void Heap::UpdateReferencesInExternalStringTable(
 
 
 void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
-  ProcessArrayBuffers(retainer);
+  ProcessArrayBuffers(retainer, false);
+  ProcessNewArrayBufferViews(retainer);
   ProcessNativeContexts(retainer);
   ProcessAllocationSites(retainer);
 }
 
 
 void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
-  ProcessArrayBuffers(retainer);
+  ProcessArrayBuffers(retainer, true);
+  ProcessNewArrayBufferViews(retainer);
   ProcessNativeContexts(retainer);
 }
 
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
-  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
+  Object* head =
+      VisitWeakList<Context>(this, native_contexts_list(), retainer, false);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
 
 
-void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer) {
-  Object* array_buffer_obj =
-      VisitWeakList<JSArrayBuffer>(this, array_buffers_list(), retainer);
+void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
+                               bool stop_after_young) {
+  Object* array_buffer_obj = VisitWeakList<JSArrayBuffer>(
+      this, array_buffers_list(), retainer, stop_after_young);
   set_array_buffers_list(array_buffer_obj);
+
+#ifdef DEBUG
+  // Verify invariant that young array buffers come before old array buffers
+  // in array buffers list if there was no promotion failure.
+  Object* undefined = undefined_value();
+  Object* next = array_buffers_list();
+  bool old_objects_recorded = false;
+  if (promotion_failure()) return;
+  while (next != undefined) {
+    if (!old_objects_recorded) {
+      old_objects_recorded = !InNewSpace(next);
+    }
+    DCHECK((InNewSpace(next) && !old_objects_recorded) || !InNewSpace(next));
+    next = JSArrayBuffer::cast(next)->weak_next();
+  }
+#endif
+}
+
+
+void Heap::ProcessNewArrayBufferViews(WeakObjectRetainer* retainer) {
+  // Retain the list of new space views.
+  Object* typed_array_obj = VisitWeakList<JSArrayBufferView>(
+      this, new_array_buffer_views_list_, retainer, false);
+  set_new_array_buffer_views_list(typed_array_obj);
+
+  // Some objects in the list may be in old space now. Find them
+  // and move them to the corresponding array buffer.
+  Object* undefined = undefined_value();
+  Object* previous = undefined;
+  Object* head = undefined;
+  Object* next;
+  for (Object* o = new_array_buffer_views_list(); o != undefined;) {
+    JSArrayBufferView* view = JSArrayBufferView::cast(o);
+    next = view->weak_next();
+    if (!InNewSpace(view)) {
+      if (previous != undefined) {
+        // We are in the middle of the list, skip the old space element.
+        JSArrayBufferView::cast(previous)->set_weak_next(next);
+      }
+      JSArrayBuffer* buffer = JSArrayBuffer::cast(view->buffer());
+      view->set_weak_next(buffer->weak_first_view());
+      buffer->set_weak_first_view(view);
+    } else {
+      // We found a valid new space view, remember it.
+      previous = view;
+      if (head == undefined) {
+        // We are at the list head.
+        head = view;
+      }
+    }
+    o = next;
+  }
+  set_new_array_buffer_views_list(head);
 }
 
 
@@ -1770,8 +1829,8 @@ void Heap::TearDownArrayBuffers() {
 
 
 void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
-  Object* allocation_site_obj =
-      VisitWeakList<AllocationSite>(this, allocation_sites_list(), retainer);
+  Object* allocation_site_obj = VisitWeakList<AllocationSite>(
+      this, allocation_sites_list(), retainer, false);
   set_allocation_sites_list(allocation_site_obj);
 }
 
@@ -2204,6 +2263,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       return;
     }
 
+    heap->set_promotion_failure(true);
     // If promotion failed, we try to copy the object to the other semi-space
     if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) return;
 
@@ -5538,6 +5598,7 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(undefined_value());
   set_array_buffers_list(undefined_value());
+  set_new_array_buffer_views_list(undefined_value());
   set_allocation_sites_list(undefined_value());
   weak_object_to_code_table_ = undefined_value();
   return true;

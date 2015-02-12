@@ -858,6 +858,13 @@ class Heap {
   void set_array_buffers_list(Object* object) { array_buffers_list_ = object; }
   Object* array_buffers_list() const { return array_buffers_list_; }
 
+  void set_new_array_buffer_views_list(Object* object) {
+    new_array_buffer_views_list_ = object;
+  }
+  Object* new_array_buffer_views_list() const {
+    return new_array_buffer_views_list_;
+  }
+
   void set_allocation_sites_list(Object* object) {
     allocation_sites_list_ = object;
   }
@@ -1458,6 +1465,11 @@ class Heap {
 
   bool deserialization_complete() const { return deserialization_complete_; }
 
+  bool promotion_failure() const { return promotion_failure_; }
+  void set_promotion_failure(bool promotion_failure) {
+    promotion_failure_ = promotion_failure;
+  }
+
  protected:
   // Methods made available to tests.
 
@@ -1623,13 +1635,18 @@ class Heap {
   bool inline_allocation_disabled_;
 
   // Weak list heads, threaded through the objects.
-  // List heads are initilized lazily and contain the undefined_value at start.
+  // List heads are initialized lazily and contain the undefined_value at start.
   Object* native_contexts_list_;
   Object* array_buffers_list_;
   Object* allocation_sites_list_;
 
+  // This is a global list of array buffer views in new space. When the views
+  // get promoted, they are removed form the list and added to the corresponding
+  // array buffer.
+  Object* new_array_buffer_views_list_;
+
   // WeakHashTable that maps objects embedded in optimized code to dependent
-  // code list. It is initilized lazily and contains the undefined_value at
+  // code list. It is initialized lazily and contains the undefined_value at
   // start.
   Object* weak_object_to_code_table_;
 
@@ -1965,7 +1982,8 @@ class Heap {
   void MarkCompactEpilogue();
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
-  void ProcessArrayBuffers(WeakObjectRetainer* retainer);
+  void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool stop_after_young);
+  void ProcessNewArrayBufferViews(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
 
   // Deopts all code that contains allocation instruction which are tenured or
@@ -2137,6 +2155,11 @@ class Heap {
   int gc_callbacks_depth_;
 
   bool deserialization_complete_;
+
+  // A promotion failure indicates that old space promotion failed during
+  // gc, i.e., some objects that should have gotten promoted had to stay in
+  // the new space (they were copied to the other semi-space).
+  bool promotion_failure_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;
