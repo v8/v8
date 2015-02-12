@@ -215,7 +215,7 @@ void CompilationInfo::CommitDependencies(Handle<Code> code) {
   if (!has_dependencies) return;
 
   AllowDeferredHandleDereference get_object_wrapper;
-  Handle<WeakCell> cell = Code::WeakCellFor(code);
+  WeakCell* cell = *Code::WeakCellFor(code);
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
     ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
     if (group_objects == NULL) continue;
@@ -223,9 +223,10 @@ void CompilationInfo::CommitDependencies(Handle<Code> code) {
     for (int j = 0; j < group_objects->length(); j++) {
       DependentCode::DependencyGroup group =
           static_cast<DependentCode::DependencyGroup>(i);
+      Foreign* info = *object_wrapper();
       DependentCode* dependent_code =
           DependentCode::ForObject(group_objects->at(j), group);
-      dependent_code->UpdateToFinishedCode(group, *object_wrapper(), *cell);
+      dependent_code->UpdateToFinishedCode(group, info, cell);
     }
     dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
@@ -241,9 +242,10 @@ void CompilationInfo::RollbackDependencies() {
     for (int j = 0; j < group_objects->length(); j++) {
       DependentCode::DependencyGroup group =
           static_cast<DependentCode::DependencyGroup>(i);
+      Foreign* info = *object_wrapper();
       DependentCode* dependent_code =
           DependentCode::ForObject(group_objects->at(j), group);
-      dependent_code->RemoveCompilationInfo(group, *object_wrapper());
+      dependent_code->RemoveCompilationInfo(group, info);
     }
     dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
