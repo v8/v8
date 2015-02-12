@@ -114,7 +114,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Binop(const Operator* op, Node* left, Node* right) {
     // JS binops also require context, effect, and control
-    return graph.NewNode(op, left, right, context(), start(), control());
+    if (OperatorProperties::HasFrameStateInput(op)) {
+      return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()), start(), control());
+    } else {
+      return graph.NewNode(op, left, right, context(), start(), control());
+    }
   }
 
   Node* Unop(const Operator* op, Node* input) {
