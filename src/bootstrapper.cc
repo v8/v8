@@ -1366,7 +1366,14 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
       isolate, source_code,
       factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index)),
       false);
-  return CompileNative(isolate, name, source_code);
+
+  // TODO(rossberg): The natives do not yet obey strong mode rules
+  // (for example, some macros use '==').
+  bool use_strong = FLAG_use_strong;
+  FLAG_use_strong = false;
+  bool result = CompileNative(isolate, name, source_code);
+  FLAG_use_strong = use_strong;
+  return result;
 }
 
 

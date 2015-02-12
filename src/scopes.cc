@@ -161,7 +161,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_uses_this_ = false;
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
-  // Inherit the strict mode from the parent scope.
+  // Inherit the language mode from the parent scope.
   language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
@@ -892,7 +892,9 @@ void Scope::Print(int n) {
   if (HasTrivialOuterContext()) {
     Indent(n1, "// scope has trivial outer context\n");
   }
-  if (is_strict(language_mode())) {
+  if (is_strong(language_mode())) {
+    Indent(n1, "// strong mode scope\n");
+  } else if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");

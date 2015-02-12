@@ -2440,6 +2440,7 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       Token::Value op = Next();
+      Scanner::Location op_location = scanner()->location();
       int pos = position();
       ExpressionT y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
 
@@ -2458,6 +2459,11 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE: cmp = Token::EQ; break;
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
+        }
+        if (cmp == Token::EQ && is_strong(language_mode())) {
+          ReportMessageAt(op_location, "strong_equal");
+          *ok = false;
+          return this->EmptyExpression();
         }
         x = factory()->NewCompareOperation(cmp, x, y, pos);
         if (cmp != op) {

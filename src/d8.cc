@@ -840,6 +840,10 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 
 void Shell::InstallUtilityScript(Isolate* isolate) {
   HandleScope scope(isolate);
+  // TODO(rossberg): Utility scripts do not yet obey strong mode rules.
+  bool use_strong = i::FLAG_use_strong;
+  i::FLAG_use_strong = false;
+
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
   v8::Local<v8::Context> utility_context =
@@ -889,6 +893,8 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 
   // Start the in-process debugger if requested.
   if (i::FLAG_debugger) v8::Debug::SetDebugEventListener(HandleDebugEvent);
+
+  i::FLAG_use_strong = use_strong;
 }
 #endif  // !V8_SHARED
 
