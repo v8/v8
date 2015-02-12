@@ -2736,7 +2736,6 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
-  int beg_pos = position();
   Expect(Token::SUPER, CHECK_OK);
 
   FunctionState* function_state = function_state_;
@@ -2760,7 +2759,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
     }
   }
 
-  ReportMessageAt(Scanner::Location(beg_pos, position()), "unexpected_super");
+  ReportMessageAt(scanner()->location(), "unexpected_super");
   *ok = false;
   return this->EmptyExpression();
 }
