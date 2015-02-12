@@ -423,6 +423,9 @@ template Object* VisitWeakList<JSArrayBuffer>(Heap* heap, Object* list,
                                               WeakObjectRetainer* retainer,
                                               bool stop_after_young);
 
+template Object* VisitWeakList<JSArrayBufferView>(Heap* heap, Object* list,
+                                                  WeakObjectRetainer* retainer,
+                                                  bool stop_after_young);
 
 template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
                                                WeakObjectRetainer* retainer,
