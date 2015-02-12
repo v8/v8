@@ -4,7 +4,7 @@
 
 #include "src/compiler/source-position.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-aux-data.h"
 
 namespace v8 {
 namespace internal {

@@ -494,7 +494,6 @@
         '../../src/compiler/machine-type.h',
         '../../src/compiler/move-optimizer.cc',
         '../../src/compiler/move-optimizer.h',
-        '../../src/compiler/node-aux-data-inl.h',
         '../../src/compiler/node-aux-data.h',
         '../../src/compiler/node-cache.cc',
         '../../src/compiler/node-cache.h',
