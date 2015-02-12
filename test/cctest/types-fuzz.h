@@ -28,6 +28,7 @@
 #ifndef V8_TEST_CCTEST_TYPES_H_
 #define V8_TEST_CCTEST_TYPES_H_
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -37,8 +38,8 @@ namespace internal {
 template<class Type, class TypeHandle, class Region>
 class Types {
  public:
-  Types(Region* region, Isolate* isolate)
-      : region_(region), rng_(isolate->random_number_generator()) {
+  Types(Region* region, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
+      : region_(region), rng_(rng) {
     #define DECLARE_TYPE(name, value) \
       name = Type::name(region);      \
       types.push_back(name);
@@ -132,6 +133,10 @@ class Types {
   #define DECLARE_TYPE(name, value) TypeHandle name;
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
+
+#define DECLARE_TYPE(name, value) TypeHandle Mask##name##ForTesting;
+  MASK_BITSET_TYPE_LIST(DECLARE_TYPE)
+#undef DECLARE_TYPE
   TypeHandle SignedSmall;
   TypeHandle UnsignedSmall;
 
@@ -212,9 +217,18 @@ class Types {
   TypeHandle Union(TypeHandle t1, TypeHandle t2) {
     return Type::Union(t1, t2, region_);
   }
+
   TypeHandle Intersect(TypeHandle t1, TypeHandle t2) {
     return Type::Intersect(t1, t2, region_);
   }
+
+  TypeHandle Representation(TypeHandle t) {
+    return Type::Representation(t, region_);
+  }
+
+  // TypeHandle Semantic(TypeHandle t) { return Intersect(t,
+  // MaskSemanticForTesting); }
+  TypeHandle Semantic(TypeHandle t) { return Type::Semantic(t, region_); }
 
   template<class Type2, class TypeHandle2>
   TypeHandle Convert(TypeHandle2 t) {

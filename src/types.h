@@ -430,8 +430,11 @@ class TypeImpl : public Config::Base {
     return Of(*value, region);
   }
 
-  // Predicates.
+  // Extraction of components.
+  static TypeHandle Representation(TypeHandle t, Region* region);
+  static TypeHandle Semantic(TypeHandle t, Region* region);
 
+  // Predicates.
   bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
 
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
@@ -563,12 +566,16 @@ class TypeImpl : public Config::Base {
   }
   UnionType* AsUnion() { return UnionType::cast(this); }
 
+  bitset Representation();
+
   // Auxiliary functions.
+  bool SemanticMaybe(TypeImpl* that);
 
   bitset BitsetGlb() { return BitsetType::Glb(this); }
   bitset BitsetLub() { return BitsetType::Lub(this); }
 
   bool SlowIs(TypeImpl* that);
+  bool SemanticIs(TypeImpl* that);
 
   static bool IsInteger(double x) {
     return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
@@ -580,16 +587,9 @@ class TypeImpl : public Config::Base {
   struct Limits {
     double min;
     double max;
-    bitset representation;
-    Limits(double min, double max, bitset representation)
-        : min(min), max(max), representation(representation) {}
-    explicit Limits(RangeType* range)
-        : min(range->Min()),
-          max(range->Max()),
-          representation(REPRESENTATION(range->Bound())) {}
-    static Limits Empty(Region* region) {
-      return Limits(1, 0, BitsetType::kNone);
-    }
+    Limits(double min, double max) : min(min), max(max) {}
+    explicit Limits(RangeType* range) : min(range->Min()), max(range->Max()) {}
+    static Limits Empty(Region* region) { return Limits(1, 0); }
   };
 
   static bool IsEmpty(Limits lim);
@@ -649,11 +649,13 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
     if (FLAG_enable_slow_asserts) CheckNumberBits(bits);
     return Config::from_bitset(bits, region);
   }
-  // TODO(neis): Eventually allow again for types with empty semantics
-  // part and modify intersection and possibly subtyping accordingly.
 
   static bool IsInhabited(bitset bits) {
-    return bits & kSemantic;
+    return SEMANTIC(bits) != kNone && REPRESENTATION(bits) != kNone;
+  }
+
+  static bool SemanticIsInhabited(bitset bits) {
+    return SEMANTIC(bits) != kNone;
   }
 
   static bool Is(bitset bits1, bitset bits2) {
@@ -855,8 +857,8 @@ class TypeImpl<Config>::RangeType : public TypeImpl<Config> {
     return Config::template cast<RangeType>(Config::from_range(range));
   }
 
-  static RangeHandle New(Limits lim, Region* region) {
-    return New(lim.min, lim.max, BitsetType::New(lim.representation, region),
+  static RangeHandle New(Limits lim, bitset representation, Region* region) {
+    return New(lim.min, lim.max, BitsetType::New(representation, region),
                region);
   }
 
@@ -866,7 +868,6 @@ class TypeImpl<Config>::RangeType : public TypeImpl<Config> {
   }
 };
 // TODO(neis): Also cache min and max values.
-// TODO(neis): Allow restricting the representation.
 
 
 // -----------------------------------------------------------------------------

@@ -73,6 +73,7 @@
         'compiler/scheduler-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
+        'compiler/typer-unittest.cc',
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',
         'libplatform/default-platform-unittest.cc',

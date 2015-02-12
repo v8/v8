@@ -1,4 +1,4 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,27 +7,22 @@
 #include "src/codegen.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/typer.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/types-fuzz.h"
+#include "test/unittests/compiler/graph-unittest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 
 // TODO(titzer): generate a large set of deterministic inputs for these tests.
-class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
+class TyperTest : public TypedGraphTest {
  public:
-  TyperTester()
-      : GraphAndBuilders(main_zone()),
-        types_(main_zone(), isolate()),
-        typer_(isolate(), graph(), MaybeHandle<Context>()),
-        javascript_(main_zone()) {
-    Node* s = graph()->NewNode(common()->Start(3));
-    graph()->SetStart(s);
+  TyperTest()
+      : TypedGraphTest(3),
+        types_(zone(), isolate(), random_number_generator()),
+        javascript_(zone()) {
     context_node_ = graph()->NewNode(common()->Parameter(2), graph()->start());
-    rng_ = isolate()->random_number_generator();
+    rng_ = random_number_generator();
 
     integers.push_back(0);
     integers.push_back(0);
@@ -54,28 +49,19 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   Types<Type, Type*, Zone> types_;
-  Typer typer_;
   JSOperatorBuilder javascript_;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
   std::vector<double> int32s;
 
-  Isolate* isolate() { return main_isolate(); }
-  Graph* graph() { return main_graph_; }
-  CommonOperatorBuilder* common() { return &main_common_; }
-
-  Node* Parameter(int index = 0) {
-    return graph()->NewNode(common()->Parameter(index), graph()->start());
-  }
-
   Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
     NodeProperties::SetBounds(p0, Bounds(lhs));
     NodeProperties::SetBounds(p1, Bounds(rhs));
-    Node* n = graph()->NewNode(
-        op, p0, p1, context_node_, graph()->start(), graph()->start());
+    Node* n = graph()->NewNode(op, p0, p1, context_node_, graph()->start(),
+                               graph()->start());
     return NodeProperties::GetBounds(n).upper;
   }
 
@@ -88,14 +74,17 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
 
   Type* NewRange(double i, double j) {
     if (i > j) std::swap(i, j);
-    return Type::Range(i, j, main_zone());
+    return Type::Range(i, j, zone());
   }
 
   double RandomInt(double min, double max) {
     switch (rng_->NextInt(4)) {
-      case 0: return min;
-      case 1: return max;
-      default: break;
+      case 0:
+        return min;
+      case 1:
+        return max;
+      default:
+        break;
     }
     if (min == +V8_INFINITY) return +V8_INFINITY;
     if (max == -V8_INFINITY) return -V8_INFINITY;
@@ -130,8 +119,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
               Type* result_type = Type::Constant(
-                  isolate()->factory()->NewNumber(result_value), main_zone());
-              CHECK(result_type->Is(expected_type));
+                  isolate()->factory()->NewNumber(result_value), zone());
+              EXPECT_TRUE(result_type->Is(expected_type));
             }
           }
         }
@@ -151,8 +140,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
         double x2 = RandomInt(r2);
         double result_value = opfun(x1, x2);
         Type* result_type = Type::Constant(
-            isolate()->factory()->NewNumber(result_value), main_zone());
-        CHECK(result_type->Is(expected_type));
+            isolate()->factory()->NewNumber(result_value), zone());
+        EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
   }
@@ -170,8 +159,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
         Type* result_type =
             Type::Constant(result_value ? isolate()->factory()->true_value()
                                         : isolate()->factory()->false_value(),
-                           main_zone());
-        CHECK(result_type->Is(expected_type));
+                           zone());
+        EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
   }
@@ -187,8 +176,8 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
         int32_t x2 = static_cast<int32_t>(RandomInt(r2));
         double result_value = opfun(x1, x2);
         Type* result_type = Type::Constant(
-            isolate()->factory()->NewNumber(result_value), main_zone());
-        CHECK(result_type->Is(expected_type));
+            isolate()->factory()->NewNumber(result_value), zone());
+        EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
   }
@@ -206,20 +195,26 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
       Type* type1 = types_.Fuzz();
       Type* type2 = types_.Fuzz();
       Type* type = TypeBinaryOp(op, type1, type2);
-      Type* subtype1 = RandomSubtype(type1);;
-      Type* subtype2 = RandomSubtype(type2);;
+      Type* subtype1 = RandomSubtype(type1);
+      ;
+      Type* subtype2 = RandomSubtype(type2);
+      ;
       Type* subtype = TypeBinaryOp(op, subtype1, subtype2);
-      CHECK(subtype->Is(type));
+      EXPECT_TRUE(subtype->Is(type));
     }
   }
 };
 
 
-static int32_t shift_left(int32_t x, int32_t y) { return x << y; }
-static int32_t shift_right(int32_t x, int32_t y) { return x >> y; }
-static int32_t bit_or(int32_t x, int32_t y) { return x | y; }
-static int32_t bit_and(int32_t x, int32_t y) { return x & y; }
-static int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+namespace {
+
+int32_t shift_left(int32_t x, int32_t y) { return x << y; }
+int32_t shift_right(int32_t x, int32_t y) { return x >> y; }
+int32_t bit_or(int32_t x, int32_t y) { return x | y; }
+int32_t bit_and(int32_t x, int32_t y) { return x & y; }
+int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+
+}  // namespace
 
 
 //------------------------------------------------------------------------------
@@ -229,115 +224,96 @@ static int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 //   to ranges as input types.
 
 
-TEST(TypeJSAdd) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Add(), std::plus<double>());
+TEST_F(TyperTest, TypeJSAdd) {
+  TestBinaryArithOp(javascript_.Add(), std::plus<double>());
 }
 
 
-TEST(TypeJSSubtract) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Subtract(), std::minus<double>());
+TEST_F(TyperTest, TypeJSSubtract) {
+  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
 }
 
 
-TEST(TypeJSMultiply) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Multiply(), std::multiplies<double>());
+TEST_F(TyperTest, TypeJSMultiply) {
+  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
 }
 
 
-TEST(TypeJSDivide) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Divide(), std::divides<double>());
+TEST_F(TyperTest, TypeJSDivide) {
+  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
 }
 
 
-TEST(TypeJSModulus) {
-  TyperTester t;
-  t.TestBinaryArithOp(t.javascript_.Modulus(), modulo);
+TEST_F(TyperTest, TypeJSModulus) {
+  TestBinaryArithOp(javascript_.Modulus(), modulo);
 }
 
 
-TEST(TypeJSBitwiseOr) {
-  TyperTester t;
-  t.TestBinaryBitOp(t.javascript_.BitwiseOr(), bit_or);
+TEST_F(TyperTest, TypeJSBitwiseOr) {
+  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
 }
 
 
-TEST(TypeJSBitwiseAnd) {
-  TyperTester t;
-  t.TestBinaryBitOp(t.javascript_.BitwiseAnd(), bit_and);
+TEST_F(TyperTest, TypeJSBitwiseAnd) {
+  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
 }
 
 
-TEST(TypeJSBitwiseXor) {
-  TyperTester t;
-  t.TestBinaryBitOp(t.javascript_.BitwiseXor(), bit_xor);
+TEST_F(TyperTest, TypeJSBitwiseXor) {
+  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
 }
 
 
-TEST(TypeJSShiftLeft) {
-  TyperTester t;
-  t.TestBinaryBitOp(t.javascript_.ShiftLeft(), shift_left);
+TEST_F(TyperTest, TypeJSShiftLeft) {
+  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
 }
 
 
-TEST(TypeJSShiftRight) {
-  TyperTester t;
-  t.TestBinaryBitOp(t.javascript_.ShiftRight(), shift_right);
+TEST_F(TyperTest, TypeJSShiftRight) {
+  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
 }
 
 
-TEST(TypeJSLessThan) {
-  TyperTester t;
-  t.TestBinaryCompareOp(t.javascript_.LessThan(), std::less<double>());
+TEST_F(TyperTest, TypeJSLessThan) {
+  TestBinaryCompareOp(javascript_.LessThan(), std::less<double>());
 }
 
 
-TEST(TypeJSLessThanOrEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(
-      t.javascript_.LessThanOrEqual(), std::less_equal<double>());
+TEST_F(TyperTest, TypeJSLessThanOrEqual) {
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(), std::less_equal<double>());
 }
 
 
-TEST(TypeJSGreaterThan) {
-  TyperTester t;
-  t.TestBinaryCompareOp(t.javascript_.GreaterThan(), std::greater<double>());
+TEST_F(TyperTest, TypeJSGreaterThan) {
+  TestBinaryCompareOp(javascript_.GreaterThan(), std::greater<double>());
 }
 
 
-TEST(TypeJSGreaterThanOrEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(
-      t.javascript_.GreaterThanOrEqual(), std::greater_equal<double>());
+TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
+  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(),
+                      std::greater_equal<double>());
 }
 
 
-TEST(TypeJSEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(t.javascript_.Equal(), std::equal_to<double>());
+TEST_F(TyperTest, TypeJSEqual) {
+  TestBinaryCompareOp(javascript_.Equal(), std::equal_to<double>());
 }
 
 
-TEST(TypeJSNotEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(t.javascript_.NotEqual(), std::not_equal_to<double>());
+TEST_F(TyperTest, TypeJSNotEqual) {
+  TestBinaryCompareOp(javascript_.NotEqual(), std::not_equal_to<double>());
 }
 
 
 // For numbers there's no difference between strict and non-strict equality.
-TEST(TypeJSStrictEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(t.javascript_.StrictEqual(), std::equal_to<double>());
+TEST_F(TyperTest, TypeJSStrictEqual) {
+  TestBinaryCompareOp(javascript_.StrictEqual(), std::equal_to<double>());
 }
 
 
-TEST(TypeJSStrictNotEqual) {
-  TyperTester t;
-  t.TestBinaryCompareOp(
-      t.javascript_.StrictNotEqual(), std::not_equal_to<double>());
+TEST_F(TyperTest, TypeJSStrictNotEqual) {
+  TestBinaryCompareOp(javascript_.StrictNotEqual(),
+                      std::not_equal_to<double>());
 }
 
 
@@ -347,31 +323,44 @@ TEST(TypeJSStrictNotEqual) {
 
 // List should be in sync with JS_SIMPLE_BINOP_LIST.
 #define JSBINOP_LIST(V) \
-  V(Equal) \
-  V(NotEqual) \
-  V(StrictEqual) \
-  V(StrictNotEqual) \
-  V(LessThan) \
-  V(GreaterThan) \
-  V(LessThanOrEqual) \
+  V(Equal)              \
+  V(NotEqual)           \
+  V(StrictEqual)        \
+  V(StrictNotEqual)     \
+  V(LessThan)           \
+  V(GreaterThan)        \
+  V(LessThanOrEqual)    \
   V(GreaterThanOrEqual) \
-  V(BitwiseOr) \
-  V(BitwiseXor) \
-  V(BitwiseAnd) \
-  V(ShiftLeft) \
-  V(ShiftRight) \
-  V(ShiftRightLogical) \
-  V(Add) \
-  V(Subtract) \
-  V(Multiply) \
-  V(Divide) \
+  V(BitwiseOr)          \
+  V(BitwiseXor)         \
+  V(BitwiseAnd)         \
+  V(ShiftLeft)          \
+  V(ShiftRight)         \
+  V(ShiftRightLogical)  \
+  V(Add)                \
+  V(Subtract)           \
+  V(Multiply)           \
+  V(Divide)             \
   V(Modulus)
 
 
-#define TEST_FUNC(name)                             \
-  TEST(Monotonicity_##name) {                       \
-    TyperTester t;                                  \
-    t.TestBinaryMonotonicity(t.javascript_.name()); \
+#define TEST_FUNC(name)                         \
+  TEST_F(TyperTest, Monotonicity_##name) {      \
+    TestBinaryMonotonicity(javascript_.name()); \
   }
 JSBINOP_LIST(TEST_FUNC)
 #undef TEST_FUNC
+
+
+//------------------------------------------------------------------------------
+// Regression tests
+
+
+TEST_F(TyperTest, TypeRegressInt32Constant) {
+  int values[] = {-5, 10};
+  for (auto i : values) {
+    Node* c = graph()->NewNode(common()->Int32Constant(i));
+    Type* type = NodeProperties::GetBounds(c).upper;
+    EXPECT_TRUE(type->Is(NewRange(i, i)));
+  }
+}

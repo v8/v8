@@ -28,7 +28,6 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
   Limits result(lhs);
   if (lhs.min < rhs.min) result.min = rhs.min;
   if (lhs.max > rhs.max) result.max = rhs.max;
-  result.representation = lhs.representation & rhs.representation;
   return result;
 }
 
@@ -43,10 +42,11 @@ template <class Config>
 typename TypeImpl<Config>::Limits TypeImpl<Config>::Union(Limits lhs,
                                                           Limits rhs) {
   DisallowHeapAllocation no_allocation;
+  if (IsEmpty(lhs)) return rhs;
+  if (IsEmpty(rhs)) return lhs;
   Limits result(lhs);
   if (lhs.min > rhs.min) result.min = rhs.min;
   if (lhs.max < rhs.max) result.max = rhs.max;
-  result.representation = lhs.representation | rhs.representation;
   return result;
 }
 
@@ -66,8 +66,7 @@ bool TypeImpl<Config>::Contains(
     typename TypeImpl<Config>::RangeType* lhs,
     typename TypeImpl<Config>::RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
-  return BitsetType::Is(rhs->Bound(), lhs->Bound()) &&
-         lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
+  return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
 
@@ -76,7 +75,6 @@ bool TypeImpl<Config>::Contains(typename TypeImpl<Config>::RangeType* lhs,
                                 typename TypeImpl<Config>::ConstantType* rhs) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(*rhs->Value()) &&
-         BitsetType::Is(rhs->Bound()->AsBitset(), lhs->Bound()) &&
          lhs->Min() <= rhs->Value()->Number() &&
          rhs->Value()->Number() <= lhs->Max();
 }
@@ -87,7 +85,6 @@ bool TypeImpl<Config>::Contains(
     typename TypeImpl<Config>::RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(val) &&
-         BitsetType::Is(BitsetType::Lub(val), range->Bound()) &&
          range->Min() <= val->Number() && val->Number() <= range->Max();
 }
 
@@ -97,7 +94,7 @@ bool TypeImpl<Config>::Contains(
 
 template<class Config>
 double TypeImpl<Config>::Min() {
-  DCHECK(this->Is(Number()));
+  DCHECK(this->SemanticIs(Number()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
@@ -115,7 +112,7 @@ double TypeImpl<Config>::Min() {
 
 template<class Config>
 double TypeImpl<Config>::Max() {
-  DCHECK(this->Is(Number()));
+  DCHECK(this->SemanticIs(Number()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
@@ -140,23 +137,19 @@ template<class Config>
 typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
   DisallowHeapAllocation no_allocation;
+  // Fast case.
   if (type->IsBitset()) {
     return type->AsBitset();
   } else if (type->IsUnion()) {
     SLOW_DCHECK(type->AsUnion()->Wellformed());
     return type->AsUnion()->Get(0)->BitsetGlb() |
-           type->AsUnion()->Get(1)->BitsetGlb();  // Shortcut.
+           SEMANTIC(type->AsUnion()->Get(1)->BitsetGlb());  // Shortcut.
   } else if (type->IsRange()) {
     bitset glb = SEMANTIC(
         BitsetType::Glb(type->AsRange()->Min(), type->AsRange()->Max()));
-    if (glb == 0) {
-      return kNone;
-    } else {
-      return glb | REPRESENTATION(type->BitsetLub());
-    }
+    return glb | REPRESENTATION(type->BitsetLub());
   } else {
-    // (The remaining BitsetGlb's are None anyway).
-    return kNone;
+    return type->Representation();
   }
 }
 
@@ -168,9 +161,12 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   DisallowHeapAllocation no_allocation;
   if (type->IsBitset()) return type->AsBitset();
   if (type->IsUnion()) {
-    int bitset = kNone;
+    // Take the representation from the first element, which is always
+    // a bitset.
+    int bitset = type->AsUnion()->Get(0)->BitsetLub();
     for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
-      bitset |= type->AsUnion()->Get(i)->BitsetLub();
+      // Other elements only contribute their semantic part.
+      bitset |= SEMANTIC(type->AsUnion()->Get(i)->BitsetLub());
     }
     return bitset;
   }
@@ -407,7 +403,7 @@ typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::Glb(
 template <class Config>
 double TypeImpl<Config>::BitsetType::Min(bitset bits) {
   DisallowHeapAllocation no_allocation;
-  DCHECK(Is(bits, kNumber));
+  DCHECK(Is(SEMANTIC(bits), kNumber));
   const Boundary* mins = Boundaries();
   bool mz = SEMANTIC(bits & kMinusZero);
   for (size_t i = 0; i < BoundariesSize(); ++i) {
@@ -423,7 +419,7 @@ double TypeImpl<Config>::BitsetType::Min(bitset bits) {
 template<class Config>
 double TypeImpl<Config>::BitsetType::Max(bitset bits) {
   DisallowHeapAllocation no_allocation;
-  DCHECK(Is(bits, kNumber));
+  DCHECK(Is(SEMANTIC(bits), kNumber));
   const Boundary* mins = Boundaries();
   bool mz = SEMANTIC(bits & kMinusZero);
   if (BitsetType::Is(SEMANTIC(mins[BoundariesSize() - 1].bits), bits)) {
@@ -482,22 +478,55 @@ bool TypeImpl<Config>::SimplyEquals(TypeImpl* that) {
 }
 
 
+template <class Config>
+typename TypeImpl<Config>::bitset TypeImpl<Config>::Representation() {
+  return REPRESENTATION(this->BitsetLub());
+}
+
+
 // Check if [this] <= [that].
 template<class Config>
 bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
   DisallowHeapAllocation no_allocation;
 
+  // Fast bitset cases
   if (that->IsBitset()) {
     return BitsetType::Is(this->BitsetLub(), that->AsBitset());
   }
+
   if (this->IsBitset()) {
     return BitsetType::Is(this->AsBitset(), that->BitsetGlb());
+  }
+
+  // Check the representations.
+  if (!BitsetType::Is(Representation(), that->Representation())) {
+    return false;
+  }
+
+  // Check the semantic part.
+  return SemanticIs(that);
+}
+
+
+// Check if SEMANTIC([this]) <= SEMANTIC([that]). The result of the method
+// should be independent of the representation axis of the types.
+template <class Config>
+bool TypeImpl<Config>::SemanticIs(TypeImpl* that) {
+  DisallowHeapAllocation no_allocation;
+
+  if (this == that) return true;
+
+  if (that->IsBitset()) {
+    return BitsetType::Is(SEMANTIC(this->BitsetLub()), that->AsBitset());
+  }
+  if (this->IsBitset()) {
+    return BitsetType::Is(SEMANTIC(this->AsBitset()), that->BitsetGlb());
   }
 
   // (T1 \/ ... \/ Tn) <= T  if  (T1 <= T) /\ ... /\ (Tn <= T)
   if (this->IsUnion()) {
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (!this->AsUnion()->Get(i)->Is(that)) return false;
+      if (!this->AsUnion()->Get(i)->SemanticIs(that)) return false;
     }
     return true;
   }
@@ -505,7 +534,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
   // T <= (T1 \/ ... \/ Tn)  if  (T <= T1) \/ ... \/ (T <= Tn)
   if (that->IsUnion()) {
     for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
-      if (this->Is(that->AsUnion()->Get(i))) return true;
+      if (this->SemanticIs(that->AsUnion()->Get(i)->unhandle())) return true;
       if (i > 1 && this->IsRange()) return false;  // Shortcut.
     }
     return false;
@@ -558,10 +587,22 @@ template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   DisallowHeapAllocation no_allocation;
 
+  // Take care of the representation part (and also approximate
+  // the semantic part).
+  if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
+    return false;
+
+  return SemanticMaybe(that);
+}
+
+template <class Config>
+bool TypeImpl<Config>::SemanticMaybe(TypeImpl* that) {
+  DisallowHeapAllocation no_allocation;
+
   // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (this->AsUnion()->Get(i)->Maybe(that)) return true;
+      if (this->AsUnion()->Get(i)->SemanticMaybe(that)) return true;
     }
     return false;
   }
@@ -569,12 +610,12 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   // T overlaps (T1 \/ ... \/ Tn)  if  (T overlaps T1) \/ ... \/ (T overlaps Tn)
   if (that->IsUnion()) {
     for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
-      if (this->Maybe(that->AsUnion()->Get(i))) return true;
+      if (this->SemanticMaybe(that->AsUnion()->Get(i)->unhandle())) return true;
     }
     return false;
   }
 
-  if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
+  if (!BitsetType::SemanticIsInhabited(this->BitsetLub() & that->BitsetLub()))
     return false;
 
   if (this->IsBitset() && that->IsBitset()) return true;
@@ -599,7 +640,7 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
     }
   }
   if (that->IsRange()) {
-    return that->Maybe(this);  // This case is handled above.
+    return that->SemanticMaybe(this);  // This case is handled above.
   }
 
   if (this->IsBitset() || that->IsBitset()) return true;
@@ -639,28 +680,27 @@ bool TypeImpl<Config>::UnionType::Wellformed() {
   DisallowHeapAllocation no_allocation;
   // This checks the invariants of the union representation:
   // 1. There are at least two elements.
-  // 2. At most one element is a bitset, and it must be the first one.
-  // 3. At most one element is a range, and it must be the second one
-  //    (even when the first element is not a bitset).
+  // 2. The first element is a bitset, no other element is a bitset.
+  // 3. At most one element is a range, and it must be the second one.
   // 4. No element is itself a union.
-  // 5. No element is a subtype of any other.
+  // 5. No element (except the bitset) is a subtype of any other.
   // 6. If there is a range, then the bitset type does not contain
   //    plain number bits.
   DCHECK(this->Length() >= 2);  // (1)
-
-  bitset number_bits = this->Get(0)->IsBitset()
-      ? BitsetType::NumberBits(this->Get(0)->AsBitset()) : 0;
-  USE(number_bits);
+  DCHECK(this->Get(0)->IsBitset());  // (2a)
 
   for (int i = 0; i < this->Length(); ++i) {
-    if (i != 0) DCHECK(!this->Get(i)->IsBitset());  // (2)
+    if (i != 0) DCHECK(!this->Get(i)->IsBitset());  // (2b)
     if (i != 1) DCHECK(!this->Get(i)->IsRange());   // (3)
     DCHECK(!this->Get(i)->IsUnion());               // (4)
     for (int j = 0; j < this->Length(); ++j) {
-      if (i != j) DCHECK(!this->Get(i)->Is(this->Get(j)));  // (5)
+      if (i != j && i != 0)
+        DCHECK(!this->Get(i)->SemanticIs(this->Get(j)->unhandle()));  // (5)
     }
   }
-  DCHECK(!this->Get(1)->IsRange() || (number_bits == 0));  // (6)
+  DCHECK(!this->Get(1)->IsRange() ||
+         (BitsetType::NumberBits(this->Get(0)->AsBitset()) ==
+          BitsetType::kNone));  // (6)
   return true;
 }
 
@@ -679,12 +719,10 @@ static bool AddIsSafe(int x, int y) {
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
     TypeHandle type1, TypeHandle type2, Region* region) {
-  bitset bits = type1->BitsetGlb() & type2->BitsetGlb();
-  if (!BitsetType::IsInhabited(bits)) bits = BitsetType::kNone;
 
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
-    return BitsetType::New(bits, region);
+    return BitsetType::New(type1->AsBitset() & type2->AsBitset(), region);
   }
 
   // Fast case: top or bottom types.
@@ -696,6 +734,26 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   if (type2->Is(type1)) return type2;
 
   // Slow case: create union.
+
+  // Figure out the representation of the result first.
+  // The rest of the method should not change this representation and
+  // it should not make any decisions based on representations (i.e.,
+  // it should only use the semantic part of types).
+  const bitset representation =
+      type1->Representation() & type2->Representation();
+
+  // Semantic subtyping check - this is needed for consistency with the
+  // semi-fast case above - we should behave the same way regardless of
+  // representations. Intersection with a universal bitset should only update
+  // the representations.
+  if (type1->SemanticIs(type2->unhandle())) {
+    type2 = Any(region);
+  } else if (type2->SemanticIs(type1->unhandle())) {
+    type1 = Any(region);
+  }
+
+  bitset bits =
+      SEMANTIC(type1->BitsetGlb() & type2->BitsetGlb()) | representation;
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
   if (!AddIsSafe(size1, size2)) return Any(region);
@@ -707,8 +765,6 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
 
   // Deal with bitsets.
   result->Set(size++, BitsetType::New(bits, region));
-  // Insert a placeholder for the range.
-  result->Set(size++, None(region));
 
   Limits lims = Limits::Empty(region);
   size = IntersectAux(type1, type2, result, size, &lims, region);
@@ -716,14 +772,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   // If the range is not empty, then insert it into the union and
   // remove the number bits from the bitset.
   if (!IsEmpty(lims)) {
-    size = UpdateRange(RangeType::New(lims, region), result, size, region);
+    size = UpdateRange(RangeType::New(lims, representation, region), result,
+                       size, region);
 
     // Remove the number bits.
     bitset number_bits = BitsetType::NumberBits(bits);
     bits &= ~number_bits;
-    if (SEMANTIC(bits) == BitsetType::kNone) {
-      bits = BitsetType::kNone;
-    }
     result->Set(0, BitsetType::New(bits, region));
   }
   return NormalizeUnion(result, size);
@@ -733,18 +787,17 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
 template<class Config>
 int TypeImpl<Config>::UpdateRange(
     RangeHandle range, UnionHandle result, int size, Region* region) {
-  TypeHandle old_range = result->Get(1);
-  DCHECK(old_range->IsRange() || old_range->IsNone());
-  if (range->Is(old_range)) return size;
-  if (!old_range->Is(range->unhandle())) {
-    range = RangeType::New(
-        Union(Limits(range->AsRange()), Limits(old_range->AsRange())), region);
+  if (size == 1) {
+    result->Set(size++, range);
+  } else {
+    // Make space for the range.
+    result->Set(size++, result->Get(1));
+    result->Set(1, range);
   }
-  result->Set(1, range);
 
   // Remove any components that just got subsumed.
   for (int i = 2; i < size; ) {
-    if (result->Get(i)->Is(range->unhandle())) {
+    if (result->Get(i)->SemanticIs(range->unhandle())) {
       result->Set(i, result->Get(--size));
     } else {
       ++i;
@@ -757,15 +810,13 @@ int TypeImpl<Config>::UpdateRange(
 template <class Config>
 typename TypeImpl<Config>::Limits TypeImpl<Config>::ToLimits(bitset bits,
                                                              Region* region) {
-  bitset representation = REPRESENTATION(bits);
   bitset number_bits = BitsetType::NumberBits(bits);
 
-  if (representation == BitsetType::kNone && number_bits == BitsetType::kNone) {
+  if (number_bits == BitsetType::kNone) {
     return Limits::Empty(region);
   }
 
-  return Limits(BitsetType::Min(number_bits), BitsetType::Max(number_bits),
-                representation);
+  return Limits(BitsetType::Min(number_bits), BitsetType::Max(number_bits));
 }
 
 
@@ -797,7 +848,7 @@ int TypeImpl<Config>::IntersectAux(TypeHandle lhs, TypeHandle rhs,
     return size;
   }
 
-  if (!BitsetType::IsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
+  if (!BitsetType::SemanticIsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
     return size;
   }
 
@@ -857,9 +908,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
 
   // If the range is contained within the bitset, return an empty range
   // (but make sure we take the representation).
-  bitset range_lub = range->BitsetLub();
+  bitset range_lub = SEMANTIC(range->BitsetLub());
   if (BitsetType::Is(BitsetType::NumberBits(range_lub), *bits)) {
-    *bits |= range_lub;
     return None(region);
   }
 
@@ -870,19 +920,10 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
   double range_min = range->Min();
   double range_max = range->Max();
 
-  bitset range_representation = REPRESENTATION(range->BitsetLub());
-  bitset bits_representation = REPRESENTATION(*bits);
-  bitset representation =
-      (bits_representation | range_representation) & BitsetType::kNumber;
-
   // Remove the number bits from the bitset, they would just confuse us now.
   *bits &= ~number_bits;
-  if (bits_representation == *bits) {
-    *bits = BitsetType::kNone;
-  }
 
-  if (representation == range_representation && range_min <= bitset_min &&
-      range_max >= bitset_max) {
+  if (range_min <= bitset_min && range_max >= bitset_max) {
     // Bitset is contained within the range, just return the range.
     return range;
   }
@@ -894,14 +935,13 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
     range_max = bitset_max;
   }
   return RangeType::New(range_min, range_max,
-                        BitsetType::New(representation, region), region);
+                        BitsetType::New(BitsetType::kNone, region), region);
 }
 
 
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
     TypeHandle type1, TypeHandle type2, Region* region) {
-
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
     return BitsetType::New(type1->AsBitset() | type2->AsBitset(), region);
@@ -915,6 +955,13 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   if (type1->Is(type2)) return type2;
   if (type2->Is(type1)) return type1;
 
+  // Figure out the representation of the result.
+  // The rest of the method should not change this representation and
+  // it should make any decisions based on representations (i.e.,
+  // it should only use the semantic part of types).
+  const bitset representation =
+      type1->Representation() | type2->Representation();
+
   // Slow case: create union.
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
@@ -926,7 +973,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   size = 0;
 
   // Compute the new bitset.
-  bitset new_bitset = type1->BitsetGlb() | type2->BitsetGlb();
+  bitset new_bitset = SEMANTIC(type1->BitsetGlb() | type2->BitsetGlb());
 
   // Deal with ranges.
   TypeHandle range = None(region);
@@ -934,16 +981,17 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   RangeType* range2 = type2->GetRange();
   if (range1 != NULL && range2 != NULL) {
     Limits lims = Union(Limits(range1), Limits(range2));
-    RangeHandle union_range = RangeType::New(lims, region);
+    RangeHandle union_range = RangeType::New(lims, representation, region);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, region);
   } else if (range1 != NULL) {
     range = NormalizeRangeAndBitset(handle(range1), &new_bitset, region);
   } else if (range2 != NULL) {
     range = NormalizeRangeAndBitset(handle(range2), &new_bitset, region);
   }
+  new_bitset = SEMANTIC(new_bitset) | representation;
   TypeHandle bits = BitsetType::New(new_bitset, region);
   result->Set(size++, bits);
-  result->Set(size++, range);
+  if (!range->IsNone()) result->Set(size++, range);
 
   size = AddToUnion(type1, result, size, region);
   size = AddToUnion(type2, result, size, region);
@@ -964,7 +1012,7 @@ int TypeImpl<Config>::AddToUnion(
     return size;
   }
   for (int i = 0; i < size; ++i) {
-    if (type->Is(result->Get(i))) return size;
+    if (type->SemanticIs(result->Get(i)->unhandle())) return size;
   }
   result->Set(size++, type);
   return size;
@@ -974,19 +1022,44 @@ int TypeImpl<Config>::AddToUnion(
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeUnion(
     UnionHandle unioned, int size) {
-  DCHECK(size >= 2);
-  // If range is subsumed by bitset, use its place for a different type.
-  if (unioned->Get(1)->Is(unioned->Get(0))) {
-    unioned->Set(1, unioned->Get(--size));
+  DCHECK(size >= 1);
+  DCHECK(unioned->Get(0)->IsBitset());
+  // If the union has just one element, return it.
+  if (size == 1) {
+    return unioned->Get(0);
   }
-  // If bitset is None, use its place for a different type.
-  if (size >= 2 && unioned->Get(0)->IsNone()) {
-    unioned->Set(0, unioned->Get(--size));
+  bitset bits = unioned->Get(0)->AsBitset();
+  // If the union only consists of a range, we can get rid of the union.
+  if (size == 2 && SEMANTIC(bits) == BitsetType::kNone) {
+    bitset representation = REPRESENTATION(bits);
+    if (representation == unioned->Get(1)->Representation()) {
+      return unioned->Get(1);
+    }
+    // TODO(jarin) If the element at 1 is range of constant, slap
+    // the representation on it and return that.
   }
-  if (size == 1) return unioned->Get(0);
   unioned->Shrink(size);
   SLOW_DCHECK(unioned->Wellformed());
   return unioned;
+}
+
+
+// -----------------------------------------------------------------------------
+// Component extraction
+
+// static
+template <class Config>
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Representation(
+    TypeHandle t, Region* region) {
+  return BitsetType::New(t->Representation(), region);
+}
+
+
+// static
+template <class Config>
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Semantic(
+    TypeHandle t, Region* region) {
+  return Intersect(t, BitsetType::New(BitsetType::kSemantic, region), region);
 }
 
 

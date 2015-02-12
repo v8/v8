@@ -88,7 +88,6 @@
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-variables.cc',
         'compiler/test-simplified-lowering.cc',
-        'compiler/test-typer.cc',
         'cctest.cc',
         'gay-fixed.cc',
         'gay-precision.cc',

@@ -436,14 +436,14 @@ void Typer::Decorator::Decorate(Node* node, bool incomplete) {
 
 Bounds Typer::Visitor::TypeUnaryOp(Node* node, UnaryTyperFun f) {
   Bounds input = Operand(node, 0);
-  Type* upper = input.upper->Is(Type::None())
-      ? Type::None()
-      : f(input.upper, typer_);
-  Type* lower = input.lower->Is(Type::None())
-      ? Type::None()
-      : (input.lower == input.upper || upper->IsConstant())
-      ? upper  // TODO(neis): Extend this to Range(x,x), NaN, MinusZero, ...?
-      : f(input.lower, typer_);
+  Type* upper =
+      input.upper->IsInhabited() ? f(input.upper, typer_) : Type::None();
+  Type* lower = input.lower->IsInhabited()
+                    ? ((input.lower == input.upper || upper->IsConstant())
+                           ? upper  // TODO(neis): Extend this to Range(x,x),
+                                    // NaN, MinusZero, ...?
+                           : f(input.lower, typer_))
+                    : Type::None();
   // TODO(neis): Figure out what to do with lower bound.
   return Bounds(lower, upper);
 }
@@ -452,15 +452,16 @@ Bounds Typer::Visitor::TypeUnaryOp(Node* node, UnaryTyperFun f) {
 Bounds Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
   Bounds left = Operand(node, 0);
   Bounds right = Operand(node, 1);
-  Type* upper = left.upper->Is(Type::None()) || right.upper->Is(Type::None())
-      ? Type::None()
-      : f(left.upper, right.upper, typer_);
-  Type* lower = left.lower->Is(Type::None()) || right.lower->Is(Type::None())
-      ? Type::None()
-      : ((left.lower == left.upper && right.lower == right.upper) ||
-         upper->IsConstant())
-      ? upper
-      : f(left.lower, right.lower, typer_);
+  Type* upper = left.upper->IsInhabited() && right.upper->IsInhabited()
+                    ? f(left.upper, right.upper, typer_)
+                    : Type::None();
+  Type* lower =
+      left.lower->IsInhabited() && right.lower->IsInhabited()
+          ? (((left.lower == left.upper && right.lower == right.upper) ||
+              upper->IsConstant())
+                 ? upper
+                 : f(left.lower, right.lower, typer_))
+          : Type::None();
   // TODO(neis): Figure out what to do with lower bound.
   return Bounds(lower, upper);
 }

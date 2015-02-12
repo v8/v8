@@ -109,7 +109,8 @@ struct Tests : Rep {
       : isolate(CcTest::i_isolate()),
         scope(isolate),
         zone(),
-        T(Rep::ToRegion(&zone, isolate), isolate) {}
+        T(Rep::ToRegion(&zone, isolate), isolate,
+          isolate->random_number_generator()) {}
 
   bool Equal(TypeHandle type1, TypeHandle type2) {
     return
@@ -234,13 +235,81 @@ struct Tests : Rep {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         TypeHandle type1 = *it1;
         TypeHandle type2 = *it2;
-        TypeHandle intersect12 = T.Intersect(type1, type2);
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
+          TypeHandle intersect12 = T.Intersect(type1, type2);
           bitset bits = this->AsBitset(type1) & this->AsBitset(type2);
-          CHECK(
-              (Rep::BitsetType::IsInhabited(bits) ? bits : 0) ==
-              this->AsBitset(intersect12));
+          CHECK(bits == this->AsBitset(intersect12));
         }
+      }
+    }
+  }
+
+  void PointwiseRepresentation() {
+    // Check we can decompose type into semantics and representation and
+    // then compose it back to get an equivalent type.
+    int counter = 0;
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      counter++;
+      printf("Counter: %i\n", counter);
+      fflush(stdout);
+      TypeHandle type1 = *it1;
+      TypeHandle representation = T.Representation(type1);
+      TypeHandle semantic = T.Semantic(type1);
+      TypeHandle composed = T.Union(representation, semantic);
+      CHECK(type1->Equals(composed));
+    }
+
+    // Pointwiseness of Union.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        TypeHandle representation1 = T.Representation(type1);
+        TypeHandle semantic1 = T.Semantic(type1);
+        TypeHandle representation2 = T.Representation(type2);
+        TypeHandle semantic2 = T.Semantic(type2);
+        TypeHandle direct_union = T.Union(type1, type2);
+        TypeHandle representation_union =
+            T.Union(representation1, representation2);
+        TypeHandle semantic_union = T.Union(semantic1, semantic2);
+        TypeHandle composed_union =
+            T.Union(representation_union, semantic_union);
+        CHECK(direct_union->Equals(composed_union));
+      }
+    }
+
+    // Pointwiseness of Intersect.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        TypeHandle representation1 = T.Representation(type1);
+        TypeHandle semantic1 = T.Semantic(type1);
+        TypeHandle representation2 = T.Representation(type2);
+        TypeHandle semantic2 = T.Semantic(type2);
+        TypeHandle direct_intersection = T.Intersect(type1, type2);
+        TypeHandle representation_intersection =
+            T.Intersect(representation1, representation2);
+        TypeHandle semantic_intersection = T.Intersect(semantic1, semantic2);
+        TypeHandle composed_intersection =
+            T.Union(representation_intersection, semantic_intersection);
+        CHECK(direct_intersection->Equals(composed_intersection));
+      }
+    }
+
+    // Pointwiseness of Is.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        TypeHandle representation1 = T.Representation(type1);
+        TypeHandle semantic1 = T.Semantic(type1);
+        TypeHandle representation2 = T.Representation(type2);
+        TypeHandle semantic2 = T.Semantic(type2);
+        bool representation_is = representation1->Is(representation2);
+        bool semantic_is = semantic1->Is(semantic2);
+        bool direct_is = type1->Is(type2);
+        CHECK(direct_is == (semantic_is && representation_is));
       }
     }
   }
@@ -657,11 +726,11 @@ struct Tests : Rep {
       }
     }
 
-    // Rangification: If T->Is(Range(-inf,+inf)) and !T->Is(None), then
+    // Rangification: If T->Is(Range(-inf,+inf)) and T is inhabited, then
     // T->Is(Range(T->Min(), T->Max())).
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      CHECK(!(type->Is(T.Integer) && !type->Is(T.None)) ||
+      CHECK(!type->Is(T.Integer) || !type->IsInhabited() ||
             type->Is(T.Range(type->Min(), type->Max())));
     }
   }
@@ -801,7 +870,7 @@ struct Tests : Rep {
               (type1->IsContext() && type2->IsContext()) ||
               (type1->IsArray() && type2->IsArray()) ||
               (type1->IsFunction() && type2->IsFunction()) ||
-              type1->Equals(T.None));
+              !type1->IsInhabited());
       }
     }
   }
@@ -1305,7 +1374,7 @@ struct Tests : Rep {
     CheckDisjoint(T.SignedFunction1, T.MethodFunction);
     CheckOverlap(T.ObjectConstant1, T.ObjectClass);  // !!!
     CheckOverlap(T.ObjectConstant2, T.ObjectClass);  // !!!
-    CheckOverlap(T.NumberClass, T.Intersect(T.Number, T.Untagged));  // !!!
+    CheckOverlap(T.NumberClass, T.Intersect(T.Number, T.Tagged));  // !!!
   }
 
   void Union1() {
@@ -1694,24 +1763,24 @@ struct Tests : Rep {
 
     // Bitset-class
     CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
-    CheckEqual(T.Intersect(T.ObjectClass, T.Array), T.None);
-    CheckEqual(T.Intersect(T.ObjectClass, T.Number), T.None);
+    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.Array)), T.None);
+    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.Number)), T.None);
 
     // Bitset-array
     CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
-    CheckEqual(T.Intersect(T.AnyArray, T.Proxy), T.None);
+    CheckEqual(T.Semantic(T.Intersect(T.AnyArray, T.Proxy)), T.None);
 
     // Bitset-function
     CheckEqual(T.Intersect(T.MethodFunction, T.Object), T.MethodFunction);
-    CheckEqual(T.Intersect(T.NumberFunction1, T.Proxy), T.None);
+    CheckEqual(T.Semantic(T.Intersect(T.NumberFunction1, T.Proxy)), T.None);
 
     // Bitset-union
     CheckEqual(
         T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
         T.Union(T.ObjectConstant1, T.ObjectClass));
-    CHECK(
-        !T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number)
-            ->IsInhabited());
+    CheckEqual(T.Semantic(T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1),
+                                      T.Number)),
+               T.None);
 
     // Class-constant
     CHECK(T.Intersect(T.ObjectConstant1, T.ObjectClass)->IsInhabited());  // !!!
@@ -1867,8 +1936,9 @@ struct Tests : Rep {
 
   template<class Type2, class TypeHandle2, class Region2, class Rep2>
   void Convert() {
-    Types<Type2, TypeHandle2, Region2> T2(
-        Rep2::ToRegion(&zone, isolate), isolate);
+    Types<Type2, TypeHandle2, Region2> T2(Rep2::ToRegion(&zone, isolate),
+                                          isolate,
+                                          isolate->random_number_generator());
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type1 = *it;
       TypeHandle2 type2 = T2.template Convert<Type>(type1);
@@ -1898,6 +1968,13 @@ TEST(IsSomeType) {
   CcTest::InitializeVM();
   ZoneTests().IsSomeType();
   HeapTests().IsSomeType();
+}
+
+
+TEST(PointwiseRepresentation) {
+  CcTest::InitializeVM();
+  // ZoneTests().PointwiseRepresentation();
+  HeapTests().PointwiseRepresentation();
 }
 
 
