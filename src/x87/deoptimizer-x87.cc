@@ -241,6 +241,9 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   __ pushad();
 
+  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
+  __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
+
   // GP registers are safe to use now.
   // Save used x87 fp registers in correct position of previous reserve space.
   Label loop, done;

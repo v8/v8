@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-context-specialization.h"
 
-#include "src/compiler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -16,7 +15,7 @@ namespace compiler {
 
 Reduction JSContextSpecializer::Reduce(Node* node) {
   if (node == context_) {
-    Node* constant = jsgraph_->Constant(info_->context());
+    Node* constant = jsgraph_->Constant(ctx_);
     NodeProperties::ReplaceWithValue(node, constant);
     return Replace(constant);
   }
@@ -56,12 +55,13 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
     const Operator* op = jsgraph_->javascript()->LoadContext(
         0, access.index(), access.immutable());
     node->set_op(op);
-    Handle<Object> context_handle = Handle<Object>(context, info_->isolate());
+    Handle<Object> context_handle =
+        Handle<Object>(context, jsgraph_->isolate());
     node->ReplaceInput(0, jsgraph_->Constant(context_handle));
     return Changed(node);
   }
   Handle<Object> value = Handle<Object>(
-      context->get(static_cast<int>(access.index())), info_->isolate());
+      context->get(static_cast<int>(access.index())), jsgraph_->isolate());
 
   // Even though the context slot is immutable, the context might have escaped
   // before the function to which it belongs has initialized the slot.
@@ -104,7 +104,8 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
 
   const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
   node->set_op(op);
-  Handle<Object> new_context_handle = Handle<Object>(context, info_->isolate());
+  Handle<Object> new_context_handle =
+      Handle<Object>(context, jsgraph_->isolate());
   node->ReplaceInput(0, jsgraph_->Constant(new_context_handle));
 
   return Changed(node);

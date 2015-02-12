@@ -26,7 +26,7 @@ class Linkage;
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
 class JSGenericLowering FINAL : public Reducer {
  public:
-  JSGenericLowering(CompilationInfo* info, JSGraph* graph);
+  JSGenericLowering(bool is_typing_enabled, JSGraph* graph);
   ~JSGenericLowering() FINAL {}
 
   Reduction Reduce(Node* node) FINAL;
@@ -51,18 +51,15 @@ class JSGenericLowering FINAL : public Reducer {
   bool TryLowerDirectJSCall(Node* node);
 
   Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return info_->isolate(); }
+  Isolate* isolate() const { return jsgraph()->isolate(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   Graph* graph() const { return jsgraph()->graph(); }
-  Linkage* linkage() const { return linkage_; }
-  CompilationInfo* info() const { return info_; }
   CommonOperatorBuilder* common() const { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
 
  private:
-  CompilationInfo* info_;
+  bool is_typing_enabled_;
   JSGraph* jsgraph_;
-  Linkage* linkage_;
 };
 
 }  // namespace compiler

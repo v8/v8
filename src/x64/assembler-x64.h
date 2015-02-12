@@ -39,6 +39,7 @@
 
 #include <deque>
 
+#include "src/assembler.h"
 #include "src/serialize.h"
 
 namespace v8 {

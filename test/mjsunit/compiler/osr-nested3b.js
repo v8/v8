@@ -6,14 +6,18 @@
 
 function f() {
   var sum = 0;
-  for (var i = 5; i < 6; i++) {
-    for (var j = 0; j < 1000; j++) {
-      var x = i + 2;
-      var y = x + 5;
-      var z = y + 3;
-      sum += z;
-      if (i == 21) %OptimizeOsr();
+  for (var m = 99; m < 100; m++) {
+    for (var i = 5; i < 6; i++) {
+      for (var j = 0; j < 1000; j++) {
+        var x = i + 2;
+        var y = x + 5;
+        var z = y + 3;
+        sum += z;
+        if (i == 25) %OptimizeOsr();
+      }
+      if (true) break;
     }
+    if (true) break;
   }
   return sum;
 }

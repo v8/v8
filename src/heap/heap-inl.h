@@ -27,13 +27,6 @@ void PromotionQueue::insert(HeapObject* target, int size) {
     return;
   }
 
-  if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(rear_))) {
-    NewSpacePage* rear_page =
-        NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
-    DCHECK(!rear_page->prev_page()->is_anchor());
-    rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->area_end());
-  }
-
   if ((rear_ - 2) < limit_) {
     RelocateQueueHead();
     emergency_stack_->Add(Entry(target, size));

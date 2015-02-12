@@ -89,6 +89,9 @@ class LoopTree : public ZoneObject {
                      &loop_nodes_[0] + loop->body_start_);
   }
 
+  // Return the header control node for a loop.
+  Node* HeaderNode(Loop* loop);
+
   // Return a range which can iterate over the body nodes of {loop}.
   NodeRange BodyNodes(Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->body_start_,

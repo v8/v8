@@ -10378,6 +10378,42 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 }
 
 
+void SharedFunctionInfo::InitFromFunctionLiteral(
+    Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
+  shared_info->set_length(lit->parameter_count());
+  if (FLAG_experimental_classes && IsSubclassConstructor(lit->kind())) {
+    shared_info->set_internal_formal_parameter_count(lit->parameter_count() +
+                                                     1);
+  } else {
+    shared_info->set_internal_formal_parameter_count(lit->parameter_count());
+  }
+  shared_info->set_function_token_position(lit->function_token_position());
+  shared_info->set_start_position(lit->start_position());
+  shared_info->set_end_position(lit->end_position());
+  shared_info->set_is_expression(lit->is_expression());
+  shared_info->set_is_anonymous(lit->is_anonymous());
+  shared_info->set_inferred_name(*lit->inferred_name());
+  shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
+  shared_info->set_allows_lazy_compilation_without_context(
+      lit->AllowsLazyCompilationWithoutContext());
+  shared_info->set_language_mode(lit->language_mode());
+  shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
+  shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
+  shared_info->set_ast_node_count(lit->ast_node_count());
+  shared_info->set_is_function(lit->is_function());
+  if (lit->dont_optimize_reason() != kNoReason) {
+    shared_info->DisableOptimization(lit->dont_optimize_reason());
+  }
+  shared_info->set_dont_cache(
+      lit->flags()->Contains(AstPropertiesFlag::kDontCache));
+  shared_info->set_kind(lit->kind());
+  shared_info->set_uses_super_property(lit->uses_super_property());
+  shared_info->set_uses_super_constructor_call(
+      lit->uses_super_constructor_call());
+  shared_info->set_asm_function(lit->scope()->asm_function());
+}
+
+
 bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
   DCHECK(!id.IsNone());
   Code* unoptimized = code();

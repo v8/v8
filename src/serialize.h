@@ -5,7 +5,6 @@
 #ifndef V8_SERIALIZE_H_
 #define V8_SERIALIZE_H_
 
-#include "src/compiler.h"
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
@@ -13,6 +12,8 @@
 
 namespace v8 {
 namespace internal {
+
+class ScriptData;
 
 // A TypeCode is used to distinguish different kinds of external reference.
 // It is a single bit to make testing for types easy.
@@ -931,14 +932,7 @@ class SerializedCodeData : public SerializedData {
  public:
   // Used when consuming.
   static SerializedCodeData* FromCachedData(ScriptData* cached_data,
-                                            String* source) {
-    DisallowHeapAllocation no_gc;
-    SerializedCodeData* scd = new SerializedCodeData(cached_data);
-    if (scd->IsSane(source)) return scd;
-    cached_data->Reject();
-    delete scd;
-    return NULL;
-  }
+                                            String* source);
 
   // Used when producing.
   SerializedCodeData(const List<byte>& payload, const CodeSerializer& cs);
@@ -953,8 +947,7 @@ class SerializedCodeData : public SerializedData {
   Vector<const uint32_t> CodeStubKeys() const;
 
  private:
-  explicit SerializedCodeData(ScriptData* data)
-      : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
+  explicit SerializedCodeData(ScriptData* data);
 
   bool IsSane(String* source) const;
 

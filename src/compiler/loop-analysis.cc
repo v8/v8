@@ -462,6 +462,16 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, Zone* zone) {
   return loop_tree;
 }
 
+
+Node* LoopTree::HeaderNode(Loop* loop) {
+  Node* first = *HeaderNodes(loop).begin();
+  if (first->opcode() == IrOpcode::kLoop) return first;
+  DCHECK(IrOpcode::IsPhiOpcode(first->opcode()));
+  Node* header = NodeProperties::GetControlInput(first);
+  DCHECK_EQ(IrOpcode::kLoop, header->opcode());
+  return header;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

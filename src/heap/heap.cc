@@ -1457,14 +1457,14 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 
 
 void PromotionQueue::Initialize() {
-  // Assumes that a NewSpacePage exactly fits a number of promotion queue
-  // entries (where each is a pair of intptr_t). This allows us to simplify
-  // the test fpr when to switch pages.
+  // The last to-space page may be used for promotion queue. On promotion
+  // conflict, we use the emergency stack.
   DCHECK((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize) ==
          0);
-  limit_ = reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceStart());
   front_ = rear_ =
       reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceEnd());
+  limit_ = reinterpret_cast<intptr_t*>(
+      Page::FromAllocationTop(reinterpret_cast<Address>(rear_))->area_start());
   emergency_stack_ = NULL;
 }
 

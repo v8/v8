@@ -31,7 +31,7 @@ class InstructionTester : public HandleAndZoneScope {
         graph(zone()),
         schedule(zone()),
         info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
-        linkage(zone(), &info),
+        linkage(Linkage::ComputeIncoming(zone(), &info)),
         common(zone()),
         machine(zone()),
         code(NULL) {}

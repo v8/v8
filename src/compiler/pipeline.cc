@@ -415,7 +415,7 @@ struct ContextSpecializerPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    JSContextSpecializer spec(data->info(), data->jsgraph(),
+    JSContextSpecializer spec(data->info()->context(), data->jsgraph(),
                               data->context_node());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &spec);
@@ -512,14 +512,13 @@ struct ChangeLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    Linkage linkage(data->graph_zone(), data->info());
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
-    ChangeLowering lowering(data->jsgraph(), &linkage);
+    ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer;
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    graph_reducer.AddReducer(&vn_reducer);
+    AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -571,7 +570,8 @@ struct GenericLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    JSGenericLowering generic(data->info(), data->jsgraph());
+    JSGenericLowering generic(data->info()->is_typing_enabled(),
+                              data->jsgraph());
     SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &generic);
@@ -755,8 +755,8 @@ struct PrintGraphPhase {
       fclose(json_file);
     }
 
-    OFStream os(stdout);
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      OFStream os(stdout);
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
     }
@@ -954,7 +954,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   {
     // Generate optimized code.
-    Linkage linkage(data.instruction_zone(), info());
+    Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info()));
     GenerateCode(&linkage);
   }
   Handle<Code> code = data.code();
@@ -1026,7 +1026,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
     TraceSchedule(schedule);
   }
 
-  Linkage linkage(info->isolate(), info->zone(), call_descriptor);
+  Linkage linkage(call_descriptor);
   pipeline.GenerateCode(&linkage);
   Handle<Code> code = data.code();
 

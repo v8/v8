@@ -50,11 +50,11 @@ const SharedOperator kSharedOperators[] = {
   }
     SHARED(Always, Operator::kPure, 0, 0, 0, 1, 0, 0),
     SHARED(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1),
-    SHARED(End, Operator::kFoldable, 0, 0, 1, 0, 0, 0),
-    SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 0, 1),
-    SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 0, 1),
+    SHARED(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0),
+    SHARED(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
+    SHARED(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1),
-    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 0, 0, 1)
+    SHARED(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)
 #undef SHARED
 };
 
@@ -170,7 +170,7 @@ TEST_F(CommonOperatorTest, Branch) {
   TRACED_FOREACH(BranchHint, hint, kHints) {
     const Operator* const op = common()->Branch(hint);
     EXPECT_EQ(IrOpcode::kBranch, op->opcode());
-    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(Operator::kKontrol, op->properties());
     EXPECT_EQ(hint, BranchHintOf(op));
     EXPECT_EQ(1, op->ValueInputCount());
     EXPECT_EQ(0, op->EffectInputCount());
@@ -187,7 +187,7 @@ TEST_F(CommonOperatorTest, Switch) {
   TRACED_FOREACH(size_t, cases, kCases) {
     const Operator* const op = common()->Switch(cases);
     EXPECT_EQ(IrOpcode::kSwitch, op->opcode());
-    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(Operator::kKontrol, op->properties());
     EXPECT_EQ(1, op->ValueInputCount());
     EXPECT_EQ(0, op->EffectInputCount());
     EXPECT_EQ(1, op->ControlInputCount());
@@ -203,7 +203,7 @@ TEST_F(CommonOperatorTest, Case) {
   TRACED_FORRANGE(size_t, index, 0, 1024) {
     const Operator* const op = common()->Case(index);
     EXPECT_EQ(IrOpcode::kCase, op->opcode());
-    EXPECT_EQ(Operator::kFoldable, op->properties());
+    EXPECT_EQ(Operator::kKontrol, op->properties());
     EXPECT_EQ(index, CaseIndexOf(op));
     EXPECT_EQ(0, op->ValueInputCount());
     EXPECT_EQ(0, op->EffectInputCount());

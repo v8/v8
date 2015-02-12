@@ -9,6 +9,8 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/machine-type.h"
 #include "src/compiler/operator.h"
+#include "src/frames.h"
+#include "src/runtime/runtime.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -172,38 +174,24 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:
-  Linkage(Zone* zone, CompilationInfo* info)
-      : isolate_(info->isolate()),
-        zone_(zone),
-        incoming_(ComputeIncoming(zone, info)) {}
-  Linkage(Isolate* isolate, Zone* zone, CallDescriptor* incoming)
-      : isolate_(isolate), zone_(zone), incoming_(incoming) {}
+  explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
 
   static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
 
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).
   CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
-  CallDescriptor* GetJSCallDescriptor(int parameter_count,
-                                      CallDescriptor::Flags flags) const;
   static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int parameter_count,
                                              CallDescriptor::Flags flags);
-  CallDescriptor* GetRuntimeCallDescriptor(
-      Runtime::FunctionId function, int parameter_count,
-      Operator::Properties properties) const;
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties);
 
-  CallDescriptor* GetStubCallDescriptor(
-      const CallInterfaceDescriptor& descriptor, int stack_parameter_count = 0,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags,
-      Operator::Properties properties = Operator::kNoProperties) const;
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
-      Operator::Properties properties);
+      Operator::Properties properties = Operator::kNoProperties);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports
@@ -246,8 +234,6 @@ class Linkage : public ZoneObject {
   static const int kJSFunctionCallClosureParamIndex = -1;
 
  private:
-  Isolate* isolate_;
-  Zone* const zone_;
   CallDescriptor* const incoming_;
 
   DISALLOW_COPY_AND_ASSIGN(Linkage);

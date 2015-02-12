@@ -311,8 +311,8 @@ void ConstPool::RecordEntry(intptr_t data,
          mode != RelocInfo::STATEMENT_POSITION &&
          mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
-         mode != RelocInfo::CODE_AGE_SEQUENCE);
-
+         mode != RelocInfo::CODE_AGE_SEQUENCE &&
+         mode != RelocInfo::DEOPT_REASON);
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
@@ -2848,11 +2848,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (((rmode >= RelocInfo::JS_RETURN) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
       (rmode == RelocInfo::CONST_POOL) ||
-      (rmode == RelocInfo::VENEER_POOL)) {
+      (rmode == RelocInfo::VENEER_POOL) ||
+      (rmode == RelocInfo::DEOPT_REASON)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
+           || RelocInfo::IsDeoptReason(rmode)
            || RelocInfo::IsPosition(rmode)
            || RelocInfo::IsConstPool(rmode)
            || RelocInfo::IsVeneerPool(rmode));

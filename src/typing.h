@@ -9,7 +9,6 @@
 
 #include "src/allocation.h"
 #include "src/ast.h"
-#include "src/compiler.h"
 #include "src/effects.h"
 #include "src/scopes.h"
 #include "src/type-info.h"

@@ -450,6 +450,9 @@ class RelocInfo {
   static inline bool IsVeneerPool(Mode mode) {
     return mode == VENEER_POOL;
   }
+  static inline bool IsDeoptReason(Mode mode) {
+    return mode == DEOPT_REASON;
+  }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
   }

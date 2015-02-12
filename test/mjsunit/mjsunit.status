@@ -118,6 +118,7 @@
   # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
   'harmony/object-literals-super': [PASS, NO_VARIANTS],
   'harmony/super': [PASS, NO_VARIANTS],
+  'harmony/computed-property-names-super': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -301,6 +302,9 @@
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
+
+  # BUG(v8:3884).
+  'regress/regress-builtinbust-7.js': [PASS, ['gc_stress == True', SKIP]],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],

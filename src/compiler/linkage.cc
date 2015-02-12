@@ -94,27 +94,6 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 }
 
 
-CallDescriptor* Linkage::GetJSCallDescriptor(
-    int parameter_count, CallDescriptor::Flags flags) const {
-  return GetJSCallDescriptor(zone_, false, parameter_count, flags);
-}
-
-
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Properties properties) const {
-  return GetRuntimeCallDescriptor(zone_, function, parameter_count, properties);
-}
-
-
-CallDescriptor* Linkage::GetStubCallDescriptor(
-    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, Operator::Properties properties) const {
-  return GetStubCallDescriptor(isolate_, zone_, descriptor,
-                               stack_parameter_count, flags, properties);
-}
-
-
 // static
 bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   if (!FLAG_turbo_deoptimization) {
