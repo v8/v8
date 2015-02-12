@@ -366,8 +366,6 @@
         '../../src/assembler.h',
         '../../src/assert-scope.h',
         '../../src/assert-scope.cc',
-        '../../src/ast-this-access-visitor.cc',
-        '../../src/ast-this-access-visitor.h',
         '../../src/ast-value-factory.cc',
         '../../src/ast-value-factory.h',
         '../../src/ast-numbering.cc',

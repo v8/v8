@@ -7,7 +7,6 @@
 #include "src/compiler.h"
 
 #include "src/ast-numbering.h"
-#include "src/ast-this-access-visitor.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -749,82 +748,12 @@ static bool Renumber(CompilationInfo* info) {
 }
 
 
-static void ThrowSuperConstructorCheckError(CompilationInfo* info,
-                                            Statement* stmt) {
-  MaybeHandle<Object> obj = info->isolate()->factory()->NewTypeError(
-      "super_constructor_call", HandleVector<Object>(nullptr, 0));
-  Handle<Object> exception;
-  if (!obj.ToHandle(&exception)) return;
-
-  MessageLocation location(info->script(), stmt->position(), stmt->position());
-  USE(info->isolate()->Throw(*exception, &location));
-}
-
-
-static bool CheckSuperConstructorCall(CompilationInfo* info) {
-  FunctionLiteral* function = info->function();
-  if (FLAG_experimental_classes) return true;
-  if (!function->uses_super_constructor_call()) return true;
-  if (IsDefaultConstructor(function->kind())) return true;
-
-  ZoneList<Statement*>* body = function->body();
-  CHECK(body->length() > 0);
-
-  int super_call_index = 0;
-  // Allow 'use strict' and similiar and empty statements.
-  while (true) {
-    CHECK(super_call_index < body->length());  // We know there is a super call.
-    Statement* stmt = body->at(super_call_index);
-    if (stmt->IsExpressionStatement() &&
-        stmt->AsExpressionStatement()->expression()->IsLiteral()) {
-      super_call_index++;
-      continue;
-    }
-    if (stmt->IsEmptyStatement()) {
-      super_call_index++;
-      continue;
-    }
-    break;
-  }
-
-  Statement* stmt = body->at(super_call_index);
-  ExpressionStatement* exprStm = stmt->AsExpressionStatement();
-  if (exprStm == nullptr) {
-    ThrowSuperConstructorCheckError(info, stmt);
-    return false;
-  }
-  Call* callExpr = exprStm->expression()->AsCall();
-  if (callExpr == nullptr) {
-    ThrowSuperConstructorCheckError(info, stmt);
-    return false;
-  }
-
-  if (!callExpr->expression()->IsSuperReference()) {
-    ThrowSuperConstructorCheckError(info, stmt);
-    return false;
-  }
-
-  ZoneList<Expression*>* arguments = callExpr->arguments();
-
-  AstThisAccessVisitor this_access_visitor(info->isolate(), info->zone());
-  this_access_visitor.VisitExpressions(arguments);
-
-  if (this_access_visitor.HasStackOverflow()) return false;
-  if (this_access_visitor.UsesThis()) {
-    ThrowSuperConstructorCheckError(info, stmt);
-    return false;
-  }
-  return true;
-}
-
-
 bool Compiler::Analyze(CompilationInfo* info) {
   DCHECK(info->function() != NULL);
   if (!Rewriter::Rewrite(info)) return false;
   if (!Scope::Analyze(info)) return false;
   if (!Renumber(info)) return false;
   DCHECK(info->scope() != NULL);
-  if (!CheckSuperConstructorCall(info)) return false;
   return true;
 }
 

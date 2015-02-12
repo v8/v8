@@ -444,8 +444,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
       int32_t arg_count = info_->scope()->num_parameters() + 1;
-      if (FLAG_experimental_classes &&
-          IsSubclassConstructor(info_->function()->kind())) {
+      if (IsSubclassConstructor(info_->function()->kind())) {
         arg_count++;
       }
       int32_t sp_delta = arg_count * kPointerSize;
@@ -3162,15 +3161,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else if (call_type == Call::SUPER_CALL) {
-    if (FLAG_experimental_classes) {
-      EmitSuperConstructorCall(expr);
-    } else {
-      EmitLoadSuperConstructor();
-      __ Push(result_register());
-      SuperReference* super_ref = callee->AsSuperReference();
-      VisitForStackValue(super_ref->this_var());
-      EmitCall(expr, CallICState::METHOD);
-    }
+    EmitSuperConstructorCall(expr);
   } else {
     DCHECK(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.

@@ -272,9 +272,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   const AstRawString* name = ast_value_factory()->empty_string();
 
 
-  FunctionKind kind = call_super && !FLAG_experimental_classes
-                          ? FunctionKind::kDefaultBaseConstructor
-                          : FunctionKind::kDefaultSubclassConstructor;
+  FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
+                                 : FunctionKind::kDefaultBaseConstructor;
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE, kind);
   function_scope->SetLanguageMode(
       static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
@@ -293,19 +292,11 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
     if (call_super) {
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(0, zone());
-      if (FLAG_experimental_classes) {
-        CallRuntime* call = factory()->NewCallRuntime(
-            ast_value_factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
-            args, pos);
-        body->Add(factory()->NewReturnStatement(call, pos), zone());
-      } else {
-        CallRuntime* call = factory()->NewCallRuntime(
-            ast_value_factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kDefaultConstructorSuperCall), args,
-            pos);
-        body->Add(factory()->NewExpressionStatement(call, pos), zone());
-      }
+      CallRuntime* call = factory()->NewCallRuntime(
+          ast_value_factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
+          args, pos);
+      body->Add(factory()->NewReturnStatement(call, pos), zone());
       function_scope->RecordSuperConstructorCallUsage();
     }
 
@@ -2635,8 +2626,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       tok == Token::SEMICOLON ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
-    if (FLAG_experimental_classes &&
-        IsSubclassConstructor(function_state_->kind())) {
+    if (IsSubclassConstructor(function_state_->kind())) {
       return_value = ThisExpression(scope_, factory(), loc.beg_pos);
     } else {
       return_value = GetLiteralUndefined(position());
@@ -3922,8 +3912,6 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
 
 
 void Parser::AddAssertIsConstruct(ZoneList<Statement*>* body, int pos) {
-  if (!FLAG_experimental_classes) return;
-
   ZoneList<Expression*>* arguments =
       new (zone()) ZoneList<Expression*>(0, zone());
   CallRuntime* construct_check = factory()->NewCallRuntime(
@@ -4000,7 +3988,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         yield, RelocInfo::kNoPosition), zone());
   }
 
-  if (FLAG_experimental_classes && IsSubclassConstructor(kind)) {
+  if (IsSubclassConstructor(kind)) {
     body->Add(
         factory()->NewReturnStatement(
             this->ThisExpression(scope_, factory(), RelocInfo::kNoPosition),

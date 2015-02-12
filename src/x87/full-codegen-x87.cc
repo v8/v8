@@ -415,8 +415,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ pop(ebp);
 
     int arg_count = info_->scope()->num_parameters() + 1;
-    if (FLAG_experimental_classes &&
-        IsSubclassConstructor(info_->function()->kind())) {
+    if (IsSubclassConstructor(info_->function()->kind())) {
       arg_count++;
     }
     int arguments_bytes = arg_count * kPointerSize;
@@ -3057,15 +3056,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else if (call_type == Call::SUPER_CALL) {
-    if (FLAG_experimental_classes) {
-      EmitSuperConstructorCall(expr);
-    } else {
-      SuperReference* super_ref = callee->AsSuperReference();
-      EmitLoadSuperConstructor();
-      __ push(result_register());
-      VisitForStackValue(super_ref->this_var());
-      EmitCall(expr, CallICState::METHOD);
-    }
+    EmitSuperConstructorCall(expr);
   } else {
     DCHECK(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.

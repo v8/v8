@@ -309,7 +309,6 @@ void Scope::Initialize(bool subclass_constructor) {
   // invoking scripts
   if (is_declaration_scope()) {
     DCHECK(!subclass_constructor || is_function_scope());
-    DCHECK(FLAG_experimental_classes || !subclass_constructor);
     Variable* var = variables_.Declare(
         this, ast_value_factory_->this_string(),
         subclass_constructor ? CONST : VAR, false, Variable::THIS,

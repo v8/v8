@@ -319,8 +319,7 @@ class ParserBase : public Traits {
            kind == kNormalFunction);
     Scope* result =
         new (zone()) Scope(zone(), parent, scope_type, ast_value_factory());
-    bool uninitialized_this =
-        FLAG_experimental_classes && IsSubclassConstructor(kind);
+    bool uninitialized_this = IsSubclassConstructor(kind);
     result->Initialize(uninitialized_this);
     return result;
   }

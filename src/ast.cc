@@ -567,7 +567,7 @@ bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
 bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   // SuperConstructorCall uses a CallConstructStub, which wants
   // a Slot, not an IC slot.
-  return FLAG_experimental_classes && GetCallType(isolate) == SUPER_CALL;
+  return GetCallType(isolate) == SUPER_CALL;
 }
 
 
