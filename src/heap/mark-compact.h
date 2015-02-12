@@ -656,10 +656,6 @@ class MarkCompactCollector {
 
   bool evacuation() const { return evacuation_; }
 
-  // Mark the global table which maps weak objects to dependent code without
-  // marking its contents.
-  void MarkWeakObjectToCodeTable();
-
   // Special case for processing weak references in a full collection. We need
   // to artificially keep AllocationSites alive for a time.
   void MarkAllocationSite(AllocationSite* site);
@@ -817,11 +813,6 @@ class MarkCompactCollector {
   void TrimDescriptorArray(Map* map, DescriptorArray* descriptors,
                            int number_of_own_descriptors);
   void TrimEnumCache(Map* map, DescriptorArray* descriptors);
-
-  void ClearDependentCode(DependentCode* dependent_code);
-  void ClearNonLiveDependentCode(DependentCode* dependent_code);
-  int ClearNonLiveDependentCodeInGroup(DependentCode* dependent_code, int group,
-                                       int start, int end, int new_start);
 
   // Mark all values associated with reachable keys in weak collections
   // encountered so far.  This might push new object or even new weak maps onto

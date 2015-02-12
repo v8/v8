@@ -4068,8 +4068,9 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     DependentCode::GroupStartIndexes starts(site->dependent_code());
     CHECK_GE(starts.number_of_entries(), 1);
     int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-    CHECK(site->dependent_code()->is_code_at(index));
-    Code* function_bar = site->dependent_code()->code_at(index);
+    CHECK(site->dependent_code()->object_at(index)->IsWeakCell());
+    Code* function_bar = Code::cast(
+        WeakCell::cast(site->dependent_code()->object_at(index))->value());
     Handle<JSFunction> bar_handle =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
@@ -4087,7 +4088,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // longer referred to by dependent_code().
   DependentCode::GroupStartIndexes starts(site->dependent_code());
   int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-  CHECK(!(site->dependent_code()->is_code_at(index)));
+  CHECK(site->dependent_code()->object_at(index)->IsWeakCell() &&
+        WeakCell::cast(site->dependent_code()->object_at(index))->cleared());
 }
 
 

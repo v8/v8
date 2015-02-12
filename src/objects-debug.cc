@@ -677,6 +677,7 @@ void Code::CodeVerify() {
 
 void Code::VerifyEmbeddedObjectsDependency() {
   if (!CanContainWeakObjects()) return;
+  WeakCell* cell = CachedWeakCell();
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
@@ -687,13 +688,13 @@ void Code::VerifyEmbeddedObjectsDependency() {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
         CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
-                                              this));
+                                              cell));
       } else if (obj->IsJSObject()) {
-        Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
-        WeakHashTable* table = WeakHashTable::cast(raw_table);
-        Handle<Object> key_obj(obj, isolate);
-        CHECK(DependentCode::cast(table->Lookup(key_obj))->Contains(
-            DependentCode::kWeakCodeGroup, this));
+        WeakHashTable* table =
+            GetIsolate()->heap()->weak_object_to_code_table();
+        Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
+        CHECK(DependentCode::cast(table->Lookup(key_obj))
+                  ->Contains(DependentCode::kWeakCodeGroup, cell));
       }
     }
   }

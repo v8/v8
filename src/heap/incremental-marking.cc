@@ -552,8 +552,6 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
-  heap_->mark_compact_collector()->MarkWeakObjectToCodeTable();
-
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Running\n");

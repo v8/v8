@@ -414,12 +414,12 @@ Representation LChunk::LookupLiteralRepresentation(
 
 
 static void AddWeakObjectToCodeDependency(Isolate* isolate,
-                                          Handle<Object> object,
+                                          Handle<HeapObject> object,
                                           Handle<Code> code) {
+  Handle<WeakCell> cell = Code::WeakCellFor(code);
   Heap* heap = isolate->heap();
-  heap->EnsureWeakObjectToCodeTable();
   Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
-  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
+  dep = DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
   heap->AddWeakObjectToCodeDependency(object, dep);
 }
 
@@ -462,6 +462,9 @@ void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
 
 
 void LChunk::CommitDependencies(Handle<Code> code) const {
+  if (!code->is_optimized_code()) return;
+  HandleScope scope(isolate());
+
   for (MapSet::const_iterator it = deprecation_dependencies_.begin(),
        iend = deprecation_dependencies_.end(); it != iend; ++it) {
     Handle<Map> map = *it;
@@ -479,7 +482,7 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
   }
 
   info_->CommitDependencies(code);
-  if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
+  RegisterWeakObjectsInOptimizedCode(code);
 }
 
 

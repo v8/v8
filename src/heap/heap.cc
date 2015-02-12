@@ -135,9 +135,6 @@ Heap::Heap()
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       gcs_since_last_deopt_(0),
-#ifdef VERIFY_HEAP
-      no_weak_object_verification_scope_depth_(0),
-#endif
       allocation_sites_scratchpad_length_(0),
       promotion_queue_(this),
       configured_(false),
@@ -3169,6 +3166,10 @@ void Heap::CreateInitialObjects() {
 
   set_detached_contexts(empty_fixed_array());
 
+  set_weak_object_to_code_table(
+      *WeakHashTable::New(isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY,
+                          TENURED));
+
   Handle<SeededNumberDictionary> slow_element_dictionary =
       SeededNumberDictionary::New(isolate(), 0, TENURED);
   slow_element_dictionary->set_requires_slow_elements();
@@ -5600,7 +5601,6 @@ bool Heap::CreateHeapObjects() {
   set_array_buffers_list(undefined_value());
   set_new_array_buffer_views_list(undefined_value());
   set_allocation_sites_list(undefined_value());
-  weak_object_to_code_table_ = undefined_value();
   return true;
 }
 
@@ -5775,38 +5775,22 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
 
 
 // TODO(ishell): Find a better place for this.
-void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
+void Heap::AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                          Handle<DependentCode> dep) {
   DCHECK(!InNewSpace(*obj));
   DCHECK(!InNewSpace(*dep));
-  // This handle scope keeps the table handle local to this function, which
-  // allows us to safely skip write barriers in table update operations.
-  HandleScope scope(isolate());
-  Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
-                              isolate());
+  Handle<WeakHashTable> table(weak_object_to_code_table(), isolate());
   table = WeakHashTable::Put(table, obj, dep);
-
-  if (ShouldZapGarbage() && weak_object_to_code_table_ != *table) {
-    WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
-  }
-  set_weak_object_to_code_table(*table);
-  DCHECK_EQ(*dep, table->Lookup(obj));
+  if (*table != weak_object_to_code_table())
+    set_weak_object_to_code_table(*table);
+  DCHECK_EQ(*dep, LookupWeakObjectToCodeDependency(obj));
 }
 
 
-DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<Object> obj) {
-  Object* dep = WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj);
+DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
+  Object* dep = weak_object_to_code_table()->Lookup(obj);
   if (dep->IsDependentCode()) return DependentCode::cast(dep);
   return DependentCode::cast(empty_fixed_array());
-}
-
-
-void Heap::EnsureWeakObjectToCodeTable() {
-  if (!weak_object_to_code_table()->IsHashTable()) {
-    set_weak_object_to_code_table(
-        *WeakHashTable::New(isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY,
-                            TENURED));
-  }
 }
 
 

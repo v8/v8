@@ -4766,21 +4766,6 @@ void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
 }
 
 
-bool DependentCode::is_code_at(int i) {
-  return get(kCodesStartIndex + i)->IsCode();
-}
-
-Code* DependentCode::code_at(int i) {
-  return Code::cast(get(kCodesStartIndex + i));
-}
-
-
-CompilationInfo* DependentCode::compilation_info_at(int i) {
-  return reinterpret_cast<CompilationInfo*>(
-      Foreign::cast(get(kCodesStartIndex + i))->foreign_address());
-}
-
-
 void DependentCode::set_object_at(int i, Object* object) {
   set(kCodesStartIndex + i, object);
 }
@@ -4788,11 +4773,6 @@ void DependentCode::set_object_at(int i, Object* object) {
 
 Object* DependentCode::object_at(int i) {
   return get(kCodesStartIndex + i);
-}
-
-
-Object** DependentCode::slot_at(int i) {
-  return RawFieldOfElementAt(kCodesStartIndex + i);
 }
 
 
@@ -7228,13 +7208,18 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(
 
 template <int entrysize>
 bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
-  return key->SameValue(other);
+  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
+  return key->IsWeakCell() ? WeakCell::cast(*key)->value() == other
+                           : *key == other;
 }
 
 
 template <int entrysize>
 uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
-  intptr_t hash = reinterpret_cast<intptr_t>(*key);
+  intptr_t hash =
+      key->IsWeakCell()
+          ? reinterpret_cast<intptr_t>(WeakCell::cast(*key)->value())
+          : reinterpret_cast<intptr_t>(*key);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
@@ -7242,6 +7227,7 @@ uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
 template <int entrysize>
 uint32_t WeakHashTableShape<entrysize>::HashForObject(Handle<Object> key,
                                                       Object* other) {
+  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }

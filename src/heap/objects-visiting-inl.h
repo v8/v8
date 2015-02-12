@@ -326,19 +326,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
 
-  Object** slot =
-      HeapObject::RawField(object, PropertyCell::kDependentCodeOffset);
-  if (FLAG_collect_maps) {
-    // Mark property cell dependent codes array but do not push it onto marking
-    // stack, this will make references from it weak. We will clean dead
-    // codes when we iterate over property cells in ClearNonLiveReferences.
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
-  } else {
-    StaticVisitor::VisitPointer(heap, slot);
-  }
-
   StaticVisitor::VisitPointers(
       heap,
       HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
@@ -366,20 +353,6 @@ template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
-
-  Object** slot =
-      HeapObject::RawField(object, AllocationSite::kDependentCodeOffset);
-  if (FLAG_collect_maps) {
-    // Mark allocation site dependent codes array but do not push it onto
-    // marking stack, this will make references from it weak. We will clean
-    // dead codes when we iterate over allocation sites in
-    // ClearNonLiveReferences.
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
-  } else {
-    StaticVisitor::VisitPointer(heap, slot);
-  }
 
   StaticVisitor::VisitPointers(
       heap,
@@ -642,14 +615,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
                                  descriptors->GetDescriptorStartSlot(start),
                                  descriptors->GetDescriptorEndSlot(end));
   }
-
-  // Mark prototype dependent codes array but do not push it onto marking
-  // stack, this will make references from it weak. We will clean dead
-  // codes when we iterate over maps in ClearNonLiveTransitions.
-  Object** slot = HeapObject::RawField(map, Map::kDependentCodeOffset);
-  HeapObject* obj = HeapObject::cast(*slot);
-  heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-  StaticVisitor::MarkObjectWithoutPush(heap, obj);
 
   // Mark the pointer fields of the Map. Since the transitions array has
   // been marked already, it is fine that one of these fields contains a

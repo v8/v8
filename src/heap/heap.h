@@ -182,7 +182,8 @@ namespace internal {
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, keyed_load_dummy_vector, KeyedLoadDummyVector)                 \
-  V(FixedArray, detached_contexts, DetachedContexts)
+  V(FixedArray, detached_contexts, DetachedContexts)                           \
+  V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -873,8 +874,6 @@ class Heap {
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
-  Object* weak_object_to_code_table() { return weak_object_to_code_table_; }
-
   void set_encountered_weak_collections(Object* weak_collection) {
     encountered_weak_collections_ = weak_collection;
   }
@@ -979,11 +978,6 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
-
-
-  bool weak_embedded_objects_verification_enabled() {
-    return no_weak_object_verification_scope_depth_ == 0;
-  }
 #endif
 
 #ifdef DEBUG
@@ -1439,16 +1433,10 @@ class Heap {
     Heap* heap_;
   };
 
-  void AddWeakObjectToCodeDependency(Handle<Object> obj,
+  void AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                      Handle<DependentCode> dep);
 
-  DependentCode* LookupWeakObjectToCodeDependency(Handle<Object> obj);
-
-  void InitializeWeakObjectToCodeTable() {
-    set_weak_object_to_code_table(undefined_value());
-  }
-
-  void EnsureWeakObjectToCodeTable();
+  DependentCode* LookupWeakObjectToCodeDependency(Handle<HeapObject> obj);
 
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
@@ -1644,11 +1632,6 @@ class Heap {
   // get promoted, they are removed form the list and added to the corresponding
   // array buffer.
   Object* new_array_buffer_views_list_;
-
-  // WeakHashTable that maps objects embedded in optimized code to dependent
-  // code list. It is initialized lazily and contains the undefined_value at
-  // start.
-  Object* weak_object_to_code_table_;
 
   // List of encountered weak collections (JSWeakMap and JSWeakSet) during
   // marking. It is initialized during marking, destroyed after marking and
@@ -2067,15 +2050,6 @@ class Heap {
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
-  void set_weak_object_to_code_table(Object* value) {
-    DCHECK(!InNewSpace(value));
-    weak_object_to_code_table_ = value;
-  }
-
-  Object** weak_object_to_code_table_address() {
-    return &weak_object_to_code_table_;
-  }
-
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
   inline void PrintAlloctionsHash();
@@ -2126,10 +2100,6 @@ class Heap {
   // this variable holds the number of garbage collections since the last
   // deoptimization triggered by garbage collection.
   int gcs_since_last_deopt_;
-
-#ifdef VERIFY_HEAP
-  int no_weak_object_verification_scope_depth_;
-#endif
 
   static const int kAllocationSiteScratchpadSize = 256;
   int allocation_sites_scratchpad_length_;

@@ -11884,9 +11884,9 @@ void Map::ZapPrototypeTransitions() {
 void Map::AddDependentCompilationInfo(Handle<Map> map,
                                       DependentCode::DependencyGroup group,
                                       CompilationInfo* info) {
-  Handle<DependentCode> codes =
-      DependentCode::Insert(handle(map->dependent_code(), info->isolate()),
-                            group, info->object_wrapper());
+  Handle<DependentCode> codes = DependentCode::InsertCompilationInfo(
+      handle(map->dependent_code(), info->isolate()), group,
+      info->object_wrapper());
   if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
   info->dependencies(group)->Add(map, info->zone());
 }
@@ -11896,8 +11896,9 @@ void Map::AddDependentCompilationInfo(Handle<Map> map,
 void Map::AddDependentCode(Handle<Map> map,
                            DependentCode::DependencyGroup group,
                            Handle<Code> code) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(map->dependent_code()), group, code);
+  Handle<WeakCell> cell = Code::WeakCellFor(code);
+  Handle<DependentCode> codes = DependentCode::InsertWeakCode(
+      Handle<DependentCode>(map->dependent_code()), group, cell);
   if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
 }
 
@@ -11929,6 +11930,20 @@ DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
 }
 
 
+Handle<DependentCode> DependentCode::InsertCompilationInfo(
+    Handle<DependentCode> entries, DependencyGroup group,
+    Handle<Foreign> info) {
+  return Insert(entries, group, info);
+}
+
+
+Handle<DependentCode> DependentCode::InsertWeakCode(
+    Handle<DependentCode> entries, DependencyGroup group,
+    Handle<WeakCell> code_cell) {
+  return Insert(entries, group, code_cell);
+}
+
+
 Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
                                             DependencyGroup group,
                                             Handle<Object> object) {
@@ -11941,27 +11956,13 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     if (entries->object_at(i) == *object) return entries;
   }
   if (entries->length() < kCodesStartIndex + number_of_entries + 1) {
-    int capacity = kCodesStartIndex + number_of_entries + 1;
-    if (capacity > 5) capacity = capacity * 5 / 4;
-    Handle<DependentCode> new_entries = Handle<DependentCode>::cast(
-        FixedArray::CopySize(entries, capacity, TENURED));
-    // The number of codes can change after GC.
+    entries = EnsureSpace(entries);
+    // The number of codes can change after Compact and GC.
     starts.Recompute(*entries);
     start = starts.at(group);
     end = starts.at(group + 1);
-    number_of_entries = starts.number_of_entries();
-    for (int i = 0; i < number_of_entries; i++) {
-      entries->clear_at(i);
-    }
-    // If the old fixed array was empty, we need to reset counters of the
-    // new array.
-    if (number_of_entries == 0) {
-      for (int g = 0; g < kGroupCount; g++) {
-        new_entries->set_number_of_entries(static_cast<DependencyGroup>(g), 0);
-      }
-    }
-    entries = new_entries;
   }
+
   entries->ExtendGroup(group);
   entries->set_object_at(end, *object);
   entries->set_number_of_entries(group, end + 1 - start);
@@ -11969,42 +11970,82 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
 }
 
 
-void DependentCode::UpdateToFinishedCode(DependencyGroup group,
-                                         CompilationInfo* info,
-                                         Code* code) {
+Handle<DependentCode> DependentCode::EnsureSpace(
+    Handle<DependentCode> entries) {
+  if (entries->length() == 0) {
+    entries = Handle<DependentCode>::cast(
+        FixedArray::CopySize(entries, kCodesStartIndex + 1, TENURED));
+    for (int g = 0; g < kGroupCount; g++) {
+      entries->set_number_of_entries(static_cast<DependencyGroup>(g), 0);
+    }
+    return entries;
+  }
+  if (entries->Compact()) return entries;
+  GroupStartIndexes starts(*entries);
+  int capacity =
+      kCodesStartIndex + DependentCode::Grow(starts.number_of_entries());
+  return Handle<DependentCode>::cast(
+      FixedArray::CopySize(entries, capacity, TENURED));
+}
+
+
+bool DependentCode::Compact() {
+  GroupStartIndexes starts(this);
+  int n = 0;
+  for (int g = 0; g < kGroupCount; g++) {
+    int start = starts.at(g);
+    int end = starts.at(g + 1);
+    int count = 0;
+    DCHECK(start >= n);
+    for (int i = start; i < end; i++) {
+      Object* obj = object_at(i);
+      if (!obj->IsWeakCell() || !WeakCell::cast(obj)->cleared()) {
+        if (i != n + count) {
+          copy(i, n + count);
+        }
+        count++;
+      }
+    }
+    if (count != end - start) {
+      set_number_of_entries(static_cast<DependencyGroup>(g), count);
+    }
+    n += count;
+  }
+  return n < starts.number_of_entries();
+}
+
+
+void DependentCode::UpdateToFinishedCode(DependencyGroup group, Foreign* info,
+                                         WeakCell* code_cell) {
   DisallowHeapAllocation no_gc;
-  AllowDeferredHandleDereference get_object_wrapper;
-  Foreign* info_wrapper = *info->object_wrapper();
   GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
   for (int i = start; i < end; i++) {
-    if (object_at(i) == info_wrapper) {
-      set_object_at(i, code);
+    if (object_at(i) == info) {
+      set_object_at(i, code_cell);
       break;
     }
   }
 
 #ifdef DEBUG
   for (int i = start; i < end; i++) {
-    DCHECK(is_code_at(i) || compilation_info_at(i) != info);
+    DCHECK(object_at(i) != info);
   }
 #endif
 }
 
 
 void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
-                                          CompilationInfo* info) {
+                                          Foreign* info) {
   DisallowHeapAllocation no_allocation;
-  AllowDeferredHandleDereference get_object_wrapper;
-  Foreign* info_wrapper = *info->object_wrapper();
   GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
   // Find compilation info wrapper.
   int info_pos = -1;
   for (int i = start; i < end; i++) {
-    if (object_at(i) == info_wrapper) {
+    if (object_at(i) == info) {
       info_pos = i;
       break;
     }
@@ -12025,18 +12066,18 @@ void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
 
 #ifdef DEBUG
   for (int i = start; i < end - 1; i++) {
-    DCHECK(is_code_at(i) || compilation_info_at(i) != info);
+    DCHECK(object_at(i) != info);
   }
 #endif
 }
 
 
-bool DependentCode::Contains(DependencyGroup group, Code* code) {
+bool DependentCode::Contains(DependencyGroup group, WeakCell* code_cell) {
   GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
   for (int i = start; i < end; i++) {
-    if (object_at(i) == code) return true;
+    if (object_at(i) == code_cell) return true;
   }
   return false;
 }
@@ -12054,15 +12095,24 @@ bool DependentCode::MarkCodeForDeoptimization(
 
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
+  bool invalidate_embedded_objects = group == kWeakCodeGroup;
   for (int i = start; i < end; i++) {
-    if (is_code_at(i)) {
-      Code* code = code_at(i);
+    Object* obj = object_at(i);
+    if (obj->IsWeakCell()) {
+      WeakCell* cell = WeakCell::cast(obj);
+      if (cell->cleared()) continue;
+      Code* code = Code::cast(cell->value());
       if (!code->marked_for_deoptimization()) {
         SetMarkedForDeoptimization(code, group);
+        if (invalidate_embedded_objects) {
+          code->InvalidateEmbeddedObjects();
+        }
         marked = true;
       }
     } else {
-      CompilationInfo* info = compilation_info_at(i);
+      DCHECK(obj->IsForeign());
+      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
+          Foreign::cast(obj)->foreign_address());
       info->AbortDueToDependencyChange();
     }
   }
@@ -12086,7 +12136,6 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   DCHECK(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   bool marked = MarkCodeForDeoptimization(isolate, group);
-
   if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
 }
 
@@ -13167,7 +13216,7 @@ void AllocationSite::AddDependentCompilationInfo(
     CompilationInfo* info) {
   Handle<DependentCode> dep(site->dependent_code());
   Handle<DependentCode> codes =
-      DependentCode::Insert(dep, group, info->object_wrapper());
+      DependentCode::InsertCompilationInfo(dep, group, info->object_wrapper());
   if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
   info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
@@ -15980,7 +16029,7 @@ void ObjectHashTable::RemoveEntry(int entry) {
 }
 
 
-Object* WeakHashTable::Lookup(Handle<Object> key) {
+Object* WeakHashTable::Lookup(Handle<HeapObject> key) {
   DisallowHeapAllocation no_gc;
   DCHECK(IsKey(*key));
   int entry = FindEntry(key);
@@ -15990,36 +16039,31 @@ Object* WeakHashTable::Lookup(Handle<Object> key) {
 
 
 Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
-                                         Handle<Object> key,
-                                         Handle<Object> value) {
+                                         Handle<HeapObject> key,
+                                         Handle<HeapObject> value) {
   DCHECK(table->IsKey(*key));
   int entry = table->FindEntry(key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    // TODO(ulan): Skipping write barrier is a temporary solution to avoid
-    // memory leaks. Remove this once we have special visitor for weak fixed
-    // arrays.
-    table->set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
+    table->set(EntryToValueIndex(entry), *value);
     return table;
   }
+
+  Handle<WeakCell> key_cell = key->GetIsolate()->factory()->NewWeakCell(key);
 
   // Check whether the hash table should be extended.
   table = EnsureCapacity(table, 1, key, TENURED);
 
-  table->AddEntry(table->FindInsertionEntry(table->Hash(key)), key, value);
+  table->AddEntry(table->FindInsertionEntry(table->Hash(key)), key_cell, value);
   return table;
 }
 
 
-void WeakHashTable::AddEntry(int entry,
-                             Handle<Object> key,
-                             Handle<Object> value) {
+void WeakHashTable::AddEntry(int entry, Handle<WeakCell> key_cell,
+                             Handle<HeapObject> value) {
   DisallowHeapAllocation no_allocation;
-  // TODO(ulan): Skipping write barrier is a temporary solution to avoid
-  // memory leaks. Remove this once we have special visitor for weak fixed
-  // arrays.
-  set(EntryToIndex(entry), *key, SKIP_WRITE_BARRIER);
-  set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
+  set(EntryToIndex(entry), *key_cell);
+  set(EntryToValueIndex(entry), *value);
   ElementAdded();
 }
 
@@ -16962,10 +17006,9 @@ Handle<Object> PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
 // static
 void PropertyCell::AddDependentCompilationInfo(Handle<PropertyCell> cell,
                                                CompilationInfo* info) {
-  Handle<DependentCode> codes =
-      DependentCode::Insert(handle(cell->dependent_code(), info->isolate()),
-                            DependentCode::kPropertyCellChangedGroup,
-                            info->object_wrapper());
+  Handle<DependentCode> codes = DependentCode::InsertCompilationInfo(
+      handle(cell->dependent_code(), info->isolate()),
+      DependentCode::kPropertyCellChangedGroup, info->object_wrapper());
   if (*codes != cell->dependent_code()) cell->set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       cell, info->zone());

@@ -850,6 +850,7 @@ class ConsString;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
 class FixedArrayBase;
+class FunctionLiteral;
 class GlobalObject;
 class LayoutDescriptor;
 class LookupIterator;
@@ -857,7 +858,6 @@ class ObjectVisitor;
 class StringStream;
 class TypeFeedbackVector;
 class WeakCell;
-class FunctionLiteral;
 
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
@@ -4049,9 +4049,9 @@ class WeakHashTableShape : public BaseShape<Handle<Object> > {
 };
 
 
-// WeakHashTable maps keys that are arbitrary objects to object values.
-// It is used for the global weak hash table that maps objects
-// embedded in optimized code to dependent code lists.
+// WeakHashTable maps keys that are arbitrary heap objects to heap object
+// values. The table wraps the keys in weak cells and store values directly.
+// Thus it references keys weakly and values strongly.
 class WeakHashTable: public HashTable<WeakHashTable,
                                       WeakHashTableShape<2>,
                                       Handle<Object> > {
@@ -4062,27 +4062,18 @@ class WeakHashTable: public HashTable<WeakHashTable,
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Handle<Object> key);
+  Object* Lookup(Handle<HeapObject> key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
   MUST_USE_RESULT static Handle<WeakHashTable> Put(Handle<WeakHashTable> table,
-                                                   Handle<Object> key,
-                                                   Handle<Object> value);
-
-  // This function is called when heap verification is turned on.
-  void Zap(Object* value) {
-    int capacity = Capacity();
-    for (int i = 0; i < capacity; i++) {
-      set(EntryToIndex(i), value);
-      set(EntryToValueIndex(i), value);
-    }
-  }
+                                                   Handle<HeapObject> key,
+                                                   Handle<HeapObject> value);
 
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, Handle<Object> key, Handle<Object> value);
+  void AddEntry(int entry, Handle<WeakCell> key, Handle<HeapObject> value);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {
@@ -5543,9 +5534,9 @@ class CompilationInfo;
 //
 // The first n elements are Smis, each of them specifies the number of codes
 // in the corresponding group. The subsequent elements contain grouped code
-// objects. The suffix of the array can be filled with the undefined value if
-// the number of codes is less than the length of the array. The order of the
-// code objects within a group is not preserved.
+// objects in weak cells. The suffix of the array can be filled with the
+// undefined value if the number of codes is less than the length of the
+// array. The order of the code objects within a group is not preserved.
 //
 // All code indexes used in the class are counted starting from the first
 // code object of the first group. In other words, code index 0 corresponds
@@ -5599,15 +5590,21 @@ class DependentCode: public FixedArray {
     int start_indexes_[kGroupCount + 1];
   };
 
-  bool Contains(DependencyGroup group, Code* code);
-  static Handle<DependentCode> Insert(Handle<DependentCode> entries,
-                                      DependencyGroup group,
-                                      Handle<Object> object);
-  void UpdateToFinishedCode(DependencyGroup group,
-                            CompilationInfo* info,
-                            Code* code);
+  bool Contains(DependencyGroup group, WeakCell* code_cell);
+
+  static Handle<DependentCode> InsertCompilationInfo(
+      Handle<DependentCode> entries, DependencyGroup group,
+      Handle<Foreign> info);
+
+  static Handle<DependentCode> InsertWeakCode(Handle<DependentCode> entries,
+                                              DependencyGroup group,
+                                              Handle<WeakCell> code_cell);
+
+  void UpdateToFinishedCode(DependencyGroup group, Foreign* info,
+                            WeakCell* code_cell);
+
   void RemoveCompilationInfo(DependentCode::DependencyGroup group,
-                             CompilationInfo* info);
+                             Foreign* info);
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
@@ -5619,12 +5616,8 @@ class DependentCode: public FixedArray {
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);
   inline void set_number_of_entries(DependencyGroup group, int value);
-  inline bool is_code_at(int i);
-  inline Code* code_at(int i);
-  inline CompilationInfo* compilation_info_at(int i);
-  inline void set_object_at(int i, Object* object);
-  inline Object** slot_at(int i);
   inline Object* object_at(int i);
+  inline void set_object_at(int i, Object* object);
   inline void clear_at(int i);
   inline void copy(int from, int to);
   DECLARE_CAST(DependentCode)
@@ -5636,9 +5629,20 @@ class DependentCode: public FixedArray {
   static void SetMarkedForDeoptimization(Code* code, DependencyGroup group);
 
  private:
+  static Handle<DependentCode> Insert(Handle<DependentCode> entries,
+                                      DependencyGroup group,
+                                      Handle<Object> object);
+  static Handle<DependentCode> EnsureSpace(Handle<DependentCode> entries);
   // Make a room at the end of the given group by moving out the first
   // code objects of the subsequent groups.
   inline void ExtendGroup(DependencyGroup group);
+  // Compact by removing cleared weak cells and return true if there was
+  // any cleared weak cell.
+  bool Compact();
+  static int Grow(int number_of_entries) {
+    if (number_of_entries < 5) return number_of_entries + 1;
+    return number_of_entries * 5 / 4;
+  }
   static const int kCodesStartIndex = kGroupCount;
 };
 
@@ -8473,7 +8477,7 @@ class AllocationSite: public Struct {
   // During mark compact we need to take special care for the dependent code
   // field.
   static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
-  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+  static const int kPointerFieldsEndOffset = kWeakNextOffset;
 
   // For other visitors, use the fixed body descriptor below.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
@@ -9741,7 +9745,7 @@ class PropertyCell: public Cell {
   static const int kSize = kDependentCodeOffset + kPointerSize;
 
   static const int kPointerFieldsBeginOffset = kValueOffset;
-  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+  static const int kPointerFieldsEndOffset = kSize;
 
   typedef FixedBodyDescriptor<kValueOffset,
                               kSize,
