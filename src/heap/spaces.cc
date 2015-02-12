@@ -1032,6 +1032,9 @@ bool PagedSpace::Expand() {
                                                                 executable());
   if (p == NULL) return false;
 
+  // Pages created during bootstrapping may contain immortal immovable objects.
+  if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
+
   DCHECK(Capacity() <= max_capacity_);
 
   p->InsertAfter(anchor_.prev_page());

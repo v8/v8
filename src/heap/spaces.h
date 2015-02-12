@@ -373,6 +373,7 @@ class MemoryChunk {
     CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
+    NEVER_EVACUATE,  // May contain immortal immutables.
 
     // WAS_SWEPT indicates that marking bits have been cleared by the sweeper,
     // otherwise marking bits are still intact.
@@ -604,7 +605,14 @@ class MemoryChunk {
 
   static const int kFlagsOffset = kPointerSize;
 
-  bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
+  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
+
+  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
+
+  bool IsEvacuationCandidate() {
+    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
+    return IsFlagSet(EVACUATION_CANDIDATE);
+  }
 
   bool ShouldSkipEvacuationSlotRecording() {
     return (flags_ & kSkipEvacuationSlotsRecordingMask) != 0;
@@ -619,6 +627,7 @@ class MemoryChunk {
   inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
 
   void MarkEvacuationCandidate() {
+    DCHECK(!IsFlagSet(NEVER_EVACUATE));
     DCHECK(slots_buffer_ == NULL);
     SetFlag(EVACUATION_CANDIDATE);
   }

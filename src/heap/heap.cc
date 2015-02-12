@@ -5620,7 +5620,17 @@ void Heap::SetStackLimits() {
 }
 
 
-void Heap::NotifyDeserializationComplete() { deserialization_complete_ = true; }
+void Heap::NotifyDeserializationComplete() {
+  deserialization_complete_ = true;
+#ifdef DEBUG
+  // All pages right after bootstrapping must be marked as never-evacuate.
+  PagedSpaces spaces(this);
+  for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
+    PageIterator it(s);
+    while (it.has_next()) CHECK(it.next()->NeverEvacuate());
+  }
+#endif  // DEBUG
+}
 
 
 void Heap::TearDown() {

@@ -242,6 +242,7 @@ void MarkCompactCollector::TearDown() {
 
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
+  DCHECK(!p->NeverEvacuate());
   p->MarkEvacuationCandidate();
   evacuation_candidates_.Add(p);
 }
@@ -719,10 +720,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   Candidate* least = NULL;
 
   PageIterator it(space);
-  if (it.has_next()) it.next();  // Never compact the first page.
-
   while (it.has_next()) {
     Page* p = it.next();
+    if (p->NeverEvacuate()) continue;
     p->ClearEvacuationCandidate();
 
     if (FLAG_stress_compaction) {
