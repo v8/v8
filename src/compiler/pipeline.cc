@@ -838,7 +838,7 @@ Handle<Code> Pipeline::GenerateCode() {
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         DisallowHeapAllocation no_allocation;
         int start = function->start_position();
-        int len = function->end_position() - start + 1;
+        int len = function->end_position() - start;
         String::SubStringRange source(String::cast(script->source()), start,
                                       len);
         for (const auto& c : source) {
