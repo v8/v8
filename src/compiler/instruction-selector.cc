@@ -1064,7 +1064,7 @@ void InstructionSelector::VisitSwitch(Node* node, BasicBlock** branches,
   Node* const value = node->InputAt(0);
   size_t const input_count = branch_count + 1;
   InstructionOperand* const inputs =
-      zone()->NewArray<InstructionOperand>(static_cast<int>(input_count));
+      zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = g.UseRegister(value);
   for (size_t index = 0; index < branch_count; ++index) {
     inputs[index + 1] = g.Label(branches[index]);

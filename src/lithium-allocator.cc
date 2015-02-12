@@ -2174,8 +2174,8 @@ LAllocatorPhase::LAllocatorPhase(const char* name, LAllocator* allocator)
 
 LAllocatorPhase::~LAllocatorPhase() {
   if (FLAG_hydrogen_stats) {
-    unsigned size = allocator_->zone()->allocation_size() -
-                    allocator_zone_start_allocation_size_;
+    size_t size = allocator_->zone()->allocation_size() -
+                  allocator_zone_start_allocation_size_;
     isolate()->GetHStatistics()->SaveTiming(name(), base::TimeDelta(), size);
   }
 

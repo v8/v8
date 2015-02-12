@@ -1514,7 +1514,7 @@ class LiveRangeBoundArray {
   void Initialize(Zone* zone, const LiveRange* const range) {
     size_t length = 0;
     for (auto i = range; i != nullptr; i = i->next()) length++;
-    start_ = zone->NewArray<LiveRangeBound>(static_cast<int>(length));
+    start_ = zone->NewArray<LiveRangeBound>(length);
     length_ = length;
     auto curr = start_;
     for (auto i = range; i != nullptr; i = i->next(), ++curr) {

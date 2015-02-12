@@ -1565,7 +1565,7 @@ CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
 
 CompilationPhase::~CompilationPhase() {
   if (FLAG_hydrogen_stats) {
-    unsigned size = zone()->allocation_size();
+    size_t size = zone()->allocation_size();
     size += info_->zone()->allocation_size() - info_zone_start_allocation_size_;
     isolate()->GetHStatistics()->SaveTiming(name_, timer_.Elapsed(), size);
   }

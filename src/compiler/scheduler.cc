@@ -365,8 +365,7 @@ class CFGBuilder : public ZoneObject {
 
   void BuildBlocksForSuccessors(Node* node) {
     size_t const successor_count = node->op()->ControlOutputCount();
-    Node** successors =
-        zone_->NewArray<Node*>(static_cast<int>(successor_count));
+    Node** successors = zone_->NewArray<Node*>(successor_count);
     CollectSuccessorProjections(node, successors, successor_count);
     for (size_t index = 0; index < successor_count; ++index) {
       BuildBlockForNode(successors[index]);
@@ -457,7 +456,7 @@ class CFGBuilder : public ZoneObject {
   void ConnectSwitch(Node* sw) {
     size_t const successor_count = sw->op()->ControlOutputCount();
     BasicBlock** successor_blocks =
-        zone_->NewArray<BasicBlock*>(static_cast<int>(successor_count));
+        zone_->NewArray<BasicBlock*>(successor_count);
     CollectSuccessorBlocks(sw, successor_blocks, successor_count);
 
     if (sw == component_entry_) {

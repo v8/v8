@@ -13452,9 +13452,9 @@ void HStatistics::Print() {
     double percent = times_[i].PercentOf(sum);
     PrintF(" %8.3f ms / %4.1f %% ", ms, percent);
 
-    unsigned size = sizes_[i];
+    size_t size = sizes_[i];
     double size_percent = static_cast<double>(size) * 100 / total_size_;
-    PrintF(" %9u bytes / %4.1f %%\n", size, size_percent);
+    PrintF(" %9zu bytes / %4.1f %%\n", size, size_percent);
   }
 
   PrintF(
@@ -13470,7 +13470,7 @@ void HStatistics::Print() {
   PrintF(
       "----------------------------------------"
       "----------------------------------------\n");
-  PrintF("%33s %8.3f ms           %9u bytes\n", "Total",
+  PrintF("%33s %8.3f ms           %9zu bytes\n", "Total",
          total.InMillisecondsF(), total_size_);
   PrintF("%33s     (%.1f times slower than full code gen)\n", "",
          total.TimesOf(full_code_gen_));
@@ -13489,7 +13489,7 @@ void HStatistics::Print() {
 
 
 void HStatistics::SaveTiming(const char* name, base::TimeDelta time,
-                             unsigned size) {
+                             size_t size) {
   total_size_ += size;
   for (int i = 0; i < names_.length(); ++i) {
     if (strcmp(names_[i], name) == 0) {

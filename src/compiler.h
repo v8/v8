@@ -773,7 +773,7 @@ class CompilationPhase BASE_EMBEDDED {
   const char* name_;
   CompilationInfo* info_;
   Zone zone_;
-  unsigned info_zone_start_allocation_size_;
+  size_t info_zone_start_allocation_size_;
   base::ElapsedTimer timer_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);

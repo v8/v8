@@ -1073,7 +1073,7 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
   size_t const label_count = instr->InputCount() - 1;
-  Label** labels = zone()->NewArray<Label*>(static_cast<int>(label_count));
+  Label** labels = zone()->NewArray<Label*>(label_count);
   for (size_t index = 0; index < label_count; ++index) {
     labels[index] = GetLabel(i.InputRpo(static_cast<int>(index + 1)));
   }

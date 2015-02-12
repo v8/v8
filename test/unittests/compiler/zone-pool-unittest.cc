@@ -32,9 +32,9 @@ class ZonePoolTest : public TestWithIsolate {
 
   size_t Allocate(Zone* zone) {
     size_t bytes = rng.NextInt(25) + 7;
-    int size_before = zone->allocation_size();
-    zone->New(static_cast<int>(bytes));
-    return static_cast<size_t>(zone->allocation_size() - size_before);
+    size_t size_before = zone->allocation_size();
+    zone->New(bytes);
+    return zone->allocation_size() - size_before;
   }
 
  private:

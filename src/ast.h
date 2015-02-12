@@ -200,9 +200,7 @@ class AstNode: public ZoneObject {
   };
 #undef DECLARE_TYPE_ENUM
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
+  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
 
   explicit AstNode(int position): position_(position) {}
   virtual ~AstNode() {}

@@ -2134,9 +2134,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
+  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
 
@@ -2800,7 +2798,7 @@ class HStatistics FINAL: public Malloced {
 
   void Initialize(CompilationInfo* info);
   void Print();
-  void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
+  void SaveTiming(const char* name, base::TimeDelta time, size_t size);
 
   void IncrementFullCodeGen(base::TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
@@ -2825,11 +2823,11 @@ class HStatistics FINAL: public Malloced {
  private:
   List<base::TimeDelta> times_;
   List<const char*> names_;
-  List<unsigned> sizes_;
+  List<size_t> sizes_;
   base::TimeDelta create_graph_;
   base::TimeDelta optimize_graph_;
   base::TimeDelta generate_code_;
-  unsigned total_size_;
+  size_t total_size_;
   base::TimeDelta full_code_gen_;
   double source_size_;
 };

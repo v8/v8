@@ -19,7 +19,7 @@ namespace {
 
 #if V8_USE_ADDRESS_SANITIZER
 
-const int kASanRedzoneBytes = 24;  // Must be a multiple of 8.
+const size_t kASanRedzoneBytes = 24;  // Must be a multiple of 8.
 
 #else
 
@@ -35,7 +35,7 @@ const int kASanRedzoneBytes = 24;  // Must be a multiple of 8.
     USE(size);                                   \
   } while (false)
 
-const int kASanRedzoneBytes = 0;
+const size_t kASanRedzoneBytes = 0;
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -50,7 +50,7 @@ const int kASanRedzoneBytes = 0;
 
 class Segment {
  public:
-  void Initialize(Segment* next, int size) {
+  void Initialize(Segment* next, size_t size) {
     next_ = next;
     size_ = size;
   }
@@ -58,20 +58,18 @@ class Segment {
   Segment* next() const { return next_; }
   void clear_next() { next_ = nullptr; }
 
-  int size() const { return size_; }
-  int capacity() const { return size_ - sizeof(Segment); }
+  size_t size() const { return size_; }
+  size_t capacity() const { return size_ - sizeof(Segment); }
 
   Address start() const { return address(sizeof(Segment)); }
   Address end() const { return address(size_); }
 
  private:
   // Computes the address of the nth byte in this segment.
-  Address address(int n) const {
-    return Address(this) + n;
-  }
+  Address address(size_t n) const { return Address(this) + n; }
 
   Segment* next_;
-  int size_;
+  size_t size_;
 };
 
 
@@ -91,7 +89,7 @@ Zone::~Zone() {
 }
 
 
-void* Zone::New(int size) {
+void* Zone::New(size_t size) {
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
 
@@ -106,8 +104,8 @@ void* Zone::New(int size) {
   // Check if the requested size is available without expanding.
   Address result = position_;
 
-  const int size_with_redzone = size + kASanRedzoneBytes;
-  if (size_with_redzone > limit_ - position_) {
+  const size_t size_with_redzone = size + kASanRedzoneBytes;
+  if (limit_ < position_ + size_with_redzone) {
     result = NewExpand(size_with_redzone);
   } else {
     position_ += size_with_redzone;
@@ -141,7 +139,7 @@ void Zone::DeleteAll() {
       keep = current;
       keep->clear_next();
     } else {
-      int size = current->size();
+      size_t size = current->size();
 #ifdef DEBUG
       // Un-poison first so the zapping doesn't trigger ASan complaints.
       ASAN_UNPOISON_MEMORY_REGION(current, size);
@@ -185,7 +183,7 @@ void Zone::DeleteKeptSegment() {
 
   DCHECK(segment_head_ == nullptr || segment_head_->next() == nullptr);
   if (segment_head_ != nullptr) {
-    int size = segment_head_->size();
+    size_t size = segment_head_->size();
 #ifdef DEBUG
     // Un-poison first so the zapping doesn't trigger ASan complaints.
     ASAN_UNPOISON_MEMORY_REGION(segment_head_, size);
@@ -202,7 +200,7 @@ void Zone::DeleteKeptSegment() {
 
 // Creates a new segment, sets it size, and pushes it to the front
 // of the segment chain. Returns the new segment.
-Segment* Zone::NewSegment(int size) {
+Segment* Zone::NewSegment(size_t size) {
   Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
   segment_bytes_allocated_ += size;
   if (result != nullptr) {
@@ -214,17 +212,17 @@ Segment* Zone::NewSegment(int size) {
 
 
 // Deletes the given segment. Does not touch the segment chain.
-void Zone::DeleteSegment(Segment* segment, int size) {
+void Zone::DeleteSegment(Segment* segment, size_t size) {
   segment_bytes_allocated_ -= size;
   Malloced::Delete(segment);
 }
 
 
-Address Zone::NewExpand(int size) {
+Address Zone::NewExpand(size_t size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
-  DCHECK(size == RoundDown(size, kAlignment));
-  DCHECK(size > limit_ - position_);
+  DCHECK_EQ(size, RoundDown(size, kAlignment));
+  DCHECK_LT(limit_, position_ + size);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
@@ -235,27 +233,26 @@ Address Zone::NewExpand(int size) {
   static const size_t kSegmentOverhead = sizeof(Segment) + kAlignment;
   const size_t new_size_no_overhead = size + (old_size << 1);
   size_t new_size = kSegmentOverhead + new_size_no_overhead;
-  const size_t min_new_size = kSegmentOverhead + static_cast<size_t>(size);
+  const size_t min_new_size = kSegmentOverhead + size;
   // Guard against integer overflow.
-  if (new_size_no_overhead < static_cast<size_t>(size) ||
-      new_size < static_cast<size_t>(kSegmentOverhead)) {
+  if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
     V8::FatalProcessOutOfMemory("Zone");
     return nullptr;
   }
-  if (new_size < static_cast<size_t>(kMinimumSegmentSize)) {
+  if (new_size < kMinimumSegmentSize) {
     new_size = kMinimumSegmentSize;
-  } else if (new_size > static_cast<size_t>(kMaximumSegmentSize)) {
+  } else if (new_size > kMaximumSegmentSize) {
     // Limit the size of new segments to avoid growing the segment size
     // exponentially, thus putting pressure on contiguous virtual address space.
     // All the while making sure to allocate a segment large enough to hold the
     // requested size.
-    new_size = Max(min_new_size, static_cast<size_t>(kMaximumSegmentSize));
+    new_size = Max(min_new_size, kMaximumSegmentSize);
   }
   if (new_size > INT_MAX) {
     V8::FatalProcessOutOfMemory("Zone");
     return nullptr;
   }
-  Segment* segment = NewSegment(static_cast<int>(new_size));
+  Segment* segment = NewSegment(new_size);
   if (segment == nullptr) {
     V8::FatalProcessOutOfMemory("Zone");
     return nullptr;

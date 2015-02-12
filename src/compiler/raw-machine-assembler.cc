@@ -80,8 +80,7 @@ void RawMachineAssembler::Switch(Node* index, Label** succ_labels,
                                  size_t succ_count) {
   DCHECK_NE(schedule()->end(), current_block_);
   Node* sw = NewNode(common()->Switch(succ_count), index);
-  BasicBlock** succ_blocks =
-      zone()->NewArray<BasicBlock*>(static_cast<int>(succ_count));
+  BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
   for (size_t index = 0; index < succ_count; ++index) {
     succ_blocks[index] = Use(succ_labels[index]);
   }

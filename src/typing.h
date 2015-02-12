@@ -23,9 +23,7 @@ class AstTyper: public AstVisitor {
  public:
   static void Run(CompilationInfo* info);
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
+  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
 
