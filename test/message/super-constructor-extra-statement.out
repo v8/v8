@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-*%(basename)s:11: ReferenceError: Unsupported reference to 'super'
+*%(basename)s:11: SyntaxError: 'super' keyword unexpected here
     super(x);
-    ^
-ReferenceError: Unsupported reference to 'super'
-    at new C (*%(basename)s:11:5)
-    at *%(basename)s:15:9
+    ^^^^^
+SyntaxError: 'super' keyword unexpected here

@@ -164,23 +164,6 @@
 }());
 
 
-(function TestSuperInBaseConstructors() {
-  class Base {
-    constructor() {
-      let exn = null;
-      try {
-        super();
-      } catch (e) {
-        exn = e;
-      }
-      assertTrue(exn instanceof ReferenceError);
-    }
-  }
-
-  new Base();
-}());
-
-
 (function TestPrototypeWiring() {
   class Base {
     constructor(x) {

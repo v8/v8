@@ -960,12 +960,10 @@ TEST(ScopeUsesArgumentsSuperThis) {
     NONE = 0,
     ARGUMENTS = 1,
     SUPER_PROPERTY = 1 << 1,
-    SUPER_CONSTRUCTOR_CALL = 1 << 2,
-    THIS = 1 << 3,
-    INNER_ARGUMENTS = 1 << 4,
-    INNER_SUPER_PROPERTY = 1 << 5,
-    INNER_SUPER_CONSTRUCTOR_CALL = 1 << 6,
-    INNER_THIS = 1 << 7
+    THIS = 1 << 2,
+    INNER_ARGUMENTS = 1 << 3,
+    INNER_SUPER_PROPERTY = 1 << 4,
+    INNER_THIS = 1 << 5
   };
 
   static const struct {
@@ -975,14 +973,13 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"", NONE},
     {"return this", THIS},
     {"return arguments", ARGUMENTS},
-    {"return super()", SUPER_CONSTRUCTOR_CALL},
     {"return super.x", SUPER_PROPERTY},
     {"return arguments[0]", ARGUMENTS},
     {"return this + arguments[0]", ARGUMENTS | THIS},
     {"return this + arguments[0] + super.x",
      ARGUMENTS | SUPER_PROPERTY | THIS},
     {"return x => this + x", INNER_THIS},
-    {"return x => super() + x", INNER_SUPER_CONSTRUCTOR_CALL},
+    {"return x => super.f() + x", INNER_SUPER_PROPERTY},
     {"this.foo = 42;", THIS},
     {"this.foo();", THIS},
     {"if (foo()) { this.f() }", THIS},
@@ -993,8 +990,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"if (true) { while (true) this.foo(arguments) }", ARGUMENTS | THIS},
     // Multiple nesting levels must work as well.
     {"while (true) { while (true) { while (true) return this } }", THIS},
-    {"while (true) { while (true) { while (true) return super() } }",
-     SUPER_CONSTRUCTOR_CALL},
+    {"while (true) { while (true) { while (true) return super.f() } }",
+     SUPER_PROPERTY},
     {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
     // Note that propagation of the inner_uses_this() value does not
     // cross boundaries of normal functions onto parent scopes.
@@ -1009,8 +1006,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
     // Flags must be correctly set when using block scoping.
     {"\"use strict\"; while (true) { let x; this, arguments; }",
      INNER_ARGUMENTS | INNER_THIS},
-    {"\"use strict\"; while (true) { let x; this, super(), arguments; }",
-     INNER_ARGUMENTS | INNER_SUPER_CONSTRUCTOR_CALL | INNER_THIS},
+    {"\"use strict\"; while (true) { let x; this, super.f(), arguments; }",
+     INNER_ARGUMENTS | INNER_SUPER_PROPERTY | INNER_THIS},
     {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
     {"\"use strict\"; if (foo()) { let x; super.f() }",
      INNER_SUPER_PROPERTY},
@@ -1032,11 +1029,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
 
   for (unsigned j = 0; j < arraysize(surroundings); ++j) {
     for (unsigned i = 0; i < arraysize(source_data); ++i) {
-      // Super constructor call is only allowed in constructor.
       // Super property is only allowed in constructor and method.
-      if (((source_data[i].expected & SUPER_CONSTRUCTOR_CALL) ||
-           (source_data[i].expected & SUPER_PROPERTY) ||
-           (source_data[i].expected & INNER_SUPER_CONSTRUCTOR_CALL) ||
+      if (((source_data[i].expected & SUPER_PROPERTY) ||
            (source_data[i].expected & INNER_SUPER_PROPERTY) ||
            (source_data[i].expected == NONE)) && j != 2) {
         continue;
@@ -1079,15 +1073,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
                scope->uses_arguments());
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
-      CHECK_EQ((source_data[i].expected & SUPER_CONSTRUCTOR_CALL) != 0,
-               scope->uses_super_constructor_call());
       CHECK_EQ((source_data[i].expected & THIS) != 0, scope->uses_this());
       CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
       CHECK_EQ((source_data[i].expected & INNER_SUPER_PROPERTY) != 0,
                scope->inner_uses_super_property());
-      CHECK_EQ((source_data[i].expected & INNER_SUPER_CONSTRUCTOR_CALL) != 0,
-               scope->inner_uses_super_constructor_call());
       CHECK_EQ((source_data[i].expected & INNER_THIS) != 0,
                scope->inner_uses_this());
     }
@@ -3713,7 +3703,6 @@ TEST(SuperCall) {
                                    {NULL, NULL}};
 
   const char* success_data[] = {
-    "class C { constructor() { super(); } }",
     "class C extends B { constructor() { super(); } }",
     "class C extends B { constructor() { () => super(); } }",
     NULL
@@ -3729,6 +3718,7 @@ TEST(SuperCall) {
                     always_flags, arraysize(always_flags));
 
   const char* error_data[] = {
+    "class C { constructor() { super(); } }",
     "class C { method() { super(); } }",
     "class C { method() { () => super(); } }",
     "class C { *method() { super(); } }",

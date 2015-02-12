@@ -1,9 +1,7 @@
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-*%(basename)s:10: ReferenceError: Unsupported reference to 'super'
+*%(basename)s:10: SyntaxError: 'super' keyword unexpected here
     super(this.x);
-    ^
-ReferenceError: Unsupported reference to 'super'
-    at new C (*%(basename)s:10:5)
-    at *%(basename)s:14:9
+    ^^^^^
+SyntaxError: 'super' keyword unexpected here
