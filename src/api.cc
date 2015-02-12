@@ -1651,14 +1651,104 @@ Local<Script> ScriptCompiler::CompileModule(Isolate* v8_isolate, Source* source,
 }
 
 
+class IsIdentifierHelper {
+ public:
+  IsIdentifierHelper() : is_identifier_(false), first_char_(true) {}
+
+  bool Check(i::String* string) {
+    i::ConsString* cons_string = i::String::VisitFlat(this, string, 0);
+    if (cons_string == NULL) return is_identifier_;
+    // We don't support cons strings here.
+    return false;
+  }
+  void VisitOneByteString(const uint8_t* chars, int length) {
+    for (int i = 0; i < length; ++i) {
+      if (first_char_) {
+        first_char_ = false;
+        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+      } else {
+        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+      }
+    }
+  }
+  void VisitTwoByteString(const uint16_t* chars, int length) {
+    for (int i = 0; i < length; ++i) {
+      if (first_char_) {
+        first_char_ = false;
+        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+      } else {
+        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+      }
+    }
+  }
+
+ private:
+  bool is_identifier_;
+  bool first_char_;
+  i::UnicodeCache unicode_cache_;
+  DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
+};
+
+
 Local<Function> ScriptCompiler::CompileFunctionInContext(
     Isolate* v8_isolate, Source* source, Local<Context> v8_context,
+    size_t arguments_count, Local<String> arguments[],
     size_t context_extension_count, Local<Object> context_extensions[]) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileFunctionInContext()",
              return Local<Function>());
   LOG_API(isolate, "ScriptCompiler::CompileFunctionInContext()");
   ENTER_V8(isolate);
+
+  i::Handle<i::String> source_string;
+  if (arguments_count) {
+    source_string =
+        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "(function("));
+    for (size_t i = 0; i < arguments_count; ++i) {
+      IsIdentifierHelper helper;
+      if (!helper.Check(*Utils::OpenHandle(*arguments[i]))) {
+        return Local<Function>();
+      }
+      i::MaybeHandle<i::String> maybe_source =
+          isolate->factory()->NewConsString(source_string,
+                                            Utils::OpenHandle(*arguments[i]));
+      if (!maybe_source.ToHandle(&source_string)) {
+        return Local<Function>();
+      }
+      if (i + 1 == arguments_count) continue;
+      maybe_source = isolate->factory()->NewConsString(
+          source_string,
+          isolate->factory()->LookupSingleCharacterStringFromCode(','));
+      if (!maybe_source.ToHandle(&source_string)) {
+        return Local<Function>();
+      }
+    }
+    i::Handle<i::String> brackets =
+        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "){"));
+    i::MaybeHandle<i::String> maybe_source =
+        isolate->factory()->NewConsString(source_string, brackets);
+    if (!maybe_source.ToHandle(&source_string)) {
+      return Local<Function>();
+    }
+  } else {
+    source_string =
+        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "(function(){"));
+  }
+
+  int scope_position = source_string->length();
+  i::MaybeHandle<i::String> maybe_source = isolate->factory()->NewConsString(
+      source_string, Utils::OpenHandle(*source->source_string));
+  if (!maybe_source.ToHandle(&source_string)) {
+    return Local<Function>();
+  }
+  // Include \n in case the source contains a line end comment.
+  i::Handle<i::String> brackets =
+      Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "\n})"));
+  maybe_source = isolate->factory()->NewConsString(source_string, brackets);
+  if (!maybe_source.ToHandle(&source_string)) {
+    return Local<Function>();
+  }
+
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
                                               isolate);
@@ -1668,13 +1758,21 @@ Local<Function> ScriptCompiler::CompileFunctionInContext(
     i::Handle<i::JSFunction> closure(context->closure(), isolate);
     context = isolate->factory()->NewWithContext(closure, context, extension);
   }
+
   EXCEPTION_PREAMBLE(isolate);
-  i::MaybeHandle<i::JSFunction> result = i::Compiler::GetFunctionFromEval(
-      Utils::OpenHandle(*source->source_string), outer_info, context, i::SLOPPY,
-      i::NO_PARSE_RESTRICTION, 0 /* scope_position */);
-  has_pending_exception = result.is_null();
+  i::MaybeHandle<i::JSFunction> maybe_fun = i::Compiler::GetFunctionFromEval(
+      source_string, outer_info, context, i::SLOPPY,
+      i::ONLY_SINGLE_FUNCTION_LITERAL, scope_position);
+  i::Handle<i::JSFunction> fun;
+  has_pending_exception = !maybe_fun.ToHandle(&fun);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
-  return Utils::ToLocal(result.ToHandleChecked());
+
+  i::MaybeHandle<i::Object> result = i::Execution::Call(
+      isolate, fun, Utils::OpenHandle(*v8_context->Global()), 0, NULL);
+  i::Handle<i::Object> final_result;
+  has_pending_exception = !result.ToHandle(&final_result);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
+  return Utils::ToLocal(i::Handle<i::JSFunction>::cast(final_result));
 }
 
 

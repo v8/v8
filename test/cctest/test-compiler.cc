@@ -416,7 +416,7 @@ TEST(CompileFunctionInContext) {
       "x = r * cos(PI);"
       "y = r * sin(PI / 2);"));
   v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
-      CcTest::isolate(), &script_source, env.local(), 1, &math);
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 1, &math);
   CHECK(!fun.IsEmpty());
   fun->Call(env->Global(), 0, NULL);
   CHECK(env->Global()->Has(v8_str("a")));
@@ -449,13 +449,68 @@ TEST(CompileFunctionInContextComplex) {
   ext[1] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("b")));
   v8::ScriptCompiler::Source script_source(v8_str("result = x + y + z"));
   v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
-      CcTest::isolate(), &script_source, env.local(), 2, ext);
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 2, ext);
   CHECK(!fun.IsEmpty());
   fun->Call(env->Global(), 0, NULL);
   CHECK(env->Global()->Has(v8_str("result")));
   v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
   CHECK(result->IsNumber());
   CHECK_EQ(52.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextArgs) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var a = {x: 23};");
+  v8::Local<v8::Object> ext[1];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  v8::ScriptCompiler::Source script_source(v8_str("result = x + b"));
+  v8::Local<v8::String> arg = v8_str("b");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 1, ext);
+  CHECK(!fun.IsEmpty());
+  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env->Global(), 1, &b_value);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(65.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextComments) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var a = {x: 23, y: 1, z: 2};");
+  v8::Local<v8::Object> ext[1];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  v8::ScriptCompiler::Source script_source(
+      v8_str("result = /* y + */ x + b // + z"));
+  v8::Local<v8::String> arg = v8_str("b");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 1, ext);
+  CHECK(!fun.IsEmpty());
+  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env->Global(), 1, &b_value);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(65.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextNonIdentifierArgs) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::ScriptCompiler::Source script_source(v8_str("result = 1"));
+  v8::Local<v8::String> arg = v8_str("b }");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 0, NULL);
+  CHECK(fun.IsEmpty());
 }
 
 
