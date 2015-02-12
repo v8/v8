@@ -361,7 +361,6 @@ class ParserTraits {
     typedef Variable GeneratorVariable;
 
     typedef v8::internal::AstProperties AstProperties;
-    typedef Vector<VariableProxy*> ParameterIdentifierVector;
 
     // Return types for traversing functions.
     typedef const AstRawString* Identifier;
@@ -667,18 +666,6 @@ class Parser : public ParserBase<ParserTraits> {
   // the reason why this limit was introduced in the first place; see
   // https://codereview.chromium.org/7003030/ ).
   static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
-
-  enum VariableDeclarationContext {
-    kStatementListItem,
-    kStatement,
-    kForStatement
-  };
-
-  // If a list of variable declarations includes any initializers.
-  enum VariableDeclarationProperties {
-    kHasInitializers,
-    kHasNoInitializers
-  };
 
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(CompilationInfo* info);

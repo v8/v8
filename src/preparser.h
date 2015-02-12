@@ -170,6 +170,15 @@ class ParserBase : public Traits {
     PARSE_EAGERLY
   };
 
+  enum VariableDeclarationContext {
+    kStatementListItem,
+    kStatement,
+    kForStatement
+  };
+
+  // If a list of variable declarations includes any initializers.
+  enum VariableDeclarationProperties { kHasInitializers, kHasNoInitializers };
+
   class Checkpoint;
   class ObjectLiteralCheckerBase;
 
@@ -1191,7 +1200,6 @@ class PreParserTraits {
     typedef void GeneratorVariable;
 
     typedef int AstProperties;
-    typedef Vector<PreParserIdentifier> ParameterIdentifierVector;
 
     // Return types for traversing functions.
     typedef PreParserIdentifier Identifier;
@@ -1551,18 +1559,6 @@ class PreParser : public ParserBase<PreParserTraits> {
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
   // to throw the correct syntax error exceptions.
-
-  enum VariableDeclarationContext {
-    kSourceElement,
-    kStatement,
-    kForStatement
-  };
-
-  // If a list of variable declarations includes any initializers.
-  enum VariableDeclarationProperties {
-    kHasInitializers,
-    kHasNoInitializers
-  };
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.

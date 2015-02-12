@@ -180,11 +180,11 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
     case Token::CLASS:
       return ParseClassDeclaration(ok);
     case Token::CONST:
-      return ParseVariableStatement(kSourceElement, ok);
+      return ParseVariableStatement(kStatementListItem, ok);
     case Token::LET:
       DCHECK(allow_harmony_scoping());
       if (is_strict(language_mode())) {
-        return ParseVariableStatement(kSourceElement, ok);
+        return ParseVariableStatement(kStatementListItem, ok);
       }
       // Fall through.
     default:
