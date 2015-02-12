@@ -256,5 +256,28 @@ bool LayoutDescriptorHelper::IsTagged(
   DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
   return tagged;
 }
+
+
+#ifdef VERIFY_HEAP
+bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
+  if (FLAG_unbox_double_fields) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    int nof_descriptors = map->NumberOfOwnDescriptors();
+    for (int i = 0; i < nof_descriptors; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.type() != DATA) continue;
+      FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
+      bool tagged_expected =
+          !field_index.is_inobject() || !details.representation().IsDouble();
+      for (int bit = 0; bit < details.field_width_in_words(); bit++) {
+        bool tagged_actual = IsTagged(details.field_index() + bit);
+        DCHECK_EQ(tagged_expected, tagged_actual);
+        if (tagged_actual != tagged_expected) return false;
+      }
+    }
+  }
+  return true;
+}
+#endif
 }
 }  // namespace v8::internal

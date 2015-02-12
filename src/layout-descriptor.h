@@ -69,7 +69,7 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   // tagged (FastPointerLayout).
   V8_INLINE static LayoutDescriptor* FastPointerLayout();
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   // Check that this layout descriptor corresponds to given map.
   bool IsConsistentWithMap(Map* map);
 #endif
