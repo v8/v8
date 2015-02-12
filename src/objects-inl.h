@@ -5306,8 +5306,16 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
     if (layout_descriptor()->IsSlowLayout()) {
       set_layout_descriptor(layout_desc);
     }
+#ifdef VERIFY_HEAP
+    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
+    if (FLAG_verify_heap) {
+      CHECK(layout_descriptor()->IsConsistentWithMap(this));
+      CHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+    }
+#else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
     DCHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+#endif
   }
 }
 
@@ -5320,7 +5328,14 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 
   if (FLAG_unbox_double_fields) {
     set_layout_descriptor(layout_desc);
+#ifdef VERIFY_HEAP
+    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
+    if (FLAG_verify_heap) {
+      CHECK(layout_descriptor()->IsConsistentWithMap(this));
+    }
+#else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
+#endif
     set_visitor_id(StaticVisitorBase::GetVisitorId(this));
   }
 }

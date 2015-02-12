@@ -324,8 +324,9 @@ void Map::MapVerify() {
     SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
     SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
-  SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor()->IsConsistentWithMap(this));
+  // TODO(ishell): turn it back to SLOW_DCHECK.
+  CHECK(!FLAG_unbox_double_fields ||
+        layout_descriptor()->IsConsistentWithMap(this));
 }
 
 

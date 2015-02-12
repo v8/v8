@@ -6854,7 +6854,14 @@ Handle<Map> Map::CopyInstallDescriptors(
         LayoutDescriptor::AppendIfFastOrUseFull(map, details,
                                                 full_layout_descriptor);
     result->set_layout_descriptor(*layout_descriptor);
+#ifdef VERIFY_HEAP
+    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
+    if (FLAG_verify_heap) {
+      CHECK(result->layout_descriptor()->IsConsistentWithMap(*result));
+    }
+#else
     SLOW_DCHECK(result->layout_descriptor()->IsConsistentWithMap(*result));
+#endif
     result->set_visitor_id(StaticVisitorBase::GetVisitorId(*result));
   }
 
