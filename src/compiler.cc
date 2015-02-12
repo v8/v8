@@ -645,7 +645,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   PostponeInterruptsScope postpone(info->isolate());
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::Parse(info)) return MaybeHandle<Code>();
+  if (!Parser::ParseStatic(info)) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info->shared_info();
   FunctionLiteral* lit = info->function();
   shared->set_language_mode(lit->language_mode());
@@ -817,7 +817,7 @@ bool Compiler::Analyze(CompilationInfo* info) {
 
 
 bool Compiler::ParseAndAnalyze(CompilationInfo* info) {
-  if (!Parser::Parse(info)) return false;
+  if (!Parser::ParseStatic(info)) return false;
   return Compiler::Analyze(info);
 }
 
@@ -1058,7 +1058,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   VMState<COMPILER> state(info.isolate());
 
   info.MarkAsGlobal();
-  if (!Parser::Parse(&info)) return;
+  if (!Parser::ParseStatic(&info)) return;
 
   LiveEditFunctionTracker tracker(info.isolate(), info.function());
   if (!CompileUnoptimizedCode(&info)) return;
@@ -1108,7 +1108,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         // data while parsing eagerly is not implemented.
         info->SetCachedData(NULL, ScriptCompiler::kNoCompileOptions);
       }
-      if (!Parser::Parse(info, parse_allow_lazy)) {
+      if (!Parser::ParseStatic(info, parse_allow_lazy)) {
         return Handle<SharedFunctionInfo>::null();
       }
     }

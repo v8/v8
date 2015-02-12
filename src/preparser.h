@@ -67,10 +67,9 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
 
-  ParserBase(Isolate* isolate, Zone* zone, Scanner* scanner,
-             uintptr_t stack_limit, v8::Extension* extension,
-             AstValueFactory* ast_value_factory, ParserRecorder* log,
-             typename Traits::Type::Parser this_object)
+  ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
+             v8::Extension* extension, AstValueFactory* ast_value_factory,
+             ParserRecorder* log, typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
         scope_(NULL),
@@ -81,7 +80,6 @@ class ParserBase : public Traits {
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         stack_limit_(stack_limit),
-        isolate_(isolate),
         zone_(zone),
         scanner_(scanner),
         stack_overflow_(false),
@@ -318,7 +316,6 @@ class ParserBase : public Traits {
     return result;
   }
 
-  Isolate* isolate() const { return isolate_; }
   Scanner* scanner() const { return scanner_; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() { return scanner_->location().beg_pos; }
@@ -653,7 +650,6 @@ class ParserBase : public Traits {
   uintptr_t stack_limit_;
 
  private:
-  Isolate* isolate_;
   Zone* zone_;
 
   Scanner* scanner_;
@@ -1507,10 +1503,9 @@ class PreParser : public ParserBase<PreParserTraits> {
     kPreParseSuccess
   };
 
-  PreParser(Isolate* isolate, Zone* zone, Scanner* scanner,
-            AstValueFactory* ast_value_factory, ParserRecorder* log,
-            uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(isolate, zone, scanner, stack_limit, NULL,
+  PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
+            ParserRecorder* log, uintptr_t stack_limit)
+      : ParserBase<PreParserTraits>(zone, scanner, stack_limit, NULL,
                                     ast_value_factory, log, this) {}
 
   // Pre-parse the program from the character stream; returns true on

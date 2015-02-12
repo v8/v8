@@ -1208,14 +1208,14 @@ class ScopeIterator {
           info.MarkAsEval();
           info.SetContext(Handle<Context>(function_->context()));
         }
-        if (Parser::Parse(&info) && Scope::Analyze(&info)) {
+        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
         RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
         CompilationInfoWithZone info(shared_info);
-        if (Parser::Parse(&info) && Scope::Analyze(&info)) {
+        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
         RetrieveScopeChain(scope, shared_info);

@@ -154,7 +154,7 @@ class FunctionTester : public InitializedHandleScope {
 #if V8_TURBOFAN_TARGET
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
@@ -210,7 +210,7 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Pipeline::SupportedTarget());
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
     CHECK(Compiler::Analyze(&info));

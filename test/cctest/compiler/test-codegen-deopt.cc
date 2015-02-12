@@ -46,7 +46,7 @@ class DeoptCodegenTester {
         function(NewFunction(src)),
         info(function, scope->main_zone()),
         bailout_id(-1) {
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Compiler::Analyze(&info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));

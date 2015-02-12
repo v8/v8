@@ -54,7 +54,7 @@ void BackgroundParsingTask::Run() {
                                    source_->hash_seed,
                                    &source_->unicode_cache));
   source_->parser->set_allow_lazy(source_->allow_lazy);
-  source_->parser->ParseOnBackground();
+  source_->parser->ParseOnBackground(source_->info.get());
 
   if (script_data != NULL) {
     source_->cached_data.Reset(new ScriptCompiler::CachedData(

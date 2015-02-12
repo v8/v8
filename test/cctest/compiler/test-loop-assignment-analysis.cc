@@ -31,7 +31,7 @@ struct TestHelper : public HandleAndZoneScope {
     // TODO(titzer): don't scope analyze every single time.
     CompilationInfo info(function, main_zone());
 
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
 

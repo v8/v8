@@ -251,13 +251,13 @@ int ParseData::FunctionsSize() {
 }
 
 
-void Parser::SetCachedData() {
-  if (compile_options() == ScriptCompiler::kNoCompileOptions) {
+void Parser::SetCachedData(CompilationInfo* info) {
+  if (compile_options_ == ScriptCompiler::kNoCompileOptions) {
     cached_parse_data_ = NULL;
   } else {
-    DCHECK(info_->cached_data() != NULL);
-    if (compile_options() == ScriptCompiler::kConsumeParserCache) {
-      cached_parse_data_ = ParseData::FromCachedData(*info_->cached_data());
+    DCHECK(info->cached_data() != NULL);
+    if (compile_options_ == ScriptCompiler::kConsumeParserCache) {
+      cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
     }
   }
 }
@@ -790,23 +790,27 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
 
 Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
                UnicodeCache* unicode_cache)
-    : ParserBase<ParserTraits>(info->isolate(), info->zone(), &scanner_,
-                               stack_limit, info->extension(),
-                               info->ast_value_factory(), NULL, this),
+    : ParserBase<ParserTraits>(info->zone(), &scanner_, stack_limit,
+                               info->extension(), info->ast_value_factory(),
+                               NULL, this),
       scanner_(unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
+      compile_options_(info->compile_options()),
       cached_parse_data_(NULL),
-      info_(info),
       parsing_lazy_arrow_parameters_(false),
       has_pending_error_(false),
       pending_error_message_(NULL),
       pending_error_arg_(NULL),
       pending_error_char_arg_(NULL),
       total_preparse_skipped_(0),
-      pre_parse_timer_(NULL) {
-  DCHECK(!script().is_null() || info->source_stream() != NULL);
+      pre_parse_timer_(NULL),
+      parsing_on_main_thread_(true) {
+  // Even though we were passed CompilationInfo, we should not store it in
+  // Parser - this makes sure that Isolate is not accidentally accessed via
+  // CompilationInfo during background parsing.
+  DCHECK(!info->script().is_null() || info->source_stream() != NULL);
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
@@ -834,15 +838,18 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
 }
 
 
-FunctionLiteral* Parser::ParseProgram() {
+FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
 
-  // It's OK to use the counters here, since this function is only called in
-  // the main thread.
-  HistogramTimerScope timer_scope(isolate()->counters()->parse(), true);
-  Handle<String> source(String::cast(script()->source()));
-  isolate()->counters()->total_parse_size()->Increment(source->length());
+  // It's OK to use the Isolate & counters here, since this function is only
+  // called in the main thread.
+  DCHECK(parsing_on_main_thread_);
+
+  Isolate* isolate = info->isolate();
+  HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
+  Handle<String> source(String::cast(info->script()->source()));
+  isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
@@ -870,24 +877,24 @@ FunctionLiteral* Parser::ParseProgram() {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), &top_scope, &eval_scope);
+    result = DoParseProgram(info, &top_scope, &eval_scope);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), &top_scope, &eval_scope);
+    result = DoParseProgram(info, &top_scope, &eval_scope);
   }
   top_scope->set_end_position(source->length());
   if (eval_scope != NULL) {
     eval_scope->set_end_position(source->length());
   }
-  HandleSourceURLComments();
+  HandleSourceURLComments(info);
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
-    if (info()->is_eval()) {
+    if (info->is_eval()) {
       PrintF("[parsing eval");
-    } else if (info()->script()->name()->IsString()) {
-      String* name = String::cast(info()->script()->name());
+    } else if (info->script()->name()->IsString()) {
+      String* name = String::cast(info->script()->name());
       SmartArrayPointer<char> name_chars = name->ToCString();
       PrintF("[parsing script: %s", name_chars.get());
     } else {
@@ -896,7 +903,7 @@ FunctionLiteral* Parser::ParseProgram() {
     PrintF(" - took %0.3f ms]\n", ms);
   }
   if (produce_cached_parse_data()) {
-    if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
+    if (result != NULL) *info->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }
   return result;
@@ -905,6 +912,9 @@ FunctionLiteral* Parser::ParseProgram() {
 
 FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
                                         Scope** eval_scope) {
+  // Note that this function can be called from the main thread or from a
+  // background thread. We should not access anything Isolate / heap dependent
+  // via CompilationInfo, and also not pass it forward.
   DCHECK(scope_ == NULL);
   DCHECK(target_stack_ == NULL);
 
@@ -918,8 +928,9 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
       // string table to internalize strings and values right after they're
-      // created.
-      ast_value_factory()->Internalize(isolate());
+      // created. This kind of parsing can only be done in the main thread.
+      DCHECK(parsing_on_main_thread_);
+      ast_value_factory()->Internalize(info->isolate());
     }
     original_scope_ = *scope;
     if (info->is_eval()) {
@@ -996,17 +1007,18 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 }
 
 
-FunctionLiteral* Parser::ParseLazy() {
-  // It's OK to use the counters here, since this function is only called in
-  // the main thread.
-  HistogramTimerScope timer_scope(isolate()->counters()->parse_lazy());
-  Handle<String> source(String::cast(script()->source()));
-  isolate()->counters()->total_parse_size()->Increment(source->length());
+FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
+  // It's OK to use the Isolate & counters here, since this function is only
+  // called in the main thread.
+  DCHECK(parsing_on_main_thread_);
+  HistogramTimerScope timer_scope(info->isolate()->counters()->parse_lazy());
+  Handle<String> source(String::cast(info->script()->source()));
+  info->isolate()->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
   }
-  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -1016,12 +1028,12 @@ FunctionLiteral* Parser::ParseLazy() {
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    result = ParseLazy(&stream);
+    result = ParseLazy(info, &stream);
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    result = ParseLazy(&stream);
+    result = ParseLazy(info, &stream);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -1033,8 +1045,9 @@ FunctionLiteral* Parser::ParseLazy() {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
-  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
+FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
+                                   Utf16CharacterStream* source) {
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
   DCHECK(scope_ == NULL);
   DCHECK(target_stack_ == NULL);
@@ -1053,18 +1066,21 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   {
     // Parse the function literal.
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
-    info()->SetScriptScope(scope);
-    if (!info()->closure().is_null()) {
-      scope = Scope::DeserializeScopeChain(isolate(), zone(),
-                                           info()->closure()->context(), scope);
+    info->SetScriptScope(scope);
+    if (!info->closure().is_null()) {
+      // Ok to use Isolate here, since lazy function parsing is only done in the
+      // main thread.
+      DCHECK(parsing_on_main_thread_);
+      scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
+                                           info->closure()->context(), scope);
     }
     original_scope_ = scope;
     AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  shared_info->kind(), &function_factory);
     DCHECK(is_sloppy(scope->language_mode()) ||
-           is_strict(info()->language_mode()));
-    DCHECK(info()->language_mode() == shared_info->language_mode());
+           is_strict(info->language_mode()));
+    DCHECK(info->language_mode() == shared_info->language_mode());
     scope->SetLanguageMode(shared_info->language_mode());
     FunctionLiteral::FunctionType function_type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
@@ -4009,8 +4025,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
   if (reusable_preparser_ == NULL) {
-    reusable_preparser_ = new PreParser(
-        isolate(), zone(), &scanner_, ast_value_factory(), NULL, stack_limit_);
+    reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
+                                        NULL, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_natives(allow_natives());
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
@@ -4250,25 +4266,26 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
 }
 
 
-void Parser::HandleSourceURLComments() {
+void Parser::HandleSourceURLComments(CompilationInfo* info) {
   if (scanner_.source_url()->length() > 0) {
-    Handle<String> source_url = scanner_.source_url()->Internalize(isolate());
-    info_->script()->set_source_url(*source_url);
+    Handle<String> source_url =
+        scanner_.source_url()->Internalize(info->isolate());
+    info->script()->set_source_url(*source_url);
   }
   if (scanner_.source_mapping_url()->length() > 0) {
     Handle<String> source_mapping_url =
-        scanner_.source_mapping_url()->Internalize(isolate());
-    info_->script()->set_source_mapping_url(*source_mapping_url);
+        scanner_.source_mapping_url()->Internalize(info->isolate());
+    info->script()->set_source_mapping_url(*source_mapping_url);
   }
 }
 
 
-void Parser::ThrowPendingError() {
+void Parser::ThrowPendingError(Isolate* isolate, Handle<Script> script) {
   DCHECK(ast_value_factory()->IsInternalized());
   if (has_pending_error_) {
-    MessageLocation location(script(), pending_error_location_.beg_pos,
+    MessageLocation location(script, pending_error_location_.beg_pos,
                              pending_error_location_.end_pos);
-    Factory* factory = isolate()->factory();
+    Factory* factory = isolate->factory();
     bool has_arg =
         pending_error_arg_ != NULL || pending_error_char_arg_ != NULL;
     Handle<FixedArray> elements = factory->NewFixedArray(has_arg ? 1 : 0);
@@ -4281,7 +4298,7 @@ void Parser::ThrowPendingError() {
           .ToHandleChecked();
       elements->set(0, *arg_string);
     }
-    isolate()->debug()->OnCompileError(script());
+    isolate->debug()->OnCompileError(script);
 
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> error;
@@ -4294,35 +4311,34 @@ void Parser::ThrowPendingError() {
       Handle<JSObject> jserror = Handle<JSObject>::cast(error);
 
       Handle<Name> key_start_pos = factory->error_start_pos_symbol();
-      JSObject::SetProperty(
-          jserror, key_start_pos,
-          handle(Smi::FromInt(location.start_pos()), isolate()),
-          SLOPPY).Check();
+      JSObject::SetProperty(jserror, key_start_pos,
+                            handle(Smi::FromInt(location.start_pos()), isolate),
+                            SLOPPY).Check();
 
       Handle<Name> key_end_pos = factory->error_end_pos_symbol();
       JSObject::SetProperty(jserror, key_end_pos,
-                            handle(Smi::FromInt(location.end_pos()), isolate()),
+                            handle(Smi::FromInt(location.end_pos()), isolate),
                             SLOPPY).Check();
 
       Handle<Name> key_script = factory->error_script_symbol();
-      JSObject::SetProperty(jserror, key_script, script(), SLOPPY).Check();
+      JSObject::SetProperty(jserror, key_script, script, SLOPPY).Check();
 
-      isolate()->Throw(*error, &location);
+      isolate->Throw(*error, &location);
     }
   }
 }
 
 
-void Parser::Internalize() {
+void Parser::Internalize(CompilationInfo* info) {
   // Internalize strings.
-  ast_value_factory()->Internalize(isolate());
+  ast_value_factory()->Internalize(info->isolate());
 
   // Error processing.
-  if (info()->function() == NULL) {
+  if (info->function() == NULL) {
     if (stack_overflow()) {
-      isolate()->StackOverflow();
+      info->isolate()->StackOverflow();
     } else {
-      ThrowPendingError();
+      ThrowPendingError(info->isolate(), info->script());
     }
   }
 
@@ -4330,10 +4346,10 @@ void Parser::Internalize() {
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     for (int i = 0; i < use_counts_[feature]; ++i) {
-      isolate()->CountUsage(v8::Isolate::UseCounterFeature(feature));
+      info->isolate()->CountUsage(v8::Isolate::UseCounterFeature(feature));
     }
   }
-  isolate()->counters()->total_preparse_skipped()->Increment(
+  info->isolate()->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
 }
 
@@ -5251,12 +5267,12 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
 }
 
 
-bool Parser::Parse(CompilationInfo* info, bool allow_lazy) {
+bool Parser::ParseStatic(CompilationInfo* info, bool allow_lazy) {
   Parser parser(info, info->isolate()->stack_guard()->real_climit(),
                 info->isolate()->heap()->HashSeed(),
                 info->isolate()->unicode_cache());
   parser.set_allow_lazy(allow_lazy);
-  if (parser.Parse()) {
+  if (parser.Parse(info)) {
     info->SetLanguageMode(info->function()->language_mode());
     return true;
   }
@@ -5264,49 +5280,54 @@ bool Parser::Parse(CompilationInfo* info, bool allow_lazy) {
 }
 
 
-bool Parser::Parse() {
-  DCHECK(info()->function() == NULL);
+bool Parser::Parse(CompilationInfo* info) {
+  DCHECK(info->function() == NULL);
   FunctionLiteral* result = NULL;
-  pre_parse_timer_ = isolate()->counters()->pre_parse();
+  // Ok to use Isolate here; this function is only called in the main thread.
+  DCHECK(parsing_on_main_thread_);
+  Isolate* isolate = info->isolate();
+  pre_parse_timer_ = isolate->counters()->pre_parse();
   if (FLAG_trace_parse || allow_natives() || extension_ != NULL) {
     // If intrinsics are allowed, the Parser cannot operate independent of the
     // V8 heap because of Runtime. Tell the string table to internalize strings
     // and values right after they're created.
-    ast_value_factory()->Internalize(isolate());
+    ast_value_factory()->Internalize(isolate);
   }
 
-  if (info()->is_lazy()) {
-    DCHECK(!info()->is_eval());
-    if (info()->shared_info()->is_function()) {
-      result = ParseLazy();
+  if (info->is_lazy()) {
+    DCHECK(!info->is_eval());
+    if (info->shared_info()->is_function()) {
+      result = ParseLazy(info);
     } else {
-      result = ParseProgram();
+      result = ParseProgram(info);
     }
   } else {
-    SetCachedData();
-    result = ParseProgram();
+    SetCachedData(info);
+    result = ParseProgram(info);
   }
-  info()->SetFunction(result);
+  info->SetFunction(result);
 
-  Internalize();
+  Internalize(info);
   DCHECK(ast_value_factory()->IsInternalized());
   return (result != NULL);
 }
 
 
-void Parser::ParseOnBackground() {
-  DCHECK(info()->function() == NULL);
+void Parser::ParseOnBackground(CompilationInfo* info) {
+  parsing_on_main_thread_ = false;
+
+  DCHECK(info->function() == NULL);
   FunctionLiteral* result = NULL;
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   CompleteParserRecorder recorder;
   if (produce_cached_parse_data()) log_ = &recorder;
 
-  DCHECK(info()->source_stream() != NULL);
-  ExternalStreamingStream stream(info()->source_stream(),
-                                 info()->source_stream_encoding());
+  DCHECK(info->source_stream() != NULL);
+  ExternalStreamingStream stream(info->source_stream(),
+                                 info->source_stream_encoding());
   scanner_.Initialize(&stream);
-  DCHECK(info()->context().is_null() || info()->context()->IsNativeContext());
+  DCHECK(info->context().is_null() || info->context()->IsNativeContext());
 
   // When streaming, we don't know the length of the source until we have parsed
   // it. The raw data can be UTF-8, so we wouldn't know the source length until
@@ -5316,20 +5337,20 @@ void Parser::ParseOnBackground() {
   // scopes) and set their end position after we know the script length.
   Scope* top_scope = NULL;
   Scope* eval_scope = NULL;
-  result = DoParseProgram(info(), &top_scope, &eval_scope);
+  result = DoParseProgram(info, &top_scope, &eval_scope);
 
   top_scope->set_end_position(scanner()->location().end_pos);
   if (eval_scope != NULL) {
     eval_scope->set_end_position(scanner()->location().end_pos);
   }
 
-  info()->SetFunction(result);
+  info->SetFunction(result);
 
   // We cannot internalize on a background thread; a foreground task will take
   // care of calling Parser::Internalize just before compilation.
 
   if (produce_cached_parse_data()) {
-    if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
+    if (result != NULL) *info->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }
 }

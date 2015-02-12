@@ -160,8 +160,8 @@ TEST(ScanHTMLEndComments) {
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                           &ast_value_factory, &log, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                           stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -178,8 +178,8 @@ TEST(ScanHTMLEndComments) {
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                           &ast_value_factory, &log, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                           stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
@@ -328,8 +328,8 @@ TEST(StandAlonePreParser) {
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                           &ast_value_factory, &log, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                           stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives(true);
     preparser.set_allow_harmony_arrow_functions(true);
@@ -366,8 +366,8 @@ TEST(StandAlonePreParserNoNatives) {
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                           &ast_value_factory, &log, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                           stack_limit);
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -435,8 +435,7 @@ TEST(RegressChromium62639) {
   i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
-  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                         &ast_value_factory, &log,
+  i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -471,8 +470,7 @@ TEST(Regress928) {
   i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
-  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                         &ast_value_factory, &log,
+  i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
                          CcTest::i_isolate()->stack_guard()->real_climit());
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -524,8 +522,8 @@ TEST(PreParseOverflow) {
   i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
-  i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                         &ast_value_factory, &log, stack_limit);
+  i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                         stack_limit);
   preparser.set_allow_lazy(true);
   preparser.set_allow_harmony_arrow_functions(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
@@ -1062,7 +1060,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       parser.set_allow_harmony_scoping(true);
       parser.set_allow_harmony_sloppy(true);
       info.MarkAsGlobal();
-      CHECK(parser.Parse());
+      CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       CHECK(i::Scope::Analyze(&info));
       CHECK(info.function() != NULL);
@@ -1317,7 +1315,7 @@ TEST(ScopePositions) {
     parser.set_allow_harmony_arrow_functions(true);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
-    parser.Parse();
+    parser.Parse(&info);
     CHECK(info.function() != NULL);
 
     // Check scope types and positions.
@@ -1453,8 +1451,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
-    i::PreParser preparser(CcTest::i_isolate(), &zone, &scanner,
-                           &ast_value_factory, &log, stack_limit);
+    i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
+                           stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
     i::PreParser::PreParseResult result = preparser.PreParseProgram(
@@ -1473,7 +1471,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                      isolate->heap()->HashSeed(), isolate->unicode_cache());
     SetParserFlags(&parser, flags);
     info.MarkAsGlobal();
-    parser.Parse();
+    parser.Parse(&info);
     function = info.function();
     if (function) {
       parser_materialized_literals = function->materialized_literal_count();
@@ -2558,7 +2556,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::CompilationInfoWithZone info(script);
     i::ScriptData* sd = NULL;
     info.SetCachedData(&sd, v8::ScriptCompiler::kProduceParserCache);
-    i::Parser::Parse(&info, true);
+    i::Parser::ParseStatic(&info, true);
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
@@ -3437,7 +3435,7 @@ TEST(InnerAssignment) {
                            isolate->heap()->HashSeed(),
                            isolate->unicode_cache());
           parser.set_allow_harmony_scoping(true);
-          CHECK(parser.Parse());
+          CHECK(parser.Parse(&info));
           CHECK(i::Compiler::Analyze(&info));
           CHECK(info.function() != NULL);
 
@@ -5051,7 +5049,7 @@ TEST(BasicImportExportParsing) {
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
       info.MarkAsModule();
-      if (!parser.Parse()) {
+      if (!parser.Parse(&info)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
         i::Handle<i::String> message_string =
@@ -5079,7 +5077,7 @@ TEST(BasicImportExportParsing) {
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
       info.MarkAsGlobal();
-      CHECK(!parser.Parse());
+      CHECK(!parser.Parse(&info));
     }
   }
 }
@@ -5169,7 +5167,7 @@ TEST(ImportExportParsingErrors) {
     parser.set_allow_harmony_modules(true);
     parser.set_allow_harmony_scoping(true);
     info.MarkAsModule();
-    CHECK(!parser.Parse());
+    CHECK(!parser.Parse(&info));
   }
 }
 
@@ -5261,7 +5259,7 @@ void TestLanguageMode(const char* source,
                    isolate->heap()->HashSeed(), isolate->unicode_cache());
   parser.set_allow_strong_mode(true);
   info.MarkAsGlobal();
-  parser.Parse();
+  parser.Parse(&info);
   CHECK(info.function() != NULL);
   CHECK_EQ(expected_language_mode, info.function()->language_mode());
 }
