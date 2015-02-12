@@ -408,6 +408,7 @@ class LCodeGen: public LCodeGenBase {
     int st(X87Register reg) { return st2idx(ArrayIndex(reg)); }
     void pop() {
       DCHECK(is_mutable_);
+      USE(is_mutable_);
       stack_depth_--;
     }
     void push(X87Register reg) {
