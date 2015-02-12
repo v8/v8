@@ -3133,18 +3133,8 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   GetVar(eax, new_target_var);
   __ push(eax);
 
-  SuperReference* super_ref = expr->expression()->AsSuperReference();
   EmitLoadSuperConstructor();
   __ push(result_register());
-
-  Variable* this_var = super_ref->this_var()->var();
-  GetVar(eax, this_var);
-  __ cmp(eax, isolate()->factory()->the_hole_value());
-  Label uninitialized_this;
-  __ j(equal, &uninitialized_this);
-  __ push(Immediate(this_var->name()));
-  __ CallRuntime(Runtime::kThrowReferenceError, 1);
-  __ bind(&uninitialized_this);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = expr->arguments();
@@ -3180,6 +3170,16 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ Drop(1);
 
   RecordJSReturnSite(expr);
+
+  SuperReference* super_ref = expr->expression()->AsSuperReference();
+  Variable* this_var = super_ref->this_var()->var();
+  GetVar(ecx, this_var);
+  __ cmp(ecx, isolate()->factory()->the_hole_value());
+  Label uninitialized_this;
+  __ j(equal, &uninitialized_this);
+  __ push(Immediate(this_var->name()));
+  __ CallRuntime(Runtime::kThrowReferenceError, 1);
+  __ bind(&uninitialized_this);
 
   EmitVariableAssignment(this_var, Token::INIT_CONST);
   context()->Plug(eax);
