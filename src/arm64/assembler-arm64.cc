@@ -3072,39 +3072,8 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
 }
 
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
-void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
-  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, raw_position);
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
-  }
-}
-
-
 int Assembler::buffer_space() const {
   return reloc_info_writer.pos() - reinterpret_cast<byte*>(pc_);
-}
-
-
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
 }
 
 

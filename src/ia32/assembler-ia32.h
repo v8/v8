@@ -1261,9 +1261,8 @@ class Assembler : public AssemblerBase {
   void RecordDebugBreakSlot();
 
   // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable, or provide "force = true" flag to always
-  // write a comment.
-  void RecordComment(const char* msg, bool force = false);
+  // Use --code-comments to enable.
+  void RecordComment(const char* msg);
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.

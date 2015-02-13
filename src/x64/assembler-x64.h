@@ -1337,7 +1337,7 @@ class Assembler : public AssemblerBase {
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg, bool force = false);
+  void RecordComment(const char* msg);
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.

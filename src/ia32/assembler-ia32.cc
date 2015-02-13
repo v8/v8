@@ -2629,37 +2629,6 @@ void Assembler::emit_vex_prefix(XMMRegister vreg, VectorLength l, SIMDPrefix pp,
 }
 
 
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
-}
-
-
-void Assembler::RecordComment(const char* msg, bool force) {
-  if (FLAG_code_comments || force) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
-void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
-  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, raw_position);
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
-  }
-}
-
-
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");

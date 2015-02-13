@@ -2332,37 +2332,6 @@ void Assembler::bc1t(int16_t offset, uint16_t cc) {
 
 
 // Debugging.
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
-}
-
-
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
-void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
-  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, raw_position);
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
-  }
-}
-
-
 int Assembler::RelocateInternalReference(byte* pc, intptr_t pc_delta) {
   Instr instr = instr_at(pc);
   if (IsLui(instr)) {
