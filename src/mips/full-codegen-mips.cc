@@ -3226,7 +3226,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
-  Comment cmnt(masm_, "[ SuperConstructorCall");
+  if (!ValidateSuperCall(expr)) return;
   Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
   GetVar(result_register(), new_target_var);
   __ Push(result_register());
