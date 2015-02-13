@@ -115,11 +115,6 @@
   'regress/regress-354433': [PASS, NO_VARIANTS],  # only on ARM simulator.
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
 
-  # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
-  'harmony/object-literals-super': [PASS, NO_VARIANTS],
-  'harmony/super': [PASS, NO_VARIANTS],
-  'harmony/computed-property-names-super': [PASS, NO_VARIANTS],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],

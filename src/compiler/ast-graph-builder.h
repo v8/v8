@@ -227,6 +227,11 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildToBoolean(Node* value);
   Node* BuildToName(Node* value, BailoutId bailout_id);
 
+  // Adds the [[HomeObject]] to a value if the value came from a function
+  // literal that needs a home object.
+  void AddHomeObjectIfNeeded(Expression* expr, Node* function,
+                             Node* home_object);
+
   // Builders for error reporting at runtime.
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
