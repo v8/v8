@@ -32,6 +32,7 @@ class FunctionEntry BASE_EMBEDDED {
     kLiteralCountIndex,
     kPropertyCountIndex,
     kLanguageModeIndex,
+    kUsesSuperPropertyIndex,
     kSize
   };
 
@@ -48,6 +49,7 @@ class FunctionEntry BASE_EMBEDDED {
     DCHECK(is_valid_language_mode(backing_[kLanguageModeIndex]));
     return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
   }
+  bool uses_super_property() { return backing_[kUsesSuperPropertyIndex]; }
 
   bool is_valid() { return !backing_.is_empty(); }
 

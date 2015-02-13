@@ -27,6 +27,7 @@ class Base {
 
 class Derived extends Base {
   constructor() {
+    super();
     this._x = 1;
   }
   SuperCall() {

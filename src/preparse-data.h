@@ -24,7 +24,8 @@ class ParserRecorder {
 
   // Logs the scope and some details of a function literal in the source.
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode) = 0;
+                           LanguageMode language_mode,
+                           bool uses_super_property) = 0;
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -48,13 +49,15 @@ class SingletonLogger : public ParserRecorder {
   void Reset() { has_error_ = false; }
 
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode) {
+                           LanguageMode language_mode,
+                           bool scope_uses_super_property) {
     DCHECK(!has_error_);
     start_ = start;
     end_ = end;
     literals_ = literals;
     properties_ = properties;
     language_mode_ = language_mode;
+    scope_uses_super_property_ = scope_uses_super_property;
   }
 
   // Logs an error message and marks the log as containing an error.
@@ -90,6 +93,10 @@ class SingletonLogger : public ParserRecorder {
     DCHECK(!has_error_);
     return language_mode_;
   }
+  bool scope_uses_super_property() const {
+    DCHECK(!has_error_);
+    return scope_uses_super_property_;
+  }
   int is_reference_error() const { return is_reference_error_; }
   const char* message() {
     DCHECK(has_error_);
@@ -108,6 +115,7 @@ class SingletonLogger : public ParserRecorder {
   int literals_;
   int properties_;
   LanguageMode language_mode_;
+  bool scope_uses_super_property_;
   // For error messages.
   const char* message_;
   const char* argument_opt_;
@@ -126,12 +134,14 @@ class CompleteParserRecorder : public ParserRecorder {
   virtual ~CompleteParserRecorder() {}
 
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode) {
+                           LanguageMode language_mode,
+                           bool scope_uses_super_property) {
     function_store_.Add(start);
     function_store_.Add(end);
     function_store_.Add(literals);
     function_store_.Add(properties);
     function_store_.Add(language_mode);
+    function_store_.Add(scope_uses_super_property);
   }
 
   // Logs an error message and marks the log as containing an error.

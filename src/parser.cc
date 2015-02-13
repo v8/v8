@@ -3870,6 +3870,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
       scope_->SetLanguageMode(entry.language_mode());
+      if (entry.uses_super_property()) scope_->RecordSuperPropertyUsage();
       return;
     }
     cached_parse_data_->Reject();
@@ -3901,12 +3902,16 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
   scope_->SetLanguageMode(logger.language_mode());
+  if (logger.scope_uses_super_property()) {
+    scope_->RecordSuperPropertyUsage();
+  }
   if (produce_cached_parse_data()) {
     DCHECK(log_);
     // Position right after terminal '}'.
     int body_end = scanner()->location().end_pos;
     log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
-                      *expected_property_count, scope_->language_mode());
+                      *expected_property_count, scope_->language_mode(),
+                      scope_->uses_super_property());
   }
 }
 

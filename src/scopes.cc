@@ -371,8 +371,9 @@ Scope* Scope::FinalizeBlockScope() {
   // Propagate usage flags to outer scope.
   if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
   if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
-  if (uses_super_constructor_call())
+  if (uses_super_constructor_call()) {
     outer_scope_->RecordSuperConstructorCallUsage();
+  }
   if (uses_this()) outer_scope_->RecordThisUsage();
 
   return NULL;
