@@ -217,11 +217,6 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code uses "super".
   void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
 
-  // Inform the scope that the corresponding code invokes "super" constructor.
-  void RecordSuperConstructorCallUsage() {
-    scope_uses_super_constructor_call_ = true;
-  }
-
   // Inform the scope that the corresponding code uses "this".
   void RecordThisUsage() { scope_uses_this_ = true; }
 
@@ -320,14 +315,6 @@ class Scope: public ZoneObject {
   // Does any inner scope access "super" property.
   bool inner_uses_super_property() const {
     return inner_scope_uses_super_property_;
-  }
-  // Does this scope calls "super" constructor.
-  bool uses_super_constructor_call() const {
-    return scope_uses_super_constructor_call_;
-  }
-  // Does  any inner scope calls "super" constructor.
-  bool inner_uses_super_constructor_call() const {
-    return inner_scope_uses_super_constructor_call_;
   }
   // Does this scope access "this".
   bool uses_this() const { return scope_uses_this_; }
@@ -543,8 +530,6 @@ class Scope: public ZoneObject {
   bool scope_uses_arguments_;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_;
-  // This scope uses "super" constructor ('super(..)').
-  bool scope_uses_super_constructor_call_;
   // This scope uses "this".
   bool scope_uses_this_;
   // This scope contains an "use asm" annotation.
@@ -562,7 +547,6 @@ class Scope: public ZoneObject {
   bool inner_scope_calls_eval_;
   bool inner_scope_uses_arguments_;
   bool inner_scope_uses_super_property_;
-  bool inner_scope_uses_super_constructor_call_;
   bool inner_scope_uses_this_;
   bool force_eager_compilation_;
   bool force_context_allocation_;

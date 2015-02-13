@@ -152,13 +152,6 @@ bool FunctionLiteral::uses_super_property() const {
 }
 
 
-bool FunctionLiteral::uses_super_constructor_call() const {
-  DCHECK_NOT_NULL(scope());
-  return scope()->uses_super_constructor_call() ||
-         scope()->inner_uses_super_constructor_call();
-}
-
-
 // Helper to find an existing shared function info in the baseline code for the
 // given function literal. Used to canonicalize SharedFunctionInfo objects.
 void FunctionLiteral::InitializeSharedInfo(

@@ -6912,9 +6912,6 @@ class SharedFunctionInfo: public HeapObject {
   // This is needed to set up the [[HomeObject]] on the function instance.
   DECL_BOOLEAN_ACCESSORS(uses_super_property)
 
-  // Indicates that this function uses the super constructor.
-  DECL_BOOLEAN_ACCESSORS(uses_super_constructor_call)
-
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
@@ -7199,7 +7196,6 @@ class SharedFunctionInfo: public HeapObject {
     kStrongModeFunction,
     kUsesArguments,
     kUsesSuperProperty,
-    kUsesSuperConstructorCall,
     kHasDuplicateParameters,
     kNative,
     kInlineBuiltin,

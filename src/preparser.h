@@ -2754,7 +2754,6 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
     // new super() is never allowed.
     // super() is only allowed in derived constructor
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
-      scope_->RecordSuperConstructorCallUsage();
       return this->SuperReference(scope_, factory());
     }
   }

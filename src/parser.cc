@@ -297,7 +297,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
           Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
           args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
-      function_scope->RecordSuperConstructorCallUsage();
     }
 
     materialized_literal_count = function_state.materialized_literal_count();
@@ -1089,7 +1088,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
     } else if (shared_info->is_default_constructor()) {
-      result = DefaultConstructor(shared_info->uses_super_constructor_call(),
+      result = DefaultConstructor(IsSubclassConstructor(shared_info->kind()),
                                   scope, shared_info->start_position(),
                                   shared_info->end_position());
     } else {
