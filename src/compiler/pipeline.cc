@@ -589,7 +589,6 @@ struct ComputeSchedulePhase {
         temp_zone, data->graph(), data->info()->is_splitting_enabled()
                                       ? Scheduler::kSplitNodes
                                       : Scheduler::kNoFlags);
-    TraceSchedule(schedule);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     data->set_schedule(schedule);
   }
@@ -949,44 +948,8 @@ Handle<Code> Pipeline::GenerateCode() {
 
   data.source_positions()->RemoveDecorator();
 
-  // Compute a schedule.
-  Run<ComputeSchedulePhase>();
-
-  {
-    // Generate optimized code.
-    Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info()));
-    GenerateCode(&linkage);
-  }
-  Handle<Code> code = data.code();
-  info()->SetCode(code);
-
-  // Print optimized code.
-  v8::internal::CodeGenerator::PrintCode(code, info());
-
-  if (FLAG_trace_turbo) {
-    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "a+");
-    if (json_file != nullptr) {
-      OFStream json_of(json_file);
-      json_of
-          << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
-#if ENABLE_DISASSEMBLER
-      std::stringstream disassembly_stream;
-      code->Disassemble(NULL, disassembly_stream);
-      std::string disassembly_string(disassembly_stream.str());
-      for (const auto& c : disassembly_string) {
-        json_of << AsEscapedUC16ForJSON(c);
-      }
-#endif  // ENABLE_DISASSEMBLER
-      json_of << "\"}\n]}";
-      fclose(json_file);
-    }
-    OFStream os(stdout);
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << GetDebugName(info()).get()
-       << " using Turbofan" << std::endl;
-  }
-
-  return code;
+  return ScheduleAndGenerateCode(
+      Linkage::ComputeIncoming(data.instruction_zone(), info()));
 }
 
 
@@ -1013,32 +976,18 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph,
                                               Schedule* schedule) {
-  CHECK(SupportedBackend());
+  // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;
   Pipeline pipeline(info);
   PipelineData data(&zone_pool, info);
   pipeline.data_ = &data;
   data.InitializeTorTesting(graph, schedule);
-  if (schedule == NULL) {
+  if (data.schedule() == nullptr) {
     // TODO(rossberg): Should this really be untyped?
     pipeline.RunPrintAndVerify("Machine", true);
-    pipeline.Run<ComputeSchedulePhase>();
-  } else {
-    TraceSchedule(schedule);
   }
 
-  Linkage linkage(call_descriptor);
-  pipeline.GenerateCode(&linkage);
-  Handle<Code> code = data.code();
-
-#if ENABLE_DISASSEMBLER
-  if (!code.is_null() && FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble("test code", os);
-  }
-#endif
-  return code;
+  return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 
 
@@ -1057,13 +1006,15 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
 }
 
 
-void Pipeline::GenerateCode(Linkage* linkage) {
+Handle<Code> Pipeline::ScheduleAndGenerateCode(
+    CallDescriptor* call_descriptor) {
   PipelineData* data = this->data_;
 
-  DCHECK_NOT_NULL(linkage);
   DCHECK_NOT_NULL(data->graph());
-  DCHECK_NOT_NULL(data->schedule());
   CHECK(SupportedBackend());
+
+  if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
+  TraceSchedule(data->schedule());
 
   BasicBlockProfiler::Data* profiler_data = NULL;
   if (FLAG_turbo_profiling) {
@@ -1074,7 +1025,8 @@ void Pipeline::GenerateCode(Linkage* linkage) {
   data->InitializeInstructionSequence();
 
   // Select and schedule instructions covering the scheduled graph.
-  Run<InstructionSelectionPhase>(linkage);
+  Linkage linkage(call_descriptor);
+  Run<InstructionSelectionPhase>(&linkage);
 
   if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
@@ -1091,7 +1043,7 @@ void Pipeline::GenerateCode(Linkage* linkage) {
   AllocateRegisters(RegisterConfiguration::ArchDefault(), run_verifier);
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
-    return;
+    return Handle<Code>();
   }
 
   BeginPhaseKind("code generation");
@@ -1102,15 +1054,44 @@ void Pipeline::GenerateCode(Linkage* linkage) {
   }
 
   // Generate final machine code.
-  Run<GenerateCodePhase>(linkage);
+  Run<GenerateCodePhase>(&linkage);
 
+  Handle<Code> code = data->code();
   if (profiler_data != NULL) {
 #if ENABLE_DISASSEMBLER
     std::ostringstream os;
-    data->code()->Disassemble(NULL, os);
+    code->Disassemble(NULL, os);
     profiler_data->SetCode(&os);
 #endif
   }
+
+  info()->SetCode(code);
+  v8::internal::CodeGenerator::PrintCode(code, info());
+
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "a+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of
+          << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+#if ENABLE_DISASSEMBLER
+      std::stringstream disassembly_stream;
+      code->Disassemble(NULL, disassembly_stream);
+      std::string disassembly_string(disassembly_stream.str());
+      for (const auto& c : disassembly_string) {
+        json_of << AsEscapedUC16ForJSON(c);
+      }
+#endif  // ENABLE_DISASSEMBLER
+      json_of << "\"}\n]}";
+      fclose(json_file);
+    }
+    OFStream os(stdout);
+    os << "---------------------------------------------------\n"
+       << "Finished compiling method " << GetDebugName(info()).get()
+       << " using Turbofan" << std::endl;
+  }
+
+  return code;
 }
 
 

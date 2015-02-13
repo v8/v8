@@ -68,7 +68,7 @@ class Pipeline {
 
   void BeginPhaseKind(const char* phase_kind);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
-  void GenerateCode(Linkage* linkage);
+  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          bool run_verifier);
 };
