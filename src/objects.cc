@@ -10387,7 +10387,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 
 void SharedFunctionInfo::InitFromFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
-  shared_info->set_length(lit->parameter_count());
+  shared_info->set_length(lit->scope()->default_function_length());
   if (IsSubclassConstructor(lit->kind())) {
     shared_info->set_internal_formal_parameter_count(lit->parameter_count() +
                                                      1);

@@ -2225,7 +2225,8 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
-  bool strict_mode_callee = is_strict(callee->shared()->language_mode());
+  bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
+                            !callee->is_simple_parameter_list();
   Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
                                        : isolate()->sloppy_arguments_map();
 

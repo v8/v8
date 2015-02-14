@@ -685,6 +685,7 @@ class FullCodeGenerator: public AstVisitor {
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
   LanguageMode language_mode() { return function()->language_mode(); }
+  bool is_simple_parameter_list() { return info_->is_simple_parameter_list(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
 

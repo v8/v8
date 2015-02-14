@@ -308,6 +308,11 @@ void CompilationInfo::EnsureFeedbackVector() {
 }
 
 
+bool CompilationInfo::is_simple_parameter_list() {
+  return scope_->is_simple_parameter_list();
+}
+
+
 class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
  public:
   explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)

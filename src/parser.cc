@@ -3837,6 +3837,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       FunctionLiteral::kIsFunction, parenthesized, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
 
+  if (scope->has_rest_parameter()) {
+    // TODO(caitp): enable optimization of functions with rest params
+    function_literal->set_dont_optimize_reason(kRestParameter);
+  }
+
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
 }

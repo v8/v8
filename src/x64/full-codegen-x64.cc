@@ -232,6 +232,26 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+  // Possibly allocate RestParameters
+  int rest_index;
+  Variable* rest_param = scope()->rest_parameter(&rest_index);
+  if (rest_param) {
+    Comment cmnt(masm_, "[ Allocate rest parameter array");
+
+    int num_parameters = info->scope()->num_parameters();
+    int offset = num_parameters * kPointerSize;
+    __ leap(rdx,
+            Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
+    __ Push(rdx);
+    __ Push(Smi::FromInt(num_parameters));
+    __ Push(Smi::FromInt(rest_index));
+
+    RestParamAccessStub stub(isolate());
+    __ CallStub(&stub);
+
+    SetVar(rest_param, rax, rbx, rdx);
+  }
+
   // Possibly allocate an arguments object.
   Variable* arguments = scope()->arguments();
   if (arguments != NULL) {
@@ -260,7 +280,7 @@ void FullCodeGenerator::Generate() {
             ? ArgumentsAccessStub::HAS_NEW_TARGET
             : ArgumentsAccessStub::NO_NEW_TARGET;
     ArgumentsAccessStub::Type type;
-    if (is_strict(language_mode())) {
+    if (is_strict(language_mode()) || !is_simple_parameter_list()) {
       type = ArgumentsAccessStub::NEW_STRICT;
     } else if (function()->has_duplicate_parameters()) {
       type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;

@@ -5957,6 +5957,11 @@ bool SharedFunctionInfo::is_compiled() {
 }
 
 
+bool SharedFunctionInfo::is_simple_parameter_list() {
+  return scope_info()->IsSimpleParameterList();
+}
+
+
 bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
 }
@@ -6227,6 +6232,11 @@ bool JSFunction::should_have_prototype() {
 
 bool JSFunction::is_compiled() {
   return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
+}
+
+
+bool JSFunction::is_simple_parameter_list() {
+  return shared()->is_simple_parameter_list();
 }
 
 

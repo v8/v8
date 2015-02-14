@@ -2025,6 +2025,34 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 }
 
 
+void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
+  // sp[0] : index of rest parameter
+  // sp[4] : number of parameters
+  // sp[8] : receiver displacement
+  // Check if the calling frame is an arguments adaptor frame.
+
+  Label runtime;
+  __ ld(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ld(a3, MemOperand(a2, StandardFrameConstants::kContextOffset));
+  __ Branch(&runtime, ne, a3,
+            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+
+  // Patch the arguments.length and the parameters pointer.
+  __ ld(a1, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ sd(a1, MemOperand(sp, 1 * kPointerSize));
+  __ SmiScale(at, a1, kPointerSizeLog2);
+
+  __ Daddu(a3, a2, Operand(at));
+
+  __ Daddu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ sd(a3, MemOperand(sp, 2 * kPointerSize));
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kNewRestParam, 3, 1);
+}
+
+
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or

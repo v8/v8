@@ -790,6 +790,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
+void RestParamAccessStub::Generate(MacroAssembler* masm) {
+  GenerateNew(masm);
+}
+
+
 void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
   switch (type()) {
@@ -807,6 +812,11 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
       break;
   }
   return;
+}
+
+
+void RestParamAccessStub::PrintName(std::ostream& os) const {  // NOLINT
+  os << "RestParamAccessStub_";
 }
 
 

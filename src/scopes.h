@@ -370,6 +370,10 @@ class Scope: public ZoneObject {
     return rest_parameter_;
   }
 
+  bool has_rest_parameter() const {
+    return rest_index_ >= 0;
+  }
+
   bool is_simple_parameter_list() const {
     DCHECK(is_function_scope());
     if (rest_index_ >= 0) return false;

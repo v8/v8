@@ -357,6 +357,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
                                            Object** parameters,
                                            int argument_count) {
   CHECK(!IsSubclassConstructor(callee->shared()->kind()));
+  DCHECK(callee->is_simple_parameter_list());
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
@@ -420,6 +421,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
               break;
             }
           }
+
           DCHECK(context_index >= 0);
           arguments->set_the_hole(index);
           parameter_map->set(
@@ -478,7 +480,9 @@ RUNTIME_FUNCTION(Runtime_NewArguments) {
   // Determine parameter location on the stack and dispatch on language mode.
   int argument_count = frame->GetArgumentsLength();
   Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
-  return is_strict(callee->shared()->language_mode())
+
+  return (is_strict(callee->shared()->language_mode()) ||
+             !callee->is_simple_parameter_list())
              ? *NewStrictArguments(isolate, callee, parameters, argument_count)
              : *NewSloppyArguments(isolate, callee, parameters, argument_count);
 }
@@ -501,6 +505,51 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
   return *NewStrictArguments(isolate, callee, parameters, argument_count);
+}
+
+
+static Handle<JSArray> NewRestParam(Isolate* isolate,
+                                    Object** parameters,
+                                    int num_params,
+                                    int rest_index) {
+  parameters -= rest_index;
+  int num_elements = std::max(0, num_params - rest_index);
+  Handle<FixedArray> elements =
+      isolate->factory()->NewUninitializedFixedArray(num_elements);
+  for (int i = 0; i < num_elements; ++i) {
+    elements->set(i, *--parameters);
+  }
+  return isolate->factory()->NewJSArrayWithElements(elements, FAST_ELEMENTS,
+                                                    num_elements);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewRestParam) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  Object** parameters = reinterpret_cast<Object**>(args[0]);
+  CONVERT_SMI_ARG_CHECKED(num_params, 1);
+  CONVERT_SMI_ARG_CHECKED(rest_index, 2);
+
+  return *NewRestParam(isolate, parameters, num_params, rest_index);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewRestParamSlow) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(rest_index, 0);
+
+  JavaScriptFrameIterator it(isolate);
+
+  // Find the frame that holds the actual arguments passed to the function.
+  it.AdvanceToArgumentsFrame();
+  JavaScriptFrame* frame = it.frame();
+
+  int argument_count = frame->GetArgumentsLength();
+  Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
+
+  return *NewRestParam(isolate, parameters, argument_count, rest_index);
 }
 
 

@@ -424,6 +424,8 @@ class CompilationInfo {
   void PrintAstForTesting();
 #endif
 
+  bool is_simple_parameter_list();
+
  protected:
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                   Zone* zone);

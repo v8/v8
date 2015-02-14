@@ -4174,6 +4174,10 @@ class ScopeInfo : public FixedArray {
   // Return if this is a nested function within an asm module scope.
   bool IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
 
+  bool IsSimpleParameterList() {
+    return IsSimpleParameterListField::decode(Flags());
+  }
+
   // Return the function_name if present.
   String* FunctionName();
 
@@ -4331,6 +4335,8 @@ class ScopeInfo : public FixedArray {
   class FunctionVariableMode : public BitField<VariableMode, 9, 3> {};
   class AsmModuleField : public BitField<bool, 12, 1> {};
   class AsmFunctionField : public BitField<bool, 13, 1> {};
+  class IsSimpleParameterListField
+      : public BitField<bool, AsmFunctionField::kNext, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -7035,6 +7041,8 @@ class SharedFunctionInfo: public HeapObject {
   // Calculate the number of in-object properties.
   int CalculateInObjectProperties();
 
+  inline bool is_simple_parameter_list();
+
   // Dispatched behavior.
   DECLARE_PRINTER(SharedFunctionInfo)
   DECLARE_VERIFIER(SharedFunctionInfo)
@@ -7540,6 +7548,11 @@ class JSFunction: public JSObject {
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
+
+  // Returns `false` if formal parameters include rest parameters, optional
+  // parameters, or destructuring parameters.
+  // TODO(caitp): make this a flag set during parsing
+  inline bool is_simple_parameter_list();
 
   // [next_function_link]: Links functions into various lists, e.g. the list
   // of optimized functions hanging off the native_context. The CodeFlusher

@@ -25,6 +25,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   DCHECK(scope->StackLocalCount() == stack_local_count);
   DCHECK(scope->ContextLocalCount() == context_local_count);
 
+  bool simple_parameter_list =
+      scope->is_function_scope() ? scope->is_simple_parameter_list() : true;
+
   // Determine use and location of the function variable if it is present.
   FunctionVariableInfo function_name_info;
   VariableMode function_variable_mode;
@@ -60,7 +63,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
-              AsmFunctionField::encode(scope->asm_function());
+              AsmFunctionField::encode(scope->asm_function()) |
+              IsSimpleParameterListField::encode(simple_parameter_list);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);

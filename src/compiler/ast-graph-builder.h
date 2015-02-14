@@ -205,6 +205,9 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
 
+  // Builder to create an array of rest parameters if used
+  Node* BuildRestArgumentsArray(Variable* rest, int index);
+
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* var, Node* value, Token::Value op,
                                 BailoutId bailout_id,

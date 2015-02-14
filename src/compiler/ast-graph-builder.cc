@@ -449,6 +449,11 @@ bool AstGraphBuilder::CreateGraph() {
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
 
+  // Build rest arguments array if it is used.
+  int rest_index;
+  Variable* rest_parameter = scope->rest_parameter(&rest_index);
+  BuildRestArgumentsArray(rest_parameter, rest_index);
+
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
     NewNode(javascript()->CallRuntime(Runtime::kTraceEnter, 0));
@@ -2474,6 +2479,22 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   BuildVariableAssignment(arguments, object, Token::ASSIGN, BailoutId::None());
+
+  return object;
+}
+
+
+Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
+  if (rest == NULL) return NULL;
+
+  DCHECK(index >= 0);
+  const Operator* op = javascript()->CallRuntime(Runtime::kNewRestParamSlow, 1);
+  Node* object = NewNode(op, jsgraph()->SmiConstant(index));
+
+  // Assign the object to the rest array
+  DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
+  // This should never lazy deopt, so it is fine to send invalid bailout id.
+  BuildVariableAssignment(rest, object, Token::ASSIGN, BailoutId::None());
 
   return object;
 }

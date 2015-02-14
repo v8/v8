@@ -454,6 +454,8 @@ namespace internal {
   F(NewArguments, 1, 1) /* TODO(turbofan): Only temporary */ \
   F(NewSloppyArguments, 3, 1)                                \
   F(NewStrictArguments, 3, 1)                                \
+  F(NewRestParam, 3, 1)                                      \
+  F(NewRestParamSlow, 1, 1)                                  \
                                                              \
   /* Harmony generators */                                   \
   F(CreateJSGeneratorObject, 0, 1)                           \

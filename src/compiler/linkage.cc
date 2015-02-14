@@ -125,6 +125,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
     case Runtime::kTypeof:
+    case Runtime::kNewRestParamSlow:
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
