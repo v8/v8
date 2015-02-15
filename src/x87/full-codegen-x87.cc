@@ -3120,6 +3120,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
+  if (!ValidateSuperCall(expr)) return;
+
   Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
   GetVar(eax, new_target_var);
   __ push(eax);
@@ -4085,6 +4087,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   }
 
   __ bind(&args_set_up);
+
   __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
 
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
