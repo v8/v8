@@ -2210,11 +2210,8 @@ TEST(PrototypeTransitionClearing) {
   // Verify that prototype transitions array was compacted.
   FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
   for (int i = initialTransitions; i < initialTransitions + transitions; i++) {
-    int j = Map::kProtoTransitionHeaderSize +
-        i * Map::kProtoTransitionElementsPerEntry;
-    CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
-    Object* proto = trans->get(j + Map::kProtoTransitionPrototypeOffset);
-    CHECK(proto->IsJSObject());
+    int j = Map::kProtoTransitionHeaderSize + i;
+    CHECK(trans->get(j)->IsMap());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.

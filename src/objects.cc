@@ -7490,13 +7490,8 @@ class IntrusivePrototypeTransitionIterator {
 
   Map* GetTransition(int transitionNumber) {
     FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
-    return Map::cast(proto_trans->get(IndexFor(transitionNumber)));
-  }
-
-  int IndexFor(int transitionNumber) {
-    return Map::kProtoTransitionHeaderSize +
-        Map::kProtoTransitionMapOffset +
-        transitionNumber * Map::kProtoTransitionElementsPerEntry;
+    int index = Map::kProtoTransitionHeaderSize + transitionNumber;
+    return Map::cast(proto_trans->get(index));
   }
 
   Map* map_;
@@ -11810,17 +11805,12 @@ MaybeHandle<Object> JSArray::SetElementsLength(
 
 Handle<Map> Map::GetPrototypeTransition(Handle<Map> map,
                                         Handle<Object> prototype) {
+  DisallowHeapAllocation no_gc;
   FixedArray* cache = map->GetPrototypeTransitions();
   int number_of_transitions = map->NumberOfProtoTransitions();
-  const int proto_offset =
-      kProtoTransitionHeaderSize + kProtoTransitionPrototypeOffset;
-  const int map_offset = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
-  const int step = kProtoTransitionElementsPerEntry;
   for (int i = 0; i < number_of_transitions; i++) {
-    if (cache->get(proto_offset + i * step) == *prototype) {
-      Object* result = cache->get(map_offset + i * step);
-      return Handle<Map>(Map::cast(result));
-    }
+    Map* map = Map::cast(cache->get(kProtoTransitionHeaderSize + i));
+    if (map->prototype() == *prototype) return handle(map);
   }
   return Handle<Map>();
 }
@@ -11836,28 +11826,27 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
   if (map->is_prototype_map()) return map;
   if (map->is_dictionary_map() || !FLAG_cache_prototype_transitions) return map;
 
-  const int step = kProtoTransitionElementsPerEntry;
   const int header = kProtoTransitionHeaderSize;
 
   Handle<FixedArray> cache(map->GetPrototypeTransitions());
-  int capacity = (cache->length() - header) / step;
+  int capacity = cache->length() - header;
   int transitions = map->NumberOfProtoTransitions() + 1;
 
   if (transitions > capacity) {
-    if (capacity > kMaxCachedPrototypeTransitions) return map;
+    // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
+    int new_capacity = Min(kMaxCachedPrototypeTransitions, transitions * 2);
+    if (new_capacity == capacity) return map;
 
-    // Grow array by factor 2 over and above what we need.
-    cache = FixedArray::CopySize(cache, transitions * 2 * step + header);
+    cache = FixedArray::CopySize(cache, header + new_capacity);
 
     SetPrototypeTransitions(map, cache);
   }
 
   // Reload number of transitions as GC might shrink them.
   int last = map->NumberOfProtoTransitions();
-  int entry = header + last * step;
+  int entry = header + last;
 
-  cache->set(entry + kProtoTransitionPrototypeOffset, *prototype);
-  cache->set(entry + kProtoTransitionMapOffset, *target_map);
+  cache->set(entry, *target_map);
   map->SetNumberOfProtoTransitions(last + 1);
 
   return map;

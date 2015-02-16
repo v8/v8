@@ -5983,17 +5983,12 @@ class Map: public HeapObject {
   // when we change object's prototype to a new one.
   // Cache format:
   //    0: finger - index of the first free cell in the cache
-  //    1: back pointer that overlaps with prototype transitions field.
-  //    2 + 2 * i: prototype
-  //    3 + 2 * i: target map
+  //    1 + i: target map
   inline FixedArray* GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();
 
-  static const int kProtoTransitionHeaderSize = 1;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
-  static const int kProtoTransitionElementsPerEntry = 2;
-  static const int kProtoTransitionPrototypeOffset = 0;
-  static const int kProtoTransitionMapOffset = 1;
+  static const int kProtoTransitionHeaderSize = 1;
 
   inline int NumberOfProtoTransitions() {
     FixedArray* cache = GetPrototypeTransitions();

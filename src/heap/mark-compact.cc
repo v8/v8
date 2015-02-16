@@ -2348,25 +2348,15 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   int number_of_transitions = map->NumberOfProtoTransitions();
   FixedArray* prototype_transitions = map->GetPrototypeTransitions();
 
-  int new_number_of_transitions = 0;
   const int header = Map::kProtoTransitionHeaderSize;
-  const int proto_offset = header + Map::kProtoTransitionPrototypeOffset;
-  const int map_offset = header + Map::kProtoTransitionMapOffset;
-  const int step = Map::kProtoTransitionElementsPerEntry;
+  int new_number_of_transitions = 0;
   for (int i = 0; i < number_of_transitions; i++) {
-    Object* prototype = prototype_transitions->get(proto_offset + i * step);
-    Object* cached_map = prototype_transitions->get(map_offset + i * step);
-    if (IsMarked(prototype) && IsMarked(cached_map)) {
-      DCHECK(!prototype->IsUndefined());
-      int proto_index = proto_offset + new_number_of_transitions * step;
-      int map_index = map_offset + new_number_of_transitions * step;
+    Object* cached_map = prototype_transitions->get(header + i);
+    if (IsMarked(cached_map)) {
       if (new_number_of_transitions != i) {
-        prototype_transitions->set(proto_index, prototype,
-                                   UPDATE_WRITE_BARRIER);
-        prototype_transitions->set(map_index, cached_map, SKIP_WRITE_BARRIER);
+        prototype_transitions->set(header + new_number_of_transitions,
+                                   cached_map, SKIP_WRITE_BARRIER);
       }
-      Object** slot = prototype_transitions->RawFieldOfElementAt(proto_index);
-      RecordSlot(slot, slot, prototype);
       new_number_of_transitions++;
     }
   }
@@ -2376,8 +2366,7 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   }
 
   // Fill slots that became free with undefined value.
-  for (int i = new_number_of_transitions * step;
-       i < number_of_transitions * step; i++) {
+  for (int i = new_number_of_transitions; i < number_of_transitions; i++) {
     prototype_transitions->set_undefined(header + i);
   }
 }
