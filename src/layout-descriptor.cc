@@ -258,7 +258,6 @@ bool LayoutDescriptorHelper::IsTagged(
 }
 
 
-#ifdef VERIFY_HEAP
 bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
   if (FLAG_unbox_double_fields) {
     DescriptorArray* descriptors = map->instance_descriptors();
@@ -278,6 +277,5 @@ bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
   }
   return true;
 }
-#endif
 }
 }  // namespace v8::internal

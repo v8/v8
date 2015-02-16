@@ -30,11 +30,7 @@ static void InitializeVerifiedMapDescriptors(
     Map* map, DescriptorArray* descriptors,
     LayoutDescriptor* layout_descriptor) {
   map->InitializeDescriptors(descriptors, layout_descriptor);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(layout_descriptor->IsConsistentWithMap(map));
-  }
-#endif
+  CHECK(layout_descriptor->IsConsistentWithMap(map));
 }
 
 
@@ -228,11 +224,7 @@ TEST(LayoutDescriptorBasicSlow) {
     }
     CHECK(layout_desc->IsSlowLayout());
     CHECK(!layout_desc->IsFastPointerLayout());
-#ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      DCHECK(layout_descriptor->IsConsistentWithMap(*map));
-    }
-#endif
+    CHECK(layout_descriptor->IsConsistentWithMap(*map));
   }
 }
 
@@ -646,11 +638,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     map->InitializeDescriptors(*descriptors, *layout_descriptor);
   }
   Handle<LayoutDescriptor> layout_descriptor(map->layout_descriptor(), isolate);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(layout_descriptor->IsConsistentWithMap(*map));
-  }
-#endif
+  CHECK(layout_descriptor->IsConsistentWithMap(*map));
   return layout_descriptor;
 }
 
@@ -777,20 +765,12 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
         CHECK(layout_desc->IsTagged(field_index + field_width_in_words));
       }
     }
-#ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      DCHECK(map->layout_descriptor()->IsConsistentWithMap(*map));
-    }
-#endif
+    CHECK(map->layout_descriptor()->IsConsistentWithMap(*map));
   }
 
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(layout_descriptor->IsConsistentWithMap(*map));
-  }
-#endif
+  CHECK(layout_descriptor->IsConsistentWithMap(*map));
   return layout_descriptor;
 }
 
@@ -1151,11 +1131,7 @@ TEST(LayoutDescriptorSharing) {
   }
   Handle<LayoutDescriptor> split_layout_descriptor(
       split_map->layout_descriptor(), isolate);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(split_layout_descriptor->IsConsistentWithMap(*split_map));
-  }
-#endif
+  CHECK(split_layout_descriptor->IsConsistentWithMap(*split_map));
   CHECK(split_layout_descriptor->IsSlowLayout());
   CHECK(split_map->owns_descriptors());
 
@@ -1168,11 +1144,7 @@ TEST(LayoutDescriptorSharing) {
   // Layout descriptors should be shared with |split_map|.
   CHECK(map1->owns_descriptors());
   CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor());
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(map1->layout_descriptor()->IsConsistentWithMap(*map1));
-  }
-#endif
+  CHECK(map1->layout_descriptor()->IsConsistentWithMap(*map1));
 
   Handle<Map> map2 = Map::CopyWithField(split_map, MakeString("bar"), any_type,
                                         NONE, Representation::Tagged(),
@@ -1181,11 +1153,7 @@ TEST(LayoutDescriptorSharing) {
   // Layout descriptors should not be shared with |split_map|.
   CHECK(map2->owns_descriptors());
   CHECK_NE(*split_layout_descriptor, map2->layout_descriptor());
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    DCHECK(map2->layout_descriptor()->IsConsistentWithMap(*map2));
-  }
-#endif
+  CHECK(map2->layout_descriptor()->IsConsistentWithMap(*map2));
 }
 
 

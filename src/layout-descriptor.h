@@ -69,10 +69,8 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   // tagged (FastPointerLayout).
   V8_INLINE static LayoutDescriptor* FastPointerLayout();
 
-#ifdef VERIFY_HEAP
   // Check that this layout descriptor corresponds to given map.
   bool IsConsistentWithMap(Map* map);
-#endif
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
