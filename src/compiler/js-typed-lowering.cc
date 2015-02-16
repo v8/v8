@@ -271,13 +271,15 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(zero_range_)) {
-    // TODO(jarin): Propagate frame state input from non-primitive input node to
-    // JSToNumber node.
+
+  // We can only reduce to Word32Or if we are sure the to-number conversions
+  // cannot lazily deoptimize.
+  bool shortcut_or_zero =
+      !FLAG_turbo_deoptimization && r.OneInputIs(zero_range_);
+  if (r.BothInputsAre(Type::Primitive()) || shortcut_or_zero) {
     // TODO(titzer): some Smi bitwise operations don't really require going
     // all the way to int32, which can save tagging/untagging for some
-    // operations
-    // on some platforms.
+    // operations on some platforms.
     // TODO(turbofan): make this heuristic configurable for code size.
     r.ConvertInputsToUI32(kSigned, kSigned);
     return r.ChangeToPureOperator(machine()->Word32Or(), Type::Integral32());
@@ -288,9 +290,13 @@ Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(one_range_)) {
-    // TODO(jarin): Propagate frame state input from non-primitive input node to
-    // JSToNumber node.
+
+  // We can only reduce to NumberMultiply if we are sure the to-number
+  // conversions cannot lazily deoptimize.
+  bool shortcut_multiply_one =
+      !FLAG_turbo_deoptimization && r.OneInputIs(one_range_);
+
+  if (r.BothInputsAre(Type::Primitive()) || shortcut_multiply_one) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberMultiply(),
                                   Type::Number());
