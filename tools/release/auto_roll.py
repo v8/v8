@@ -52,7 +52,7 @@ class DetectLastRoll(Step):
     exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
 
     # The revision rolled last.
-    last_roll = vars['v8_revision']
+    self["last_roll"] = vars['v8_revision']
 
     # TODO(machenbach): It is possible that the auto-push script made a new
     # fast-forward release (e.g. 4.2.3) while somebody patches the last
@@ -60,11 +60,11 @@ class DetectLastRoll(Step):
     # the fast-forward release. Should there be a way to prioritize the
     # patched version?
 
-    if latest_release == last_roll:
+    if latest_release == self["last_roll"]:
       # We always try to roll if the latest revision is not the revision in
       # chromium.
       print("There is no newer v8 revision than the one in Chromium (%s)."
-            % last_roll)
+            % self["last_roll"])
       return True
 
 
@@ -95,6 +95,7 @@ class RollChromium(Step):
         "--author", self._options.author,
         "--reviewer", self._options.reviewer,
         "--chromium", self._options.chromium,
+        "--last-roll", self["last_roll"],
         "--use-commit-queue",
       ]
       if self._options.sheriff:

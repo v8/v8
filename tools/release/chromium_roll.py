@@ -10,6 +10,10 @@ import sys
 from common_includes import *
 
 
+ROLL_SUMMARY = ("Summary of changes available at:\n"
+                "https://chromium.googlesource.com/v8/v8/+log/%s..%s")
+
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -26,6 +30,20 @@ class DetectLastPush(Step):
     self["last_push"] = self._options.last_push or self.GetLatestRelease()
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
+
+    # The master revision this release is based on.
+    self["push_base"] = self.GetLatestReleaseBase()
+
+    # FIXME(machenbach): Manually specifying a revision doesn't work at the
+    # moment. Needs more complicated logic to find the correct push_base above.
+    # Maybe delete that parameter entirely?
+    assert not self._options.last_push
+
+    # Determine the master revision of the last roll.
+    version = self.GetVersionTag(self._options.last_roll)
+    assert version
+    self["last_rolled_base"] = self.GetLatestReleaseBase(version=version)
+    assert self["last_rolled_base"]
 
 
 class SwitchChromium(Step):
@@ -69,13 +87,17 @@ class UploadCL(Step):
         cwd=self._options.chromium) is None:
       self.Die("Failed to create deps for %s" % self["last_push"])
 
-    commit_title = "Update V8 to %s." % self["push_title"].lower()
-    sheriff = ""
+    message = []
+    message.append("Update V8 to %s." % self["push_title"].lower())
+
+    message.append(
+        ROLL_SUMMARY % (self["last_rolled_base"][:8], self["push_base"][:8]))
+
     if self["sheriff"]:
-      sheriff = ("\n\nPlease reply to the V8 sheriff %s in case of problems."
-                 % self["sheriff"])
-    self.GitCommit("%s%s\n\nTBR=%s" %
-                       (commit_title, sheriff, self._options.reviewer),
+      message.append("Please reply to the V8 sheriff %s in case of problems."
+          % self["sheriff"])
+    message.append("TBR=%s" % self._options.reviewer)
+    self.GitCommit("\n\n".join(message),
                    author=self._options.author,
                    cwd=self._options.chromium)
     if not self._options.dry_run:
@@ -119,6 +141,8 @@ class ChromiumRoll(ScriptsBase):
                               "directory to automate the V8 roll."))
     parser.add_argument("-l", "--last-push",
                         help="The git commit ID of the last candidates push.")
+    parser.add_argument("--last-roll", required=True,
+                        help="The git commit ID of the last rolled version.")
     parser.add_argument("--use-commit-queue",
                         help="Check the CQ bit on upload.",
                         default=False, action="store_true")

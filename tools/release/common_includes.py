@@ -47,6 +47,7 @@ from git_recipes import GitFailedException
 
 CHANGELOG_FILE = "ChangeLog"
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
+PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("src", "version.cc")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
@@ -601,6 +602,13 @@ class Step(GitRecipesMixin):
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
+  def GetVersionTag(self, revision):
+    tag = self.Git("describe --tags %s" % revision).strip()
+    if VERSION_RE.match(tag):
+      return tag
+    else:
+      return None
+
   def GetRecentReleases(self, max_age):
     # Make sure tags are fetched.
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
@@ -612,12 +620,8 @@ class Step(GitRecipesMixin):
     revisions = self.Git("rev-list --max-age=%d --tags" %
                          int(time_now - max_age)).strip()
 
-    def IsTagged(revision):
-      return VERSION_RE.match(
-          self.Git("describe --tags %s" % revision).strip())
-
     # Filter out revisions who's tag is off by one or more commits.
-    return filter(IsTagged, revisions.splitlines())
+    return filter(lambda r: self.GetVersionTag(r), revisions.splitlines())
 
   def GetLatestVersion(self):
     # Use cached version if available.
@@ -643,11 +647,11 @@ class Step(GitRecipesMixin):
     assert latest_hash
     return latest_hash
 
-  def GetLatestReleaseBase(self):
+  def GetLatestReleaseBase(self, version=None):
     """The latest release base is the latest revision that is covered in the
     last change log file. It doesn't include cherry-picked patches.
     """
-    latest_version = self.GetLatestVersion()
+    latest_version = version or self.GetLatestVersion()
 
     # Strip patch level if it exists.
     latest_version = ".".join(latest_version.split(".")[:3])
@@ -656,14 +660,21 @@ class Step(GitRecipesMixin):
     latest_hash = self.GitLog(n=1, format="%H", branch=latest_version)
     assert latest_hash
 
-    match = PUSH_MSG_GIT_RE.match(
-        self.GitLog(n=1, format="%s", git_hash=latest_hash))
+    title = self.GitLog(n=1, format="%s", git_hash=latest_hash)
+    match = PUSH_MSG_GIT_RE.match(title)
     if match:
       # Legacy: In the old process there's one level of indirection. The
       # version is on the candidates branch and points to the real release
       # base on master through the commit message.
-      latest_hash = match.group("git_rev")
-    return latest_hash
+      return match.group("git_rev")
+    match = PUSH_MSG_NEW_RE.match(title)
+    if match:
+      # This is a new-style v8 version branched from master. The commit
+      # "latest_hash" is the version-file change. Its parent is the release
+      # base on master.
+      return self.GitLog(n=1, format="%H", git_hash="%s^" % latest_hash)
+
+    self.Die("Unknown latest release: %s" % latest_hash)
 
   def ArrayToVersion(self, prefix):
     return ".".join([self[prefix + "major"],

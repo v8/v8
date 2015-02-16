@@ -929,8 +929,8 @@ Performance and stability improvements on all platforms."""
       Cmd("git checkout -f origin/master -- src/version.cc",
           "", cb=self.WriteFakeVersionFile),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
-      Cmd("git log -1 --format=%s release_hash",
-          "Version 3.22.4 (based on abc3)\n"),
+      Cmd("git log -1 --format=%s release_hash", "Version 3.22.4\n"),
+      Cmd("git log -1 --format=%H release_hash^", "abc3\n"),
       Cmd("git log --format=%H abc3..push_hash", "rev1\n"),
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
@@ -1017,7 +1017,15 @@ def get_list():
       Cmd("git tag", self.TAGS),
       Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
       Cmd("git log -1 --format=%s push_hash",
-          "Version 3.22.5 (based on abc)\n"),
+          "Version 3.22.4 (based on abc)\n"),
+      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
+      Cmd("git log -1 --format=%s push_hash",
+          "Version 3.22.4 (based on abc)"),
+      Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
+      Cmd("git log -1 --format=%H 3.22.2", "last_roll_base_hash"),
+      Cmd("git log -1 --format=%s last_roll_base_hash", "Version 3.22.2"),
+      Cmd("git log -1 --format=%H last_roll_base_hash^",
+          "last_roll_master_hash"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
           "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
@@ -1027,8 +1035,10 @@ def get_list():
       Cmd("git fetch origin", ""),
       Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
       Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
-      Cmd(("git commit -am \"Update V8 to version 3.22.5 "
+      Cmd(("git commit -am \"Update V8 to version 3.22.4 "
            "(based on abc).\n\n"
+           "Summary of changes available at:\n"
+           "https://chromium.googlesource.com/v8/v8/+log/last_rol..abc\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
            "case of problems.\n\nTBR=c_name@chromium.org\" "
            "--author \"author@chromium.org <author@chromium.org>\""),
@@ -1040,7 +1050,8 @@ def get_list():
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
             "--sheriff", "--googlers-mapping", googlers_mapping_py,
-            "-r", "reviewer@chromium.org"]
+            "-r", "reviewer@chromium.org",
+            "--last-roll", "last_roll_hsh"]
     ChromiumRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
