@@ -164,7 +164,7 @@ action("js2c") {
 
   # The script depends on this other script, this rule causes a rebuild if it
   # changes.
-  source_prereqs = [ "tools/jsmin.py" ]
+  inputs = [ "tools/jsmin.py" ]
 
   sources = [
     "src/runtime.js",
@@ -224,7 +224,7 @@ action("js2c_experimental") {
 
   # The script depends on this other script, this rule causes a rebuild if it
   # changes.
-  source_prereqs = [ "tools/jsmin.py" ]
+  inputs = [ "tools/jsmin.py" ]
 
   sources = [
     "src/macros.py",
