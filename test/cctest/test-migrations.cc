@@ -572,9 +572,10 @@ static void TestGeneralizeRepresentation(Representation from_representation,
   CHECK(!active_map->is_deprecated());
 
   // Update all deprecated maps and check that they are now the same.
-  CHECK_EQ(*active_map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*active_map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> updated_map = Map::Update(maps[i]);
+    updated_map = Map::Update(maps[i]);
     CHECK_EQ(*active_map, *updated_map);
   }
 }
@@ -835,9 +836,10 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
   CHECK(!active_map->is_deprecated());
 
   // Update all deprecated maps and check that they are now the same.
-  CHECK_EQ(*active_map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*active_map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> updated_map = Map::Update(maps[i]);
+    updated_map = Map::Update(maps[i]);
     CHECK_EQ(*active_map, *updated_map);
   }
 }
@@ -1556,9 +1558,10 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
   CHECK(!active_map->is_deprecated());
 
   // Update all deprecated maps and check that they are now the same.
-  CHECK_EQ(*active_map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*active_map, *updated_map);
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> updated_map = Map::Update(maps[i]);
+    updated_map = Map::Update(maps[i]);
     CHECK_EQ(*active_map, *updated_map);
   }
 }
