@@ -354,14 +354,14 @@ class ScriptTest(unittest.TestCase):
     return name
 
 
-  def WriteFakeVersionFile(self, minor=22, build=4, patch=0):
+  def WriteFakeVersionFile(self, major=3, minor=22, build=4, patch=0):
     version_file = os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE)
     if not os.path.exists(os.path.dirname(version_file)):
       os.makedirs(os.path.dirname(version_file))
     with open(version_file, "w") as f:
       f.write("  // Some line...\n")
       f.write("\n")
-      f.write("#define MAJOR_VERSION    3\n")
+      f.write("#define MAJOR_VERSION    %s\n" % major)
       f.write("#define MINOR_VERSION    %s\n" % minor)
       f.write("#define BUILD_NUMBER     %s\n" % build)
       f.write("#define PATCH_LEVEL      %s\n" % patch)
@@ -630,7 +630,7 @@ test_tag
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- src/version.cc",
-          "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
+          "", cb=lambda: self.WriteFakeVersionFile(3, 22, 6)),
     ])
 
     self.RunStep(PushToCandidates, IncrementVersion)
@@ -1291,6 +1291,10 @@ LOG=N
     MergeToBranch(TEST_CONFIG, self).Run(args)
 
   def testReleases(self):
+    c_hash1_commit_log = """Update V8 to Version 4.2.71.
+
+Cr-Commit-Position: refs/heads/master@{#5678}
+"""
     c_hash2_commit_log = """Revert something.
 
 BUG=12345
@@ -1327,6 +1331,10 @@ git-svn-id: googlecode@123 0039-1c4b
 
 Cr-Commit-Position: refs/heads/candidates@{#345}
 """
+    c_hash_456_commit_log = """Version 4.2.71.
+
+Cr-Commit-Position: refs/heads/4.2.71@{#1}
+"""
 
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
@@ -1341,8 +1349,9 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
                  os.path.join(chrome_dir, "DEPS"))
     WriteDEPS(567)
 
-    def ResetVersion(minor, build, patch=0):
-      return lambda: self.WriteFakeVersionFile(minor=minor,
+    def ResetVersion(major, minor, build, patch=0):
+      return lambda: self.WriteFakeVersionFile(major=major,
+                                               minor=minor,
                                                build=build,
                                                patch=patch)
 
@@ -1357,71 +1366,90 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
       Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=395200 --tags",
-          "bad_tag\nhash_234\nhash_123\nhash_345\n"),
+          "bad_tag\nhash_234\nhash_123\nhash_345\nhash_456\n"),
       Cmd("git describe --tags bad_tag", "3.23.42-1-deadbeef"),
       Cmd("git describe --tags hash_234", "3.3.1.1"),
       Cmd("git describe --tags hash_123", "3.21.2"),
       Cmd("git describe --tags hash_345", "3.22.3"),
+      Cmd("git describe --tags hash_456", "4.2.71"),
       Cmd("git diff --name-only hash_234 hash_234^", VERSION_FILE),
       Cmd("git checkout -f hash_234 -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(3, 1, 1)),
+          cb=ResetVersion(3, 3, 1, 1)),
       Cmd("git branch -r --contains hash_234", "  branch-heads/3.3\n"),
       Cmd("git log -1 --format=%B hash_234", c_hash_234_commit_log),
       Cmd("git log -1 --format=%s hash_234", ""),
       Cmd("git log -1 --format=%B hash_234", c_hash_234_commit_log),
       Cmd("git log -1 --format=%ci hash_234", "18:15"),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(22, 5)),
-
+          cb=ResetVersion(3, 22, 5)),
       Cmd("git diff --name-only hash_123 hash_123^", VERSION_FILE),
       Cmd("git checkout -f hash_123 -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(21, 2)),
+          cb=ResetVersion(3, 21, 2)),
       Cmd("git branch -r --contains hash_123", "  branch-heads/3.21\n"),
       Cmd("git log -1 --format=%B hash_123", c_hash_123_commit_log),
       Cmd("git log -1 --format=%s hash_123", ""),
       Cmd("git log -1 --format=%B hash_123", c_hash_123_commit_log),
       Cmd("git log -1 --format=%ci hash_123", "03:15"),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(22, 5)),
-
+          cb=ResetVersion(3, 22, 5)),
       Cmd("git diff --name-only hash_345 hash_345^", VERSION_FILE),
       Cmd("git checkout -f hash_345 -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(22, 3)),
+          cb=ResetVersion(3, 22, 3)),
       Cmd("git branch -r --contains hash_345", "  origin/candidates\n"),
       Cmd("git log -1 --format=%B hash_345", c_hash_345_commit_log),
       Cmd("git log -1 --format=%s hash_345", ""),
       Cmd("git log -1 --format=%B hash_345", c_hash_345_commit_log),
       Cmd("git log -1 --format=%ci hash_345", ""),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
-          cb=ResetVersion(22, 5)),
+          cb=ResetVersion(3, 22, 5)),
+      Cmd("git diff --name-only hash_456 hash_456^", VERSION_FILE),
+      Cmd("git checkout -f hash_456 -- %s" % VERSION_FILE, "",
+          cb=ResetVersion(4, 2, 71)),
+      Cmd("git branch -r --contains hash_456", "  origin/4.2.71\n"),
+      Cmd("git log -1 --format=%B hash_456", c_hash_456_commit_log),
+      Cmd("git log -1 --format=%H 4.2.71", "hash_456"),
+      Cmd("git log -1 --format=%s hash_456", "Version 4.2.71"),
+      Cmd("git log -1 --format=%H hash_456^", "master_456"),
+      Cmd("git log -1 --format=%B master_456",
+          "Cr-Commit-Position: refs/heads/master@{#456}"),
+      Cmd("git log -1 --format=%B hash_456", c_hash_456_commit_log),
+      Cmd("git log -1 --format=%ci hash_456", "02:15"),
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
+          cb=ResetVersion(3, 22, 5)),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], "",
           cwd=chrome_dir),
       Cmd("git fetch origin", "", cwd=chrome_v8_dir),
-      Cmd("git log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\nc_hash3\n",
+      Cmd("git log --format=%H --grep=\"V8\"",
+          "c_hash0\nc_hash1\nc_hash2\nc_hash3\n",
           cwd=chrome_dir),
-      Cmd("git diff --name-only c_hash1 c_hash1^", "", cwd=chrome_dir),
+      Cmd("git diff --name-only c_hash0 c_hash0^", "", cwd=chrome_dir),
+      Cmd("git diff --name-only c_hash1 c_hash1^", "DEPS", cwd=chrome_dir),
+      Cmd("git checkout -f c_hash1 -- DEPS", "",
+          cb=ResetDEPS("hash_456"),
+          cwd=chrome_dir),
+      Cmd("git log -1 --format=%B c_hash1", c_hash1_commit_log,
+          cwd=chrome_dir),
       Cmd("git diff --name-only c_hash2 c_hash2^", "DEPS", cwd=chrome_dir),
       Cmd("git checkout -f c_hash2 -- DEPS", "",
-          cb=ResetDEPS("0123456789012345678901234567890123456789"),
+          cb=ResetDEPS("hash_345"),
           cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash2", c_hash2_commit_log,
           cwd=chrome_dir),
-      Cmd("git log -1 --format=%B 0123456789012345678901234567890123456789",
-          self.C_V8_22624_LOG, cwd=chrome_v8_dir),
       Cmd("git diff --name-only c_hash3 c_hash3^", "DEPS", cwd=chrome_dir),
-      Cmd("git checkout -f c_hash3 -- DEPS", "", cb=ResetDEPS(345),
+      Cmd("git checkout -f c_hash3 -- DEPS", "", cb=ResetDEPS("deadbeef"),
           cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash3", c_hash3_commit_log,
           cwd=chrome_dir),
-      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS(567),
+      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS("hash_567"),
           cwd=chrome_dir),
       Cmd("git branch -r", " weird/123\n  branch-heads/7\n", cwd=chrome_dir),
-      Cmd("git checkout -f branch-heads/7 -- DEPS", "", cb=ResetDEPS(345),
+      Cmd("git checkout -f branch-heads/7 -- DEPS", "",
+          cb=ResetDEPS("hash_345"),
           cwd=chrome_dir),
-      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS(567),
+      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS("hash_567"),
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], "", cwd=chrome_dir),
@@ -1436,12 +1464,28 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
     Releases(TEST_CONFIG, self).Run(args)
 
     # Check expected output.
-    csv = ("3.22.3,candidates,345,3456:4566,\r\n"
+    csv = ("4.2.71,4.2.71,1,5678,\r\n"
+           "3.22.3,candidates,345,4567:5677,\r\n"
            "3.21.2,3.21,123,,\r\n"
            "3.3.1.1,3.3,234,,abc12\r\n")
     self.assertEquals(csv, FileToText(csv_output))
 
     expected_json = [
+      {
+        "revision": "1",
+        "revision_git": "hash_456",
+        "master_position": "456",
+        "master_hash": "master_456",
+        "patches_merged": "",
+        "version": "4.2.71",
+        "chromium_revision": "5678",
+        "branch": "4.2.71",
+        "review_link": "",
+        "date": "02:15",
+        "chromium_branch": "",
+        # FIXME(machenbach): Fix revisions link for git.
+        "revision_link": "https://code.google.com/p/v8/source/detail?r=1",
+      },
       {
         "revision": "345",
         "revision_git": "hash_345",
@@ -1449,7 +1493,7 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
         "master_hash": "",
         "patches_merged": "",
         "version": "3.22.3",
-        "chromium_revision": "3456:4566",
+        "chromium_revision": "4567:5677",
         "branch": "candidates",
         "review_link": "",
         "date": "",
