@@ -867,6 +867,9 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
       DCHECK(function->shared()->is_compiled());
       return info.code();
     }
+    // We have failed compilation. If there was an exception clear it so that
+    // we can compile unoptimized code.
+    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   }
 
   if (function->shared()->is_compiled()) {
