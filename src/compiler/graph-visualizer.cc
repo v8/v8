@@ -800,7 +800,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
     if (pop) {
       state[n->id()] = kVisited;
       stack.pop();
-      os << "#" << SafeId(n) << ":" << SafeMnemonic(n) << "(";
+      os << "#" << n->id() << ":" << *n->op() << "(";
       int j = 0;
       for (Node* const i : n->inputs()) {
         if (j++ > 0) os << ", ";

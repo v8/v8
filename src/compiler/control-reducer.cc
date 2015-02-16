@@ -400,6 +400,8 @@ class ControlReducerImpl {
 
     // Reduce branches, phis, and merges.
     switch (node->opcode()) {
+      case IrOpcode::kBranch:
+        return ReduceBranch(node);
       case IrOpcode::kIfTrue:
         return ReduceIfTrue(node);
       case IrOpcode::kIfFalse:
@@ -476,6 +478,14 @@ class ControlReducerImpl {
       }
     }
     return replacement == NULL ? dead() : replacement;
+  }
+
+  // Reduce branches.
+  Node* ReduceBranch(Node* branch) {
+    if (DecideCondition(branch->InputAt(0)) != kUnknown) {
+      for (Node* use : branch->uses()) Revisit(use);
+    }
+    return branch;
   }
 
   // Reduce merges by trimming away dead inputs from the merge and phis.
