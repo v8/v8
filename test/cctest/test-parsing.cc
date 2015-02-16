@@ -3965,8 +3965,6 @@ TEST(MethodDefinitionStrictFormalParamereters) {
   const char* params_data[] = {
     "x, x",
     "x, y, x",
-    "eval",
-    "arguments",
     "var",
     "const",
     NULL
@@ -3975,6 +3973,57 @@ TEST(MethodDefinitionStrictFormalParamereters) {
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
   RunParserSyncTest(context_data, params_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionEvalArguments) {
+  const char* strict_context_data[][2] =
+      {{"'use strict'; ({method(", "){}});"},
+       {"'use strict'; ({*method(", "){}});"},
+       {NULL, NULL}};
+  const char* sloppy_context_data[][2] =
+      {{"({method(", "){}});"},
+       {"({*method(", "){}});"},
+       {NULL, NULL}};
+
+  const char* data[] = {
+      "eval",
+      "arguments",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+
+  // Fail in strict mode
+  RunParserSyncTest(strict_context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  // OK in sloppy mode
+  RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionDuplicateEvalArguments) {
+  const char* context_data[][2] =
+      {{"'use strict'; ({method(", "){}});"},
+       {"'use strict'; ({*method(", "){}});"},
+       {"({method(", "){}});"},
+       {"({*method(", "){}});"},
+       {NULL, NULL}};
+
+  const char* data[] = {
+      "eval, eval",
+      "eval, a, eval",
+      "arguments, arguments",
+      "arguments, a, arguments",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+
+  // In strict mode, the error is using "eval" or "arguments" as parameter names
+  // In sloppy mode, the error is that eval / arguments are duplicated
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 
@@ -4880,6 +4929,59 @@ TEST(ParseRestParametersErrors) {
 }
 
 
+TEST(RestParametersEvalArguments) {
+  const char* strict_context_data[][2] =
+      {{"'use strict';(function(",
+        "){ return;})(1, [], /regexp/, 'str',function(){});"},
+       {NULL, NULL}};
+  const char* sloppy_context_data[][2] =
+      {{"(function(",
+        "){ return;})(1, [],/regexp/, 'str', function(){});"},
+       {NULL, NULL}};
+
+  const char* data[] = {
+      "...eval",
+      "eval, ...args",
+      "...arguments",
+      "arguments, ...args",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyRestParameters};
+
+  // Fail in strict mode
+  RunParserSyncTest(strict_context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  // OK in sloppy mode
+  RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(RestParametersDuplicateEvalArguments) {
+  const char* context_data[][2] =
+      {{"'use strict';(function(",
+        "){ return;})(1, [], /regexp/, 'str',function(){});"},
+       {"(function(",
+        "){ return;})(1, [],/regexp/, 'str', function(){});"},
+       {NULL, NULL}};
+
+  const char* data[] = {
+      "eval, ...eval",
+      "eval, eval, ...args",
+      "arguments, ...arguments",
+      "arguments, arguments, ...args",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyRestParameters};
+
+  // In strict mode, the error is using "eval" or "arguments" as parameter names
+  // In sloppy mode, the error is that eval / arguments are duplicated
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(LexicalScopingSloppyMode) {
   const char* context_data[][2] = {
       {"", ""},
@@ -5316,4 +5418,38 @@ TEST(PropertyNameEvalArguments) {
       kAllowStrongMode};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
+}
+
+
+TEST(FunctionLiteralDuplicateParameters) {
+  const char* strict_context_data[][2] =
+      {{"'use strict';(function(", "){})();"},
+       {"(function(", ") { 'use strict'; })();"},
+       {"'use strict'; function fn(", ") {}; fn();"},
+       {"function fn(", ") { 'use strict'; }; fn();"},
+       {"'use strong';(function(", "){})();"},
+       {"(function(", ") { 'use strong'; })();"},
+       {"'use strong'; function fn(", ") {}; fn();"},
+       {"function fn(", ") { 'use strong'; }; fn();"},
+       {NULL, NULL}};
+
+  const char* sloppy_context_data[][2] =
+      {{"(function(", "){})();"},
+       {"(function(", ") {})();"},
+       {"function fn(", ") {}; fn();"},
+       {"function fn(", ") {}; fn();"},
+       {NULL, NULL}};
+
+  const char* data[] = {
+      "a, a",
+      "a, a, a",
+      "b, a, a",
+      "a, b, c, c",
+      "a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, w",
+      NULL};
+
+  static const ParserFlag always_flags[] = { kAllowStrongMode };
+  RunParserSyncTest(strict_context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, NULL, 0);
 }

@@ -475,7 +475,7 @@ class ParserBase : public Traits {
                                    bool* ok) {
     if (is_sloppy(language_mode) && !strict_params) return;
 
-    if (eval_args_error_loc.IsValid()) {
+    if (is_strict(language_mode) && eval_args_error_loc.IsValid()) {
       Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
       *ok = false;
       return;

@@ -3702,7 +3702,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       if (!reserved_error_loc.IsValid() && is_strict_reserved) {
         reserved_error_loc = scanner()->location();
       }
-      if (!dupe_error_loc.IsValid() && scope_->IsDeclared(param_name)) {
+      if (!dupe_error_loc.IsValid() &&
+          scope_->IsDeclaredParameter(param_name)) {
         duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
         dupe_error_loc = scanner()->location();
       }

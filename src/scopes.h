@@ -467,6 +467,13 @@ class Scope: public ZoneObject {
     return variables_.Lookup(name) != NULL;
   }
 
+  bool IsDeclaredParameter(const AstRawString* name) {
+    // If IsSimpleParameterList is false, duplicate parameters are not allowed,
+    // however `arguments` may be allowed if function is not strict code. Thus,
+    // the assumptions explained above do not hold.
+    return params_.Contains(variables_.Lookup(name));
+  }
+
   // ---------------------------------------------------------------------------
   // Debugging.
 
