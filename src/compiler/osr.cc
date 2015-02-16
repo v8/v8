@@ -207,7 +207,7 @@ bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);
 
-  Node* dead = graph->NewNode(common->Dead());
+  Node* dead = jsgraph->DeadControl();
   LoopTree::Loop* loop = loop_tree->ContainingLoop(osr_loop);
   if (loop->depth() > 0) {
     PeelOuterLoopsForOsr(graph, common, tmp_zone, dead, loop_tree, loop,

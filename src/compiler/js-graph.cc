@@ -191,6 +191,15 @@ Node* JSGraph::Float64Constant(double value) {
 }
 
 
+Node* JSGraph::ExternalConstant(ExternalReference reference) {
+  Node** loc = cache_.FindExternalConstant(reference);
+  if (*loc == NULL) {
+    *loc = graph()->NewNode(common()->ExternalConstant(reference));
+  }
+  return *loc;
+}
+
+
 Node* JSGraph::EmptyFrameState() {
   if (!empty_frame_state_.is_set()) {
     Node* values = graph()->NewNode(common()->StateValues(0));
@@ -204,12 +213,12 @@ Node* JSGraph::EmptyFrameState() {
 }
 
 
-Node* JSGraph::ExternalConstant(ExternalReference reference) {
-  Node** loc = cache_.FindExternalConstant(reference);
-  if (*loc == NULL) {
-    *loc = graph()->NewNode(common()->ExternalConstant(reference));
+Node* JSGraph::DeadControl() {
+  if (!dead_control_.is_set()) {
+    Node* dead_node = graph()->NewNode(common()->Dead());
+    dead_control_.set(dead_node);
   }
-  return *loc;
+  return dead_control_.get();
 }
 
 

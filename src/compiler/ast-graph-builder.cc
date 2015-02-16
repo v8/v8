@@ -2970,9 +2970,9 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     }
     if (has_framestate) {
       // The frame state will be inserted later. Here we misuse
-      // the dead_control node as a sentinel to be later overwritten
+      // the {DeadControl} node as a sentinel to be later overwritten
       // with the real frame state.
-      *current_input++ = dead_control();
+      *current_input++ = jsgraph()->DeadControl();
     }
     if (has_effect) {
       *current_input++ = environment_->GetEffectDependency();
@@ -3155,16 +3155,6 @@ Node* AstGraphBuilder::MergeValue(Node* value, Node* other, Node* control) {
     value->ReplaceInput(inputs - 1, other);
   }
   return value;
-}
-
-
-Node* AstGraphBuilder::dead_control() {
-  if (!dead_control_.is_set()) {
-    Node* dead_node = graph()->NewNode(common()->Dead());
-    dead_control_.set(dead_node);
-    return dead_node;
-  }
-  return dead_control_.get();
 }
 
 }  // namespace compiler

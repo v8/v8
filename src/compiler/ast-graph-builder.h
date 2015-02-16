@@ -94,9 +94,6 @@ class AstGraphBuilder : public AstVisitor {
   int input_buffer_size_;
   Node** input_buffer_;
 
-  // Node representing the control dependency for dead code.
-  SetOncePointer<Node> dead_control_;
-
   // Merge of all control nodes that exit the function body.
   Node* exit_control_;
 
@@ -122,7 +119,6 @@ class AstGraphBuilder : public AstVisitor {
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   Scope* current_scope() const;
   Node* current_context() const;
-  Node* dead_control();
   Node* exit_control() const { return exit_control_; }
 
   void set_environment(Environment* env) { environment_ = env; }
@@ -411,7 +407,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
 
   // Mark this environment as being unreachable.
   void MarkAsUnreachable() {
-    UpdateControlDependency(builder()->dead_control());
+    UpdateControlDependency(builder()->jsgraph()->DeadControl());
   }
   bool IsMarkedAsUnreachable() {
     return GetControlDependency()->opcode() == IrOpcode::kDead;
