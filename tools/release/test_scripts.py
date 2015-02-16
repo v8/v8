@@ -1191,7 +1191,7 @@ LOG=N
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git new-branch %s --upstream origin/candidates" %
+      Cmd("git new-branch %s --upstream refs/remotes/origin/candidates" %
           TEST_CONFIG["BRANCHNAME"], ""),
       Cmd(("git log --format=%H --grep=\"Port ab12345\" "
            "--reverse origin/master"),
@@ -1253,12 +1253,12 @@ LOG=N
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep=\""
           "Version 3.22.5.1 (cherry-pick)"
-          "\" origin/candidates",
+          "\" refs/remotes/origin/candidates",
           ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep=\""
           "Version 3.22.5.1 (cherry-pick)"
-          "\" origin/candidates",
+          "\" refs/remotes/origin/candidates",
           "hsh_to_tag"),
       Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
       Cmd("git push origin 3.22.5.1", ""),

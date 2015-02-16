@@ -331,9 +331,19 @@ class GitInterface(VCInterface):
     return "origin/candidates"
 
   def RemoteBranch(self, name):
+    # Assume that if someone "fully qualified" the ref, they know what they
+    # want.
+    if name.startswith('refs/'):
+      return name
     if name in ["candidates", "master"]:
-      return "origin/%s" % name
-    return "branch-heads/%s" % name
+      return "refs/remotes/origin/%s" % name
+    # Check if branch is in heads.
+    if self.Git("show-ref refs/remotes/origin/%s" % name).strip():
+      return "refs/remotes/origin/%s" % name
+    # Check if branch is in branch-heads.
+    if self.Git("show-ref refs/remotes/branch-heads/%s" % name).strip():
+      return "refs/remotes/branch-heads/%s" % name
+    self.Die("Can't find remote of %s" % name)
 
   def Tag(self, tag, remote, message):
     # Wait for the commit to appear. Assumes unique commit message titles (this
