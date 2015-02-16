@@ -844,8 +844,8 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
 // This test ensures that representation/field type generalization is correctly
 // propagated from one branch of transition tree (|map2|) to another (|map|).
 //
-//               - p2B - p3 - p4: |map2|
-//              /
+//             + - p2B - p3 - p4: |map2|
+//             |
 //  {} - p0 - p1 - p2A - p3 - p4: |map|
 //
 // where "p2A" and "p2B" differ only in the attributes.
@@ -929,8 +929,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
 // (from HeapObject to HeapObject) is correctly propagated from one branch of
 // transition tree (|map2|) to another (|map|).
 //
-//               - p2B - p3 - p4: |map2|
-//              /
+//             + - p2B - p3 - p4: |map2|
+//             |
 //  {} - p0 - p1 - p2A - p3 - p4: |map|
 //
 // where "p2A" and "p2B" differ only in the attributes.
@@ -1160,13 +1160,13 @@ struct CheckCopyGeneralizeAllRepresentations {
 // This test ensures that representation/field type generalization is correctly
 // propagated from one branch of transition tree (|map2|) to another (|map1|).
 //
-//               - p2B - p3 - p4: |map2|
-//             /
+//             + - p2B - p3 - p4: |map2|
+//             |
 //  {} - p0 - p1: |map|
-//             \
-//               - p2A - p3 - p4: |map1|
-//                        \
-//                         - the property customized by the TestConfig provided
+//             |
+//             + - p2A - p3 - p4: |map1|
+//                        |
+//                        + - the property customized by the TestConfig provided
 //
 // where "p2A" and "p2B" differ only in the attributes.
 //
@@ -1892,11 +1892,11 @@ struct PropertyKindReconfigurationChecker {
 // 2) create |map1| by adding "p4" to |map0|.
 // 3) create |map2| by transition to "p4" from |map0|.
 //
-//                         - p4B: |map2|
-//                       /
+//                       + - p4B: |map2|
+//                       |
 //  {} - p0 - p1 - pA - p3: |map|
-//                       \
-//                         - p4A: |map1|
+//                       |
+//                       + - p4A: |map1|
 //
 // where "p4A" and "p4B" differ only in the attributes.
 //
