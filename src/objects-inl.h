@@ -4869,14 +4869,12 @@ inline void Code::set_is_crankshafted(bool value) {
 
 
 inline bool Code::is_turbofanned() {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
   return IsTurbofannedField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 inline void Code::set_is_turbofanned(bool value) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = IsTurbofannedField::update(previous, value);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);

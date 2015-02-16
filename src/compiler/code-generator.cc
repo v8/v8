@@ -125,13 +125,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
-  // TODO(titzer): what are the right code flags here?
-  Code::Kind kind = Code::STUB;
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    kind = Code::OPTIMIZED_FUNCTION;
-  }
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), Code::ComputeFlags(kind), info);
+      masm(), info->flags(), info);
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetSpillSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
