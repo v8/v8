@@ -2567,6 +2567,7 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   AllocateData(size);
 
   // Set header values.
+  SetHeaderValue(kMagicNumberOffset, kMagicNumber);
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
   SetHeaderValue(kCpuFeaturesOffset,
@@ -2597,14 +2598,24 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
 }
 
 
-bool SerializedCodeData::IsSane(String* source) const {
-  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
-         GetHeaderValue(kSourceHashOffset) == SourceHash(source) &&
-         GetHeaderValue(kCpuFeaturesOffset) ==
-             static_cast<uint32_t>(CpuFeatures::SupportedFeatures()) &&
-         GetHeaderValue(kFlagHashOffset) == FlagList::Hash() &&
-         Checksum(Payload()).Check(GetHeaderValue(kChecksum1Offset),
-                                   GetHeaderValue(kChecksum2Offset));
+SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+    String* source) const {
+  uint32_t magic_number = GetHeaderValue(kMagicNumberOffset);
+  uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+  uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
+  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+  uint32_t c1 = GetHeaderValue(kChecksum1Offset);
+  uint32_t c2 = GetHeaderValue(kChecksum2Offset);
+  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
+  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
+  if (source_hash != SourceHash(source)) return SOURCE_MISMATCH;
+  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
+    return CPU_FEATURES_MISMATCH;
+  }
+  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+  if (!Checksum(Payload()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  return CHECK_SUCCESS;
 }
 
 
@@ -2660,8 +2671,10 @@ SerializedCodeData* SerializedCodeData::FromCachedData(ScriptData* cached_data,
                                                        String* source) {
   DisallowHeapAllocation no_gc;
   SerializedCodeData* scd = new SerializedCodeData(cached_data);
-  if (scd->IsSane(source)) return scd;
+  SanityCheckResult r = scd->SanityCheck(source);
+  if (r == CHECK_SUCCESS) return scd;
   cached_data->Reject();
+  source->GetIsolate()->counters()->code_cache_reject_reason()->AddSample(r);
   delete scd;
   return NULL;
 }

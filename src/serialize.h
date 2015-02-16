@@ -949,25 +949,39 @@ class SerializedCodeData : public SerializedData {
  private:
   explicit SerializedCodeData(ScriptData* data);
 
-  bool IsSane(String* source) const;
+  enum SanityCheckResult {
+    CHECK_SUCCESS = 0,
+    MAGIC_NUMBER_MISMATCH = 1,
+    VERSION_MISMATCH = 2,
+    SOURCE_MISMATCH = 3,
+    CPU_FEATURES_MISMATCH = 4,
+    FLAGS_MISMATCH = 5,
+    CHECKSUM_MISMATCH = 6,
+  };
+
+  SanityCheckResult SanityCheck(String* source) const;
 
   uint32_t SourceHash(String* source) const { return source->length(); }
 
+  static const uint32_t kMagicNumber = 0xC0D1F1ED;
+
   // The data header consists of uint32_t-sized entries:
-  // [0] version hash
-  // [1] source hash
-  // [2] cpu features
-  // [3] flag hash
-  // [4] number of internalized strings
-  // [5] number of code stub keys
-  // [6] number of reservation size entries
-  // [7] payload length
-  // [8] payload checksum part 1
-  // [9] payload checksum part 2
-  // ... reservations
-  // ... code stub keys
-  // ... serialized payload
-  static const int kVersionHashOffset = 0;
+  // [ 0] magic number
+  // [ 1] version hash
+  // [ 2] source hash
+  // [ 3] cpu features
+  // [ 4] flag hash
+  // [ 5] number of internalized strings
+  // [ 6] number of code stub keys
+  // [ 7] number of reservation size entries
+  // [ 8] payload length
+  // [ 9] payload checksum part 1
+  // [10] payload checksum part 2
+  // ...  reservations
+  // ...  code stub keys
+  // ...  serialized payload
+  static const int kMagicNumberOffset = 0;
+  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
   static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
   static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
   static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
