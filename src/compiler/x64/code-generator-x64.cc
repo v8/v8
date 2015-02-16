@@ -1178,7 +1178,7 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -1206,10 +1206,10 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ addq(rsp, Immediate(stack_slots * kPointerSize));
       }
@@ -1229,13 +1229,15 @@ void CodeGenerator::AssembleReturn() {
       __ popq(rbp);       // Pop caller's frame pointer.
       __ ret(0);
     }
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
     __ popq(rbp);       // Pop caller's frame pointer.
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ ret(pop_count * kPointerSize);
+  } else {
+    __ ret(0);
   }
 }
 
