@@ -69,9 +69,9 @@ std::ostream& operator<<(std::ostream& os,
     os << "immutable ";
   }
   os << (details.kind() == kData ? "data" : "accessor");
+  os << ": " << details.representation().Mnemonic();
   if (details.location() == kField) {
-    os << ": " << details.representation().Mnemonic()
-       << ", field_index: " << details.field_index();
+    os << ", field_index: " << details.field_index();
   }
   return os << ", p: " << details.pointer()
             << ", attrs: " << details.attributes() << ")";

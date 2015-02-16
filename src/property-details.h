@@ -212,6 +212,15 @@ class PropertyDetails BASE_EMBEDDED {
         | FieldIndexField::encode(field_index);
   }
 
+  PropertyDetails(PropertyAttributes attributes, PropertyKind kind,
+                  PropertyLocation location, Representation representation,
+                  int field_index = 0) {
+    value_ = KindField::encode(kind) | LocationField::encode(location) |
+             AttributesField::encode(attributes) |
+             RepresentationField::encode(EncodeRepresentation(representation)) |
+             FieldIndexField::encode(field_index);
+  }
+
   int pointer() const { return DescriptorPointer::decode(value_); }
 
   PropertyDetails set_pointer(int i) { return PropertyDetails(value_, i); }

@@ -58,7 +58,7 @@ PropertyDetails PropertyDetails::AsDeleted() const {
 
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK(type() == DATA);
+  DCHECK(location() == kField);
   if (!FLAG_unbox_double_fields) return 1;
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
@@ -3148,13 +3148,13 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == DATA);
+  DCHECK(GetDetails(descriptor_number).location() == kField);
   return GetDetails(descriptor_number).field_index();
 }
 
 
 HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == DATA);
+  DCHECK(GetDetails(descriptor_number).location() == kField);
   return HeapType::cast(GetValue(descriptor_number));
 }
 
