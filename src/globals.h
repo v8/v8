@@ -825,7 +825,7 @@ enum FunctionKind {
   kSubclassConstructor = 1 << 5,
   kBaseConstructor = 1 << 6,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
-  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
+  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor
 };
 
 
