@@ -16927,15 +16927,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
           fixed_typed_array->length(), typed_array->type(),
           static_cast<uint8_t*>(buffer->backing_store()));
 
-  Heap* heap = isolate->heap();
-  if (heap->InNewSpace(*typed_array)) {
-    DCHECK(typed_array->weak_next() == isolate->heap()->undefined_value());
-    typed_array->set_weak_next(heap->new_array_buffer_views_list());
-    heap->set_new_array_buffer_views_list(*typed_array);
-  } else {
-    buffer->set_weak_first_view(*typed_array);
-    DCHECK(typed_array->weak_next() == isolate->heap()->undefined_value());
-  }
+  buffer->set_weak_first_view(*typed_array);
+  DCHECK(typed_array->weak_next() == isolate->heap()->undefined_value());
   typed_array->set_buffer(*buffer);
   JSObject::SetMapAndElements(typed_array, new_map, new_elements);
 
