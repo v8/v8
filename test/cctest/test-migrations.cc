@@ -63,11 +63,14 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Handle<AccessorPair> pair = factory->NewAccessorPair();
+  Handle<String> empty_string = factory->empty_string();
   if (with_getter) {
-    pair->set_getter(*factory->NewFunction(factory->empty_string()));
+    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    pair->set_getter(*func);
   }
   if (with_setter) {
-    pair->set_setter(*factory->NewFunction(factory->empty_string()));
+    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    pair->set_setter(*func);
   }
   return pair;
 }
@@ -443,9 +446,9 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(new_map->is_stable());
   CHECK(expectations.Check(*new_map));
 
-  CHECK_EQ(*new_map, *Map::ReconfigureProperty(map, 0, kData, NONE,
-                                               Representation::None(),
-                                               none_type, FORCE_FIELD));
+  Handle<Map> new_map2 = Map::ReconfigureProperty(
+      map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
+  CHECK_EQ(*new_map, *new_map2);
 
   Handle<Object> value(Smi::FromInt(0), isolate);
   Handle<Map> prepared_map = Map::PrepareForDataProperty(new_map, 0, value);
@@ -571,7 +574,8 @@ static void TestGeneralizeRepresentation(Representation from_representation,
   // Update all deprecated maps and check that they are now the same.
   CHECK_EQ(*active_map, *Map::Update(map));
   for (int i = 0; i < kPropCount; i++) {
-    CHECK_EQ(*active_map, *Map::Update(maps[i]));
+    Handle<Map> updated_map = Map::Update(maps[i]);
+    CHECK_EQ(*active_map, *updated_map);
   }
 }
 
@@ -624,7 +628,8 @@ static void TestGeneralizeRepresentationTrivial(
     CHECK(expectations.Check(*new_map));
   }
 
-  CHECK_EQ(*map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*map, *updated_map);
 }
 
 
@@ -832,7 +837,8 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
   // Update all deprecated maps and check that they are now the same.
   CHECK_EQ(*active_map, *Map::Update(map));
   for (int i = 0; i < kPropCount; i++) {
-    CHECK_EQ(*active_map, *Map::Update(maps[i]));
+    Handle<Map> updated_map = Map::Update(maps[i]);
+    CHECK_EQ(*active_map, *updated_map);
   }
 }
 
@@ -921,7 +927,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(expectations.Check(*new_map));
 
   // Update deprecated |map|, it should become |new_map|.
-  CHECK_EQ(*new_map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*new_map, *updated_map);
 }
 
 
@@ -1010,7 +1017,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(!new_map->is_dictionary_map());
   CHECK(expectations.Check(*new_map));
 
-  CHECK_EQ(*new_map, *Map::Update(map));
+  Handle<Map> updated_map = Map::Update(map);
+  CHECK_EQ(*new_map, *updated_map);
 }
 
 
@@ -1115,7 +1123,8 @@ struct CheckDeprecated {
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
-    CHECK_EQ(*new_map, *Map::Update(map));
+    Handle<Map> updated_map = Map::Update(map);
+    CHECK_EQ(*new_map, *updated_map);
   }
 };
 
@@ -1133,7 +1142,8 @@ struct CheckSameMap {
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
-    CHECK_EQ(*new_map, *Map::Update(map));
+    Handle<Map> updated_map = Map::Update(map);
+    CHECK_EQ(*new_map, *updated_map);
   }
 };
 
@@ -1548,7 +1558,8 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
   // Update all deprecated maps and check that they are now the same.
   CHECK_EQ(*active_map, *Map::Update(map));
   for (int i = 0; i < kPropCount; i++) {
-    CHECK_EQ(*active_map, *Map::Update(maps[i]));
+    Handle<Map> updated_map = Map::Update(maps[i]);
+    CHECK_EQ(*active_map, *updated_map);
   }
 }
 
@@ -1855,7 +1866,8 @@ struct FieldGeneralizationChecker {
 
     CHECK(map1->is_deprecated());
     CHECK_NE(*map1, *map2);
-    CHECK_EQ(*map2, *Map::Update(map1));
+    Handle<Map> updated_map = Map::Update(map1);
+    CHECK_EQ(*map2, *updated_map);
 
     expectations2.SetDataField(descriptor_, representation_, heap_type_);
     CHECK(expectations2.Check(*map2));
