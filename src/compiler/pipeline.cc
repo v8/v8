@@ -54,7 +54,76 @@ namespace compiler {
 
 class PipelineData {
  public:
-  explicit PipelineData(ZonePool* zone_pool, CompilationInfo* info)
+  // For main entry point.
+  PipelineData(ZonePool* zone_pool, CompilationInfo* info,
+               PipelineStatistics* pipeline_statistics)
+      : isolate_(info->isolate()),
+        info_(info),
+        outer_zone_(info_->zone()),
+        zone_pool_(zone_pool),
+        pipeline_statistics_(pipeline_statistics),
+        compilation_failed_(false),
+        code_(Handle<Code>::null()),
+        graph_zone_scope_(zone_pool_),
+        graph_zone_(graph_zone_scope_.zone()),
+        graph_(nullptr),
+        loop_assignment_(nullptr),
+        machine_(nullptr),
+        common_(nullptr),
+        javascript_(nullptr),
+        jsgraph_(nullptr),
+        typer_(nullptr),
+        context_node_(nullptr),
+        schedule_(nullptr),
+        instruction_zone_scope_(zone_pool_),
+        instruction_zone_(instruction_zone_scope_.zone()),
+        sequence_(nullptr),
+        frame_(nullptr),
+        register_allocator_(nullptr) {
+    PhaseScope scope(pipeline_statistics, "init pipeline data");
+    graph_ = new (graph_zone_) Graph(graph_zone_);
+    source_positions_.Reset(new SourcePositionTable(graph_));
+    machine_ = new (graph_zone_) MachineOperatorBuilder(
+        graph_zone_, kMachPtr,
+        InstructionSelector::SupportedMachineOperatorFlags());
+    common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
+    javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
+    jsgraph_ = new (graph_zone_)
+        JSGraph(isolate_, graph_, common_, javascript_, machine_);
+    typer_.Reset(new Typer(isolate_, graph_, info_->context()));
+  }
+
+  // For machine graph testing entry point.
+  PipelineData(ZonePool* zone_pool, CompilationInfo* info, Graph* graph,
+               Schedule* schedule)
+      : isolate_(info->isolate()),
+        info_(info),
+        outer_zone_(nullptr),
+        zone_pool_(zone_pool),
+        pipeline_statistics_(nullptr),
+        compilation_failed_(false),
+        code_(Handle<Code>::null()),
+        graph_zone_scope_(zone_pool_),
+        graph_zone_(nullptr),
+        graph_(graph),
+        source_positions_(new SourcePositionTable(graph_)),
+        loop_assignment_(nullptr),
+        machine_(nullptr),
+        common_(nullptr),
+        javascript_(nullptr),
+        jsgraph_(nullptr),
+        typer_(nullptr),
+        context_node_(nullptr),
+        schedule_(schedule),
+        instruction_zone_scope_(zone_pool_),
+        instruction_zone_(instruction_zone_scope_.zone()),
+        sequence_(nullptr),
+        frame_(nullptr),
+        register_allocator_(nullptr) {}
+
+  // For register allocation testing entry point.
+  PipelineData(ZonePool* zone_pool, CompilationInfo* info,
+               InstructionSequence* sequence)
       : isolate_(info->isolate()),
         info_(info),
         outer_zone_(nullptr),
@@ -74,47 +143,14 @@ class PipelineData {
         context_node_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
-        instruction_zone_(nullptr),
-        sequence_(nullptr),
+        instruction_zone_(sequence->zone()),
+        sequence_(sequence),
         frame_(nullptr),
         register_allocator_(nullptr) {}
 
   ~PipelineData() {
     DeleteInstructionZone();
     DeleteGraphZone();
-  }
-
-  // For main entry point.
-  void Initialize(PipelineStatistics* pipeline_statistics) {
-    PhaseScope scope(pipeline_statistics, "init pipeline data");
-    outer_zone_ = info()->zone();
-    pipeline_statistics_ = pipeline_statistics;
-    graph_zone_ = graph_zone_scope_.zone();
-    graph_ = new (graph_zone()) Graph(graph_zone());
-    source_positions_.Reset(new SourcePositionTable(graph()));
-    machine_ = new (graph_zone()) MachineOperatorBuilder(
-        graph_zone(), kMachPtr,
-        InstructionSelector::SupportedMachineOperatorFlags());
-    common_ = new (graph_zone()) CommonOperatorBuilder(graph_zone());
-    javascript_ = new (graph_zone()) JSOperatorBuilder(graph_zone());
-    jsgraph_ = new (graph_zone())
-        JSGraph(info()->isolate(), graph(), common(), javascript(), machine());
-    typer_.Reset(new Typer(info()->isolate(), graph(), info()->context()));
-    instruction_zone_ = instruction_zone_scope_.zone();
-  }
-
-  // For machine graph testing entry point.
-  void InitializeTorTesting(Graph* graph, Schedule* schedule) {
-    graph_ = graph;
-    source_positions_.Reset(new SourcePositionTable(graph));
-    schedule_ = schedule;
-    instruction_zone_ = instruction_zone_scope_.zone();
-  }
-
-  // For register allocation testing entry point.
-  void InitializeTorTesting(InstructionSequence* sequence) {
-    instruction_zone_ = sequence->zone();
-    sequence_ = sequence;
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -849,9 +885,8 @@ Handle<Code> Pipeline::GenerateCode() {
     }
   }
 
-  PipelineData data(&zone_pool, info());
+  PipelineData data(&zone_pool, info(), pipeline_statistics.get());
   this->data_ = &data;
-  data.Initialize(pipeline_statistics.get());
 
   BeginPhaseKind("graph creation");
 
@@ -978,10 +1013,9 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Schedule* schedule) {
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;
+  PipelineData data(&zone_pool, info, graph, schedule);
   Pipeline pipeline(info);
-  PipelineData data(&zone_pool, info);
   pipeline.data_ = &data;
-  data.InitializeTorTesting(graph, schedule);
   if (data.schedule() == nullptr) {
     // TODO(rossberg): Should this really be untyped?
     pipeline.RunPrintAndVerify("Machine", true);
@@ -997,8 +1031,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   FakeStubForTesting stub(sequence->isolate());
   CompilationInfo info(&stub, sequence->isolate(), sequence->zone());
   ZonePool zone_pool;
-  PipelineData data(&zone_pool, &info);
-  data.InitializeTorTesting(sequence);
+  PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);
   pipeline.data_ = &data;
   pipeline.AllocateRegisters(config, run_verifier);
