@@ -1335,6 +1335,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
     Node* receiver = environment()->Pop();
+    BuildSetHomeObject(value, receiver, property->value());
+
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
@@ -1361,8 +1363,6 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
         break;
       }
     }
-
-    AddHomeObjectIfNeeded(property->value(), value, receiver);
   }
 
   // Transform both the class literal and the prototype to fast properties.
@@ -1379,17 +1379,6 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
 
   PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
-}
-
-
-void AstGraphBuilder::AddHomeObjectIfNeeded(Expression* expr, Node* function,
-                                            Node* home_object) {
-  if (FunctionLiteral::NeedsHomeObject(expr)) {
-    Unique<Name> name = MakeUnique(isolate()->factory()->home_object_symbol());
-    Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
-                          function, home_object);
-    PrepareFrameState(store, BailoutId::None());
-  }
 }
 
 
@@ -1494,8 +1483,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                 NewNode(javascript()->StoreNamed(language_mode(), name),
                         literal, value);
             PrepareFrameState(store, key->id());
-
-            AddHomeObjectIfNeeded(property->value(), value, literal);
+            BuildSetHomeObject(value, literal, property->value());
           } else {
             VisitForEffect(property->value());
           }
@@ -1512,8 +1500,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           const Operator* op =
               javascript()->CallRuntime(Runtime::kSetProperty, 4);
           NewNode(op, receiver, key, value, language);
-
-          AddHomeObjectIfNeeded(property->value(), value, receiver);
+          BuildSetHomeObject(value, receiver, property->value());
         }
         break;
       }
@@ -1549,12 +1536,12 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
        it != accessor_table.end(); ++it) {
     VisitForValue(it->first);
     VisitForValueOrNull(it->second->getter);
+    BuildSetHomeObject(environment()->Top(), literal, it->second->getter);
     VisitForValueOrNull(it->second->setter);
+    BuildSetHomeObject(environment()->Top(), literal, it->second->setter);
     Node* setter = environment()->Pop();
     Node* getter = environment()->Pop();
     Node* name = environment()->Pop();
-    AddHomeObjectIfNeeded(it->second->getter, getter, literal);
-    AddHomeObjectIfNeeded(it->second->setter, setter, literal);
     Node* attr = jsgraph()->Constant(NONE);
     const Operator* op =
         javascript()->CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
@@ -1586,8 +1573,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
     Node* receiver = environment()->Pop();
-
-    AddHomeObjectIfNeeded(property->value(), value, receiver);
+    BuildSetHomeObject(value, receiver, property->value());
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
@@ -2801,6 +2787,17 @@ Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
   Node* name = NewNode(javascript()->ToName(), input);
   PrepareFrameState(name, bailout_id);
   return name;
+}
+
+
+Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
+                                          Expression* expr) {
+  if (!FunctionLiteral::NeedsHomeObject(expr)) return value;
+  Unique<Name> name = MakeUnique(isolate()->factory()->home_object_symbol());
+  const Operator* op = javascript()->StoreNamed(language_mode(), name);
+  Node* store = NewNode(op, value, home_object);
+  PrepareFrameState(store, BailoutId::None());
+  return store;
 }
 
 

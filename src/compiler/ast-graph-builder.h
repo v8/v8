@@ -226,10 +226,9 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildToBoolean(Node* value);
   Node* BuildToName(Node* value, BailoutId bailout_id);
 
-  // Adds the [[HomeObject]] to a value if the value came from a function
-  // literal that needs a home object.
-  void AddHomeObjectIfNeeded(Expression* expr, Node* function,
-                             Node* home_object);
+  // Builder for adding the [[HomeObject]] to a value if the value came from a
+  // function literal and needs a home object. Do nothing otherwise.
+  Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
