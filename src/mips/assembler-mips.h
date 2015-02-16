@@ -38,8 +38,6 @@
 
 #include <stdio.h>
 
-#include <tr1/unordered_set>
-
 #include "src/assembler.h"
 #include "src/mips/constants-mips.h"
 #include "src/serialize.h"
@@ -1023,8 +1021,7 @@ class Assembler : public AssemblerBase {
   void RecordDeoptReason(const int reason, const int raw_position);
 
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
-                                       intptr_t pc_delta);
+  static int RelocateInternalReference(byte* pc, intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -1129,10 +1126,10 @@ class Assembler : public AssemblerBase {
   int32_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
-  int target_at(int32_t pos, bool is_internal);
+  int target_at(int32_t pos);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int32_t pos, int32_t target_pos, bool is_internal);
+  void target_at_put(int32_t pos, int32_t target_pos);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -1301,7 +1298,7 @@ class Assembler : public AssemblerBase {
   // Labels.
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void next(Label* L, bool is_internal);
+  void next(Label* L);
 
   // One trampoline consists of:
   // - space for trampoline slots,
@@ -1365,10 +1362,6 @@ class Assembler : public AssemblerBase {
   static const int kTrampolineSlotsSize = 4 * kInstrSize;
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
-
-  // Internal reference positions, required for unbounded internal reference
-  // labels.
-  std::tr1::unordered_set<int> internal_reference_positions_;
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
