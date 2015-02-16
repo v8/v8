@@ -339,10 +339,10 @@ class GitInterface(VCInterface):
     if name in ["candidates", "master"]:
       return "refs/remotes/origin/%s" % name
     # Check if branch is in heads.
-    if self.Git("show-ref refs/remotes/origin/%s" % name).strip():
+    if self.step.Git("show-ref refs/remotes/origin/%s" % name).strip():
       return "refs/remotes/origin/%s" % name
     # Check if branch is in branch-heads.
-    if self.Git("show-ref refs/remotes/branch-heads/%s" % name).strip():
+    if self.step.Git("show-ref refs/remotes/branch-heads/%s" % name).strip():
       return "refs/remotes/branch-heads/%s" % name
     self.Die("Can't find remote of %s" % name)
 
