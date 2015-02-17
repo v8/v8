@@ -3288,8 +3288,13 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
 
 Handle<Object> SlotRef::GetValue(Isolate* isolate) {
   switch (representation_) {
-    case TAGGED:
-      return Handle<Object>(Memory::Object_at(addr_), isolate);
+    case TAGGED: {
+      Handle<Object> value(Memory::Object_at(addr_), isolate);
+      if (value->IsMutableHeapNumber()) {
+        HeapNumber::cast(*value)->set_map(isolate->heap()->heap_number_map());
+      }
+      return value;
+    }
 
     case INT32: {
 #if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
@@ -3390,9 +3395,9 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
     case SlotRef::INT32:
     case SlotRef::UINT32:
     case SlotRef::DOUBLE:
-    case SlotRef::LITERAL: {
+    case SlotRef::LITERAL:
       return slot.GetValue(isolate);
-    }
+
     case SlotRef::ARGUMENTS_OBJECT: {
       // We should never need to materialize an arguments object,
       // but we still need to put something into the array
