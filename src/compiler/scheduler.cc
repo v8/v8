@@ -373,13 +373,14 @@ class CFGBuilder : public ZoneObject {
   }
 
   // Collect the branch-related projections from a node, such as IfTrue,
-  // IfFalse, and Case.
+  // IfFalse, Case and Default.
   void CollectSuccessorProjections(Node* node, Node** successors,
                                    size_t successor_count) {
 #ifdef DEBUG
     DCHECK_EQ(static_cast<int>(successor_count), node->UseCount());
     std::memset(successors, 0, sizeof(*successors) * successor_count);
 #endif
+    size_t if_value_index = 0;
     for (Node* const use : node->uses()) {
       size_t index;
       switch (use->opcode()) {
@@ -394,13 +395,18 @@ class CFGBuilder : public ZoneObject {
           DCHECK_EQ(IrOpcode::kBranch, node->opcode());
           index = 1;
           break;
-        case IrOpcode::kCase:
+        case IrOpcode::kIfValue:
           DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
-          index = CaseIndexOf(use->op());
+          index = if_value_index++;
+          break;
+        case IrOpcode::kIfDefault:
+          DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
+          index = successor_count - 1;
           break;
       }
+      DCHECK_LT(if_value_index, successor_count);
       DCHECK_LT(index, successor_count);
-      DCHECK(successors[index] == nullptr);
+      DCHECK_NULL(successors[index]);
       successors[index] = use;
     }
 #ifdef DEBUG

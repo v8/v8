@@ -1973,19 +1973,21 @@ TARGET_TEST_F(SchedulerTest, Switch) {
   graph()->SetStart(start);
 
   Node* p0 = graph()->NewNode(common()->Parameter(0), start);
-  Node* sw = graph()->NewNode(common()->Switch(2), p0, start);
-  Node* c0 = graph()->NewNode(common()->Case(0), sw);
+  Node* sw = graph()->NewNode(common()->Switch(3), p0, start);
+  Node* c0 = graph()->NewNode(common()->IfValue(0), sw);
   Node* v0 = graph()->NewNode(common()->Int32Constant(11));
-  Node* c1 = graph()->NewNode(common()->Case(1), sw);
+  Node* c1 = graph()->NewNode(common()->IfValue(1), sw);
   Node* v1 = graph()->NewNode(common()->Int32Constant(22));
-  Node* m = graph()->NewNode(common()->Merge(2), c0, c1);
-  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 2), v0, v1, m);
+  Node* d = graph()->NewNode(common()->IfDefault(), sw);
+  Node* vd = graph()->NewNode(common()->Int32Constant(33));
+  Node* m = graph()->NewNode(common()->Merge(3), c0, c1, d);
+  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 3), v0, v1, vd, m);
   Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
   Node* end = graph()->NewNode(common()->End(), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(13, graph());
+  ComputeAndVerifySchedule(16, graph());
 }
 
 
@@ -1994,19 +1996,21 @@ TARGET_TEST_F(SchedulerTest, FloatingSwitch) {
   graph()->SetStart(start);
 
   Node* p0 = graph()->NewNode(common()->Parameter(0), start);
-  Node* sw = graph()->NewNode(common()->Switch(2), p0, start);
-  Node* c0 = graph()->NewNode(common()->Case(0), sw);
+  Node* sw = graph()->NewNode(common()->Switch(3), p0, start);
+  Node* c0 = graph()->NewNode(common()->IfValue(0), sw);
   Node* v0 = graph()->NewNode(common()->Int32Constant(11));
-  Node* c1 = graph()->NewNode(common()->Case(1), sw);
+  Node* c1 = graph()->NewNode(common()->IfValue(1), sw);
   Node* v1 = graph()->NewNode(common()->Int32Constant(22));
-  Node* m = graph()->NewNode(common()->Merge(2), c0, c1);
-  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 2), v0, v1, m);
+  Node* d = graph()->NewNode(common()->IfDefault(), sw);
+  Node* vd = graph()->NewNode(common()->Int32Constant(33));
+  Node* m = graph()->NewNode(common()->Merge(3), c0, c1, d);
+  Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 3), v0, v1, vd, m);
   Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
   Node* end = graph()->NewNode(common()->End(), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(13, graph());
+  ComputeAndVerifySchedule(16, graph());
 }
 
 }  // namespace compiler

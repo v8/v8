@@ -310,8 +310,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
-    case kArchSwitch:
-      AssembleArchSwitch(instr);
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -761,18 +764,6 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
-void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
-  IA32OperandConverter i(this, instr);
-  size_t const label_count = instr->InputCount() - 1;
-  Label** labels = zone()->NewArray<Label*>(label_count);
-  for (size_t index = 0; index < label_count; ++index) {
-    labels[index] = GetLabel(i.InputRpo(index + 1));
-  }
-  Label* const table = AddJumpTable(labels, label_count);
-  __ jmp(Operand::JumpTable(i.InputRegister(0), times_4, table));
-}
-
-
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -848,6 +839,32 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     __ mov(reg, Immediate(1));
   }
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  IA32OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ cmp(input, Immediate(i.InputInt32(index + 0)));
+    __ j(equal, GetLabel(i.InputRpo(index + 1)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  IA32OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  Label** cases = zone()->NewArray<Label*>(case_count);
+  for (size_t index = 0; index < case_count; ++index) {
+    cases[index] = GetLabel(i.InputRpo(index + 2));
+  }
+  Label* const table = AddJumpTable(cases, case_count);
+  __ cmp(input, Immediate(case_count));
+  __ j(above_equal, GetLabel(i.InputRpo(1)));
+  __ jmp(Operand::JumpTable(input, times_4, table));
 }
 
 

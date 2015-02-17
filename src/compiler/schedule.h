@@ -106,6 +106,9 @@ class BasicBlock FINAL : public ZoneObject {
   Node* NodeAt(size_t index) { return nodes_[index]; }
   size_t NodeCount() const { return nodes_.size(); }
 
+  value_type& front() { return nodes_.front(); }
+  value_type const& front() const { return nodes_.front(); }
+
   typedef NodeVector::iterator iterator;
   iterator begin() { return nodes_.begin(); }
   iterator end() { return nodes_.end(); }

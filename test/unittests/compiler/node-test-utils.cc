@@ -95,6 +95,68 @@ class IsBranchMatcher FINAL : public NodeMatcher {
 };
 
 
+class IsSwitchMatcher FINAL : public NodeMatcher {
+ public:
+  IsSwitchMatcher(const Matcher<Node*>& value_matcher,
+                  const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kSwitch),
+        value_matcher_(value_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const FINAL {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const FINAL {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsIfValueMatcher FINAL : public NodeMatcher {
+ public:
+  IsIfValueMatcher(const Matcher<int32_t>& value_matcher,
+                   const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kIfValue),
+        value_matcher_(value_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const FINAL {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const FINAL {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<int32_t>(node->op()), "value",
+                                 value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<int32_t> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsControl1Matcher FINAL : public NodeMatcher {
  public:
   IsControl1Matcher(IrOpcode::Value opcode,
@@ -1207,6 +1269,14 @@ Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
 }
 
 
+Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
+                       const Matcher<Node*>& control1_matcher,
+                       const Matcher<Node*>& control2_matcher) {
+  return MakeMatcher(new IsControl3Matcher(IrOpcode::kMerge, control0_matcher,
+                                           control1_matcher, control2_matcher));
+}
+
+
 Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                       const Matcher<Node*>& control1_matcher) {
   return MakeMatcher(new IsControl2Matcher(IrOpcode::kLoop, control0_matcher,
@@ -1230,6 +1300,24 @@ Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher) {
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher) {
   return MakeMatcher(
       new IsControl1Matcher(IrOpcode::kIfFalse, control_matcher));
+}
+
+
+Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsSwitchMatcher(value_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
+                         const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsIfValueMatcher(value_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsControl1Matcher(IrOpcode::kIfDefault, control_matcher));
 }
 
 

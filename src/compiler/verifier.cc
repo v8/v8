@@ -216,7 +216,8 @@ void Verifier::Visitor::Check(Node* node) {
         if (use->opcode() == IrOpcode::kIfTrue) ++count_true;
         if (use->opcode() == IrOpcode::kIfFalse) ++count_false;
       }
-      CHECK(count_true == 1 && count_false == 1);
+      CHECK_EQ(1, count_true);
+      CHECK_EQ(1, count_false);
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -229,21 +230,39 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kSwitch: {
-      // Switch uses are Case.
-      std::vector<bool> uses;
-      uses.resize(node->UseCount());
+      // Switch uses are Case and Default.
+      int count_case = 0, count_default = 0;
       for (auto use : node->uses()) {
-        CHECK_EQ(IrOpcode::kCase, use->opcode());
-        size_t const index = CaseIndexOf(use->op());
-        CHECK_LT(index, uses.size());
-        CHECK(!uses[index]);
-        uses[index] = true;
+        switch (use->opcode()) {
+          case IrOpcode::kIfValue: {
+            for (auto user : node->uses()) {
+              if (user != use && user->opcode() == IrOpcode::kIfValue) {
+                CHECK_NE(OpParameter<int32_t>(use->op()),
+                         OpParameter<int32_t>(user->op()));
+              }
+            }
+            ++count_case;
+            break;
+          }
+          case IrOpcode::kIfDefault: {
+            ++count_default;
+            break;
+          }
+          default: {
+            UNREACHABLE();
+            break;
+          }
+        }
       }
+      CHECK_LE(1, count_case);
+      CHECK_EQ(1, count_default);
+      CHECK_EQ(node->op()->ControlOutputCount(), count_case + count_default);
       // Type is empty.
       CheckNotTyped(node);
       break;
     }
-    case IrOpcode::kCase:
+    case IrOpcode::kIfValue:
+    case IrOpcode::kIfDefault:
       CHECK_EQ(IrOpcode::kSwitch,
                NodeProperties::GetControlInput(node)->opcode());
       // Type is empty.

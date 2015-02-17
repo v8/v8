@@ -434,6 +434,8 @@
         '../../src/compiler/control-builders.cc',
         '../../src/compiler/control-builders.h',
         '../../src/compiler/control-equivalence.h',
+        '../../src/compiler/control-flow-optimizer.cc',
+        '../../src/compiler/control-flow-optimizer.h',
         '../../src/compiler/control-reducer.cc',
         '../../src/compiler/control-reducer.h',
         '../../src/compiler/diamond.h',

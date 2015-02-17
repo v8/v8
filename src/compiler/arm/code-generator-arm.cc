@@ -336,8 +336,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArchSwitch:
-      AssembleArchSwitch(instr);
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchNop:
@@ -741,18 +745,6 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
-void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
-  ArmOperandConverter i(this, instr);
-  int const kNumLabels = static_cast<int>(instr->InputCount() - 1);
-  __ BlockConstPoolFor(kNumLabels + 2);
-  __ ldr(pc, MemOperand(pc, i.InputRegister(0), LSL, 2));
-  __ nop();
-  for (int index = 0; index < kNumLabels; ++index) {
-    __ dd(GetLabel(i.InputRpo(index + 1)));
-  }
-}
-
-
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -765,6 +757,31 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Condition cc = FlagsConditionToCondition(condition);
   __ mov(reg, Operand(0));
   __ mov(reg, Operand(1), LeaveCC, cc);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ cmp(input, Operand(i.InputInt32(index + 0)));
+    __ b(eq, GetLabel(i.InputRpo(index + 1)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  __ cmp(input, Operand(case_count));
+  __ BlockConstPoolFor(case_count + 2);
+  __ ldr(pc, MemOperand(pc, input, LSL, 2), lo);
+  __ b(GetLabel(i.InputRpo(1)));
+  for (size_t index = 0; index < case_count; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 2)));
+  }
 }
 
 

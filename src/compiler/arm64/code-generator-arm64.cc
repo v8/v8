@@ -357,8 +357,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
-    case kArchSwitch:
-      AssembleArchSwitch(instr);
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
+      break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -841,22 +844,6 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
-void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
-  Arm64OperandConverter i(this, instr);
-  UseScratchRegisterScope scope(masm());
-  Register reg = i.InputRegister(0);
-  Register tmp = scope.AcquireX();
-  Label table;
-  __ Adr(tmp, &table);
-  __ Add(tmp, tmp, Operand(reg, LSL, 2));
-  __ Br(tmp);
-  __ Bind(&table);
-  for (size_t index = 1; index < instr->InputCount(); ++index) {
-    __ B(GetLabel(i.InputRpo(index)));
-  }
-}
-
-
 // Assemble boolean materializations after this instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -868,6 +855,38 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = FlagsConditionToCondition(condition);
   __ Cset(reg, cc);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  Arm64OperandConverter i(this, instr);
+  Register input = i.InputRegister32(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ Cmp(input, i.InputInt32(index + 0));
+    __ B(eq, GetLabel(i.InputRpo(index + 1)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  Arm64OperandConverter i(this, instr);
+  UseScratchRegisterScope scope(masm());
+  Register input = i.InputRegister32(0);
+  Register temp = scope.AcquireX();
+  size_t const case_count = instr->InputCount() - 2;
+  Label table;
+  __ Cmp(input, case_count);
+  __ B(hs, GetLabel(i.InputRpo(1)));
+  __ Adr(temp, &table);
+  __ Add(temp, temp, Operand(input, UXTW, 2));
+  __ Br(temp);
+  __ StartBlockPools();
+  __ Bind(&table);
+  for (size_t index = 0; index < case_count; ++index) {
+    __ B(GetLabel(i.InputRpo(index + 2)));
+  }
+  __ EndBlockPools();
 }
 
 

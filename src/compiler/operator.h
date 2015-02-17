@@ -85,6 +85,9 @@ class Operator : public ZoneObject {
 
   Properties properties() const { return properties_; }
 
+  // TODO(bmeurer): Use bit fields below?
+  static const size_t kMaxControlOutputCount = (1u << 16) - 1;
+
   // TODO(titzer): convert return values here to size_t.
   int ValueInputCount() const { return value_in_; }
   int EffectInputCount() const { return effect_in_; }
@@ -114,7 +117,7 @@ class Operator : public ZoneObject {
   uint16_t control_in_;
   uint16_t value_out_;
   uint8_t effect_out_;
-  uint8_t control_out_;
+  uint16_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };

@@ -13,7 +13,8 @@
   V(IfTrue)                      \
   V(IfFalse)                     \
   V(Switch)                      \
-  V(Case)                        \
+  V(IfValue)                     \
+  V(IfDefault)                   \
   V(Merge)                       \
   V(Return)                      \
   V(OsrNormalEntry)              \

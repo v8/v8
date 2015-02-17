@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -1148,6 +1150,70 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 
   // Branch could not be combined with a compare, emit compare against 0.
   VisitCompareZero(this, value, kX64Cmp32, &cont);
+}
+
+
+void InstructionSelector::VisitSwitch(Node* node, BasicBlock* default_branch,
+                                      BasicBlock** case_branches,
+                                      int32_t* case_values, size_t case_count,
+                                      int32_t min_value, int32_t max_value) {
+  X64OperandGenerator g(this);
+  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand default_operand = g.Label(default_branch);
+
+  // Note that {value_range} can be 0 if {min_value} is -2^31 and {max_value}
+  // is 2^31-1, so don't assume that it's non-zero below.
+  size_t value_range =
+      1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+
+  // Determine whether to issue an ArchTableSwitch or an ArchLookupSwitch
+  // instruction.
+  size_t table_space_cost = 4 + value_range;
+  size_t table_time_cost = 3;
+  size_t lookup_space_cost = 3 + 2 * case_count;
+  size_t lookup_time_cost = case_count;
+  if (case_count > 4 &&
+      table_space_cost + 3 * table_time_cost <=
+          lookup_space_cost + 3 * lookup_time_cost &&
+      min_value > std::numeric_limits<int32_t>::min()) {
+    InstructionOperand index_operand = g.TempRegister();
+    if (min_value) {
+      // The leal automatically zero extends, so result is a valid 64-bit index.
+      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI), index_operand,
+           value_operand, g.TempImmediate(-min_value));
+    } else {
+      // Zero extend, because we use it as 64-bit index into the jump table.
+      Emit(kX64Movl, index_operand, value_operand);
+    }
+    size_t input_count = 2 + value_range;
+    auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+    inputs[0] = index_operand;
+    std::fill(&inputs[1], &inputs[input_count], default_operand);
+    for (size_t index = 0; index < case_count; ++index) {
+      size_t value = case_values[index] - min_value;
+      BasicBlock* branch = case_branches[index];
+      DCHECK_LE(0u, value);
+      DCHECK_LT(value + 2, input_count);
+      inputs[value + 2] = g.Label(branch);
+    }
+    Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
+        ->MarkAsControl();
+    return;
+  }
+
+  // Generate a sequence of conditional jumps.
+  size_t input_count = 2 + case_count * 2;
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = value_operand;
+  inputs[1] = default_operand;
+  for (size_t index = 0; index < case_count; ++index) {
+    int32_t value = case_values[index];
+    BasicBlock* branch = case_branches[index];
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
+    inputs[index * 2 + 2 + 1] = g.Label(branch);
+  }
+  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
+      ->MarkAsControl();
 }
 
 

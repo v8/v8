@@ -15,6 +15,7 @@
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
@@ -544,6 +545,16 @@ struct SimplifiedLoweringPhase {
 };
 
 
+struct ControlFlowOptimizationPhase {
+  static const char* phase_name() { return "control flow optimization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    ControlFlowOptimizer optimizer(data->jsgraph(), temp_zone);
+    optimizer.Optimize();
+  }
+};
+
+
 struct ChangeLoweringPhase {
   static const char* phase_name() { return "change lowering"; }
 
@@ -960,6 +971,12 @@ Handle<Code> Pipeline::GenerateCode() {
     // Lower simplified operators and insert changes.
     Run<SimplifiedLoweringPhase>();
     RunPrintAndVerify("Lowered simplified");
+
+    // Optimize control flow.
+    if (FLAG_turbo_switch) {
+      Run<ControlFlowOptimizationPhase>();
+      RunPrintAndVerify("Control flow optimized");
+    }
 
     // Lower changes that have been inserted before.
     Run<ChangeLoweringPhase>();

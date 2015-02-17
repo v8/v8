@@ -33,6 +33,8 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
 
  protected:
   Node* start() { return graph()->start(); }
+  Node* end() { return graph()->end(); }
+
   Node* Parameter(int32_t index = 0);
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);

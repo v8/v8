@@ -76,15 +76,26 @@ void RawMachineAssembler::Branch(Node* condition, Label* true_val,
 }
 
 
-void RawMachineAssembler::Switch(Node* index, Label** succ_labels,
-                                 size_t succ_count) {
+void RawMachineAssembler::Switch(Node* index, Label* default_label,
+                                 int32_t* case_values, Label** case_labels,
+                                 size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);
-  Node* sw = NewNode(common()->Switch(succ_count), index);
+  size_t succ_count = case_count + 1;
+  Node* switch_node = NewNode(common()->Switch(succ_count), index);
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
-  for (size_t index = 0; index < succ_count; ++index) {
-    succ_blocks[index] = Use(succ_labels[index]);
+  for (size_t index = 0; index < case_count; ++index) {
+    int32_t case_value = case_values[index];
+    BasicBlock* case_block = Use(case_labels[index]);
+    Node* case_node =
+        graph()->NewNode(common()->IfValue(case_value), switch_node);
+    schedule()->AddNode(case_block, case_node);
+    succ_blocks[index] = case_block;
   }
-  schedule()->AddSwitch(CurrentBlock(), sw, succ_blocks, succ_count);
+  BasicBlock* default_block = Use(default_label);
+  Node* default_node = graph()->NewNode(common()->IfDefault(), switch_node);
+  schedule()->AddNode(default_block, default_node);
+  succ_blocks[case_count] = default_block;
+  schedule()->AddSwitch(CurrentBlock(), switch_node, succ_blocks, succ_count);
   current_block_ = nullptr;
 }
 

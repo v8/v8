@@ -4,6 +4,8 @@
 
 #include "src/compiler/instruction-selector.h"
 
+#include <limits>
+
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -519,15 +521,33 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kSwitch: {
       DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
-      BasicBlock** const branches = &block->successors().front();
-      size_t const branch_count = block->SuccessorCount();
-      DCHECK_LE(2u, branch_count);
+      // Last successor must be Default.
+      BasicBlock* default_branch = block->successors().back();
+      DCHECK_EQ(IrOpcode::kIfDefault, default_branch->front()->opcode());
       // SSA deconstruction requires targets of branches not to have phis.
       // Edge split form guarantees this property, but is more strict.
-      for (size_t index = 0; index < branch_count; ++index) {
-        CheckNoPhis(branches[index]);
+      CheckNoPhis(default_branch);
+      // All other successors must be cases.
+      size_t case_count = block->SuccessorCount() - 1;
+      DCHECK_LE(1u, case_count);
+      BasicBlock** case_branches = &block->successors().front();
+      // Determine case values and their min/max.
+      int32_t* case_values = zone()->NewArray<int32_t>(case_count);
+      int32_t min_value = std::numeric_limits<int32_t>::max();
+      int32_t max_value = std::numeric_limits<int32_t>::min();
+      for (size_t index = 0; index < case_count; ++index) {
+        BasicBlock* branch = case_branches[index];
+        int32_t value = OpParameter<int32_t>(branch->front()->op());
+        case_values[index] = value;
+        if (min_value > value) min_value = value;
+        if (max_value < value) max_value = value;
+        // SSA deconstruction requires targets of branches not to have phis.
+        // Edge split form guarantees this property, but is more strict.
+        CheckNoPhis(branch);
       }
-      return VisitSwitch(input, branches, branch_count);
+      DCHECK_LE(min_value, max_value);
+      return VisitSwitch(input, default_branch, case_branches, case_values,
+                         case_count, min_value, max_value);
     }
     case BasicBlock::kReturn: {
       // If the result itself is a return, return its input.
@@ -561,7 +581,8 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
     case IrOpcode::kSwitch:
-    case IrOpcode::kCase:
+    case IrOpcode::kIfValue:
+    case IrOpcode::kIfDefault:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kEffectSet:
     case IrOpcode::kMerge:
@@ -701,7 +722,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
     case IrOpcode::kSwitch:
-    case IrOpcode::kCase:
+    case IrOpcode::kIfValue:
+    case IrOpcode::kIfDefault:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
       // No code needed for these graph artifacts.
@@ -1055,22 +1077,6 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);
   Emit(kArchJmp, g.NoOutput(), g.Label(target))->MarkAsControl();
-}
-
-
-void InstructionSelector::VisitSwitch(Node* node, BasicBlock** branches,
-                                      size_t branch_count) {
-  OperandGenerator g(this);
-  Node* const value = node->InputAt(0);
-  size_t const input_count = branch_count + 1;
-  InstructionOperand* const inputs =
-      zone()->NewArray<InstructionOperand>(input_count);
-  inputs[0] = g.UseRegister(value);
-  for (size_t index = 0; index < branch_count; ++index) {
-    inputs[index + 1] = g.Label(branches[index]);
-  }
-  Emit(kArchSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
-      ->MarkAsControl();
 }
 
 

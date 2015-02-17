@@ -452,12 +452,16 @@ TEST(RunSwitch1) {
 
   int constant = 11223344;
 
-  MLabel block0, block1, end;
-  MLabel* cases[] = {&block0, &block1};
-  m.Switch(m.IntPtrConstant(0), cases, arraysize(cases));
+  MLabel block0, block1, def, end;
+  MLabel* case_labels[] = {&block0, &block1};
+  int32_t case_values[] = {0, 1};
+  m.Switch(m.Int32Constant(0), &def, case_values, case_labels,
+           arraysize(case_labels));
   m.Bind(&block0);
   m.Goto(&end);
   m.Bind(&block1);
+  m.Goto(&end);
+  m.Bind(&def);
   m.Goto(&end);
   m.Bind(&end);
   m.Return(m.Int32Constant(constant));
@@ -469,29 +473,84 @@ TEST(RunSwitch1) {
 TEST(RunSwitch2) {
   RawMachineAssemblerTester<int32_t> m(kMachInt32);
 
-  const size_t kNumCases = 255;
-  int32_t values[kNumCases];
+  MLabel blocka, blockb, blockc;
+  MLabel* case_labels[] = {&blocka, &blockb};
+  int32_t case_values[] = {std::numeric_limits<int32_t>::min(),
+                           std::numeric_limits<int32_t>::max()};
+  m.Switch(m.Parameter(0), &blockc, case_values, case_labels,
+           arraysize(case_labels));
+  m.Bind(&blocka);
+  m.Return(m.Int32Constant(-1));
+  m.Bind(&blockb);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&blockc);
+  m.Return(m.Int32Constant(0));
+
+  CHECK_EQ(1, m.Call(std::numeric_limits<int32_t>::max()));
+  CHECK_EQ(-1, m.Call(std::numeric_limits<int32_t>::min()));
+  for (int i = -100; i < 100; i += 25) {
+    CHECK_EQ(0, m.Call(i));
+  }
+}
+
+
+TEST(RunSwitch3) {
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+
+  MLabel blocka, blockb, blockc;
+  MLabel* case_labels[] = {&blocka, &blockb};
+  int32_t case_values[] = {std::numeric_limits<int32_t>::min() + 0,
+                           std::numeric_limits<int32_t>::min() + 1};
+  m.Switch(m.Parameter(0), &blockc, case_values, case_labels,
+           arraysize(case_labels));
+  m.Bind(&blocka);
+  m.Return(m.Int32Constant(0));
+  m.Bind(&blockb);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&blockc);
+  m.Return(m.Int32Constant(2));
+
+  CHECK_EQ(0, m.Call(std::numeric_limits<int32_t>::min() + 0));
+  CHECK_EQ(1, m.Call(std::numeric_limits<int32_t>::min() + 1));
+  for (int i = -100; i < 100; i += 25) {
+    CHECK_EQ(2, m.Call(i));
+  }
+}
+
+
+TEST(RunSwitch4) {
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+
+  const size_t kNumCases = 512;
+  const size_t kNumValues = kNumCases + 1;
+  int32_t values[kNumValues];
   m.main_isolate()->random_number_generator()->NextBytes(values,
                                                          sizeof(values));
-  MLabel end;
-  MLabel* cases[kNumCases];
-  Node* results[kNumCases];
+  MLabel end, def;
+  int32_t case_values[kNumCases];
+  MLabel* case_labels[kNumCases];
+  Node* results[kNumValues];
   for (size_t i = 0; i < kNumCases; ++i) {
-    cases[i] = new (m.main_zone()->New(sizeof(MLabel))) MLabel;
+    case_values[i] = static_cast<int32_t>(i);
+    case_labels[i] = new (m.main_zone()->New(sizeof(MLabel))) MLabel;
   }
-  m.Switch(m.ConvertInt32ToIntPtr(m.Parameter(0)), cases, arraysize(cases));
+  m.Switch(m.Parameter(0), &def, case_values, case_labels,
+           arraysize(case_labels));
   for (size_t i = 0; i < kNumCases; ++i) {
-    m.Bind(cases[i]);
+    m.Bind(case_labels[i]);
     results[i] = m.Int32Constant(values[i]);
     m.Goto(&end);
   }
+  m.Bind(&def);
+  results[kNumCases] = m.Int32Constant(values[kNumCases]);
+  m.Goto(&end);
   m.Bind(&end);
   const int num_results = static_cast<int>(arraysize(results));
   Node* phi =
       m.NewNode(m.common()->Phi(kMachInt32, num_results), num_results, results);
   m.Return(phi);
 
-  for (size_t i = 0; i < kNumCases; ++i) {
+  for (size_t i = 0; i < kNumValues; ++i) {
     CHECK_EQ(values[i], m.Call(static_cast<int>(i)));
   }
 }
