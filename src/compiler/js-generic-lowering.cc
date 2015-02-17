@@ -20,16 +20,6 @@ JSGenericLowering::JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph)
     : is_typing_enabled_(is_typing_enabled), jsgraph_(jsgraph) {}
 
 
-void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {
-  node->set_op(op);
-}
-
-
-void JSGenericLowering::PatchInsertInput(Node* node, int index, Node* input) {
-  node->InsertInput(zone(), index, input);
-}
-
-
 Reduction JSGenericLowering::Reduce(Node* node) {
   switch (node->opcode()) {
 #define DECLARE_CASE(x)  \
@@ -201,7 +191,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   node->ReplaceInput(0, booleanize);
   node->ReplaceInput(1, true_value);
   node->ReplaceInput(2, false_value);
-  PatchOperator(node, common()->Select(kMachAnyTagged));
+  node->set_op(common()->Select(kMachAnyTagged));
 }
 
 
@@ -212,8 +202,8 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
       Linkage::GetStubCallDescriptor(isolate(), zone(), callable.descriptor(),
                                      0, flags | FlagsForNode(node), properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  PatchInsertInput(node, 0, stub_code);
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, stub_code);
+  node->set_op(common()->Call(desc));
 }
 
 
@@ -241,9 +231,9 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                 kHeapObjectTag),
       NodeProperties::GetEffectInput(node), graph()->start());
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  PatchInsertInput(node, 0, stub_code);
-  PatchInsertInput(node, 1, function);
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 1, function);
+  node->set_op(common()->Call(desc));
 }
 
 
@@ -257,10 +247,10 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
       Linkage::GetRuntimeCallDescriptor(zone(), f, nargs, properties);
   Node* ref = jsgraph()->ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = jsgraph()->Int32Constant(nargs);
-  PatchInsertInput(node, 0, jsgraph()->CEntryStubConstant(fun->result_size));
-  PatchInsertInput(node, nargs + 1, ref);
-  PatchInsertInput(node, nargs + 2, arity);
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, jsgraph()->CEntryStubConstant(fun->result_size));
+  node->InsertInput(zone(), nargs + 1, ref);
+  node->InsertInput(zone(), nargs + 2, arity);
+  node->set_op(common()->Call(desc));
 }
 
 
@@ -303,8 +293,9 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
   Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
   if (FLAG_vector_ics) {
-    PatchInsertInput(node, 2, jsgraph()->SmiConstant(p.feedback().index()));
-    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+    node->InsertInput(zone(), 3,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
   }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
@@ -314,10 +305,11 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
   Callable callable =
       CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode());
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (FLAG_vector_ics) {
-    PatchInsertInput(node, 2, jsgraph()->SmiConstant(p.feedback().index()));
-    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+    node->InsertInput(zone(), 3,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
   }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
@@ -333,7 +325,7 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
   Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
@@ -341,7 +333,7 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
   ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
-  PatchInsertInput(node, 4, jsgraph()->SmiConstant(language_mode));
+  node->InsertInput(zone(), 4, jsgraph()->SmiConstant(language_mode));
 }
 
 
@@ -359,8 +351,8 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(isolate(), zone(), d, 0,
                                                         FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  PatchInsertInput(node, 0, stub_code);
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, stub_code);
+  node->set_op(common()->Call(desc));
 }
 
 
@@ -378,7 +370,7 @@ void JSGenericLowering::LowerJSLoadContext(Node* node) {
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
   node->AppendInput(zone(), graph()->start());
-  PatchOperator(node, machine()->Load(kMachAnyTagged));
+  node->set_op(machine()->Load(kMachAnyTagged));
 }
 
 
@@ -396,14 +388,14 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
-  PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
-                                                           kFullWriteBarrier)));
+  node->set_op(
+      machine()->Store(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier)));
 }
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
   Unique<String> name = OpParameter<Unique<String>>(node);
-  PatchInsertInput(node, 0, jsgraph()->HeapConstant(name));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
@@ -416,11 +408,11 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
       isolate(), zone(), d, arity, FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
   Node* construct = NodeProperties::GetValueInput(node, 0);
-  PatchInsertInput(node, 0, stub_code);
-  PatchInsertInput(node, 1, jsgraph()->Int32Constant(arity - 1));
-  PatchInsertInput(node, 2, construct);
-  PatchInsertInput(node, 3, jsgraph()->UndefinedConstant());
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 1));
+  node->InsertInput(zone(), 2, construct);
+  node->InsertInput(zone(), 3, jsgraph()->UndefinedConstant());
+  node->set_op(common()->Call(desc));
 }
 
 
@@ -458,7 +450,7 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
   node->ReplaceInput(index, context);
   CallDescriptor* desc = Linkage::GetJSCallDescriptor(
       zone(), false, 1 + arg_count, FlagsForNode(node));
-  PatchOperator(node, common()->Call(desc));
+  node->set_op(common()->Call(desc));
   return true;
 }
 
@@ -476,8 +468,8 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
       isolate(), zone(), d, static_cast<int>(p.arity() - 1),
       FlagsForNode(node));
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  PatchInsertInput(node, 0, stub_code);
-  PatchOperator(node, common()->Call(desc));
+  node->InsertInput(zone(), 0, stub_code);
+  node->set_op(common()->Call(desc));
 }
 
 

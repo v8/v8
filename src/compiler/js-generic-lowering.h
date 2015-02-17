@@ -37,10 +37,6 @@ class JSGenericLowering FINAL : public Reducer {
   JS_OP_LIST(DECLARE_LOWER)
 #undef DECLARE_LOWER
 
-  // Helpers to patch existing nodes in the graph.
-  void PatchOperator(Node* node, const Operator* new_op);
-  void PatchInsertInput(Node* node, int index, Node* input);
-
   // Helpers to replace existing nodes with a generic call.
   void ReplaceWithCompareIC(Node* node, Token::Value token);
   void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
