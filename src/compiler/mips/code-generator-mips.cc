@@ -428,8 +428,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
-    case kArchSwitch:
-      AssembleArchSwitch(instr);
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -805,28 +808,6 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 }
 
 
-void CodeGenerator::AssembleArchSwitch(Instruction* instr) {
-  MipsOperandConverter i(this, instr);
-  int const kNumLabels = static_cast<int>(instr->InputCount() - 1);
-  v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
-      masm());
-  Label here;
-
-  __ bal(&here);
-  __ nop();  // Branch delay slot nop.
-  __ bind(&here);
-  __ sll(at, i.InputRegister(0), 2);
-  __ addu(at, at, ra);
-  __ lw(at, MemOperand(at, 5 * v8::internal::Assembler::kInstrSize));
-  __ jr(at);
-  __ nop();  // Branch delay slot nop.
-
-  for (int index = 0; index < kNumLabels; ++index) {
-    __ dd(GetLabel(i.InputRpo(index + 1)));
-  }
-}
-
-
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
@@ -901,6 +882,37 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&false_value);
   __ li(result, Operand(0));
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  MipsOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input,
+              Operand(i.InputInt32(index + 0)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  MipsOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  Label here;
+  __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
+  __ bal(&here);
+  __ nop();  // Branch delay slot nop.
+  __ bind(&here);
+  __ sll(at, input, 2);
+  __ addu(at, at, ra);
+  __ lw(at, MemOperand(at, 5 * v8::internal::Assembler::kInstrSize));
+  __ jr(at);
+  __ nop();  // Branch delay slot nop.
+  for (size_t index = 0; index < case_count; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 2)));
+  }
 }
 
 
