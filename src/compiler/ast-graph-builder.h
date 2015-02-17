@@ -77,6 +77,8 @@ class AstGraphBuilder : public AstVisitor {
   Environment* environment_;
   AstContext* ast_context_;
 
+  bool CreateGraphBody();
+
   // List of global declarations for functions and variables.
   ZoneVector<Handle<Object>> globals_;
 
@@ -88,7 +90,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
-  SetOncePointer<Node> function_context_;
+  Node* function_context_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -105,7 +107,7 @@ class AstGraphBuilder : public AstVisitor {
   static const int kInputBufferSizeIncrement = 64;
 
   Zone* local_zone() const { return local_zone_; }
-  Environment* environment() { return environment_; }
+  Environment* environment() const { return environment_; }
   AstContext* ast_context() const { return ast_context_; }
   ControlScope* execution_control() const { return execution_control_; }
   ContextScope* execution_context() const { return execution_context_; }
@@ -171,6 +173,9 @@ class AstGraphBuilder : public AstVisitor {
   // Creates a new Phi node having {count} input values.
   Node* NewPhi(int count, Node* input, Node* control);
   Node* NewEffectPhi(int count, Node* input, Node* control);
+
+  Node* NewOuterContextParam();
+  Node* NewCurrentContextOsrValue();
 
   // Helpers for merging control, effect or value dependencies.
   Node* MergeControl(Node* control, Node* other);
@@ -357,6 +362,10 @@ class AstGraphBuilder::Environment : public ZoneObject {
     }
   }
 
+  Node* Context() const { return contexts_.back(); }
+  void PushContext(Node* context) { contexts()->push_back(context); }
+  void PopContext() { contexts()->pop_back(); }
+
   // Operations on the operand stack.
   void Push(Node* node) {
     values()->push_back(node);
@@ -431,11 +440,14 @@ class AstGraphBuilder::Environment : public ZoneObject {
     return Copy();
   }
 
+  int ContextStackDepth() { return static_cast<int>(contexts_.size()); }
+
  private:
   AstGraphBuilder* builder_;
   int parameters_count_;
   int locals_count_;
   NodeVector values_;
+  NodeVector contexts_;
   Node* control_dependency_;
   Node* effect_dependency_;
   Node* parameters_node_;
@@ -450,6 +462,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   AstGraphBuilder* builder() const { return builder_; }
   CommonOperatorBuilder* common() { return builder_->common(); }
   NodeVector* values() { return &values_; }
+  NodeVector* contexts() { return &contexts_; }
 
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned, bool is_osr = false);

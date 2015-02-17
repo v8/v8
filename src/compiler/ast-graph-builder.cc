@@ -109,24 +109,25 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
       : builder_(builder),
         outer_(builder->execution_context()),
         scope_(scope),
-        context_(context) {
-    builder_->set_execution_context(this);  // Push.
+        depth_(builder_->environment()->ContextStackDepth()) {
+    builder_->environment()->PushContext(context);  // Push.
+    builder_->set_execution_context(this);
   }
 
   ~ContextScope() {
     builder_->set_execution_context(outer_);  // Pop.
+    builder_->environment()->PopContext();
+    CHECK_EQ(depth_, builder_->environment()->ContextStackDepth());
   }
 
   // Current scope during visitation.
   Scope* scope() const { return scope_; }
-  // Current context node during visitation.
-  Node* context() const { return context_; }
 
  private:
   AstGraphBuilder* builder_;
   ContextScope* outer_;
   Scope* scope_;
-  Node* context_;
+  int depth_;
 };
 
 
@@ -378,6 +379,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       globals_(0, local_zone),
       execution_control_(nullptr),
       execution_context_(nullptr),
+      function_context_(nullptr),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_control_(nullptr),
@@ -398,13 +400,23 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 
 
 Node* AstGraphBuilder::GetFunctionContext() {
-  if (!function_context_.is_set()) {
-    // Parameter (arity + 1) is special for the outer context of the function
-    const Operator* op = common()->Parameter(info()->num_parameters() + 1);
-    Node* node = NewNode(op, graph()->start());
-    function_context_.set(node);
-  }
-  return function_context_.get();
+  DCHECK(function_context_ != nullptr);
+  return function_context_;
+}
+
+
+Node* AstGraphBuilder::NewOuterContextParam() {
+  // Parameter (arity + 1) is special for the outer context of the function
+  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  return NewNode(op, graph()->start());
+}
+
+
+Node* AstGraphBuilder::NewCurrentContextOsrValue() {
+  // TODO(titzer): use a real OSR value here; a parameter works by accident.
+  // Parameter (arity + 1) is special for the outer context of the function
+  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  return NewNode(op, graph()->start());
 }
 
 
@@ -430,8 +442,8 @@ bool AstGraphBuilder::CreateGraph() {
   }
 
   // Initialize the incoming context.
-  Node* incoming_context = GetFunctionContext();
-  ContextScope incoming(this, scope, incoming_context);
+  function_context_ = NewOuterContextParam();
+  ContextScope incoming(this, scope, function_context_);
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
@@ -439,13 +451,31 @@ bool AstGraphBuilder::CreateGraph() {
   Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
   env.Bind(scope->receiver(), patched_receiver);
 
-  // Build node to initialize local function context.
-  Node* closure = GetFunctionClosure();
-  Node* inner_context = BuildLocalFunctionContext(incoming_context, closure);
+  bool ok;
+  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (heap_slots > 0) {
+    // Push a new inner context scope for the function.
+    Node* closure = GetFunctionClosure();
+    Node* inner_context = BuildLocalFunctionContext(function_context_, closure);
+    ContextScope top_context(this, scope, inner_context);
+    ok = CreateGraphBody();
+  } else {
+    // Simply use the outer function context in building the graph.
+    ok = CreateGraphBody();
+  }
 
-  // Push top-level function context for the function body.
-  ContextScope top_context(this, scope, inner_context);
+  // Finish the basic structure of the graph.
+  if (ok) {
+    environment()->UpdateControlDependency(exit_control());
+    graph()->SetEnd(NewNode(common()->End()));
+  }
 
+  return ok;
+}
+
+
+bool AstGraphBuilder::CreateGraphBody() {
+  Scope* scope = info()->scope();
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
 
@@ -485,10 +515,6 @@ bool AstGraphBuilder::CreateGraph() {
   // Return 'undefined' in case we can fall off the end.
   BuildReturn(jsgraph()->UndefinedConstant());
 
-  // Finish the basic structure of the graph.
-  environment()->UpdateControlDependency(exit_control());
-  graph()->SetEnd(NewNode(common()->End()));
-
   return true;
 }
 
@@ -516,6 +542,7 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
       parameters_count_(scope->num_parameters() + 1),
       locals_count_(scope->num_stack_slots()),
       values_(builder_->local_zone()),
+      contexts_(builder_->local_zone()),
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
       parameters_node_(nullptr),
@@ -548,6 +575,7 @@ AstGraphBuilder::Environment::Environment(
       parameters_count_(copy->parameters_count_),
       locals_count_(copy->locals_count_),
       values_(copy->zone()),
+      contexts_(copy->zone()),
       control_dependency_(copy->control_dependency_),
       effect_dependency_(copy->effect_dependency_),
       parameters_node_(copy->parameters_node_),
@@ -556,6 +584,9 @@ AstGraphBuilder::Environment::Environment(
   const size_t kStackEstimate = 7;  // optimum from experimentation!
   values_.reserve(copy->values_.size() + kStackEstimate);
   values_.insert(values_.begin(), copy->values_.begin(), copy->values_.end());
+  contexts_.reserve(copy->contexts_.size());
+  contexts_.insert(contexts_.begin(), copy->contexts_.begin(),
+                   copy->contexts_.end());
 }
 
 
@@ -660,7 +691,7 @@ Scope* AstGraphBuilder::current_scope() const {
 
 
 Node* AstGraphBuilder::current_context() const {
-  return execution_context_->context();
+  return environment()->Context();
 }
 
 
@@ -1203,11 +1234,12 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   const Operator* op = javascript()->CreateCatchContext(name);
   Node* context = NewNode(op, exception, GetFunctionClosure());
   PrepareFrameState(context, BailoutId::None());
-  ContextScope scope(this, stmt->scope(), context);
-  DCHECK(stmt->scope()->declarations()->is_empty());
-
-  // Evaluate the catch-block.
-  Visit(stmt->catch_block());
+  {
+    ContextScope scope(this, stmt->scope(), context);
+    DCHECK(stmt->scope()->declarations()->is_empty());
+    // Evaluate the catch-block.
+    Visit(stmt->catch_block());
+  }
   try_control.EndCatch();
 
   // TODO(mstarzinger): Remove bailout once everything works.
@@ -2416,9 +2448,6 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 
 
 Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
-  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (heap_slots <= 0) return context;
-
   // Allocate a new local context.
   const Operator* op = javascript()->CreateFunctionContext();
   Node* local_context = NewNode(op, closure);
@@ -3003,6 +3032,7 @@ void AstGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
 
 void AstGraphBuilder::Environment::Merge(Environment* other) {
   DCHECK(values_.size() == other->values_.size());
+  DCHECK(contexts_.size() <= other->contexts_.size());
 
   // Nothing to do if the other environment is dead.
   if (other->IsMarkedAsUnreachable()) return;
@@ -3036,6 +3066,10 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
   for (int i = 0; i < static_cast<int>(values_.size()); ++i) {
     values_[i] = builder_->MergeValue(values_[i], other->values_[i], control);
   }
+  for (int i = 0; i < static_cast<int>(contexts_.size()); ++i) {
+    contexts_[i] =
+        builder_->MergeValue(contexts_[i], other->contexts_[i], control);
+  }
 }
 
 
@@ -3047,8 +3081,7 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
   if (assigned == nullptr) {
     // Assume that everything is updated in the loop.
     for (int i = 0; i < size; ++i) {
-      Node* phi = builder_->NewPhi(1, values()->at(i), control);
-      values()->at(i) = phi;
+      values()->at(i) = builder_->NewPhi(1, values()->at(i), control);
     }
   } else {
     // Only build phis for those locals assigned in this loop.
@@ -3060,6 +3093,16 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
   }
   Node* effect = builder_->NewEffectPhi(1, GetEffectDependency(), control);
   UpdateEffectDependency(effect);
+
+  if (builder_->info()->is_osr()) {
+    // Introduce phis for all context values in the case of an OSR graph.
+    for (int i = 0; i < static_cast<int>(contexts()->size()); ++i) {
+      Node* val = contexts()->at(i);
+      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
+        contexts()->at(i) = builder_->NewPhi(1, val, control);
+      }
+    }
+  }
 
   if (is_osr) {
     // Merge OSR values as inputs to the phis of the loop.
@@ -3076,6 +3119,25 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
         Node* osr_value =
             graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
         values()->at(i) = builder_->MergeValue(val, osr_value, control);
+      }
+    }
+
+    // Rename all the contexts in the environment.
+    // The innermost context is the OSR value, and the outer contexts are
+    // reconstructed by dynamically walking up the context chain.
+    Node* osr_context = nullptr;
+    const Operator* op =
+        builder_->javascript()->LoadContext(0, Context::PREVIOUS_INDEX, true);
+    int last = static_cast<int>(contexts()->size() - 1);
+    for (int i = last; i >= 0; i--) {
+      Node* val = contexts()->at(i);
+      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
+        osr_context = (i == last) ? builder_->NewCurrentContextOsrValue()
+                                  : graph->NewNode(op, osr_context, osr_context,
+                                                   osr_loop_entry);
+        contexts()->at(i) = builder_->MergeValue(val, osr_context, control);
+      } else {
+        osr_context = val;
       }
     }
   }
