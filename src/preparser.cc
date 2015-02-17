@@ -228,6 +228,14 @@ void PreParser::ParseStatementList(int end_token, bool* ok) {
 
 PreParser::Statement PreParser::ParseStatement(bool* ok) {
   // Statement ::
+  //   EmptyStatement
+  //   ...
+  return ParseSubStatement(ok);
+}
+
+
+PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
+  // Statement ::
   //   Block
   //   VariableStatement
   //   EmptyStatement
@@ -257,6 +265,12 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       return ParseBlock(ok);
 
     case Token::SEMICOLON:
+      if (is_strong(language_mode())) {
+        PreParserTraits::ReportMessageAt(scanner()->peek_location(),
+                                         "strong_empty");
+        *ok = false;
+        return Statement::Default();
+      }
       Next();
       return Statement::Default();
 
@@ -550,10 +564,10 @@ PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ParseStatement(CHECK_OK);
+  ParseSubStatement(CHECK_OK);
   if (peek() == Token::ELSE) {
     Next();
-    ParseStatement(CHECK_OK);
+    ParseSubStatement(CHECK_OK);
   }
   return Statement::Default();
 }
@@ -636,7 +650,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
 
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
   BlockState block_state(&scope_, with_scope);
-  ParseStatement(CHECK_OK);
+  ParseSubStatement(CHECK_OK);
   return Statement::Default();
 }
 
@@ -678,7 +692,7 @@ PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   //   'do' Statement 'while' '(' Expression ')' ';'
 
   Expect(Token::DO, CHECK_OK);
-  ParseStatement(CHECK_OK);
+  ParseSubStatement(CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
@@ -696,7 +710,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ParseStatement(ok);
+  ParseSubStatement(ok);
   return Statement::Default();
 }
 
@@ -733,7 +747,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
-        ParseStatement(CHECK_OK);
+        ParseSubStatement(CHECK_OK);
         return Statement::Default();
       }
     } else {
@@ -744,7 +758,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
-        ParseStatement(CHECK_OK);
+        ParseSubStatement(CHECK_OK);
         return Statement::Default();
       }
     }
@@ -770,7 +784,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   }
   Expect(Token::RPAREN, CHECK_OK);
 
-  ParseStatement(ok);
+  ParseSubStatement(ok);
   return Statement::Default();
 }
 

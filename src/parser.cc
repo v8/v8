@@ -1642,6 +1642,20 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
                                   bool* ok) {
   // Statement ::
+  //   EmptyStatement
+  //   ...
+
+  if (peek() == Token::SEMICOLON) {
+    Next();
+    return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+  }
+  return ParseSubStatement(labels, ok);
+}
+
+
+Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
+                                     bool* ok) {
+  // Statement ::
   //   Block
   //   VariableStatement
   //   EmptyStatement
@@ -1669,6 +1683,11 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       return ParseBlock(labels, ok);
 
     case Token::SEMICOLON:
+      if (is_strong(language_mode())) {
+        ReportMessageAt(scanner()->peek_location(), "strong_empty");
+        *ok = false;
+        return NULL;
+      }
       Next();
       return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
 
@@ -2535,11 +2554,11 @@ IfStatement* Parser::ParseIfStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::LPAREN, CHECK_OK);
   Expression* condition = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement* then_statement = ParseStatement(labels, CHECK_OK);
+  Statement* then_statement = ParseSubStatement(labels, CHECK_OK);
   Statement* else_statement = NULL;
   if (peek() == Token::ELSE) {
     Next();
-    else_statement = ParseStatement(labels, CHECK_OK);
+    else_statement = ParseSubStatement(labels, CHECK_OK);
   } else {
     else_statement = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   }
@@ -2684,7 +2703,7 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
   Statement* stmt;
   { BlockState block_state(&scope_, with_scope);
     with_scope->set_start_position(scanner()->peek_location().beg_pos);
-    stmt = ParseStatement(labels, CHECK_OK);
+    stmt = ParseSubStatement(labels, CHECK_OK);
     with_scope->set_end_position(scanner()->location().end_pos);
   }
   return factory()->NewWithStatement(with_scope, expr, stmt, pos);
@@ -2869,7 +2888,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(
   Target target(&this->target_stack_, loop);
 
   Expect(Token::DO, CHECK_OK);
-  Statement* body = ParseStatement(NULL, CHECK_OK);
+  Statement* body = ParseSubStatement(NULL, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
@@ -2899,7 +2918,7 @@ WhileStatement* Parser::ParseWhileStatement(
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement* body = ParseStatement(NULL, CHECK_OK);
+  Statement* body = ParseSubStatement(NULL, CHECK_OK);
 
   if (loop != NULL) loop->Initialize(cond, body);
   return loop;
@@ -3262,7 +3281,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         VariableProxy* each =
             scope_->NewUnresolved(factory(), name, interface, each_pos);
-        Statement* body = ParseStatement(NULL, CHECK_OK);
+        Statement* body = ParseSubStatement(NULL, CHECK_OK);
         InitializeForEachStatement(loop, each, enumerable, body);
         Block* result =
             factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
@@ -3321,7 +3340,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         VariableProxy* each = scope_->NewUnresolved(
             factory(), name, Interface::NewValue(), each_pos);
-        Statement* body = ParseStatement(NULL, CHECK_OK);
+        Statement* body = ParseSubStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
         Token::Value init_op = is_const ? Token::INIT_CONST : Token::ASSIGN;
@@ -3364,7 +3383,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
-        Statement* body = ParseStatement(NULL, CHECK_OK);
+        Statement* body = ParseSubStatement(NULL, CHECK_OK);
         InitializeForEachStatement(loop, expression, enumerable, body);
         scope_ = saved_scope;
         for_scope->set_end_position(scanner()->location().end_pos);
@@ -3416,7 +3435,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   }
   Expect(Token::RPAREN, CHECK_OK);
 
-  Statement* body = ParseStatement(NULL, CHECK_OK);
+  Statement* body = ParseSubStatement(NULL, CHECK_OK);
 
   Statement* result = NULL;
   if (let_bindings.length() > 0) {
