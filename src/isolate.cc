@@ -2598,21 +2598,25 @@ void Isolate::CheckDetachedContextsAfterGC() {
       detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
       detached_contexts->set(new_length + 1, cell);
       new_length += 2;
+    } else {
+      counters()->detached_context_age_in_gc()->AddSample(mark_sweeps);
     }
   }
-  PrintF("%d detached contexts are collected out of %d\n", length - new_length,
-         length);
-  for (int i = 0; i < new_length; i += 2) {
-    int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
-    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
-    if (mark_sweeps > 3) {
-      PrintF("detached context 0x%p\n survived %d GCs (leak?)\n",
-             static_cast<void*>(cell->value()), mark_sweeps);
+  if (FLAG_trace_detached_contexts) {
+    PrintF("%d detached contexts are collected out of %d\n",
+           length - new_length, length);
+    for (int i = 0; i < new_length; i += 2) {
+      int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+      WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+      if (mark_sweeps > 3) {
+        PrintF("detached context 0x%p\n survived %d GCs (leak?)\n",
+               static_cast<void*>(cell->value()), mark_sweeps);
+      }
     }
   }
-  if (length == new_length) {
+  if (new_length == 0) {
     heap()->set_detached_contexts(heap()->empty_fixed_array());
-  } else {
+  } else if (new_length < length) {
     heap()->RightTrimFixedArray<Heap::FROM_GC>(*detached_contexts,
                                                length - new_length);
   }
