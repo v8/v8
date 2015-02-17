@@ -1084,6 +1084,8 @@ class Heap {
   static const intptr_t kMinimumOldGenerationAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
+  static const int kInitalOldGenerationLimitFactor = 7;
+
   static const int kPointerMultiplier = i::kPointerSize / 4;
 
   // The new space size has to be a power of 2. Sizes are in MB.
