@@ -694,7 +694,7 @@ TEST(GeneralizeRepresentationHeapObjectToHeapObject) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<HeapType> any_type = HeapType::Any(isolate);
 
-  const int kMaxClassesPerFieldType = 5;
+  const int kMaxClassesPerFieldType = 1;
   Handle<HeapType> current_type =
       HeapType::Class(Map::Create(isolate, 0), isolate);
 
@@ -1070,7 +1070,7 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeRepresentationHeapObjToHeapObj) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<HeapType> any_type = HeapType::Any(isolate);
 
-  const int kMaxClassesPerFieldType = 5;
+  const int kMaxClassesPerFieldType = 1;
   Handle<HeapType> current_type =
       HeapType::Class(Map::Create(isolate, 0), isolate);
 

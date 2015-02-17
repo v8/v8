@@ -2326,18 +2326,8 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
 Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> type1,
                                           Handle<HeapType> type2,
                                           Isolate* isolate) {
-  static const int kMaxClassesPerFieldType = 5;
   if (type1->NowIs(type2)) return type2;
   if (type2->NowIs(type1)) return type1;
-  if (type1->NowStable() && type2->NowStable()) {
-    Handle<HeapType> type = HeapType::Union(type1, type2, isolate);
-    if (type->NumClasses() <= kMaxClassesPerFieldType) {
-      DCHECK(type->NowStable());
-      DCHECK(type1->NowIs(type));
-      DCHECK(type2->NowIs(type));
-      return type;
-    }
-  }
   return HeapType::Any(isolate);
 }
 

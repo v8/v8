@@ -575,10 +575,7 @@ bool TypeImpl<Config>::NowIs(TypeImpl* that) {
 template<class Config>
 bool TypeImpl<Config>::NowStable() {
   DisallowHeapAllocation no_allocation;
-  for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
-    if (!it.Current()->is_stable()) return false;
-  }
-  return true;
+  return !this->IsClass() || this->AsClass()->Map()->is_stable();
 }
 
 
