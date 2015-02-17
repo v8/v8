@@ -35,6 +35,17 @@ namespace v8 {
 namespace internal {
 
 
+std::ostream& operator<<(std::ostream& os, const SourcePosition& p) {
+  if (p.IsUnknown()) {
+    return os << "<?>";
+  } else if (FLAG_hydrogen_track_positions) {
+    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
+  } else {
+    return os << "<0:" << p.raw() << ">";
+  }
+}
+
+
 ScriptData::ScriptData(const byte* data, int length)
     : owns_data_(false), rejected_(false), data_(data), length_(length) {
   if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
@@ -324,7 +335,7 @@ bool CompilationInfo::is_simple_parameter_list() {
 
 
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                                          int raw_position) {
+                                          SourcePosition position) {
   if (!FLAG_hydrogen_track_positions) {
     return 0;
   }
@@ -369,7 +380,6 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
   if (inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
-    HSourcePosition position = HSourcePosition::FromRaw(raw_position);
     os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
        << optimization_id() << "," << id << "} AS " << inline_id << " AT "
        << position << std::endl;

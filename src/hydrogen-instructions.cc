@@ -622,17 +622,6 @@ void HValue::ComputeInitialRange(Zone* zone) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const HSourcePosition& p) {
-  if (p.IsUnknown()) {
-    return os << "<?>";
-  } else if (FLAG_hydrogen_track_positions) {
-    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
-  } else {
-    return os << "<0:" << p.raw() << ">";
-  }
-}
-
-
 std::ostream& HInstruction::PrintTo(std::ostream& os) const {  // NOLINT
   os << Mnemonic() << " ";
   PrintDataTo(os) << ChangesOf(this) << TypeOf(this);
@@ -1816,9 +1805,7 @@ Range* HConstant::InferRange(Zone* zone) {
 }
 
 
-HSourcePosition HPhi::position() const {
-  return block()->first()->position();
-}
+SourcePosition HPhi::position() const { return block()->first()->position(); }
 
 
 Range* HPhi::InferRange(Zone* zone) {

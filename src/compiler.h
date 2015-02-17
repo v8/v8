@@ -30,6 +30,62 @@ struct OffsetRange {
 };
 
 
+// This class encapsulates encoding and decoding of sources positions from
+// which hydrogen values originated.
+// When FLAG_track_hydrogen_positions is set this object encodes the
+// identifier of the inlining and absolute offset from the start of the
+// inlined function.
+// When the flag is not set we simply track absolute offset from the
+// script start.
+class SourcePosition {
+ public:
+  SourcePosition(const SourcePosition& other) : value_(other.value_) {}
+
+  static SourcePosition Unknown() {
+    return SourcePosition(RelocInfo::kNoPosition);
+  }
+
+  bool IsUnknown() const { return value_ == RelocInfo::kNoPosition; }
+
+  int position() const { return PositionField::decode(value_); }
+  void set_position(int position) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ = static_cast<int>(PositionField::update(value_, position));
+    } else {
+      value_ = position;
+    }
+  }
+
+  int inlining_id() const { return InliningIdField::decode(value_); }
+  void set_inlining_id(int inlining_id) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ = static_cast<int>(InliningIdField::update(value_, inlining_id));
+    }
+  }
+
+  int raw() const { return value_; }
+
+ private:
+  typedef BitField<int, 0, 9> InliningIdField;
+
+  // Offset from the start of the inlined function.
+  typedef BitField<int, 9, 23> PositionField;
+
+  explicit SourcePosition(int value) : value_(value) {}
+
+  friend class HPositionInfo;
+  friend class LCodeGenBase;
+
+  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
+  // and PositionField.
+  // Otherwise contains absolute offset from the script start.
+  int value_;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const SourcePosition& p);
+
+
 class InlinedFunctionInfo {
  public:
   explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
@@ -403,7 +459,8 @@ class CompilationInfo {
   List<int>* inlining_id_to_function_id() {
     return inlining_id_to_function_id_;
   }
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared, int raw_position);
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                           SourcePosition position);
 
   Handle<Foreign> object_wrapper() {
     if (object_wrapper_.is_null()) {

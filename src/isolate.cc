@@ -1906,6 +1906,9 @@ Isolate::~Isolate() {
   delete handle_scope_implementer_;
   handle_scope_implementer_ = NULL;
 
+  delete code_tracer();
+  set_code_tracer(NULL);
+
   delete compilation_cache_;
   compilation_cache_ = NULL;
   delete bootstrapper_;

@@ -412,65 +412,6 @@ class DecompositionResult FINAL BASE_EMBEDDED {
 typedef EnumSet<GVNFlag, int32_t> GVNFlagSet;
 
 
-// This class encapsulates encoding and decoding of sources positions from
-// which hydrogen values originated.
-// When FLAG_track_hydrogen_positions is set this object encodes the
-// identifier of the inlining and absolute offset from the start of the
-// inlined function.
-// When the flag is not set we simply track absolute offset from the
-// script start.
-class HSourcePosition {
- public:
-  HSourcePosition(const HSourcePosition& other) : value_(other.value_) { }
-
-  static HSourcePosition Unknown() {
-    return HSourcePosition(RelocInfo::kNoPosition);
-  }
-  static HSourcePosition FromRaw(int raw_value) {
-    return HSourcePosition(raw_value);
-  }
-
-  bool IsUnknown() const { return value_ == RelocInfo::kNoPosition; }
-
-  int position() const { return PositionField::decode(value_); }
-  void set_position(int position) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<int>(PositionField::update(value_, position));
-    } else {
-      value_ = position;
-    }
-  }
-
-  int inlining_id() const { return InliningIdField::decode(value_); }
-  void set_inlining_id(int inlining_id) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<int>(InliningIdField::update(value_, inlining_id));
-    }
-  }
-
-  int raw() const { return value_; }
-
- private:
-  typedef BitField<int, 0, 9> InliningIdField;
-
-  // Offset from the start of the inlined function.
-  typedef BitField<int, 9, 23> PositionField;
-
-  explicit HSourcePosition(int value) : value_(value) { }
-
-  friend class HPositionInfo;
-  friend class LCodeGenBase;
-
-  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
-  // and PositionField.
-  // Otherwise contains absolute offset from the script start.
-  int value_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const HSourcePosition& p);
-
-
 class HValue : public ZoneObject {
  public:
   static const int kNoNumber = -1;
@@ -566,10 +507,8 @@ class HValue : public ZoneObject {
         flags_(0) {}
   virtual ~HValue() {}
 
-  virtual HSourcePosition position() const {
-    return HSourcePosition::Unknown();
-  }
-  virtual HSourcePosition operand_position(int index) const {
+  virtual SourcePosition position() const { return SourcePosition::Unknown(); }
+  virtual SourcePosition operand_position(int index) const {
     return position();
   }
 
@@ -1039,14 +978,14 @@ class HPositionInfo {
  public:
   explicit HPositionInfo(int pos) : data_(TagPosition(pos)) { }
 
-  HSourcePosition position() const {
+  SourcePosition position() const {
     if (has_operand_positions()) {
       return operand_positions()[kInstructionPosIndex];
     }
-    return HSourcePosition(static_cast<int>(UntagPosition(data_)));
+    return SourcePosition(static_cast<int>(UntagPosition(data_)));
   }
 
-  void set_position(HSourcePosition pos) {
+  void set_position(SourcePosition pos) {
     if (has_operand_positions()) {
       operand_positions()[kInstructionPosIndex] = pos;
     } else {
@@ -1060,27 +999,26 @@ class HPositionInfo {
     }
 
     const int length = kFirstOperandPosIndex + operand_count;
-    HSourcePosition* positions =
-        zone->NewArray<HSourcePosition>(length);
+    SourcePosition* positions = zone->NewArray<SourcePosition>(length);
     for (int i = 0; i < length; i++) {
-      positions[i] = HSourcePosition::Unknown();
+      positions[i] = SourcePosition::Unknown();
     }
 
-    const HSourcePosition pos = position();
+    const SourcePosition pos = position();
     data_ = reinterpret_cast<intptr_t>(positions);
     set_position(pos);
 
     DCHECK(has_operand_positions());
   }
 
-  HSourcePosition operand_position(int idx) const {
+  SourcePosition operand_position(int idx) const {
     if (!has_operand_positions()) {
       return position();
     }
     return *operand_position_slot(idx);
   }
 
-  void set_operand_position(int idx, HSourcePosition pos) {
+  void set_operand_position(int idx, SourcePosition pos) {
     *operand_position_slot(idx) = pos;
   }
 
@@ -1088,7 +1026,7 @@ class HPositionInfo {
   static const intptr_t kInstructionPosIndex = 0;
   static const intptr_t kFirstOperandPosIndex = 1;
 
-  HSourcePosition* operand_position_slot(int idx) const {
+  SourcePosition* operand_position_slot(int idx) const {
     DCHECK(has_operand_positions());
     return &(operand_positions()[kFirstOperandPosIndex + idx]);
   }
@@ -1097,9 +1035,9 @@ class HPositionInfo {
     return !IsTaggedPosition(data_);
   }
 
-  HSourcePosition* operand_positions() const {
+  SourcePosition* operand_positions() const {
     DCHECK(has_operand_positions());
-    return reinterpret_cast<HSourcePosition*>(data_);
+    return reinterpret_cast<SourcePosition*>(data_);
   }
 
   static const intptr_t kPositionTag = 1;
@@ -1147,23 +1085,23 @@ class HInstruction : public HValue {
   }
 
   // The position is a write-once variable.
-  HSourcePosition position() const OVERRIDE {
-    return HSourcePosition(position_.position());
+  SourcePosition position() const OVERRIDE {
+    return SourcePosition(position_.position());
   }
   bool has_position() const {
     return !position().IsUnknown();
   }
-  void set_position(HSourcePosition position) {
+  void set_position(SourcePosition position) {
     DCHECK(!has_position());
     DCHECK(!position.IsUnknown());
     position_.set_position(position);
   }
 
-  HSourcePosition operand_position(int index) const OVERRIDE {
-    const HSourcePosition pos = position_.operand_position(index);
+  SourcePosition operand_position(int index) const OVERRIDE {
+    const SourcePosition pos = position_.operand_position(index);
     return pos.IsUnknown() ? position() : pos;
   }
-  void set_operand_position(Zone* zone, int index, HSourcePosition pos) {
+  void set_operand_position(Zone* zone, int index, SourcePosition pos) {
     DCHECK(0 <= index && index < OperandCount());
     position_.ensure_storage_for_operand_positions(zone, OperandCount());
     position_.set_operand_position(index, pos);
@@ -3300,7 +3238,7 @@ class HPhi FINAL : public HValue {
   bool IsReceiver() const { return merged_index_ == 0; }
   bool HasMergedIndex() const { return merged_index_ != kInvalidMergedIndex; }
 
-  HSourcePosition position() const OVERRIDE;
+  SourcePosition position() const OVERRIDE;
 
   int merged_index() const { return merged_index_; }
 
@@ -3869,9 +3807,8 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return representation();
   }
 
-  void SetOperandPositions(Zone* zone,
-                           HSourcePosition left_pos,
-                           HSourcePosition right_pos) {
+  void SetOperandPositions(Zone* zone, SourcePosition left_pos,
+                           SourcePosition right_pos) {
     set_operand_position(zone, 1, left_pos);
     set_operand_position(zone, 2, right_pos);
   }
@@ -4329,9 +4266,8 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
-  void SetOperandPositions(Zone* zone,
-                           HSourcePosition left_pos,
-                           HSourcePosition right_pos) {
+  void SetOperandPositions(Zone* zone, SourcePosition left_pos,
+                           SourcePosition right_pos) {
     set_operand_position(zone, 0, left_pos);
     set_operand_position(zone, 1, right_pos);
   }
