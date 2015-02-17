@@ -393,6 +393,11 @@ class RelocInfo {
     NONE64,             // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
+
+    // Encoded internal reference, used only on MIPS and MIPS64.
+    // Re-uses previous ARM-only encoding, to fit in RealRelocMode space.
+    INTERNAL_REFERENCE_ENCODED = CONST_POOL,
+
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
@@ -464,6 +469,9 @@ class RelocInfo {
   }
   static inline bool IsInternalReference(Mode mode) {
     return mode == INTERNAL_REFERENCE;
+  }
+  static inline bool IsInternalReferenceEncoded(Mode mode) {
+    return mode == INTERNAL_REFERENCE_ENCODED;
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
