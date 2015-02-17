@@ -426,6 +426,9 @@ class HSourcePosition {
   static HSourcePosition Unknown() {
     return HSourcePosition(RelocInfo::kNoPosition);
   }
+  static HSourcePosition FromRaw(int raw_value) {
+    return HSourcePosition(raw_value);
+  }
 
   bool IsUnknown() const { return value_ == RelocInfo::kNoPosition; }
 

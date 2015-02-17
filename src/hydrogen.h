@@ -510,23 +510,6 @@ class HGraph FINAL : public ZoneObject {
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
 
-  class InlinedFunctionInfo {
-   public:
-    explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
-      : shared_(shared), start_position_(shared->start_position()) {
-    }
-
-    Handle<SharedFunctionInfo> shared() const { return shared_; }
-    int start_position() const { return start_position_; }
-
-   private:
-    Handle<SharedFunctionInfo> shared_;
-    int start_position_;
-  };
-
-  ZoneList<InlinedFunctionInfo> inlined_functions_;
-  ZoneList<int> inlining_id_to_function_id_;
-
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
 

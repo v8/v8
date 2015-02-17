@@ -3450,17 +3450,15 @@ HGraph::HGraph(CompilationInfo* info)
       type_change_checksum_(0),
       maximum_environment_size_(0),
       no_side_effects_scope_count_(0),
-      disallow_adding_new_values_(false),
-      inlined_functions_(FLAG_hydrogen_track_positions ? 5 : 0, info->zone()),
-      inlining_id_to_function_id_(FLAG_hydrogen_track_positions ? 5 : 0,
-                                  info->zone()) {
+      disallow_adding_new_values_(false) {
   if (info->IsStub()) {
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
     start_environment_ = new (zone_)
         HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {
-    TraceInlinedFunction(info->shared_info(), HSourcePosition::Unknown());
+    info->TraceInlinedFunction(info->shared_info(),
+                               HSourcePosition::Unknown().raw());
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   }
@@ -3488,68 +3486,14 @@ void HGraph::FinalizeUniqueness() {
 }
 
 
-int HGraph::TraceInlinedFunction(
-    Handle<SharedFunctionInfo> shared,
-    HSourcePosition position) {
-  if (!FLAG_hydrogen_track_positions) {
-    return 0;
-  }
-
-  int id = 0;
-  for (; id < inlined_functions_.length(); id++) {
-    if (inlined_functions_[id].shared().is_identical_to(shared)) {
-      break;
-    }
-  }
-
-  if (id == inlined_functions_.length()) {
-    inlined_functions_.Add(InlinedFunctionInfo(shared), zone());
-
-    if (!shared->script()->IsUndefined()) {
-      Handle<Script> script(Script::cast(shared->script()));
-      if (!script->source()->IsUndefined()) {
-        CodeTracer::Scope tracing_scopex(isolate()->GetCodeTracer());
-        OFStream os(tracing_scopex.file());
-        os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
-           << ") id{" << info()->optimization_id() << "," << id << "} ---\n";
-        {
-          DisallowHeapAllocation no_allocation;
-          int start = shared->start_position();
-          int len = shared->end_position() - start + 1;
-          String::SubStringRange source(String::cast(script->source()), start,
-                                        len);
-          for (const auto& c : source) {
-            os << AsReversiblyEscapedUC16(c);
-          }
-        }
-
-        os << "\n--- END ---\n";
-      }
-    }
-  }
-
-  int inline_id = inlining_id_to_function_id_.length();
-  inlining_id_to_function_id_.Add(id, zone());
-
-  if (inline_id != 0) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
-       << info()->optimization_id() << "," << id << "} AS " << inline_id
-       << " AT " << position << std::endl;
-  }
-
-  return inline_id;
-}
-
-
 int HGraph::SourcePositionToScriptPosition(HSourcePosition pos) {
   if (!FLAG_hydrogen_track_positions || pos.IsUnknown()) {
     return pos.raw();
   }
 
-  const int id = inlining_id_to_function_id_[pos.inlining_id()];
-  return inlined_functions_[id].start_position() + pos.position();
+  const int id = info()->inlining_id_to_function_id()->at(pos.inlining_id());
+  return info()->inlined_function_infos()->at(id).start_position() +
+         pos.position();
 }
 
 
@@ -7987,7 +7931,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   DCHECK(target_shared->has_deoptimization_support());
   AstTyper::Run(&target_info);
 
-  int function_id = graph()->TraceInlinedFunction(target_shared, position);
+  int function_id =
+      top_info()->TraceInlinedFunction(target_shared, position.raw());
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
@@ -9220,8 +9165,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     HValue* function = Pop();
 
     if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
-
-
 
     if (function->IsConstant() &&
         HConstant::cast(function)->handle(isolate())->IsJSFunction()) {

@@ -30,6 +30,20 @@ struct OffsetRange {
 };
 
 
+class InlinedFunctionInfo {
+ public:
+  explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
+      : shared_(shared), start_position_(shared->start_position()) {}
+
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
+  int start_position() const { return start_position_; }
+
+ private:
+  Handle<SharedFunctionInfo> shared_;
+  int start_position_;
+};
+
+
 class ScriptData {
  public:
   ScriptData(const byte* data, int length);
@@ -383,6 +397,14 @@ class CompilationInfo {
     return result;
   }
 
+  List<InlinedFunctionInfo>* inlined_function_infos() {
+    return inlined_function_infos_;
+  }
+  List<int>* inlining_id_to_function_id() {
+    return inlining_id_to_function_id_;
+  }
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared, int raw_position);
+
   Handle<Foreign> object_wrapper() {
     if (object_wrapper_.is_null()) {
       object_wrapper_ =
@@ -526,6 +548,8 @@ class CompilationInfo {
   int prologue_offset_;
 
   List<OffsetRange>* no_frame_ranges_;
+  List<InlinedFunctionInfo>* inlined_function_infos_;
+  List<int>* inlining_id_to_function_id_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.

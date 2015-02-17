@@ -147,6 +147,14 @@ void CompilationInfo::Initialize(Isolate* isolate,
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
+  if (FLAG_hydrogen_track_positions) {
+    inlined_function_infos_ = new List<InlinedFunctionInfo>(5);
+    inlining_id_to_function_id_ = new List<int>(5);
+  } else {
+    inlined_function_infos_ = NULL;
+    inlining_id_to_function_id_ = NULL;
+  }
+
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
     dependencies_[i] = NULL;
   }
@@ -193,6 +201,8 @@ CompilationInfo::~CompilationInfo() {
   }
   delete deferred_handles_;
   delete no_frame_ranges_;
+  delete inlined_function_infos_;
+  delete inlining_id_to_function_id_;
   if (ast_value_factory_owned_) delete ast_value_factory_;
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
@@ -310,6 +320,62 @@ void CompilationInfo::EnsureFeedbackVector() {
 
 bool CompilationInfo::is_simple_parameter_list() {
   return scope_->is_simple_parameter_list();
+}
+
+
+int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                                          int raw_position) {
+  if (!FLAG_hydrogen_track_positions) {
+    return 0;
+  }
+
+  DCHECK(inlined_function_infos_);
+  DCHECK(inlining_id_to_function_id_);
+  int id = 0;
+  for (; id < inlined_function_infos_->length(); id++) {
+    if (inlined_function_infos_->at(id).shared().is_identical_to(shared)) {
+      break;
+    }
+  }
+  if (id == inlined_function_infos_->length()) {
+    inlined_function_infos_->Add(InlinedFunctionInfo(shared));
+
+    if (!shared->script()->IsUndefined()) {
+      Handle<Script> script(Script::cast(shared->script()));
+      if (!script->source()->IsUndefined()) {
+        CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+        OFStream os(tracing_scope.file());
+        os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
+           << ") id{" << optimization_id() << "," << id << "} ---\n";
+        {
+          DisallowHeapAllocation no_allocation;
+          int start = shared->start_position();
+          int len = shared->end_position() - start;
+          String::SubStringRange source(String::cast(script->source()), start,
+                                        len);
+          for (const auto& c : source) {
+            os << AsReversiblyEscapedUC16(c);
+          }
+        }
+
+        os << "\n--- END ---\n";
+      }
+    }
+  }
+
+  int inline_id = inlining_id_to_function_id_->length();
+  inlining_id_to_function_id_->Add(id);
+
+  if (inline_id != 0) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    HSourcePosition position = HSourcePosition::FromRaw(raw_position);
+    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
+       << optimization_id() << "," << id << "} AS " << inline_id << " AT "
+       << position << std::endl;
+  }
+
+  return inline_id;
 }
 
 
