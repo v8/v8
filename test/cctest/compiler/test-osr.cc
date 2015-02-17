@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
@@ -112,6 +113,17 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
   Node* NewOsrLoop(int num_backedges, Node* entry = NULL) {
     return NewLoop(true, num_backedges, entry);
   }
+
+  void DeconstructOsr() {
+    OsrHelper helper(0, 0);
+    helper.Deconstruct(&jsgraph, &common, main_zone());
+    AllNodes nodes(main_zone(), &graph);
+    // Should be edited out.
+    CHECK(!nodes.IsLive(osr_normal_entry));
+    CHECK(!nodes.IsLive(osr_loop_entry));
+    // No dangling nodes should be left over.
+    CHECK_EQ(0u, nodes.gray.size());
+  }
 };
 
 
@@ -122,8 +134,7 @@ TEST(Deconstruct_osr0) {
 
   T.graph.SetEnd(loop);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, loop);
 }
@@ -139,8 +150,7 @@ TEST(Deconstruct_osr1) {
   Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, loop);
   T.graph.SetEnd(ret);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, loop);
   CheckInputs(osr_phi, T.osr_values[0], T.jsgraph.ZeroConstant(), loop);
@@ -160,18 +170,18 @@ TEST(Deconstruct_osr_remove_prologue) {
   Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, loop);
   T.graph.SetEnd(ret);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, loop);
   CheckInputs(osr_phi, T.osr_values[0], T.jsgraph.ZeroConstant(), loop);
   CheckInputs(ret, osr_phi, T.start, loop);
 
   // The control before the loop should have been removed.
-  CHECK(d.branch->IsDead());
-  CHECK(d.if_true->IsDead());
-  CHECK(d.if_false->IsDead());
-  CHECK(d.merge->IsDead());
+  AllNodes nodes(T.main_zone(), &T.graph);
+  CHECK(!nodes.IsLive(d.branch));
+  CHECK(!nodes.IsLive(d.if_true));
+  CHECK(!nodes.IsLive(d.if_false));
+  CHECK(!nodes.IsLive(d.merge));
 }
 
 
@@ -191,8 +201,7 @@ TEST(Deconstruct_osr_with_body1) {
   Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, if_false);
   T.graph.SetEnd(ret);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, if_true);
   CheckInputs(branch, T.p0, loop);
@@ -225,8 +234,7 @@ TEST(Deconstruct_osr_with_body2) {
   Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, merge);
   T.graph.SetEnd(ret);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, if_true2);
   CheckInputs(branch1, T.p0, loop);
@@ -265,8 +273,7 @@ TEST(Deconstruct_osr_with_body3) {
   Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, if_false2);
   T.graph.SetEnd(ret);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   CheckInputs(loop, T.start, if_false1, if_true2);
   CheckInputs(branch1, T.p0, loop);
@@ -342,8 +349,7 @@ TEST(Deconstruct_osr_nested1) {
   Node* end = T.graph.NewNode(T.common.End(), ret);
   T.graph.SetEnd(end);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   // Check structure of deconstructed graph.
   // Check inner OSR loop is directly connected to start.
@@ -410,8 +416,7 @@ TEST(Deconstruct_osr_nested2) {
   Node* end = T.graph.NewNode(T.common.End(), ret);
   T.graph.SetEnd(end);
 
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
+  T.DeconstructOsr();
 
   // Check structure of deconstructed graph.
   // Check inner OSR loop is directly connected to start.

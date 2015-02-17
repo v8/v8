@@ -384,7 +384,8 @@ class ControlReducerImpl {
   // Reducer implementation: perform reductions on a node.
   //===========================================================================
   Node* ReduceNode(Node* node) {
-    if (node->op()->ControlInputCount() == 1) {
+    if (node->op()->ControlInputCount() == 1 ||
+        node->opcode() == IrOpcode::kLoop) {
       // If a node has only one control input and it is dead, replace with dead.
       Node* control = NodeProperties::GetControlInput(node);
       if (control->opcode() == IrOpcode::kDead) {
@@ -611,21 +612,20 @@ void ControlReducer::TrimGraph(Zone* zone, JSGraph* jsgraph) {
 }
 
 
+Node* ControlReducer::ReduceMerge(JSGraph* jsgraph,
+                                  CommonOperatorBuilder* common, Node* node) {
+  Zone zone;
+  ControlReducerImpl impl(&zone, jsgraph, common);
+  return impl.ReduceMerge(node);
+}
+
+
 Node* ControlReducer::ReducePhiForTesting(JSGraph* jsgraph,
                                           CommonOperatorBuilder* common,
                                           Node* node) {
   Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
   return impl.ReducePhi(node);
-}
-
-
-Node* ControlReducer::ReduceMergeForTesting(JSGraph* jsgraph,
-                                            CommonOperatorBuilder* common,
-                                            Node* node) {
-  Zone zone;
-  ControlReducerImpl impl(&zone, jsgraph, common);
-  return impl.ReduceMerge(node);
 }
 
 

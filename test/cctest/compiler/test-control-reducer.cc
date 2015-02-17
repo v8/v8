@@ -164,8 +164,7 @@ class ControlReducerTester : HandleAndZoneScope {
   }
 
   void ReduceMerge(Node* expect, Node* merge) {
-    Node* result =
-        ControlReducer::ReduceMergeForTesting(&jsgraph, &common, merge);
+    Node* result = ControlReducer::ReduceMerge(&jsgraph, &common, merge);
     CHECK_EQ(expect, result);
   }
 
@@ -874,8 +873,7 @@ TEST(CMergeReduce_exhaustive_4) {
       if (!selector.is_selected(i)) merge->ReplaceInput(i, R.dead);
     }
 
-    Node* result =
-        ControlReducer::ReduceMergeForTesting(&R.jsgraph, &R.common, merge);
+    Node* result = ControlReducer::ReduceMerge(&R.jsgraph, &R.common, merge);
 
     int count = selector.count;
     if (count == 0) {
