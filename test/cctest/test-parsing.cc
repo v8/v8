@@ -5453,3 +5453,57 @@ TEST(FunctionLiteralDuplicateParameters) {
                     arraysize(always_flags));
   RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, NULL, 0);
 }
+
+
+TEST(VarForbiddenInStrongMode) {
+  const char* strong_context_data[][2] =
+      {{"'use strong'; ", ""},
+       {"function f() {'use strong'; ", "}"},
+       {"function f() {'use strong';  while (true) { ", "} }"},
+       {NULL, NULL}};
+
+  const char* strict_context_data[][2] =
+      {{"'use strict'; ", ""},
+       {"function f() {'use strict'; ", "}"},
+       {"function f() {'use strict'; while (true) { ", "} }"},
+       {NULL, NULL}};
+
+  const char* sloppy_context_data[][2] =
+      {{"", ""},
+       {"function f() { ", "}"},
+       {NULL, NULL}};
+
+  const char* var_declarations[] = {
+    "var x = 0;",
+    "for (var i = 0; i < 10; i++) { }",
+    NULL};
+
+  const char* let_declarations[] = {
+    "let x = 0;",
+    "for (let i = 0; i < 10; i++) { }",
+    NULL};
+
+  const char* const_declarations[] = {
+    "const x = 0;",
+    NULL};
+
+  static const ParserFlag always_flags[] = {kAllowStrongMode,
+                                            kAllowHarmonyScoping};
+  RunParserSyncTest(strong_context_data, var_declarations, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, let_declarations, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, const_declarations, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(strict_context_data, var_declarations, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, let_declarations, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(sloppy_context_data, var_declarations, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  // At the moment, let declarations are only available in strict mode.
+  RunParserSyncTest(sloppy_context_data, let_declarations, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

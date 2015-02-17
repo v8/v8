@@ -2156,6 +2156,12 @@ Block* Parser::ParseVariableDeclarations(
   bool is_const = false;
   Token::Value init_op = Token::INIT_VAR;
   if (peek() == Token::VAR) {
+    if (is_strong(language_mode())) {
+      Scanner::Location location = scanner()->peek_location();
+      ReportMessageAt(location, "strong_var");
+      *ok = false;
+      return NULL;
+    }
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);

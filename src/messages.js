@@ -162,6 +162,7 @@ var kMessages = {
   strict_poison_pill:            ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
   strict_caller:                 ["Illegal access to a strict mode caller function."],
   strong_equal:                  ["Please don't use '==' or '!=' in strong mode, use '===' or '!==' instead"],
+  strong_var:                    ["Please don't use 'var' in strong mode, use 'let' or 'const' instead"],
   malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],

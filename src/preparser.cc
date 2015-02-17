@@ -429,6 +429,12 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   bool require_initializer = false;
   bool is_strict_const = false;
   if (peek() == Token::VAR) {
+    if (is_strong(language_mode())) {
+      Scanner::Location location = scanner()->peek_location();
+      ReportMessageAt(location, "strong_var");
+      *ok = false;
+      return Statement::Default();
+    }
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
