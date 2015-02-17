@@ -338,12 +338,18 @@ class GitInterface(VCInterface):
       return name
     if name in ["candidates", "master"]:
       return "refs/remotes/origin/%s" % name
-    # Check if branch is in heads.
-    if self.step.Git("show-ref refs/remotes/origin/%s" % name).strip():
-      return "refs/remotes/origin/%s" % name
-    # Check if branch is in branch-heads.
-    if self.step.Git("show-ref refs/remotes/branch-heads/%s" % name).strip():
-      return "refs/remotes/branch-heads/%s" % name
+    try:
+      # Check if branch is in heads.
+      if self.step.Git("show-ref refs/remotes/origin/%s" % name).strip():
+        return "refs/remotes/origin/%s" % name
+    except GitFailedException:
+      pass
+    try:
+      # Check if branch is in branch-heads.
+      if self.step.Git("show-ref refs/remotes/branch-heads/%s" % name).strip():
+        return "refs/remotes/branch-heads/%s" % name
+    except GitFailedException:
+      pass
     self.Die("Can't find remote of %s" % name)
 
   def Tag(self, tag, remote, message):
