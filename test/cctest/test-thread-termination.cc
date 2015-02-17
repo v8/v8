@@ -474,3 +474,33 @@ TEST(ErrorObjectAfterTermination) {
   // TODO(yangguo): crbug/403509. Check for empty handle instead.
   CHECK(error->IsUndefined());
 }
+
+
+void InnerTryCallTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
+  v8::Handle<v8::Object> global = CcTest::global();
+  v8::Handle<v8::Function> loop =
+      v8::Handle<v8::Function>::Cast(global->Get(v8_str("loop")));
+  i::MaybeHandle<i::Object> result =
+      i::Execution::TryCall(v8::Utils::OpenHandle((*loop)),
+                            v8::Utils::OpenHandle((*global)), 0, NULL, NULL);
+  CHECK(result.is_null());
+  CHECK(v8::V8::IsExecutionTerminating(CcTest::isolate()));
+}
+
+
+TEST(TerminationInInnerTryCall) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template = CreateGlobalTemplate(
+      CcTest::isolate(), TerminateCurrentThread, DoLoopNoCall);
+  global_template->Set(
+      v8_str("inner_try_call_terminate"),
+      v8::FunctionTemplate::New(isolate, InnerTryCallTerminate));
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global_template);
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch;
+  CompileRun("inner_try_call_terminate()");
+  CHECK(try_catch.HasTerminated());
+}
