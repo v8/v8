@@ -710,20 +710,14 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int pos, Scope* scope,
                                                    AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
-  // The name may refer to a module instance object, so its type is unknown.
-#ifdef DEBUG
-  if (FLAG_print_interface_details)
-    PrintF("# Variable %.*s ", name->length(), name->raw_data());
-#endif
-  Interface* interface = Interface::NewUnknown(parser_->zone());
 
   // Arrow function parameters are parsed as an expression. When
   // parsing lazily, it is enough to create a VariableProxy in order
   // for Traits::DeclareArrowParametersFromExpression() to be able to
   // pick the names of the parameters.
   return parser_->parsing_lazy_arrow_parameters_
-      ? factory->NewVariableProxy(name, false, interface, pos)
-      : scope->NewUnresolved(factory, name, interface, pos);
+             ? factory->NewVariableProxy(name, false, pos)
+             : scope->NewUnresolved(factory, name, pos);
 }
 
 
@@ -1294,10 +1288,7 @@ Statement* Parser::ParseModule(bool* ok) {
     }
   }
 
-  interface->MakeModule(ok);
-  DCHECK(*ok);
-  interface->Freeze(ok);
-  DCHECK(*ok);
+  scope->interface()->Freeze();
   return body;
 }
 
@@ -1621,11 +1612,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       if (FLAG_print_interface_details)
         PrintF("# Export %.*s ", names[i]->length(), names[i]->raw_data());
 #endif
-      Interface* inner = Interface::NewUnknown(zone());
-      interface->Add(names[i], inner, zone(), CHECK_OK);
-      if (!*ok) return NULL;
-      VariableProxy* proxy = NewUnresolved(names[i], LET, inner);
-      USE(proxy);
+      // TODO(adamk): Make early errors here provide the right error message
+      // (duplicate exported names).
+      interface->Add(names[i], zone(), CHECK_OK);
       // TODO(rossberg): Rethink whether we actually need to store export
       // declarations (for compilation?).
       // ExportDeclaration* declaration =
@@ -1777,14 +1766,13 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
 
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name,
-                                     VariableMode mode, Interface* interface) {
+                                     VariableMode mode) {
   // If we are inside a function, a declaration of a var/const variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
-  return DeclarationScope(mode)->NewUnresolved(
-      factory(), name, interface, position());
+  return DeclarationScope(mode)->NewUnresolved(factory(), name, position());
 }
 
 
@@ -1813,9 +1801,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     var = declaration_scope->LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
-      var = declaration_scope->DeclareLocal(name, mode,
-                                            declaration->initialization(),
-                                            kNotAssigned, proxy->interface());
+      var = declaration_scope->DeclareLocal(
+          name, mode, declaration->initialization(), kNotAssigned);
     } else if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(var->mode())
                || ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
                    !declaration_scope->is_script_scope())) {
@@ -1870,9 +1857,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // For global const variables we bind the proxy to a variable.
     DCHECK(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new (zone())
-        Variable(declaration_scope, name, mode, true, kind,
-                 kNeedsInitialization, kNotAssigned, proxy->interface());
+    var = new (zone()) Variable(declaration_scope, name, mode, true, kind,
+                                kNeedsInitialization, kNotAssigned);
   } else if (declaration_scope->is_eval_scope() &&
              is_sloppy(declaration_scope->language_mode())) {
     // For variable declarations in a sloppy eval scope the proxy is bound
@@ -1881,8 +1867,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     Variable::Kind kind = Variable::NORMAL;
     // TODO(sigurds) figure out if kNotAssigned is OK here
     var = new (zone()) Variable(declaration_scope, name, mode, true, kind,
-                                declaration->initialization(), kNotAssigned,
-                                proxy->interface());
+                                declaration->initialization(), kNotAssigned);
     var->AllocateTo(Variable::LOOKUP, -1);
     resolve = true;
   }
@@ -1913,29 +1898,6 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // runtime needs to provide both.
   if (resolve && var != NULL) {
     proxy->BindTo(var);
-
-    if (FLAG_harmony_modules) {
-      bool ok;
-#ifdef DEBUG
-      if (FLAG_print_interface_details) {
-        PrintF("# Declare %.*s ", var->raw_name()->length(),
-               var->raw_name()->raw_data());
-      }
-#endif
-      proxy->interface()->Unify(var->interface(), zone(), &ok);
-      if (!ok) {
-#ifdef DEBUG
-        if (FLAG_print_interfaces) {
-          PrintF("DECLARE TYPE ERROR\n");
-          PrintF("proxy: ");
-          proxy->interface()->Print();
-          PrintF("var: ");
-          var->interface()->Print();
-        }
-#endif
-        ParserTraits::ReportMessage("module_type_error", name);
-      }
-    }
   }
 }
 
@@ -1970,7 +1932,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
-  VariableProxy* proxy = NewUnresolved(name, VAR, Interface::NewValue());
+  VariableProxy* proxy = NewUnresolved(name, VAR);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, VAR, scope_, pos);
   Declare(declaration, true, CHECK_OK);
@@ -2013,7 +1975,7 @@ Statement* Parser::ParseFunctionDeclaration(
                 scope_->is_function_scope())
           ? LET
           : VAR;
-  VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
+  VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
   Declare(declaration, true, CHECK_OK);
@@ -2051,7 +2013,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
                                           is_strict_reserved, pos, CHECK_OK);
 
-  VariableProxy* proxy = NewUnresolved(name, LET, Interface::NewValue());
+  VariableProxy* proxy = NewUnresolved(name, LET);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, LET, scope_, pos);
   Declare(declaration, true, CHECK_OK);
@@ -2260,9 +2222,7 @@ Block* Parser::ParseVariableDeclarations(
       needs_init = false;
     }
 
-    Interface* interface =
-        is_const ? Interface::NewConst() : Interface::NewValue();
-    VariableProxy* proxy = NewUnresolved(name, mode, interface);
+    VariableProxy* proxy = NewUnresolved(name, mode);
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
     Declare(declaration, mode != VAR, CHECK_OK);
@@ -2426,7 +2386,7 @@ Block* Parser::ParseVariableDeclarations(
       // if they are inside a 'with' statement - they may change a 'with' object
       // property).
       VariableProxy* proxy =
-          initialization_scope->NewUnresolved(factory(), name, interface);
+          initialization_scope->NewUnresolved(factory(), name);
       Assignment* assignment =
           factory()->NewAssignment(init_op, proxy, value, pos);
       block->AddStatement(
@@ -3062,8 +3022,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   // For each let variable x:
   //   make statement: temp_x = x.
   for (int i = 0; i < names->length(); i++) {
-    VariableProxy* proxy =
-        NewUnresolved(names->at(i), LET, Interface::NewValue());
+    VariableProxy* proxy = NewUnresolved(names->at(i), LET);
     Variable* temp = scope_->DeclarationScope()->NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(
@@ -3107,8 +3066,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   // For each let variable x:
   //    make statement: let x = temp_x.
   for (int i = 0; i < names->length(); i++) {
-    VariableProxy* proxy =
-        NewUnresolved(names->at(i), LET, Interface::NewValue());
+    VariableProxy* proxy = NewUnresolved(names->at(i), LET);
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, LET, scope_, pos);
     Declare(declaration, true, CHECK_OK);
@@ -3259,7 +3217,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR ||
         (peek() == Token::CONST && is_sloppy(language_mode()))) {
-      bool is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
@@ -3270,8 +3227,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       int each_pos = position();
 
       if (name != NULL && CheckInOrOf(accept_OF, &mode)) {
-        Interface* interface =
-            is_const ? Interface::NewConst() : Interface::NewValue();
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
@@ -3279,8 +3234,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), name, interface, each_pos);
+        VariableProxy* each = scope_->NewUnresolved(factory(), name, each_pos);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         InitializeForEachStatement(loop, each, enumerable, body);
         Block* result =
@@ -3338,8 +3292,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each = scope_->NewUnresolved(
-            factory(), name, Interface::NewValue(), each_pos);
+        VariableProxy* each = scope_->NewUnresolved(factory(), name, each_pos);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
@@ -3780,8 +3733,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       DCHECK(function_name != NULL);
       fvar = new (zone())
           Variable(scope_, function_name, fvar_mode, true /* is valid LHS */,
-                   Variable::NORMAL, kCreatedInitialized, kNotAssigned,
-                   Interface::NewConst());
+                   Variable::NORMAL, kCreatedInitialized, kNotAssigned);
       VariableProxy* proxy = factory()->NewVariableProxy(fvar);
       VariableDeclaration* fvar_declaration = factory()->NewVariableDeclaration(
           proxy, fvar_mode, scope_, RelocInfo::kNoPosition);
@@ -3972,8 +3924,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8, zone());
   if (fvar != NULL) {
-    VariableProxy* fproxy = scope_->NewUnresolved(
-        factory(), function_name, Interface::NewConst());
+    VariableProxy* fproxy = scope_->NewUnresolved(factory(), function_name);
     fproxy->BindTo(fvar);
     body->Add(factory()->NewExpressionStatement(
         factory()->NewAssignment(fvar_init_op,
@@ -4103,7 +4054,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
 
   VariableProxy* proxy = NULL;
   if (name != NULL) {
-    proxy = NewUnresolved(name, CONST, Interface::NewConst());
+    proxy = NewUnresolved(name, CONST);
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, CONST, block_scope, pos);
     Declare(declaration, true, CHECK_OK);

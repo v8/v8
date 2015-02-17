@@ -48,7 +48,6 @@ namespace internal {
 
 #define MODULE_NODE_LIST(V)                     \
   V(ModuleLiteral)                              \
-  V(ModuleVariable)                             \
   V(ModulePath)                                 \
   V(ModuleUrl)
 
@@ -598,14 +597,9 @@ class ModuleDeclaration FINAL : public Declaration {
   }
 
  protected:
-  ModuleDeclaration(Zone* zone,
-                    VariableProxy* proxy,
-                    Module* module,
-                    Scope* scope,
-                    int pos)
-      : Declaration(zone, proxy, MODULE, scope, pos),
-        module_(module) {
-  }
+  ModuleDeclaration(Zone* zone, VariableProxy* proxy, Module* module,
+                    Scope* scope, int pos)
+      : Declaration(zone, proxy, CONST, scope, pos), module_(module) {}
 
  private:
   Module* module_;
@@ -658,7 +652,7 @@ class Module : public AstNode {
  protected:
   Module(Zone* zone, int pos)
       : AstNode(pos),
-        interface_(Interface::NewModule(zone)),
+        interface_(Interface::New(zone)),
         body_(NULL) {}
   Module(Zone* zone, Interface* interface, int pos, Block* body = NULL)
       : AstNode(pos),
@@ -678,20 +672,6 @@ class ModuleLiteral FINAL : public Module {
  protected:
   ModuleLiteral(Zone* zone, Block* body, Interface* interface, int pos)
       : Module(zone, interface, pos, body) {}
-};
-
-
-class ModuleVariable FINAL : public Module {
- public:
-  DECLARE_NODE_TYPE(ModuleVariable)
-
-  VariableProxy* proxy() const { return proxy_; }
-
- protected:
-  inline ModuleVariable(Zone* zone, VariableProxy* proxy, int pos);
-
- private:
-  VariableProxy* proxy_;
 };
 
 
@@ -732,18 +712,13 @@ class ModuleStatement FINAL : public Statement {
  public:
   DECLARE_NODE_TYPE(ModuleStatement)
 
-  VariableProxy* proxy() const { return proxy_; }
   Block* body() const { return body_; }
 
  protected:
-  ModuleStatement(Zone* zone, VariableProxy* proxy, Block* body, int pos)
-      : Statement(zone, pos),
-        proxy_(proxy),
-        body_(body) {
-  }
+  ModuleStatement(Zone* zone, Block* body, int pos)
+      : Statement(zone, pos), body_(body) {}
 
  private:
-  VariableProxy* proxy_;
   Block* body_;
 };
 
@@ -1661,9 +1636,7 @@ class VariableProxy FINAL : public Expression {
     bit_field_ = IsResolvedField::update(bit_field_, true);
   }
 
-  Interface* interface() const { return interface_; }
-
-  // Bind this proxy to the variable var. Interfaces must match.
+  // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
   bool UsesVariableFeedbackSlot() const {
@@ -1688,7 +1661,7 @@ class VariableProxy FINAL : public Expression {
   VariableProxy(Zone* zone, Variable* var, int position);
 
   VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                Interface* interface, int position);
+                int position);
 
   class IsThisField : public BitField8<bool, 0, 1> {};
   class IsAssignedField : public BitField8<bool, 1, 1> {};
@@ -1702,7 +1675,6 @@ class VariableProxy FINAL : public Expression {
     const AstRawString* raw_name_;  // if !is_resolved_
     Variable* var_;                 // if is_resolved_
   };
-  Interface* interface_;
 };
 
 
@@ -3100,15 +3072,6 @@ class RegExpEmpty FINAL : public RegExpTree {
 
 
 // ----------------------------------------------------------------------------
-// Out-of-line inline constructors (to side-step cyclic dependencies).
-
-inline ModuleVariable::ModuleVariable(Zone* zone, VariableProxy* proxy, int pos)
-    : Module(zone, proxy->interface(), pos),
-      proxy_(proxy) {
-}
-
-
-// ----------------------------------------------------------------------------
 // Basic visitor
 // - leaf node visitors are abstract.
 
@@ -3213,10 +3176,6 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
     return new (zone_) ModuleLiteral(zone_, body, interface, pos);
   }
 
-  ModuleVariable* NewModuleVariable(VariableProxy* proxy, int pos) {
-    return new (zone_) ModuleVariable(zone_, proxy, pos);
-  }
-
   ModulePath* NewModulePath(Module* origin, const AstRawString* name, int pos) {
     return new (zone_) ModulePath(zone_, origin, name, pos);
   }
@@ -3258,9 +3217,8 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
     return NULL;
   }
 
-  ModuleStatement* NewModuleStatement(
-      VariableProxy* proxy, Block* body, int pos) {
-    return new (zone_) ModuleStatement(zone_, proxy, body, pos);
+  ModuleStatement* NewModuleStatement(Block* body, int pos) {
+    return new (zone_) ModuleStatement(zone_, body, pos);
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
@@ -3405,9 +3363,8 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
                                   bool is_this,
-                                  Interface* interface = Interface::NewValue(),
                                   int position = RelocInfo::kNoPosition) {
-    return new (zone_) VariableProxy(zone_, name, is_this, interface, position);
+    return new (zone_) VariableProxy(zone_, name, is_this, position);
   }
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {

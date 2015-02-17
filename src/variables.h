@@ -6,7 +6,6 @@
 #define V8_VARIABLES_H_
 
 #include "src/ast-value-factory.h"
-#include "src/interface.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -50,8 +49,7 @@ class Variable: public ZoneObject {
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode,
            bool is_valid_ref, Kind kind, InitializationFlag initialization_flag,
-           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-           Interface* interface = Interface::NewValue());
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -123,7 +121,6 @@ class Variable: public ZoneObject {
   InitializationFlag initialization_flag() const {
     return initialization_flag_;
   }
-  Interface* interface() const { return interface_; }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
@@ -155,9 +152,6 @@ class Variable: public ZoneObject {
   bool is_used_;
   InitializationFlag initialization_flag_;
   MaybeAssignedFlag maybe_assigned_;
-
-  // Module type info.
-  Interface* interface_;
 };
 
 

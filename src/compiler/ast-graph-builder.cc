@@ -876,11 +876,6 @@ void AstGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
 void AstGraphBuilder::VisitModuleLiteral(ModuleLiteral* modl) { UNREACHABLE(); }
 
 
-void AstGraphBuilder::VisitModuleVariable(ModuleVariable* modl) {
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitModulePath(ModulePath* modl) { UNREACHABLE(); }
 
 

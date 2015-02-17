@@ -118,11 +118,6 @@ void CallPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 }
 
 
-void CallPrinter::VisitModuleVariable(ModuleVariable* node) {
-  Find(node->proxy());
-}
-
-
 void CallPrinter::VisitModulePath(ModulePath* node) { Find(node->module()); }
 
 
@@ -503,11 +498,6 @@ void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitModuleVariable(ModuleVariable* node) {
-  Visit(node->proxy());
-}
-
-
 void PrettyPrinter::VisitModulePath(ModulePath* node) {
   Visit(node->module());
   Print(".");
@@ -523,8 +513,6 @@ void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
 
 void PrettyPrinter::VisitModuleStatement(ModuleStatement* node) {
   Print("module ");
-  PrintLiteral(node->proxy()->name(), false);
-  Print(" ");
   Visit(node->body());
 }
 
@@ -1241,12 +1229,6 @@ void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 }
 
 
-void AstPrinter::VisitModuleVariable(ModuleVariable* node) {
-  IndentedScope indent(this, "MODULE VARIABLE");
-  Visit(node->proxy());
-}
-
-
 void AstPrinter::VisitModulePath(ModulePath* node) {
   IndentedScope indent(this, "MODULE PATH");
   PrintIndentedVisit("MODULE PATH PARENT", node->module());
@@ -1261,7 +1243,6 @@ void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
 
 void AstPrinter::VisitModuleStatement(ModuleStatement* node) {
   IndentedScope indent(this, "MODULE STATEMENT");
-  PrintLiteralIndented("NAME", node->proxy()->name(), true);
   PrintStatements(node->body()->statements());
 }
 

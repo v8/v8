@@ -5210,6 +5210,7 @@ TEST(ImportExportParsingErrors) {
       "export { for as foo }",
       "export { arguments }",
       "export { arguments as foo }",
+      "var a; export { a, a };",
 
       "import from;",
       "import from 'm.js';",

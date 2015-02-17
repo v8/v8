@@ -65,24 +65,21 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(var->raw_name()),
-      interface_(var->interface()) {
+      raw_name_(var->raw_name()) {
   BindTo(var);
 }
 
 
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                             Interface* interface, int position)
+                             int position)
     : Expression(zone, position),
       bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(name),
-      interface_(interface) {}
+      raw_name_(name) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
   set_var(var);
   set_is_resolved();

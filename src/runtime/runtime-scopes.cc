@@ -801,13 +801,6 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
           USE(result);
           break;
         }
-        case MODULE: {
-          Object* referenced_context = Context::cast(host_context)->get(index);
-          Handle<JSModule> value(Context::cast(referenced_context)->module());
-          JSObject::SetOwnPropertyIgnoreAttributes(module, name, value, FROZEN)
-              .Assert();
-          break;
-        }
         case INTERNAL:
         case TEMPORARY:
         case DYNAMIC:

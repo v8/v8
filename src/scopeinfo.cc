@@ -562,15 +562,8 @@ Handle<ModuleInfo> ModuleInfo::Create(
     Variable* var = scope->LookupLocal(it.name());
     info->set_name(i, *(it.name()->string()));
     info->set_mode(i, var->mode());
-    DCHECK((var->mode() == MODULE) == (it.interface()->IsModule()));
-    if (var->mode() == MODULE) {
-      DCHECK(it.interface()->IsFrozen());
-      DCHECK(it.interface()->Index() >= 0);
-      info->set_index(i, it.interface()->Index());
-    } else {
-      DCHECK(var->index() >= 0);
-      info->set_index(i, var->index());
-    }
+    DCHECK(var->index() >= 0);
+    info->set_index(i, var->index());
   }
   DCHECK(i == info->length());
   return info;

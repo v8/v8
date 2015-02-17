@@ -11485,11 +11485,6 @@ void HOptimizedGraphBuilder::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void HOptimizedGraphBuilder::VisitModuleVariable(ModuleVariable* module) {
-  UNREACHABLE();
-}
-
-
 void HOptimizedGraphBuilder::VisitModulePath(ModulePath* module) {
   UNREACHABLE();
 }

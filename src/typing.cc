@@ -797,10 +797,6 @@ void AstTyper::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void AstTyper::VisitModuleVariable(ModuleVariable* module) {
-}
-
-
 void AstTyper::VisitModulePath(ModulePath* module) {
   RECURSE(Visit(module->module()));
 }

@@ -6,6 +6,7 @@
 #define V8_SCOPEINFO_H_
 
 #include "src/allocation.h"
+#include "src/interface.h"
 #include "src/variables.h"
 
 namespace v8 {

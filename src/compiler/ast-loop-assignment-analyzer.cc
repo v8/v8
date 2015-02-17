@@ -57,7 +57,6 @@ void ALAA::VisitFunctionDeclaration(FunctionDeclaration* leaf) {}
 void ALAA::VisitModuleDeclaration(ModuleDeclaration* leaf) {}
 void ALAA::VisitImportDeclaration(ImportDeclaration* leaf) {}
 void ALAA::VisitExportDeclaration(ExportDeclaration* leaf) {}
-void ALAA::VisitModuleVariable(ModuleVariable* leaf) {}
 void ALAA::VisitModulePath(ModulePath* leaf) {}
 void ALAA::VisitModuleUrl(ModuleUrl* leaf) {}
 void ALAA::VisitEmptyStatement(EmptyStatement* leaf) {}
@@ -205,9 +204,8 @@ void ALAA::VisitCaseClause(CaseClause* cc) {
 // -- Interesting nodes-------------------------------------------------------
 // ---------------------------------------------------------------------------
 void ALAA::VisitModuleStatement(ModuleStatement* stmt) {
-  Visit(stmt->body());
   // TODO(turbofan): can a module appear in a loop?
-  AnalyzeAssignment(stmt->proxy()->var());
+  Visit(stmt->body());
 }
 
 

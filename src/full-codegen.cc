@@ -60,10 +60,6 @@ void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
-}
-
-
 void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
 }
 
@@ -615,7 +611,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
         Comment cmnt(masm_, "[ Link nested modules");
         Scope* scope = module->body()->scope();
         Interface* interface = scope->interface();
-        DCHECK(interface->IsModule() && interface->IsFrozen());
+        DCHECK(interface->IsFrozen());
 
         interface->Allocate(scope->module_var()->index());
 
@@ -789,12 +785,6 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
-  // Nothing to do.
-  // The instance object is resolved statically through the module's interface.
-}
-
-
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
   // Nothing to do.
   // The instance object is resolved statically through the module's interface.
@@ -806,7 +796,7 @@ void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
   Scope* scope = module->body()->scope();
   Interface* interface = scope_->interface();
 
-  DCHECK(interface->IsModule() && interface->IsFrozen());
+  DCHECK(interface->IsFrozen());
   DCHECK(!modules_.is_null());
   DCHECK(module_index_ < modules_->length());
   interface->Allocate(scope->module_var()->index());
@@ -1103,7 +1093,9 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
 void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
   Comment cmnt(masm_, "[ Module context");
 
-  __ Push(Smi::FromInt(stmt->proxy()->interface()->Index()));
+  DCHECK(stmt->body()->scope()->is_module_scope());
+
+  __ Push(Smi::FromInt(stmt->body()->scope()->interface()->Index()));
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(

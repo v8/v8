@@ -24,8 +24,7 @@ class VariableMap: public ZoneHashMap {
   Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
                     bool is_valid_lhs, Variable::Kind kind,
                     InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                    Interface* interface = Interface::NewValue());
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* Lookup(const AstRawString* name);
 
@@ -132,8 +131,7 @@ class Scope: public ZoneObject {
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag,
-                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                         Interface* interface = Interface::NewValue());
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -144,14 +142,12 @@ class Scope: public ZoneObject {
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               Interface* interface = Interface::NewValue(),
                                int position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     DCHECK(!already_resolved());
-    VariableProxy* proxy =
-        factory->NewVariableProxy(name, false, interface, position);
+    VariableProxy* proxy = factory->NewVariableProxy(name, false, position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }

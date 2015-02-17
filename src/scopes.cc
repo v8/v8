@@ -34,8 +34,7 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
                                VariableMode mode, bool is_valid_lhs,
                                Variable::Kind kind,
                                InitializationFlag initialization_flag,
-                               MaybeAssignedFlag maybe_assigned_flag,
-                               Interface* interface) {
+                               MaybeAssignedFlag maybe_assigned_flag) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -44,9 +43,8 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     DCHECK(p->key == name);
-    p->value = new (zone())
-        Variable(scope, name, mode, is_valid_lhs, kind, initialization_flag,
-                 maybe_assigned_flag, interface);
+    p->value = new (zone()) Variable(scope, name, mode, is_valid_lhs, kind,
+                                     initialization_flag, maybe_assigned_flag);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -76,7 +74,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      interface_(scope_type == MODULE_SCOPE ? Interface::NewModule(zone)
+      interface_(scope_type == MODULE_SCOPE ? Interface::New(zone)
                                             : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
@@ -469,8 +467,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               InitializationFlag init_flag,
-                              MaybeAssignedFlag maybe_assigned_flag,
-                              Interface* interface) {
+                              MaybeAssignedFlag maybe_assigned_flag) {
   DCHECK(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
@@ -478,7 +475,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL, init_flag,
-                            maybe_assigned_flag, interface);
+                            maybe_assigned_flag);
 }
 
 
@@ -1094,42 +1091,6 @@ bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
 
   DCHECK(var != NULL);
   if (proxy->is_assigned()) var->set_maybe_assigned();
-
-  if (FLAG_harmony_modules) {
-    bool ok;
-#ifdef DEBUG
-    if (FLAG_print_interface_details) {
-      PrintF("# Resolve %.*s:\n", var->raw_name()->length(),
-             var->raw_name()->raw_data());
-    }
-#endif
-    proxy->interface()->Unify(var->interface(), zone(), &ok);
-    if (!ok) {
-#ifdef DEBUG
-      if (FLAG_print_interfaces) {
-        PrintF("SCOPES TYPE ERROR\n");
-        PrintF("proxy: ");
-        proxy->interface()->Print();
-        PrintF("var: ");
-        var->interface()->Print();
-      }
-#endif
-
-      // Inconsistent use of module. Throw a syntax error.
-      // TODO(rossberg): generate more helpful error message.
-      MessageLocation location(
-          info->script(), proxy->position(), proxy->position());
-      Isolate* isolate = info->isolate();
-      Factory* factory = isolate->factory();
-      Handle<JSArray> array = factory->NewJSArray(1);
-      JSObject::SetElement(array, 0, var->name(), NONE, STRICT).Assert();
-      Handle<Object> error;
-      MaybeHandle<Object> maybe_error =
-          factory->NewSyntaxError("module_type_error", array);
-      if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
-      return false;
-    }
-  }
 
   proxy->BindTo(var);
 

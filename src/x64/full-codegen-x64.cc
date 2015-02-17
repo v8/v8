@@ -917,15 +917,16 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   Variable* variable = declaration->proxy()->var();
+  Interface* interface = declaration->module()->interface();
   DCHECK(variable->location() == Variable::CONTEXT);
-  DCHECK(variable->interface()->IsFrozen());
+  DCHECK(interface->IsFrozen());
 
   Comment cmnt(masm_, "[ ModuleDeclaration");
   EmitDebugCheckDeclarationContext(variable);
 
   // Load instance object.
   __ LoadContext(rax, scope_->ContextChainLength(scope_->ScriptScope()));
-  __ movp(rax, ContextOperand(rax, variable->interface()->Index()));
+  __ movp(rax, ContextOperand(rax, interface->Index()));
   __ movp(rax, ContextOperand(rax, Context::EXTENSION_INDEX));
 
   // Assign it.

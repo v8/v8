@@ -798,9 +798,7 @@ class Parser : public ParserBase<ParserTraits> {
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
   // Parser support
-  VariableProxy* NewUnresolved(const AstRawString* name,
-                               VariableMode mode,
-                               Interface* interface);
+  VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
   void Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);

@@ -206,7 +206,6 @@ void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
 void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
 void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
 void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
-void Processor::VisitModuleVariable(ModuleVariable* node) {}
 void Processor::VisitModulePath(ModulePath* node) {}
 void Processor::VisitModuleUrl(ModuleUrl* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
