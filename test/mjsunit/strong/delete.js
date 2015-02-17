@@ -4,7 +4,8 @@
 
 // Flags: --strong-mode
 
-(function NoSloppyEquality() {
-  assertThrows("'use strong'; 0 == 0", SyntaxError);
-  assertThrows("'use strong'; 0 != 0", SyntaxError);
+(function NoDelete() {
+  const o = {a: 0};
+  assertThrows("'use strong'; delete o.a", SyntaxError);
+  assertThrows("'use strong'; delete o", SyntaxError);
 })();

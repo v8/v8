@@ -2497,12 +2497,17 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     int pos = position();
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
 
-    // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && is_strict(language_mode()) &&
-        this->IsIdentifier(expression)) {
-      ReportMessage("strict_delete");
-      *ok = false;
-      return this->EmptyExpression();
+    if (op == Token::DELETE && is_strict(language_mode())) {
+      if (is_strong(language_mode())) {
+        ReportMessage("strong_delete");
+        *ok = false;
+        return this->EmptyExpression();
+      } else if (this->IsIdentifier(expression)) {
+        // "delete identifier" is a syntax error in strict mode.
+        ReportMessage("strict_delete");
+        *ok = false;
+        return this->EmptyExpression();
+      }
     }
 
     // Allow Traits do rewrite the expression.

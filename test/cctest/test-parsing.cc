@@ -2891,9 +2891,13 @@ TEST(TooManyArguments) {
 
 TEST(StrictDelete) {
   // "delete <Identifier>" is not allowed in strict mode.
+  const char* strong_context_data[][2] = {
+    {"\"use strong\"; ", ""},
+    { NULL, NULL }
+  };
+
   const char* strict_context_data[][2] = {
     {"\"use strict\"; ", ""},
-    {"\"use strong\"; ", ""},
     { NULL, NULL }
   };
 
@@ -2934,16 +2938,22 @@ TEST(StrictDelete) {
   };
 
   static const ParserFlag always_flags[] = {kAllowStrongMode};
+  RunParserSyncTest(strong_context_data, sloppy_statement_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
   RunParserSyncTest(strict_context_data, sloppy_statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(sloppy_context_data, sloppy_statement_data, kSuccess, NULL,
                     0, always_flags, arraysize(always_flags));
 
+  RunParserSyncTest(strong_context_data, good_statement_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
   RunParserSyncTest(strict_context_data, good_statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(sloppy_context_data, good_statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 
+  RunParserSyncTest(strong_context_data, bad_statement_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
   RunParserSyncTest(strict_context_data, bad_statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(sloppy_context_data, bad_statement_data, kError, NULL, 0,
