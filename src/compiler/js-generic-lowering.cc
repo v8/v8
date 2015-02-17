@@ -130,6 +130,8 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
+
+  // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());
   inputs.reserve(node->InputCount() + 1);
   inputs.push_back(jsgraph()->HeapConstant(callable.code()));
@@ -153,16 +155,53 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   Node* compare =
       graph()->NewNode(common()->Call(desc_compare),
                        static_cast<int>(inputs.size()), &inputs.front());
+  NodeProperties::SetBounds(
+      compare, Bounds(Type::None(zone()), Type::UntaggedSigned(zone())));
 
-  node->ReplaceInput(0, compare);
-  node->ReplaceInput(1, jsgraph()->SmiConstant(token));
-
-  if (has_frame_state) {
-    // Remove the frame state from inputs.
-    node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
+  // Decide how the return value from the above CompareIC can be converted into
+  // a JavaScript boolean oddball depending on the given token.
+  Node* false_value = jsgraph()->FalseConstant();
+  Node* true_value = jsgraph()->TrueConstant();
+  const Operator* op = nullptr;
+  switch (token) {
+    case Token::EQ:  // a == 0
+    case Token::EQ_STRICT:
+      op = machine()->WordEqual();
+      break;
+    case Token::NE:  // a != 0 becomes !(a == 0)
+    case Token::NE_STRICT:
+      op = machine()->WordEqual();
+      std::swap(true_value, false_value);
+      break;
+    case Token::LT:  // a < 0
+      op = machine()->IntLessThan();
+      break;
+    case Token::GT:  // a > 0 becomes !(a <= 0)
+      op = machine()->IntLessThanOrEqual();
+      std::swap(true_value, false_value);
+      break;
+    case Token::LTE:  // a <= 0
+      op = machine()->IntLessThanOrEqual();
+      break;
+    case Token::GTE:  // a >= 0 becomes !(a < 0)
+      op = machine()->IntLessThan();
+      std::swap(true_value, false_value);
+      break;
+    default:
+      UNREACHABLE();
   }
+  Node* booleanize = graph()->NewNode(op, compare, jsgraph()->ZeroConstant());
 
-  ReplaceWithRuntimeCall(node, Runtime::kBooleanize);
+  // Finally patch the original node to select a boolean.
+  NodeProperties::ReplaceWithValue(node, node, compare);
+  // TODO(mstarzinger): Just a work-around because SelectLowering might
+  // otherwise introduce a Phi without any uses, making Scheduler unhappy.
+  if (node->UseCount() == 0) return;
+  node->TrimInputCount(3);
+  node->ReplaceInput(0, booleanize);
+  node->ReplaceInput(1, true_value);
+  node->ReplaceInput(2, false_value);
+  PatchOperator(node, common()->Select(kMachAnyTagged));
 }
 
 

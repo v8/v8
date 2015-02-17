@@ -1197,35 +1197,6 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_Booleanize) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_CHECKED(Object, value_raw, 0);
-  CONVERT_SMI_ARG_CHECKED(token_raw, 1);
-  intptr_t value = reinterpret_cast<intptr_t>(value_raw);
-  Token::Value token = static_cast<Token::Value>(token_raw);
-  switch (token) {
-    case Token::EQ:
-    case Token::EQ_STRICT:
-      return isolate->heap()->ToBoolean(value == 0);
-    case Token::NE:
-    case Token::NE_STRICT:
-      return isolate->heap()->ToBoolean(value != 0);
-    case Token::LT:
-      return isolate->heap()->ToBoolean(value < 0);
-    case Token::GT:
-      return isolate->heap()->ToBoolean(value > 0);
-    case Token::LTE:
-      return isolate->heap()->ToBoolean(value <= 0);
-    case Token::GTE:
-      return isolate->heap()->ToBoolean(value >= 0);
-    default:
-      // This should only happen during natives fuzzing.
-      return isolate->heap()->undefined_value();
-  }
-}
-
-
 RUNTIME_FUNCTION(Runtime_NewStringWrapper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

@@ -98,8 +98,6 @@ namespace internal {
   F(ToBool, 1, 1)                                          \
   F(Typeof, 1, 1)                                          \
                                                            \
-  F(Booleanize, 2, 1) /* TODO(turbofan): Only temporary */ \
-                                                           \
   F(StringToNumber, 1, 1)                                  \
   F(StringParseInt, 2, 1)                                  \
   F(StringParseFloat, 1, 1)                                \

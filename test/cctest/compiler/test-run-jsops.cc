@@ -212,7 +212,7 @@ TEST(BinopLessThan) {
 }
 
 
-TEST(BinopLessThanEqual) {
+TEST(BinopLessThanOrEqual) {
   FunctionTester T("(function(a,b) { return a <= b; })");
 
   T.CheckTrue(7, 8);
