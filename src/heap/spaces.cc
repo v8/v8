@@ -990,6 +990,16 @@ size_t PagedSpace::CommittedPhysicalMemory() {
 }
 
 
+bool PagedSpace::ContainsSafe(Address addr) {
+  Page* p = Page::FromAddress(addr);
+  PageIterator iterator(this);
+  while (iterator.has_next()) {
+    if (iterator.next() == p) return true;
+  }
+  return false;
+}
+
+
 Object* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on iterable spaces.
   DCHECK(!heap()->mark_compact_collector()->in_use());

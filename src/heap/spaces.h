@@ -1663,6 +1663,9 @@ class PagedSpace : public Space {
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
   bool Contains(HeapObject* o) { return Contains(o->address()); }
+  // Unlike Contains() methods it is safe to call this one even for addresses
+  // of unmapped memory.
+  bool ContainsSafe(Address addr);
 
   // Given an address occupied by a live object, return that object if it is
   // in this space, or a Smi if it is not.  The implementation iterates over
