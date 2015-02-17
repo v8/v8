@@ -126,7 +126,6 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   Callable callable = CodeFactory::CompareIC(isolate(), token);
-  bool has_frame_state = OperatorProperties::HasFrameStateInput(node->op());
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
@@ -141,11 +140,12 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   if (node->op()->HasProperty(Operator::kPure)) {
     // A pure (strict) comparison doesn't have an effect, control or frame
     // state.  But for the graph, we need to add control and effect inputs.
-    DCHECK(!has_frame_state);
+    DCHECK(!OperatorProperties::HasFrameStateInput(node->op()));
     inputs.push_back(graph()->start());
     inputs.push_back(graph()->start());
   } else {
-    DCHECK(has_frame_state == FLAG_turbo_deoptimization);
+    DCHECK(OperatorProperties::HasFrameStateInput(node->op()) ==
+           FLAG_turbo_deoptimization);
     if (FLAG_turbo_deoptimization) {
       inputs.push_back(NodeProperties::GetFrameStateInput(node));
     }
