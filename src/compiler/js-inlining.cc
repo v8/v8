@@ -25,28 +25,57 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InlinerVisitor : public NullNodeVisitor {
- public:
-  explicit InlinerVisitor(JSInliner* inliner) : inliner_(inliner) {}
 
-  void Post(Node* node) {
-    switch (node->opcode()) {
-      case IrOpcode::kJSCallFunction:
-        inliner_->TryInlineJSCall(node);
-        break;
-      default:
-        break;
-    }
+// Provides convenience accessors for calls to JS functions.
+class JSCallFunctionAccessor {
+ public:
+  explicit JSCallFunctionAccessor(Node* call) : call_(call) {
+    DCHECK_EQ(IrOpcode::kJSCallFunction, call->opcode());
   }
 
+  Node* jsfunction() { return call_->InputAt(0); }
+
+  Node* receiver() { return call_->InputAt(1); }
+
+  Node* formal_argument(size_t index) {
+    DCHECK(index < formal_arguments());
+    return call_->InputAt(static_cast<int>(2 + index));
+  }
+
+  size_t formal_arguments() {
+    // {value_inputs} includes jsfunction and receiver.
+    size_t value_inputs = call_->op()->ValueInputCount();
+    DCHECK_GE(call_->InputCount(), 2);
+    return value_inputs - 2;
+  }
+
+  Node* frame_state() { return NodeProperties::GetFrameStateInput(call_); }
+
  private:
-  JSInliner* inliner_;
+  Node* call_;
 };
 
 
-void JSInliner::Inline() {
-  InlinerVisitor visitor(this);
-  jsgraph_->graph()->VisitNodeInputsFromEnd(&visitor);
+Reduction JSInliner::Reduce(Node* node) {
+  if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
+
+  JSCallFunctionAccessor call(node);
+  HeapObjectMatcher<JSFunction> match(call.jsfunction());
+  if (!match.HasValue()) return NoChange();
+
+  Handle<JSFunction> jsfunction = match.Value().handle();
+
+  if (jsfunction->shared()->native()) {
+    if (FLAG_trace_turbo_inlining) {
+      SmartArrayPointer<char> name =
+          jsfunction->shared()->DebugName()->ToCString();
+      PrintF("Not Inlining %s into %s because inlinee is native\n", name.get(),
+             info_->shared_info()->DebugName()->ToCString().get());
+    }
+    return NoChange();
+  }
+
+  return TryInlineJSCall(node, jsfunction);
 }
 
 
@@ -89,7 +118,7 @@ class Inlinee {
 
   // Inline this graph at {call}, use {jsgraph} and its zone to create
   // any new nodes.
-  void InlineAtCall(JSGraph* jsgraph, Node* call);
+  Reduction InlineAtCall(JSGraph* jsgraph, Node* call);
 
   // Ensure that only a single return reaches the end node.
   static void UnifyReturn(JSGraph* jsgraph);
@@ -213,7 +242,7 @@ class CopyVisitor : public NullNodeVisitor {
 };
 
 
-void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
+Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee.
   Node* control = NodeProperties::GetControlInput(call);
@@ -267,40 +296,8 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   }
 
   NodeProperties::ReplaceWithValue(call, value_output(), effect_output());
-  call->RemoveAllInputs();
-  DCHECK_EQ(0, call->UseCount());
+  return Reducer::Replace(value_output());
 }
-
-
-// TODO(turbofan) Provide such accessors for every node, possibly even
-// generate them.
-class JSCallFunctionAccessor {
- public:
-  explicit JSCallFunctionAccessor(Node* call) : call_(call) {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, call->opcode());
-  }
-
-  Node* jsfunction() { return call_->InputAt(0); }
-
-  Node* receiver() { return call_->InputAt(1); }
-
-  Node* formal_argument(size_t index) {
-    DCHECK(index < formal_arguments());
-    return call_->InputAt(static_cast<int>(2 + index));
-  }
-
-  size_t formal_arguments() {
-    // {value_inputs} includes jsfunction and receiver.
-    size_t value_inputs = call_->op()->ValueInputCount();
-    DCHECK_GE(call_->InputCount(), 2);
-    return value_inputs - 2;
-  }
-
-  Node* frame_state() { return NodeProperties::GetFrameStateInput(call_); }
-
- private:
-  Node* call_;
-};
 
 
 void JSInliner::AddClosureToFrameState(Node* frame_state,
@@ -336,30 +333,13 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
 }
 
 
-void JSInliner::TryInlineJSCall(Node* call_node) {
+Reduction JSInliner::TryInlineJSCall(Node* call_node,
+                                     Handle<JSFunction> function) {
   JSCallFunctionAccessor call(call_node);
-
-  HeapObjectMatcher<JSFunction> match(call.jsfunction());
-  if (!match.HasValue()) {
-    return;
-  }
-
-  Handle<JSFunction> function = match.Value().handle();
-
-  if (function->shared()->native()) {
-    if (FLAG_trace_turbo_inlining) {
-      SmartArrayPointer<char> name =
-          function->shared()->DebugName()->ToCString();
-      PrintF("Not Inlining %s into %s because inlinee is native\n", name.get(),
-             info_->shared_info()->DebugName()->ToCString().get());
-    }
-    return;
-  }
-
   CompilationInfoWithZone info(function);
-  // TODO(wingo): ParseAndAnalyze can fail due to stack overflow.
-  CHECK(Compiler::ParseAndAnalyze(&info));
-  CHECK(Compiler::EnsureDeoptimizationSupport(&info));
+
+  if (!Compiler::ParseAndAnalyze(&info)) return NoChange();
+  if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
@@ -370,7 +350,7 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
           "array\n",
           name.get(), info_->shared_info()->DebugName()->ToCString().get());
     }
-    return;
+    return NoChange();
   }
 
   if (FLAG_trace_turbo_inlining) {
@@ -408,7 +388,7 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
     }
   }
 
-  inlinee.InlineAtCall(jsgraph_, call_node);
+  return inlinee.InlineAtCall(jsgraph_, call_node);
 }
 
 }  // namespace compiler

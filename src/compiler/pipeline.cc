@@ -467,7 +467,9 @@ struct InliningPhase {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
     JSInliner inliner(temp_zone, data->info(), data->jsgraph());
-    inliner.Inline();
+    GraphReducer graph_reducer(data->graph(), temp_zone);
+    AddReducer(data, &graph_reducer, &inliner);
+    graph_reducer.ReduceGraph();
   }
 };
 
