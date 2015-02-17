@@ -838,7 +838,20 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 }
 
 
+class NoUseStrongForUtilityScriptScope {
+ public:
+  NoUseStrongForUtilityScriptScope() : flag_(i::FLAG_use_strong) {
+    i::FLAG_use_strong = false;
+  }
+  ~NoUseStrongForUtilityScriptScope() { i::FLAG_use_strong = flag_; }
+
+ private:
+  bool flag_;
+};
+
+
 void Shell::InstallUtilityScript(Isolate* isolate) {
+  NoUseStrongForUtilityScriptScope no_use_strong;
   HandleScope scope(isolate);
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
