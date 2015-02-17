@@ -3190,7 +3190,10 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
 SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
                                          int inlined_jsframe_index,
                                          int formal_parameter_count)
-    : current_slot_(0), args_length_(-1), first_slot_index_(-1) {
+    : current_slot_(0),
+      args_length_(-1),
+      first_slot_index_(-1),
+      should_deoptimize_(false) {
   DisallowHeapAllocation no_gc;
 
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
@@ -3208,7 +3211,6 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
   CHECK_GT(jsframe_count, inlined_jsframe_index);
   int jsframes_to_skip = inlined_jsframe_index;
   int number_of_slots = -1;  // Number of slots inside our frame (yet unknown)
-  bool should_deopt = false;
   while (number_of_slots != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     bool processed = false;
@@ -3265,7 +3267,7 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
         number_of_slots += slot.GetChildrenCount();
         if (slot.Representation() == SlotRef::DEFERRED_OBJECT ||
             slot.Representation() == SlotRef::DUPLICATE_OBJECT) {
-          should_deopt = true;
+          should_deoptimize_ = true;
         }
       }
 
@@ -3276,7 +3278,7 @@ SlotRefValueBuilder::SlotRefValueBuilder(JavaScriptFrame* frame,
       it.Skip(Translation::NumberOfOperandsFor(opcode));
     }
   }
-  if (should_deopt) {
+  if (should_deoptimize_) {
     List<JSFunction*> functions(2);
     frame->GetFunctions(&functions);
     Deoptimizer::DeoptimizeFunction(functions[0]);
@@ -3492,9 +3494,11 @@ void SlotRefValueBuilder::Finish(Isolate* isolate) {
   // We should have processed all the slots
   CHECK_EQ(slot_refs_.length(), current_slot_);
 
-  if (materialized_objects_.length() > prev_materialized_count_) {
-    // We have materialized some new objects, so we have to store them
-    // to prevent duplicate materialization
+  if (should_deoptimize_ &&
+      materialized_objects_.length() > prev_materialized_count_) {
+    // We have materialized some new objects and they might be accessible
+    // from the arguments object, so we have to store them
+    // to prevent duplicate materialization.
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(
         materialized_objects_.length());
     for (int i = 0; i < materialized_objects_.length(); i++) {

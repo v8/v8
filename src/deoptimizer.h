@@ -939,6 +939,7 @@ class SlotRefValueBuilder BASE_EMBEDDED {
   int current_slot_;
   int args_length_;
   int first_slot_index_;
+  bool should_deoptimize_;
 
   static SlotRef ComputeSlotForNextArgument(
       Translation::Opcode opcode,
