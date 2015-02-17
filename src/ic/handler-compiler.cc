@@ -26,9 +26,8 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 
 
 Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
-    Handle<Name> name, Handle<HeapType> type) {
+    Handle<Name> name, Handle<Map> receiver_map) {
   Isolate* isolate = name->GetIsolate();
-  Handle<Map> receiver_map = IC::TypeToMap(*type, isolate);
   if (receiver_map->prototype()->IsNull()) {
     // TODO(jkummerow/verwaest): If there is no prototype and the property
     // is nonexistent, introduce a builtin to handle this (fast properties
@@ -37,7 +36,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   }
   CacheHolderFlag flag;
   Handle<Map> stub_holder_map =
-      IC::GetHandlerCacheHolder(*type, false, isolate, &flag);
+      IC::GetHandlerCacheHolder(receiver_map, false, isolate, &flag);
 
   // If no dictionary mode objects are present in the prototype chain, the load
   // nonexistent IC stub can be shared for all names for a given map and we use
@@ -62,7 +61,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
       cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) return handler;
 
-  NamedLoadHandlerCompiler compiler(isolate, type, last, flag);
+  NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
   handler = compiler.CompileLoadNonexistent(cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
@@ -82,11 +81,6 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
 }
 
 
-void PropertyHandlerCompiler::set_type_for_object(Handle<Object> object) {
-  type_ = IC::CurrentTypeOf(object, isolate());
-}
-
-
 #define __ ACCESS_MASM(masm())
 
 
@@ -95,13 +89,13 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Label* miss) {
   PrototypeCheckType check_type = CHECK_ALL_MAPS;
   int function_index = -1;
-  if (type()->Is(HeapType::String())) {
+  if (map()->instance_type() < FIRST_NONSTRING_TYPE) {
     function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Symbol())) {
+  } else if (map()->instance_type() == SYMBOL_TYPE) {
     function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Number())) {
+  } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Boolean())) {
+  } else if (*map() == isolate()->heap()->boolean_map()) {
     function_index = Context::BOOLEAN_FUNCTION_INDEX;
   } else {
     check_type = SKIP_RECEIVER;
@@ -112,7 +106,8 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                               scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
     Object* prototype = JSFunction::cast(function)->instance_prototype();
-    set_type_for_object(handle(prototype, isolate()));
+    Handle<Map> map(JSObject::cast(prototype)->map());
+    set_map(map);
     object_reg = scratch1();
   }
 
@@ -155,7 +150,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
   Handle<Map> last_map;
   if (holder().is_null()) {
     holder_reg = receiver();
-    last_map = IC::TypeToMap(*type(), isolate());
+    last_map = map();
     // If |type| has null as its prototype, |holder()| is
     // Handle<JSObject>::null().
     DCHECK(last_map->prototype() == isolate()->heap()->null_value());
@@ -168,7 +163,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
     if (last_map->IsJSGlobalObjectMap()) {
       Handle<JSGlobalObject> global =
           holder().is_null()
-              ? Handle<JSGlobalObject>::cast(type()->AsConstant()->Value())
+              ? Handle<JSGlobalObject>::cast(isolate()->global_object())
               : Handle<JSGlobalObject>::cast(holder());
       GenerateCheckPropertyCell(masm(), global, name, scratch1, miss);
     } else {
@@ -236,8 +231,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     int accessor_index) {
   DCHECK(call_optimization.is_simple_api_call());
   Register holder = Frontend(name);
-  Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
-  GenerateApiAccessorCall(masm(), call_optimization, receiver_map, receiver(),
+  GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(kind(), Code::FAST, name);
 }
@@ -296,8 +290,8 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(accessors);
         inline_followup = info->getter() != NULL &&
-                          ExecutableAccessorInfo::IsCompatibleReceiverType(
-                              isolate(), info, type());
+                          ExecutableAccessorInfo::IsCompatibleReceiverMap(
+                              isolate(), info, map());
       } else if (accessors->IsAccessorPair()) {
         Handle<JSObject> property_holder(it->GetHolder<JSObject>());
         Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
@@ -306,9 +300,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
         if (!property_holder->HasFastProperties()) break;
         auto function = Handle<JSFunction>::cast(getter);
         CallOptimization call_optimization(function);
-        Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
+        Handle<Map> receiver_map = map();
         inline_followup = call_optimization.is_simple_api_call() &&
-                          call_optimization.IsCompatibleReceiverType(
+                          call_optimization.IsCompatibleReceiverMap(
                               receiver_map, property_holder);
       }
     }
@@ -335,7 +329,8 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     LookupIterator* it, Register interceptor_reg) {
   Handle<JSObject> real_named_property_holder(it->GetHolder<JSObject>());
 
-  set_type_for_object(holder());
+  Handle<Map> holder_map(holder()->map());
+  set_map(holder_map);
   set_holder(real_named_property_holder);
 
   Label miss;
@@ -369,8 +364,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
         auto function = handle(JSFunction::cast(
             AccessorPair::cast(*it->GetAccessors())->getter()));
         CallOptimization call_optimization(function);
-        Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
-        GenerateApiAccessorCall(masm(), call_optimization, receiver_map,
+        GenerateApiAccessorCall(masm(), call_optimization, holder_map,
                                 receiver(), scratch2(), false, no_reg, reg,
                                 it->GetAccessorIndex());
       }
@@ -381,7 +375,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);
-  GenerateLoadViaGetter(masm(), type(), receiver(), holder, accessor_index,
+  GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
                         expected_arguments, scratch2());
   return GetCode(kind(), Code::FAST, name);
 }
@@ -471,7 +465,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     Handle<JSObject> object, Handle<Name> name, int accessor_index,
     int expected_arguments) {
   Register holder = Frontend(name);
-  GenerateStoreViaSetter(masm(), type(), receiver(), holder, accessor_index,
+  GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
                          expected_arguments, scratch2());
 
   return GetCode(kind(), Code::FAST, name);

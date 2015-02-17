@@ -2282,8 +2282,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  Type* ToType(Handle<Map> map);
-
  private:
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
@@ -2434,16 +2432,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
-                       PropertyAccessType access_type,
-                       Type* type,
+                       PropertyAccessType access_type, Handle<Map> map,
                        Handle<String> name)
         : lookup_(builder->isolate()),
           builder_(builder),
           access_type_(access_type),
-          type_(type),
+          map_(map),
           name_(name),
           field_type_(HType::Tagged()),
-          access_(HObjectAccess::ForMap()) { }
+          access_(HObjectAccess::ForMap()) {}
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
@@ -2458,22 +2455,23 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // PropertyAccessInfo is built for types->first().
     bool CanAccessAsMonomorphic(SmallMapList* types);
 
+    bool NeedsWrappingFor(Handle<JSFunction> target) const;
+
     Handle<Map> map();
-    Type* type() const { return type_; }
     Handle<String> name() const { return name_; }
 
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor(map(), name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
       int offset;
-      if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
-        if (type_->Is(Type::String())) {
+      if (Accessors::IsJSObjectFieldAccessor(map(), name_, &offset)) {
+        if (IsStringType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
-        } else if (type_->Is(Type::Array())) {
+        } else if (IsArrayType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         } else {
@@ -2506,6 +2504,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool IsConfigurable() const { return lookup_.IsConfigurable(); }
     bool IsReadOnly() const { return lookup_.IsReadOnly(); }
 
+    bool IsStringType() { return map_->instance_type() < FIRST_NONSTRING_TYPE; }
+    bool IsNumberType() { return map_->instance_type() == HEAP_NUMBER_TYPE; }
+    bool IsValueWrapped() { return IsStringType() || IsNumberType(); }
+    bool IsArrayType() { return map_->instance_type() == JS_ARRAY_TYPE; }
+
    private:
     Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
       return handle(lookup_.GetValueFromMap(*map), isolate());
@@ -2524,7 +2527,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
     Representation representation() const { return lookup_.representation(); }
 
-    Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Zone* zone() { return builder_->zone(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
@@ -2543,7 +2545,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     LookupResult lookup_;
     HOptimizedGraphBuilder* builder_;
     PropertyAccessType access_type_;
-    Type* type_;
+    Handle<Map> map_;
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;

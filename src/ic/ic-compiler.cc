@@ -25,30 +25,30 @@ Handle<Code> PropertyICCompiler::Find(Handle<Name> name,
 }
 
 
-bool PropertyICCompiler::IncludesNumberType(TypeHandleList* types) {
-  for (int i = 0; i < types->length(); ++i) {
-    if (types->at(i)->Is(HeapType::Number())) return true;
+bool PropertyICCompiler::IncludesNumberMap(MapHandleList* maps) {
+  for (int i = 0; i < maps->length(); ++i) {
+    if (maps->at(i)->instance_type() == HEAP_NUMBER_TYPE) return true;
   }
   return false;
 }
 
 
-Handle<Code> PropertyICCompiler::CompileMonomorphic(Handle<HeapType> type,
+Handle<Code> PropertyICCompiler::CompileMonomorphic(Handle<Map> map,
                                                     Handle<Code> handler,
                                                     Handle<Name> name,
                                                     IcCheckType check) {
-  TypeHandleList types(1);
+  MapHandleList maps(1);
   CodeHandleList handlers(1);
-  types.Add(type);
+  maps.Add(map);
   handlers.Add(handler);
   Code::StubType stub_type = handler->type();
-  return CompilePolymorphic(&types, &handlers, name, stub_type, check);
+  return CompilePolymorphic(&maps, &handlers, name, stub_type, check);
 }
 
 
 Handle<Code> PropertyICCompiler::ComputeMonomorphic(
-    Code::Kind kind, Handle<Name> name, Handle<HeapType> type,
-    Handle<Code> handler, ExtraICState extra_ic_state) {
+    Code::Kind kind, Handle<Name> name, Handle<Map> map, Handle<Code> handler,
+    ExtraICState extra_ic_state) {
   Isolate* isolate = name->GetIsolate();
   if (handler.is_identical_to(isolate->builtins()->LoadIC_Normal()) ||
       handler.is_identical_to(isolate->builtins()->StoreIC_Normal())) {
@@ -56,7 +56,7 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
   }
 
   CacheHolderFlag flag;
-  Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate, &flag);
+  Handle<Map> stub_holder = IC::GetICCacheHolder(map, isolate, &flag);
   if (kind == Code::KEYED_STORE_IC) {
     // Always set the "property" bit.
     extra_ic_state =
@@ -72,14 +72,14 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
   // There are multiple string maps that all use the same prototype. That
   // prototype cannot hold multiple handlers, one for each of the string maps,
   // for a single name. Hence, turn off caching of the IC.
-  bool can_be_cached = !type->Is(HeapType::String());
+  bool can_be_cached = map->instance_type() >= FIRST_NONSTRING_TYPE;
   if (can_be_cached) {
     ic = Find(name, stub_holder, kind, extra_ic_state, flag);
     if (!ic.is_null()) return ic;
   }
 
   PropertyICCompiler ic_compiler(isolate, kind, extra_ic_state, flag);
-  ic = ic_compiler.CompileMonomorphic(type, handler, name, PROPERTY);
+  ic = ic_compiler.CompileMonomorphic(map, handler, name, PROPERTY);
 
   if (can_be_cached) Map::UpdateCodeCache(stub_holder, name, ic);
   return ic;
@@ -98,9 +98,8 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
 
   Handle<Code> stub = ComputeKeyedLoadMonomorphicHandler(receiver_map);
   PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
-  Handle<Code> code =
-      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
-                                  isolate->factory()->empty_string(), ELEMENT);
+  Handle<Code> code = compiler.CompileMonomorphic(
+      receiver_map, stub, isolate->factory()->empty_string(), ELEMENT);
 
   Map::UpdateCodeCache(receiver_map, name, code);
   return code;
@@ -256,7 +255,6 @@ Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
 }
 
 
-// TODO(verwaest): Change this method so it takes in a TypeHandleList.
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
     MapHandleList* receiver_maps) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
@@ -267,17 +265,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  TypeHandleList types(receiver_maps->length());
-  for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(HeapType::Class(receiver_maps->at(i), isolate));
-  }
   CodeHandleList handlers(receiver_maps->length());
   ElementHandlerCompiler compiler(isolate);
   compiler.CompileElementHandlers(receiver_maps, &handlers);
   PropertyICCompiler ic_compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code = ic_compiler.CompilePolymorphic(
-      &types, &handlers, isolate->factory()->empty_string(), Code::NORMAL,
-      ELEMENT);
+      receiver_maps, &handlers, isolate->factory()->empty_string(),
+      Code::NORMAL, ELEMENT);
 
   isolate->counters()->keyed_load_polymorphic_stubs()->Increment();
 
@@ -287,13 +281,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
 
 
 Handle<Code> PropertyICCompiler::ComputePolymorphic(
-    Code::Kind kind, TypeHandleList* types, CodeHandleList* handlers,
-    int valid_types, Handle<Name> name, ExtraICState extra_ic_state) {
+    Code::Kind kind, MapHandleList* maps, CodeHandleList* handlers,
+    int valid_maps, Handle<Name> name, ExtraICState extra_ic_state) {
   Handle<Code> handler = handlers->at(0);
-  Code::StubType type = valid_types == 1 ? handler->type() : Code::NORMAL;
+  Code::StubType type = valid_maps == 1 ? handler->type() : Code::NORMAL;
   DCHECK(kind == Code::LOAD_IC || kind == Code::STORE_IC);
   PropertyICCompiler ic_compiler(name->GetIsolate(), kind, extra_ic_state);
-  return ic_compiler.CompilePolymorphic(types, handlers, name, type, PROPERTY);
+  return ic_compiler.CompilePolymorphic(maps, handlers, name, type, PROPERTY);
 }
 
 

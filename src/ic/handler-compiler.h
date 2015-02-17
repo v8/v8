@@ -21,11 +21,10 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            CacheHolderFlag cache_holder, Code::StubType type);
 
  protected:
-  PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind,
-                          Handle<HeapType> type, Handle<JSObject> holder,
-                          CacheHolderFlag cache_holder)
+  PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
+                          Handle<JSObject> holder, CacheHolderFlag cache_holder)
       : PropertyAccessCompiler(isolate, kind, cache_holder),
-        type_(type),
+        map_(map),
         holder_(holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
@@ -99,23 +98,23 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
   Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
-  void set_type_for_object(Handle<Object> object);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
-  Handle<HeapType> type() const { return type_; }
+  Handle<Map> map() const { return map_; }
+  void set_map(Handle<Map> map) { map_ = map; }
   Handle<JSObject> holder() const { return holder_; }
 
  private:
-  Handle<HeapType> type_;
+  Handle<Map> map_;
   Handle<JSObject> holder_;
 };
 
 
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedLoadHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+  NamedLoadHandlerCompiler(Isolate* isolate, Handle<Map> map,
                            Handle<JSObject> holder,
                            CacheHolderFlag cache_holder)
-      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, type, holder,
+      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, map, holder,
                                 cache_holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
@@ -144,16 +143,16 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   // Static interface
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
-                                             Handle<HeapType> type);
+                                             Handle<Map> map);
 
-  static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<HeapType> type,
+  static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
                                     Register receiver, Register holder,
                                     int accessor_index, int expected_arguments,
                                     Register scratch);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
-    GenerateLoadViaGetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
-                          -1, no_reg);
+    GenerateLoadViaGetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
+                          no_reg);
   }
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
@@ -213,9 +212,9 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+  explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, Code::STORE_IC, type, holder,
+      : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
                                 kCacheOnReceiver) {}
 
   virtual ~NamedStoreHandlerCompiler() {}
@@ -233,14 +232,14 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                      int expected_arguments);
   Handle<Code> CompileStoreInterceptor(Handle<Name> name);
 
-  static void GenerateStoreViaSetter(MacroAssembler* masm,
-                                     Handle<HeapType> type, Register receiver,
-                                     Register holder, int accessor_index,
-                                     int expected_arguments, Register scratch);
+  static void GenerateStoreViaSetter(MacroAssembler* masm, Handle<Map> map,
+                                     Register receiver, Register holder,
+                                     int accessor_index, int expected_arguments,
+                                     Register scratch);
 
   static void GenerateStoreViaSetterForDeopt(MacroAssembler* masm) {
-    GenerateStoreViaSetter(masm, Handle<HeapType>::null(), no_reg, no_reg, -1,
-                           -1, no_reg);
+    GenerateStoreViaSetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
+                           no_reg);
   }
 
   static void GenerateSlow(MacroAssembler* masm);
@@ -284,8 +283,8 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
  public:
   explicit ElementHandlerCompiler(Isolate* isolate)
       : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
-                                Handle<HeapType>::null(),
-                                Handle<JSObject>::null(), kCacheOnReceiver) {}
+                                Handle<Map>::null(), Handle<JSObject>::null(),
+                                kCacheOnReceiver) {}
 
   virtual ~ElementHandlerCompiler() {}
 

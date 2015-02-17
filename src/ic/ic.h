@@ -92,14 +92,14 @@ class IC {
   bool IsCallStub() const { return target()->is_call_stub(); }
 #endif
 
-  template <class TypeClass>
-  static JSFunction* GetRootConstructor(TypeClass* type,
-                                        Context* native_context);
-  static inline Handle<Map> GetHandlerCacheHolder(HeapType* type,
+  static inline JSFunction* GetRootConstructor(Map* receiver_map,
+                                               Context* native_context);
+  static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
                                                   Isolate* isolate,
                                                   CacheHolderFlag* flag);
-  static inline Handle<Map> GetICCacheHolder(HeapType* type, Isolate* isolate,
+  static inline Handle<Map> GetICCacheHolder(Handle<Map> receiver_map,
+                                             Isolate* isolate,
                                              CacheHolderFlag* flag);
 
   static bool IsCleared(Code* code) {
@@ -111,19 +111,6 @@ class IC {
     InlineCacheState state = nexus->StateFromFeedback();
     return state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
-
-  // Utility functions to convert maps to types and back. There are two special
-  // cases:
-  // - The heap_number_map is used as a marker which includes heap numbers as
-  //   well as smis.
-  // - The oddball map is only used for booleans.
-  static Handle<Map> TypeToMap(HeapType* type, Isolate* isolate);
-  template <class T>
-  static typename T::TypeHandle MapToType(Handle<Map> map,
-                                          typename T::Region* region);
-
-  static Handle<HeapType> CurrentTypeOf(Handle<Object> object,
-                                        Isolate* isolate);
 
   static bool ICUseVector(Code::Kind kind) {
     return (FLAG_vector_ics &&
@@ -163,10 +150,10 @@ class IC {
   // Configure for most states.
   void ConfigureVectorState(IC::State new_state);
   // Configure the vector for MONOMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, Handle<HeapType> type,
+  void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Code> handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, TypeHandleList* types,
+  void ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
                             CodeHandleList* handlers);
 
   char TransitionMarkFromState(IC::State state);
@@ -204,7 +191,7 @@ class IC {
 
   void UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code);
-  void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
+  void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
@@ -227,22 +214,19 @@ class IC {
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
   void set_extra_ic_state(ExtraICState state) { extra_ic_state_ = state; }
 
-  Handle<HeapType> receiver_type() { return receiver_type_; }
-  void update_receiver_type(Handle<Object> receiver) {
-    receiver_type_ = CurrentTypeOf(receiver, isolate_);
+  Handle<Map> receiver_map() { return receiver_map_; }
+  void update_receiver_map(Handle<Object> receiver) {
+    if (receiver->IsSmi()) {
+      receiver_map_ = isolate_->factory()->heap_number_map();
+    } else {
+      receiver_map_ = handle(HeapObject::cast(*receiver)->map());
+    }
   }
 
   void TargetMaps(MapHandleList* list) {
     FindTargetMaps();
     for (int i = 0; i < target_maps_.length(); i++) {
       list->Add(target_maps_.at(i));
-    }
-  }
-
-  void TargetTypes(TypeHandleList* list) {
-    FindTargetMaps();
-    for (int i = 0; i < target_maps_.length(); i++) {
-      list->Add(MapToType<HeapType>(target_maps_.at(i), isolate_));
     }
   }
 
@@ -309,7 +293,7 @@ class IC {
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
   Code::Kind kind_;
-  Handle<HeapType> receiver_type_;
+  Handle<Map> receiver_map_;
   MaybeHandle<Code> maybe_handler_;
 
   ExtraICState extra_ic_state_;

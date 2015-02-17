@@ -262,7 +262,7 @@ class FeedbackNexus {
   }
 
   Handle<FixedArray> EnsureArrayOfSize(int length);
-  void InstallHandlers(int start_index, TypeHandleList* types,
+  void InstallHandlers(int start_index, MapHandleList* maps,
                        CodeHandleList* handlers);
   int ExtractMaps(int start_index, MapHandleList* maps) const;
   MaybeHandle<Code> FindHandlerForMap(int start_index, Handle<Map> map) const;
@@ -329,9 +329,9 @@ class LoadICNexus : public FeedbackNexus {
 
   void ConfigureMegamorphic();
   void ConfigurePremonomorphic();
-  void ConfigureMonomorphic(Handle<HeapType> type, Handle<Code> handler);
+  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
 
-  void ConfigurePolymorphic(TypeHandleList* types, CodeHandleList* handlers);
+  void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
 
   InlineCacheState StateFromFeedback() const OVERRIDE;
   int ExtractMaps(MapHandleList* maps) const OVERRIDE;
@@ -357,10 +357,10 @@ class KeyedLoadICNexus : public FeedbackNexus {
   void ConfigureMegamorphic();
   void ConfigurePremonomorphic();
   // name can be a null handle for element loads.
-  void ConfigureMonomorphic(Handle<Name> name, Handle<HeapType> type,
+  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             Handle<Code> handler);
   // name can be null.
-  void ConfigurePolymorphic(Handle<Name> name, TypeHandleList* types,
+  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             CodeHandleList* handlers);
 
   InlineCacheState StateFromFeedback() const OVERRIDE;

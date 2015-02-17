@@ -331,11 +331,10 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
 }
 
 
-bool AccessorInfo::IsCompatibleReceiverType(Isolate* isolate,
-                                            Handle<AccessorInfo> info,
-                                            Handle<HeapType> type) {
+bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
+                                           Handle<AccessorInfo> info,
+                                           Handle<Map> map) {
   if (!info->HasExpectedReceiverType()) return true;
-  Handle<Map> map = IC::TypeToMap(*type, isolate);
   if (!map->IsJSObjectMap()) return false;
   return FunctionTemplateInfo::cast(info->expected_receiver_type())
       ->IsTemplateFor(*map);

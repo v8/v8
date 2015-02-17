@@ -207,14 +207,13 @@ Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
 }
 
 
-void FeedbackNexus::InstallHandlers(int start_index, TypeHandleList* types,
+void FeedbackNexus::InstallHandlers(int start_index, MapHandleList* maps,
                                     CodeHandleList* handlers) {
   Isolate* isolate = GetIsolate();
   Handle<FixedArray> array = handle(FixedArray::cast(GetFeedback()), isolate);
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<HeapType> type = types->at(current);
-    Handle<Map> map = IC::TypeToMap(*type, isolate);
+    Handle<Map> map = maps->at(current);
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
     array->set(start_index + (current * 2), *cell);
     array->set(start_index + (current * 2 + 1), *handlers->at(current));
@@ -333,10 +332,9 @@ void KeyedLoadICNexus::ConfigurePremonomorphic() {
 }
 
 
-void LoadICNexus::ConfigureMonomorphic(Handle<HeapType> type,
+void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                        Handle<Code> handler) {
   Handle<FixedArray> array = EnsureArrayOfSize(2);
-  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   array->set(0, *cell);
   array->set(1, *handler);
@@ -344,10 +342,9 @@ void LoadICNexus::ConfigureMonomorphic(Handle<HeapType> type,
 
 
 void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
-                                            Handle<HeapType> type,
+                                            Handle<Map> receiver_map,
                                             Handle<Code> handler) {
   Handle<FixedArray> array = EnsureArrayOfSize(3);
-  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
   if (name.is_null()) {
     array->set(0, Smi::FromInt(0));
   } else {
@@ -359,25 +356,25 @@ void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
 }
 
 
-void LoadICNexus::ConfigurePolymorphic(TypeHandleList* types,
+void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
                                        CodeHandleList* handlers) {
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   EnsureArrayOfSize(receiver_count * 2);
-  InstallHandlers(0, types, handlers);
+  InstallHandlers(0, maps, handlers);
 }
 
 
 void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
-                                            TypeHandleList* types,
+                                            MapHandleList* maps,
                                             CodeHandleList* handlers) {
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   Handle<FixedArray> array = EnsureArrayOfSize(1 + receiver_count * 2);
   if (name.is_null()) {
     array->set(0, Smi::FromInt(0));
   } else {
     array->set(0, *name);
   }
-  InstallHandlers(1, types, handlers);
+  InstallHandlers(1, maps, handlers);
 }
 
 
