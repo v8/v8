@@ -5970,7 +5970,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
   if (!map_->IsJSObjectMap()) return true;
-  map_->LookupDescriptor(NULL, *name_, &lookup_);
+  map_->LookupDescriptor(*name_, &lookup_);
   return LoadResult(map_);
 }
 
@@ -6062,7 +6062,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
       lookup_.NotFound();
       return false;
     }
-    map->LookupDescriptor(*holder_, *name_, &lookup_);
+    map->LookupDescriptor(*name_, &lookup_);
     if (IsFound()) return LoadResult(map);
   }
   lookup_.NotFound();
@@ -6083,7 +6083,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (IsLoad()) return true;
 
   if (IsAccessorConstant()) return true;
-  map_->LookupTransition(NULL, *name_, NONE, &lookup_);
+  map_->LookupTransition(*name_, NONE, &lookup_);
   if (lookup_.IsTransitionToData() && map_->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();

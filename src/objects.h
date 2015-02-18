@@ -5995,15 +5995,11 @@ class Map: public HeapObject {
     cache->set(kProtoTransitionNumberOfEntriesOffset, Smi::FromInt(value));
   }
 
-  // Lookup in the map's instance descriptors and fill out the result
-  // with the given holder if the name is found. The holder may be
-  // NULL when this function is used from the compiler.
-  inline void LookupDescriptor(JSObject* holder,
-                               Name* name,
-                               LookupResult* result);
+  // Lookup in the map's instance descriptors and fill out the result if the
+  // name is found.
+  inline void LookupDescriptor(Name* name, LookupResult* result);
 
-  inline void LookupTransition(JSObject* holder, Name* name,
-                               PropertyAttributes attributes,
+  inline void LookupTransition(Name* name, PropertyAttributes attributes,
                                LookupResult* result);
 
   inline PropertyDetails GetLastDescriptorDetails();

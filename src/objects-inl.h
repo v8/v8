@@ -3026,22 +3026,19 @@ PropertyDetails Map::GetLastDescriptorDetails() {
 }
 
 
-void Map::LookupDescriptor(JSObject* holder,
-                           Name* name,
-                           LookupResult* result) {
+void Map::LookupDescriptor(Name* name, LookupResult* result) {
   DescriptorArray* descriptors = this->instance_descriptors();
   int number = descriptors->SearchWithCache(name, this);
   if (number == DescriptorArray::kNotFound) return result->NotFound();
-  result->DescriptorResult(holder, descriptors->GetDetails(number), number);
+  result->DescriptorResult(descriptors->GetDetails(number), number);
 }
 
 
-void Map::LookupTransition(JSObject* holder, Name* name,
-                           PropertyAttributes attributes,
+void Map::LookupTransition(Name* name, PropertyAttributes attributes,
                            LookupResult* result) {
   int transition_index = this->SearchTransition(kData, name, attributes);
   if (transition_index == TransitionArray::kNotFound) return result->NotFound();
-  result->TransitionResult(holder, this->GetTransition(transition_index));
+  result->TransitionResult(this->GetTransition(transition_index));
 }
 
 

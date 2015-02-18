@@ -110,7 +110,6 @@ class LookupResult FINAL BASE_EMBEDDED {
       : isolate_(isolate),
         next_(isolate->top_lookup_result()),
         lookup_type_(NOT_FOUND),
-        holder_(NULL),
         transition_(NULL),
         details_(NONE, DATA, Representation::None()) {
     isolate->set_top_lookup_result(this);
@@ -123,26 +122,23 @@ class LookupResult FINAL BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
-  void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
+  void DescriptorResult(PropertyDetails details, int number) {
     lookup_type_ = DESCRIPTOR_TYPE;
-    holder_ = holder;
     transition_ = NULL;
     details_ = details;
     number_ = number;
   }
 
-  void TransitionResult(JSObject* holder, Map* target) {
+  void TransitionResult(Map* target) {
     lookup_type_ = TRANSITION_TYPE;
     number_ = target->LastAdded();
     details_ = target->instance_descriptors()->GetDetails(number_);
-    holder_ = holder;
     transition_ = target;
   }
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
     details_ = PropertyDetails(NONE, DATA, 0);
-    holder_ = NULL;
     transition_ = NULL;
   }
 
@@ -232,7 +228,6 @@ class LookupResult FINAL BASE_EMBEDDED {
   // Where did we find the result;
   enum { NOT_FOUND, DESCRIPTOR_TYPE, TRANSITION_TYPE } lookup_type_;
 
-  JSReceiver* holder_;
   Map* transition_;
   int number_;
   PropertyDetails details_;

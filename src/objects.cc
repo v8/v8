@@ -13570,7 +13570,7 @@ bool JSArray::IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   LookupResult lookup(isolate);
   Handle<Name> length_string = isolate->factory()->length_string();
-  jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
+  jsarray_map->LookupDescriptor(*length_string, &lookup);
   return lookup.IsReadOnly();
 }
 
