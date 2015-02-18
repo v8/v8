@@ -313,9 +313,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
-  // Head of the list of live LookupResults.
-  LookupResult* top_lookup_result_;
-
  private:
   void InitializeInternal();
 
@@ -1007,8 +1004,6 @@ class Isolate {
     DCHECK(slot < Internals::kNumIsolateDataSlots);
     return embedder_data_[slot];
   }
-
-  THREAD_LOCAL_TOP_ACCESSOR(LookupResult*, top_lookup_result)
 
   bool serializer_enabled() const { return serializer_enabled_; }
 

@@ -5970,7 +5970,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
   if (!map_->IsJSObjectMap()) return true;
-  map_->LookupDescriptor(*name_, &lookup_);
+  lookup_.LookupDescriptor(*map_, *name_);
   return LoadResult(map_);
 }
 
@@ -6062,7 +6062,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
       lookup_.NotFound();
       return false;
     }
-    map->LookupDescriptor(*name_, &lookup_);
+    lookup_.LookupDescriptor(*map, *name_);
     if (IsFound()) return LoadResult(map);
   }
   lookup_.NotFound();
@@ -6083,7 +6083,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (IsLoad()) return true;
 
   if (IsAccessorConstant()) return true;
-  map_->LookupTransition(*name_, NONE, &lookup_);
+  lookup_.LookupTransition(*map_, *name_, NONE);
   if (lookup_.IsTransitionToData() && map_->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();
@@ -8171,13 +8171,25 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
 
 
 // static
+bool HOptimizedGraphBuilder::IsReadOnlyLengthDescriptor(
+    Handle<Map> jsarray_map) {
+  DCHECK(!jsarray_map->is_dictionary_map());
+  LookupResult lookup;
+  Isolate* isolate = jsarray_map->GetIsolate();
+  Handle<Name> length_string = isolate->factory()->length_string();
+  lookup.LookupDescriptor(*jsarray_map, *length_string);
+  return lookup.IsReadOnly();
+}
+
+
+// static
 bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
     Handle<Map> receiver_map) {
   return !receiver_map.is_null() &&
          receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() &&
-         !JSArray::IsReadOnlyLengthDescriptor(receiver_map) &&
+         !IsReadOnlyLengthDescriptor(receiver_map) &&
          !receiver_map->is_observed() && receiver_map->is_extensible();
 }
 

@@ -3026,22 +3026,6 @@ PropertyDetails Map::GetLastDescriptorDetails() {
 }
 
 
-void Map::LookupDescriptor(Name* name, LookupResult* result) {
-  DescriptorArray* descriptors = this->instance_descriptors();
-  int number = descriptors->SearchWithCache(name, this);
-  if (number == DescriptorArray::kNotFound) return result->NotFound();
-  result->DescriptorResult(descriptors->GetDetails(number), number);
-}
-
-
-void Map::LookupTransition(Name* name, PropertyAttributes attributes,
-                           LookupResult* result) {
-  int transition_index = this->SearchTransition(kData, name, attributes);
-  if (transition_index == TransitionArray::kNotFound) return result->NotFound();
-  result->TransitionResult(this->GetTransition(transition_index));
-}
-
-
 FixedArrayBase* Map::GetInitialElements() {
   if (has_fast_smi_or_object_elements() ||
       has_fast_double_elements()) {

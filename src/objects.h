@@ -5995,13 +5995,6 @@ class Map: public HeapObject {
     cache->set(kProtoTransitionNumberOfEntriesOffset, Smi::FromInt(value));
   }
 
-  // Lookup in the map's instance descriptors and fill out the result if the
-  // name is found.
-  inline void LookupDescriptor(Name* name, LookupResult* result);
-
-  inline void LookupTransition(Name* name, PropertyAttributes attributes,
-                               LookupResult* result);
-
   inline PropertyDetails GetLastDescriptorDetails();
 
   // The size of transition arrays are limited so they do not end up in large
@@ -10310,9 +10303,6 @@ class JSArray: public JSObject {
   static bool HasReadOnlyLength(Handle<JSArray> array);
   static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
   static MaybeHandle<Object> ReadOnlyLengthError(Handle<JSArray> array);
-
-  // TODO(adamk): Remove this method in favor of HasReadOnlyLength().
-  static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
