@@ -41,37 +41,38 @@ class SourcePosition {
  public:
   SourcePosition(const SourcePosition& other) : value_(other.value_) {}
 
-  static SourcePosition Unknown() {
-    return SourcePosition(RelocInfo::kNoPosition);
-  }
+  static SourcePosition Unknown() { return SourcePosition(kNoPosition); }
 
-  bool IsUnknown() const { return value_ == RelocInfo::kNoPosition; }
+  bool IsUnknown() const { return value_ == kNoPosition; }
 
-  int position() const { return PositionField::decode(value_); }
-  void set_position(int position) {
+  uint32_t position() const { return PositionField::decode(value_); }
+  void set_position(uint32_t position) {
     if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<int>(PositionField::update(value_, position));
+      value_ = static_cast<uint32_t>(PositionField::update(value_, position));
     } else {
       value_ = position;
     }
   }
 
-  int inlining_id() const { return InliningIdField::decode(value_); }
-  void set_inlining_id(int inlining_id) {
+  uint32_t inlining_id() const { return InliningIdField::decode(value_); }
+  void set_inlining_id(uint32_t inlining_id) {
     if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<int>(InliningIdField::update(value_, inlining_id));
+      value_ =
+          static_cast<uint32_t>(InliningIdField::update(value_, inlining_id));
     }
   }
 
-  int raw() const { return value_; }
+  uint32_t raw() const { return value_; }
 
  private:
-  typedef BitField<int, 0, 9> InliningIdField;
+  static const uint32_t kNoPosition =
+      static_cast<uint32_t>(RelocInfo::kNoPosition);
+  typedef BitField<uint32_t, 0, 9> InliningIdField;
 
   // Offset from the start of the inlined function.
-  typedef BitField<int, 9, 23> PositionField;
+  typedef BitField<uint32_t, 9, 23> PositionField;
 
-  explicit SourcePosition(int value) : value_(value) {}
+  explicit SourcePosition(uint32_t value) : value_(value) {}
 
   friend class HPositionInfo;
   friend class LCodeGenBase;
@@ -79,7 +80,7 @@ class SourcePosition {
   // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
   // and PositionField.
   // Otherwise contains absolute offset from the script start.
-  int value_;
+  uint32_t value_;
 };
 
 
