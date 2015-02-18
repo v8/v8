@@ -2462,20 +2462,20 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor(map(), name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor(map_, name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
       int offset;
-      if (Accessors::IsJSObjectFieldAccessor(map(), name_, &offset)) {
+      if (Accessors::IsJSObjectFieldAccessor(map_, name_, &offset)) {
         if (IsStringType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
         } else if (IsArrayType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
-          *access = HObjectAccess::ForArrayLength(map()->elements_kind());
+          *access = HObjectAccess::ForArrayLength(map_->elements_kind());
         } else {
-          *access = HObjectAccess::ForMapAndOffset(map(), offset);
+          *access = HObjectAccess::ForMapAndOffset(map_, offset);
         }
         return true;
       }
