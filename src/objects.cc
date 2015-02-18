@@ -2815,8 +2815,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
             Handle<HeapType> old_field_type =
                 GetFieldType(isolate, old_descriptors, i,
                              old_details.location(), next_representation);
-            old_field_type =
-                GeneralizeFieldType(old_field_type, next_field_type, isolate);
+            next_field_type =
+                GeneralizeFieldType(next_field_type, old_field_type, isolate);
           }
         } else {
           Handle<HeapType> old_field_type =
