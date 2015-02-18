@@ -90,7 +90,8 @@ if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
    CLANG_PLUGINS = DIR
 end
 
-local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
+local function MakeClangCommandLine(
+      plugin, plugin_args, triple, arch_define, arch_options)
    if plugin_args then
      for i = 1, #plugin_args do
         plugin_args[i] = "-Xclang -plugin-arg-" .. plugin
@@ -109,13 +110,15 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
       .. " -I./"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
+      .. " " .. arch_options
 end
 
 function InvokeClangPluginForEachFile(filenames, cfg, func)
    local cmd_line = MakeClangCommandLine(cfg.plugin,
                                          cfg.plugin_args,
                                          cfg.triple,
-                                         cfg.arch_define)
+                                         cfg.arch_define,
+                                         cfg.arch_options)
    for _, filename in ipairs(filenames) do
       log("-- %s", filename)
       local action = cmd_line .. " " .. filename .. " 2>&1"
@@ -201,13 +204,17 @@ end
 
 local ARCHITECTURES = {
    ia32 = config { triple = "i586-unknown-linux",
-                   arch_define = "V8_TARGET_ARCH_IA32" },
+                   arch_define = "V8_TARGET_ARCH_IA32",
+                   arch_options = "-m32" },
    arm = config { triple = "i586-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_ARM" },
+                  arch_define = "V8_TARGET_ARCH_ARM",
+                  arch_options = "-m32" },
    x64 = config { triple = "x86_64-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_X64" },
+                  arch_define = "V8_TARGET_ARCH_X64",
+                  arch_options = "" },
    arm64 = config { triple = "x86_64-unknown-linux",
-                    arch_define = "V8_TARGET_ARCH_ARM64" },
+                    arch_define = "V8_TARGET_ARCH_ARM64",
+                    arch_options = "" },
 }
 
 -------------------------------------------------------------------------------
