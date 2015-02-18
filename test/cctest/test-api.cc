@@ -12311,14 +12311,14 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_incremental_marking = false;
   if (i::FLAG_never_compact) return;
   const char* script =
-    "function bar() {"
-    "  var sum = 0;"
-    "  for (i = 0; i < 100; ++i)"
-    "    sum = foo(i);"
-    "  return sum;"
-    "}"
-    "function foo(i) { return i * i; };"
-    "bar();";
+      "function bar() {"
+      "  var sum = 0;"
+      "  for (i = 0; i < 10; ++i)"
+      "    sum = foo(i);"
+      "  return sum;"
+      "}"
+      "function foo(i) { return i; };"
+      "bar();";
 
   // Run this test in a new isolate to make sure we don't
   // have remnants of state from other code.
