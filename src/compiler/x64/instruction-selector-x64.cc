@@ -366,7 +366,15 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBinop(this, node, kX64And32);
+  X64OperandGenerator g(this);
+  Uint32BinopMatcher m(node);
+  if (m.right().Is(0xff)) {
+    Emit(kX64Movzxbl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xffff)) {
+    Emit(kX64Movzxwl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else {
+    VisitBinop(this, node, kX64And32);
+  }
 }
 
 

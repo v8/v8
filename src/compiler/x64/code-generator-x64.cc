@@ -248,6 +248,18 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
   } while (0)
 
 
+#define ASSEMBLE_MOVX(asm_instr)                            \
+  do {                                                      \
+    if (instr->addressing_mode() != kMode_None) {           \
+      __ asm_instr(i.OutputRegister(), i.MemoryOperand());  \
+    } else if (instr->InputAt(0)->IsRegister()) {           \
+      __ asm_instr(i.OutputRegister(), i.InputRegister(0)); \
+    } else {                                                \
+      __ asm_instr(i.OutputRegister(), i.InputOperand(0));  \
+    }                                                       \
+  } while (0)
+
+
 #define ASSEMBLE_DOUBLE_BINOP(asm_instr)                                \
   do {                                                                  \
     if (instr->InputAt(1)->IsDoubleRegister()) {                        \
@@ -801,17 +813,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
       break;
     case kX64Movsxbl:
-      if (instr->addressing_mode() != kMode_None) {
-        __ movsxbl(i.OutputRegister(), i.MemoryOperand());
-      } else if (instr->InputAt(0)->IsRegister()) {
-        __ movsxbl(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxbl(i.OutputRegister(), i.InputOperand(0));
-      }
+      ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
-      __ movzxbl(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzxbl);
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movb: {
       int index = 0;
@@ -824,17 +831,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX64Movsxwl:
-      if (instr->addressing_mode() != kMode_None) {
-        __ movsxwl(i.OutputRegister(), i.MemoryOperand());
-      } else if (instr->InputAt(0)->IsRegister()) {
-        __ movsxwl(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxwl(i.OutputRegister(), i.InputOperand(0));
-      }
+      ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
-      __ movzxwl(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
@@ -869,14 +870,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         }
       }
       break;
-    case kX64Movsxlq: {
-      if (instr->InputAt(0)->IsRegister()) {
-        __ movsxlq(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxlq(i.OutputRegister(), i.InputOperand(0));
-      }
+    case kX64Movsxlq:
+      ASSEMBLE_MOVX(movsxlq);
       break;
-    }
     case kX64Movq:
       if (instr->HasOutput()) {
         __ movq(i.OutputRegister(), i.MemoryOperand());
