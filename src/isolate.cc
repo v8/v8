@@ -2594,9 +2594,8 @@ void Isolate::CheckDetachedContextsAfterGC() {
       detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
       detached_contexts->set(new_length + 1, cell);
       new_length += 2;
-    } else {
-      counters()->detached_context_age_in_gc()->AddSample(mark_sweeps);
     }
+    counters()->detached_context_age_in_gc()->AddSample(mark_sweeps + 1);
   }
   if (FLAG_trace_detached_contexts) {
     PrintF("%d detached contexts are collected out of %d\n",
