@@ -829,11 +829,6 @@ DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
 DEFINE_BOOL(print_turbo_replay, false,
             "print C++ code to recreate TurboFan graphs")
 
-// interface.cc
-DEFINE_BOOL(print_interfaces, false, "print interfaces")
-DEFINE_BOOL(print_interface_details, false, "print interface inference details")
-DEFINE_INT(print_interface_depth, 5, "depth for printing interfaces")
-
 // objects.cc
 DEFINE_BOOL(trace_normalization, false,
             "prints when objects are turned into dictionaries.")

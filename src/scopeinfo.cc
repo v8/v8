@@ -552,13 +552,14 @@ void ScopeInfo::Print() {
 //---------------------------------------------------------------------------
 // ModuleInfo.
 
-Handle<ModuleInfo> ModuleInfo::Create(
-    Isolate* isolate, Interface* interface, Scope* scope) {
-  Handle<ModuleInfo> info = Allocate(isolate, interface->Length());
-  info->set_host_index(interface->Index());
+Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
+                                      ModuleDescriptor* descriptor,
+                                      Scope* scope) {
+  Handle<ModuleInfo> info = Allocate(isolate, descriptor->Length());
+  info->set_host_index(descriptor->Index());
   int i = 0;
-  for (Interface::Iterator it = interface->iterator();
-       !it.done(); it.Advance(), ++i) {
+  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
+       it.Advance(), ++i) {
     Variable* var = scope->LookupLocal(it.name());
     info->set_name(i, *(it.name()->string()));
     info->set_mode(i, var->mode());

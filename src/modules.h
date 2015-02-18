@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTERFACE_H_
-#define V8_INTERFACE_H_
+#ifndef V8_MODULES_H_
+#define V8_MODULES_H_
 
 #include "src/zone.h"
 
@@ -14,20 +14,19 @@ namespace internal {
 class AstRawString;
 
 
-// This class represents the interface of a module: a set of exported names.
-//
-// TODO(adamk): Rename this to ModuleRecord, ModuleDescriptor, or similar.
-class Interface : public ZoneObject {
+class ModuleDescriptor : public ZoneObject {
  public:
   // ---------------------------------------------------------------------------
   // Factory methods.
 
-  static Interface* New(Zone* zone) { return new (zone) Interface(); }
+  static ModuleDescriptor* New(Zone* zone) {
+    return new (zone) ModuleDescriptor();
+  }
 
   // ---------------------------------------------------------------------------
   // Mutators.
 
-  // Add a name to the list of exports. If it already exists, or this interface
+  // Add a name to the list of exports. If it already exists, or this descriptor
   // is frozen, that's an error.
   void Add(const AstRawString* name, Zone* zone, bool* ok);
 
@@ -62,8 +61,8 @@ class Interface : public ZoneObject {
   // Iterators.
 
   // Use like:
-  //   for (auto it = interface->iterator(); !it.done(); it.Advance()) {
-  //     ... it.name() ... it.interface() ...
+  //   for (auto it = descriptor->iterator(); !it.done(); it.Advance()) {
+  //     ... it.name() ...
   //   }
   class Iterator {
    public:
@@ -75,7 +74,7 @@ class Interface : public ZoneObject {
     void Advance() { entry_ = exports_->Next(entry_); }
 
    private:
-    friend class Interface;
+    friend class ModuleDescriptor;
     explicit Iterator(const ZoneHashMap* exports)
         : exports_(exports), entry_(exports ? exports->Start() : NULL) {}
 
@@ -86,26 +85,15 @@ class Interface : public ZoneObject {
   Iterator iterator() const { return Iterator(this->exports_); }
 
   // ---------------------------------------------------------------------------
-  // Debugging.
-#ifdef DEBUG
-  void Print(int n = 0);  // n = indentation; n < 0 => don't print recursively
-#endif
-
-  // ---------------------------------------------------------------------------
   // Implementation.
  private:
   bool frozen_;
   ZoneHashMap* exports_;   // Module exports and their types (allocated lazily)
   int index_;
 
-  Interface() : frozen_(false), exports_(NULL), index_(-1) {
-#ifdef DEBUG
-    if (FLAG_print_interface_details)
-      PrintF("# Creating %p\n", static_cast<void*>(this));
-#endif
-  }
+  ModuleDescriptor() : frozen_(false), exports_(NULL), index_(-1) {}
 };
 
 } }  // namespace v8::internal
 
-#endif  // V8_INTERFACE_H_
+#endif  // V8_MODULES_H_

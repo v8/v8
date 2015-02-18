@@ -1278,9 +1278,9 @@ Statement* Parser::ParseModule(bool* ok) {
   body->set_scope(scope);
 
   // Check that all exports are bound.
-  Interface* interface = scope->interface();
-  for (Interface::Iterator it = interface->iterator();
-       !it.done(); it.Advance()) {
+  ModuleDescriptor* descriptor = scope->module();
+  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
+       it.Advance()) {
     if (scope->LookupLocal(it.name()) == NULL) {
       ParserTraits::ReportMessage("module_export_undefined", it.name());
       *ok = false;
@@ -1288,7 +1288,7 @@ Statement* Parser::ParseModule(bool* ok) {
     }
   }
 
-  scope->interface()->Freeze();
+  scope->module()->Freeze();
   return body;
 }
 
@@ -1500,7 +1500,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
     }
   }
 
-  // TODO(ES6): Add default export to scope_->interface()
+  // TODO(ES6): Add default export to scope_->module()
 
   return result;
 }
@@ -1605,16 +1605,12 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   // TODO(ES6): Handle 'export from' once imports are properly implemented.
   // For now we just drop such exports on the floor.
   if (!is_export_from) {
-    // Extract declared names into export declarations and interface.
-    Interface* interface = scope_->interface();
+    // Extract declared names into export declarations and module descriptor.
+    ModuleDescriptor* descriptor = scope_->module();
     for (int i = 0; i < names.length(); ++i) {
-#ifdef DEBUG
-      if (FLAG_print_interface_details)
-        PrintF("# Export %.*s ", names[i]->length(), names[i]->raw_data());
-#endif
       // TODO(adamk): Make early errors here provide the right error message
       // (duplicate exported names).
-      interface->Add(names[i], zone(), CHECK_OK);
+      descriptor->Add(names[i], zone(), CHECK_OK);
       // TODO(rossberg): Rethink whether we actually need to store export
       // declarations (for compilation?).
       // ExportDeclaration* declaration =

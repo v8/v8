@@ -388,8 +388,8 @@ class Scope: public ZoneObject {
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
 
-  // The interface as inferred so far; only for module scopes.
-  Interface* interface() const { return interface_; }
+  // The ModuleDescriptor for this scope; only for module scopes.
+  ModuleDescriptor* module() const { return module_descriptor_; }
 
   // ---------------------------------------------------------------------------
   // Variable allocation.
@@ -518,8 +518,8 @@ class Scope: public ZoneObject {
   Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Interface; module scopes only.
-  Interface* interface_;
+  // Module descriptor; module scopes only.
+  ModuleDescriptor* module_descriptor_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;

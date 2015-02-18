@@ -11,10 +11,10 @@
 #include "src/ast-value-factory.h"
 #include "src/bailout-reason.h"
 #include "src/factory.h"
-#include "src/interface.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/list-inl.h"
+#include "src/modules.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
 #include "src/smart-pointers.h"
@@ -646,21 +646,17 @@ class ExportDeclaration FINAL : public Declaration {
 
 class Module : public AstNode {
  public:
-  Interface* interface() const { return interface_; }
+  ModuleDescriptor* descriptor() const { return descriptor_; }
   Block* body() const { return body_; }
 
  protected:
   Module(Zone* zone, int pos)
-      : AstNode(pos),
-        interface_(Interface::New(zone)),
-        body_(NULL) {}
-  Module(Zone* zone, Interface* interface, int pos, Block* body = NULL)
-      : AstNode(pos),
-        interface_(interface),
-        body_(body) {}
+      : AstNode(pos), descriptor_(ModuleDescriptor::New(zone)), body_(NULL) {}
+  Module(Zone* zone, ModuleDescriptor* descriptor, int pos, Block* body = NULL)
+      : AstNode(pos), descriptor_(descriptor), body_(body) {}
 
  private:
-  Interface* interface_;
+  ModuleDescriptor* descriptor_;
   Block* body_;
 };
 
@@ -670,8 +666,8 @@ class ModuleLiteral FINAL : public Module {
   DECLARE_NODE_TYPE(ModuleLiteral)
 
  protected:
-  ModuleLiteral(Zone* zone, Block* body, Interface* interface, int pos)
-      : Module(zone, interface, pos, body) {}
+  ModuleLiteral(Zone* zone, Block* body, ModuleDescriptor* descriptor, int pos)
+      : Module(zone, descriptor, pos, body) {}
 };
 
 
@@ -3172,8 +3168,9 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
     return new (zone_) ExportDeclaration(zone_, proxy, scope, pos);
   }
 
-  ModuleLiteral* NewModuleLiteral(Block* body, Interface* interface, int pos) {
-    return new (zone_) ModuleLiteral(zone_, body, interface, pos);
+  ModuleLiteral* NewModuleLiteral(Block* body, ModuleDescriptor* descriptor,
+                                  int pos) {
+    return new (zone_) ModuleLiteral(zone_, body, descriptor, pos);
   }
 
   ModulePath* NewModulePath(Module* origin, const AstRawString* name, int pos) {

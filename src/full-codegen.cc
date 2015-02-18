@@ -610,14 +610,13 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
       if (module != NULL) {
         Comment cmnt(masm_, "[ Link nested modules");
         Scope* scope = module->body()->scope();
-        Interface* interface = scope->interface();
-        DCHECK(interface->IsFrozen());
+        DCHECK(scope->module()->IsFrozen());
 
-        interface->Allocate(scope->module_var()->index());
+        scope->module()->Allocate(scope->module_var()->index());
 
         // Set up module context.
-        DCHECK(scope->interface()->Index() >= 0);
-        __ Push(Smi::FromInt(scope->interface()->Index()));
+        DCHECK(scope->module()->Index() >= 0);
+        __ Push(Smi::FromInt(scope->module()->Index()));
         __ Push(scope->GetScopeInfo(isolate()));
         __ CallRuntime(Runtime::kPushModuleContext, 2);
         StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -751,7 +750,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   Block* block = module->body();
   Scope* saved_scope = scope();
   scope_ = block->scope();
-  Interface* interface = scope_->interface();
+  ModuleDescriptor* descriptor = scope_->module();
 
   Comment cmnt(masm_, "[ ModuleLiteral");
   SetStatementPosition(block);
@@ -761,8 +760,8 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   int index = module_index_++;
 
   // Set up module context.
-  DCHECK(interface->Index() >= 0);
-  __ Push(Smi::FromInt(interface->Index()));
+  DCHECK(descriptor->Index() >= 0);
+  __ Push(Smi::FromInt(descriptor->Index()));
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
@@ -774,7 +773,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
 
   // Populate the module description.
   Handle<ModuleInfo> description =
-      ModuleInfo::Create(isolate(), interface, scope_);
+      ModuleInfo::Create(isolate(), descriptor, scope_);
   modules_->set(index, *description);
 
   scope_ = saved_scope;
@@ -785,26 +784,13 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
+// TODO(adamk): Delete ModulePath.
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-  // Nothing to do.
-  // The instance object is resolved statically through the module's interface.
 }
 
 
+// TODO(adamk): Delete ModuleUrl.
 void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
-  // TODO(rossberg): dummy allocation for now.
-  Scope* scope = module->body()->scope();
-  Interface* interface = scope_->interface();
-
-  DCHECK(interface->IsFrozen());
-  DCHECK(!modules_.is_null());
-  DCHECK(module_index_ < modules_->length());
-  interface->Allocate(scope->module_var()->index());
-  int index = module_index_++;
-
-  Handle<ModuleInfo> description =
-      ModuleInfo::Create(isolate(), interface, scope_);
-  modules_->set(index, *description);
 }
 
 
@@ -1095,7 +1081,7 @@ void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
 
   DCHECK(stmt->body()->scope()->is_module_scope());
 
-  __ Push(Smi::FromInt(stmt->body()->scope()->interface()->Index()));
+  __ Push(Smi::FromInt(stmt->body()->scope()->module()->Index()));
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(

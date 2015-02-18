@@ -6,7 +6,7 @@
 #define V8_SCOPEINFO_H_
 
 #include "src/allocation.h"
-#include "src/interface.h"
+#include "src/modules.h"
 #include "src/variables.h"
 
 namespace v8 {
@@ -120,8 +120,8 @@ class ModuleInfo: public FixedArray {
     return static_cast<ModuleInfo*>(FixedArray::cast(description));
   }
 
-  static Handle<ModuleInfo> Create(
-      Isolate* isolate, Interface* interface, Scope* scope);
+  static Handle<ModuleInfo> Create(Isolate* isolate,
+                                   ModuleDescriptor* descriptor, Scope* scope);
 
   // Index of module's context in host context.
   int host_index() { return Smi::cast(get(HOST_OFFSET))->value(); }

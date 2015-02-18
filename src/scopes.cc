@@ -74,8 +74,8 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      interface_(scope_type == MODULE_SCOPE ? Interface::New(zone)
-                                            : NULL),
+      module_descriptor_(
+          scope_type == MODULE_SCOPE ? ModuleDescriptor::New(zone) : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone) {
@@ -95,7 +95,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      interface_(NULL),
+      module_descriptor_(NULL),
       already_resolved_(true),
       ast_value_factory_(value_factory),
       zone_(zone) {
@@ -120,7 +120,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       params_(0, zone),
       unresolved_(0, zone),
       decls_(0, zone),
-      interface_(NULL),
+      module_descriptor_(NULL),
       already_resolved_(true),
       ast_value_factory_(value_factory),
       zone_(zone) {
@@ -271,11 +271,6 @@ bool Scope::Analyze(CompilationInfo* info) {
           ? FLAG_print_builtin_scopes
           : FLAG_print_scopes) {
     scope->Print();
-  }
-
-  if (FLAG_harmony_modules && FLAG_print_interfaces && top->is_script_scope()) {
-    PrintF("global : ");
-    top->interface()->Print();
   }
 #endif
 
@@ -1366,7 +1361,7 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
 void Scope::AllocateModulesRecursively(Scope* host_scope) {
   if (already_resolved()) return;
   if (is_module_scope()) {
-    DCHECK(interface_->IsFrozen());
+    DCHECK(module_descriptor_->IsFrozen());
     DCHECK(module_var_ == NULL);
     module_var_ =
         host_scope->NewInternal(ast_value_factory_->dot_module_string());

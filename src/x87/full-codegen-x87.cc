@@ -886,16 +886,16 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   Variable* variable = declaration->proxy()->var();
-  Interface* interface = declaration->module()->interface();
+  ModuleDescriptor* descriptor = declaration->module()->descriptor();
   DCHECK(variable->location() == Variable::CONTEXT);
-  DCHECK(interface->IsFrozen());
+  DCHECK(descriptor->IsFrozen());
 
   Comment cmnt(masm_, "[ ModuleDeclaration");
   EmitDebugCheckDeclarationContext(variable);
 
   // Load instance object.
   __ LoadContext(eax, scope_->ContextChainLength(scope_->ScriptScope()));
-  __ mov(eax, ContextOperand(eax, interface->Index()));
+  __ mov(eax, ContextOperand(eax, descriptor->Index()));
   __ mov(eax, ContextOperand(eax, Context::EXTENSION_INDEX));
 
   // Assign it.
