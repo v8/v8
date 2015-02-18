@@ -77,8 +77,6 @@ class AstGraphBuilder : public AstVisitor {
   Environment* environment_;
   AstContext* ast_context_;
 
-  bool CreateGraphBody();
-
   // List of global declarations for functions and variables.
   ZoneVector<Handle<Object>> globals_;
 
@@ -128,6 +126,8 @@ class AstGraphBuilder : public AstVisitor {
   void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
   void set_exit_control(Node* exit) { exit_control_ = exit; }
+
+  void CreateGraphBody();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {

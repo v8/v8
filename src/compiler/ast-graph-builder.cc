@@ -451,31 +451,30 @@ bool AstGraphBuilder::CreateGraph() {
   Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
   env.Bind(scope->receiver(), patched_receiver);
 
-  bool ok;
+  // Build function context only if there are context allocated variables.
   int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     // Push a new inner context scope for the function.
     Node* closure = GetFunctionClosure();
     Node* inner_context = BuildLocalFunctionContext(function_context_, closure);
     ContextScope top_context(this, scope, inner_context);
-    ok = CreateGraphBody();
+    CreateGraphBody();
   } else {
     // Simply use the outer function context in building the graph.
-    ok = CreateGraphBody();
+    CreateGraphBody();
   }
 
   // Finish the basic structure of the graph.
-  if (ok) {
-    environment()->UpdateControlDependency(exit_control());
-    graph()->SetEnd(NewNode(common()->End()));
-  }
+  graph()->SetEnd(graph()->NewNode(common()->End(), exit_control()));
 
-  return ok;
+  // Failures indicated by stack overflow.
+  return !HasStackOverflow();
 }
 
 
-bool AstGraphBuilder::CreateGraphBody() {
+void AstGraphBuilder::CreateGraphBody() {
   Scope* scope = info()->scope();
+
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
 
@@ -503,7 +502,6 @@ bool AstGraphBuilder::CreateGraphBody() {
 
   // Visit statements in the function body.
   VisitStatements(info()->function()->body());
-  if (HasStackOverflow()) return false;
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
@@ -514,8 +512,6 @@ bool AstGraphBuilder::CreateGraphBody() {
 
   // Return 'undefined' in case we can fall off the end.
   BuildReturn(jsgraph()->UndefinedConstant());
-
-  return true;
 }
 
 
