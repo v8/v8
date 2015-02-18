@@ -889,9 +889,10 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input,
-              Operand(i.InputInt32(index + 0)));
+    __ li(at, Operand(i.InputInt32(index + 0)));
+    __ beq(input, at, GetLabel(i.InputRpo(index + 1)));
   }
+  __ nop();  // Branch delay slot of the last beq.
   AssembleArchJump(i.InputRpo(1));
 }
 
@@ -902,12 +903,12 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   size_t const case_count = instr->InputCount() - 2;
   Label here;
   __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
+  __ BlockTrampolinePoolFor(case_count + 6);
   __ bal(&here);
-  __ nop();  // Branch delay slot nop.
+  __ sll(at, input, 2);  // Branch delay slot.
   __ bind(&here);
-  __ sll(at, input, 2);
   __ addu(at, at, ra);
-  __ lw(at, MemOperand(at, 5 * v8::internal::Assembler::kInstrSize));
+  __ lw(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
   __ jr(at);
   __ nop();  // Branch delay slot nop.
   for (size_t index = 0; index < case_count; ++index) {
