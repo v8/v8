@@ -364,63 +364,19 @@ class CFGBuilder : public ZoneObject {
   }
 
   void BuildBlocksForSuccessors(Node* node) {
-    size_t const successor_count = node->op()->ControlOutputCount();
-    Node** successors = zone_->NewArray<Node*>(successor_count);
-    CollectSuccessorProjections(node, successors, successor_count);
-    for (size_t index = 0; index < successor_count; ++index) {
+    size_t const successor_cnt = node->op()->ControlOutputCount();
+    Node** successors = zone_->NewArray<Node*>(successor_cnt);
+    NodeProperties::CollectControlProjections(node, successors, successor_cnt);
+    for (size_t index = 0; index < successor_cnt; ++index) {
       BuildBlockForNode(successors[index]);
     }
   }
 
-  // Collect the branch-related projections from a node, such as IfTrue,
-  // IfFalse, Case and Default.
-  void CollectSuccessorProjections(Node* node, Node** successors,
-                                   size_t successor_count) {
-#ifdef DEBUG
-    DCHECK_EQ(static_cast<int>(successor_count), node->UseCount());
-    std::memset(successors, 0, sizeof(*successors) * successor_count);
-#endif
-    size_t if_value_index = 0;
-    for (Node* const use : node->uses()) {
-      size_t index;
-      switch (use->opcode()) {
-        default:
-          UNREACHABLE();
-        // Fall through.
-        case IrOpcode::kIfTrue:
-          DCHECK_EQ(IrOpcode::kBranch, node->opcode());
-          index = 0;
-          break;
-        case IrOpcode::kIfFalse:
-          DCHECK_EQ(IrOpcode::kBranch, node->opcode());
-          index = 1;
-          break;
-        case IrOpcode::kIfValue:
-          DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
-          index = if_value_index++;
-          break;
-        case IrOpcode::kIfDefault:
-          DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
-          index = successor_count - 1;
-          break;
-      }
-      DCHECK_LT(if_value_index, successor_count);
-      DCHECK_LT(index, successor_count);
-      DCHECK_NULL(successors[index]);
-      successors[index] = use;
-    }
-#ifdef DEBUG
-    for (size_t index = 0; index < successor_count; ++index) {
-      DCHECK_NOT_NULL(successors[index]);
-    }
-#endif
-  }
-
   void CollectSuccessorBlocks(Node* node, BasicBlock** successor_blocks,
-                              size_t successor_count) {
+                              size_t successor_cnt) {
     Node** successors = reinterpret_cast<Node**>(successor_blocks);
-    CollectSuccessorProjections(node, successors, successor_count);
-    for (size_t index = 0; index < successor_count; ++index) {
+    NodeProperties::CollectControlProjections(node, successors, successor_cnt);
+    for (size_t index = 0; index < successor_cnt; ++index) {
       successor_blocks[index] = schedule_->block(successors[index]);
     }
   }

@@ -182,6 +182,50 @@ Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {
 
 
 // static
+void NodeProperties::CollectControlProjections(Node* node, Node** projections,
+                                               size_t projection_count) {
+#ifdef DEBUG
+  DCHECK_EQ(static_cast<int>(projection_count), node->UseCount());
+  std::memset(projections, 0, sizeof(*projections) * projection_count);
+#endif
+  size_t if_value_index = 0;
+  for (Node* const use : node->uses()) {
+    size_t index;
+    switch (use->opcode()) {
+      default:
+        UNREACHABLE();
+      // Fall through.
+      case IrOpcode::kIfTrue:
+        DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+        index = 0;
+        break;
+      case IrOpcode::kIfFalse:
+        DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+        index = 1;
+        break;
+      case IrOpcode::kIfValue:
+        DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
+        index = if_value_index++;
+        break;
+      case IrOpcode::kIfDefault:
+        DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
+        index = projection_count - 1;
+        break;
+    }
+    DCHECK_LT(if_value_index, projection_count);
+    DCHECK_LT(index, projection_count);
+    DCHECK_NULL(projections[index]);
+    projections[index] = use;
+  }
+#ifdef DEBUG
+  for (size_t index = 0; index < projection_count; ++index) {
+    DCHECK_NOT_NULL(projections[index]);
+  }
+#endif
+}
+
+
+// static
 bool NodeProperties::AllValueInputsAreTyped(Node* node) {
   int input_count = node->op()->ValueInputCount();
   for (int index = 0; index < input_count; ++index) {

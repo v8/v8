@@ -68,19 +68,14 @@ void ControlFlowOptimizer::VisitBranch(Node* node) {
   Node* if_false;
   Node* if_true;
   while (true) {
-    // TODO(turbofan): use NodeProperties::CollectSuccessorProjections() here
-    // once available.
-    auto it = branch->uses().begin();
-    DCHECK(it != branch->uses().end());
-    if_true = *it++;
-    DCHECK(it != branch->uses().end());
-    if_false = *it++;
-    DCHECK(it == branch->uses().end());
-    if (if_true->opcode() != IrOpcode::kIfTrue) std::swap(if_true, if_false);
+    Node* control_projections[2];
+    NodeProperties::CollectControlProjections(branch, control_projections, 2);
+    if_true = control_projections[0];
+    if_false = control_projections[1];
     DCHECK_EQ(IrOpcode::kIfTrue, if_true->opcode());
     DCHECK_EQ(IrOpcode::kIfFalse, if_false->opcode());
 
-    it = if_false->uses().begin();
+    auto it = if_false->uses().begin();
     if (it == if_false->uses().end()) break;
     Node* branch1 = *it++;
     if (branch1->opcode() != IrOpcode::kBranch) break;

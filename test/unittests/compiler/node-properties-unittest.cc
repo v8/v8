@@ -7,6 +7,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+using testing::AnyOf;
 using testing::IsNull;
 
 namespace v8 {
@@ -25,6 +26,32 @@ TEST_F(NodePropertiesTest, FindProjection) {
   EXPECT_EQ(proj1, NodeProperties::FindProjection(start, 1));
   EXPECT_THAT(NodeProperties::FindProjection(start, 2), IsNull());
   EXPECT_THAT(NodeProperties::FindProjection(start, 1234567890), IsNull());
+}
+
+
+TEST_F(NodePropertiesTest, CollectControlProjections_Branch) {
+  Node* result[2];
+  CommonOperatorBuilder common(zone());
+  Node* branch = Node::New(zone(), 1, common.Branch(), 0, nullptr, false);
+  Node* if_false = Node::New(zone(), 2, common.IfFalse(), 1, &branch, false);
+  Node* if_true = Node::New(zone(), 3, common.IfTrue(), 1, &branch, false);
+  NodeProperties::CollectControlProjections(branch, result, arraysize(result));
+  EXPECT_EQ(if_true, result[0]);
+  EXPECT_EQ(if_false, result[1]);
+}
+
+
+TEST_F(NodePropertiesTest, CollectControlProjections_Switch) {
+  Node* result[3];
+  CommonOperatorBuilder common(zone());
+  Node* sw = Node::New(zone(), 1, common.Switch(3), 0, nullptr, false);
+  Node* if_default = Node::New(zone(), 2, common.IfDefault(), 1, &sw, false);
+  Node* if_value1 = Node::New(zone(), 3, common.IfValue(1), 1, &sw, false);
+  Node* if_value2 = Node::New(zone(), 4, common.IfValue(2), 1, &sw, false);
+  NodeProperties::CollectControlProjections(sw, result, arraysize(result));
+  EXPECT_THAT(result[0], AnyOf(if_value1, if_value2));
+  EXPECT_THAT(result[1], AnyOf(if_value1, if_value2));
+  EXPECT_EQ(if_default, result[2]);
 }
 
 }  // namespace compiler

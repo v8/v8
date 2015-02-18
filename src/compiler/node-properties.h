@@ -90,6 +90,12 @@ class NodeProperties FINAL {
 
   static Node* FindProjection(Node* node, size_t projection_index);
 
+  // Collect the branch-related projections from a node, such as IfTrue,
+  // IfFalse, IfValue and IfDefault.
+  //  - Branch: [ IfTrue, IfFalse ]
+  //  - Switch: [ IfValue, ..., IfDefault ]
+  static void CollectControlProjections(Node* node, Node** proj, size_t count);
+
 
   // ---------------------------------------------------------------------------
   // Type Bounds.
