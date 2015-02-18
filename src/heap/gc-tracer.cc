@@ -31,7 +31,7 @@ GCTracer::ContextDisposalEvent::ContextDisposalEvent(double time) {
 }
 
 
-GCTracer::PromotionEvent::PromotionEvent(double promotion_ratio) {
+GCTracer::SurvivalEvent::SurvivalEvent(double promotion_ratio) {
   promotion_ratio_ = promotion_ratio;
 }
 
@@ -257,8 +257,8 @@ void GCTracer::AddContextDisposalTime(double time) {
 }
 
 
-void GCTracer::AddPromotionRatio(double promotion_ratio) {
-  promotion_events_.push_front(PromotionEvent(promotion_ratio));
+void GCTracer::AddSurvivalRatio(double promotion_ratio) {
+  survival_events_.push_front(SurvivalEvent(promotion_ratio));
 }
 
 
@@ -374,7 +374,7 @@ void GCTracer::PrintNVP() const {
   PrintF("nodes_copied_in_new=%d ", heap_->nodes_copied_in_new_space_);
   PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
   PrintF("promotion_ratio=%.1f%% ", heap_->promotion_ratio_);
-  PrintF("average_promotion_ratio=%.1f%% ", AveragePromotionRatio());
+  PrintF("average_survival_ratio=%.1f%% ", AverageSurvivalRatio());
   PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
   PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
@@ -572,25 +572,25 @@ double GCTracer::ContextDisposalRateInMilliseconds() const {
 }
 
 
-double GCTracer::AveragePromotionRatio() const {
-  if (promotion_events_.size() == 0) return 0.0;
+double GCTracer::AverageSurvivalRatio() const {
+  if (survival_events_.size() == 0) return 0.0;
 
   double sum_of_rates = 0.0;
-  PromotionEventBuffer::const_iterator iter = promotion_events_.begin();
-  while (iter != promotion_events_.end()) {
+  SurvivalEventBuffer::const_iterator iter = survival_events_.begin();
+  while (iter != survival_events_.end()) {
     sum_of_rates += iter->promotion_ratio_;
     ++iter;
   }
 
-  return sum_of_rates / static_cast<double>(promotion_events_.size());
+  return sum_of_rates / static_cast<double>(survival_events_.size());
 }
 
 
 bool GCTracer::SurvivalEventsRecorded() const {
-  return promotion_events_.size() > 0;
+  return survival_events_.size() > 0;
 }
 
 
-void GCTracer::ResetSurvivalEvents() { promotion_events_.reset(); }
+void GCTracer::ResetSurvivalEvents() { survival_events_.reset(); }
 }
 }  // namespace v8::internal
