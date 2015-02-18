@@ -3904,7 +3904,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
-  Register caller_fp = x11;
   __ Ldr(x11, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(x12, MemOperand(x11, StandardFrameConstants::kContextOffset));
   __ Cmp(x12, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
