@@ -245,6 +245,7 @@ def GetPreferredTryMasters(project, change):
     'tryserver.v8': {
       'v8_linux_rel': set(['defaulttests']),
       'v8_linux_nodcheck_rel': set(['defaulttests']),
+      'v8_linux_gcc_compile_rel': set(['defaulttests']),
       'v8_linux64_rel': set(['defaulttests']),
       'v8_linux64_asan_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
