@@ -1975,6 +1975,7 @@ Statement* Parser::ParseFunctionDeclaration(
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
+      is_strong(language_mode()) ? CONST :
       allow_harmony_scoping() && is_strict(language_mode()) &&
               !(scope_->is_script_scope() || scope_->is_eval_scope() ||
                 scope_->is_function_scope())
@@ -2018,13 +2019,15 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
                                           is_strict_reserved, pos, CHECK_OK);
 
-  VariableProxy* proxy = NewUnresolved(name, LET);
+  VariableMode mode = is_strong(language_mode()) ? CONST : LET;
+  VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, LET, scope_, pos);
+      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
   Declare(declaration, true, CHECK_OK);
   proxy->var()->set_initializer_position(pos);
 
-  Token::Value init_op = Token::INIT_LET;
+  Token::Value init_op =
+      is_strong(language_mode()) ? Token::INIT_CONST : Token::INIT_LET;
   Assignment* assignment = factory()->NewAssignment(init_op, proxy, value, pos);
   Statement* assignment_statement =
       factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);

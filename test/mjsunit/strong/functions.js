@@ -4,6 +4,8 @@
 
 // Flags: --strong-mode
 
+'use strong';
+
 (function NoArguments() {
   assertThrows("'use strong'; arguments", SyntaxError);
   assertThrows("'use strong'; function f() { arguments }", SyntaxError);
@@ -13,4 +15,19 @@
   assertThrows("'use strong'; let arguments", SyntaxError);
   assertThrows("'use strong'; function f(arguments) {}", SyntaxError);
   assertThrows("'use strong'; let f = (arguments) => {}", SyntaxError);
+})();
+
+function g() {}
+
+(function LexicalFunctionBindings(global) {
+  assertEquals('function', typeof g);
+  assertEquals(undefined, global.g);
+})(this);
+
+(function ImmutableFunctionBindings() {
+  function f() {}
+  assertThrows(function(){ eval("g = 0") }, TypeError);
+  assertThrows(function(){ eval("f = 0") }, TypeError);
+  assertEquals('function', typeof g);
+  assertEquals('function', typeof f);
 })();

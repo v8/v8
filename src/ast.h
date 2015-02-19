@@ -577,8 +577,7 @@ class FunctionDeclaration FINAL : public Declaration {
                       int pos)
       : Declaration(zone, proxy, mode, scope, pos),
         fun_(fun) {
-    // At the moment there are no "const functions" in JavaScript...
-    DCHECK(mode == VAR || mode == LET);
+    DCHECK(mode == VAR || mode == LET || mode == CONST);
     DCHECK(fun != NULL);
   }
 
