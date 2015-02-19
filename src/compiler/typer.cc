@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/flags.h"
 #include "src/bootstrapper.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -325,8 +326,16 @@ class Typer::Visitor : public Reducer {
   Bounds TypeUnaryOp(Node* node, UnaryTyperFun);
   Bounds TypeBinaryOp(Node* node, BinaryTyperFun);
 
+  enum ComparisonOutcomeFlags {
+    kComparisonTrue = 1,
+    kComparisonFalse = 2,
+    kComparisonUndefined = 4
+  };
+  typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
+
+  static ComparisonOutcome Invert(ComparisonOutcome, Typer*);
   static Type* Invert(Type*, Typer*);
-  static Type* FalsifyUndefined(Type*, Typer*);
+  static Type* FalsifyUndefined(ComparisonOutcome, Typer*);
   static Type* Rangify(Type*, Typer*);
 
   static Type* ToPrimitive(Type*, Typer*);
@@ -342,7 +351,7 @@ class Typer::Visitor : public Reducer {
   static Type* JSDivideRanger(Type::RangeType*, Type::RangeType*, Typer*);
   static Type* JSModulusRanger(Type::RangeType*, Type::RangeType*, Typer*);
 
-  static Type* JSCompareTyper(Type*, Type*, Typer*);
+  static ComparisonOutcome JSCompareTyper(Type*, Type*, Typer*);
 
 #define DECLARE_METHOD(x) static Type* x##Typer(Type*, Type*, Typer*);
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
@@ -468,15 +477,33 @@ Bounds Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
 
 
 Type* Typer::Visitor::Invert(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Boolean()));
+  DCHECK(type->IsInhabited());
   if (type->Is(t->singleton_false)) return t->singleton_true;
   if (type->Is(t->singleton_true)) return t->singleton_false;
   return type;
 }
 
 
-Type* Typer::Visitor::FalsifyUndefined(Type* type, Typer* t) {
-  if (type->Is(Type::Undefined())) return t->singleton_false;
-  return type;
+Typer::Visitor::ComparisonOutcome Typer::Visitor::Invert(
+    ComparisonOutcome outcome, Typer* t) {
+  ComparisonOutcome result(0);
+  if ((outcome & kComparisonUndefined) != 0) result |= kComparisonUndefined;
+  if ((outcome & kComparisonTrue) != 0) result |= kComparisonFalse;
+  if ((outcome & kComparisonFalse) != 0) result |= kComparisonTrue;
+  return result;
+}
+
+
+Type* Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
+  if ((outcome & kComparisonFalse) != 0 ||
+      (outcome & kComparisonUndefined) != 0) {
+    return (outcome & kComparisonTrue) != 0 ? Type::Boolean()
+                                            : t->singleton_false;
+  }
+  // Type should be non empty, so we know it should be true.
+  DCHECK((outcome & kComparisonTrue) != 0);
+  return t->singleton_true;
 }
 
 
@@ -773,26 +800,41 @@ Type* Typer::Visitor::JSStrictNotEqualTyper(Type* lhs, Type* rhs, Typer* t) {
 // (<, <=, >=, >) with the help of a single abstract one.  It behaves like <
 // but returns undefined when the inputs cannot be compared.
 // We implement the typing analogously.
-Type* Typer::Visitor::JSCompareTyper(Type* lhs, Type* rhs, Typer* t) {
+Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type* lhs,
+                                                                 Type* rhs,
+                                                                 Typer* t) {
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
   if (lhs->Maybe(Type::String()) && rhs->Maybe(Type::String())) {
-    return Type::Boolean();
+    return ComparisonOutcome(kComparisonTrue) |
+           ComparisonOutcome(kComparisonFalse);
   }
   lhs = ToNumber(lhs, t);
   rhs = ToNumber(rhs, t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::Undefined();
+
+  // Shortcut for NaNs.
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return kComparisonUndefined;
+
+  ComparisonOutcome result;
   if (lhs->IsConstant() && rhs->Is(lhs)) {
-    // Types are equal and are inhabited only by a single semantic value,
-    // which is not NaN due to the previous check.
-    return t->singleton_false;
+    // Types are equal and are inhabited only by a single semantic value.
+    result = kComparisonFalse;
+  } else if (lhs->Min() >= rhs->Max()) {
+    result = kComparisonFalse;
+  } else if (lhs->Max() < rhs->Min()) {
+    result = kComparisonTrue;
+  } else {
+    // We cannot figure out the result, return both true and false. (We do not
+    // have to return undefined because that cannot affect the result of
+    // FalsifyUndefined.)
+    return ComparisonOutcome(kComparisonTrue) |
+           ComparisonOutcome(kComparisonFalse);
   }
-  if (lhs->Min() >= rhs->Max()) return t->singleton_false;
-  if (lhs->Max() < rhs->Min() &&
-      !lhs->Maybe(Type::NaN()) && !rhs->Maybe(Type::NaN())) {
-    return t->singleton_true;
+  // Add the undefined if we could see NaN.
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
+    result |= kComparisonUndefined;
   }
-  return Type::Boolean();
+  return result;
 }
 
 
