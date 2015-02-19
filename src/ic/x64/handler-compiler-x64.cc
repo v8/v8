@@ -676,13 +676,21 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
+    Handle<JSObject> object, Handle<Name> name,
+    Handle<ExecutableAccessorInfo> callback) {
   Register holder_reg = Frontend(name);
 
   __ PopReturnAddressTo(scratch1());
   __ Push(receiver());
   __ Push(holder_reg);
-  __ Push(Smi::FromInt(accessor_index));
+  // If the callback cannot leak, then push the callback directly,
+  // otherwise wrap it in a weak cell.
+  if (callback->data()->IsUndefined() || callback->data()->IsSmi()) {
+    __ Push(callback);
+  } else {
+    Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+    __ Push(cell);
+  }
   __ Push(name);
   __ Push(value());
   __ PushReturnAddressFrom(scratch1());

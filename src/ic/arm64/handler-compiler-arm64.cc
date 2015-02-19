@@ -735,7 +735,8 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
+    Handle<JSObject> object, Handle<Name> name,
+    Handle<ExecutableAccessorInfo> callback) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
   Register holder_reg = Frontend(name);
 
@@ -745,7 +746,14 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   // receiver() and holder_reg can alias.
   DCHECK(!AreAliased(receiver(), scratch1(), scratch2(), value()));
   DCHECK(!AreAliased(holder_reg, scratch1(), scratch2(), value()));
-  __ Mov(scratch1(), Operand(Smi::FromInt(accessor_index)));
+  // If the callback cannot leak, then push the callback directly,
+  // otherwise wrap it in a weak cell.
+  if (callback->data()->IsUndefined() || callback->data()->IsSmi()) {
+    __ Mov(scratch1(), Operand(callback));
+  } else {
+    Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+    __ Mov(scratch1(), Operand(cell));
+  }
   __ Mov(scratch2(), Operand(name));
   __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
 
