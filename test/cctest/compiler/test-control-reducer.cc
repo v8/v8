@@ -153,6 +153,12 @@ class ControlReducerTester : HandleAndZoneScope {
     ReducePhiIterative(expect, phi);  // iterative should give the same result.
   }
 
+  // Checks one-step reduction of a phi.
+  void ReducePhiNonIterative(Node* expect, Node* phi) {
+    Node* result = ControlReducer::ReducePhiForTesting(&jsgraph, &common, phi);
+    CHECK_EQ(expect, result);
+  }
+
   void ReducePhiIterative(Node* expect, Node* phi) {
     p0->ReplaceInput(0, start);  // hack: parameters may be trimmed.
     Node* ret = graph.NewNode(common.Return(), phi, start, start);
@@ -484,10 +490,10 @@ TEST(CReducePhi2_dead) {
   for (size_t i = 1; i < kNumLeafs; i++) {
     Node* a = R.leaf[i], *b = R.leaf[0];
     Node* phi1 = R.Phi(b, a, R.dead);
-    R.ReducePhi(phi1, phi1);
+    R.ReducePhiNonIterative(phi1, phi1);
 
     Node* phi2 = R.Phi(a, b, R.dead);
-    R.ReducePhi(phi2, phi2);
+    R.ReducePhiNonIterative(phi2, phi2);
   }
 }
 

@@ -103,6 +103,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     if (backedges == 1) {
       // Simple case. Map the incoming edges to the loop to the previous copy.
       for (Node* node : loop_tree->HeaderNodes(loop)) {
+        if (!all.IsLive(node)) continue;  // dead phi hanging off loop.
         Node* copy = mapping->at(node->id());
         Node* backedge = node->InputAt(1);
         if (previous) backedge = previous->at(backedge->id());
@@ -119,6 +120,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
       Node* merge =
           graph->NewNode(common->Merge(backedges), backedges, &tmp_inputs[0]);
       for (Node* node : loop_tree->HeaderNodes(loop)) {
+        if (!all.IsLive(node)) continue;  // dead phi hanging off loop.
         Node* copy = mapping->at(node->id());
         if (node == loop_header) {
           // The entry to the loop is the merge.
@@ -214,7 +216,9 @@ bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   // Replace the normal entry with {Dead} and the loop entry with {Start}
   // and run the control reducer to clean up the graph.
   osr_normal_entry->ReplaceUses(dead);
+  osr_normal_entry->Kill();
   osr_loop_entry->ReplaceUses(graph->start());
+  osr_loop_entry->Kill();
 
   // Normally the control reducer removes loops whose first input is dead,
   // but we need to avoid that because the osr_loop is reachable through

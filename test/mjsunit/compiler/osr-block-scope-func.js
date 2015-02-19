@@ -25,23 +25,3 @@ function foo() {
 assertEquals(4950, foo()());
 assertEquals(4950, foo()());
 assertEquals(4950, foo()());
-
-function bar() {
-  var result;
-  {
-    let sum = 0;
-    for (let i = 0; i < 90; i++) {
-      sum += i;
-      if (i == 45) %OptimizeOsr();
-    }
-    result = ret;
-    function ret() {
-      return sum;
-    }
-  }
-  return result;
-}
-
-assertEquals(4005, bar()());
-assertEquals(4005, bar()());
-assertEquals(4005, bar()());

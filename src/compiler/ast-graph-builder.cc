@@ -379,7 +379,6 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       globals_(0, local_zone),
       execution_control_(nullptr),
       execution_context_(nullptr),
-      function_context_(nullptr),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_control_(nullptr),
@@ -399,9 +398,10 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 }
 
 
-Node* AstGraphBuilder::GetFunctionContext() {
-  DCHECK(function_context_ != nullptr);
-  return function_context_;
+void AstGraphBuilder::CreateFunctionContext(bool constant_context) {
+  function_context_.set(constant_context
+                            ? jsgraph()->HeapConstant(info()->context())
+                            : NewOuterContextParam());
 }
 
 
@@ -420,7 +420,7 @@ Node* AstGraphBuilder::NewCurrentContextOsrValue() {
 }
 
 
-bool AstGraphBuilder::CreateGraph() {
+bool AstGraphBuilder::CreateGraph(bool constant_context) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
 
@@ -442,8 +442,8 @@ bool AstGraphBuilder::CreateGraph() {
   }
 
   // Initialize the incoming context.
-  function_context_ = NewOuterContextParam();
-  ContextScope incoming(this, scope, function_context_);
+  CreateFunctionContext(constant_context);
+  ContextScope incoming(this, scope, function_context_.get());
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
@@ -456,7 +456,8 @@ bool AstGraphBuilder::CreateGraph() {
   if (heap_slots > 0) {
     // Push a new inner context scope for the function.
     Node* closure = GetFunctionClosure();
-    Node* inner_context = BuildLocalFunctionContext(function_context_, closure);
+    Node* inner_context =
+        BuildLocalFunctionContext(function_context_.get(), closure);
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody();
   } else {
@@ -2760,10 +2761,9 @@ Node* AstGraphBuilder::BuildLoadBuiltinsObject() {
 
 
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
-  Node* context = GetFunctionContext();
   const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
-  return NewNode(load_op, context);
+  return NewNode(load_op, function_context_.get());
 }
 
 
@@ -3023,6 +3023,7 @@ void AstGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
 
 void AstGraphBuilder::Environment::Merge(Environment* other) {
   DCHECK(values_.size() == other->values_.size());
+  // TODO(titzer): make context stack heights match.
   DCHECK(contexts_.size() <= other->contexts_.size());
 
   // Nothing to do if the other environment is dead.
@@ -3037,6 +3038,10 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
         graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
+    // TODO(titzer): make context stack heights match.
+    size_t min = std::min(contexts_.size(), other->contexts_.size());
+    contexts_ = other->contexts_;
+    contexts_.resize(min, nullptr);
     return;
   }
 

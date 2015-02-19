@@ -74,7 +74,6 @@ class PipelineData {
         javascript_(nullptr),
         jsgraph_(nullptr),
         typer_(nullptr),
-        context_node_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
@@ -114,7 +113,6 @@ class PipelineData {
         javascript_(nullptr),
         jsgraph_(nullptr),
         typer_(nullptr),
-        context_node_(nullptr),
         schedule_(schedule),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
@@ -141,7 +139,6 @@ class PipelineData {
         javascript_(nullptr),
         jsgraph_(nullptr),
         typer_(nullptr),
-        context_node_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(sequence->zone()),
@@ -186,12 +183,6 @@ class PipelineData {
     loop_assignment_ = loop_assignment;
   }
 
-  Node* context_node() const { return context_node_; }
-  void set_context_node(Node* context_node) {
-    DCHECK(!context_node_);
-    context_node_ = context_node;
-  }
-
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
     DCHECK(!schedule_);
@@ -217,7 +208,6 @@ class PipelineData {
     common_ = nullptr;
     javascript_ = nullptr;
     jsgraph_ = nullptr;
-    context_node_ = nullptr;
     schedule_ = nullptr;
   }
 
@@ -272,7 +262,6 @@ class PipelineData {
   JSGraph* jsgraph_;
   // TODO(dcarney): make this into a ZoneObject.
   SmartPointer<Typer> typer_;
-  Node* context_node_;
   Schedule* schedule_;
 
   // All objects in the following group of fields are allocated in
@@ -330,9 +319,9 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
-  bool CreateGraph() {
+  bool CreateGraph(bool constant_context) {
     SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
-    return AstGraphBuilder::CreateGraph();
+    return AstGraphBuilder::CreateGraph(constant_context);
   }
 
 #define DEF_VISIT(type)                                               \
@@ -343,8 +332,6 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
   }
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
-
-  Node* GetFunctionContext() { return AstGraphBuilder::GetFunctionContext(); }
 
  private:
   SourcePositionTable* source_positions_;
@@ -433,13 +420,11 @@ struct LoopAssignmentAnalysisPhase {
 struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
-  void Run(PipelineData* data, Zone* temp_zone) {
+  void Run(PipelineData* data, Zone* temp_zone, bool constant_context) {
     AstGraphBuilderWithPositions graph_builder(
         temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
         data->source_positions());
-    if (graph_builder.CreateGraph()) {
-      data->set_context_node(graph_builder.GetFunctionContext());
-    } else {
+    if (!graph_builder.CreateGraph(constant_context)) {
       data->set_compilation_failed();
     }
   }
@@ -452,8 +437,7 @@ struct ContextSpecializerPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    JSContextSpecializer spec(data->info()->context(), data->jsgraph(),
-                              data->context_node());
+    JSContextSpecializer spec(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &spec);
     graph_reducer.ReduceGraph();
@@ -918,7 +902,7 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<LoopAssignmentAnalysisPhase>();
   }
 
-  Run<GraphBuilderPhase>();
+  Run<GraphBuilderPhase>(info()->is_context_specializing());
   if (data.compilation_failed()) return Handle<Code>::null();
   RunPrintAndVerify("Initial untyped", true);
 

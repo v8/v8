@@ -14,11 +14,6 @@ namespace internal {
 namespace compiler {
 
 Reduction JSContextSpecializer::Reduce(Node* node) {
-  if (node == context_) {
-    Node* constant = jsgraph_->Constant(ctx_);
-    NodeProperties::ReplaceWithValue(node, constant);
-    return Replace(constant);
-  }
   if (node->opcode() == IrOpcode::kJSLoadContext) {
     return ReduceJSLoadContext(node);
   }

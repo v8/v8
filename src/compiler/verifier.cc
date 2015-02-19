@@ -68,45 +68,44 @@ class Verifier::Visitor {
   void CheckNotTyped(Node* node) {
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->opcode() << ":"
-          << node->op()->mnemonic() << " should never have a type";
-      V8_Fatal(__FILE__, __LINE__, str.str().c_str());
+      str << "TypeError: node #" << node->id() << ":" << *node->op()
+          << " should never have a type";
+      FATAL(str.str().c_str());
     }
   }
   void CheckUpperIs(Node* node, Type* type) {
     if (typing == TYPED && !bounds(node).upper->Is(type)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->opcode() << ":"
-          << node->op()->mnemonic() << " upper bound ";
+      str << "TypeError: node #" << node->id() << ":" << *node->op()
+          << " upper bound ";
       bounds(node).upper->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      V8_Fatal(__FILE__, __LINE__, str.str().c_str());
+      FATAL(str.str().c_str());
     }
   }
   void CheckUpperMaybe(Node* node, Type* type) {
     if (typing == TYPED && !bounds(node).upper->Maybe(type)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->opcode() << ":"
-          << node->op()->mnemonic() << " upper bound ";
+      str << "TypeError: node #" << node->id() << ":" << *node->op()
+          << " upper bound ";
       bounds(node).upper->PrintTo(str);
       str << " must intersect ";
       type->PrintTo(str);
-      V8_Fatal(__FILE__, __LINE__, str.str().c_str());
+      FATAL(str.str().c_str());
     }
   }
   void CheckValueInputIs(Node* node, int i, Type* type) {
     Node* input = ValueInput(node, i);
     if (typing == TYPED && !bounds(input).upper->Is(type)) {
       std::ostringstream str;
-      str << "TypeError: node #" << node->opcode() << ":"
-          << node->op()->mnemonic() << "(input @" << i << " = "
-          << input->opcode() << ":" << input->op()->mnemonic()
-          << ") upper bound ";
+      str << "TypeError: node #" << node->id() << ":" << *node->op()
+          << "(input @" << i << " = " << input->opcode() << ":"
+          << input->op()->mnemonic() << ") upper bound ";
       bounds(input).upper->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      V8_Fatal(__FILE__, __LINE__, str.str().c_str());
+      FATAL(str.str().c_str());
     }
   }
 };

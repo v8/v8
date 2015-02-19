@@ -60,7 +60,7 @@ TEST(ReduceJSLoadContext) {
   Node* const_context = t.jsgraph()->Constant(native);
   Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(Handle<Context>(), t.jsgraph(), const_context);
+  JSContextSpecializer spec(t.jsgraph());
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
@@ -132,7 +132,7 @@ TEST(ReduceJSStoreContext) {
   Node* const_context = t.jsgraph()->Constant(native);
   Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(Handle<Context>(), t.jsgraph(), const_context);
+  JSContextSpecializer spec(t.jsgraph());
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
@@ -197,7 +197,7 @@ TEST(SpecializeToContext) {
 
   Node* const_context = t.jsgraph()->Constant(native);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
-  JSContextSpecializer spec(native, t.jsgraph(), const_context);
+  JSContextSpecializer spec(t.jsgraph());
 
   {
     // Check that specialization replaces values and forwards effects

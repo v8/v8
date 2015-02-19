@@ -42,7 +42,6 @@ function bar(goal) {
       }
     }
   }
-  print(count);
   return sum;
 }
 

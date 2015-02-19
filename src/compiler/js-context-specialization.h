@@ -17,8 +17,7 @@ namespace compiler {
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
 class JSContextSpecializer : public Reducer {
  public:
-  JSContextSpecializer(Handle<Context> ctx, JSGraph* jsgraph, Node* context)
-      : ctx_(ctx), jsgraph_(jsgraph), context_(context) {}
+  explicit JSContextSpecializer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) OVERRIDE;
 
@@ -27,9 +26,7 @@ class JSContextSpecializer : public Reducer {
   Reduction ReduceJSStoreContext(Node* node);
 
  private:
-  Handle<Context> ctx_;
   JSGraph* jsgraph_;
-  Node* context_;
 };
 }
 }

@@ -291,12 +291,23 @@ class ControlReducerImpl {
     }
 #if DEBUG
     // Verify that no inputs to live nodes are NULL.
-    for (size_t j = 0; j < nodes.size(); j++) {
-      Node* node = nodes[j];
-      for (Node* const input : node->inputs()) {
-        CHECK(input);
+    for (Node* node : nodes) {
+      for (int index = 0; index < node->InputCount(); index++) {
+        Node* input = node->InputAt(index);
+        if (input == nullptr) {
+          std::ostringstream str;
+          str << "GraphError: node #" << node->id() << ":" << *node->op()
+              << "(input @" << index << ") == null";
+          FATAL(str.str().c_str());
+        }
+        if (input->opcode() == IrOpcode::kDead) {
+          std::ostringstream str;
+          str << "GraphError: node #" << node->id() << ":" << *node->op()
+              << "(input @" << index << ") == dead";
+          FATAL(str.str().c_str());
+        }
       }
-      for (Node* const use : node->uses()) {
+      for (Node* use : node->uses()) {
         CHECK(marked.IsReachableFromEnd(use));
       }
     }

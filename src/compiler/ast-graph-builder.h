@@ -31,7 +31,7 @@ class AstGraphBuilder : public AstVisitor {
                   LoopAssignmentAnalysis* loop_assignment = NULL);
 
   // Creates a graph by visiting the entire AST.
-  bool CreateGraph();
+  bool CreateGraph(bool constant_context);
 
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
@@ -50,12 +50,6 @@ class AstGraphBuilder : public AstVisitor {
 
   // Visiting function for declarations list is overridden.
   void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
-
-  // Get the node that represents the outer function context.
-  Node* GetFunctionContext();
-
-  // Get the node that represents the outer function closure.
-  Node* GetFunctionClosure();
 
  private:
   class AstContext;
@@ -88,7 +82,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
-  Node* function_context_;
+  SetOncePointer<Node> function_context_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -127,7 +121,14 @@ class AstGraphBuilder : public AstVisitor {
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
   void set_exit_control(Node* exit) { exit_control_ = exit; }
 
+  // Create the main graph body by visiting the AST.
   void CreateGraphBody();
+
+  // Create the node that represents the outer context of the function.
+  void CreateFunctionContext(bool constant_context);
+
+  // Get or create the node that represents the outer function closure.
+  Node* GetFunctionClosure();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
