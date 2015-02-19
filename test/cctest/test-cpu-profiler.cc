@@ -1780,3 +1780,19 @@ TEST(CollectDeoptEvents) {
            iopt_function->deopt_infos()[1].deopt_reason);
   iprofiler->DeleteProfile(iprofile);
 }
+
+
+TEST(SourceLocation) {
+  i::FLAG_always_opt = true;
+  i::FLAG_hydrogen_track_positions = true;
+  LocalContext env;
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source =
+      "function CompareStatementWithThis() {\n"
+      "  if (this === 1) {}\n"
+      "}\n"
+      "CompareStatementWithThis();\n";
+
+  v8::Script::Compile(v8_str(source))->Run();
+}

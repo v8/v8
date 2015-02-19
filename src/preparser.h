@@ -1375,7 +1375,8 @@ class PreParserTraits {
   }
 
   static PreParserExpression ThisExpression(Scope* scope,
-                                            PreParserFactory* factory) {
+                                            PreParserFactory* factory,
+                                            int pos) {
     return PreParserExpression::This();
   }
 
@@ -1850,7 +1851,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::THIS: {
       Consume(Token::THIS);
       scope_->RecordThisUsage();
-      result = this->ThisExpression(scope_, factory());
+      result = this->ThisExpression(scope_, factory(), pos);
       break;
     }
 
