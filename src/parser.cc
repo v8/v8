@@ -1290,8 +1290,11 @@ Statement* Parser::ParseModule(bool* ok) {
   ModuleDescriptor* descriptor = scope->module();
   for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
        it.Advance()) {
-    if (scope->LookupLocal(it.name()) == NULL) {
-      ParserTraits::ReportMessage("module_export_undefined", it.name());
+    if (scope->LookupLocal(it.local_name()) == NULL) {
+      // TODO(adamk): Pass both local_name and export_name once ParserTraits
+      // supports multiple arg error messages.
+      // Also try to report this at a better location.
+      ParserTraits::ReportMessage("module_export_undefined", it.local_name());
       *ok = false;
       return NULL;
     }
@@ -1312,7 +1315,9 @@ Literal* Parser::ParseModuleSpecifier(bool* ok) {
 }
 
 
-void* Parser::ParseExportClause(ZoneList<const AstRawString*>* names,
+void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
+                                ZoneList<Scanner::Location>* export_locations,
+                                ZoneList<const AstRawString*>* local_names,
                                 Scanner::Location* reserved_loc, bool* ok) {
   // ExportClause :
   //   '{' '}'
@@ -1337,14 +1342,17 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* names,
         !Token::IsIdentifier(name_tok, STRICT, false)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* name = ParseIdentifierName(CHECK_OK);
-    names->Add(name, zone());
+    const AstRawString* local_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* export_name = NULL;
     if (CheckContextualKeyword(CStrVector("as"))) {
       export_name = ParseIdentifierName(CHECK_OK);
     }
-    // TODO(ES6): Return the export_name as well as the name.
-    USE(export_name);
+    if (export_name == NULL) {
+      export_name = local_name;
+    }
+    export_names->Add(export_name, zone());
+    local_names->Add(local_name, zone());
+    export_locations->Add(scanner()->location(), zone());
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK);
   }
@@ -1488,16 +1496,20 @@ Statement* Parser::ParseExportDefault(bool* ok) {
   //    'export' 'default' ClassDeclaration
   //    'export' 'default' AssignmentExpression[In] ';'
 
+  Expect(Token::DEFAULT, CHECK_OK);
+  Scanner::Location default_loc = scanner()->location();
+
+  ZoneList<const AstRawString*> names(1, zone());
   Statement* result = NULL;
   switch (peek()) {
     case Token::FUNCTION:
       // TODO(ES6): Support parsing anonymous function declarations here.
-      result = ParseFunctionDeclaration(NULL, CHECK_OK);
+      result = ParseFunctionDeclaration(&names, CHECK_OK);
       break;
 
     case Token::CLASS:
       // TODO(ES6): Support parsing anonymous class declarations here.
-      result = ParseClassDeclaration(NULL, CHECK_OK);
+      result = ParseClassDeclaration(&names, CHECK_OK);
       break;
 
     default: {
@@ -1509,7 +1521,20 @@ Statement* Parser::ParseExportDefault(bool* ok) {
     }
   }
 
-  // TODO(ES6): Add default export to scope_->module()
+  const AstRawString* default_string = ast_value_factory()->default_string();
+
+  DCHECK_LE(names.length(), 1);
+  if (names.length() == 1) {
+    scope_->module()->AddLocalExport(default_string, names.first(), zone(), ok);
+    if (!*ok) {
+      ParserTraits::ReportMessageAt(default_loc, "duplicate_export",
+                                    default_string);
+      return NULL;
+    }
+  } else {
+    // TODO(ES6): Assign result to a const binding with the name "*default*"
+    // and add an export entry with "*default*" as the local name.
+  }
 
   return result;
 }
@@ -1528,10 +1553,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 
   Statement* result = NULL;
   ZoneList<const AstRawString*> names(1, zone());
-  bool is_export_from = false;
   switch (peek()) {
     case Token::DEFAULT:
-      Consume(Token::DEFAULT);
       return ParseExportDefault(ok);
 
     case Token::MUL: {
@@ -1539,12 +1562,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
       Literal* module = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
-      // TODO(ES6): Do something with the return value
-      // of ParseModuleSpecifier.
+      // TODO(ES6): scope_->module()->AddStarExport(...)
       USE(module);
-      is_export_from = true;
-      result = factory()->NewEmptyStatement(pos);
-      break;
+      return factory()->NewEmptyStatement(pos);
     }
 
     case Token::LBRACE: {
@@ -1560,13 +1580,14 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
       Scanner::Location reserved_loc = Scanner::Location::invalid();
-      ParseExportClause(&names, &reserved_loc, CHECK_OK);
+      ZoneList<const AstRawString*> export_names(1, zone());
+      ZoneList<Scanner::Location> export_locations(1, zone());
+      ZoneList<const AstRawString*> local_names(1, zone());
+      ParseExportClause(&export_names, &export_locations, &local_names,
+                        &reserved_loc, CHECK_OK);
+      Literal* indirect_export_module_specifier = NULL;
       if (CheckContextualKeyword(CStrVector("from"))) {
-        Literal* module = ParseModuleSpecifier(CHECK_OK);
-        // TODO(ES6): Do something with the return value
-        // of ParseModuleSpecifier.
-        USE(module);
-        is_export_from = true;
+        indirect_export_module_specifier = ParseModuleSpecifier(CHECK_OK);
       } else if (reserved_loc.IsValid()) {
         // No FromClause, so reserved words are invalid in ExportClause.
         *ok = false;
@@ -1574,8 +1595,25 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
         return NULL;
       }
       ExpectSemicolon(CHECK_OK);
-      result = factory()->NewEmptyStatement(pos);
-      break;
+      const int length = export_names.length();
+      DCHECK_EQ(length, local_names.length());
+      DCHECK_EQ(length, export_locations.length());
+      if (indirect_export_module_specifier == NULL) {
+        for (int i = 0; i < length; ++i) {
+          scope_->module()->AddLocalExport(export_names[i], local_names[i],
+                                           zone(), ok);
+          if (!*ok) {
+            ParserTraits::ReportMessageAt(export_locations[i],
+                                          "duplicate_export", export_names[i]);
+            return NULL;
+          }
+        }
+      } else {
+        for (int i = 0; i < length; ++i) {
+          // TODO(ES6): scope_->module()->AddIndirectExport(...);(
+        }
+      }
+      return factory()->NewEmptyStatement(pos);
     }
 
     case Token::FUNCTION:
@@ -1598,37 +1636,18 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       return NULL;
   }
 
-  // Every export of a module may be assigned.
+  // Extract declared names into export declarations.
+  ModuleDescriptor* descriptor = scope_->module();
   for (int i = 0; i < names.length(); ++i) {
-    Variable* var = scope_->Lookup(names[i]);
-    if (var == NULL) {
-      // TODO(sigurds) This is an export that has no definition yet,
-      // not clear what to do in this case.
-      continue;
-    }
-    if (!IsImmutableVariableMode(var->mode())) {
-      var->set_maybe_assigned();
+    descriptor->AddLocalExport(names[i], names[i], zone(), ok);
+    if (!*ok) {
+      // TODO(adamk): Possibly report this error at the right place.
+      ParserTraits::ReportMessage("duplicate_export", names[i]);
+      return NULL;
     }
   }
 
-  // TODO(ES6): Handle 'export from' once imports are properly implemented.
-  // For now we just drop such exports on the floor.
-  if (!is_export_from) {
-    // Extract declared names into export declarations and module descriptor.
-    ModuleDescriptor* descriptor = scope_->module();
-    for (int i = 0; i < names.length(); ++i) {
-      // TODO(adamk): Make early errors here provide the right error message
-      // (duplicate exported names).
-      descriptor->Add(names[i], zone(), CHECK_OK);
-      // TODO(rossberg): Rethink whether we actually need to store export
-      // declarations (for compilation?).
-      // ExportDeclaration* declaration =
-      //     factory()->NewExportDeclaration(proxy, scope_, position);
-      // scope_->AddDeclaration(declaration);
-    }
-  }
-
-  DCHECK(result != NULL);
+  DCHECK_NOT_NULL(result);
   return result;
 }
 

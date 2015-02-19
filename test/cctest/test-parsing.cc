@@ -3246,70 +3246,6 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 }
 
 
-TEST(ExportsMaybeAssigned) {
-  i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
-
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
-  LocalContext env;
-
-  const char* src =
-      "module A {"
-      "  export var x = 1;"
-      "  export function f() { return x };"
-      "  export const y = 2;"
-      "  module B {}"
-      "  export module C {}"
-      "};"
-      "A.f";
-
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
-  source->PrintOn(stdout);
-  printf("\n");
-  i::Zone zone;
-  v8::Local<v8::Value> v = CompileRun(src);
-  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
-  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
-  avf.Internalize(isolate);
-
-  i::Scope* script_scope =
-      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
-  script_scope->Initialize();
-  i::Scope* s =
-      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
-  DCHECK(s != script_scope);
-  const i::AstRawString* name_x = avf.GetOneByteString("x");
-  const i::AstRawString* name_f = avf.GetOneByteString("f");
-  const i::AstRawString* name_y = avf.GetOneByteString("y");
-  const i::AstRawString* name_B = avf.GetOneByteString("B");
-  const i::AstRawString* name_C = avf.GetOneByteString("C");
-
-  // Get result from h's function context (that is f's context)
-  i::Variable* var_x = s->Lookup(name_x);
-  CHECK(var_x != NULL);
-  CHECK(var_x->maybe_assigned() == i::kMaybeAssigned);
-  i::Variable* var_f = s->Lookup(name_f);
-  CHECK(var_f != NULL);
-  CHECK(var_f->maybe_assigned() == i::kMaybeAssigned);
-  i::Variable* var_y = s->Lookup(name_y);
-  CHECK(var_y != NULL);
-  CHECK(var_y->maybe_assigned() == i::kNotAssigned);
-  i::Variable* var_B = s->Lookup(name_B);
-  CHECK(var_B != NULL);
-  CHECK(var_B->maybe_assigned() == i::kNotAssigned);
-  i::Variable* var_C = s->Lookup(name_C);
-  CHECK(var_C != NULL);
-  CHECK(var_C->maybe_assigned() == i::kNotAssigned);
-}
-
-
 TEST(InnerAssignment) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -5108,6 +5044,7 @@ TEST(BasicImportExportParsing) {
       "export { yield } from 'm.js'",
       "export { static } from 'm.js'",
       "export { let } from 'm.js'",
+      "var a; export { a as b, a as c };",
 
       "import 'somemodule.js';",
       "import { } from 'm.js';",
@@ -5211,6 +5148,10 @@ TEST(ImportExportParsingErrors) {
       "export { arguments }",
       "export { arguments as foo }",
       "var a; export { a, a };",
+      "var a, b; export { a as b, b };",
+      "var a, b; export { a as c, b as c };",
+      "export default function f(){}; export default class C {};",
+      "export default function f(){}; var a; export { a as default };",
 
       "import from;",
       "import from 'm.js';",

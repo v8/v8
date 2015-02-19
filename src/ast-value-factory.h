@@ -234,6 +234,7 @@ class AstValue : public ZoneObject {
   F(anonymous_function, "(anonymous function)")         \
   F(arguments, "arguments")                             \
   F(constructor, "constructor")                         \
+  F(default, "default")                                 \
   F(done, "done")                                       \
   F(dot, ".")                                           \
   F(dot_for, ".for")                                    \

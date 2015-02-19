@@ -560,8 +560,8 @@ Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
   int i = 0;
   for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
        it.Advance(), ++i) {
-    Variable* var = scope->LookupLocal(it.name());
-    info->set_name(i, *(it.name()->string()));
+    Variable* var = scope->LookupLocal(it.local_name());
+    info->set_name(i, *(it.export_name()->string()));
     info->set_mode(i, var->mode());
     DCHECK(var->index() >= 0);
     info->set_index(i, var->index());

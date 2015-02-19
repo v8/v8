@@ -28,7 +28,8 @@ class ModuleDescriptor : public ZoneObject {
 
   // Add a name to the list of exports. If it already exists, or this descriptor
   // is frozen, that's an error.
-  void Add(const AstRawString* name, Zone* zone, bool* ok);
+  void AddLocalExport(const AstRawString* export_name,
+                      const AstRawString* local_name, Zone* zone, bool* ok);
 
   // Do not allow any further refinements, directly or through unification.
   void Freeze() { frozen_ = true; }
@@ -67,9 +68,13 @@ class ModuleDescriptor : public ZoneObject {
   class Iterator {
    public:
     bool done() const { return entry_ == NULL; }
-    const AstRawString* name() const {
+    const AstRawString* export_name() const {
       DCHECK(!done());
       return static_cast<const AstRawString*>(entry_->key);
+    }
+    const AstRawString* local_name() const {
+      DCHECK(!done());
+      return static_cast<const AstRawString*>(entry_->value);
     }
     void Advance() { entry_ = exports_->Next(entry_); }
 
