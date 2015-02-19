@@ -1879,21 +1879,11 @@ SetUpFunction();
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
 
-// ES6 rev 26, 2014-07-18
-// 7.4.1 CheckIterable ( obj )
-function ToIterable(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    return UNDEFINED;
-  }
-  return obj[symbolIterator];
-}
-
-
-// ES6 rev 26, 2014-07-18
-// 7.4.2 GetIterator ( obj, method )
+// ES6 rev 33, 2015-02-12
+// 7.4.1 GetIterator ( obj, method )
 function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
-    method = ToIterable(obj);
+    method = ToObject(obj)[symbolIterator];
   }
   if (!IS_SPEC_FUNCTION(method)) {
     throw MakeTypeError('not_iterable', [obj]);

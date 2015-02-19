@@ -1192,6 +1192,7 @@ function TestSetConstructorIterableValue(ctor) {
     get: function() {
       assertEquals('object', typeof this);
       return function() {
+        assertEquals('number', typeof this);
         return oneAndTwo.keys();
       };
     },
@@ -1382,6 +1383,7 @@ function TestMapConstructorIterableValue(ctor) {
     get: function() {
       assertEquals('object', typeof this);
       return function() {
+        assertEquals('number', typeof this);
         return oneAndTwo.entries();
       };
     },
