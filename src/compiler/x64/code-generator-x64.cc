@@ -210,6 +210,27 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
   } while (0)
 
 
+#define ASSEMBLE_CMP(cmp_instr, test_instr)                      \
+  do {                                                           \
+    if (HasImmediateInput(instr, 1)) {                           \
+      if (instr->InputAt(0)->IsRegister()) {                     \
+        if (i.InputInt32(1) == 0) {                              \
+          __ test_instr(i.InputRegister(0), i.InputRegister(0)); \
+        } else {                                                 \
+          __ cmp_instr(i.InputRegister(0), i.InputImmediate(1)); \
+        }                                                        \
+      } else {                                                   \
+        __ cmp_instr(i.InputOperand(0), i.InputImmediate(1));    \
+      }                                                          \
+    } else {                                                     \
+      if (instr->InputAt(1)->IsRegister()) {                     \
+        __ cmp_instr(i.InputRegister(0), i.InputRegister(1));    \
+      } else {                                                   \
+        __ cmp_instr(i.InputRegister(0), i.InputOperand(1));     \
+      }                                                          \
+    }                                                            \
+  } while (0)
+
 #define ASSEMBLE_MULT(asm_instr)                              \
   do {                                                        \
     if (HasImmediateInput(instr, 1)) {                        \
@@ -588,10 +609,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_BINOP(andq);
       break;
     case kX64Cmp32:
-      ASSEMBLE_BINOP(cmpl);
+      ASSEMBLE_CMP(cmpl, testl);
       break;
     case kX64Cmp:
-      ASSEMBLE_BINOP(cmpq);
+      ASSEMBLE_CMP(cmpq, testq);
       break;
     case kX64Test32:
       ASSEMBLE_BINOP(testl);
