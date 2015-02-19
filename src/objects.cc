@@ -731,7 +731,7 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
     if (!done &&
         js_object->elements() != isolate->heap()->empty_fixed_array()) {
       ElementsAccessor* accessor = js_object->GetElementsAccessor();
-      PropertyAttributes attrs = accessor->GetAttributes(*js_object, index);
+      PropertyAttributes attrs = accessor->GetAttributes(js_object, index);
       if ((attrs & READ_ONLY) != 0) {
         return WriteToReadOnlyElement(isolate, receiver, index, value,
                                       language_mode);
@@ -752,7 +752,7 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
   }
   Handle<JSObject> target = Handle<JSObject>::cast(receiver);
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  PropertyAttributes attrs = accessor->GetAttributes(*target, index);
+  PropertyAttributes attrs = accessor->GetAttributes(target, index);
   if ((attrs & READ_ONLY) != 0) {
     return WriteToReadOnlyElement(isolate, receiver, index, value,
                                   language_mode);
@@ -4371,7 +4371,7 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithoutInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver, uint32_t index,
     bool check_prototype) {
   PropertyAttributes attr =
-      object->GetElementsAccessor()->GetAttributes(*object, index);
+      object->GetElementsAccessor()->GetAttributes(object, index);
   if (attr != ABSENT) return maybe(attr);
 
   // Handle [] on String objects.
@@ -8254,7 +8254,7 @@ MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
 
 MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
                                                 Handle<FixedArray> second) {
-  ElementsAccessor* accessor = ElementsAccessor::ForArray(*second);
+  ElementsAccessor* accessor = ElementsAccessor::ForArray(second);
   Handle<FixedArray> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       first->GetIsolate(), result,

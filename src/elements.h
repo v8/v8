@@ -32,11 +32,15 @@ class ElementsAccessor {
   // in the backing store to use for the check, which must be compatible with
   // the ElementsKind of the ElementsAccessor. If backing_store is NULL, the
   // holder->elements() is used as the backing store.
-  virtual bool HasElement(JSObject* holder, uint32_t key,
-                          FixedArrayBase* backing_store) = 0;
+  virtual bool HasElement(
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) = 0;
 
-  inline bool HasElement(JSObject* holder, uint32_t key) {
-    return HasElement(holder, key, holder->elements());
+  inline bool HasElement(
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return HasElement(holder, key, handle(holder->elements()));
   }
 
   // Returns the element with the specified key or undefined if there is no such
@@ -63,11 +67,14 @@ class ElementsAccessor {
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      JSObject* holder, uint32_t key, FixedArrayBase* backing_store) = 0;
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) = 0;
 
-  MUST_USE_RESULT inline PropertyAttributes GetAttributes(JSObject* holder,
-                                                          uint32_t key) {
-    return GetAttributes(holder, key, holder->elements());
+  MUST_USE_RESULT inline PropertyAttributes GetAttributes(
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return GetAttributes(holder, key, handle(holder->elements()));
   }
 
   // Returns an element's accessors, or NULL if the element does not exist or
@@ -168,7 +175,7 @@ class ElementsAccessor {
     return elements_accessors_[elements_kind];
   }
 
-  static ElementsAccessor* ForArray(FixedArrayBase* array);
+  static ElementsAccessor* ForArray(Handle<FixedArrayBase> array);
 
   static void InitializeOncePerProcess();
   static void TearDown();
@@ -176,7 +183,7 @@ class ElementsAccessor {
  protected:
   friend class SloppyArgumentsElementsAccessor;
 
-  virtual uint32_t GetCapacity(FixedArrayBase* backing_store) = 0;
+  virtual uint32_t GetCapacity(Handle<FixedArrayBase> backing_store) = 0;
 
   // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the

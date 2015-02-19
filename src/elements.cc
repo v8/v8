@@ -587,14 +587,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
-  static bool HasElementImpl(JSObject* holder, uint32_t key,
-                             FixedArrayBase* backing_store) {
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
+                             Handle<FixedArrayBase> backing_store) {
     return ElementsAccessorSubclass::GetAttributesImpl(holder, key,
                                                        backing_store) != ABSENT;
   }
 
-  virtual bool HasElement(JSObject* holder, uint32_t key,
-                          FixedArrayBase* backing_store) FINAL {
+  virtual bool HasElement(Handle<JSObject> holder, uint32_t key,
+                          Handle<FixedArrayBase> backing_store) FINAL {
     return ElementsAccessorSubclass::HasElementImpl(holder, key, backing_store);
   }
 
@@ -620,7 +620,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
-    if (key < ElementsAccessorSubclass::GetCapacityImpl(*backing_store)) {
+    if (key < ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
       return BackingStore::get(Handle<BackingStore>::cast(backing_store), key);
     } else {
       return backing_store->GetIsolate()->factory()->the_hole_value();
@@ -628,17 +628,22 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      JSObject* holder, uint32_t key, FixedArrayBase* backing_store) FINAL {
+      Handle<JSObject> holder, uint32_t key,
+      Handle<FixedArrayBase> backing_store) FINAL {
     return ElementsAccessorSubclass::GetAttributesImpl(holder, key,
                                                        backing_store);
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      JSObject* obj, uint32_t key, FixedArrayBase* backing_store) {
+        Handle<JSObject> obj,
+        uint32_t key,
+        Handle<FixedArrayBase> backing_store) {
     if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
       return ABSENT;
     }
-    return BackingStore::cast(backing_store)->is_the_hole(key) ? ABSENT : NONE;
+    return
+        Handle<BackingStore>::cast(backing_store)->is_the_hole(key)
+          ? ABSENT : NONE;
   }
 
   MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
@@ -746,7 +751,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Optimize if 'other' is empty.
     // We cannot optimize if 'this' is empty, as other may have holes.
-    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(*from);
+    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(from);
     if (len1 == 0) return to;
 
     Isolate* isolate = from->GetIsolate();
@@ -755,7 +760,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key = ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(*holder, key, *from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
@@ -792,7 +797,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key =
           ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(*holder, key, *from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
@@ -812,11 +817,11 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
  protected:
-  static uint32_t GetCapacityImpl(FixedArrayBase* backing_store) {
+  static uint32_t GetCapacityImpl(Handle<FixedArrayBase> backing_store) {
     return backing_store->length();
   }
 
-  uint32_t GetCapacity(FixedArrayBase* backing_store) FINAL {
+  uint32_t GetCapacity(Handle<FixedArrayBase> backing_store) FINAL {
     return ElementsAccessorSubclass::GetCapacityImpl(backing_store);
   }
 
@@ -964,12 +969,14 @@ class FastElementsAccessor
     return DeleteCommon(obj, key, language_mode);
   }
 
-  static bool HasElementImpl(JSObject* holder, uint32_t key,
-                             FixedArrayBase* backing_store) {
+  static bool HasElementImpl(
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
     if (key >= static_cast<uint32_t>(backing_store->length())) {
       return false;
     }
-    return !BackingStore::cast(backing_store)->is_the_hole(key);
+    return !Handle<BackingStore>::cast(backing_store)->is_the_hole(key);
   }
 
   static void ValidateContents(Handle<JSObject> holder, int length) {
@@ -1253,7 +1260,7 @@ class TypedElementsAccessor
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
-    if (key < AccessorClass::GetCapacityImpl(*backing_store)) {
+    if (key < AccessorClass::GetCapacityImpl(backing_store)) {
       return BackingStore::get(Handle<BackingStore>::cast(backing_store), key);
     } else {
       return backing_store->GetIsolate()->factory()->undefined_value();
@@ -1261,7 +1268,9 @@ class TypedElementsAccessor
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      JSObject* obj, uint32_t key, FixedArrayBase* backing_store) {
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
     return
         key < AccessorClass::GetCapacityImpl(backing_store)
           ? NONE : ABSENT;
@@ -1282,8 +1291,8 @@ class TypedElementsAccessor
     return obj->GetIsolate()->factory()->true_value();
   }
 
-  static bool HasElementImpl(JSObject* holder, uint32_t key,
-                             FixedArrayBase* backing_store) {
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
+                             Handle<FixedArrayBase> backing_store) {
     uint32_t capacity =
         AccessorClass::GetCapacityImpl(backing_store);
     return key < capacity;
@@ -1452,9 +1461,11 @@ class DictionaryElementsAccessor
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      JSObject* obj, uint32_t key, FixedArrayBase* backing_store) {
-    SeededNumberDictionary* dictionary =
-        SeededNumberDictionary::cast(backing_store);
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
+    Handle<SeededNumberDictionary> dictionary =
+        Handle<SeededNumberDictionary>::cast(backing_store);
     int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
       return dictionary->DetailsAt(entry).attributes();
@@ -1477,9 +1488,10 @@ class DictionaryElementsAccessor
     return MaybeHandle<AccessorPair>();
   }
 
-  static bool HasElementImpl(JSObject* holder, uint32_t key,
-                             FixedArrayBase* store) {
-    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
+                             Handle<FixedArrayBase> store) {
+    Handle<SeededNumberDictionary> backing_store =
+        Handle<SeededNumberDictionary>::cast(store);
     return backing_store->FindEntry(key) != SeededNumberDictionary::kNotFound;
   }
 
@@ -1514,11 +1526,11 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       Handle<FixedArrayBase> parameters) {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Object* probe = GetParameterMapArg(*obj, *parameter_map, key);
+    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       DisallowHeapAllocation no_gc;
       Context* context = Context::cast(parameter_map->get(0));
-      int context_index = Smi::cast(probe)->value();
+      int context_index = Handle<Smi>::cast(probe)->value();
       DCHECK(!context->get(context_index)->IsTheHole());
       return handle(context->get(context_index), isolate);
     } else {
@@ -1526,10 +1538,11 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)),
                                    isolate);
       Handle<Object> result;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                                 ElementsAccessor::ForArray(*arguments)
-                                     ->Get(receiver, obj, key, arguments),
-                                 Object);
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          ElementsAccessor::ForArray(arguments)->Get(
+              receiver, obj, key, arguments),
+          Object);
       // Elements of the arguments object in slow mode might be slow aliases.
       if (result->IsAliasedArgumentsEntry()) {
         DisallowHeapAllocation no_gc;
@@ -1545,14 +1558,16 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      JSObject* obj, uint32_t key, FixedArrayBase* backing_store) {
-    FixedArray* parameter_map = FixedArray::cast(backing_store);
-    Object* probe = GetParameterMapArg(obj, parameter_map, key);
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
+    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(backing_store);
+    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       return NONE;
     } else {
       // If not aliased, check the arguments.
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       return ElementsAccessor::ForArray(arguments)
           ->GetAttributes(obj, key, arguments);
     }
@@ -1563,13 +1578,13 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       uint32_t key,
       Handle<FixedArrayBase> parameters) {
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Object* probe = GetParameterMapArg(*obj, *parameter_map, key);
+    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       return MaybeHandle<AccessorPair>();
     } else {
       // If not aliased, check the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ElementsAccessor::ForArray(*arguments)
+      return ElementsAccessor::ForArray(arguments)
           ->GetAccessorPair(obj, key, arguments);
     }
   }
@@ -1588,8 +1603,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) FINAL {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map(FixedArray::cast(obj->elements()));
-    Handle<Object> probe(GetParameterMapArg(*obj, *parameter_map, key),
-                         isolate);
+    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       // TODO(kmillikin): We could check if this was the last aliased
       // parameter, and revert to normal elements in that case.  That
@@ -1618,9 +1632,10 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     UNREACHABLE();
   }
 
-  static uint32_t GetCapacityImpl(FixedArrayBase* backing_store) {
-    FixedArray* parameter_map = FixedArray::cast(backing_store);
-    FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+  static uint32_t GetCapacityImpl(Handle<FixedArrayBase> backing_store) {
+    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(backing_store);
+    Handle<FixedArrayBase> arguments(
+        FixedArrayBase::cast(parameter_map->get(1)));
     return Max(static_cast<uint32_t>(parameter_map->length() - 2),
                ForArray(arguments)->GetCapacity(arguments));
   }
@@ -1631,20 +1646,22 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   }
 
  private:
-  static Object* GetParameterMapArg(JSObject* holder, FixedArray* parameter_map,
-                                    uint32_t key) {
+  static Handle<Object> GetParameterMapArg(Handle<JSObject> holder,
+                                           Handle<FixedArray> parameter_map,
+                                           uint32_t key) {
     Isolate* isolate = holder->GetIsolate();
     uint32_t length = holder->IsJSArray()
-                          ? Smi::cast(JSArray::cast(holder)->length())->value()
-                          : parameter_map->length();
-    return key < (length - 2) ? parameter_map->get(key + 2)
-                              : isolate->heap()->the_hole_value();
+        ? Smi::cast(Handle<JSArray>::cast(holder)->length())->value()
+        : parameter_map->length();
+    return key < (length - 2)
+        ? handle(parameter_map->get(key + 2), isolate)
+        : Handle<Object>::cast(isolate->factory()->the_hole_value());
   }
 };
 
 
-ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
-  return elements_accessors_[ElementsKindForArray(array)];
+ElementsAccessor* ElementsAccessor::ForArray(Handle<FixedArrayBase> array) {
+  return elements_accessors_[ElementsKindForArray(*array)];
 }
 
 
