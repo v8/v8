@@ -9976,6 +9976,19 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
       JSObject::MigrateToMap(object, new_map);
     }
+    if (object->map()->constructor()->IsJSFunction()) {
+      JSFunction* constructor = JSFunction::cast(object->map()->constructor());
+      // Replace the pointer to the exact constructor with the Object function
+      // from the same context if undetectable from JS. This is to avoid keeping
+      // memory alive unnecessarily.
+      if (!constructor->shared()->IsApiFunction() &&
+          object->class_name() ==
+              object->GetIsolate()->heap()->Object_string()) {
+        Context* context = constructor->context()->native_context();
+        JSFunction* object_function = context->object_function();
+        object->map()->set_constructor(object_function);
+      }
+    }
     object->map()->set_is_prototype_map(true);
   }
 }
