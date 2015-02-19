@@ -420,6 +420,23 @@ class ParserBase : public Traits {
     }
   }
 
+  bool CheckInOrOf(
+      bool accept_OF, ForEachStatement::VisitMode* visit_mode, bool* ok) {
+    if (Check(Token::IN)) {
+      if (is_strong(language_mode())) {
+        ReportMessageAt(scanner()->location(), "strong_for_in");
+        *ok = false;
+      } else {
+        *visit_mode = ForEachStatement::ENUMERATE;
+      }
+      return true;
+    } else if (accept_OF && CheckContextualKeyword(CStrVector("of"))) {
+      *visit_mode = ForEachStatement::ITERATE;
+      return true;
+    }
+    return false;
+  }
+
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
   // If so, reports an error. Only called for strict mode and template strings.
   void CheckOctalLiteral(int beg_pos, int end_pos, const char* error,
@@ -1613,8 +1630,6 @@ class PreParser : public ParserBase<PreParserTraits> {
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool* ok);
-
-  bool CheckInOrOf(bool accept_OF);
 };
 
 

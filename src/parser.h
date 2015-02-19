@@ -781,8 +781,6 @@ class Parser : public ParserBase<ParserTraits> {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
-  bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
-
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
 

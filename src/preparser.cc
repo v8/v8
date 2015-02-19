@@ -715,15 +715,6 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 }
 
 
-bool PreParser::CheckInOrOf(bool accept_OF) {
-  if (Check(Token::IN) ||
-      (accept_OF && CheckContextualKeyword(CStrVector("of")))) {
-    return true;
-  }
-  return false;
-}
-
-
 PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
@@ -732,6 +723,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
+    ForEachStatement::VisitMode visit_mode;
     if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && is_strict(language_mode()))) {
       bool is_lexical = peek() == Token::LET ||
@@ -743,10 +735,10 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       bool has_initializers = decl_props == kHasInitializers;
       bool accept_IN = decl_count == 1 && !(is_lexical && has_initializers);
       bool accept_OF = !has_initializers;
-      if (accept_IN && CheckInOrOf(accept_OF)) {
+      if (accept_IN && CheckInOrOf(accept_OF, &visit_mode, ok)) {
+        if (!*ok) return Statement::Default();
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
-
         ParseSubStatement(CHECK_OK);
         return Statement::Default();
       }
@@ -754,10 +746,10 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       Expression lhs = ParseExpression(false, CHECK_OK);
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
-      if (CheckInOrOf(lhs.IsIdentifier())) {
+      if (CheckInOrOf(lhs.IsIdentifier(), &visit_mode, ok)) {
+        if (!*ok) return Statement::Default();
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
-
         ParseSubStatement(CHECK_OK);
         return Statement::Default();
       }

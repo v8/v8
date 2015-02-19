@@ -2881,19 +2881,6 @@ WhileStatement* Parser::ParseWhileStatement(
 }
 
 
-bool Parser::CheckInOrOf(bool accept_OF,
-                         ForEachStatement::VisitMode* visit_mode) {
-  if (Check(Token::IN)) {
-    *visit_mode = ForEachStatement::ENUMERATE;
-    return true;
-  } else if (accept_OF && CheckContextualKeyword(CStrVector("of"))) {
-    *visit_mode = ForEachStatement::ITERATE;
-    return true;
-  }
-  return false;
-}
-
-
 void Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                         Expression* each,
                                         Expression* subject,
@@ -3222,7 +3209,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       ForEachStatement::VisitMode mode;
       int each_pos = position();
 
-      if (name != NULL && CheckInOrOf(accept_OF, &mode)) {
+      if (name != NULL && CheckInOrOf(accept_OF, &mode, ok)) {
+        if (!*ok) return nullptr;
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
@@ -3259,7 +3247,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       ForEachStatement::VisitMode mode;
       int each_pos = position();
 
-      if (accept_IN && CheckInOrOf(accept_OF, &mode)) {
+      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
+        if (!*ok) return nullptr;
+
         // Rewrite a for-in statement of the form
         //
         //   for (let/const x in e) b
@@ -3321,7 +3311,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         expression->AsVariableProxy()->raw_name() ==
             ast_value_factory()->let_string();
 
-      if (CheckInOrOf(accept_OF, &mode)) {
+      if (CheckInOrOf(accept_OF, &mode, ok)) {
+        if (!*ok) return nullptr;
         expression = this->CheckAndRewriteReferenceExpression(
             expression, lhs_location, "invalid_lhs_in_for", CHECK_OK);
 

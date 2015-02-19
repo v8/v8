@@ -15,5 +15,4 @@
   assertThrows("'use strong'; for (let x;;);", SyntaxError);
   assertThrows("'use strong'; for (let x in []);", SyntaxError);
   assertThrows("'use strong'; for (let x of []);", SyntaxError);
-  assertThrows("'use strong'; with ({});", SyntaxError);
 })();
