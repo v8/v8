@@ -369,7 +369,10 @@
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
                 # Target built with a Mips CXX compiler.
-                'cflags': ['-EB'],
+                'cflags': [
+                  '-EB',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EB'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -553,7 +556,10 @@
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
                 # Target built with a Mips CXX compiler.
-                'cflags': ['-EL'],
+                'cflags': [
+                  '-EL',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EL'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -753,7 +759,10 @@
           ['_toolset=="target"', {
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
-                'cflags': ['-EL'],
+                'cflags': [
+                  '-EL',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EL'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
