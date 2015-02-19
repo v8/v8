@@ -149,9 +149,7 @@ void DumpBacktrace();
 
 // The DCHECK macro is equivalent to CHECK except that it only
 // generates code in debug builds.
-// TODO(bmeurer): DCHECK_RESULT(expr) must die!
 #ifdef DEBUG
-#define DCHECK_RESULT(expr)    CHECK(expr)
 #define DCHECK(condition)      CHECK(condition)
 #define DCHECK_EQ(v1, v2)      CHECK_EQ(v1, v2)
 #define DCHECK_NE(v1, v2)      CHECK_NE(v1, v2)
@@ -162,7 +160,6 @@ void DumpBacktrace();
 #define DCHECK_NOT_NULL(val)   CHECK_NOT_NULL(val)
 #define DCHECK_IMPLIES(v1, v2) CHECK_IMPLIES(v1, v2)
 #else
-#define DCHECK_RESULT(expr)    (expr)
 #define DCHECK(condition)      ((void) 0)
 #define DCHECK_EQ(v1, v2)      ((void) 0)
 #define DCHECK_NE(v1, v2)      ((void) 0)

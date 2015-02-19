@@ -5598,7 +5598,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
   if (tree()->is_empty()) {
     // If this is the first range we just insert into the table.
     ZoneSplayTree<Config>::Locator loc;
-    DCHECK_RESULT(tree()->Insert(current.from(), &loc));
+    bool inserted = tree()->Insert(current.from(), &loc);
+    DCHECK(inserted);
+    USE(inserted);
     loc.set_value(Entry(current.from(), current.to(),
                         empty()->Extend(value, zone)));
     return;
@@ -5624,7 +5626,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
       // to the map and let the next step deal with merging it with
       // the range we're adding.
       ZoneSplayTree<Config>::Locator loc;
-      DCHECK_RESULT(tree()->Insert(right.from(), &loc));
+      bool inserted = tree()->Insert(right.from(), &loc);
+      DCHECK(inserted);
+      USE(inserted);
       loc.set_value(Entry(right.from(),
                           right.to(),
                           entry->out_set()));
@@ -5640,7 +5644,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
       // then we have to add a range covering just that space.
       if (current.from() < entry->from()) {
         ZoneSplayTree<Config>::Locator ins;
-        DCHECK_RESULT(tree()->Insert(current.from(), &ins));
+        bool inserted = tree()->Insert(current.from(), &ins);
+        DCHECK(inserted);
+        USE(inserted);
         ins.set_value(Entry(current.from(),
                             entry->from() - 1,
                             empty()->Extend(value, zone)));
@@ -5651,7 +5657,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
       // we have to snap the right part off and add it separately.
       if (entry->to() > current.to()) {
         ZoneSplayTree<Config>::Locator ins;
-        DCHECK_RESULT(tree()->Insert(current.to() + 1, &ins));
+        bool inserted = tree()->Insert(current.to() + 1, &ins);
+        DCHECK(inserted);
+        USE(inserted);
         ins.set_value(Entry(current.to() + 1,
                             entry->to(),
                             entry->out_set()));
@@ -5671,7 +5679,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
     } else {
       // There is no overlap so we can just add the range
       ZoneSplayTree<Config>::Locator ins;
-      DCHECK_RESULT(tree()->Insert(current.from(), &ins));
+      bool inserted = tree()->Insert(current.from(), &ins);
+      DCHECK(inserted);
+      USE(inserted);
       ins.set_value(Entry(current.from(),
                           current.to(),
                           empty()->Extend(value, zone)));
