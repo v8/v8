@@ -420,7 +420,7 @@ static void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       uint32_t length = static_cast<uint32_t>(DoubleToInt32(length_num));
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < length; i++) {
-        if (accessor->HasElement(object, object, i)) {
+        if (accessor->HasElement(object, i)) {
           indices->Add(i);
         }
       }
@@ -687,7 +687,7 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       ElementsAccessor* accessor = receiver->GetElementsAccessor();
       for (uint32_t index = 0; index < length; index++) {
         HandleScope loop_scope(isolate);
-        if (accessor->HasElement(receiver, receiver, index)) {
+        if (accessor->HasElement(receiver, index)) {
           Handle<Object> element;
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate, element, accessor->Get(receiver, receiver, index),
@@ -979,7 +979,7 @@ RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
     ElementsAccessor* accessor = array->GetElementsAccessor();
     int holes = 0;
     for (int i = 0; i < length; i += increment) {
-      if (!accessor->HasElement(array, array, i, elements)) {
+      if (!accessor->HasElement(array, i, elements)) {
         ++holes;
       }
     }

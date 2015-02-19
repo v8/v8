@@ -731,17 +731,15 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
     if (!done &&
         js_object->elements() != isolate->heap()->empty_fixed_array()) {
       ElementsAccessor* accessor = js_object->GetElementsAccessor();
-      PropertyAttributes attrs =
-          accessor->GetAttributes(receiver, js_object, index);
+      PropertyAttributes attrs = accessor->GetAttributes(js_object, index);
       if ((attrs & READ_ONLY) != 0) {
         return WriteToReadOnlyElement(isolate, receiver, index, value,
                                       language_mode);
       }
-      Handle<AccessorPair> accessor_pair;
-      if (accessor->GetAccessorPair(receiver, js_object, index)
-              .ToHandle(&accessor_pair)) {
-        return JSObject::SetElementWithCallback(
-            receiver, accessor_pair, index, value, js_object, language_mode);
+      Handle<AccessorPair> pair;
+      if (accessor->GetAccessorPair(js_object, index).ToHandle(&pair)) {
+        return JSObject::SetElementWithCallback(receiver, pair, index, value,
+                                                js_object, language_mode);
       } else {
         done = attrs != ABSENT;
       }
@@ -754,7 +752,7 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
   }
   Handle<JSObject> target = Handle<JSObject>::cast(receiver);
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  PropertyAttributes attrs = accessor->GetAttributes(receiver, target, index);
+  PropertyAttributes attrs = accessor->GetAttributes(target, index);
   if ((attrs & READ_ONLY) != 0) {
     return WriteToReadOnlyElement(isolate, receiver, index, value,
                                   language_mode);
@@ -4372,8 +4370,8 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeFromInterceptor(
 Maybe<PropertyAttributes> JSObject::GetElementAttributeWithoutInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver, uint32_t index,
     bool check_prototype) {
-  PropertyAttributes attr = object->GetElementsAccessor()->GetAttributes(
-      receiver, object, index);
+  PropertyAttributes attr =
+      object->GetElementsAccessor()->GetAttributes(object, index);
   if (attr != ABSENT) return maybe(attr);
 
   // Handle [] on String objects.
@@ -12525,7 +12523,7 @@ MaybeHandle<AccessorPair> JSObject::GetOwnElementAccessorPair(
   // Check for lookup interceptor.
   if (object->HasIndexedInterceptor()) return MaybeHandle<AccessorPair>();
 
-  return object->GetElementsAccessor()->GetAccessorPair(object, object, index);
+  return object->GetElementsAccessor()->GetAccessorPair(object, index);
 }
 
 

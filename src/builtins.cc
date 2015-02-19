@@ -666,7 +666,7 @@ BUILTIN(ArraySlice) {
     bool packed = true;
     ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     for (int i = k; i < final; i++) {
-      if (!accessor->HasElement(object, object, i, elms)) {
+      if (!accessor->HasElement(object, i, elms)) {
         packed = false;
         break;
       }

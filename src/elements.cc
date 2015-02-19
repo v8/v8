@@ -587,19 +587,15 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
-  static bool HasElementImpl(Handle<Object> receiver,
-                             Handle<JSObject> holder,
-                             uint32_t key,
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
                              Handle<FixedArrayBase> backing_store) {
-    return ElementsAccessorSubclass::GetAttributesImpl(
-        receiver, holder, key, backing_store) != ABSENT;
+    return ElementsAccessorSubclass::GetAttributesImpl(holder, key,
+                                                       backing_store) != ABSENT;
   }
 
-  virtual bool HasElement(Handle<Object> receiver, Handle<JSObject> holder,
-                          uint32_t key,
+  virtual bool HasElement(Handle<JSObject> holder, uint32_t key,
                           Handle<FixedArrayBase> backing_store) FINAL {
-    return ElementsAccessorSubclass::HasElementImpl(
-        receiver, holder, key, backing_store);
+    return ElementsAccessorSubclass::HasElementImpl(holder, key, backing_store);
   }
 
   MUST_USE_RESULT virtual MaybeHandle<Object> Get(
@@ -632,14 +628,13 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      Handle<Object> receiver, Handle<JSObject> holder, uint32_t key,
+      Handle<JSObject> holder, uint32_t key,
       Handle<FixedArrayBase> backing_store) FINAL {
-    return ElementsAccessorSubclass::GetAttributesImpl(
-        receiver, holder, key, backing_store);
+    return ElementsAccessorSubclass::GetAttributesImpl(holder, key,
+                                                       backing_store);
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-        Handle<Object> receiver,
         Handle<JSObject> obj,
         uint32_t key,
         Handle<FixedArrayBase> backing_store) {
@@ -652,14 +647,13 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
-      Handle<Object> receiver, Handle<JSObject> holder, uint32_t key,
+      Handle<JSObject> holder, uint32_t key,
       Handle<FixedArrayBase> backing_store) FINAL {
-    return ElementsAccessorSubclass::GetAccessorPairImpl(
-        receiver, holder, key, backing_store);
+    return ElementsAccessorSubclass::GetAccessorPairImpl(holder, key,
+                                                         backing_store);
   }
 
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
@@ -766,8 +760,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key = ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(
-              receiver, holder, key, from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
@@ -804,8 +797,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key =
           ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(
-              receiver, holder, key, from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
@@ -978,7 +970,6 @@ class FastElementsAccessor
   }
 
   static bool HasElementImpl(
-      Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
@@ -1277,7 +1268,6 @@ class TypedElementsAccessor
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
@@ -1301,9 +1291,7 @@ class TypedElementsAccessor
     return obj->GetIsolate()->factory()->true_value();
   }
 
-  static bool HasElementImpl(Handle<Object> receiver,
-                             Handle<JSObject> holder,
-                             uint32_t key,
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
                              Handle<FixedArrayBase> backing_store) {
     uint32_t capacity =
         AccessorClass::GetCapacityImpl(backing_store);
@@ -1473,7 +1461,6 @@ class DictionaryElementsAccessor
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
@@ -1487,7 +1474,6 @@ class DictionaryElementsAccessor
   }
 
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> store) {
@@ -1502,9 +1488,7 @@ class DictionaryElementsAccessor
     return MaybeHandle<AccessorPair>();
   }
 
-  static bool HasElementImpl(Handle<Object> receiver,
-                             Handle<JSObject> holder,
-                             uint32_t key,
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
                              Handle<FixedArrayBase> store) {
     Handle<SeededNumberDictionary> backing_store =
         Handle<SeededNumberDictionary>::cast(store);
@@ -1574,7 +1558,6 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) {
@@ -1585,13 +1568,12 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       // If not aliased, check the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ElementsAccessor::ForArray(arguments)->GetAttributes(
-          receiver, obj, key, arguments);
+      return ElementsAccessor::ForArray(arguments)
+          ->GetAttributes(obj, key, arguments);
     }
   }
 
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
       Handle<FixedArrayBase> parameters) {
@@ -1602,8 +1584,8 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       // If not aliased, check the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ElementsAccessor::ForArray(arguments)->GetAccessorPair(
-          receiver, obj, key, arguments);
+      return ElementsAccessor::ForArray(arguments)
+          ->GetAccessorPair(obj, key, arguments);
     }
   }
 
@@ -1661,28 +1643,6 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
   static uint32_t GetKeyForIndexImpl(Handle<FixedArrayBase> dict,
                                      uint32_t index) {
     return index;
-  }
-
-  static bool HasElementImpl(Handle<Object> receiver,
-                             Handle<JSObject> holder,
-                             uint32_t key,
-                             Handle<FixedArrayBase> parameters) {
-    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Handle<Object> probe = GetParameterMapArg(holder, parameter_map, key);
-    if (!probe->IsTheHole()) {
-      return true;
-    } else {
-      Isolate* isolate = holder->GetIsolate();
-      Handle<FixedArrayBase> arguments(FixedArrayBase::cast(
-          Handle<FixedArray>::cast(parameter_map)->get(1)), isolate);
-      ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
-      Handle<Object> value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, value,
-          accessor->Get(receiver, holder, key, arguments),
-          false);
-      return !value->IsTheHole();
-    }
   }
 
  private:
