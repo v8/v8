@@ -970,8 +970,11 @@ class HeapObject(object):
     p.Print(str(self))
 
   def __str__(self):
+    instance_type = "???"
+    if self.map is not None:
+      instance_type = INSTANCE_TYPES[self.map.instance_type]
     return "HeapObject(%s, %s)" % (self.heap.reader.FormatIntPtr(self.address),
-                                   INSTANCE_TYPES[self.map.instance_type])
+                                   instance_type)
 
   def ObjectField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
@@ -1386,9 +1389,9 @@ class JSFunction(HeapObject):
 
   def __str__(self):
     inferred_name = ""
-    if self.shared.Is(SharedFunctionInfo):
+    if self.shared is not None and self.shared.Is(SharedFunctionInfo):
       inferred_name = self.shared.inferred_name
-    return "JSFunction(%s, %s)" % \
+    return "JSFunction(%s, %s) " % \
           (self.heap.reader.FormatIntPtr(self.address), inferred_name)
 
   def _GetSource(self):
@@ -2094,7 +2097,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_error(404, 'Web parameter error: %s' % e.message)
 
 
-HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span>\n"
+HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span><br/>\n"
 
 
 class InspectionWebFormatter(object):
@@ -2263,7 +2266,7 @@ class InspectionWebFormatter(object):
     f.write("<h3>Exception context</h3>")
     f.write('<div class="code">\n')
     f.write("Thread id: %d" % exception_thread.id)
-    f.write("&nbsp;&nbsp; Exception code: %08X\n" %
+    f.write("&nbsp;&nbsp; Exception code: %08X<br/>\n" %
             self.reader.exception.exception.code)
     if details == InspectionWebFormatter.CONTEXT_FULL:
       if self.reader.exception.exception.parameter_count > 0:
