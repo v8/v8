@@ -595,7 +595,7 @@
       setCalled = 0;
       getCalled = 0;
       assertEquals('object', typeof this);
-      assertTrue(this instanceof Number)
+      assertInstanceof(this, Number)
       assertEquals(42, this.valueOf());
       assertEquals(1, super.x);
       assertEquals(1, getCalled);
@@ -635,7 +635,7 @@
       try {
         super.newProperty = 15;
       } catch (e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
     }
   }
 
@@ -654,7 +654,7 @@
         super.toString();
       } catch(e) { ex = e; }
 
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
     }
   };
 
@@ -689,7 +689,7 @@
       setCalled = 0;
       getCalled = 0;
       assertEquals('object', typeof this);
-      assertTrue(this instanceof Number)
+      assertInstanceof(this, Number)
       assertEquals(42, this.valueOf());
       assertEquals(1, super[x]);
       assertEquals(1, getCalled);
@@ -729,7 +729,7 @@
       try {
         super[newProperty] = 15;
       } catch (e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex,TypeError);
     }
   };
 
@@ -748,7 +748,7 @@
         super[toString]();
       } catch(e) { ex = e; }
 
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
     }
   };
   DerivedFromString.prototype.f.call(42);
@@ -784,7 +784,7 @@
       setCalled = 0;
       getCalled = 0;
       assertEquals('object', typeof this);
-      assertTrue(this instanceof Number)
+      assertInstanceof(this, Number)
       assertEquals(42, this.valueOf());
       assertEquals(1, super[x]);
       assertEquals(1, getCalled);
@@ -824,7 +824,7 @@
       try {
         super[newProperty] = 15;
       } catch (e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
     }
   };
 
@@ -849,13 +849,13 @@
       try {
         super[5] = 'q';
       } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
 
       ex = null;
       try {
         super[1024] = 'q';
       } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
     }
   };
 
@@ -963,8 +963,110 @@
 }());
 
 
-(function TestSetterCreatingOwnProperties() {
-  var setterCalled;
+(function TestSetterCreatingOwnPropertiesReconfigurable() {
+  function Base() {}
+  function Derived() {}
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    mSloppy() {
+      assertEquals(42, this.ownReadOnly);
+      super.ownReadOnly = 55;
+      assertEquals(55, this.ownReadOnly);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadOnly');
+      assertEquals(55, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadOnly'));
+
+      assertEquals(15, this.ownReadonlyAccessor);
+      super.ownReadonlyAccessor = 25;
+      assertEquals(25, this.ownReadonlyAccessor);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadonlyAccessor');
+      assertEquals(25, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadonlyAccessor'));
+
+      super.ownSetter = 35;
+      assertEquals(35, this.ownSetter);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownSetter');
+      assertEquals(35, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownSetter'));
+    },
+    mStrict() {
+      'use strict';
+      assertEquals(42, this.ownReadOnly);
+      super.ownReadOnly = 55;
+      assertEquals(55, this.ownReadOnly);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadOnly');
+      assertEquals(55, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadOnly'));
+
+      assertEquals(15, this.ownReadonlyAccessor);
+      super.ownReadonlyAccessor = 25;
+      assertEquals(25, this.ownReadonlyAccessor);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadonlyAccessor');
+      assertEquals(25, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadonlyAccessor'));
+
+      super.ownSetter = 35;
+      assertEquals(35, this.ownSetter);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownSetter');
+      assertEquals(35, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownSetter'));
+    },
+  };
+
+  var d = new Derived();
+  Object.defineProperty(d, 'ownReadOnly', {
+    value: 42,
+    writable: false,
+    configurable: true
+  });
+  Object.defineProperty(d, 'ownSetter', {
+    set: function() { assertUnreachable(); },
+    configurable: true
+  });
+  Object.defineProperty(d, 'ownReadonlyAccessor', {
+    get: function() { return 15; },
+    configurable: true
+  });
+
+  d.mSloppy();
+
+  var d = new Derived();
+  Object.defineProperty(d, 'ownReadOnly', {
+    value: 42,
+    writable: false,
+    configurable: true
+  });
+  Object.defineProperty(d, 'ownSetter', {
+    set: function() { assertUnreachable(); },
+    configurable: true
+  });
+  Object.defineProperty(d, 'ownReadonlyAccessor', {
+    get: function() { return 15; },
+    configurable: true
+  });
+  d.mStrict();
+}());
+
+
+(function TestSetterCreatingOwnPropertiesNonConfigurable() {
   function Base() {}
   function Derived() {}
   Derived.prototype = {
@@ -973,43 +1075,68 @@
       assertEquals(42, this.ownReadOnly);
       super.ownReadOnly = 55;
       assertEquals(42, this.ownReadOnly);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadOnly');
+      assertEquals(42, descr.value);
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadOnly'));
 
       assertEquals(15, this.ownReadonlyAccessor);
-      super.ownReadonlyAccessor = 55;
+      super.ownReadonlyAccessor = 25;
       assertEquals(15, this.ownReadonlyAccessor);
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownReadonlyAccessor');
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(Base.prototype.hasOwnProperty('ownReadonlyAccessor'));
 
-      setterCalled = 0;
-      super.ownSetter = 42;
-      assertEquals(1, setterCalled);
+      super.ownSetter = 35;
+      var descr = Object.getOwnPropertyDescriptor(this, 'ownSetter');
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(Base.prototype.hasOwnProperty('ownSetter'));
     },
     mStrict() {
       'use strict';
-      assertEquals(42, this.ownReadOnly);
       var ex;
+      assertEquals(42, this.ownReadOnly);
       try {
         super.ownReadOnly = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals(
+          "Cannot assign to read only property 'ownReadOnly' of #<Base>",
+          ex.message);
       assertEquals(42, this.ownReadOnly);
 
-      assertEquals(15, this.ownReadonlyAccessor);
       ex = null;
+      assertEquals(15, this.ownReadonlyAccessor);
       try {
-        super.ownReadonlyAccessor = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+        super.ownReadonlyAccessor = 25;
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals('Cannot redefine property: ownReadonlyAccessor', ex.message);
       assertEquals(15, this.ownReadonlyAccessor);
 
-      setterCalled = 0;
-      super.ownSetter = 42;
-      assertEquals(1, setterCalled);
+      ex = null;
+      try {
+        super.ownSetter = 35;
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals('Cannot redefine property: ownSetter', ex.message);
     }
   };
 
   var d = new Derived();
   Object.defineProperty(d, 'ownReadOnly', { value : 42, writable : false });
   Object.defineProperty(d, 'ownSetter',
-      { set : function() { setterCalled++; } });
+      { set : function() { assertUnreachable(); } });
   Object.defineProperty(d, 'ownReadonlyAccessor',
       { get : function() { return 15; }});
   d.mSloppy();
@@ -1076,11 +1203,116 @@
 }());
 
 
-(function TestKeyedSetterCreatingOwnProperties() {
-  var ownReadOnly = 'ownReadOnly';
-  var ownReadonlyAccessor = 'ownReadonlyAccessor';
-  var ownSetter = 'ownSetter';
-  var setterCalled;
+function TestKeyedSetterCreatingOwnPropertiesReconfigurable(ownReadOnly,
+    ownReadonlyAccessor, ownSetter) {
+  function Base() {}
+  function Derived() {}
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    mSloppy() {
+      assertEquals(42, this[ownReadOnly]);
+      super[ownReadOnly] = 55;
+      assertEquals(55, this[ownReadOnly]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadOnly);
+      assertEquals(55, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadOnly));
+
+      assertEquals(15, this[ownReadonlyAccessor]);
+      super[ownReadonlyAccessor] = 25;
+      assertEquals(25, this[ownReadonlyAccessor]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadonlyAccessor);
+      assertEquals(25, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadonlyAccessor));
+
+      super[ownSetter] = 35;
+      assertEquals(35, this[ownSetter]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownSetter);
+      assertEquals(35, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownSetter));
+    },
+    mStrict() {
+      'use strict';
+      assertEquals(42, this[ownReadOnly]);
+      super[ownReadOnly] = 55;
+      assertEquals(55, this[ownReadOnly]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadOnly);
+      assertEquals(55, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadOnly));
+
+      assertEquals(15, this[ownReadonlyAccessor]);
+      super[ownReadonlyAccessor] = 25;
+      assertEquals(25, this[ownReadonlyAccessor]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadonlyAccessor);
+      assertEquals(25, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadonlyAccessor));
+
+      super[ownSetter] = 35;
+      assertEquals(35, this[ownSetter]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownSetter);
+      assertEquals(35, descr.value);
+      assertTrue(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertTrue(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownSetter));
+    },
+  };
+
+  var d = new Derived();
+  Object.defineProperty(d, ownReadOnly, {
+    value: 42,
+    writable: false,
+    configurable: true
+  });
+  Object.defineProperty(d, ownSetter, {
+    set: function() { assertUnreachable(); },
+    configurable: true
+  });
+  Object.defineProperty(d, ownReadonlyAccessor, {
+    get: function() { return 15; },
+    configurable: true
+  });
+
+  d.mSloppy();
+
+  var d = new Derived();
+  Object.defineProperty(d, ownReadOnly, {
+    value: 42,
+    writable: false,
+    configurable: true
+  });
+  Object.defineProperty(d, ownSetter, {
+    set: function() { assertUnreachable(); },
+    configurable: true
+  });
+  Object.defineProperty(d, ownReadonlyAccessor, {
+    get: function() { return 15; },
+    configurable: true
+  });
+  d.mStrict();
+}
+TestKeyedSetterCreatingOwnPropertiesReconfigurable('ownReadOnly',
+                                                   'ownReadonlyAccessor',
+                                                   'ownSetter');
+TestKeyedSetterCreatingOwnPropertiesReconfigurable(42, 43, 44);
+
+
+function TestKeyedSetterCreatingOwnPropertiesNonConfigurable(
+    ownReadOnly, ownReadonlyAccessor, ownSetter) {
   function Base() {}
   function Derived() {}
   Derived.prototype = {
@@ -1089,105 +1321,78 @@
       assertEquals(42, this[ownReadOnly]);
       super[ownReadOnly] = 55;
       assertEquals(42, this[ownReadOnly]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadOnly);
+      assertEquals(42, descr.value);
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(descr.writable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadOnly));
 
       assertEquals(15, this[ownReadonlyAccessor]);
-      super[ownReadonlyAccessor] = 55;
+      super[ownReadonlyAccessor] = 25;
       assertEquals(15, this[ownReadonlyAccessor]);
+      var descr = Object.getOwnPropertyDescriptor(this, ownReadonlyAccessor);
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(Base.prototype.hasOwnProperty(ownReadonlyAccessor));
 
-      setterCalled = 0;
-      super[ownSetter] = 42;
-      assertEquals(1, setterCalled);
+      super[ownSetter] = 35;
+      var descr = Object.getOwnPropertyDescriptor(this, ownSetter);
+      assertFalse(descr.configurable);
+      assertFalse(descr.enumerable);
+      assertFalse(Base.prototype.hasOwnProperty(ownSetter));
     },
     mStrict() {
       'use strict';
-      assertEquals(42, this[ownReadOnly]);
       var ex;
+      assertEquals(42, this[ownReadOnly]);
       try {
         super[ownReadOnly] = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals(
+          "Cannot assign to read only property '" + ownReadOnly +
+              "' of #<Base>",
+          ex.message);
       assertEquals(42, this[ownReadOnly]);
 
-      assertEquals(15, this[ownReadonlyAccessor]);
       ex = null;
+      assertEquals(15, this[ownReadonlyAccessor]);
       try {
-        super[ownReadonlyAccessor] = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+        super[ownReadonlyAccessor] = 25;
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals('Cannot redefine property: ' + ownReadonlyAccessor,
+                   ex.message);
       assertEquals(15, this[ownReadonlyAccessor]);
 
-      setterCalled = 0;
-      super[ownSetter] = 42;
-      assertEquals(1, setterCalled);
+      ex = null;
+      try {
+        super[ownSetter] = 35;
+      } catch (e) {
+        ex = e;
+      }
+      assertInstanceof(ex, TypeError);
+      assertEquals('Cannot redefine property: ' + ownSetter, ex.message);
     }
   };
 
   var d = new Derived();
-  Object.defineProperty(d, 'ownReadOnly', { value : 42, writable : false });
-  Object.defineProperty(d, 'ownSetter',
-      { set : function() { setterCalled++; } });
-  Object.defineProperty(d, 'ownReadonlyAccessor',
-      { get : function() { return 15; }});
-  d.mSloppy();
-  d.mStrict();
-}());
-
-
-(function TestKeyedNumericSetterCreatingOwnProperties() {
-  var ownReadOnly = 42;
-  var ownReadonlyAccessor = 43;
-  var ownSetter = 44;
-  var setterCalled;
-  function Base() {}
-  function Derived() {}
-  Derived.prototype = {
-    __proto__: Base.prototype,
-    mSloppy() {
-      assertEquals(42, this[ownReadOnly]);
-      super[ownReadOnly] = 55;
-      assertEquals(42, this[ownReadOnly]);
-
-      assertEquals(15, this[ownReadonlyAccessor]);
-      super[ownReadonlyAccessor] = 55;
-      assertEquals(15, this[ownReadonlyAccessor]);
-
-      setterCalled = 0;
-      super[ownSetter] = 42;
-      assertEquals(1, setterCalled);
-    },
-    mStrict() {
-      'use strict';
-      assertEquals(42, this[ownReadOnly]);
-      var ex;
-      try {
-        super[ownReadOnly] = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
-      assertEquals(42, this[ownReadOnly]);
-
-      assertEquals(15, this[ownReadonlyAccessor]);
-      ex = null;
-      try {
-        super[ownReadonlyAccessor] = 55;
-      } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
-      assertEquals(15, this[ownReadonlyAccessor]);
-
-      setterCalled = 0;
-      super[ownSetter] = 42;
-      assertEquals(1, setterCalled);
-    }
-  }
-
-  var d = new Derived();
   Object.defineProperty(d, ownReadOnly, { value : 42, writable : false });
   Object.defineProperty(d, ownSetter,
-      { set : function() { setterCalled++; } });
+      { set : function() { assertUnreachable(); } });
   Object.defineProperty(d, ownReadonlyAccessor,
       { get : function() { return 15; }});
   d.mSloppy();
   d.mStrict();
-}());
+}
+TestKeyedSetterCreatingOwnPropertiesNonConfigurable('ownReadOnly',
+    'ownReadonlyAccessor', 'ownSetter');
+TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
 
 
 (function TestSetterNoProtoWalk() {
@@ -1684,7 +1889,7 @@
       assertEquals(27, this.x);
       var ex = null;
       try { super.x = 10; } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
       assertEquals(27, super.x);
       assertEquals(27, this.x);
     }
@@ -1716,7 +1921,7 @@
       assertEquals(27, this[x]);
       var ex = null;
       try { super[x] = 10; } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
       assertEquals(27, super[x]);
       assertEquals(27, this[x]);
     }
@@ -1748,7 +1953,7 @@
       assertEquals(27, this[x]);
       var ex = null;
       try { super[x] = 10; } catch(e) { ex = e; }
-      assertTrue(ex instanceof TypeError);
+      assertInstanceof(ex, TypeError);
       assertEquals(27, super[x]);
       assertEquals(27, this[x]);
     }
@@ -1845,7 +2050,7 @@
   var f = new F(42);
 
   // TODO(dslomov,arv): Fix this. BUG=v8:3886.
-  assertTrue(f instanceof Number);
+  assertInstanceof(f, Number);
 }());
 
 (function TestSuperCallErrorCases() {

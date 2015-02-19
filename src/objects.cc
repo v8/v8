@@ -291,7 +291,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
   if (structure->IsAccessorInfo()) {
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
-      Handle<Object> args[2] = { name, receiver };
+      Handle<Object> args[] = {name, receiver};
       THROW_NEW_ERROR(isolate,
                       NewTypeError("incompatible_method_receiver",
                                    HandleVector(args, arraysize(args))),
@@ -356,7 +356,7 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     // api style callbacks
     ExecutableAccessorInfo* info = ExecutableAccessorInfo::cast(*structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
-      Handle<Object> args[2] = { name, receiver };
+      Handle<Object> args[] = {name, receiver};
       THROW_NEW_ERROR(isolate,
                       NewTypeError("incompatible_method_receiver",
                                    HandleVector(args, arraysize(args))),
@@ -383,10 +383,11 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
           receiver, Handle<JSReceiver>::cast(setter), value);
     } else {
       if (is_sloppy(language_mode)) return value;
-      Handle<Object> args[2] = { name, holder };
-      THROW_NEW_ERROR(
-          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
-          Object);
+      Handle<Object> args[] = {name, holder};
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("no_setter_in_callback",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
   }
 
@@ -753,13 +754,12 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
   Handle<JSObject> target = Handle<JSObject>::cast(receiver);
   ElementsAccessor* accessor = target->GetElementsAccessor();
   PropertyAttributes attrs = accessor->GetAttributes(target, index);
-  if ((attrs & READ_ONLY) != 0) {
-    return WriteToReadOnlyElement(isolate, receiver, index, value,
-                                  language_mode);
+  if (attrs == ABSENT) {
+    return JSObject::SetElement(target, index, value, NONE, language_mode,
+                                false);
   }
-  PropertyAttributes new_attrs = attrs != ABSENT ? attrs : NONE;
-  return JSObject::SetElement(target, index, value, new_attrs, language_mode,
-                              false);
+  return JSObject::SetElement(target, index, value, attrs, language_mode, false,
+                              DEFINE_PROPERTY);
 }
 
 
@@ -3047,14 +3047,16 @@ MaybeHandle<Object> Object::SetProperty(Handle<Object> object,
 }
 
 
-MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
-                                        Handle<Object> value,
-                                        LanguageMode language_mode,
-                                        StoreFromKeyed store_mode,
-                                        StorePropertyMode data_store_mode) {
+MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
+                                                Handle<Object> value,
+                                                LanguageMode language_mode,
+                                                StoreFromKeyed store_mode,
+                                                bool* found) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc(it->isolate());
+
+  *found = true;
 
   bool done = false;
   for (; it->IsFound(); it->Next()) {
@@ -3135,32 +3137,102 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.
   if (it->GetReceiver()->IsJSGlobalObject() && is_strict(language_mode)) {
-    Handle<Object> args[1] = {it->name()};
-    THROW_NEW_ERROR(it->isolate(),
-                    NewReferenceError("not_defined", HandleVector(args, 1)),
-                    Object);
+    Handle<Object> args[] = {it->name()};
+    THROW_NEW_ERROR(
+        it->isolate(),
+        NewReferenceError("not_defined", HandleVector(args, arraysize(args))),
+        Object);
   }
 
-  if (data_store_mode == SUPER_PROPERTY) {
-    LookupIterator own_lookup(it->GetReceiver(), it->name(),
-                              LookupIterator::OWN);
+  *found = false;
+  return MaybeHandle<Object>();
+}
 
-    return JSObject::SetProperty(&own_lookup, value, language_mode, store_mode,
-                                 NORMAL_PROPERTY);
-  }
 
+MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
+                                        Handle<Object> value,
+                                        LanguageMode language_mode,
+                                        StoreFromKeyed store_mode) {
+  bool found = false;
+  MaybeHandle<Object> result =
+      SetPropertyInternal(it, value, language_mode, store_mode, &found);
+  if (found) return result;
   return AddDataProperty(it, value, NONE, language_mode, store_mode);
+}
+
+
+MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
+                                             Handle<Object> value,
+                                             LanguageMode language_mode,
+                                             StoreFromKeyed store_mode) {
+  bool found = false;
+  MaybeHandle<Object> result =
+      SetPropertyInternal(it, value, language_mode, store_mode, &found);
+  if (found) return result;
+
+  LookupIterator own_lookup(it->GetReceiver(), it->name(), LookupIterator::OWN);
+
+  switch (own_lookup.state()) {
+    case LookupIterator::NOT_FOUND:
+      return JSObject::AddDataProperty(&own_lookup, value, NONE, language_mode,
+                                       store_mode);
+
+    case LookupIterator::DATA: {
+      PropertyDetails details = own_lookup.property_details();
+      if (details.IsConfigurable() || !details.IsReadOnly()) {
+        return JSObject::SetOwnPropertyIgnoreAttributes(
+            Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
+            details.attributes());
+      }
+      return WriteToReadOnlyProperty(&own_lookup, value, language_mode);
+    }
+
+    case LookupIterator::ACCESSOR: {
+      PropertyDetails details = own_lookup.property_details();
+      if (details.IsConfigurable()) {
+        return JSObject::SetOwnPropertyIgnoreAttributes(
+            Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
+            details.attributes());
+      }
+
+      return RedefineNonconfigurableProperty(it->isolate(), it->name(), value,
+                                             language_mode);
+    }
+
+    case LookupIterator::TRANSITION:
+      UNREACHABLE();
+      break;
+
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::ACCESS_CHECK: {
+      bool found = false;
+      MaybeHandle<Object> result = SetPropertyInternal(
+          &own_lookup, value, language_mode, store_mode, &found);
+      if (found) return result;
+      return SetDataProperty(&own_lookup, value);
+    }
+  }
+
+  UNREACHABLE();
+  return MaybeHandle<Object>();
 }
 
 
 MaybeHandle<Object> Object::WriteToReadOnlyProperty(
     LookupIterator* it, Handle<Object> value, LanguageMode language_mode) {
-  if (is_sloppy(language_mode)) return value;
+  return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(), it->name(),
+                                 value, language_mode);
+}
 
-  Handle<Object> args[] = {it->name(), it->GetReceiver()};
-  THROW_NEW_ERROR(it->isolate(),
-                  NewTypeError("strict_read_only_property",
-                               HandleVector(args, arraysize(args))),
+
+MaybeHandle<Object> Object::WriteToReadOnlyProperty(
+    Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
+    Handle<Object> value, LanguageMode language_mode) {
+  if (is_sloppy(language_mode)) return value;
+  Handle<Object> args[] = {name, receiver};
+  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                        HandleVector(args, arraysize(args))),
                   Object);
 }
 
@@ -3170,11 +3242,18 @@ MaybeHandle<Object> Object::WriteToReadOnlyElement(Isolate* isolate,
                                                    uint32_t index,
                                                    Handle<Object> value,
                                                    LanguageMode language_mode) {
-  if (is_sloppy(language_mode)) return value;
+  return WriteToReadOnlyProperty(isolate, receiver,
+                                 isolate->factory()->NewNumberFromUint(index),
+                                 value, language_mode);
+}
 
-  Handle<Object> args[] = {isolate->factory()->NewNumberFromUint(index),
-                           receiver};
-  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+
+MaybeHandle<Object> Object::RedefineNonconfigurableProperty(
+    Isolate* isolate, Handle<Object> name, Handle<Object> value,
+    LanguageMode language_mode) {
+  if (is_sloppy(language_mode)) return value;
+  Handle<Object> args[] = {name};
+  THROW_NEW_ERROR(isolate, NewTypeError("redefine_disallowed",
                                         HandleVector(args, arraysize(args))),
                   Object);
 }
@@ -3243,7 +3322,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   if (it->state() != LookupIterator::TRANSITION) {
     if (is_sloppy(language_mode)) return value;
 
-    Handle<Object> args[1] = {it->name()};
+    Handle<Object> args[] = {it->name()};
     THROW_NEW_ERROR(it->isolate(),
                     NewTypeError("object_not_extensible",
                                  HandleVector(args, arraysize(args))),
@@ -3789,11 +3868,8 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     DCHECK(writable->IsBoolean());
     *done = writable->IsFalse();
     if (!*done) return isolate->factory()->the_hole_value();
-    if (is_sloppy(language_mode)) return value;
-    Handle<Object> args[] = { name, receiver };
-    THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
-                                          HandleVector(args, arraysize(args))),
-                    Object);
+    return WriteToReadOnlyProperty(isolate, receiver, name, value,
+                                   language_mode);
   }
 
   // We have an AccessorDescriptor.
@@ -5152,9 +5228,10 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     if (is_strict(language_mode)) {
       // Deleting a non-configurable property in strict mode.
       Handle<Object> name = factory->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, object };
-      THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
-                                            HandleVector(args, 2)),
+      Handle<Object> args[] = {name, object};
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("strict_delete_property",
+                                   HandleVector(args, arraysize(args))),
                       Object);
     }
     return factory->false_value();
@@ -5285,7 +5362,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         if (!it.IsConfigurable()) {
           // Fail if the property is not configurable.
           if (is_strict(language_mode)) {
-            Handle<Object> args[2] = {name, object};
+            Handle<Object> args[] = {name, object};
             THROW_NEW_ERROR(it.isolate(),
                             NewTypeError("strict_delete_property",
                                          HandleVector(args, arraysize(args))),
@@ -12660,10 +12737,11 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(
     } else {
       if (is_sloppy(language_mode)) return value;
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
-      Handle<Object> args[2] = { key, holder };
-      THROW_NEW_ERROR(
-          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
-          Object);
+      Handle<Object> args[] = {key, holder};
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("no_setter_in_callback",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
   }
 
@@ -12850,25 +12928,30 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
     if (details.type() == ACCESSOR_CONSTANT && set_mode == SET_PROPERTY) {
       return SetElementWithCallback(object, element, index, value, object,
                                     language_mode);
-    } else {
-      dictionary->UpdateMaxNumberKey(index);
+    } else if (set_mode == DEFINE_PROPERTY && !details.IsConfigurable() &&
+               details.kind() == kAccessor) {
+      return RedefineNonconfigurableProperty(
+          isolate, isolate->factory()->NewNumberFromUint(index),
+          isolate->factory()->undefined_value(), language_mode);
+
+    } else if ((set_mode == DEFINE_PROPERTY && !details.IsConfigurable() &&
+                details.IsReadOnly()) ||
+               (set_mode == SET_PROPERTY && details.IsReadOnly() &&
+                !element->IsTheHole())) {
       // If a value has not been initialized we allow writing to it even if it
-      // is read-only (a declared const that has not been initialized).  If a
-      // value is being defined we skip attribute checks completely.
+      // is read-only (a declared const that has not been initialized).
+      return WriteToReadOnlyProperty(
+          isolate, object, isolate->factory()->NewNumberFromUint(index),
+          isolate->factory()->undefined_value(), language_mode);
+    } else {
+      DCHECK(details.IsConfigurable() || !details.IsReadOnly() ||
+             element->IsTheHole());
+      dictionary->UpdateMaxNumberKey(index);
       if (set_mode == DEFINE_PROPERTY) {
         details = PropertyDetails(attributes, DATA, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
-      } else if (details.IsReadOnly() && !element->IsTheHole()) {
-        if (is_sloppy(language_mode)) {
-          return isolate->factory()->undefined_value();
-        } else {
-          Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-          Handle<Object> args[2] = { number, object };
-          THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
-                                                HandleVector(args, 2)),
-                          Object);
-        }
       }
+
       // Elements of the arguments object in slow mode might be slow aliases.
       if (is_arguments && element->IsAliasedArgumentsEntry()) {
         Handle<AliasedArgumentsEntry> entry =
@@ -12900,9 +12983,10 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       } else {
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<String> name = isolate->factory()->NumberToString(number);
-        Handle<Object> args[1] = { name };
-        THROW_NEW_ERROR(isolate, NewTypeError("object_not_extensible",
-                                              HandleVector(args, 1)),
+        Handle<Object> args[] = {name};
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError("object_not_extensible",
+                                     HandleVector(args, arraysize(args))),
                         Object);
       }
     }
@@ -13602,7 +13686,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Isolate* isolate = array->GetIsolate();
   Handle<Name> length = isolate->factory()->length_string();
-  Handle<Object> args[2] = { length, array };
+  Handle<Object> args[] = {length, array};
   THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
                                         HandleVector(args, arraysize(args))),
                   Object);

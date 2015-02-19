@@ -1017,8 +1017,6 @@ class Object {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
-  enum StorePropertyMode { NORMAL_PROPERTY, SUPER_PROPERTY };
-
   INLINE(bool IsFixedArrayBase() const);
   INLINE(bool IsExternal() const);
   INLINE(bool IsAccessorInfo() const);
@@ -1128,13 +1126,23 @@ class Object {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode,
-      StorePropertyMode data_store_mode = NORMAL_PROPERTY);
+      StoreFromKeyed store_mode);
+
+  MUST_USE_RESULT static MaybeHandle<Object> SetSuperProperty(
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
+      StoreFromKeyed store_mode);
+
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
+      Isolate* isolate, Handle<Object> reciever, Handle<Object> name,
+      Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyElement(
       Isolate* isolate, Handle<Object> receiver, uint32_t index,
       Handle<Object> value, LanguageMode language_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> RedefineNonconfigurableProperty(
+      Isolate* isolate, Handle<Object> name, Handle<Object> value,
+      LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
       LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
@@ -1253,6 +1261,11 @@ class Object {
 
   // Return the map of the root of object's prototype chain.
   Map* GetRootMap(Isolate* isolate);
+
+  // Helper for SetProperty and SetSuperProperty.
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyInternal(
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
+      StoreFromKeyed store_mode, bool* found);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };

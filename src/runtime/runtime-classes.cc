@@ -311,9 +311,8 @@ static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Object::SetProperty(&it, value, language_mode,
-                          Object::CERTAINLY_NOT_STORE_FROM_KEYED,
-                          Object::SUPER_PROPERTY));
+      Object::SetSuperProperty(&it, value, language_mode,
+                               Object::CERTAINLY_NOT_STORE_FROM_KEYED));
   return *result;
 }
 
