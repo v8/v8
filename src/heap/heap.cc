@@ -3691,6 +3691,7 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
          isolate_->code_range()->contains(code->address()));
   code->set_gc_metadata(Smi::FromInt(0));
+  code->set_ic_age(global_ic_age_);
   return code;
 }
 
