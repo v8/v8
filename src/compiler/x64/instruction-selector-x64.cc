@@ -812,12 +812,22 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Node* value = node->InputAt(0);
   if (CanCover(node, value)) {
     switch (value->opcode()) {
-      case IrOpcode::kWord64Sar:
-      case IrOpcode::kWord64Shr: {
+      case IrOpcode::kWord64Sar: {
         Int64BinopMatcher m(value);
-        if (m.right().Is(32)) {
+        if (m.right().IsInRange(1, 32)) {
           Emit(kX64Shr, g.DefineSameAsFirst(node),
-               g.UseRegister(m.left().node()), g.TempImmediate(32));
+               g.UseRegister(m.left().node()),
+               g.UseImmediate(m.right().node()));
+          return;
+        }
+        break;
+      }
+      case IrOpcode::kWord64Shl: {
+        Int64BinopMatcher m(value);
+        if (m.right().IsInRange(1, 31)) {
+          Emit(kX64Shl32, g.DefineSameAsFirst(node),
+               g.UseRegister(m.left().node()),
+               g.UseImmediate(m.right().node()));
           return;
         }
         break;
@@ -826,7 +836,9 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         break;
     }
   }
-  Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
+  // Otherwise truncation from 64-bit to 32-bit is a no-nop, as 32-bit
+  // operations just ignore the upper 64-bit.
+  Emit(kArchNop, g.DefineAsRegister(node), g.Use(value));
 }
 
 
