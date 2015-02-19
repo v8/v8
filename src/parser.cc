@@ -382,9 +382,18 @@ class TargetScope BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
+bool ParserTraits::IsEval(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->eval_string();
+}
+
+
+bool ParserTraits::IsArguments(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->arguments_string();
+}
+
+
 bool ParserTraits::IsEvalOrArguments(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->eval_string() ||
-         identifier == parser_->ast_value_factory()->arguments_string();
+  return IsEval(identifier) || IsArguments(identifier);
 }
 
 

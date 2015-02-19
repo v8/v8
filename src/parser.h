@@ -383,6 +383,8 @@ class ParserTraits {
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
   // Helper functions for recursive descent.
+  bool IsEval(const AstRawString* identifier) const;
+  bool IsArguments(const AstRawString* identifier) const;
   bool IsEvalOrArguments(const AstRawString* identifier) const;
   V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
 

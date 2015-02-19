@@ -725,17 +725,13 @@ class PreParserIdentifier {
     return PreParserIdentifier(kConstructorIdentifier);
   }
   bool IsEval() const { return type_ == kEvalIdentifier; }
-  bool IsArguments(const AstValueFactory* = NULL) const {
-    return type_ == kArgumentsIdentifier;
-  }
+  bool IsArguments() const { return type_ == kArgumentsIdentifier; }
+  bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
   bool IsLet() const { return type_ == kLetIdentifier; }
   bool IsStatic() const { return type_ == kStaticIdentifier; }
   bool IsYield() const { return type_ == kYieldIdentifier; }
   bool IsPrototype() const { return type_ == kPrototypeIdentifier; }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
-  bool IsEvalOrArguments() const {
-    return type_ == kEvalIdentifier || type_ == kArgumentsIdentifier;
-  }
   bool IsFutureReserved() const { return type_ == kFutureReservedIdentifier; }
   bool IsFutureStrictReserved() const {
     return type_ == kFutureStrictReservedIdentifier ||
@@ -1236,6 +1232,14 @@ class PreParserTraits {
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
   // Helper functions for recursive descent.
+  static bool IsEval(PreParserIdentifier identifier) {
+    return identifier.IsEval();
+  }
+
+  static bool IsArguments(PreParserIdentifier identifier) {
+    return identifier.IsArguments();
+  }
+
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
     return identifier.IsEvalOrArguments();
   }
@@ -1729,12 +1733,18 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
     IdentifierT name = this->GetSymbol(scanner());
-    if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
-        is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
-      ReportMessage("strict_eval_arguments");
-      *ok = false;
+    if (allow_eval_or_arguments == kDontAllowEvalOrArguments) {
+      if (is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
+        ReportMessage("strict_eval_arguments");
+        *ok = false;
+      }
+    } else {
+      if (is_strong(language_mode()) && this->IsArguments(name)) {
+        ReportMessage("strong_arguments");
+        *ok = false;
+      }
     }
-    if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
+    if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
     return name;
   } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
@@ -1767,7 +1777,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
+  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -1785,7 +1795,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (name->IsArguments(ast_value_factory())) scope_->RecordArgumentsUsage();
+  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
   return name;
 }
 
