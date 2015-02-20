@@ -100,7 +100,8 @@ bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
   return opcode == IrOpcode::kStart || opcode == IrOpcode::kEnd ||
          opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
          opcode == IrOpcode::kMerge || opcode == IrOpcode::kIfTrue ||
-         opcode == IrOpcode::kIfFalse || opcode == IrOpcode::kIfValue ||
+         opcode == IrOpcode::kIfFalse || opcode == IrOpcode::kIfSuccess ||
+         opcode == IrOpcode::kIfException || opcode == IrOpcode::kIfValue ||
          opcode == IrOpcode::kIfDefault;
 }
 

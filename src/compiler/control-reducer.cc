@@ -131,7 +131,7 @@ class ControlReducerImpl {
           pop = false;  // restart traversing successors of this node.
           break;
         }
-        if (NodeProperties::IsControl(succ) &&
+        if (succ->op()->ControlOutputCount() > 0 &&
             !marked.IsReachableFromStart(succ)) {
           // {succ} is a control node and not yet reached from start.
           marked.Push(succ);
@@ -155,7 +155,7 @@ class ControlReducerImpl {
     // Any control nodes not reachable from start are dead, even loops.
     for (size_t i = 0; i < nodes.size(); i++) {
       Node* node = nodes[i];
-      if (NodeProperties::IsControl(node) &&
+      if (node->op()->ControlOutputCount() > 0 &&
           !marked.IsReachableFromStart(node)) {
         ReplaceNode(node, dead());  // uses will be added to revisit queue.
       }
@@ -190,16 +190,14 @@ class ControlReducerImpl {
       DCHECK(NodeProperties::IsControlEdge(edge));
       if (edge.from() == branch) continue;
       switch (edge.from()->opcode()) {
-#define CASE(Opcode) case IrOpcode::k##Opcode:
-        CONTROL_OP_LIST(CASE)
-#undef CASE
-          // Update all control nodes (except {branch}) pointing to the {loop}.
-          edge.UpdateTo(if_true);
+        case IrOpcode::kPhi:
           break;
         case IrOpcode::kEffectPhi:
           effects.push_back(edge.from());
           break;
         default:
+          // Update all control edges (except {branch}) pointing to the {loop}.
+          edge.UpdateTo(if_true);
           break;
       }
     }

@@ -8,6 +8,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 using testing::AnyOf;
+using testing::ElementsAre;
 using testing::IsNull;
 
 namespace v8 {
@@ -15,6 +16,62 @@ namespace internal {
 namespace compiler {
 
 typedef TestWithZone NodePropertiesTest;
+
+
+namespace {
+
+const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
+                             "MockOperator", 0, 0, 0, 1, 0, 0);
+const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
+                             "MockOpEffect", 0, 1, 0, 1, 1, 0);
+const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
+                              "MockOpControl", 0, 0, 1, 1, 0, 1);
+
+}  // namespace
+
+
+TEST_F(NodePropertiesTest, ReplaceWithValue_ValueUse) {
+  CommonOperatorBuilder common(zone());
+  Node* node = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
+  Node* use_value = Node::New(zone(), 0, common.Return(), 1, &node, false);
+  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
+  NodeProperties::ReplaceWithValue(node, replacement);
+  EXPECT_EQ(replacement, use_value->InputAt(0));
+  EXPECT_EQ(0, node->UseCount());
+  EXPECT_EQ(1, replacement->UseCount());
+  EXPECT_THAT(replacement->uses(), ElementsAre(use_value));
+}
+
+
+TEST_F(NodePropertiesTest, ReplaceWithValue_EffectUse) {
+  CommonOperatorBuilder common(zone());
+  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
+  Node* node = Node::New(zone(), 0, &kMockOpEffect, 1, &start, false);
+  Node* use_effect = Node::New(zone(), 0, common.EffectPhi(1), 1, &node, false);
+  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
+  NodeProperties::ReplaceWithValue(node, replacement);
+  EXPECT_EQ(start, use_effect->InputAt(0));
+  EXPECT_EQ(0, node->UseCount());
+  EXPECT_EQ(2, start->UseCount());
+  EXPECT_EQ(0, replacement->UseCount());
+  EXPECT_THAT(start->uses(), ElementsAre(node, use_effect));
+}
+
+
+TEST_F(NodePropertiesTest, ReplaceWithValue_ControlUse) {
+  CommonOperatorBuilder common(zone());
+  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
+  Node* node = Node::New(zone(), 0, &kMockOpControl, 1, &start, false);
+  Node* success = Node::New(zone(), 0, common.IfSuccess(), 1, &node, false);
+  Node* use_control = Node::New(zone(), 0, common.Merge(1), 1, &success, false);
+  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
+  NodeProperties::ReplaceWithValue(node, replacement);
+  EXPECT_EQ(start, use_control->InputAt(0));
+  EXPECT_EQ(0, node->UseCount());
+  EXPECT_EQ(2, start->UseCount());
+  EXPECT_EQ(0, replacement->UseCount());
+  EXPECT_THAT(start->uses(), ElementsAre(node, use_control));
+}
 
 
 TEST_F(NodePropertiesTest, FindProjection) {

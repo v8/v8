@@ -84,6 +84,9 @@ class AstGraphBuilder : public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
+  // Tracks how many try-blocks are currently entered.
+  int try_nesting_level_;
+
   // Temporary storage for building node input lists.
   int input_buffer_size_;
   Node** input_buffer_;

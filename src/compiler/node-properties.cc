@@ -152,14 +152,18 @@ void NodeProperties::RemoveNonValueInputs(Node* node) {
 
 // static
 void NodeProperties::ReplaceWithValue(Node* node, Node* value, Node* effect) {
-  DCHECK(node->op()->ControlOutputCount() == 0);
   if (!effect && node->op()->EffectInputCount() > 0) {
     effect = NodeProperties::GetEffectInput(node);
   }
 
-  // Requires distinguishing between value and effect edges.
+  // Requires distinguishing between value, effect and control edges.
   for (Edge edge : node->use_edges()) {
-    if (IsEffectEdge(edge)) {
+    if (IsControlEdge(edge)) {
+      DCHECK_EQ(IrOpcode::kIfSuccess, edge.from()->opcode());
+      Node* control = NodeProperties::GetControlInput(node);
+      edge.from()->ReplaceUses(control);
+      edge.UpdateTo(NULL);
+    } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
       edge.UpdateTo(effect);
     } else {
@@ -185,22 +189,27 @@ Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {
 void NodeProperties::CollectControlProjections(Node* node, Node** projections,
                                                size_t projection_count) {
 #ifdef DEBUG
-  DCHECK_EQ(static_cast<int>(projection_count), node->UseCount());
+  DCHECK_LE(static_cast<int>(projection_count), node->UseCount());
   std::memset(projections, 0, sizeof(*projections) * projection_count);
 #endif
   size_t if_value_index = 0;
   for (Node* const use : node->uses()) {
     size_t index;
     switch (use->opcode()) {
-      default:
-        UNREACHABLE();
-      // Fall through.
       case IrOpcode::kIfTrue:
         DCHECK_EQ(IrOpcode::kBranch, node->opcode());
         index = 0;
         break;
       case IrOpcode::kIfFalse:
         DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+        index = 1;
+        break;
+      case IrOpcode::kIfSuccess:
+        DCHECK_EQ(IrOpcode::kCall, node->opcode());
+        index = 0;
+        break;
+      case IrOpcode::kIfException:
+        DCHECK_EQ(IrOpcode::kCall, node->opcode());
         index = 1;
         break;
       case IrOpcode::kIfValue:
@@ -211,6 +220,8 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
         DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
         index = projection_count - 1;
         break;
+      default:
+        continue;
     }
     DCHECK_LT(if_value_index, projection_count);
     DCHECK_LT(index, projection_count);

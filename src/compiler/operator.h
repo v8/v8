@@ -97,6 +97,10 @@ class Operator : public ZoneObject {
   int EffectOutputCount() const { return effect_out_; }
   int ControlOutputCount() const { return control_out_; }
 
+  static size_t ZeroIfNoThrow(Properties properties) {
+    return (properties & kNoThrow) == kNoThrow ? 0 : 2;
+  }
+
   static size_t ZeroIfPure(Properties properties) {
     return (properties & kPure) == kPure ? 0 : 1;
   }

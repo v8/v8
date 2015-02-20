@@ -115,6 +115,8 @@ size_t ProjectionIndexOf(const Operator* const op) {
   V(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0)             \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
+  V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
+  V(IfException, Operator::kKontrol, 0, 0, 1, 0, 0, 1)     \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1)          \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
@@ -495,7 +497,8 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfPure(descriptor->properties()),
               descriptor->ReturnCount(),
-              Operator::ZeroIfPure(descriptor->properties()), 0, descriptor) {}
+              Operator::ZeroIfPure(descriptor->properties()),
+              Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
 
     void PrintParameter(std::ostream& os) const OVERRIDE {
       os << "[" << *parameter() << "]";

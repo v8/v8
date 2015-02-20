@@ -81,7 +81,8 @@ class NodeProperties FINAL {
   static void RemoveNonValueInputs(Node* node);
 
   // Replace value uses of {node} with {value} and effect uses of {node} with
-  // {effect}. If {effect == NULL}, then use the effect input to {node}.
+  // {effect}. If {effect == NULL}, then use the effect input to {node}. All
+  // control uses will be relaxed assuming {node} cannot throw.
   static void ReplaceWithValue(Node* node, Node* value, Node* effect = nullptr);
 
 
@@ -91,8 +92,9 @@ class NodeProperties FINAL {
   static Node* FindProjection(Node* node, size_t projection_index);
 
   // Collect the branch-related projections from a node, such as IfTrue,
-  // IfFalse, IfValue and IfDefault.
+  // IfFalse, IfSuccess, IfException, IfValue and IfDefault.
   //  - Branch: [ IfTrue, IfFalse ]
+  //  - Call  : [ IfSuccess, IfException ]
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 

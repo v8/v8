@@ -172,6 +172,8 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
+  const Operator* IfSuccess();
+  const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();

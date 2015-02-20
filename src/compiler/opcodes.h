@@ -12,6 +12,8 @@
   V(Branch)                      \
   V(IfTrue)                      \
   V(IfFalse)                     \
+  V(IfSuccess)                   \
+  V(IfException)                 \
   V(Switch)                      \
   V(IfValue)                     \
   V(IfDefault)                   \
@@ -299,8 +301,12 @@ class IrOpcode {
     return kInt32Constant <= value && value <= kHeapConstant;
   }
 
-  static bool IsPhiOpcode(Value val) {
-    return val == kPhi || val == kEffectPhi;
+  static bool IsPhiOpcode(Value value) {
+    return value == kPhi || value == kEffectPhi;
+  }
+
+  static bool IsMergeOpcode(Value value) {
+    return value == kMerge || value == kLoop;
   }
 };
 

@@ -328,7 +328,12 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
 class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
  public:
   ControlScopeForCatch(AstGraphBuilder* owner, TryCatchBuilder* control)
-      : ControlScope(owner, 0), control_(control) {}
+      : ControlScope(owner, 0), control_(control) {
+    builder()->try_nesting_level_++;  // Increment nesting.
+  }
+  ~ControlScopeForCatch() {
+    builder()->try_nesting_level_--;  // Decrement nesting.
+  }
 
  protected:
   virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
@@ -354,7 +359,12 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  public:
   ControlScopeForFinally(AstGraphBuilder* owner, DeferredCommands* commands,
                          TryFinallyBuilder* control)
-      : ControlScope(owner, 0), commands_(commands), control_(control) {}
+      : ControlScope(owner, 0), commands_(commands), control_(control) {
+    builder()->try_nesting_level_++;  // Increment nesting.
+  }
+  ~ControlScopeForFinally() {
+    builder()->try_nesting_level_--;  // Decrement nesting.
+  }
 
  protected:
   virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
@@ -379,6 +389,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       globals_(0, local_zone),
       execution_control_(nullptr),
       execution_context_(nullptr),
+      try_nesting_level_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_control_(nullptr),
@@ -2974,6 +2985,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
   if (!has_context && !has_framestate && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
+    bool inside_try_scope = try_nesting_level_ > 0;
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
     if (has_framestate) ++input_count_with_deps;
@@ -3001,9 +3013,24 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_effect) {
       environment_->UpdateEffectDependency(result);
     }
-    if (result->op()->ControlOutputCount() > 0 &&
-        !environment()->IsMarkedAsUnreachable()) {
-      environment_->UpdateControlDependency(result);
+    if (!environment()->IsMarkedAsUnreachable()) {
+      // Update the current control dependency for control-producing nodes.
+      if (NodeProperties::IsControl(result)) {
+        environment_->UpdateControlDependency(result);
+      }
+      // Add implicit exception continuation for throwing nodes.
+      if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
+        Node* on_exception = graph()->NewNode(common()->IfException(), result);
+        environment_->UpdateControlDependency(on_exception);
+        if (FLAG_turbo_exceptions) {
+          execution_control()->ThrowValue(jsgraph()->UndefinedConstant());
+        }
+      }
+      // Add implicit success continuation for throwing nodes.
+      if (!result->op()->HasProperty(Operator::kNoThrow)) {
+        Node* on_success = graph()->NewNode(common()->IfSuccess(), result);
+        environment_->UpdateControlDependency(on_success);
+      }
     }
   }
 

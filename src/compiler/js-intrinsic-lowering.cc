@@ -145,7 +145,6 @@ Reduction JSIntrinsicLowering::ReduceInlineValueOf(Node* node) {
 
   Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
 
-
   // Replace all effect uses of {node} with the {ephi0}.
   Node* ephi0 = graph()->NewNode(ephi_op, etrue0, efalse0, merge0);
   NodeProperties::ReplaceWithValue(node, node, ephi0);
@@ -156,7 +155,7 @@ Reduction JSIntrinsicLowering::ReduceInlineValueOf(Node* node) {
 
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
-  // Remove the effects from the node and update its effect usages.
+  // Replace all effect uses of {node} with the effect dependency.
   NodeProperties::ReplaceWithValue(node, node);
   // Remove the inputs corresponding to context, effect and control.
   NodeProperties::RemoveNonValueInputs(node);

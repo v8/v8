@@ -202,6 +202,7 @@ bool CanCover(Node* value, IrOpcode::Value opcode) {
   if (value->opcode() != opcode) return false;
   bool first = true;
   for (Edge const edge : value->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) continue;
     if (NodeProperties::IsEffectEdge(edge)) continue;
     DCHECK(NodeProperties::IsValueEdge(edge));
     if (!first) return false;

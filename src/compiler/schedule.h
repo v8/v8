@@ -32,6 +32,7 @@ class BasicBlock FINAL : public ZoneObject {
   enum Control {
     kNone,    // Control not initialized yet.
     kGoto,    // Goto a single successor block.
+    kCall,    // Call with continuation as first successor, exception second.
     kBranch,  // Branch if true to first successor, otherwise second.
     kSwitch,  // Table dispatch to one of the successor blocks.
     kReturn,  // Return a value from this method.
@@ -232,6 +233,10 @@ class Schedule FINAL : public ZoneObject {
 
   // BasicBlock building: add a goto to the end of {block}.
   void AddGoto(BasicBlock* block, BasicBlock* succ);
+
+  // BasicBlock building: add a call at the end of {block}.
+  void AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
+               BasicBlock* exception_block);
 
   // BasicBlock building: add a branch at the end of {block}.
   void AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,

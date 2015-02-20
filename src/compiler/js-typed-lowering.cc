@@ -19,12 +19,20 @@ namespace compiler {
 // - relax effects from generic but not-side-effecting operations
 
 
-// Relax the effects of {node} by immediately replacing effect uses of {node}
-// with the effect input to {node}.
+// Relax the effects of {node} by immediately replacing effect and control uses
+// of {node} with the effect and control input to {node}.
 // TODO(turbofan): replace the effect input to {node} with {graph->start()}.
 // TODO(titzer): move into a GraphEditor?
-static void RelaxEffects(Node* node) {
+static void RelaxEffectsAndControls(Node* node) {
   NodeProperties::ReplaceWithValue(node, node, NULL);
+}
+
+
+// Relax the control uses of {node} by immediately replacing them with the
+// control input to {node}.
+// TODO(titzer): move into a GraphEditor?
+static void RelaxControls(Node* node) {
+  NodeProperties::ReplaceWithValue(node, node, node);
 }
 
 
@@ -116,9 +124,9 @@ class JSBinopReduction FINAL {
     DCHECK_EQ(0, op->ControlInputCount());
     DCHECK_EQ(2, op->ValueInputCount());
 
-    // Remove the effects from the node, if any, and update its effect usages.
+    // Remove the effects from the node, and update its effect/control usages.
     if (node_->op()->EffectInputCount() > 0) {
-      RelaxEffects(node_);
+      RelaxEffectsAndControls(node_);
     }
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
@@ -584,7 +592,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       DCHECK(NodeProperties::IsControl(control));
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
-      RelaxEffects(node);
+      RelaxEffectsAndControls(node);
       node->set_op(common()->Phi(kMachAnyTagged, input_count));
       for (int i = 0; i < input_count; ++i) {
         // We must be very careful not to introduce cycles when pushing
@@ -616,7 +624,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       DCHECK_EQ(3, input_count);
       DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
       DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
-      RelaxEffects(node);
+      RelaxEffectsAndControls(node);
       node->set_op(common()->Select(kMachAnyTagged, input_hint));
       node->ReplaceInput(0, input->InputAt(0));
       for (int i = 1; i < input_count; ++i) {
@@ -640,7 +648,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
         NodeProperties::GetControlInput(node) != graph()->start()) {
       // JSToNumber(x:plain-primitive,context,effect,control)
       //   => JSToNumber(x,no-context,start,start)
-      RelaxEffects(node);
+      RelaxEffectsAndControls(node);
       NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
       NodeProperties::ReplaceControlInput(node, graph()->start());
       NodeProperties::ReplaceEffectInput(node, graph()->start());
@@ -796,6 +804,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         node->ReplaceInput(3, effect);
         node->ReplaceInput(4, control);
         node->TrimInputCount(5);
+        RelaxControls(node);
         return Changed(node);
       }
       // Compute byte offset.
@@ -809,6 +818,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       node->ReplaceInput(4, effect);
       node->ReplaceInput(5, control);
       node->TrimInputCount(6);
+      RelaxControls(node);
       return Changed(node);
     }
   }
