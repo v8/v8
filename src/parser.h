@@ -656,8 +656,8 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
-  void Internalize(CompilationInfo* info);
-  void HandleSourceURLComments(CompilationInfo* info);
+  void Internalize(Isolate* isolate, Handle<Script> script, bool error);
+  void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
 
  private:
   friend class ParserTraits;
@@ -672,10 +672,10 @@ class Parser : public ParserBase<ParserTraits> {
   static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
 
   // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram(CompilationInfo* info);
+  FunctionLiteral* ParseProgram(Isolate* isolate, CompilationInfo* info);
 
-  FunctionLiteral* ParseLazy(CompilationInfo* info);
-  FunctionLiteral* ParseLazy(CompilationInfo* info,
+  FunctionLiteral* ParseLazy(Isolate* isolate, CompilationInfo* info);
+  FunctionLiteral* ParseLazy(Isolate* isolate, CompilationInfo* info,
                              Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.

@@ -831,7 +831,7 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
 }
 
 
-FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
+FunctionLiteral* Parser::ParseProgram(Isolate* isolate, CompilationInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
 
@@ -839,7 +839,6 @@ FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
 
-  Isolate* isolate = info->isolate();
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
@@ -880,7 +879,7 @@ FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
   if (eval_scope != NULL) {
     eval_scope->set_end_position(source->length());
   }
-  HandleSourceURLComments(info);
+  HandleSourceURLComments(isolate, info->script());
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -1000,13 +999,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 }
 
 
-FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
+FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  HistogramTimerScope timer_scope(info->isolate()->counters()->parse_lazy());
+  HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
   Handle<String> source(String::cast(info->script()->source()));
-  info->isolate()->counters()->total_parse_size()->Increment(source->length());
+  isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
@@ -1021,12 +1020,12 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    result = ParseLazy(info, &stream);
+    result = ParseLazy(isolate, info, &stream);
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    result = ParseLazy(info, &stream);
+    result = ParseLazy(isolate, info, &stream);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -1038,7 +1037,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
+FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info,
                                    Utf16CharacterStream* source) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
@@ -1064,7 +1063,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
       // Ok to use Isolate here, since lazy function parsing is only done in the
       // main thread.
       DCHECK(parsing_on_main_thread_);
-      scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
+      scope = Scope::DeserializeScopeChain(isolate, zone(),
                                            info->closure()->context(), scope);
     }
     original_scope_ = scope;
@@ -4258,16 +4257,15 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
 }
 
 
-void Parser::HandleSourceURLComments(CompilationInfo* info) {
+void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
   if (scanner_.source_url()->length() > 0) {
-    Handle<String> source_url =
-        scanner_.source_url()->Internalize(info->isolate());
-    info->script()->set_source_url(*source_url);
+    Handle<String> source_url = scanner_.source_url()->Internalize(isolate);
+    script->set_source_url(*source_url);
   }
   if (scanner_.source_mapping_url()->length() > 0) {
     Handle<String> source_mapping_url =
-        scanner_.source_mapping_url()->Internalize(info->isolate());
-    info->script()->set_source_mapping_url(*source_mapping_url);
+        scanner_.source_mapping_url()->Internalize(isolate);
+    script->set_source_mapping_url(*source_mapping_url);
   }
 }
 
@@ -4321,16 +4319,16 @@ void Parser::ThrowPendingError(Isolate* isolate, Handle<Script> script) {
 }
 
 
-void Parser::Internalize(CompilationInfo* info) {
+void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
   // Internalize strings.
-  ast_value_factory()->Internalize(info->isolate());
+  ast_value_factory()->Internalize(isolate);
 
   // Error processing.
-  if (info->function() == NULL) {
+  if (error) {
     if (stack_overflow()) {
-      info->isolate()->StackOverflow();
+      isolate->StackOverflow();
     } else {
-      ThrowPendingError(info->isolate(), info->script());
+      ThrowPendingError(isolate, script);
     }
   }
 
@@ -4338,10 +4336,10 @@ void Parser::Internalize(CompilationInfo* info) {
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     for (int i = 0; i < use_counts_[feature]; ++i) {
-      info->isolate()->CountUsage(v8::Isolate::UseCounterFeature(feature));
+      isolate->CountUsage(v8::Isolate::UseCounterFeature(feature));
     }
   }
-  info->isolate()->counters()->total_preparse_skipped()->Increment(
+  isolate->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
 }
 
@@ -5289,17 +5287,17 @@ bool Parser::Parse(CompilationInfo* info) {
   if (info->is_lazy()) {
     DCHECK(!info->is_eval());
     if (info->shared_info()->is_function()) {
-      result = ParseLazy(info);
+      result = ParseLazy(isolate, info);
     } else {
-      result = ParseProgram(info);
+      result = ParseProgram(isolate, info);
     }
   } else {
     SetCachedData(info);
-    result = ParseProgram(info);
+    result = ParseProgram(isolate, info);
   }
   info->SetFunction(result);
 
-  Internalize(info);
+  Internalize(isolate, info->script(), result == NULL);
   DCHECK(ast_value_factory()->IsInternalized());
   return (result != NULL);
 }
