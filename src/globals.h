@@ -696,9 +696,15 @@ enum ScopeType {
   ARROW_SCOPE      // The top-level scope for an arrow function literal.
 };
 
-
+// The mips architecture prior to revision 5 has inverted encoding for sNaN.
+#if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6)) || \
+    (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6))
+const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
+const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
+#else
 const uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
 const uint32_t kHoleNanLower32 = 0xFFF7FFFF;
+#endif
 
 const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
