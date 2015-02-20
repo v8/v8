@@ -21,24 +21,16 @@ namespace v8 {
 namespace internal {
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
-                                      const char* message,
-                                      const char* arg,
-                                      bool is_reference_error) {
-  ReportMessageAt(location.beg_pos,
-                  location.end_pos,
-                  message,
-                  arg,
-                  is_reference_error);
+                                      const char* message, const char* arg,
+                                      ParseErrorType error_type) {
+  ReportMessageAt(location.beg_pos, location.end_pos, message, arg, error_type);
 }
 
 
-void PreParserTraits::ReportMessageAt(int start_pos,
-                                      int end_pos,
-                                      const char* message,
-                                      const char* arg,
-                                      bool is_reference_error) {
-  pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg,
-                                is_reference_error);
+void PreParserTraits::ReportMessageAt(int start_pos, int end_pos,
+                                      const char* message, const char* arg,
+                                      ParseErrorType error_type) {
+  pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg, error_type);
 }
 
 

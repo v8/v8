@@ -802,6 +802,10 @@ enum InitializationFlag {
 enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
 
 
+// Serialized in PreparseData, so numeric values should not be changed.
+enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
+
+
 enum ClearExceptionFlag {
   KEEP_EXCEPTION,
   CLEAR_EXCEPTION

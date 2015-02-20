@@ -600,9 +600,8 @@ Expression* ParserTraits::NewThrowError(
 
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                   const char* message,
-                                   const char* arg,
-                                   bool is_reference_error) {
+                                   const char* message, const char* arg,
+                                   ParseErrorType error_type) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -614,30 +613,27 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
   parser_->pending_error_message_ = message;
   parser_->pending_error_char_arg_ = arg;
   parser_->pending_error_arg_ = NULL;
-  parser_->pending_error_is_reference_error_ = is_reference_error;
+  parser_->pending_error_type_ = error_type;
 }
 
 
-void ParserTraits::ReportMessage(const char* message,
-                                 const char* arg,
-                                 bool is_reference_error) {
+void ParserTraits::ReportMessage(const char* message, const char* arg,
+                                 ParseErrorType error_type) {
   Scanner::Location source_location = parser_->scanner()->location();
-  ReportMessageAt(source_location, message, arg, is_reference_error);
+  ReportMessageAt(source_location, message, arg, error_type);
 }
 
 
-void ParserTraits::ReportMessage(const char* message,
-                                 const AstRawString* arg,
-                                 bool is_reference_error) {
+void ParserTraits::ReportMessage(const char* message, const AstRawString* arg,
+                                 ParseErrorType error_type) {
   Scanner::Location source_location = parser_->scanner()->location();
-  ReportMessageAt(source_location, message, arg, is_reference_error);
+  ReportMessageAt(source_location, message, arg, error_type);
 }
 
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                   const char* message,
-                                   const AstRawString* arg,
-                                   bool is_reference_error) {
+                                   const char* message, const AstRawString* arg,
+                                   ParseErrorType error_type) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
@@ -649,7 +645,7 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
   parser_->pending_error_message_ = message;
   parser_->pending_error_char_arg_ = NULL;
   parser_->pending_error_arg_ = arg;
-  parser_->pending_error_is_reference_error_ = is_reference_error;
+  parser_->pending_error_type_ = error_type;
 }
 
 
@@ -797,6 +793,7 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
       pending_error_message_(NULL),
       pending_error_arg_(NULL),
       pending_error_char_arg_(NULL),
+      pending_error_type_(kSyntaxError),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
@@ -3888,7 +3885,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
   if (logger.has_error()) {
     ParserTraits::ReportMessageAt(
         Scanner::Location(logger.start(), logger.end()), logger.message(),
-        logger.argument_opt(), logger.is_reference_error());
+        logger.argument_opt(), logger.error_type());
     *ok = false;
     return;
   }
@@ -4292,10 +4289,16 @@ void Parser::ThrowPendingError(Isolate* isolate, Handle<Script> script) {
 
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> error;
-    MaybeHandle<Object> maybe_error =
-        pending_error_is_reference_error_
-            ? factory->NewReferenceError(pending_error_message_, array)
-            : factory->NewSyntaxError(pending_error_message_, array);
+    MaybeHandle<Object> maybe_error;
+    switch (pending_error_type_) {
+      case kReferenceError:
+        maybe_error = factory->NewReferenceError(pending_error_message_, array);
+        break;
+      case kSyntaxError:
+        maybe_error = factory->NewSyntaxError(pending_error_message_, array);
+        break;
+    }
+    DCHECK(!maybe_error.is_null() || isolate->has_pending_exception());
 
     if (maybe_error.ToHandle(&error)) {
       Handle<JSObject> jserror = Handle<JSObject>::cast(error);

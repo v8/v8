@@ -527,16 +527,15 @@ class ParserBase : public Traits {
 
   // Report syntax errors.
   void ReportMessage(const char* message, const char* arg = NULL,
-                     bool is_reference_error = false) {
+                     ParseErrorType error_type = kSyntaxError) {
     Scanner::Location source_location = scanner()->location();
-    Traits::ReportMessageAt(source_location, message, arg, is_reference_error);
+    Traits::ReportMessageAt(source_location, message, arg, error_type);
   }
 
   void ReportMessageAt(Scanner::Location location, const char* message,
-                       bool is_reference_error = false) {
-    Traits::ReportMessageAt(location, message,
-                            reinterpret_cast<const char*>(0),
-                            is_reference_error);
+                       ParseErrorType error_type = kSyntaxError) {
+    Traits::ReportMessageAt(location, message, reinterpret_cast<const char*>(0),
+                            error_type);
   }
 
   void ReportUnexpectedToken(Token::Value token);
@@ -1345,15 +1344,12 @@ class PreParserTraits {
   }
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location location,
-                       const char* message,
+  void ReportMessageAt(Scanner::Location location, const char* message,
                        const char* arg = NULL,
-                       bool is_reference_error = false);
-  void ReportMessageAt(int start_pos,
-                       int end_pos,
-                       const char* message,
+                       ParseErrorType error_type = kSyntaxError);
+  void ReportMessageAt(int start_pos, int end_pos, const char* message,
                        const char* arg = NULL,
-                       bool is_reference_error = false);
+                       ParseErrorType error_type = kSyntaxError);
 
   // "null" return type creators.
   static PreParserIdentifier EmptyIdentifier() {
@@ -2988,7 +2984,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
     } else if (next == Token::ILLEGAL) {
       Traits::ReportMessageAt(
           Scanner::Location(position() + 1, peek_position()),
-          "unexpected_token", "ILLEGAL", false);
+          "unexpected_token", "ILLEGAL", kSyntaxError);
       *ok = false;
       return Traits::EmptyExpression();
     }
@@ -3017,7 +3013,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start, bool* ok) {
     } else if (next == Token::ILLEGAL) {
       Traits::ReportMessageAt(
           Scanner::Location(position() + 1, peek_position()),
-          "unexpected_token", "ILLEGAL", false);
+          "unexpected_token", "ILLEGAL", kSyntaxError);
       *ok = false;
       return Traits::EmptyExpression();
     }
@@ -3039,7 +3035,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
                                                 const char* message, bool* ok) {
   if (is_strict(language_mode()) && this->IsIdentifier(expression) &&
       this->IsEvalOrArguments(this->AsIdentifier(expression))) {
-    this->ReportMessageAt(location, "strict_eval_arguments", false);
+    this->ReportMessageAt(location, "strict_eval_arguments", kSyntaxError);
     *ok = false;
     return this->EmptyExpression();
   } else if (expression->IsValidReferenceExpression()) {
@@ -3051,7 +3047,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
     ExpressionT error = this->NewThrowReferenceError(message, pos);
     return factory()->NewProperty(expression, error, pos);
   } else {
-    this->ReportMessageAt(location, message, true);
+    this->ReportMessageAt(location, message, kReferenceError);
     *ok = false;
     return this->EmptyExpression();
   }

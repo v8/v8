@@ -30,11 +30,10 @@ class ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start,
-                          int end,
-                          const char* message,
+  virtual void LogMessage(int start, int end, const char* message,
                           const char* argument_opt,
-                          bool is_reference_error) = 0;
+                          ParseErrorType error_type) = 0;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
 };
@@ -43,7 +42,7 @@ class ParserRecorder {
 class SingletonLogger : public ParserRecorder {
  public:
   SingletonLogger()
-      : has_error_(false), start_(-1), end_(-1), is_reference_error_(false) {}
+      : has_error_(false), start_(-1), end_(-1), error_type_(kSyntaxError) {}
   virtual ~SingletonLogger() {}
 
   void Reset() { has_error_ = false; }
@@ -63,18 +62,15 @@ class SingletonLogger : public ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start,
-                          int end,
-                          const char* message,
-                          const char* argument_opt,
-                          bool is_reference_error) {
+  virtual void LogMessage(int start, int end, const char* message,
+                          const char* argument_opt, ParseErrorType error_type) {
     if (has_error_) return;
     has_error_ = true;
     start_ = start;
     end_ = end;
     message_ = message;
     argument_opt_ = argument_opt;
-    is_reference_error_ = is_reference_error;
+    error_type_ = error_type;
   }
 
   bool has_error() const { return has_error_; }
@@ -97,7 +93,10 @@ class SingletonLogger : public ParserRecorder {
     DCHECK(!has_error_);
     return scope_uses_super_property_;
   }
-  int is_reference_error() const { return is_reference_error_; }
+  ParseErrorType error_type() const {
+    DCHECK(has_error_);
+    return error_type_;
+  }
   const char* message() {
     DCHECK(has_error_);
     return message_;
@@ -119,7 +118,7 @@ class SingletonLogger : public ParserRecorder {
   // For error messages.
   const char* message_;
   const char* argument_opt_;
-  bool is_reference_error_;
+  ParseErrorType error_type_;
 };
 
 
@@ -147,11 +146,8 @@ class CompleteParserRecorder : public ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start,
-                          int end,
-                          const char* message,
-                          const char* argument_opt,
-                          bool is_reference_error_);
+  virtual void LogMessage(int start, int end, const char* message,
+                          const char* argument_opt, ParseErrorType error_type);
   ScriptData* GetScriptData();
 
   bool HasError() {

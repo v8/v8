@@ -492,20 +492,16 @@ class ParserTraits {
       const AstRawString* arg, int pos);
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
+  void ReportMessageAt(Scanner::Location source_location, const char* message,
                        const char* arg = NULL,
-                       bool is_reference_error = false);
-  void ReportMessage(const char* message,
-                     const char* arg = NULL,
-                     bool is_reference_error = false);
-  void ReportMessage(const char* message,
-                     const AstRawString* arg,
-                     bool is_reference_error = false);
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
+                       ParseErrorType error_type = kSyntaxError);
+  void ReportMessage(const char* message, const char* arg = NULL,
+                     ParseErrorType error_type = kSyntaxError);
+  void ReportMessage(const char* message, const AstRawString* arg,
+                     ParseErrorType error_type = kSyntaxError);
+  void ReportMessageAt(Scanner::Location source_location, const char* message,
                        const AstRawString* arg,
-                       bool is_reference_error = false);
+                       ParseErrorType error_type = kSyntaxError);
 
   // "null" return type creators.
   static const AstRawString* EmptyIdentifier() {
@@ -853,7 +849,7 @@ class Parser : public ParserBase<ParserTraits> {
   const char* pending_error_message_;
   const AstRawString* pending_error_arg_;
   const char* pending_error_char_arg_;
-  bool pending_error_is_reference_error_;
+  ParseErrorType pending_error_type_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.
