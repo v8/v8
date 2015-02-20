@@ -313,7 +313,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Call(ip);
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -328,7 +328,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }

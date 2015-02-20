@@ -532,7 +532,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Call(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
@@ -548,7 +548,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }

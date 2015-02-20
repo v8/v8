@@ -42,6 +42,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       masm_(info->isolate(), NULL, 0),
       resolver_(this),
       safepoints_(code->zone()),
+      handlers_(code->zone()),
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
@@ -130,6 +131,18 @@ Handle<Code> CodeGenerator::GenerateCode() {
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetSpillSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
+
+  // Emit exception handler table.
+  if (!handlers_.empty()) {
+    Handle<FixedArray> table = isolate()->factory()->NewFixedArray(
+        static_cast<int>(handlers_.size()) * 2, TENURED);
+    for (size_t i = 0; i < handlers_.size(); ++i) {
+      int table_index = static_cast<int>(i * 2);
+      table->set(table_index + 0, Smi::FromInt(handlers_[i].pc_offset));
+      table->set(table_index + 1, Smi::FromInt(handlers_[i].handler->pos()));
+    }
+    result->set_handler_table(*table);
+  }
 
   PopulateDeoptimizationData(result);
 
@@ -321,7 +334,7 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
 }
 
 
-void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
+void CodeGenerator::RecordCallPosition(Instruction* instr) {
   CallDescriptor::Flags flags(MiscField::decode(instr->opcode()));
 
   bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
@@ -330,16 +343,21 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
       instr->pointer_map(), Safepoint::kSimple, 0,
       needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
 
+  if (flags & CallDescriptor::kHasExceptionHandler) {
+    InstructionOperandConverter i(this, instr);
+    BasicBlock::RpoNumber handler_rpo =
+        i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
+    handlers_.push_back({GetLabel(handler_rpo), masm()->pc_offset()});
+  }
+
   if (flags & CallDescriptor::kNeedsNopAfterCall) {
     AddNopForSmiCodeInlining();
   }
 
   if (needs_frame_state) {
     MarkLazyDeoptSite();
-    // If the frame state is present, it starts at argument 1
-    // (just after the code address).
-    InstructionOperandConverter converter(this, instr);
-    // Deoptimization info starts at argument 1
+    // If the frame state is present, it starts at argument 1 (just after the
+    // code address).
     size_t frame_state_offset = 1;
     FrameStateDescriptor* descriptor =
         GetFrameStateDescriptor(instr, frame_state_offset);

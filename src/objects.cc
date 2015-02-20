@@ -11828,6 +11828,19 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 #endif
   }
 
+  if (handler_table()->length() > 0 && is_turbofanned()) {
+    os << "Handler Table (size = " << handler_table()->Size() << ")\n";
+    for (int i = 0; i < handler_table()->length(); i += 2) {
+      int pc_offset = Smi::cast(handler_table()->get(i))->value();
+      int handler = Smi::cast(handler_table()->get(i + 1))->value();
+      os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
+      Vector<char> buf = Vector<char>::New(20);
+      SNPrintF(buf, "%4d %4d\n", pc_offset, handler);
+      os << buf.start();
+    }
+    os << "\n";
+  }
+
   os << "RelocInfo (size = " << relocation_size() << ")\n";
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Print(GetIsolate(), os);

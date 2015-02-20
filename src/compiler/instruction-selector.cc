@@ -505,9 +505,8 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlock::kCall: {
       DCHECK_EQ(IrOpcode::kCall, input->opcode());
       BasicBlock* success = block->SuccessorAt(0);
-      // TODO(mstarzinger): Record location of {exception} in {handler_table}.
-      // BasicBlock* exception = block->SuccessorAt(1);
-      return VisitCall(input), VisitGoto(success);
+      BasicBlock* exception = block->SuccessorAt(1);
+      return VisitCall(input, exception), VisitGoto(success);
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
@@ -756,7 +755,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitConstant(node);
     }
     case IrOpcode::kCall:
-      return VisitCall(node);
+      return VisitCall(node, nullptr);
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
       return;

@@ -292,7 +292,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register reg = i.InputRegister(0);
         __ call(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchCallJSFunction: {
@@ -304,7 +304,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Assert(equal, kWrongFunctionContext);
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchJmp:

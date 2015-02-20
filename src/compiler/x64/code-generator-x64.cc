@@ -526,7 +526,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         int entry = Code::kHeaderSize - kHeapObjectTag;
         __ Call(Operand(reg, entry));
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchCallJSFunction: {
@@ -538,7 +538,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Assert(equal, kWrongFunctionContext);
       }
       __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchJmp:

@@ -56,11 +56,11 @@ class CallDescriptor FINAL : public ZoneObject {
   };
 
   enum Flag {
-    // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kPatchableCallSite = 1u << 1,
     kNeedsNopAfterCall = 1u << 2,
+    kHasExceptionHandler = 1u << 3,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
