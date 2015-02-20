@@ -10033,6 +10033,41 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
 }
 
 
+static void GetMinInobjectSlack(Map* map, void* data) {
+  int slack = map->unused_property_fields();
+  if (*reinterpret_cast<int*>(data) > slack) {
+    *reinterpret_cast<int*>(data) = slack;
+  }
+}
+
+
+static void ShrinkInstanceSize(Map* map, void* data) {
+  int slack = *reinterpret_cast<int*>(data);
+  map->set_inobject_properties(map->inobject_properties() - slack);
+  map->set_unused_property_fields(map->unused_property_fields() - slack);
+  map->set_instance_size(map->instance_size() - slack * kPointerSize);
+
+  // Visitor id might depend on the instance size, recalculate it.
+  map->set_visitor_id(StaticVisitorBase::GetVisitorId(map));
+}
+
+
+void JSFunction::CompleteInobjectSlackTracking() {
+  DCHECK(has_initial_map());
+  Map* map = initial_map();
+
+  DCHECK(map->counter() >= Map::kSlackTrackingCounterEnd - 1);
+  map->set_counter(Map::kRetainingCounterStart);
+
+  int slack = map->unused_property_fields();
+  map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  if (slack != 0) {
+    // Resize the initial map and all maps in its transition tree.
+    map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+  }
+}
+
+
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    PrototypeOptimizationMode mode) {
   if (object->IsGlobalObject()) return;
@@ -10224,6 +10259,11 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
     function->set_prototype_or_initial_map(*value);
+    if (value->IsJSObject()) {
+      // Optimize as prototype to detach it from its transition tree.
+      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value),
+                                    FAST_PROTOTYPE);
+    }
   }
   isolate->heap()->ClearInstanceofCache();
 }
@@ -10762,41 +10802,6 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
     }
     set_opt_count(0);
     set_deopt_count(0);
-  }
-}
-
-
-static void GetMinInobjectSlack(Map* map, void* data) {
-  int slack = map->unused_property_fields();
-  if (*reinterpret_cast<int*>(data) > slack) {
-    *reinterpret_cast<int*>(data) = slack;
-  }
-}
-
-
-static void ShrinkInstanceSize(Map* map, void* data) {
-  int slack = *reinterpret_cast<int*>(data);
-  map->set_inobject_properties(map->inobject_properties() - slack);
-  map->set_unused_property_fields(map->unused_property_fields() - slack);
-  map->set_instance_size(map->instance_size() - slack * kPointerSize);
-
-  // Visitor id might depend on the instance size, recalculate it.
-  map->set_visitor_id(StaticVisitorBase::GetVisitorId(map));
-}
-
-
-void JSFunction::CompleteInobjectSlackTracking() {
-  DCHECK(has_initial_map());
-  Map* map = initial_map();
-
-  DCHECK(map->counter() >= Map::kSlackTrackingCounterEnd - 1);
-  map->set_counter(Map::kRetainingCounterStart);
-
-  int slack = map->unused_property_fields();
-  map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);
-  if (slack != 0) {
-    // Resize the initial map and all maps in its transition tree.
-    map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
   }
 }
 
