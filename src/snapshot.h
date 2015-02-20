@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/isolate.h"
+#include "src/serialize.h"
 
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_
@@ -39,12 +40,14 @@ class Snapshot : public AllStatic {
 
   static bool EmbedsScript();
 
+  static uint32_t SizeOfFirstPage(AllocationSpace space);
+
   // To be implemented by the snapshot source.
   static const v8::StartupData SnapshotBlob();
 
   static v8::StartupData CreateSnapshotBlob(
-      const Vector<const byte> startup_data,
-      const Vector<const byte> context_data, Metadata metadata);
+      const StartupSerializer& startup_ser,
+      const PartialSerializer& context_ser, Snapshot::Metadata metadata);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
@@ -55,8 +58,19 @@ class Snapshot : public AllStatic {
   static Vector<const byte> ExtractContextData(const v8::StartupData* data);
   static Metadata ExtractMetadata(const v8::StartupData* data);
 
+  // Snapshot blob layout:
+  // [0] metadata
+  // [1 - 6] pre-calculated first page sizes for paged spaces
+  // [7] serialized start up data length
+  // ... serialized start up data
+  // ... serialized context data
+
+  static const int kNumPagedSpaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+
   static const int kMetadataOffset = 0;
-  static const int kStartupLengthOffset = kMetadataOffset + kInt32Size;
+  static const int kFirstPageSizesOffset = kMetadataOffset + kInt32Size;
+  static const int kStartupLengthOffset =
+      kFirstPageSizesOffset + kNumPagedSpaces * kInt32Size;
   static const int kStartupDataOffset = kStartupLengthOffset + kInt32Size;
 
   static int ContextOffset(int startup_length) {

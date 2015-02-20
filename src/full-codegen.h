@@ -102,29 +102,21 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific code size multiplier.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   static const int kCodeSizeMultiplier = 105;
-  static const int kBootCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64
   static const int kCodeSizeMultiplier = 170;
-  static const int kBootCodeSizeMultiplier = 140;
 #elif V8_TARGET_ARCH_ARM
   static const int kCodeSizeMultiplier = 149;
-  static const int kBootCodeSizeMultiplier = 110;
 #elif V8_TARGET_ARCH_ARM64
 // TODO(all): Copied ARM value. Check this is sensible for ARM64.
   static const int kCodeSizeMultiplier = 149;
-  static const int kBootCodeSizeMultiplier = 110;
 #elif V8_TARGET_ARCH_PPC64
   static const int kCodeSizeMultiplier = 200;
-  static const int kBootCodeSizeMultiplier = 120;
 #elif V8_TARGET_ARCH_PPC
   static const int kCodeSizeMultiplier = 200;
-  static const int kBootCodeSizeMultiplier = 120;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 149;
-  static const int kBootCodeSizeMultiplier = 120;
 #elif V8_TARGET_ARCH_MIPS64
   static const int kCodeSizeMultiplier = 149;
-  static const int kBootCodeSizeMultiplier = 170;
 #else
 #error Unsupported target architecture.
 #endif

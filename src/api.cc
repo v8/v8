@@ -28,7 +28,6 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
-#include "src/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/heap-profiler.h"
 #include "src/heap-snapshot-generator-inl.h"
@@ -222,54 +221,6 @@ bool RunExtraCode(Isolate* isolate, char* utf8_source) {
 }
 
 
-void CheckDefaultReservationSizes(const i::StartupSerializer& startup_ser,
-                                  const i::PartialSerializer& context_ser) {
-#ifdef DEBUG
-  i::List<i::SerializedData::Reservation> startup_reservations;
-  i::List<i::SerializedData::Reservation> context_reservations;
-  startup_ser.EncodeReservations(&startup_reservations);
-  context_ser.EncodeReservations(&context_reservations);
-  for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
-    // Exactly one chunk per space.
-    CHECK(startup_reservations[space].is_last());
-    CHECK(startup_reservations[space].is_last());
-    uint32_t sum = startup_reservations[space].chunk_size() +
-                   context_reservations[space].chunk_size();
-    uint32_t limit = 0;
-    const int constant_pool_delta = i::FLAG_enable_ool_constant_pool ? 48 : 0;
-    switch (space) {
-      case i::NEW_SPACE:
-        limit = 3 * i::kPointerSize;
-        break;
-      case i::OLD_POINTER_SPACE:
-        limit = (128 + constant_pool_delta) * i::kPointerSize * i::KB;
-        break;
-      case i::OLD_DATA_SPACE:
-        limit = 192 * i::KB;
-        break;
-      case i::MAP_SPACE:
-        limit = 16 * i::kPointerSize * i::KB;
-        break;
-      case i::CELL_SPACE:
-        limit = 16 * i::kPointerSize * i::KB;
-        break;
-      case i::PROPERTY_CELL_SPACE:
-        limit = 8 * i::kPointerSize * i::KB;
-        break;
-      case i::CODE_SPACE:
-        limit = RoundUp((480 - constant_pool_delta) * i::KB *
-                            i::FullCodeGenerator::kBootCodeSizeMultiplier / 100,
-                        i::kPointerSize);
-        break;
-      default:
-        break;
-    }
-    CHECK_LE(sum, limit);
-  }
-#endif  // DEBUG
-}
-
-
 StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
   Isolate::CreateParams params;
   params.enable_serializer = true;
@@ -313,13 +264,7 @@ StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
       context_ser.Serialize(&raw_context);
       ser.SerializeWeakReferences();
 
-      i::SnapshotData sd(snapshot_sink, ser);
-      i::SnapshotData csd(context_sink, context_ser);
-
-      if (custom_source == NULL) CheckDefaultReservationSizes(ser, context_ser);
-
-      result = i::Snapshot::CreateSnapshotBlob(sd.RawData(), csd.RawData(),
-                                               metadata);
+      result = i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
     }
   }
   isolate->Dispose();

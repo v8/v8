@@ -8,7 +8,7 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
-#include "src/serialize.h"
+#include "src/full-codegen.h"
 #include "src/snapshot.h"
 
 namespace v8 {
@@ -31,6 +31,18 @@ bool Snapshot::EmbedsScript() {
   if (!HaveASnapshotToStartFrom()) return false;
   const v8::StartupData blob = SnapshotBlob();
   return ExtractMetadata(&blob).embeds_script();
+}
+
+
+uint32_t Snapshot::SizeOfFirstPage(AllocationSpace space) {
+  DCHECK(space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE);
+  if (!HaveASnapshotToStartFrom()) {
+    return static_cast<uint32_t>(MemoryAllocator::PageAreaSize(space));
+  }
+  uint32_t size;
+  int offset = kFirstPageSizesOffset + (space - FIRST_PAGED_SPACE) * kInt32Size;
+  memcpy(&size, SnapshotBlob().data + offset, kInt32Size);
+  return size;
 }
 
 
@@ -82,9 +94,70 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 }
 
 
+void CalculateFirstPageSizes(bool is_default_snapshot,
+                             const SnapshotData& startup_snapshot,
+                             const SnapshotData& context_snapshot,
+                             uint32_t* sizes_out) {
+  Vector<const SerializedData::Reservation> startup_reservations =
+      startup_snapshot.Reservations();
+  Vector<const SerializedData::Reservation> context_reservations =
+      context_snapshot.Reservations();
+  int startup_index = 0;
+  int context_index = 0;
+  for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
+    bool single_chunk = true;
+    while (!startup_reservations[startup_index].is_last()) {
+      single_chunk = false;
+      startup_index++;
+    }
+    while (!context_reservations[context_index].is_last()) {
+      single_chunk = false;
+      context_index++;
+    }
+
+    uint32_t required = kMaxUInt32;
+    if (single_chunk) {
+      // If both the startup snapshot data and the context snapshot data on
+      // this space fit in a single page, then we consider limiting the size
+      // of the first page. For this, we add the chunk sizes and some extra
+      // allowance. This way we achieve a smaller startup memory footprint.
+      required = (startup_reservations[startup_index].chunk_size() +
+                  2 * context_reservations[context_index].chunk_size()) +
+                 Page::kObjectStartOffset;
+    } else {
+      // We expect the vanilla snapshot to only require on page per space.
+      DCHECK(!is_default_snapshot);
+    }
+
+    if (space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE) {
+      uint32_t max_size =
+          MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space));
+      sizes_out[space - FIRST_PAGED_SPACE] = Min(required, max_size);
+    } else {
+      DCHECK(single_chunk);
+    }
+    startup_index++;
+    context_index++;
+  }
+
+  DCHECK_EQ(startup_reservations.length(), startup_index);
+  DCHECK_EQ(context_reservations.length(), context_index);
+}
+
+
 v8::StartupData Snapshot::CreateSnapshotBlob(
-    const Vector<const byte> startup_data,
-    const Vector<const byte> context_data, Snapshot::Metadata metadata) {
+    const i::StartupSerializer& startup_ser,
+    const i::PartialSerializer& context_ser, Snapshot::Metadata metadata) {
+  SnapshotData startup_snapshot(startup_ser);
+  SnapshotData context_snapshot(context_ser);
+  Vector<const byte> startup_data = startup_snapshot.RawData();
+  Vector<const byte> context_data = context_snapshot.RawData();
+
+  uint32_t first_page_sizes[kNumPagedSpaces];
+
+  CalculateFirstPageSizes(metadata.embeds_script(), startup_snapshot,
+                          context_snapshot, first_page_sizes);
+
   int startup_length = startup_data.length();
   int context_length = context_data.length();
   int context_offset = ContextOffset(startup_length);
@@ -93,6 +166,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   char* data = new char[length];
 
   memcpy(data + kMetadataOffset, &metadata.RawValue(), kInt32Size);
+  memcpy(data + kFirstPageSizesOffset, first_page_sizes,
+         kNumPagedSpaces * kInt32Size);
   memcpy(data + kStartupLengthOffset, &startup_length, kInt32Size);
   memcpy(data + kStartupDataOffset, startup_data.begin(), startup_length);
   memcpy(data + context_offset, context_data.begin(), context_length);
