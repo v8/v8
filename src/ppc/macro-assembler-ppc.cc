@@ -675,14 +675,15 @@ void MacroAssembler::LoadConstantPoolPointerRegister(
   } else {
     DCHECK(access_method == CONSTRUCT_INTERNAL_REFERENCE);
     base = kConstantPoolRegister;
-    ConstantPoolUnavailableScope constant_pool_unavailable(this);
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
 
     // CheckBuffer() is called too frequently. This will pre-grow
     // the buffer if needed to avoid spliting the relocation and instructions
     EnsureSpaceFor(kMovInstructionsNoConstantPool * kInstrSize);
 
-    uintptr_t code_start = reinterpret_cast<uintptr_t>(pc_) - pc_offset();
-    mov(base, Operand(code_start, RelocInfo::INTERNAL_REFERENCE));
+    intptr_t code_start = reinterpret_cast<intptr_t>(pc_) - pc_offset();
+    AddBoundInternalReferenceLoad(pc_offset());
+    bitwise_mov(base, code_start);
   }
   LoadP(kConstantPoolRegister, MemOperand(base, constant_pool_offset));
 }

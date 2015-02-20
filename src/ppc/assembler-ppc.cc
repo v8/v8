@@ -142,7 +142,8 @@ const char* DoubleRegister::AllocationIndexToString(int index) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
+                                  1 << RelocInfo::INTERNAL_REFERENCE_ENCODED;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -401,32 +402,41 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 const int kEndOfChain = -4;
 
 
+// Dummy opcodes for unbound label mov instructions or jump table entries.
+enum {
+  kUnboundMovLabelOffsetOpcode = 0 << 26,
+  kUnboundMovLabelAddrOpcode = 1 << 26,
+  kUnboundJumpTableEntryOpcode = 2 << 26
+};
+
+
 int Assembler::target_at(int pos) {
   Instr instr = instr_at(pos);
   // check which type of branch this is 16 or 26 bit offset
   int opcode = instr & kOpcodeMask;
-  if (BX == opcode) {
-    int imm26 = ((instr & kImm26Mask) << 6) >> 6;
-    imm26 &= ~(kAAMask | kLKMask);  // discard AA|LK bits if present
-    if (imm26 == 0) return kEndOfChain;
-    return pos + imm26;
-  } else if (BCX == opcode) {
-    int imm16 = SIGN_EXT_IMM16((instr & kImm16Mask));
-    imm16 &= ~(kAAMask | kLKMask);  // discard AA|LK bits if present
-    if (imm16 == 0) return kEndOfChain;
-    return pos + imm16;
-  } else if ((instr & ~kImm26Mask) == 0) {
-    // Emitted link to a label, not part of a branch (regexp PushBacktrack).
-    if (instr == 0) {
-      return kEndOfChain;
-    } else {
-      int32_t imm26 = SIGN_EXT_IMM26(instr);
-      return (imm26 + pos);
-    }
+  int link;
+  switch (opcode) {
+    case BX:
+      link = SIGN_EXT_IMM26(instr & kImm26Mask);
+      link &= ~(kAAMask | kLKMask);  // discard AA|LK bits if present
+      break;
+    case BCX:
+      link = SIGN_EXT_IMM16((instr & kImm16Mask));
+      link &= ~(kAAMask | kLKMask);  // discard AA|LK bits if present
+      break;
+    case kUnboundMovLabelOffsetOpcode:
+    case kUnboundMovLabelAddrOpcode:
+    case kUnboundJumpTableEntryOpcode:
+      link = SIGN_EXT_IMM26(instr & kImm26Mask);
+      link <<= 2;
+      break;
+    default:
+      DCHECK(false);
+      return -1;
   }
 
-  DCHECK(false);
-  return -1;
+  if (link == 0) return kEndOfChain;
+  return pos + link;
 }
 
 
@@ -434,51 +444,66 @@ void Assembler::target_at_put(int pos, int target_pos) {
   Instr instr = instr_at(pos);
   int opcode = instr & kOpcodeMask;
 
-  // check which type of branch this is 16 or 26 bit offset
-  if (BX == opcode) {
-    int imm26 = target_pos - pos;
-    DCHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
-    if (imm26 == kInstrSize && !(instr & kLKMask)) {
-      // Branch to next instr without link.
-      instr = ORI;  // nop: ori, 0,0,0
-    } else {
-      instr &= ((~kImm26Mask) | kAAMask | kLKMask);
-      instr |= (imm26 & kImm26Mask);
+  switch (opcode) {
+    case BX: {
+      int imm26 = target_pos - pos;
+      DCHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
+      if (imm26 == kInstrSize && !(instr & kLKMask)) {
+        // Branch to next instr without link.
+        instr = ORI;  // nop: ori, 0,0,0
+      } else {
+        instr &= ((~kImm26Mask) | kAAMask | kLKMask);
+        instr |= (imm26 & kImm26Mask);
+      }
+      instr_at_put(pos, instr);
+      break;
     }
-    instr_at_put(pos, instr);
-    return;
-  } else if (BCX == opcode) {
-    int imm16 = target_pos - pos;
-    DCHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
-    if (imm16 == kInstrSize && !(instr & kLKMask)) {
-      // Branch to next instr without link.
-      instr = ORI;  // nop: ori, 0,0,0
-    } else {
-      instr &= ((~kImm16Mask) | kAAMask | kLKMask);
-      instr |= (imm16 & kImm16Mask);
+    case BCX: {
+      int imm16 = target_pos - pos;
+      DCHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
+      if (imm16 == kInstrSize && !(instr & kLKMask)) {
+        // Branch to next instr without link.
+        instr = ORI;  // nop: ori, 0,0,0
+      } else {
+        instr &= ((~kImm16Mask) | kAAMask | kLKMask);
+        instr |= (imm16 & kImm16Mask);
+      }
+      instr_at_put(pos, instr);
+      break;
     }
-    instr_at_put(pos, instr);
-    return;
-  } else if ((instr & ~kImm26Mask) == 0) {
-    DCHECK(target_pos == kEndOfChain || target_pos >= 0);
-    // Emitted link to a label, not part of a branch (regexp PushBacktrack).
-    // Load the position of the label relative to the generated code object
-    // pointer in a register.
-
-    Register dst = r3;  // we assume r3 for now
-    DCHECK(IsNop(instr_at(pos + kInstrSize)));
-    uint32_t target = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-    CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
-                        CodePatcher::DONT_FLUSH);
-    int target_hi = static_cast<int>(target) >> 16;
-    int target_lo = static_cast<int>(target) & 0XFFFF;
-
-    patcher.masm()->lis(dst, Operand(SIGN_EXT_IMM16(target_hi)));
-    patcher.masm()->ori(dst, dst, Operand(target_lo));
-    return;
+    case kUnboundMovLabelOffsetOpcode: {
+      // Load the position of the label relative to the generated code object
+      // pointer in a register.
+      Register dst = Register::from_code(instr_at(pos + kInstrSize));
+      int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+                          CodePatcher::DONT_FLUSH);
+      patcher.masm()->bitwise_mov32(dst, offset);
+      break;
+    }
+    case kUnboundMovLabelAddrOpcode: {
+      // Load the address of the label in a register.
+      Register dst = Register::from_code(instr_at(pos + kInstrSize));
+      intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + target_pos);
+      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                          kMovInstructionsNoConstantPool,
+                          CodePatcher::DONT_FLUSH);
+      AddBoundInternalReferenceLoad(pos);
+      patcher.masm()->bitwise_mov(dst, addr);
+      break;
+    }
+    case kUnboundJumpTableEntryOpcode: {
+      intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + target_pos);
+      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+                          kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
+      AddBoundInternalReference(pos);
+      patcher.masm()->emit_ptr(addr);
+      break;
+    }
+    default:
+      DCHECK(false);
+      break;
   }
-
-  DCHECK(false);
 }
 
 
@@ -487,13 +512,15 @@ int Assembler::max_reach_from(int pos) {
   int opcode = instr & kOpcodeMask;
 
   // check which type of branch this is 16 or 26 bit offset
-  if (BX == opcode) {
-    return 26;
-  } else if (BCX == opcode) {
-    return 16;
-  } else if ((instr & ~kImm26Mask) == 0) {
-    // Emitted label constant, not part of a branch (regexp PushBacktrack).
-    return 26;
+  switch (opcode) {
+    case BX:
+      return 26;
+    case BCX:
+      return 16;
+    case kUnboundMovLabelOffsetOpcode:
+    case kUnboundMovLabelAddrOpcode:
+    case kUnboundJumpTableEntryOpcode:
+      return 0;  // no limit on reach
   }
 
   DCHECK(false);
@@ -514,7 +541,7 @@ void Assembler::bind_to(Label* L, int pos) {
     int32_t offset = pos - fixup_pos;
     int maxReach = max_reach_from(fixup_pos);
     next(L);  // call next before overwriting link with target at fixup_pos
-    if (is_intn(offset, maxReach) == false) {
+    if (maxReach && is_intn(offset, maxReach) == false) {
       if (trampoline_pos == kInvalidSlotPos) {
         trampoline_pos = get_trampoline_entry();
         CHECK(trampoline_pos != kInvalidSlotPos);
@@ -636,19 +663,19 @@ int32_t Assembler::get_trampoline_entry() {
 }
 
 
-int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
-  int target_pos;
+int Assembler::link(Label* L) {
+  int position;
   if (L->is_bound()) {
-    target_pos = L->pos();
+    position = L->pos();
   } else {
     if (L->is_linked()) {
-      target_pos = L->pos();  // L's link
+      position = L->pos();  // L's link
     } else {
       // was: target_pos = kEndOfChain;
-      // However, using branch to self to mark the first reference
+      // However, using self to mark the first reference
       // should avoid most instances of branch offset overflow.  See
       // target_at() for where this is converted back to kEndOfChain.
-      target_pos = pc_offset();
+      position = pc_offset();
       if (!trampoline_emitted_) {
         unbound_labels_count_++;
         next_buffer_check_ -= kTrampolineSlotsSize;
@@ -657,7 +684,7 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
     L->link_to(pc_offset());
   }
 
-  return target_pos - pc_offset();
+  return position;
 }
 
 
@@ -1478,58 +1505,45 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 // TOC and static chain are ignored and set to 0.
 void Assembler::function_descriptor() {
 #if ABI_USES_FUNCTION_DESCRIPTORS
+  Label instructions;
   DCHECK(pc_offset() == 0);
-  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
-  emit_ptr(reinterpret_cast<uintptr_t>(pc_) + 3 * kPointerSize);
+  emit_label_addr(&instructions);
   emit_ptr(0);
   emit_ptr(0);
+  bind(&instructions);
 #endif
 }
 
 
-#if ABI_USES_FUNCTION_DESCRIPTORS || V8_OOL_CONSTANT_POOL
 void Assembler::RelocateInternalReference(Address pc, intptr_t delta,
                                           Address code_start,
+                                          RelocInfo::Mode rmode,
                                           ICacheFlushMode icache_flush_mode) {
-  DCHECK(delta || code_start);
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  uintptr_t* fd = reinterpret_cast<uintptr_t*>(pc);
-  if (fd[1] == 0 && fd[2] == 0) {
-    // Function descriptor
+  if (RelocInfo::IsInternalReference(rmode)) {
+    // Jump table entry
+    DCHECK(delta || code_start);
+    uintptr_t* entry = reinterpret_cast<uintptr_t*>(pc);
     if (delta) {
-      fd[0] += delta;
+      *entry += delta;
     } else {
-      fd[0] = reinterpret_cast<uintptr_t>(code_start) + 3 * kPointerSize;
+      // remove when serializer properly supports internal references
+      *entry = reinterpret_cast<uintptr_t>(code_start) + 3 * kPointerSize;
     }
-    return;
+  } else {
+    // mov sequence
+    DCHECK(delta || code_start);
+    DCHECK(RelocInfo::IsInternalReferenceEncoded(rmode));
+    ConstantPoolArray* constant_pool = NULL;
+    Address addr;
+    if (delta) {
+      addr = target_address_at(pc, constant_pool) + delta;
+    } else {
+      // remove when serializer properly supports internal references
+      addr = code_start;
+    }
+    set_target_address_at(pc, constant_pool, addr, icache_flush_mode);
   }
-#endif
-#if V8_OOL_CONSTANT_POOL
-  // mov for LoadConstantPoolPointerRegister
-  ConstantPoolArray* constant_pool = NULL;
-  if (delta) {
-    code_start = target_address_at(pc, constant_pool) + delta;
-  }
-  set_target_address_at(pc, constant_pool, code_start, icache_flush_mode);
-#endif
 }
-
-
-int Assembler::DecodeInternalReference(Vector<char> buffer, Address pc) {
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  uintptr_t* fd = reinterpret_cast<uintptr_t*>(pc);
-  if (fd[1] == 0 && fd[2] == 0) {
-    // Function descriptor
-    SNPrintF(buffer, "[%08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
-                     "]"
-                     "   function descriptor",
-             fd[0], fd[1], fd[2]);
-    return kPointerSize * 3;
-  }
-#endif
-  return 0;
-}
-#endif
 
 
 int Assembler::instructions_required_for_mov(const Operand& x) const {
@@ -1658,8 +1672,11 @@ void Assembler::mov(Register dst, const Operand& src) {
   }
 
   DCHECK(!canOptimize);
+  bitwise_mov(dst, value);
+}
 
-  {
+
+void Assembler::bitwise_mov(Register dst, intptr_t value) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
 #if V8_TARGET_ARCH_PPC64
     int32_t hi_32 = static_cast<int32_t>(value >> 32);
@@ -1679,37 +1696,114 @@ void Assembler::mov(Register dst, const Operand& src) {
     lis(dst, Operand(SIGN_EXT_IMM16(hi_word)));
     ori(dst, dst, Operand(lo_word));
 #endif
-  }
+}
+
+
+void Assembler::bitwise_mov32(Register dst, int32_t value) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  int hi_word = static_cast<int>(value >> 16);
+  int lo_word = static_cast<int>(value & 0xffff);
+  lis(dst, Operand(SIGN_EXT_IMM16(hi_word)));
+  ori(dst, dst, Operand(lo_word));
 }
 
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
+  int position = link(label);
   if (label->is_bound()) {
-    int target = label->pos();
-    mov(dst, Operand(target + Code::kHeaderSize - kHeapObjectTag));
+    // Load the position of the label relative to the generated code object.
+    mov(dst, Operand(position + Code::kHeaderSize - kHeapObjectTag));
   } else {
-    bool is_linked = label->is_linked();
-    // Emit the link to the label in the code stream followed by extra
-    // nop instructions.
-    DCHECK(dst.is(r3));  // target_at_put assumes r3 for now
-    int link = is_linked ? label->pos() - pc_offset() : 0;
-    label->link_to(pc_offset());
-
-    if (!is_linked && !trampoline_emitted_) {
-      unbound_labels_count_++;
-      next_buffer_check_ -= kTrampolineSlotsSize;
-    }
+    // Encode internal reference to unbound label. We use a dummy opcode
+    // such that it won't collide with any opcode that might appear in the
+    // label's chain.  Encode the destination register in the 2nd instruction.
+    int link = position - pc_offset();
+    DCHECK_EQ(0, link & 3);
+    link >>= 2;
+    DCHECK(is_int26(link));
 
     // When the label is bound, these instructions will be patched
     // with a 2 instruction mov sequence that will load the
     // destination register with the position of the label from the
     // beginning of the code.
     //
-    // When the label gets bound: target_at extracts the link and
-    // target_at_put patches the instructions.
+    // target_at extracts the link and target_at_put patches the instructions.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    emit(link);
+    emit(kUnboundMovLabelOffsetOpcode | (link & kImm26Mask));
+    emit(dst.code());
+  }
+}
+
+
+// TODO(mbrandy): allow loading internal reference from constant pool
+void Assembler::mov_label_addr(Register dst, Label* label) {
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+  int position = link(label);
+  if (label->is_bound()) {
+// CheckBuffer() is called too frequently. This will pre-grow
+// the buffer if needed to avoid spliting the relocation and instructions
+#if V8_OOL_CONSTANT_POOL
+    EnsureSpaceFor(kMovInstructionsNoConstantPool * kInstrSize);
+#endif
+
+    intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
+    AddBoundInternalReferenceLoad(pc_offset());
+    bitwise_mov(dst, addr);
+  } else {
+    // Encode internal reference to unbound label. We use a dummy opcode
+    // such that it won't collide with any opcode that might appear in the
+    // label's chain.  Encode the destination register in the 2nd instruction.
+    int link = position - pc_offset();
+    DCHECK_EQ(0, link & 3);
+    link >>= 2;
+    DCHECK(is_int26(link));
+
+    // When the label is bound, these instructions will be patched
+    // with a multi-instruction mov sequence that will load the
+    // destination register with the address of the label.
+    //
+    // target_at extracts the link and target_at_put patches the instructions.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
+    emit(dst.code());
+    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
+  }
+}
+
+
+void Assembler::emit_label_addr(Label* label) {
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  int position = link(label);
+  if (label->is_bound()) {
+// CheckBuffer() is called too frequently. This will pre-grow
+// the buffer if needed to avoid spliting the relocation and entry.
+#if V8_OOL_CONSTANT_POOL
+    EnsureSpaceFor(kPointerSize);
+#endif
+
+    intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
+    AddBoundInternalReference(pc_offset());
+    emit_ptr(addr);
+  } else {
+    // Encode internal reference to unbound label. We use a dummy opcode
+    // such that it won't collide with any opcode that might appear in the
+    // label's chain.
+    int link = position - pc_offset();
+    DCHECK_EQ(0, link & 3);
+    link >>= 2;
+    DCHECK(is_int26(link));
+
+    // When the label is bound, the instruction(s) will be patched
+    // as a jump table entry containing the label address.  target_at extracts
+    // the link and target_at_put patches the instruction(s).
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    emit(kUnboundJumpTableEntryOpcode | (link & kImm26Mask));
+#if V8_TARGET_ARCH_PPC64
     nop();
+#endif
   }
 }
 
@@ -2209,21 +2303,17 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-// None of our relocation types are pc relative pointing outside the code
-// buffer nor pc absolute pointing inside the code buffer, so there is no need
-// to relocate any emitted relocation entries.
-
-#if ABI_USES_FUNCTION_DESCRIPTORS || V8_OOL_CONSTANT_POOL
-  // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      RelocateInternalReference(it.rinfo()->pc(), pc_delta, 0);
-    }
+  // Relocate internal references
+  for (int pos : internal_reference_positions_) {
+    RelocateInternalReference(buffer_ + pos, pc_delta, 0,
+                              RelocInfo::INTERNAL_REFERENCE);
+  }
+  for (int pos : internal_reference_load_positions_) {
+    RelocateInternalReference(buffer_ + pos, pc_delta, 0,
+                              RelocInfo::INTERNAL_REFERENCE_ENCODED);
   }
 #if V8_OOL_CONSTANT_POOL
   constant_pool_builder_.Relocate(pc_delta);
-#endif
 #endif
 }
 
@@ -2242,7 +2332,7 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::emit_ptr(uintptr_t data) {
+void Assembler::emit_ptr(intptr_t data) {
   CheckBuffer();
   *reinterpret_cast<uintptr_t*>(pc_) = data;
   pc_ += sizeof(uintptr_t);

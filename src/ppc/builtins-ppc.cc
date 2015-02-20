@@ -760,7 +760,9 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
 
     // receiver is the hole.
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-    __ Push(r7, ip);
+
+    // smi arguments count, new.target, receiver
+    __ Push(r7, r6, ip);
 
     // Set up pointer to last argument.
     __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -772,7 +774,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // r7: number of arguments (smi-tagged)
     // cr0: compare against zero of arguments
     // sp[0]: receiver
-    // sp[1]: number of arguments (smi-tagged)
+    // sp[1]: new.target
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, no_args;
     __ beq(&no_args, cr0);
     __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
@@ -783,6 +786,23 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ push(r0);
     __ bdnz(&loop);
     __ bind(&no_args);
+
+    __ addi(r3, r3, Operand(1));
+
+    // Handle step in.
+    Label skip_step_in;
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
+    __ mov(r5, Operand(debug_step_in_fp));
+    __ LoadP(r5, MemOperand(r5));
+    __ and_(r0, r5, r5, SetRC);
+    __ beq(&skip_step_in, cr0);
+
+    __ Push(r3, r4, r4);
+    __ CallRuntime(Runtime::kHandleStepInForDerivedConstructors, 1);
+    __ Pop(r3, r4);
+
+    __ bind(&skip_step_in);
 
     // Call the function.
     // r3: number of arguments

@@ -637,6 +637,12 @@ class Assembler : public AssemblerBase {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
+
+  // Links a label at the current pc_offset().  If already bound, returns the
+  // bound position.  If already linked, returns the position of the prior link.
+  // Otherwise, returns the current pc_offset().
+  int link(Label* L);
+
   // Determines if Label is bound and near enough so that a single
   // branch instruction can be used to reach it.
   bool is_near(Label* L, Condition cond);
@@ -644,7 +650,10 @@ class Assembler : public AssemblerBase {
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
   // Manages the jump elimination optimization if the second parameter is true.
-  int branch_offset(Label* L, bool jump_elimination_allowed);
+  int branch_offset(Label* L, bool jump_elimination_allowed) {
+    int position = link(L);
+    return position - pc_offset();
+  }
 
   // Puts a labels target address at the given position.
   // The high 8 bits are set to zero.
@@ -1076,10 +1085,20 @@ class Assembler : public AssemblerBase {
   void cmplw(Register src1, Register src2, CRegister cr = cr7);
 
   void mov(Register dst, const Operand& src);
+  void bitwise_mov(Register dst, intptr_t value);
+  void bitwise_mov32(Register dst, int32_t value);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
   void mov_label_offset(Register dst, Label* label);
+
+  // Load the address of the label in a register and associate with an
+  // internal reference relocation.
+  void mov_label_addr(Register dst, Label* label);
+
+  // Emit the address of the label (i.e. a jump table entry) and associate with
+  // an internal reference relocation.
+  void emit_label_addr(Label* label);
 
   // Multiply instructions
   void mul(Register dst, Register src1, Register src2, OEBit s = LeaveOE,
@@ -1289,7 +1308,7 @@ class Assembler : public AssemblerBase {
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
-  void emit_ptr(uintptr_t data);
+  void emit_ptr(intptr_t data);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
@@ -1369,12 +1388,17 @@ class Assembler : public AssemblerBase {
   }
 #endif
 
-#if ABI_USES_FUNCTION_DESCRIPTORS || V8_OOL_CONSTANT_POOL
   static void RelocateInternalReference(
-      Address pc, intptr_t delta, Address code_start,
+      Address pc, intptr_t delta, Address code_start, RelocInfo::Mode rmode,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  static int DecodeInternalReference(Vector<char> buffer, Address pc);
-#endif
+
+  void AddBoundInternalReference(int position) {
+    internal_reference_positions_.push_back(position);
+  }
+
+  void AddBoundInternalReferenceLoad(int position) {
+    internal_reference_load_positions_.push_back(position);
+  }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1439,6 +1463,12 @@ class Assembler : public AssemblerBase {
   // Each relocation is encoded as a variable size value
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+
+  // Internal reference positions, required for (potential) patching in
+  // GrowBuffer(); contains only those internal references whose labels
+  // are already bound.
+  std::deque<int> internal_reference_positions_;
+  std::deque<int> internal_reference_load_positions_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;

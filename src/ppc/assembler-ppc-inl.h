@@ -51,14 +51,11 @@ bool CpuFeatures::SupportsCrankshaft() { return true; }
 
 
 void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
-#if ABI_USES_FUNCTION_DESCRIPTORS || V8_OOL_CONSTANT_POOL
-  if (RelocInfo::IsInternalReference(rmode_)) {
+  if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(pc_, delta, 0, icache_flush_mode);
+    Assembler::RelocateInternalReference(pc_, delta, 0, rmode_,
+                                         icache_flush_mode);
   }
-#endif
-  // We do not use pc relative addressing on PPC, so there is
-  // nothing else to do.
 }
 
 

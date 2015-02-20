@@ -556,6 +556,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kArchNop:
       // don't emit code for nops.
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -1075,6 +1083,35 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 }
 
 
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  PPCOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ Cmpi(input, Operand(i.InputInt32(static_cast<int>(index + 0))), r0);
+    __ beq(GetLabel(i.InputRpo(static_cast<int>(index + 1))));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  PPCOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
+  Label** cases = zone()->NewArray<Label*>(case_count);
+  for (int32_t index = 0; index < case_count; ++index) {
+    cases[index] = GetLabel(i.InputRpo(index + 2));
+  }
+  Label* const table = AddJumpTable(cases, case_count);
+  __ Cmpli(input, Operand(case_count), r0);
+  __ bge(GetLabel(i.InputRpo(1)));
+  __ mov_label_addr(kScratchReg, table);
+  __ ShiftLeftImm(r0, input, Operand(kPointerSizeLog2));
+  __ LoadPX(kScratchReg, MemOperand(kScratchReg, r0));
+  __ Jump(kScratchReg);
+}
+
+
 void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, Deoptimizer::LAZY);
@@ -1084,10 +1121,9 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
-#if ABI_USES_FUNCTION_DESCRIPTORS
     __ function_descriptor();
-#endif
     int register_save_area_size = 0;
     RegList frame_saves = fp.bit();
     __ mflr(r0);
@@ -1114,12 +1150,11 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
-  int stack_slots = frame()->GetSpillSlotCount();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -1143,10 +1178,10 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ Add(sp, sp, stack_slots * kPointerSize, r0);
       }
@@ -1162,11 +1197,13 @@ void CodeGenerator::AssembleReturn() {
     }
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+    __ Ret();
+  } else {
     __ Ret();
   }
 }
@@ -1329,6 +1366,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else {
     // No other combinations are possible.
     UNREACHABLE();
+  }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  for (size_t index = 0; index < target_count; ++index) {
+    __ emit_label_addr(targets[index]);
   }
 }
 
