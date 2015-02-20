@@ -10488,16 +10488,21 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
-    // Fast path for empty constant strings.
-    if (left->IsConstant() &&
-        HConstant::cast(left)->HasStringValue() &&
-        HConstant::cast(left)->StringValue()->length() == 0) {
-      return right;
-    }
-    if (right->IsConstant() &&
-        HConstant::cast(right)->HasStringValue() &&
-        HConstant::cast(right)->StringValue()->length() == 0) {
-      return left;
+    // Fast paths for empty constant strings.
+    Handle<String> left_string =
+        left->IsConstant() && HConstant::cast(left)->HasStringValue()
+            ? HConstant::cast(left)->StringValue()
+            : Handle<String>();
+    Handle<String> right_string =
+        right->IsConstant() && HConstant::cast(right)->HasStringValue()
+            ? HConstant::cast(right)->StringValue()
+            : Handle<String>();
+    if (!left_string.is_null() && left_string->length() == 0) return right;
+    if (!right_string.is_null() && right_string->length() == 0) return left;
+    if (!left_string.is_null() && !right_string.is_null()) {
+      return AddUncasted<HStringAdd>(
+          left, right, allocation_mode.GetPretenureMode(),
+          STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
     }
 
     // Register the dependent code with the allocation site.
