@@ -1412,8 +1412,6 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
-  PROFILER_LOG(SharedFunctionInfoMoveEvent(from, to));
-
   if (!is_logging_code_events()) return;
   MoveEventInternal(SHARED_FUNC_MOVE_EVENT, from, to);
 }

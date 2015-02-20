@@ -84,9 +84,10 @@ class CodeEntry {
   int line_number() const { return line_number_; }
   int column_number() const { return column_number_; }
   const JITLineInfoTable* line_info() const { return line_info_; }
-  void set_shared_id(int shared_id) { shared_id_ = shared_id; }
   int script_id() const { return script_id_; }
   void set_script_id(int script_id) { script_id_ = script_id; }
+  int position() const { return position_; }
+  void set_position(int position) { position_ = position; }
   void set_bailout_reason(const char* bailout_reason) {
     bailout_reason_ = bailout_reason;
   }
@@ -105,6 +106,8 @@ class CodeEntry {
     deopt_location_ = 0;
   }
 
+  void FillFunctionInfo(SharedFunctionInfo* shared);
+
   static inline bool is_js_function_tag(Logger::LogEventsAndTags tag);
 
   List<OffsetRange>* no_frame_ranges() const { return no_frame_ranges_; }
@@ -117,8 +120,8 @@ class CodeEntry {
     return BuiltinIdField::decode(bit_field_);
   }
 
-  uint32_t GetCallUid() const;
-  bool IsSameAs(CodeEntry* entry) const;
+  uint32_t GetHash() const;
+  bool IsSameFunctionAs(CodeEntry* entry) const;
 
   int GetSourceLine(int pc_offset) const;
 
@@ -140,8 +143,8 @@ class CodeEntry {
   const char* resource_name_;
   int line_number_;
   int column_number_;
-  int shared_id_;
   int script_id_;
+  int position_;
   List<OffsetRange>* no_frame_ranges_;
   const char* bailout_reason_;
   const char* deopt_reason_;
@@ -180,6 +183,7 @@ class ProfileNode {
   unsigned self_ticks() const { return self_ticks_; }
   const List<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
+  unsigned function_id() const;
   unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
@@ -188,15 +192,13 @@ class ProfileNode {
 
   void Print(int indent);
 
- private:
   static bool CodeEntriesMatch(void* entry1, void* entry2) {
-    return reinterpret_cast<CodeEntry*>(entry1)->IsSameAs(
-        reinterpret_cast<CodeEntry*>(entry2));
+    return reinterpret_cast<CodeEntry*>(entry1)
+        ->IsSameFunctionAs(reinterpret_cast<CodeEntry*>(entry2));
   }
 
-  static uint32_t CodeEntryHash(CodeEntry* entry) {
-    return entry->GetCallUid();
-  }
+ private:
+  static uint32_t CodeEntryHash(CodeEntry* entry) { return entry->GetHash(); }
 
   static bool LineTickMatch(void* a, void* b) { return a == b; }
 
@@ -224,6 +226,7 @@ class ProfileTree {
       int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
+  unsigned GetFunctionId(const ProfileNode* node);
 
   void Print() {
     root_->Print(0);
@@ -236,6 +239,9 @@ class ProfileTree {
   CodeEntry root_entry_;
   unsigned next_node_id_;
   ProfileNode* root_;
+
+  unsigned next_function_id_;
+  HashMap function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };
@@ -281,7 +287,7 @@ class CpuProfile {
 
 class CodeMap {
  public:
-  CodeMap() : next_shared_id_(1) { }
+  CodeMap() {}
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
   CodeEntry* FindEntry(Address addr, Address* start = NULL);
@@ -315,11 +321,7 @@ class CodeMap {
 
   void DeleteAllCoveredCode(Address start, Address end);
 
-  // Fake CodeEntry pointer to distinguish shared function entries.
-  static CodeEntry* const kSharedFunctionCodeEntry;
-
   CodeTree tree_;
-  int next_shared_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };

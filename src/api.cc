@@ -7191,7 +7191,7 @@ unsigned CpuProfileNode::GetHitCount() const {
 
 
 unsigned CpuProfileNode::GetCallUid() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
+  return reinterpret_cast<const i::ProfileNode*>(this)->function_id();
 }
 
 

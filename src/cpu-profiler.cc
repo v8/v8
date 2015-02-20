@@ -201,7 +201,6 @@ void CpuProfiler::CallbackEvent(Name* name, Address entry_point) {
       Logger::CALLBACK_TAG,
       profiles_->GetName(name));
   rec->size = 1;
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 
@@ -218,7 +217,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 
@@ -235,7 +233,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 
@@ -255,15 +252,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
-  if (shared->script()->IsScript()) {
-    DCHECK(Script::cast(shared->script()));
-    Script* script = Script::cast(shared->script());
-    rec->entry->set_script_id(script->id()->value());
-    rec->entry->set_bailout_reason(
-        GetBailoutReason(shared->disable_optimization_reason()));
-  }
+  rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
-  rec->shared = shared->address();
   processor_->Enqueue(evt_rec);
 }
 
@@ -299,11 +289,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
-  rec->entry->set_script_id(script->id()->value());
+  rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
-  rec->shared = shared->address();
-  rec->entry->set_bailout_reason(
-      GetBailoutReason(shared->disable_optimization_reason()));
   processor_->Enqueue(evt_rec);
 }
 
@@ -320,7 +307,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 
@@ -360,16 +346,6 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 }
 
 
-void CpuProfiler::SharedFunctionInfoMoveEvent(Address from, Address to) {
-  CodeEventsContainer evt_rec(CodeEventRecord::SHARED_FUNC_MOVE);
-  SharedFunctionInfoMoveEventRecord* rec =
-      &evt_rec.SharedFunctionInfoMoveEventRecord_;
-  rec->from = from;
-  rec->to = to;
-  processor_->Enqueue(evt_rec);
-}
-
-
 void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
   if (FilterOutCodeCreateEvent(Logger::CALLBACK_TAG)) return;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
@@ -380,7 +356,6 @@ void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
       profiles_->GetName(name),
       "get ");
   rec->size = 1;
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 
@@ -409,7 +384,6 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
       profiles_->GetName(name),
       "set ");
   rec->size = 1;
-  rec->shared = NULL;
   processor_->Enqueue(evt_rec);
 }
 

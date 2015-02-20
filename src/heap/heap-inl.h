@@ -8,7 +8,6 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/cpu-profiler.h"
 #include "src/heap/heap.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/store-buffer-inl.h"
@@ -242,13 +241,9 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                    size_in_bytes);
   }
-
-  if (isolate_->logger()->is_logging_code_events() ||
-      isolate_->cpu_profiler()->is_profiling()) {
-    if (target->IsSharedFunctionInfo()) {
-      PROFILE(isolate_, SharedFunctionInfoMoveEvent(source->address(),
-                                                    target->address()));
-    }
+  if (target->IsSharedFunctionInfo()) {
+    LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
+                                                         target->address()));
   }
 
   if (FLAG_verify_predictable) {

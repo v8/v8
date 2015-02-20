@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/cpu-profiler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"

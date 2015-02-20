@@ -169,10 +169,12 @@ CodeEntry::~CodeEntry() {
 }
 
 
-uint32_t CodeEntry::GetCallUid() const {
+uint32_t CodeEntry::GetHash() const {
   uint32_t hash = ComputeIntegerHash(tag(), v8::internal::kZeroHashSeed);
-  if (shared_id_ != 0) {
-    hash ^= ComputeIntegerHash(static_cast<uint32_t>(shared_id_),
+  if (script_id_ != v8::UnboundScript::kNoScriptId) {
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(script_id_),
+                               v8::internal::kZeroHashSeed);
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(position_),
                                v8::internal::kZeroHashSeed);
   } else {
     hash ^= ComputeIntegerHash(
@@ -190,13 +192,14 @@ uint32_t CodeEntry::GetCallUid() const {
 }
 
 
-bool CodeEntry::IsSameAs(CodeEntry* entry) const {
-  return this == entry ||
-         (tag() == entry->tag() && shared_id_ == entry->shared_id_ &&
-          (shared_id_ != 0 ||
-           (name_prefix_ == entry->name_prefix_ && name_ == entry->name_ &&
-            resource_name_ == entry->resource_name_ &&
-            line_number_ == entry->line_number_)));
+bool CodeEntry::IsSameFunctionAs(CodeEntry* entry) const {
+  if (this == entry) return true;
+  if (script_id_ != v8::UnboundScript::kNoScriptId) {
+    return script_id_ == entry->script_id_ && position_ == entry->position_;
+  }
+  return name_prefix_ == entry->name_prefix_ && name_ == entry->name_ &&
+         resource_name_ == entry->resource_name_ &&
+         line_number_ == entry->line_number_;
 }
 
 
@@ -211,6 +214,15 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
     return line_info_->GetSourceLineNumber(pc_offset);
   }
   return v8::CpuProfileNode::kNoLineNumberInfo;
+}
+
+
+void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
+  if (!shared->script()->IsScript()) return;
+  Script* script = Script::cast(shared->script());
+  set_script_id(script->id()->value());
+  set_position(shared->start_position());
+  set_bailout_reason(GetBailoutReason(shared->disable_optimization_reason()));
 }
 
 
@@ -316,13 +328,25 @@ class DeleteNodesCallback {
 ProfileTree::ProfileTree()
     : root_entry_(Logger::FUNCTION_TAG, "(root)"),
       next_node_id_(1),
-      root_(new ProfileNode(this, &root_entry_)) {
-}
+      root_(new ProfileNode(this, &root_entry_)),
+      next_function_id_(1),
+      function_ids_(ProfileNode::CodeEntriesMatch) {}
 
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
   TraverseDepthFirst(&cb);
+}
+
+
+unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
+  CodeEntry* code_entry = node->entry();
+  HashMap::Entry* entry =
+      function_ids_.Lookup(code_entry, code_entry->GetHash(), true);
+  if (!entry->value) {
+    entry->value = reinterpret_cast<void*>(next_function_id_++);
+  }
+  return static_cast<unsigned>(reinterpret_cast<uintptr_t>(entry->value));
 }
 
 
@@ -427,7 +451,6 @@ void CpuProfile::Print() {
 }
 
 
-CodeEntry* const CodeMap::kSharedFunctionCodeEntry = NULL;
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
 
 
@@ -469,22 +492,6 @@ CodeEntry* CodeMap::FindEntry(Address addr, Address* start) {
 }
 
 
-int CodeMap::GetSharedId(Address addr) {
-  CodeTree::Locator locator;
-  // For shared function entries, 'size' field is used to store their IDs.
-  if (tree_.Find(addr, &locator)) {
-    const CodeEntryInfo& entry = locator.value();
-    DCHECK(entry.entry == kSharedFunctionCodeEntry);
-    return entry.size;
-  } else {
-    tree_.Insert(addr, &locator);
-    int id = next_shared_id_++;
-    locator.set_value(CodeEntryInfo(kSharedFunctionCodeEntry, id));
-    return id;
-  }
-}
-
-
 void CodeMap::MoveCode(Address from, Address to) {
   if (from == to) return;
   CodeTree::Locator locator;
@@ -497,12 +504,7 @@ void CodeMap::MoveCode(Address from, Address to) {
 
 void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
-  // For shared function entries, 'size' field is used to store their IDs.
-  if (value.entry == kSharedFunctionCodeEntry) {
-    base::OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
-  } else {
-    base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
-  }
+  base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
 }
 
 

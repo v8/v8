@@ -7,6 +7,7 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/compiler.h"
+#include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/runtime/runtime-utils.h"

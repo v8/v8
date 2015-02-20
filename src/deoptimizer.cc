@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/codegen.h"
+#include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/full-codegen.h"
