@@ -849,6 +849,8 @@
         '../../src/string-search.h',
         '../../src/string-stream.cc',
         '../../src/string-stream.h',
+        '../../src/strings-storage.cc',
+        '../../src/strings-storage.h',
         '../../src/strtod.cc',
         '../../src/strtod.h',
         '../../src/ic/stub-cache.cc',
