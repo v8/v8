@@ -8,7 +8,7 @@
 #include "src/base/bits.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-reducer.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 

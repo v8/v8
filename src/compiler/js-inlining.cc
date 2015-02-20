@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/js-inlining.h"
-
 #include "src/ast.h"
 #include "src/ast-numbering.h"
 #include "src/compiler/access-builder.h"
-#include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-inlining.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -20,6 +19,7 @@
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
+
 
 namespace v8 {
 namespace internal {
@@ -56,7 +56,28 @@ class JSCallFunctionAccessor {
 };
 
 
-namespace {
+Reduction JSInliner::Reduce(Node* node) {
+  if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
+
+  JSCallFunctionAccessor call(node);
+  HeapObjectMatcher<JSFunction> match(call.jsfunction());
+  if (!match.HasValue()) return NoChange();
+
+  Handle<JSFunction> jsfunction = match.Value().handle();
+
+  if (jsfunction->shared()->native()) {
+    if (FLAG_trace_turbo_inlining) {
+      SmartArrayPointer<char> name =
+          jsfunction->shared()->DebugName()->ToCString();
+      PrintF("Not Inlining %s into %s because inlinee is native\n", name.get(),
+             info_->shared_info()->DebugName()->ToCString().get());
+    }
+    return NoChange();
+  }
+
+  return TryInlineJSCall(node, jsfunction);
+}
+
 
 // A facade on a JSFunction's graph to facilitate inlining. It assumes the
 // that the function graph has only one return statement, and provides
@@ -153,59 +174,71 @@ void Inlinee::UnifyReturn(JSGraph* jsgraph) {
 }
 
 
-class CopyVisitor {
+class CopyVisitor : public NullNodeVisitor {
  public:
   CopyVisitor(Graph* source_graph, Graph* target_graph, Zone* temp_zone)
-      : sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "Sentinel", 0, 0,
-                     0, 0, 0, 0),
-        sentinel_(target_graph->NewNode(&sentinel_op_)),
-        copies_(source_graph->NodeCount(), sentinel_, temp_zone),
+      : copies_(source_graph->NodeCount(), NULL, temp_zone),
+        sentinels_(source_graph->NodeCount(), NULL, temp_zone),
         source_graph_(source_graph),
         target_graph_(target_graph),
-        temp_zone_(temp_zone) {}
+        temp_zone_(temp_zone),
+        sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "sentinel", 0, 0,
+                     0, 0, 0, 0) {}
 
-  Node* GetCopy(Node* orig) { return copies_[orig->id()]; }
+  void Post(Node* original) {
+    NodeVector inputs(temp_zone_);
+    for (Node* const node : original->inputs()) {
+      inputs.push_back(GetCopy(node));
+    }
+
+    // Reuse the operator in the copy. This assumes that op lives in a zone
+    // that lives longer than graph()'s zone.
+    Node* copy =
+        target_graph_->NewNode(original->op(), static_cast<int>(inputs.size()),
+                               (inputs.empty() ? NULL : &inputs.front()));
+    copies_[original->id()] = copy;
+  }
+
+  Node* GetCopy(Node* original) {
+    Node* copy = copies_[original->id()];
+    if (copy == NULL) {
+      copy = GetSentinel(original);
+    }
+    DCHECK(copy);
+    return copy;
+  }
 
   void CopyGraph() {
-    NodeVector inputs(temp_zone_);
-    // TODO(bmeurer): AllNodes should be turned into something like
-    // Graph::CollectNodesReachableFromEnd() and the gray set stuff should be
-    // removed since it's only needed by the visualizer.
-    AllNodes all(temp_zone_, source_graph_);
-    // Copy all nodes reachable from end.
-    for (Node* orig : all.live) {
-      Node* copy = GetCopy(orig);
-      if (copy != sentinel_) {
-        // Mapping already exists.
-        continue;
-      }
-      // Copy the node.
-      inputs.clear();
-      for (Node* input : orig->inputs()) inputs.push_back(copies_[input->id()]);
-      copy = target_graph_->NewNode(orig->op(), orig->InputCount(), &inputs[0]);
-      copies_[orig->id()] = copy;
-    }
-    // For missing inputs.
-    for (Node* orig : all.live) {
-      Node* copy = copies_[orig->id()];
-      for (int i = 0; i < copy->InputCount(); ++i) {
-        Node* input = copy->InputAt(i);
-        if (input == sentinel_) {
-          copy->ReplaceInput(i, GetCopy(orig->InputAt(i)));
-        }
-      }
+    source_graph_->VisitNodeInputsFromEnd(this);
+    ReplaceSentinels();
+  }
+
+  const NodeVector& copies() { return copies_; }
+
+ private:
+  void ReplaceSentinels() {
+    for (NodeId id = 0; id < source_graph_->NodeCount(); ++id) {
+      Node* sentinel = sentinels_[id];
+      if (sentinel == NULL) continue;
+      Node* copy = copies_[id];
+      DCHECK(copy);
+      sentinel->ReplaceUses(copy);
     }
   }
 
-  const NodeVector& copies() const { return copies_; }
+  Node* GetSentinel(Node* original) {
+    if (sentinels_[original->id()] == NULL) {
+      sentinels_[original->id()] = target_graph_->NewNode(&sentinel_op_);
+    }
+    return sentinels_[original->id()];
+  }
 
- private:
-  Operator const sentinel_op_;
-  Node* const sentinel_;
   NodeVector copies_;
-  Graph* const source_graph_;
-  Graph* const target_graph_;
-  Zone* const temp_zone_;
+  NodeVector sentinels_;
+  Graph* source_graph_;
+  Graph* target_graph_;
+  Zone* temp_zone_;
+  Operator sentinel_op_;
 };
 
 
@@ -266,8 +299,6 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   return Reducer::Replace(value_output());
 }
 
-}  // namespace
-
 
 void JSInliner::AddClosureToFrameState(Node* frame_state,
                                        Handle<JSFunction> jsfunction) {
@@ -302,25 +333,9 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
 }
 
 
-Reduction JSInliner::Reduce(Node* node) {
-  if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
-
-  JSCallFunctionAccessor call(node);
-  HeapObjectMatcher<JSFunction> match(call.jsfunction());
-  if (!match.HasValue()) return NoChange();
-
-  Handle<JSFunction> function = match.Value().handle();
-
-  if (function->shared()->native()) {
-    if (FLAG_trace_turbo_inlining) {
-      SmartArrayPointer<char> name =
-          function->shared()->DebugName()->ToCString();
-      PrintF("Not Inlining %s into %s because inlinee is native\n", name.get(),
-             info_->shared_info()->DebugName()->ToCString().get());
-    }
-    return NoChange();
-  }
-
+Reduction JSInliner::TryInlineJSCall(Node* call_node,
+                                     Handle<JSFunction> function) {
+  JSCallFunctionAccessor call(call_node);
   CompilationInfoWithZone info(function);
 
   if (!Compiler::ParseAndAnalyze(&info)) return NoChange();
@@ -373,7 +388,7 @@ Reduction JSInliner::Reduce(Node* node) {
     }
   }
 
-  return inlinee.InlineAtCall(jsgraph_, node);
+  return inlinee.InlineAtCall(jsgraph_, call_node);
 }
 
 }  // namespace compiler
