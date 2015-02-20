@@ -1883,7 +1883,7 @@ SetUpFunction();
 // 7.4.1 GetIterator ( obj, method )
 function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
-    method = ToObject(obj)[symbolIterator];
+    method = obj[symbolIterator];
   }
   if (!IS_SPEC_FUNCTION(method)) {
     throw MakeTypeError('not_iterable', [obj]);
