@@ -26,6 +26,8 @@ const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
                              "MockOpEffect", 0, 1, 0, 1, 1, 0);
 const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
                               "MockOpControl", 0, 0, 1, 1, 0, 1);
+const Operator kMockCallOperator(IrOpcode::kCall, Operator::kNoProperties,
+                                 "MockCallOperator", 0, 0, 0, 0, 0, 2);
 
 }  // namespace
 
@@ -95,6 +97,18 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Branch) {
   NodeProperties::CollectControlProjections(branch, result, arraysize(result));
   EXPECT_EQ(if_true, result[0]);
   EXPECT_EQ(if_false, result[1]);
+}
+
+
+TEST_F(NodePropertiesTest, CollectControlProjections_Call) {
+  Node* result[2];
+  CommonOperatorBuilder common(zone());
+  Node* call = Node::New(zone(), 1, &kMockCallOperator, 0, nullptr, false);
+  Node* if_ex = Node::New(zone(), 2, common.IfException(), 1, &call, false);
+  Node* if_ok = Node::New(zone(), 3, common.IfSuccess(), 1, &call, false);
+  NodeProperties::CollectControlProjections(call, result, arraysize(result));
+  EXPECT_EQ(if_ok, result[0]);
+  EXPECT_EQ(if_ex, result[1]);
 }
 
 
