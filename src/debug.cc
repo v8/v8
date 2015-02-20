@@ -387,40 +387,6 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
 }
 
 
-void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
-#ifdef DEBUG
-  HandleScope scope(isolate);
-  // Step in can only be prepared if currently positioned on an IC call,
-  // construct call or CallFunction stub call.
-  Address target = rinfo()->target_address();
-  Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
-  // All the following stuff is needed only for assertion checks so the code
-  // is wrapped in ifdef.
-  Handle<Code> maybe_call_function_stub = target_code;
-  if (IsDebugBreak()) {
-    Address original_target = original_rinfo()->target_address();
-    maybe_call_function_stub =
-        Handle<Code>(Code::GetCodeFromTargetAddress(original_target));
-  }
-  bool is_call_function_stub =
-      (maybe_call_function_stub->kind() == Code::STUB &&
-       CodeStub::GetMajorKey(*maybe_call_function_stub) ==
-           CodeStub::CallFunction);
-
-  // Step in through construct call requires no changes to the running code.
-  // Step in through getters/setters should already be prepared as well
-  // because caller of this function (Debug::PrepareStep) is expected to
-  // flood the top frame's function with one shot breakpoints.
-  // Step in through CallFunction stub should also be prepared by caller of
-  // this function (Debug::PrepareStep) which should flood target function
-  // with breakpoints.
-  DCHECK(RelocInfo::IsConstructCall(rmode()) ||
-         target_code->is_inline_cache_stub() ||
-         is_call_function_stub);
-#endif
-}
-
-
 // Check whether the break point is at a position which will exit the function.
 bool BreakLocationIterator::IsExit() const {
   return (RelocInfo::IsJSReturn(rmode()));
@@ -1371,62 +1337,68 @@ void Debug::PrepareStep(StepAction step_action,
   }
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
 
-  // Find the break location where execution has stopped.
-  BreakLocationIterator it(debug_info, ALL_BREAK_LOCATIONS);
-  // pc points to the instruction after the current one, possibly a break
-  // location as well. So the "- 1" to exclude it from the search.
-  it.FindBreakLocationFromAddress(frame->pc() - 1);
-
   // Compute whether or not the target is a call target.
   bool is_load_or_store = false;
   bool is_inline_cache_stub = false;
   bool is_at_restarted_function = false;
+  bool is_exit = false;
+  bool is_construct_call = false;
   Handle<Code> call_function_stub;
 
-  if (thread_local_.restarter_frame_function_pointer_ == NULL) {
-    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
-      bool is_call_target = false;
-      Address target = it.rinfo()->target_address();
-      Code* code = Code::GetCodeFromTargetAddress(target);
-      if (code->is_call_stub()) {
-        is_call_target = true;
-      }
-      if (code->is_inline_cache_stub()) {
-        is_inline_cache_stub = true;
-        is_load_or_store = !is_call_target;
-      }
+  {
+    // Find the break location where execution has stopped.
+    DisallowHeapAllocation no_gc;
+    BreakLocationIterator it(debug_info, ALL_BREAK_LOCATIONS);
 
-      // Check if target code is CallFunction stub.
-      Code* maybe_call_function_stub = code;
-      // If there is a breakpoint at this line look at the original code to
-      // check if it is a CallFunction stub.
-      if (it.IsDebugBreak()) {
-        Address original_target = it.original_rinfo()->target_address();
-        maybe_call_function_stub =
-            Code::GetCodeFromTargetAddress(original_target);
+    // pc points to the instruction after the current one, possibly a break
+    // location as well. So the "- 1" to exclude it from the search.
+    it.FindBreakLocationFromAddress(frame->pc() - 1);
+
+    is_exit = it.IsExit();
+
+    if (thread_local_.restarter_frame_function_pointer_ == NULL) {
+      if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+        bool is_call_target = false;
+        Address target = it.rinfo()->target_address();
+        Code* code = Code::GetCodeFromTargetAddress(target);
+
+        is_call_target = code->is_call_stub();
+        is_construct_call = RelocInfo::IsConstructCall(it.rmode());
+        is_inline_cache_stub = code->is_inline_cache_stub();
+        is_load_or_store = is_inline_cache_stub && !is_call_target;
+
+        // Check if target code is CallFunction stub.
+        Code* maybe_call_function_stub = code;
+        // If there is a breakpoint at this line look at the original code to
+        // check if it is a CallFunction stub.
+        if (it.IsDebugBreak()) {
+          Address original_target = it.original_rinfo()->target_address();
+          maybe_call_function_stub =
+              Code::GetCodeFromTargetAddress(original_target);
+        }
+        if ((maybe_call_function_stub->kind() == Code::STUB &&
+             CodeStub::GetMajorKey(maybe_call_function_stub) ==
+                 CodeStub::CallFunction) ||
+            maybe_call_function_stub->is_call_stub()) {
+          // Save reference to the code as we may need it to find out arguments
+          // count for 'step in' later.
+          call_function_stub = Handle<Code>(maybe_call_function_stub);
+        }
       }
-      if ((maybe_call_function_stub->kind() == Code::STUB &&
-           CodeStub::GetMajorKey(maybe_call_function_stub) ==
-               CodeStub::CallFunction) ||
-          maybe_call_function_stub->is_call_stub()) {
-        // Save reference to the code as we may need it to find out arguments
-        // count for 'step in' later.
-        call_function_stub = Handle<Code>(maybe_call_function_stub);
-      }
+    } else {
+      is_at_restarted_function = true;
     }
-  } else {
-    is_at_restarted_function = true;
   }
 
   // If this is the last break code target step out is the only possibility.
-  if (it.IsExit() || step_action == StepOut) {
+  if (is_exit || step_action == StepOut) {
     if (step_action == StepOut) {
       // Skip step_count frames starting with the current one.
       while (step_count-- > 0 && !frames_it.done()) {
         frames_it.Advance();
       }
     } else {
-      DCHECK(it.IsExit());
+      DCHECK(is_exit);
       frames_it.Advance();
     }
     // Skip builtin functions on the stack.
@@ -1443,9 +1415,9 @@ void Debug::PrepareStep(StepAction step_action,
       // Set target frame pointer.
       ActivateStepOut(frames_it.frame());
     }
-  } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()) ||
-               !call_function_stub.is_null() || is_at_restarted_function)
-             || step_action == StepNext || step_action == StepMin) {
+  } else if (!(is_inline_cache_stub || is_construct_call ||
+               !call_function_stub.is_null() || is_at_restarted_function) ||
+             step_action == StepNext || step_action == StepMin) {
     // Step next or step min.
 
     // Fill the current function with one-shot break points.
@@ -1532,7 +1504,15 @@ void Debug::PrepareStep(StepAction step_action,
     }
 
     // Step in or Step in min
-    it.PrepareStepIn(isolate_);
+    // Step in through construct call requires no changes to the running code.
+    // Step in through getters/setters should already be prepared as well
+    // because caller of this function (Debug::PrepareStep) is expected to
+    // flood the top frame's function with one shot breakpoints.
+    // Step in through CallFunction stub should also be prepared by caller of
+    // this function (Debug::PrepareStep) which should flood target function
+    // with breakpoints.
+    DCHECK(is_construct_call || is_inline_cache_stub ||
+           !call_function_stub.is_null());
     ActivateStepIn(frame);
   }
 }

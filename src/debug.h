@@ -86,7 +86,6 @@ class BreakLocationIterator {
   void SetOneShot();
   void ClearOneShot();
   bool IsStepInLocation(Isolate* isolate);
-  void PrepareStepIn(Isolate* isolate);
   bool IsExit() const;
   bool HasBreakPoint();
   bool IsDebugBreak();

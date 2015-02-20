@@ -244,12 +244,6 @@
 
   # Issue 3723.
   'regress/regress-3717': [SKIP],
-  # Issue 3776.
-  'debug-constructor': [SKIP],
-  'debug-stepframe': [SKIP],
-  'debug-stepout-scope-part2': [SKIP],
-  'debug-stepout-scope-part5': [SKIP],
-  'debug-stepout-scope-part6': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
