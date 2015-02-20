@@ -663,14 +663,14 @@ bool Assembler::IsAndImmediate(Instr instr) {
 }
 
 
-int Assembler::target_at(int32_t pos, bool is_internal) {
+int Assembler::target_at(int pos, bool is_internal) {
   Instr instr = instr_at(pos);
   if (is_internal) {
     if (instr == 0) {
       return kEndOfChain;
     } else {
       int32_t instr_address = reinterpret_cast<int32_t>(buffer_ + pos);
-      int32_t delta = instr_address - instr;
+      int delta = static_cast<int>(instr_address - instr);
       DCHECK(pos > delta);
       return pos - delta;
     }
@@ -684,6 +684,8 @@ int Assembler::target_at(int32_t pos, bool is_internal) {
        return (imm18 + pos);
      }
   }
+  // Check we have a branch or jump instruction.
+  DCHECK(IsBranch(instr) || IsJ(instr) || IsLui(instr));
   // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
   // the compiler uses arithmectic shifts for signed integers.
   if (IsBranch(instr)) {
@@ -711,7 +713,7 @@ int Assembler::target_at(int32_t pos, bool is_internal) {
       DCHECK(pos > delta);
       return pos - delta;
     }
-  } else if (IsJ(instr)) {
+  } else {
     int32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
     if (imm28 == kEndOfJumpChain) {
       // EndOfChain sentinel is returned directly, not relative to pc or pos.
@@ -719,13 +721,10 @@ int Assembler::target_at(int32_t pos, bool is_internal) {
     } else {
       uint32_t instr_address = reinterpret_cast<int32_t>(buffer_ + pos);
       instr_address &= kImm28Mask;
-      int32_t delta = instr_address - imm28;
+      int delta = static_cast<int>(instr_address - imm28);
       DCHECK(pos > delta);
       return pos - delta;
     }
-  } else {
-    UNREACHABLE();
-    return 0;
   }
 }
 
@@ -747,6 +746,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
     return;
   }
 
+  DCHECK(IsBranch(instr) || IsJ(instr) || IsLui(instr));
   if (IsBranch(instr)) {
     int32_t imm18 = target_pos - (pos + kBranchPCOffset);
     DCHECK((imm18 & 3) == 0);
@@ -770,7 +770,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
                  instr_lui | ((imm & kHiMask) >> kLuiShift));
     instr_at_put(pos + 1 * Assembler::kInstrSize,
                  instr_ori | (imm & kImm16Mask));
-  } else if (IsJ(instr)) {
+  } else {
     uint32_t imm28 = reinterpret_cast<uint32_t>(buffer_) + target_pos;
     imm28 &= kImm28Mask;
     DCHECK((imm28 & 3) == 0);
@@ -780,8 +780,6 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
     DCHECK(is_uint26(imm26));
 
     instr_at_put(pos, instr | (imm26 & kImm26Mask));
-  } else {
-    UNREACHABLE();
   }
 }
 
