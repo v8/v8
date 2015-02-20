@@ -140,10 +140,10 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
 //  - TryFinallyStatement: Intercepts 'break', 'continue', 'throw' and 'return'.
 class AstGraphBuilder::ControlScope BASE_EMBEDDED {
  public:
-  ControlScope(AstGraphBuilder* builder, int stack_delta)
+  explicit ControlScope(AstGraphBuilder* builder)
       : builder_(builder),
         outer_(builder->execution_control()),
-        stack_delta_(stack_delta) {
+        stack_height_(builder->environment()->stack_height()) {
     builder_->set_execution_control(this);  // Push.
   }
 
@@ -190,12 +190,12 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 
   Environment* environment() { return builder_->environment(); }
   AstGraphBuilder* builder() const { return builder_; }
-  int stack_delta() const { return stack_delta_; }
+  int stack_height() const { return stack_height_; }
 
  private:
   AstGraphBuilder* builder_;
   ControlScope* outer_;
-  int stack_delta_;
+  int stack_height_;
 };
 
 
@@ -271,7 +271,7 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
  public:
   ControlScopeForBreakable(AstGraphBuilder* owner, BreakableStatement* target,
                            ControlBuilder* control)
-      : ControlScope(owner, 0), target_(target), control_(control) {}
+      : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
   virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
@@ -298,8 +298,8 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
 class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
  public:
   ControlScopeForIteration(AstGraphBuilder* owner, IterationStatement* target,
-                           LoopBuilder* control, int stack_delta)
-      : ControlScope(owner, stack_delta), target_(target), control_(control) {}
+                           LoopBuilder* control)
+      : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
   virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
@@ -328,7 +328,7 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
 class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
  public:
   ControlScopeForCatch(AstGraphBuilder* owner, TryCatchBuilder* control)
-      : ControlScope(owner, 0), control_(control) {
+      : ControlScope(owner), control_(control) {
     builder()->try_nesting_level_++;  // Increment nesting.
   }
   ~ControlScopeForCatch() {
@@ -359,7 +359,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  public:
   ControlScopeForFinally(AstGraphBuilder* owner, DeferredCommands* commands,
                          TryFinallyBuilder* control)
-      : ControlScope(owner, 0), commands_(commands), control_(control) {
+      : ControlScope(owner), commands_(commands), control_(control) {
     builder()->try_nesting_level_++;  // Increment nesting.
   }
   ~ControlScopeForFinally() {
@@ -439,12 +439,12 @@ bool AstGraphBuilder::CreateGraph(bool constant_context) {
   int parameter_count = info()->num_parameters();
   graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
 
-  // Initialize control scope.
-  ControlScope control(this, 0);
-
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());
   set_environment(&env);
+
+  // Initialize control scope.
+  ControlScope control(this);
 
   if (info()->is_osr()) {
     // Use OSR normal entry as the start of the top-level environment.
@@ -709,8 +709,8 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
   Environment* env = environment()->CopyAsUnreachable();
   ControlScope* current = this;
   while (current != NULL) {
+    environment()->Trim(current->stack_height());
     if (current->Execute(command, target, value)) break;
-    environment()->Drop(current->stack_delta());
     current = current->outer_;
   }
   builder()->set_environment(env);
@@ -1019,7 +1019,7 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
   while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-  VisitIterationBody(stmt, &while_loop, 0);
+  VisitIterationBody(stmt, &while_loop);
   while_loop.EndBody();
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
@@ -1034,7 +1034,7 @@ void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
   while_loop.BreakUnless(condition);
-  VisitIterationBody(stmt, &while_loop, 0);
+  VisitIterationBody(stmt, &while_loop);
   while_loop.EndBody();
   while_loop.EndLoop();
 }
@@ -1051,7 +1051,7 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
   } else {
     for_loop.BreakUnless(jsgraph()->TrueConstant());
   }
-  VisitIterationBody(stmt, &for_loop, 0);
+  VisitIterationBody(stmt, &for_loop);
   for_loop.EndBody();
   VisitIfNotNull(stmt->next());
   for_loop.EndLoop();
@@ -1190,7 +1190,7 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   value = environment()->Pop();
   // Bind value and do loop body.
   VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
-  VisitIterationBody(stmt, &for_loop, 5);
+  VisitIterationBody(stmt, &for_loop);
   for_loop.EndBody();
   // Inc counter and continue.
   Node* index_inc =
@@ -1213,7 +1213,7 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
   Node* condition = environment()->Pop();
   for_loop.BreakWhen(condition);
   VisitForEffect(stmt->assign_each());
-  VisitIterationBody(stmt, &for_loop, 0);
+  VisitIterationBody(stmt, &for_loop);
   for_loop.EndBody();
   for_loop.EndLoop();
 }
@@ -2304,8 +2304,8 @@ void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
 
 
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
-                                         LoopBuilder* loop, int stack_delta) {
-  ControlScopeForIteration scope(this, stmt, loop, stack_delta);
+                                         LoopBuilder* loop) {
+  ControlScopeForIteration scope(this, stmt, loop);
   Visit(stmt->body());
 }
 
@@ -3022,9 +3022,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         Node* on_exception = graph()->NewNode(common()->IfException(), result);
         environment_->UpdateControlDependency(on_exception);
-        if (FLAG_turbo_exceptions) {
-          execution_control()->ThrowValue(jsgraph()->UndefinedConstant());
-        }
+        execution_control()->ThrowValue(jsgraph()->UndefinedConstant());
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {

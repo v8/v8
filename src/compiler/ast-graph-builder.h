@@ -290,7 +290,7 @@ class AstGraphBuilder : public AstVisitor {
   void VisitForValues(ZoneList<Expression*>* exprs);
 
   // Common for all IterationStatement bodies.
-  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop, int);
+  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop);
 
   // Dispatched from VisitCallRuntime.
   void VisitCallJSRuntime(CallRuntime* expr);
@@ -397,6 +397,11 @@ class AstGraphBuilder::Environment : public ZoneObject {
     return values()->at(index);
   }
   void Drop(int depth) {
+    DCHECK(depth >= 0 && depth <= stack_height());
+    values()->erase(values()->end() - depth, values()->end());
+  }
+  void Trim(int trim_to_height) {
+    int depth = stack_height() - trim_to_height;
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }

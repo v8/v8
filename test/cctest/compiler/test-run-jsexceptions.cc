@@ -125,7 +125,7 @@ TEST(CatchCall) {
       "  var r = '-';"
       "  try {"
       "    r += 'A-';"
-      "    fun();"
+      "    return r + 'B-' + fun();"
       "  } catch (e) {"
       "    r += e;"
       "  }"
@@ -137,6 +137,8 @@ TEST(CatchCall) {
 #if 0  // TODO(mstarzinger): Enable once we have exception handlers.
   T.CheckCall(T.Val("-A-T-"), T.NewFunction("thrower"));
 #endif
+  CompileRun("function returner() { return 'R-'; }");
+  T.CheckCall(T.Val("-A-B-R-"), T.NewFunction("returner"));
 }
 
 
