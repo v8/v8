@@ -19,10 +19,9 @@ class JSInliner FINAL : public Reducer {
   JSInliner(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph)
       : local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) FINAL;
 
  private:
-  friend class InlinerVisitor;
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
@@ -31,11 +30,10 @@ class JSInliner FINAL : public Reducer {
                                          Handle<JSFunction> jsfunction,
                                          Zone* temp_zone);
   void AddClosureToFrameState(Node* frame_state, Handle<JSFunction> jsfunction);
-  Reduction TryInlineJSCall(Node* node, Handle<JSFunction> jsfunction);
-  static void UnifyReturn(Graph* graph);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_INLINING_H_

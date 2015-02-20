@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/graph.h"
 #include "src/flags.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 
