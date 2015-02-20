@@ -361,9 +361,17 @@ void GraphVisualizer::Print() {
       << "  concentrate=\"true\"\n"
       << "  \n";
 
+  // Find all nodes that are not reachable from end that use live nodes.
+  std::set<Node*> gray;
+  for (Node* const node : all_.live) {
+    for (Node* const use : node->uses()) {
+      if (!all_.IsLive(use)) gray.insert(use);
+    }
+  }
+
   // Make sure all nodes have been output before writing out the edges.
   for (Node* const node : all_.live) PrintNode(node, false);
-  for (Node* const node : all_.gray) PrintNode(node, true);
+  for (Node* const node : gray) PrintNode(node, true);
 
   // With all the nodes written, add the edges.
   for (Node* const node : all_.live) {
