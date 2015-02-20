@@ -723,7 +723,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   while (it.has_next()) {
     Page* p = it.next();
     if (p->NeverEvacuate()) continue;
-    p->ClearEvacuationCandidate();
+
+    // Invariant: Evacuation candidates are just created when marking is
+    // started. At the end of a GC all evacuation candidates are cleared and
+    // their slot buffers are released.
+    CHECK(!p->IsEvacuationCandidate());
+    CHECK(p->slots_buffer() == NULL);
 
     if (FLAG_stress_compaction) {
       unsigned int counter = space->heap()->ms_count();
