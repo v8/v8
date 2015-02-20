@@ -17,6 +17,7 @@
                 "v8_win_compile_dbg": ["defaulttests"],
                 "v8_win_rel": ["defaulttests"]
             }
-        }
+        },
+        "triggered": {}
     }
 }
