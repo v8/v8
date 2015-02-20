@@ -753,16 +753,6 @@ class DetermineV8Sheriff(Step):
     if not self._options.sheriff:  # pragma: no cover
       return
 
-    try:
-      # The googlers mapping maps @google.com accounts to @chromium.org
-      # accounts.
-      googlers = imp.load_source('googlers_mapping',
-                                 self._options.googlers_mapping)
-      googlers = googlers.list_to_dict(googlers.get_list())
-    except:  # pragma: no cover
-      print "Skip determining sheriff without googler mapping."
-      return
-
     # The sheriff determined by the rotation on the waterfall has a
     # @google.com account.
     url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
@@ -771,9 +761,11 @@ class DetermineV8Sheriff(Step):
     # If "channel is sheriff", we can't match an account.
     if match:
       g_name = match.group(1)
-      self["sheriff"] = googlers.get(g_name + "@google.com",
-                                     g_name + "@chromium.org")
-      self._options.reviewer = self["sheriff"]
+      # Optimistically assume that google and chromium account name are the
+      # same.
+      self["sheriff"] = g_name + "@chromium.org"
+      self._options.reviewer = ("%s,%s" %
+                                (self["sheriff"], self._options.reviewer))
       print "Found active sheriff: %s" % self["sheriff"]
     else:
       print "No active sheriff found."
@@ -825,8 +817,6 @@ class ScriptsBase(object):
                         help="The author email used for rietveld.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
-    parser.add_argument("-g", "--googlers-mapping",
-                        help="Path to the script mapping google accounts.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
     parser.add_argument("--sheriff", default=False, action="store_true",
@@ -849,10 +839,6 @@ class ScriptsBase(object):
     # Process common options.
     if options.step < 0:  # pragma: no cover
       print "Bad step number %d" % options.step
-      parser.print_help()
-      return None
-    if options.sheriff and not options.googlers_mapping:  # pragma: no cover
-      print "To determine the current sheriff, requires the googler mapping"
       parser.print_help()
       return None
 

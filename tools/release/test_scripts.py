@@ -989,15 +989,17 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
 
 """
 
-  def testChromiumRoll(self):
-    googlers_mapping_py = "%s-mapping.py" % TEST_CONFIG["PERSISTFILE_BASENAME"]
-    with open(googlers_mapping_py, "w") as f:
-      f.write("""
-def list_to_dict(entries):
-  return {"g_name@google.com": "c_name@chromium.org"}
-def get_list():
-  pass""")
+  ROLL_COMMIT_MSG = """Update V8 to version 3.22.4 (based on abc).
 
+Summary of changes available at:
+https://chromium.googlesource.com/v8/v8/+log/last_rol..abc
+
+Please follow these instructions for assigning/CC'ing issues:
+https://code.google.com/p/v8-wiki/wiki/TriagingIssues
+
+TBR=g_name@chromium.org,reviewer@chromium.org"""
+
+  def testChromiumRoll(self):
     # Setup fake directory structures.
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
     TextToFile("", os.path.join(TEST_CONFIG["CHROMIUM"], ".git"))
@@ -1035,13 +1037,9 @@ def get_list():
       Cmd("git fetch origin", ""),
       Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
       Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
-      Cmd(("git commit -am \"Update V8 to version 3.22.4 "
-           "(based on abc).\n\n"
-           "Summary of changes available at:\n"
-           "https://chromium.googlesource.com/v8/v8/+log/last_rol..abc\n\n"
-           "Please reply to the V8 sheriff c_name@chromium.org in "
-           "case of problems.\n\nTBR=c_name@chromium.org\" "
-           "--author \"author@chromium.org <author@chromium.org>\""),
+      Cmd(("git commit -am \"%s\" "
+           "--author \"author@chromium.org <author@chromium.org>\"" %
+           self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f", "",
           cwd=chrome_dir),
@@ -1049,7 +1047,7 @@ def get_list():
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
-            "--sheriff", "--googlers-mapping", googlers_mapping_py,
+            "--sheriff",
             "-r", "reviewer@chromium.org",
             "--last-roll", "last_roll_hsh"]
     ChromiumRoll(TEST_CONFIG, self).Run(args)

@@ -14,6 +14,10 @@ ROLL_SUMMARY = ("Summary of changes available at:\n"
                 "https://chromium.googlesource.com/v8/v8/+log/%s..%s")
 
 
+ISSUE_MSG = (
+"""Please follow these instructions for assigning/CC'ing issues:
+https://code.google.com/p/v8-wiki/wiki/TriagingIssues""")
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -93,9 +97,8 @@ class UploadCL(Step):
     message.append(
         ROLL_SUMMARY % (self["last_rolled_base"][:8], self["push_base"][:8]))
 
-    if self["sheriff"]:
-      message.append("Please reply to the V8 sheriff %s in case of problems."
-          % self["sheriff"])
+    message.append(ISSUE_MSG)
+
     message.append("TBR=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),
                    author=self._options.author,
