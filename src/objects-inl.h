@@ -6458,6 +6458,7 @@ void Code::set_stub_key(uint32_t key) {
 
 
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
+INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 
 
 byte* Code::instruction_start()  {

@@ -2816,8 +2816,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
             Handle<HeapType> old_field_type =
                 GetFieldType(isolate, old_descriptors, i,
                              old_details.location(), next_representation);
-            old_field_type =
-                GeneralizeFieldType(old_field_type, next_field_type, isolate);
+            next_field_type =
+                GeneralizeFieldType(next_field_type, old_field_type, isolate);
           }
         } else {
           Handle<HeapType> old_field_type =
@@ -10660,6 +10660,10 @@ void JSFunction::StartInobjectSlackTracking() {
 
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
+  code()->ClearInlineCaches();
+  // If we clear ICs, we need to clear the type feedback vector too, since
+  // CallICs are synced with a feedback vector slot.
+  ClearTypeFeedbackInfo();
   set_ic_age(new_ic_age);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_profiler_ticks(0);
