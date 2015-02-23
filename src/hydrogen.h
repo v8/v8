@@ -2756,12 +2756,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    PropertyAccessType access_type,
                                    bool* has_side_effects);
 
-  HInstruction* BuildNamedGeneric(PropertyAccessType access,
-                                  Expression* expr,
-                                  HValue* object,
-                                  Handle<String> name,
-                                  HValue* value,
-                                  bool is_uninitialized = false);
+  HInstruction* BuildNamedGeneric(PropertyAccessType access, Expression* expr,
+                                  HValue* object, Handle<String> name,
+                                  HValue* value, bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 

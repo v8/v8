@@ -6509,13 +6509,16 @@ class HLoadNamedField FINAL : public HTemplateInstruction<2> {
 
 class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HLoadNamedGeneric, HValue*,
-                                              Handle<Object>);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadNamedGeneric, HValue*,
+                                              Handle<Object>, InlineCacheState);
 
   HValue* context() const { return OperandAt(0); }
   HValue* object() const { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
 
+  InlineCacheState initialization_state() const {
+    return initialization_state_;
+  }
   FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -6537,8 +6540,11 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
 
  private:
-  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name)
-      : name_(name), slot_(FeedbackVectorICSlot::Invalid()) {
+  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name,
+                    InlineCacheState initialization_state)
+      : name_(name),
+        slot_(FeedbackVectorICSlot::Invalid()),
+        initialization_state_(initialization_state) {
     SetOperandAt(0, context);
     SetOperandAt(1, object);
     set_representation(Representation::Tagged());
@@ -6548,6 +6554,7 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
   Handle<Object> name_;
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
+  InlineCacheState initialization_state_;
 };
 
 
@@ -7001,14 +7008,17 @@ class HStoreNamedField FINAL : public HTemplateInstruction<3> {
 
 class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreNamedGeneric, HValue*,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HStoreNamedGeneric, HValue*,
                                               Handle<String>, HValue*,
-                                              LanguageMode);
+                                              LanguageMode, InlineCacheState);
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
   Handle<String> name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
+  InlineCacheState initialization_state() const {
+    return initialization_state_;
+  }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
@@ -7020,8 +7030,11 @@ class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
 
  private:
   HStoreNamedGeneric(HValue* context, HValue* object, Handle<String> name,
-                     HValue* value, LanguageMode language_mode)
-      : name_(name), language_mode_(language_mode) {
+                     HValue* value, LanguageMode language_mode,
+                     InlineCacheState initialization_state)
+      : name_(name),
+        language_mode_(language_mode),
+        initialization_state_(initialization_state) {
     SetOperandAt(0, object);
     SetOperandAt(1, value);
     SetOperandAt(2, context);
@@ -7030,6 +7043,7 @@ class HStoreNamedGeneric FINAL : public HTemplateInstruction<3> {
 
   Handle<String> name_;
   LanguageMode language_mode_;
+  InlineCacheState initialization_state_;
 };
 
 

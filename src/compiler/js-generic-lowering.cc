@@ -303,8 +303,8 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  Callable callable =
-      CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode());
+  Callable callable = CodeFactory::LoadICInOptimizedCode(
+      isolate(), p.contextual_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (FLAG_vector_ics) {
     node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));

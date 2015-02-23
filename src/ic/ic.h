@@ -396,7 +396,7 @@ class LoadIC : public IC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
+      Isolate* isolate, ExtraICState extra_state, State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -539,7 +539,8 @@ class StoreIC : public IC {
                                          LanguageMode language_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode);
+                                      LanguageMode language_mode,
+                                      State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,

@@ -20,14 +20,15 @@ Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
 
 
 // static
-Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate,
-                                            ContextualMode mode) {
+Callable CodeFactory::LoadICInOptimizedCode(
+    Isolate* isolate, ContextualMode mode,
+    InlineCacheState initialization_state) {
+  auto code = LoadIC::initialize_stub_in_optimized_code(
+      isolate, LoadICState(mode).GetExtraICState(), initialization_state);
   if (FLAG_vector_ics) {
-    return Callable(LoadIC::initialize_stub_in_optimized_code(
-                        isolate, LoadICState(mode).GetExtraICState()),
-                    VectorLoadICDescriptor(isolate));
+    return Callable(code, VectorLoadICDescriptor(isolate));
   }
-  return CodeFactory::LoadIC(isolate, mode);
+  return Callable(code, LoadDescriptor(isolate));
 }
 
 
@@ -67,8 +68,9 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  return Callable(StoreIC::initialize_stub(isolate, language_mode),
-                  StoreDescriptor(isolate));
+  return Callable(
+      StoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),
+      StoreDescriptor(isolate));
 }
 
 

@@ -6527,8 +6527,9 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* global_object = Add<HLoadNamedField>(
         context(), nullptr,
         HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-    HStoreNamedGeneric* instr = Add<HStoreNamedGeneric>(
-        global_object, var->name(), value, function_language_mode());
+    HStoreNamedGeneric* instr =
+        Add<HStoreNamedGeneric>(global_object, var->name(), value,
+                                function_language_mode(), PREMONOMORPHIC);
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -6826,19 +6827,16 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
 
 
 HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
-    PropertyAccessType access_type,
-    Expression* expr,
-    HValue* object,
-    Handle<String> name,
-    HValue* value,
-    bool is_uninitialized) {
+    PropertyAccessType access_type, Expression* expr, HValue* object,
+    Handle<String> name, HValue* value, bool is_uninitialized) {
   if (is_uninitialized) {
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForGenericNamedAccess,
         Deoptimizer::SOFT);
   }
   if (access_type == LOAD) {
-    HLoadNamedGeneric* result = New<HLoadNamedGeneric>(object, name);
+    HLoadNamedGeneric* result =
+        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
     if (FLAG_vector_ics) {
       Handle<SharedFunctionInfo> current_shared =
           function_state()->compilation_info()->shared_info();
@@ -6850,7 +6848,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     return result;
   } else {
     return New<HStoreNamedGeneric>(object, name, value,
-                                   function_language_mode());
+                                   function_language_mode(), PREMONOMORPHIC);
   }
 }
 
