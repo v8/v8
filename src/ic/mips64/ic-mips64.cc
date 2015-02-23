@@ -676,7 +676,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ StoreNumberToDoubleElements(value, key,
                                  elements,  // Overwritten.
                                  a3,        // Scratch regs...
-                                 a4, a5, &transition_double_elements);
+                                 a4, &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ Daddu(scratch_value, key, Operand(Smi::FromInt(1)));

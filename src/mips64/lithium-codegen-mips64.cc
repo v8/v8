@@ -4474,22 +4474,11 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   }
 
   if (instr->NeedsCanonicalization()) {
-    Label is_nan;
-    // Check for NaN. All NaNs must be canonicalized.
-    __ BranchF(NULL, &is_nan, eq, value, value);
-    __ Branch(&not_nan);
-
-    // Only load canonical NaN if the comparison above set the overflow.
-    __ bind(&is_nan);
-    __ LoadRoot(at, Heap::kNanValueRootIndex);
-    __ ldc1(double_scratch, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ FPUCanonicalizeNaN(double_scratch, value);
     __ sdc1(double_scratch, MemOperand(scratch, 0));
-    __ Branch(&done);
+  } else {
+    __ sdc1(value, MemOperand(scratch, 0));
   }
-
-  __ bind(&not_nan);
-  __ sdc1(value, MemOperand(scratch, 0));
-  __ bind(&done);
 }
 
 
