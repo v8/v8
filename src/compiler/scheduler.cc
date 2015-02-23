@@ -64,7 +64,6 @@ Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
 
 
 Scheduler::SchedulerData* Scheduler::GetData(Node* node) {
-  DCHECK(node->id() < static_cast<int>(node_data_.size()));
   return &node_data_[node->id()];
 }
 
@@ -1008,7 +1007,7 @@ class SpecialRPONumberer : public ZoneObject {
         DCHECK(block->rpo_number() == links + header->rpo_number());
         links++;
         block = block->rpo_next();
-        DCHECK(links < static_cast<int>(2 * order->size()));  // cycle?
+        DCHECK_LT(links, static_cast<int>(2 * order->size()));  // cycle?
       }
       DCHECK(links > 0);
       DCHECK(links == end->rpo_number() - header->rpo_number());

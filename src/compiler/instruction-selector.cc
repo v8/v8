@@ -398,7 +398,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                         buffer->descriptor->GetInputType(0)));
       break;
   }
-  DCHECK_EQ(1, static_cast<int>(buffer->instruction_args.size()));
+  DCHECK_EQ(1u, buffer->instruction_args.size());
 
   // If the call needs a frame state, we insert the state information as
   // follows (n is the number of value inputs to the frame state):

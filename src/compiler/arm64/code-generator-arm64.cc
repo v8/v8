@@ -23,11 +23,11 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
   Arm64OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  DoubleRegister InputFloat32Register(int index) {
+  DoubleRegister InputFloat32Register(size_t index) {
     return InputDoubleRegister(index).S();
   }
 
-  DoubleRegister InputFloat64Register(int index) {
+  DoubleRegister InputFloat64Register(size_t index) {
     return InputDoubleRegister(index);
   }
 
@@ -35,21 +35,23 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
   DoubleRegister OutputFloat64Register() { return OutputDoubleRegister(); }
 
-  Register InputRegister32(int index) {
+  Register InputRegister32(size_t index) {
     return ToRegister(instr_->InputAt(index)).W();
   }
 
-  Register InputRegister64(int index) { return InputRegister(index); }
+  Register InputRegister64(size_t index) { return InputRegister(index); }
 
-  Operand InputImmediate(int index) {
+  Operand InputImmediate(size_t index) {
     return ToImmediate(instr_->InputAt(index));
   }
 
-  Operand InputOperand(int index) { return ToOperand(instr_->InputAt(index)); }
+  Operand InputOperand(size_t index) {
+    return ToOperand(instr_->InputAt(index));
+  }
 
-  Operand InputOperand64(int index) { return InputOperand(index); }
+  Operand InputOperand64(size_t index) { return InputOperand(index); }
 
-  Operand InputOperand32(int index) {
+  Operand InputOperand32(size_t index) {
     return ToOperand32(instr_->InputAt(index));
   }
 
@@ -57,7 +59,7 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
   Register OutputRegister32() { return ToRegister(instr_->Output()).W(); }
 
-  Operand InputOperand2_32(int index) {
+  Operand InputOperand2_32(size_t index) {
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
         return InputOperand32(index);
@@ -77,7 +79,7 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
     return Operand(-1);
   }
 
-  Operand InputOperand2_64(int index) {
+  Operand InputOperand2_64(size_t index) {
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
         return InputOperand64(index);
@@ -97,8 +99,8 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
     return Operand(-1);
   }
 
-  MemOperand MemoryOperand(int* first_index) {
-    const int index = *first_index;
+  MemOperand MemoryOperand(size_t* first_index) {
+    const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Operand2_R_LSL_I:
@@ -117,7 +119,7 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(no_reg);
   }
 
-  MemOperand MemoryOperand(int first_index = 0) {
+  MemOperand MemoryOperand(size_t first_index = 0) {
     return MemoryOperand(&first_index);
   }
 

@@ -199,10 +199,8 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
     if (mode == kFlags_branch) {
       // Assemble a branch after this instruction.
       InstructionOperandConverter i(this, instr);
-      BasicBlock::RpoNumber true_rpo =
-          i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
-      BasicBlock::RpoNumber false_rpo =
-          i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
+      BasicBlock::RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
+      BasicBlock::RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
 
       if (true_rpo == false_rpo) {
         // redundant branch.
@@ -401,8 +399,8 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
 FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
     Instruction* instr, size_t frame_state_offset) {
   InstructionOperandConverter i(this, instr);
-  InstructionSequence::StateId state_id = InstructionSequence::StateId::FromInt(
-      i.InputInt32(static_cast<int>(frame_state_offset)));
+  InstructionSequence::StateId state_id =
+      InstructionSequence::StateId::FromInt(i.InputInt32(frame_state_offset));
   return code()->GetFrameStateDescriptor(state_id);
 }
 

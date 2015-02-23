@@ -26,11 +26,11 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
   ArmOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  SwVfpRegister OutputFloat32Register(int index = 0) {
+  SwVfpRegister OutputFloat32Register(size_t index = 0) {
     return ToFloat32Register(instr_->OutputAt(index));
   }
 
-  SwVfpRegister InputFloat32Register(int index) {
+  SwVfpRegister InputFloat32Register(size_t index) {
     return ToFloat32Register(instr_->InputAt(index));
   }
 
@@ -38,11 +38,11 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return ToFloat64Register(op).low();
   }
 
-  LowDwVfpRegister OutputFloat64Register(int index = 0) {
+  LowDwVfpRegister OutputFloat64Register(size_t index = 0) {
     return ToFloat64Register(instr_->OutputAt(index));
   }
 
-  LowDwVfpRegister InputFloat64Register(int index) {
+  LowDwVfpRegister InputFloat64Register(size_t index) {
     return ToFloat64Register(instr_->InputAt(index));
   }
 
@@ -62,7 +62,7 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return LeaveCC;
   }
 
-  Operand InputImmediate(int index) {
+  Operand InputImmediate(size_t index) {
     Constant constant = ToConstant(instr_->InputAt(index));
     switch (constant.type()) {
       case Constant::kInt32:
@@ -83,8 +83,8 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return Operand::Zero();
   }
 
-  Operand InputOperand2(int first_index) {
-    const int index = first_index;
+  Operand InputOperand2(size_t first_index) {
+    const size_t index = first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Offset_RI:
@@ -115,8 +115,8 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return Operand::Zero();
   }
 
-  MemOperand InputOffset(int* first_index) {
-    const int index = *first_index;
+  MemOperand InputOffset(size_t* first_index) {
+    const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Operand2_I:
@@ -141,7 +141,7 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(r0);
   }
 
-  MemOperand InputOffset(int first_index = 0) {
+  MemOperand InputOffset(size_t first_index = 0) {
     return InputOffset(&first_index);
   }
 
@@ -620,7 +620,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmStrb: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strb(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -633,7 +633,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldrsh(i.OutputRegister(), i.InputOffset());
       break;
     case kArmStrh: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strh(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -643,7 +643,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldr(i.OutputRegister(), i.InputOffset());
       break;
     case kArmStr: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ str(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -655,7 +655,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArmVstrF32: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputFloat32Register(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -666,7 +666,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVstrF64: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputFloat64Register(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());

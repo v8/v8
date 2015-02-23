@@ -462,7 +462,7 @@ void EmitLea(InstructionSelector* selector, Node* result, Node* index,
   AddressingMode mode = g.GenerateMemoryOperandInputs(
       index, scale, base, displacement, inputs, &input_count);
 
-  DCHECK_NE(0, static_cast<int>(input_count));
+  DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
 
   InstructionOperand outputs[1];
@@ -515,7 +515,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     AddressingMode mode = g.GenerateMemoryOperandInputs(
         m.index(), m.scale(), m.base(), m.displacement(), inputs, &input_count);
 
-    DCHECK_NE(0, static_cast<int>(input_count));
+    DCHECK_NE(0u, input_count);
     DCHECK_GE(arraysize(inputs), input_count);
 
     InstructionOperand outputs[1];

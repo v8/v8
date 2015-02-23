@@ -24,9 +24,11 @@ class IA32OperandConverter : public InstructionOperandConverter {
   IA32OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  Operand InputOperand(int index) { return ToOperand(instr_->InputAt(index)); }
+  Operand InputOperand(size_t index) {
+    return ToOperand(instr_->InputAt(index));
+  }
 
-  Immediate InputImmediate(int index) {
+  Immediate InputImmediate(size_t index) {
     return ToImmediate(instr_->InputAt(index));
   }
 
@@ -75,8 +77,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return Immediate(-1);
   }
 
-  static int NextOffset(int* offset) {
-    int i = *offset;
+  static size_t NextOffset(size_t* offset) {
+    size_t i = *offset;
     (*offset)++;
     return i;
   }
@@ -91,7 +93,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return static_cast<ScaleFactor>(scale);
   }
 
-  Operand MemoryOperand(int* offset) {
+  Operand MemoryOperand(size_t* offset) {
     AddressingMode mode = AddressingModeField::decode(instr_->opcode());
     switch (mode) {
       case kMode_MR: {
@@ -154,7 +156,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return Operand(no_reg, 0);
   }
 
-  Operand MemoryOperand(int first_input = 0) {
+  Operand MemoryOperand(size_t first_input = 0) {
     return MemoryOperand(&first_input);
   }
 };
@@ -162,7 +164,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
 namespace {
 
-bool HasImmediateInput(Instruction* instr, int index) {
+bool HasImmediateInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsImmediate();
 }
 
@@ -554,7 +556,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movzx_b(i.OutputRegister(), i.MemoryOperand());
       break;
     case kIA32Movb: {
-      int index = 0;
+      size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
         __ mov_b(operand, i.InputInt8(index));
@@ -570,7 +572,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movzx_w(i.OutputRegister(), i.MemoryOperand());
       break;
     case kIA32Movw: {
-      int index = 0;
+      size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
         __ mov_w(operand, i.InputInt16(index));
@@ -583,7 +585,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ mov(i.OutputRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         if (HasImmediateInput(instr, index)) {
           __ mov(operand, i.InputImmediate(index));
@@ -596,7 +598,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ movsd(operand, i.InputDoubleRegister(index));
       }
@@ -605,7 +607,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ movss(operand, i.InputDoubleRegister(index));
       }
