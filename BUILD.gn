@@ -18,7 +18,7 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_target_arch = cpu_arch
+v8_target_arch = current_cpu
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
 
