@@ -5970,7 +5970,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
   if (!map_->IsJSObjectMap()) return true;
-  lookup_.LookupDescriptor(*map_, *name_);
+  LookupDescriptor(*map_, *name_);
   return LoadResult(map_);
 }
 
@@ -6059,13 +6059,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
     }
     map = Handle<Map>(holder_->map());
     if (!CanInlinePropertyAccess(map)) {
-      lookup_.NotFound();
+      NotFound();
       return false;
     }
-    lookup_.LookupDescriptor(*map, *name_);
+    LookupDescriptor(*map, *name_);
     if (IsFound()) return LoadResult(map);
   }
-  lookup_.NotFound();
+  NotFound();
   return true;
 }
 
@@ -6083,8 +6083,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (IsLoad()) return true;
 
   if (IsAccessorConstant()) return true;
-  lookup_.LookupTransition(*map_, *name_, NONE);
-  if (lookup_.IsTransitionToData() && map_->unused_property_fields() > 0) {
+  LookupTransition(*map_, *name_, NONE);
+  if (IsTransitionToData() && map_->unused_property_fields() > 0) {
     // Construct the object field access.
     int descriptor = transition()->LastAdded();
     int index =
@@ -8172,11 +8172,12 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
 bool HOptimizedGraphBuilder::IsReadOnlyLengthDescriptor(
     Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
-  LookupResult lookup;
   Isolate* isolate = jsarray_map->GetIsolate();
   Handle<Name> length_string = isolate->factory()->length_string();
-  lookup.LookupDescriptor(*jsarray_map, *length_string);
-  return lookup.IsReadOnly();
+  DescriptorArray* descriptors = jsarray_map->instance_descriptors();
+  int number = descriptors->SearchWithCache(*length_string, *jsarray_map);
+  DCHECK_NE(DescriptorArray::kNotFound, number);
+  return descriptors->GetDetails(number).IsReadOnly();
 }
 
 
