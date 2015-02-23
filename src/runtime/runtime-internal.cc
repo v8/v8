@@ -55,6 +55,16 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("iterator_result_not_an_object", HandleVector(&value, 1)));
+}
+
+
 RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   DCHECK(args.length() == 3);
   HandleScope scope(isolate);

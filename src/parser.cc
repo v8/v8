@@ -2925,25 +2925,51 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     Expression* result_done;
     Expression* assign_each;
 
-    // var iterator = subject[Symbol.iterator]();
+    // iterator = subject[Symbol.iterator]()
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
         GetIterator(subject, factory()), subject->position());
 
-    // var result = iterator.next();
+    // !%_IsSpecObject(result = iterator.next()) &&
+    //     %ThrowIteratorResultNotAnObject(result)
     {
+      // result = iterator.next()
       Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
       Expression* next_literal = factory()->NewStringLiteral(
           ast_value_factory()->next_string(), RelocInfo::kNoPosition);
       Expression* next_property = factory()->NewProperty(
           iterator_proxy, next_literal, RelocInfo::kNoPosition);
       ZoneList<Expression*>* next_arguments =
-          new(zone()) ZoneList<Expression*>(0, zone());
+          new (zone()) ZoneList<Expression*>(0, zone());
       Expression* next_call = factory()->NewCall(next_property, next_arguments,
                                                  subject->position());
       Expression* result_proxy = factory()->NewVariableProxy(result);
       next_result = factory()->NewAssignment(Token::ASSIGN, result_proxy,
                                              next_call, subject->position());
+
+      // %_IsSpecObject(...)
+      ZoneList<Expression*>* is_spec_object_args =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      is_spec_object_args->Add(next_result, zone());
+      Expression* is_spec_object_call = factory()->NewCallRuntime(
+          ast_value_factory()->is_spec_object_string(),
+          Runtime::FunctionForId(Runtime::kInlineIsSpecObject),
+          is_spec_object_args, subject->position());
+
+      // %ThrowIteratorResultNotAnObject(result)
+      Expression* result_proxy_again = factory()->NewVariableProxy(result);
+      ZoneList<Expression*>* throw_arguments =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      throw_arguments->Add(result_proxy_again, zone());
+      Expression* throw_call = factory()->NewCallRuntime(
+          ast_value_factory()->throw_iterator_result_not_an_object_string(),
+          Runtime::FunctionForId(Runtime::kThrowIteratorResultNotAnObject),
+          throw_arguments, subject->position());
+
+      next_result = factory()->NewBinaryOperation(
+          Token::AND, factory()->NewUnaryOperation(
+                          Token::NOT, is_spec_object_call, subject->position()),
+          throw_call, subject->position());
     }
 
     // result.done

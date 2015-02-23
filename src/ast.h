@@ -942,12 +942,12 @@ class ForOfStatement FINAL : public ForEachStatement {
     return subject();
   }
 
-  // var iterator = subject[Symbol.iterator]();
+  // iterator = subject[Symbol.iterator]()
   Expression* assign_iterator() const {
     return assign_iterator_;
   }
 
-  // var result = iterator.next();
+  // result = iterator.next()  // with type check
   Expression* next_result() const {
     return next_result_;
   }
