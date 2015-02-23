@@ -1408,3 +1408,38 @@ TestCollectionToString(Map);
 TestCollectionToString(Set);
 TestCollectionToString(WeakMap);
 TestCollectionToString(WeakSet);
+
+
+function TestConstructorOrderOfAdderIterator(ctor, adderName) {
+  var iterable = new Map();
+  iterable.set({}, {});
+  iterable.set({}, {});
+  var iterableFunction = iterable[Symbol.iterator];
+  Object.defineProperty(iterable, Symbol.iterator, {
+    get: function() {
+      log += 'iterator';
+      return iterableFunction;
+    }
+  });
+
+  var log = '';
+  var adderFunction = ctor.prototype[adderName];
+
+  Object.defineProperty(ctor.prototype, adderName, {
+    get: function() {
+      log += adderName;
+      return adderFunction;
+    }
+  });
+
+  new ctor(iterable);
+  assertEquals(adderName + 'iterator', log);
+
+  Object.defineProperty(ctor.prototype, adderName, {
+    value: adderFunction
+  });
+}
+TestConstructorOrderOfAdderIterator(Map, 'set');
+TestConstructorOrderOfAdderIterator(Set, 'add');
+TestConstructorOrderOfAdderIterator(WeakMap, 'set');
+TestConstructorOrderOfAdderIterator(WeakSet, 'add');

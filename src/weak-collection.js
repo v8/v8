@@ -23,11 +23,11 @@ function WeakMapConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
     adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['set', this]);
     }
+    iter = GetIterator(iterable);
   }
 
   %WeakCollectionInitialize(this);
@@ -130,11 +130,11 @@ function WeakSetConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
     adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['add', this]);
     }
+    iter = GetIterator(iterable);
   }
 
   %WeakCollectionInitialize(this);
