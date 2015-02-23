@@ -818,6 +818,26 @@ TEST(CrossScriptReferencesHarmony) {
 }
 
 
+TEST(CrossScriptReferencesHarmonyRegress) {
+  i::FLAG_harmony_scoping = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  SimpleContext context;
+  context.Check(
+      "'use strict';"
+      "function i1() { "
+      "  let y = 10; return (typeof x2 === 'undefined' ? 0 : 2) + y"
+      "}"
+      "i1();"
+      "i1();",
+      EXPECT_RESULT, Number::New(isolate, 10));
+  context.Check(
+      "'use strict';"
+      "let x2 = 2; i1();",
+      EXPECT_RESULT, Number::New(isolate, 12));
+}
+
+
 TEST(GlobalLexicalOSR) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
