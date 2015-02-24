@@ -533,6 +533,8 @@ struct ControlFlowOptimizationPhase {
   static const char* phase_name() { return "control flow optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    SourcePositionTable::Scope pos(data->source_positions(),
+                                   SourcePosition::Unknown());
     ControlFlowOptimizer optimizer(data->jsgraph(), temp_zone);
     optimizer.Optimize();
   }
@@ -957,7 +959,7 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Lowered simplified");
 
     // Optimize control flow.
-    if (FLAG_turbo_switch) {
+    if (FLAG_turbo_cf_optimization) {
       Run<ControlFlowOptimizationPhase>();
       RunPrintAndVerify("Control flow optimized");
     }
