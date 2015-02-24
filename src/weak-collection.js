@@ -20,30 +20,19 @@ function WeakMapConstructor(iterable) {
     throw MakeTypeError('constructor_not_function', ['WeakMap']);
   }
 
-  var iter, adder;
+  %WeakCollectionInitialize(this);
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    adder = this.set;
+    var adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['set', this]);
     }
-    iter = GetIterator(iterable);
-  }
-
-  %WeakCollectionInitialize(this);
-
-  if (IS_UNDEFINED(iter)) return;
-
-  var next, done, nextItem;
-  while (!(next = iter.next()).done) {
-    if (!IS_SPEC_OBJECT(next)) {
-      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    for (var nextItem of iterable) {
+      if (!IS_SPEC_OBJECT(nextItem)) {
+        throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+      }
+      %_CallFunction(this, nextItem[0], nextItem[1], adder);
     }
-    nextItem = next.value;
-    if (!IS_SPEC_OBJECT(nextItem)) {
-      throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
-    }
-    %_CallFunction(this, nextItem[0], nextItem[1], adder);
   }
 }
 
@@ -127,26 +116,16 @@ function WeakSetConstructor(iterable) {
     throw MakeTypeError('constructor_not_function', ['WeakSet']);
   }
 
-  var iter, adder;
+  %WeakCollectionInitialize(this);
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    adder = this.add;
+    var adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['add', this]);
     }
-    iter = GetIterator(iterable);
-  }
-
-  %WeakCollectionInitialize(this);
-
-  if (IS_UNDEFINED(iter)) return;
-
-  var next, done;
-  while (!(next = iter.next()).done) {
-    if (!IS_SPEC_OBJECT(next)) {
-      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    for (var value of iterable) {
+      %_CallFunction(this, value, adder);
     }
-    %_CallFunction(this, next.value, adder);
   }
 }
 
