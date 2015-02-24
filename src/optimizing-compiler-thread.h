@@ -35,10 +35,10 @@ class OptimizingCompilerThread : public base::Thread {
         input_queue_shift_(0),
         osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
         osr_buffer_cursor_(0),
-        task_count_(0),
         osr_hits_(0),
         osr_attempts_(0),
         blocked_jobs_(0),
+        ref_count_(1),
         tracing_enabled_(FLAG_trace_concurrent_recompilation),
         job_based_recompilation_(FLAG_job_based_recompilation),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
@@ -140,17 +140,12 @@ class OptimizingCompilerThread : public base::Thread {
   base::TimeDelta time_spent_compiling_;
   base::TimeDelta time_spent_total_;
 
-  int task_count_;
-  // TODO(jochen): This is currently a RecursiveMutex since both Flush/Stop and
-  // Unblock try to get it, but the former methods both can call Unblock. Once
-  // job based recompilation is on by default, and the dedicated thread can be
-  // removed, this should be refactored to not use a RecursiveMutex.
-  base::RecursiveMutex task_count_mutex_;
-
   int osr_hits_;
   int osr_attempts_;
 
   int blocked_jobs_;
+
+  volatile base::AtomicWord ref_count_;
 
   // Copies of FLAG_trace_concurrent_recompilation,
   // FLAG_concurrent_recompilation_delay and
