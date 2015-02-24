@@ -161,6 +161,7 @@ var kMessages = {
   strict_cannot_assign:          ["Cannot assign to read only '", "%0", "' in strict mode"],
   strict_poison_pill:            ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
   strict_caller:                 ["Illegal access to a strict mode caller function."],
+  strong_ellision:               ["Please don't use arrays with holes in strong mode, use maps instead"],
   strong_arguments:              ["Please don't use 'arguments' in strong mode, use '...args' instead"],
   strong_equal:                  ["Please don't use '==' or '!=' in strong mode, use '===' or '!==' instead"],
   strong_delete:                 ["Please don't use 'delete' in strong mode, use maps or sets instead"],

@@ -2013,6 +2013,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
   while (peek() != Token::RBRACK) {
     ExpressionT elem = this->EmptyExpression();
     if (peek() == Token::COMMA) {
+      if (is_strong(language_mode())) {
+        ReportMessageAt(scanner()->peek_location(), "strong_ellision");
+        *ok = false;
+        return this->EmptyExpression();
+      }
       elem = this->GetLiteralTheHole(peek_position(), factory());
     } else {
       elem = this->ParseAssignmentExpression(true, CHECK_OK);
