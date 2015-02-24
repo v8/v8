@@ -1956,7 +1956,7 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
     InitializeFunction(js_function, shared.ToHandleChecked(), context);
   } else {
     // Provide JSObjects with a constructor.
-    map->set_constructor(context->object_function());
+    map->SetConstructor(context->object_function());
   }
 }
 

@@ -2571,7 +2571,7 @@ bool Value::IsUint32() const {
 static bool CheckConstructor(i::Isolate* isolate,
                              i::Handle<i::JSObject> obj,
                              const char* class_name) {
-  i::Handle<i::Object> constr(obj->map()->constructor(), isolate);
+  i::Handle<i::Object> constr(obj->map()->GetConstructor(), isolate);
   if (!constr->IsJSFunction()) return false;
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(constr);
   return func->shared()->native() && constr.is_identical_to(

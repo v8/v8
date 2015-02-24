@@ -335,7 +335,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
-  global_proxy->map()->set_constructor(*factory->null_value());
+  global_proxy->map()->SetConstructor(*factory->null_value());
   if (FLAG_track_detached_contexts) {
     env->GetIsolate()->AddDetachedContext(env);
   }
@@ -1264,8 +1264,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     map->set_inobject_properties(1);
 
     // Copy constructor from the sloppy arguments boilerplate.
-    map->set_constructor(
-        native_context()->sloppy_arguments_map()->constructor());
+    map->SetConstructor(
+        native_context()->sloppy_arguments_map()->GetConstructor());
 
     native_context()->set_strict_arguments_map(*map);
 
@@ -2124,7 +2124,7 @@ bool Genesis::InstallNatives() {
     // Add initial map.
     Handle<Map> initial_map =
         factory()->NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
-    initial_map->set_constructor(*array_constructor);
+    initial_map->SetConstructor(*array_constructor);
 
     // Set prototype on map.
     initial_map->set_non_instance_prototype(false);

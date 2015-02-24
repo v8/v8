@@ -863,7 +863,7 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate, JSObject* holder) {
   // as the receiver. This allows arguments objects to be used as
   // receivers, but only if they are put in the context scope chain
   // explicitly via a with-statement.
-  Object* constructor = holder->map()->constructor();
+  Object* constructor = holder->map()->GetConstructor();
   if (constructor != context_extension_function) return holder;
   // Fall back to using the global object as the implicit receiver if
   // the property turns out to be a local variable allocated in a

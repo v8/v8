@@ -3484,9 +3484,10 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
-  __ Ldr(x12, FieldMemOperand(x10, Map::kConstructorOffset));
-  __ JumpIfNotObjectType(x12, x13, x14, JS_FUNCTION_TYPE,
-                         &non_function_constructor);
+  Register instance_type = x14;
+  __ GetMapConstructor(x12, x10, x13, instance_type);
+  __ Cmp(instance_type, JS_FUNCTION_TYPE);
+  __ B(ne, &non_function_constructor);
 
   // x12 now contains the constructor function. Grab the
   // instance class name from there.

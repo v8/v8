@@ -2371,7 +2371,7 @@ static int DebugReferencedBy(HeapIterator* iterator, JSObject* target,
       // checked in the context of functions using them.
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->IsJSContextExtensionObject() ||
-          obj->map()->constructor() == arguments_function) {
+          obj->map()->GetConstructor() == arguments_function) {
         continue;
       }
 
@@ -2434,7 +2434,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 
   // Get the constructor function for context extension and arguments array.
   Handle<JSFunction> arguments_function(
-      JSFunction::cast(isolate->sloppy_arguments_map()->constructor()));
+      JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
 
   // Get the number of referencing objects.
   int count;
@@ -2482,7 +2482,7 @@ static int DebugConstructedBy(HeapIterator* iterator, JSFunction* constructor,
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
       JSObject* obj = JSObject::cast(heap_obj);
-      if (obj->map()->constructor() == constructor) {
+      if (obj->map()->GetConstructor() == constructor) {
         // Valid reference found add to instance array if supplied an update
         // count.
         if (instances != NULL && count < instances_size) {

@@ -5360,13 +5360,11 @@ void Map::AppendDescriptor(Descriptor* desc) {
 
 
 Object* Map::GetBackPointer() {
-  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
-  if (object->IsTransitionArray()) {
-    return TransitionArray::cast(object)->back_pointer_storage();
-  } else {
-    DCHECK(object->IsMap() || object->IsUndefined());
+  Object* object = constructor_or_backpointer();
+  if (object->IsMap()) {
     return object;
   }
+  return GetIsolate()->heap()->undefined_value();
 }
 
 
@@ -5376,7 +5374,7 @@ bool Map::HasElementsTransition() {
 
 
 bool Map::HasTransitionArray() const {
-  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  Object* object = READ_FIELD(this, kTransitionsOffset);
   return object->IsTransitionArray();
 }
 
@@ -5446,7 +5444,7 @@ bool Map::HasPrototypeTransitions() {
 
 TransitionArray* Map::transitions() const {
   DCHECK(HasTransitionArray());
-  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  Object* object = READ_FIELD(this, kTransitionsOffset);
   return TransitionArray::cast(object);
 }
 
@@ -5481,15 +5479,15 @@ void Map::set_transitions(TransitionArray* transition_array,
     ZapTransitions();
   }
 
-  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, transition_array);
-  CONDITIONAL_WRITE_BARRIER(
-      GetHeap(), this, kTransitionsOrBackPointerOffset, transition_array, mode);
+  WRITE_FIELD(this, kTransitionsOffset, transition_array);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTransitionsOffset,
+                            transition_array, mode);
 }
 
 
-void Map::init_back_pointer(Object* undefined) {
+void Map::init_transitions(Object* undefined) {
   DCHECK(undefined->IsUndefined());
-  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, undefined);
+  WRITE_FIELD(this, kTransitionsOffset, undefined);
 }
 
 
@@ -5497,20 +5495,31 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   DCHECK(instance_type() >= FIRST_JS_RECEIVER_TYPE);
   DCHECK((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
-  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
-  if (object->IsTransitionArray()) {
-    TransitionArray::cast(object)->set_back_pointer_storage(value);
-  } else {
-    WRITE_FIELD(this, kTransitionsOrBackPointerOffset, value);
-    CONDITIONAL_WRITE_BARRIER(
-        GetHeap(), this, kTransitionsOrBackPointerOffset, value, mode);
-  }
+  DCHECK(!value->IsMap() ||
+         Map::cast(value)->GetConstructor() == constructor_or_backpointer());
+  set_constructor_or_backpointer(value, mode);
 }
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS(Map, constructor, Object, kConstructorOffset)
+ACCESSORS(Map, constructor_or_backpointer, Object,
+          kConstructorOrBackPointerOffset)
+
+Object* Map::GetConstructor() const {
+  Object* maybe_constructor = constructor_or_backpointer();
+  // Follow any back pointers.
+  while (maybe_constructor->IsMap()) {
+    maybe_constructor =
+        Map::cast(maybe_constructor)->constructor_or_backpointer();
+  }
+  return maybe_constructor;
+}
+void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
+  // Never overwrite a back pointer with a constructor.
+  DCHECK(!constructor_or_backpointer()->IsMap());
+  set_constructor_or_backpointer(constructor, mode);
+}
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
@@ -6199,7 +6208,12 @@ Object* JSFunction::prototype() {
   DCHECK(has_prototype());
   // If the function's prototype property has been set to a non-JSObject
   // value, that value is stored in the constructor field of the map.
-  if (map()->has_non_instance_prototype()) return map()->constructor();
+  if (map()->has_non_instance_prototype()) {
+    Object* prototype = map()->GetConstructor();
+    // The map must have a prototype in that field, not a back pointer.
+    DCHECK(!prototype->IsMap());
+    return prototype;
+  }
   return instance_prototype();
 }
 

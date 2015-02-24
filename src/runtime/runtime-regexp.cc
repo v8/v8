@@ -866,7 +866,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   Handle<Object> unicode = factory->ToBoolean(flags.is_unicode());
 
   Map* map = regexp->map();
-  Object* constructor = map->constructor();
+  Object* constructor = map->GetConstructor();
   if (!FLAG_harmony_regexps && !FLAG_harmony_unicode_regexps &&
       constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {

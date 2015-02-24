@@ -1289,10 +1289,6 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   if (map->HasTransitionArray()) {
     TransitionArray* transitions = map->transitions();
     int transitions_entry = GetEntry(transitions)->index();
-    Object* back_pointer = transitions->back_pointer_storage();
-    TagObject(back_pointer, "(back pointer)");
-    SetInternalReference(transitions, transitions_entry,
-                         "back_pointer", back_pointer);
 
     if (FLAG_collect_maps && map->CanTransition()) {
       if (!transitions->IsSimpleTransition()) {
@@ -1310,15 +1306,8 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
     }
 
     TagObject(transitions, "(transition array)");
-    SetInternalReference(map, entry,
-                         "transitions", transitions,
-                         Map::kTransitionsOrBackPointerOffset);
-  } else {
-    Object* back_pointer = map->GetBackPointer();
-    TagObject(back_pointer, "(back pointer)");
-    SetInternalReference(map, entry,
-                         "back_pointer", back_pointer,
-                         Map::kTransitionsOrBackPointerOffset);
+    SetInternalReference(map, entry, "transitions", transitions,
+                         Map::kTransitionsOffset);
   }
   DescriptorArray* descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
@@ -1332,9 +1321,15 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kCodeCacheOffset);
   SetInternalReference(map, entry,
                        "prototype", map->prototype(), Map::kPrototypeOffset);
-  SetInternalReference(map, entry,
-                       "constructor", map->constructor(),
-                       Map::kConstructorOffset);
+  Object* constructor_or_backpointer = map->constructor_or_backpointer();
+  if (constructor_or_backpointer->IsMap()) {
+    TagObject(constructor_or_backpointer, "(back pointer)");
+    SetInternalReference(map, entry, "back_pointer", constructor_or_backpointer,
+                         Map::kConstructorOrBackPointerOffset);
+  } else {
+    SetInternalReference(map, entry, "constructor", constructor_or_backpointer,
+                         Map::kConstructorOrBackPointerOffset);
+  }
   TagObject(map->dependent_code(), "(dependent code)");
   MarkAsWeakContainer(map->dependent_code());
   SetInternalReference(map, entry,

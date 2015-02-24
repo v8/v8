@@ -3705,6 +3705,20 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
 }
 
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp, Register temp2) {
+  Label done, loop;
+  Ldr(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
+  Bind(&loop);
+  JumpIfSmi(result, &done);
+  CompareObjectType(result, temp, temp2, MAP_TYPE);
+  B(ne, &done);
+  Ldr(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
+  B(&loop);
+  Bind(&done);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -3756,7 +3770,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: fetch prototype from constructor field in initial
     // map.
     Bind(&non_instance);
-    Ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+    GetMapConstructor(result, result, scratch, scratch);
   }
 
   // All done.

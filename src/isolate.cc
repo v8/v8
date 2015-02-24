@@ -611,7 +611,7 @@ Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
     Address pc = code->address() + offset->value();
     bool is_constructor =
         recv->IsJSObject() &&
-        Handle<JSObject>::cast(recv)->map()->constructor() == *fun;
+        Handle<JSObject>::cast(recv)->map()->GetConstructor() == *fun;
 
     Handle<JSObject> stack_frame =
         helper.NewStackFrameObject(fun, code, pc, is_constructor);
@@ -724,7 +724,7 @@ void Isolate::SetFailedAccessCheckCallback(
 
 static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
                                                   Handle<JSObject> receiver) {
-  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
+  JSFunction* constructor = JSFunction::cast(receiver->map()->GetConstructor());
   if (!constructor->shared()->IsApiFunction()) return NULL;
 
   Object* data_obj =
@@ -1169,7 +1169,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent()->IsJSProxy()) return false;
-    if (JSObject::cast(iter.GetCurrent())->map()->constructor() ==
+    if (JSObject::cast(iter.GetCurrent())->map()->GetConstructor() ==
         *error_constructor) {
       return true;
     }

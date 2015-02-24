@@ -1185,7 +1185,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
   DCHECK(obj->map()->has_instance_call_handler());
-  JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
+  JSFunction* constructor = JSFunction::cast(obj->map()->GetConstructor());
   // TODO(ishell): turn this back to a DCHECK.
   CHECK(constructor->shared()->IsApiFunction());
   Object* handler =

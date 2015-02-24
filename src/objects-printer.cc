@@ -436,7 +436,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     os << "\n - transitions: " << Brief(transitions());
   }
   os << "\n - prototype: " << Brief(prototype());
-  os << "\n - constructor: " << Brief(constructor());
+  os << "\n - constructor: " << Brief(GetConstructor());
   os << "\n - code cache: " << Brief(code_cache());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n";

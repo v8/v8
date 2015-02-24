@@ -1378,6 +1378,11 @@ class MacroAssembler : public Assembler {
     kDontMissOnBoundFunction
   };
 
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done, and |temp2| its instance type.
+  void GetMapConstructor(Register result, Register map, Register temp,
+                         Register temp2);
+
   void TryGetFunctionPrototype(Register function,
                                Register result,
                                Register scratch,
