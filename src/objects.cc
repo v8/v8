@@ -7677,204 +7677,35 @@ void Map::RemoveFromCodeCache(Name* name, Code* code, int index) {
 }
 
 
-// An iterator over all map transitions in an descriptor array, reusing the
-// constructor field of the map while it is running. Negative values in
-// the constructor field indicate an active map transition iteration. The
-// original constructor is restored after iterating over all entries.
-class IntrusiveMapTransitionIterator {
- public:
-  IntrusiveMapTransitionIterator(
-      Map* map, TransitionArray* transition_array, Object* constructor)
-      : map_(map),
-        transition_array_(transition_array),
-        constructor_(constructor) { }
-
-  void StartIfNotStarted() {
-    DCHECK(!(*IteratorField())->IsSmi() || IsIterating());
-    if (!(*IteratorField())->IsSmi()) {
-      DCHECK(*IteratorField() == constructor_);
-      *IteratorField() = Smi::FromInt(-1);
-    }
-  }
-
-  bool IsIterating() {
-    return (*IteratorField())->IsSmi() &&
-           Smi::cast(*IteratorField())->value() < 0;
-  }
-
-  Map* Next() {
-    DCHECK(IsIterating());
-    int value = Smi::cast(*IteratorField())->value();
-    int index = -value - 1;
-    int number_of_transitions = transition_array_->number_of_transitions();
-    if (index < number_of_transitions) {
-      *IteratorField() = Smi::FromInt(value - 1);
-      return transition_array_->GetTarget(index);
-    }
-
-    *IteratorField() = constructor_;
-    return NULL;
-  }
-
- private:
-  Object** IteratorField() {
-    return HeapObject::RawField(map_, Map::kConstructorOffset);
-  }
-
-  Map* map_;
-  TransitionArray* transition_array_;
-  Object* constructor_;
-};
-
-
-// An iterator over all prototype transitions, reusing the constructor field
-// of the map while it is running.  Positive values in the constructor field
-// indicate an active prototype transition iteration. The original constructor
-// is restored after iterating over all entries.
-class IntrusivePrototypeTransitionIterator {
- public:
-  IntrusivePrototypeTransitionIterator(
-      Map* map, HeapObject* proto_trans, Object* constructor)
-      : map_(map), proto_trans_(proto_trans), constructor_(constructor) { }
-
-  void StartIfNotStarted() {
-    if (!(*IteratorField())->IsSmi()) {
-      DCHECK(*IteratorField() == constructor_);
-      *IteratorField() = Smi::FromInt(0);
-    }
-  }
-
-  bool IsIterating() {
-    return (*IteratorField())->IsSmi() &&
-           Smi::cast(*IteratorField())->value() >= 0;
-  }
-
-  Map* Next() {
-    DCHECK(IsIterating());
-    int transitionNumber = Smi::cast(*IteratorField())->value();
-    if (transitionNumber < NumberOfTransitions()) {
-      *IteratorField() = Smi::FromInt(transitionNumber + 1);
-      return GetTransition(transitionNumber);
-    }
-    *IteratorField() = constructor_;
-    return NULL;
-  }
-
- private:
-  Object** IteratorField() {
-    return HeapObject::RawField(map_, Map::kConstructorOffset);
-  }
-
-  int NumberOfTransitions() {
-    FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
-    Object* num = proto_trans->get(Map::kProtoTransitionNumberOfEntriesOffset);
-    return Smi::cast(num)->value();
-  }
-
-  Map* GetTransition(int transitionNumber) {
-    FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
-    int index = Map::kProtoTransitionHeaderSize + transitionNumber;
-    return Map::cast(proto_trans->get(index));
-  }
-
-  Map* map_;
-  HeapObject* proto_trans_;
-  Object* constructor_;
-};
-
-
-// To traverse the transition tree iteratively, we have to store two kinds of
-// information in a map: The parent map in the traversal and which children of a
-// node have already been visited. To do this without additional memory, we
-// temporarily reuse two fields with known values:
-//
-//  (1) The map of the map temporarily holds the parent, and is restored to the
-//      meta map afterwards.
-//
-//  (2) The info which children have already been visited depends on which part
-//      of the map we currently iterate. We use the constructor field of the
-//      map to store the current index. We can do that because the constructor
-//      is the same for all involved maps.
-//
-//    (a) If we currently follow normal map transitions, we temporarily store
-//        the current index in the constructor field, and restore it to the
-//        original constructor afterwards. Note that a single descriptor can
-//        have 0, 1, or 2 transitions.
-//
-//    (b) If we currently follow prototype transitions, we temporarily store
-//        the current index in the constructor field, and restore it to the
-//        original constructor afterwards.
-//
-// Note that the child iterator is just a concatenation of two iterators: One
-// iterating over map transitions and one iterating over prototype transisitons.
-class TraversableMap : public Map {
- public:
-  // Record the parent in the traversal within this map. Note that this destroys
-  // this map's map!
-  void SetParent(TraversableMap* parent) { set_map_no_write_barrier(parent); }
-
-  // Reset the current map's map, returning the parent previously stored in it.
-  TraversableMap* GetAndResetParent() {
-    TraversableMap* old_parent = static_cast<TraversableMap*>(map());
-    set_map_no_write_barrier(GetHeap()->meta_map());
-    return old_parent;
-  }
-
-  // If we have an unvisited child map, return that one and advance. If we have
-  // none, return NULL and restore the overwritten constructor field.
-  TraversableMap* ChildIteratorNext(Object* constructor) {
-    if (!HasTransitionArray()) return NULL;
-
-    TransitionArray* transition_array = transitions();
-    if (transition_array->HasPrototypeTransitions()) {
-      HeapObject* proto_transitions =
-          transition_array->GetPrototypeTransitions();
-      IntrusivePrototypeTransitionIterator proto_iterator(this,
-                                                          proto_transitions,
-                                                          constructor);
-      proto_iterator.StartIfNotStarted();
-      if (proto_iterator.IsIterating()) {
-        Map* next = proto_iterator.Next();
-        if (next != NULL) return static_cast<TraversableMap*>(next);
+static void TraverseTransitionTreeInternal(Map* map,
+                                           Map::TraverseCallback callback,
+                                           void* data) {
+  if (map->HasTransitionArray()) {
+    TransitionArray* transitions = map->transitions();
+    if (transitions->HasPrototypeTransitions()) {
+      FixedArray* proto_trans = transitions->GetPrototypeTransitions();
+      Object* num_obj =
+          proto_trans->get(Map::kProtoTransitionNumberOfEntriesOffset);
+      int num = Smi::cast(num_obj)->value();
+      for (int i = 0; i < num; ++i) {
+        int index = Map::kProtoTransitionHeaderSize + i;
+        TraverseTransitionTreeInternal(Map::cast(proto_trans->get(index)),
+                                       callback, data);
       }
     }
-
-    IntrusiveMapTransitionIterator transition_iterator(this,
-                                                       transition_array,
-                                                       constructor);
-    transition_iterator.StartIfNotStarted();
-    if (transition_iterator.IsIterating()) {
-      Map* next = transition_iterator.Next();
-      if (next != NULL) return static_cast<TraversableMap*>(next);
+    for (int i = 0; i < transitions->number_of_transitions(); ++i) {
+      TraverseTransitionTreeInternal(transitions->GetTarget(i), callback, data);
     }
-
-    return NULL;
   }
-};
+  callback(map, data);
+}
 
 
-// Traverse the transition tree in postorder without using the C++ stack by
-// doing pointer reversal.
+// Traverse the transition tree in postorder.
 void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   // Make sure that we do not allocate in the callback.
   DisallowHeapAllocation no_allocation;
-
-  TraversableMap* current = static_cast<TraversableMap*>(this);
-  // Get the root constructor here to restore it later when finished iterating
-  // over maps.
-  Object* root_constructor = constructor();
-  while (true) {
-    TraversableMap* child = current->ChildIteratorNext(root_constructor);
-    if (child != NULL) {
-      child->SetParent(current);
-      current = child;
-    } else {
-      TraversableMap* parent = current->GetAndResetParent();
-      callback(current, data);
-      if (current == this) break;
-      current = parent;
-    }
-  }
+  TraverseTransitionTreeInternal(this, callback, data);
 }
 
 
