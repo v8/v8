@@ -6954,15 +6954,7 @@ String::Value::~Value() {
     {                                                                         \
       i::HandleScope scope(isolate);                                          \
       i::Handle<i::String> message = Utils::OpenHandle(*raw_message);         \
-      i::Handle<i::Object> result;                                            \
-      EXCEPTION_PREAMBLE(isolate);                                            \
-      i::MaybeHandle<i::Object> maybe_result =                                \
-          isolate->factory()->New##NAME(message);                             \
-      has_pending_exception = !maybe_result.ToHandle(&result);                \
-      /* TODO(yangguo): crbug/403509. Return empty handle instead. */         \
-      EXCEPTION_BAILOUT_CHECK(                                                \
-          isolate, v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate)));   \
-      error = *result;                                                        \
+      error = *isolate->factory()->New##NAME(message);                        \
     }                                                                         \
     i::Handle<i::Object> result(error, isolate);                              \
     return Utils::ToLocal(result);                                            \

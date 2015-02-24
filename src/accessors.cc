@@ -242,14 +242,8 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  Handle<Object> exception;
-  maybe = isolate->factory()->NewRangeError("invalid_array_length",
-                                            HandleVector<Object>(NULL, 0));
-  if (!maybe.ToHandle(&exception)) {
-    isolate->OptionalRescheduleException(false);
-    return;
-  }
-
+  Handle<Object> exception = isolate->factory()->NewRangeError(
+      "invalid_array_length", HandleVector<Object>(NULL, 0));
   isolate->ScheduleThrow(*exception);
 }
 
@@ -1459,14 +1453,8 @@ static void ModuleGetExport(
   if (value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
 
-    Handle<Object> exception;
-    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+    Handle<Object> exception = isolate->factory()->NewReferenceError(
         "not_defined", HandleVector(&name, 1));
-    if (!maybe.ToHandle(&exception)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
     isolate->ScheduleThrow(*exception);
     return;
   }
@@ -1486,14 +1474,8 @@ static void ModuleSetExport(
   Isolate* isolate = context->GetIsolate();
   if (old_value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    Handle<Object> exception;
-    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+    Handle<Object> exception = isolate->factory()->NewReferenceError(
         "not_defined", HandleVector(&name, 1));
-    if (!maybe.ToHandle(&exception)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
     isolate->ScheduleThrow(*exception);
     return;
   }

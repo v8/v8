@@ -739,10 +739,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver,
                                       v8::AccessType type) {
   if (!thread_local_top()->failed_access_check_callback_) {
     Handle<String> message = factory()->InternalizeUtf8String("no access");
-    Handle<Object> error;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        this, error, factory()->NewTypeError(message), /* void */);
-    ScheduleThrow(*error);
+    ScheduleThrow(*factory()->NewTypeError(message));
     return;
   }
 

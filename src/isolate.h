@@ -137,20 +137,14 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
 
-#define THROW_NEW_ERROR(isolate, call, T)                                    \
-  do {                                                                       \
-    Handle<Object> __error__;                                                \
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, __error__, isolate->factory()->call, \
-                               T);                                           \
-    return isolate->Throw<T>(__error__);                                     \
+#define THROW_NEW_ERROR(isolate, call, T)               \
+  do {                                                  \
+    return isolate->Throw<T>(isolate->factory()->call); \
   } while (false)
 
-#define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)             \
-  do {                                                            \
-    Handle<Object> __error__;                                     \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, __error__,        \
-                                       isolate->factory()->call); \
-    return isolate->Throw(*__error__);                            \
+#define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call) \
+  do {                                                \
+    return isolate->Throw(*isolate->factory()->call); \
   } while (false)
 
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \

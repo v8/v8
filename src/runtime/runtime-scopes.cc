@@ -905,11 +905,9 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
       case MUTABLE_CHECK_INITIALIZED:
       case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
         if (value->IsTheHole()) {
-          Handle<Object> error;
-          MaybeHandle<Object> maybe_error =
-              isolate->factory()->NewReferenceError("not_defined",
-                                                    HandleVector(&name, 1));
-          if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
+          Handle<Object> error = isolate->factory()->NewReferenceError(
+              "not_defined", HandleVector(&name, 1));
+          isolate->Throw(*error);
           return MakePair(isolate->heap()->exception(), NULL);
         }
       // FALLTHROUGH
@@ -962,10 +960,9 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
 
   if (throw_error) {
     // The property doesn't exist - throw exception.
-    Handle<Object> error;
-    MaybeHandle<Object> maybe_error = isolate->factory()->NewReferenceError(
+    Handle<Object> error = isolate->factory()->NewReferenceError(
         "not_defined", HandleVector(&name, 1));
-    if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
+    isolate->Throw(*error);
     return MakePair(isolate->heap()->exception(), NULL);
   } else {
     // The property doesn't exist - return undefined.

@@ -1058,58 +1058,58 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
-MaybeHandle<Object> Factory::NewTypeError(const char* message,
-                                          Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewTypeError(const char* message,
+                                     Vector<Handle<Object> > args) {
   return NewError("MakeTypeError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewTypeError(Handle<String> message) {
+Handle<Object> Factory::NewTypeError(Handle<String> message) {
   return NewError("$TypeError", message);
 }
 
 
-MaybeHandle<Object> Factory::NewRangeError(const char* message,
-                                           Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewRangeError(const char* message,
+                                      Vector<Handle<Object> > args) {
   return NewError("MakeRangeError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewRangeError(Handle<String> message) {
+Handle<Object> Factory::NewRangeError(Handle<String> message) {
   return NewError("$RangeError", message);
 }
 
 
-MaybeHandle<Object> Factory::NewSyntaxError(const char* message,
-                                            Handle<JSArray> args) {
+Handle<Object> Factory::NewSyntaxError(const char* message,
+                                       Handle<JSArray> args) {
   return NewError("MakeSyntaxError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewSyntaxError(Handle<String> message) {
+Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
   return NewError("$SyntaxError", message);
 }
 
 
-MaybeHandle<Object> Factory::NewReferenceError(const char* message,
-                                               Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewReferenceError(const char* message,
+                                          Vector<Handle<Object> > args) {
   return NewError("MakeReferenceError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewReferenceError(const char* message,
-                                               Handle<JSArray> args) {
+Handle<Object> Factory::NewReferenceError(const char* message,
+                                          Handle<JSArray> args) {
   return NewError("MakeReferenceError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewReferenceError(Handle<String> message) {
+Handle<Object> Factory::NewReferenceError(Handle<String> message) {
   return NewError("$ReferenceError", message);
 }
 
 
-MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
-                                      Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewError(const char* maker, const char* message,
+                                 Vector<Handle<Object> > args) {
   // Instantiate a closeable HandleScope for EscapeFrom.
   v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
   Handle<FixedArray> array = NewFixedArray(args.length());
@@ -1117,21 +1117,19 @@ MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
     array->set(i, *args[i]);
   }
   Handle<JSArray> object = NewJSArrayWithElements(array);
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                             NewError(maker, message, object), Object);
+  Handle<Object> result = NewError(maker, message, object);
   return result.EscapeFrom(&scope);
 }
 
 
-MaybeHandle<Object> Factory::NewEvalError(const char* message,
-                                          Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewEvalError(const char* message,
+                                     Vector<Handle<Object> > args) {
   return NewError("MakeEvalError", message, args);
 }
 
 
-MaybeHandle<Object> Factory::NewError(const char* message,
-                                      Vector<Handle<Object> > args) {
+Handle<Object> Factory::NewError(const char* message,
+                                 Vector<Handle<Object> > args) {
   return NewError("MakeError", message, args);
 }
 
@@ -1172,8 +1170,8 @@ Handle<String> Factory::EmergencyNewError(const char* message,
 }
 
 
-MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
-                                      Handle<JSArray> args) {
+Handle<Object> Factory::NewError(const char* maker, const char* message,
+                                 Handle<JSArray> args) {
   Handle<String> make_str = InternalizeUtf8String(maker);
   Handle<Object> fun_obj = Object::GetProperty(
       isolate()->js_builtins_object(), make_str).ToHandleChecked();
@@ -1203,13 +1201,13 @@ MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
 }
 
 
-MaybeHandle<Object> Factory::NewError(Handle<String> message) {
+Handle<Object> Factory::NewError(Handle<String> message) {
   return NewError("$Error", message);
 }
 
 
-MaybeHandle<Object> Factory::NewError(const char* constructor,
-                                      Handle<String> message) {
+Handle<Object> Factory::NewError(const char* constructor,
+                                 Handle<String> message) {
   Handle<String> constr = InternalizeUtf8String(constructor);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
       isolate()->js_builtins_object(), constr).ToHandleChecked());

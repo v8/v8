@@ -4315,35 +4315,31 @@ void Parser::ThrowPendingError(Isolate* isolate, Handle<Script> script) {
 
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> error;
-    MaybeHandle<Object> maybe_error;
     switch (pending_error_type_) {
       case kReferenceError:
-        maybe_error = factory->NewReferenceError(pending_error_message_, array);
+        error = factory->NewReferenceError(pending_error_message_, array);
         break;
       case kSyntaxError:
-        maybe_error = factory->NewSyntaxError(pending_error_message_, array);
+        error = factory->NewSyntaxError(pending_error_message_, array);
         break;
     }
-    DCHECK(!maybe_error.is_null() || isolate->has_pending_exception());
 
-    if (maybe_error.ToHandle(&error)) {
-      Handle<JSObject> jserror = Handle<JSObject>::cast(error);
+    Handle<JSObject> jserror = Handle<JSObject>::cast(error);
 
-      Handle<Name> key_start_pos = factory->error_start_pos_symbol();
-      JSObject::SetProperty(jserror, key_start_pos,
-                            handle(Smi::FromInt(location.start_pos()), isolate),
-                            SLOPPY).Check();
+    Handle<Name> key_start_pos = factory->error_start_pos_symbol();
+    JSObject::SetProperty(jserror, key_start_pos,
+                          handle(Smi::FromInt(location.start_pos()), isolate),
+                          SLOPPY).Check();
 
-      Handle<Name> key_end_pos = factory->error_end_pos_symbol();
-      JSObject::SetProperty(jserror, key_end_pos,
-                            handle(Smi::FromInt(location.end_pos()), isolate),
-                            SLOPPY).Check();
+    Handle<Name> key_end_pos = factory->error_end_pos_symbol();
+    JSObject::SetProperty(jserror, key_end_pos,
+                          handle(Smi::FromInt(location.end_pos()), isolate),
+                          SLOPPY).Check();
 
-      Handle<Name> key_script = factory->error_script_symbol();
-      JSObject::SetProperty(jserror, key_script, script, SLOPPY).Check();
+    Handle<Name> key_script = factory->error_script_symbol();
+    JSObject::SetProperty(jserror, key_script, script, SLOPPY).Check();
 
-      isolate->Throw(*error, &location);
-    }
+    isolate->Throw(*error, &location);
   }
 }
 

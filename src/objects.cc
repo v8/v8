@@ -3982,10 +3982,9 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error;
-    MaybeHandle<Object> maybe_error = isolate->factory()->NewTypeError(
+    Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
-    if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
+    isolate->Throw(*error);
     return maybe(NONE);
   }
 
