@@ -98,11 +98,6 @@
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
 
-  # BUG(3914).
-  'test-decls/CrossScriptStaticLookupUndeclared': [SKIP],
-  'test-decls/CrossScriptReferencesHarmony': [SKIP],
-  'test-decls/CrossScriptReferencesHarmonyRegress': [SKIP],
-
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

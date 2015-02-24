@@ -15334,8 +15334,15 @@ void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
     Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(value);
     global->property_dictionary()->ValueAtPut(entry, *new_cell);
 
-    Handle<Object> hole = global->GetIsolate()->factory()->the_hole_value();
-    PropertyCell::SetValueInferType(cell, hole);
+    Handle<Object> hole = isolate->factory()->the_hole_value();
+    if (*hole != *value) {
+      PropertyCell::SetValueInferType(cell, hole);
+    } else {
+      // If property value was the hole, set it to any other value,
+      // to ensure that LoadNonexistent ICs execute a miss.
+      Handle<Object> undefined = isolate->factory()->undefined_value();
+      PropertyCell::SetValueInferType(cell, undefined);
+    }
   }
 }
 
