@@ -233,6 +233,27 @@ const uint32_t kUint32Values[] = {
     0x000fffff, 0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff,
     0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
 
+
+struct ComparisonBinaryOperator {
+  const Operator* (MachineOperatorBuilder::*constructor)();
+  const char* constructor_name;
+};
+
+
+std::ostream& operator<<(std::ostream& os,
+                         ComparisonBinaryOperator const& cbop) {
+  return os << cbop.constructor_name;
+}
+
+
+const ComparisonBinaryOperator kComparisonBinaryOperators[] = {
+#define OPCODE(Opcode)                         \
+  { &MachineOperatorBuilder::Opcode, #Opcode } \
+  ,
+    MACHINE_COMPARE_BINOP_LIST(OPCODE)
+#undef OPCODE
+};
+
 }  // namespace
 
 
@@ -632,6 +653,27 @@ TEST_F(MachineOperatorReducerTest,
 }
 
 
+TEST_F(MachineOperatorReducerTest, Word32AndWithComparisonAndConstantOne) {
+  Node* const p0 = Parameter(0);
+  Node* const p1 = Parameter(1);
+  TRACED_FOREACH(ComparisonBinaryOperator, cbop, kComparisonBinaryOperators) {
+    Node* cmp = graph()->NewNode((machine()->*cbop.constructor)(), p0, p1);
+
+    // cmp & 1 => cmp
+    Reduction const r1 =
+        Reduce(graph()->NewNode(machine()->Word32And(), cmp, Int32Constant(1)));
+    ASSERT_TRUE(r1.Changed());
+    EXPECT_EQ(cmp, r1.replacement());
+
+    // 1 & cmp => cmp
+    Reduction const r2 =
+        Reduce(graph()->NewNode(machine()->Word32And(), Int32Constant(1), cmp));
+    ASSERT_TRUE(r2.Changed());
+    EXPECT_EQ(cmp, r2.replacement());
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Word32Xor
 
@@ -771,6 +813,24 @@ TEST_F(MachineOperatorReducerTest, Word32RorWithConstants) {
 
 // -----------------------------------------------------------------------------
 // Word32Sar
+
+
+TEST_F(MachineOperatorReducerTest, Word32SarWithWord32ShlAndComparison) {
+  Node* const p0 = Parameter(0);
+  Node* const p1 = Parameter(1);
+
+  TRACED_FOREACH(ComparisonBinaryOperator, cbop, kComparisonBinaryOperators) {
+    Node* cmp = graph()->NewNode((machine()->*cbop.constructor)(), p0, p1);
+
+    // cmp << 31 >> 31 => 0 - cmp
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Word32Sar(),
+        graph()->NewNode(machine()->Word32Shl(), cmp, Int32Constant(31)),
+        Int32Constant(31)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Sub(IsInt32Constant(0), cmp));
+  }
+}
 
 
 TEST_F(MachineOperatorReducerTest, Word32SarWithWord32ShlAndLoad) {
@@ -1186,6 +1246,28 @@ TEST_F(MachineOperatorReducerTest, Uint32ModWithParameters) {
       graph()->NewNode(machine()->Uint32Mod(), p0, p0, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsInt32Constant(0));
+}
+
+
+// -----------------------------------------------------------------------------
+// Int32Add
+
+
+TEST_F(MachineOperatorReducerTest, Int32AddWithInt32SubWithConstantZero) {
+  Node* const p0 = Parameter(0);
+  Node* const p1 = Parameter(1);
+
+  Reduction const r1 = Reduce(graph()->NewNode(
+      machine()->Int32Add(),
+      graph()->NewNode(machine()->Int32Sub(), Int32Constant(0), p0), p1));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(r1.replacement(), IsInt32Sub(p1, p0));
+
+  Reduction const r2 = Reduce(graph()->NewNode(
+      machine()->Int32Add(), p0,
+      graph()->NewNode(machine()->Int32Sub(), Int32Constant(0), p1)));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_THAT(r2.replacement(), IsInt32Sub(p0, p1));
 }
 
 

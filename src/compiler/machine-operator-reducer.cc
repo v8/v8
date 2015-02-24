@@ -160,29 +160,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       return ReduceWord32Shifts(node);
     }
-    case IrOpcode::kWord32Sar: {
-      Int32BinopMatcher m(node);
-      if (m.right().Is(0)) return Replace(m.left().node());  // x >> 0 => x
-      if (m.IsFoldable()) {                                  // K >> K => K
-        return ReplaceInt32(m.left().Value() >> m.right().Value());
-      }
-      if (m.left().IsWord32Shl()) {
-        Int32BinopMatcher mleft(m.left().node());
-        if (mleft.left().IsLoad()) {
-          LoadRepresentation const rep =
-              OpParameter<LoadRepresentation>(mleft.left().node());
-          if (m.right().Is(24) && mleft.right().Is(24) && rep == kMachInt8) {
-            // Load[kMachInt8] << 24 >> 24 => Load[kMachInt8]
-            return Replace(mleft.left().node());
-          }
-          if (m.right().Is(16) && mleft.right().Is(16) && rep == kMachInt16) {
-            // Load[kMachInt16] << 16 >> 16 => Load[kMachInt8]
-            return Replace(mleft.left().node());
-          }
-        }
-      }
-      return ReduceWord32Shifts(node);
-    }
+    case IrOpcode::kWord32Sar:
+      return ReduceWord32Sar(node);
     case IrOpcode::kWord32Ror: {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.left().node());  // x ror 0 => x
@@ -470,6 +449,25 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
   if (m.IsFoldable()) {                                  // K + K => K
     return ReplaceUint32(bit_cast<uint32_t>(m.left().Value()) +
                          bit_cast<uint32_t>(m.right().Value()));
+  }
+  if (m.left().IsInt32Sub()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.left().Is(0)) {  // (0 - x) + y => y - x
+      node->set_op(machine()->Int32Sub());
+      node->ReplaceInput(0, m.right().node());
+      node->ReplaceInput(1, mleft.right().node());
+      Reduction const reduction = ReduceInt32Sub(node);
+      return reduction.Changed() ? reduction : Changed(node);
+    }
+  }
+  if (m.right().IsInt32Sub()) {
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.left().Is(0)) {  // y + (0 - x) => y - x
+      node->set_op(machine()->Int32Sub());
+      node->ReplaceInput(1, mright.right().node());
+      Reduction const reduction = ReduceInt32Sub(node);
+      return reduction.Changed() ? reduction : Changed(node);
+    }
   }
   return NoChange();
 }
@@ -784,11 +782,48 @@ Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
 }
 
 
+Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.right().Is(0)) return Replace(m.left().node());  // x >> 0 => x
+  if (m.IsFoldable()) {                                  // K >> K => K
+    return ReplaceInt32(m.left().Value() >> m.right().Value());
+  }
+  if (m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.left().IsComparison()) {
+      if (m.right().Is(31) && mleft.right().Is(31)) {
+        // Comparison << 31 >> 31 => 0 - Comparison
+        node->set_op(machine()->Int32Sub());
+        node->ReplaceInput(0, Int32Constant(0));
+        node->ReplaceInput(1, mleft.left().node());
+        Reduction const reduction = ReduceInt32Sub(node);
+        return reduction.Changed() ? reduction : Changed(node);
+      }
+    } else if (mleft.left().IsLoad()) {
+      LoadRepresentation const rep =
+          OpParameter<LoadRepresentation>(mleft.left().node());
+      if (m.right().Is(24) && mleft.right().Is(24) && rep == kMachInt8) {
+        // Load[kMachInt8] << 24 >> 24 => Load[kMachInt8]
+        return Replace(mleft.left().node());
+      }
+      if (m.right().Is(16) && mleft.right().Is(16) && rep == kMachInt16) {
+        // Load[kMachInt16] << 16 >> 16 => Load[kMachInt8]
+        return Replace(mleft.left().node());
+      }
+    }
+  }
+  return ReduceWord32Shifts(node);
+}
+
+
 Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
   DCHECK_EQ(IrOpcode::kWord32And, node->opcode());
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.right().node());  // x & 0  => 0
   if (m.right().Is(-1)) return Replace(m.left().node());  // x & -1 => x
+  if (m.left().IsComparison() && m.right().Is(1)) {       // CMP & 1 => CMP
+    return Replace(m.left().node());
+  }
   if (m.IsFoldable()) {                                   // K & K  => K
     return ReplaceInt32(m.left().Value() & m.right().Value());
   }
