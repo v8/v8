@@ -1355,6 +1355,7 @@ void Debug::PrepareStep(StepAction step_action,
     it.FindBreakLocationFromAddress(frame->pc() - 1);
 
     is_exit = it.IsExit();
+    is_construct_call = RelocInfo::IsConstructCall(it.rmode());
 
     if (thread_local_.restarter_frame_function_pointer_ == NULL) {
       if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
@@ -1363,7 +1364,6 @@ void Debug::PrepareStep(StepAction step_action,
         Code* code = Code::GetCodeFromTargetAddress(target);
 
         is_call_target = code->is_call_stub();
-        is_construct_call = RelocInfo::IsConstructCall(it.rmode());
         is_inline_cache_stub = code->is_inline_cache_stub();
         is_load_or_store = is_inline_cache_stub && !is_call_target;
 
@@ -1512,7 +1512,7 @@ void Debug::PrepareStep(StepAction step_action,
     // this function (Debug::PrepareStep) which should flood target function
     // with breakpoints.
     DCHECK(is_construct_call || is_inline_cache_stub ||
-           !call_function_stub.is_null());
+           !call_function_stub.is_null() || is_at_restarted_function);
     ActivateStepIn(frame);
   }
 }
