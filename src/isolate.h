@@ -355,10 +355,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 typedef List<HeapObject*> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
-  /* SerializerDeserializer state. */                                          \
-  V(int, serialize_partial_snapshot_cache_length, 0)                           \
-  V(int, serialize_partial_snapshot_cache_capacity, 0)                         \
-  V(Object**, serialize_partial_snapshot_cache, NULL)                          \
   /* Assembler state. */                                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(LogEventCallback, event_logger, NULL)                                      \
@@ -642,9 +638,6 @@ class Isolate {
   bool is_catchable_by_javascript(Object* exception) {
     return exception != heap()->termination_exception();
   }
-
-  // Serializer.
-  void PushToPartialSnapshotCache(Object* obj);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -1133,6 +1126,8 @@ class Isolate {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
+  List<Object*>* partial_snapshot_cache() { return &partial_snapshot_cache_; }
+
  private:
   explicit Isolate(bool enable_serializer);
 
@@ -1354,6 +1349,7 @@ class Isolate {
   v8::Isolate::UseCounterCallback use_counter_callback_;
   BasicBlockProfiler* basic_block_profiler_;
 
+  List<Object*> partial_snapshot_cache_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

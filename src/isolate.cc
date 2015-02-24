@@ -1754,11 +1754,6 @@ void Isolate::TearDown() {
     thread_data_table_->RemoveAllThreads(this);
   }
 
-  if (serialize_partial_snapshot_cache_ != NULL) {
-    delete[] serialize_partial_snapshot_cache_;
-    serialize_partial_snapshot_cache_ = NULL;
-  }
-
   delete this;
 
   // Restore the previous current isolate.
@@ -1819,26 +1814,6 @@ void Isolate::Deinit() {
   heap_profiler_ = NULL;
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
-}
-
-
-void Isolate::PushToPartialSnapshotCache(Object* obj) {
-  int length = serialize_partial_snapshot_cache_length();
-  int capacity = serialize_partial_snapshot_cache_capacity();
-
-  if (length >= capacity) {
-    int new_capacity = static_cast<int>((capacity + 10) * 1.2);
-    Object** new_array = new Object*[new_capacity];
-    for (int i = 0; i < length; i++) {
-      new_array[i] = serialize_partial_snapshot_cache()[i];
-    }
-    if (capacity != 0) delete[] serialize_partial_snapshot_cache();
-    set_serialize_partial_snapshot_cache(new_array);
-    set_serialize_partial_snapshot_cache_capacity(new_capacity);
-  }
-
-  serialize_partial_snapshot_cache()[length] = obj;
-  set_serialize_partial_snapshot_cache_length(length + 1);
 }
 
 
@@ -2085,7 +2060,7 @@ bool Isolate::Init(Deserializer* des) {
 
   if (create_heap_objects) {
     // Terminate the cache array with the sentinel so we can iterate.
-    PushToPartialSnapshotCache(heap_.undefined_value());
+    partial_snapshot_cache_.Add(heap_.undefined_value());
   }
 
   InitializeThreadLocal();

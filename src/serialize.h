@@ -814,7 +814,7 @@ class StartupSerializer : public Serializer {
     // strong roots have been serialized we can create a partial snapshot
     // which will repopulate the cache with objects needed by that partial
     // snapshot.
-    isolate->set_serialize_partial_snapshot_cache_length(0);
+    isolate->partial_snapshot_cache()->Clear();
     InitializeCodeAddressMap();
   }
 
