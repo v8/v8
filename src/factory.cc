@@ -1195,7 +1195,9 @@ MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
                           arraysize(argv),
                           argv,
                           &exception).ToHandle(&result)) {
-    return exception;
+    Handle<Object> exception_obj;
+    if (exception.ToHandle(&exception_obj)) return exception_obj;
+    return undefined_value();
   }
   return result;
 }
@@ -1222,7 +1224,9 @@ MaybeHandle<Object> Factory::NewError(const char* constructor,
                           arraysize(argv),
                           argv,
                           &exception).ToHandle(&result)) {
-    return exception;
+    Handle<Object> exception_obj;
+    if (exception.ToHandle(&exception_obj)) return exception_obj;
+    return undefined_value();
   }
   return result;
 }
