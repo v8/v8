@@ -1073,6 +1073,7 @@ void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
     auto end = block->predecessors().end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
     BasicBlock* dominator = *pred;
+    bool deferred = dominator->deferred();
     // For multiple predecessors, walk up the dominator tree until a common
     // dominator is found. Visitation order guarantees that all predecessors
     // except for backwards edges have been visited.
@@ -1080,11 +1081,11 @@ void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
       // Don't examine backwards edges.
       if ((*pred)->dominator_depth() < 0) continue;
       dominator = BasicBlock::GetCommonDominator(dominator, *pred);
+      deferred = deferred & (*pred)->deferred();
     }
     block->set_dominator(dominator);
     block->set_dominator_depth(dominator->dominator_depth() + 1);
-    // Propagate "deferredness" of the dominator.
-    if (dominator->deferred()) block->set_deferred(true);
+    block->set_deferred(deferred | block->deferred());
     Trace("Block B%d's idom is B%d, depth = %d\n", block->id().ToInt(),
           dominator->id().ToInt(), block->dominator_depth());
   }

@@ -136,6 +136,8 @@ const Operator kHeapConstant(IrOpcode::kHeapConstant, Operator::kPure,
                              "HeapConstant", 0, 0, 0, 1, 0, 0);
 const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                        0, 1, 0, 0);
+const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
+                         0, 0, 1, 1, 0, 2);
 
 }  // namespace
 
@@ -1959,6 +1961,34 @@ TARGET_TEST_F(SchedulerTest, BranchHintFalse) {
   // Make sure the true block is marked as deferred.
   EXPECT_TRUE(schedule->block(t)->deferred());
   EXPECT_FALSE(schedule->block(f)->deferred());
+}
+
+
+TARGET_TEST_F(SchedulerTest, CallException) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* c1 = graph()->NewNode(&kMockCall, start);
+  Node* ok1 = graph()->NewNode(common()->IfSuccess(), c1);
+  Node* ex1 = graph()->NewNode(common()->IfException(), c1);
+  Node* c2 = graph()->NewNode(&kMockCall, ok1);
+  Node* ok2 = graph()->NewNode(common()->IfSuccess(), c2);
+  Node* ex2 = graph()->NewNode(common()->IfException(), c2);
+  Node* hdl = graph()->NewNode(common()->Merge(2), ex1, ex2);
+  Node* m = graph()->NewNode(common()->Merge(2), ok2, hdl);
+  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), c2, p0, m);
+  Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
+  Node* end = graph()->NewNode(common()->End(), ret);
+
+  graph()->SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(17);
+  // Make sure the exception blocks as well as the handler are deferred.
+  EXPECT_TRUE(schedule->block(ex1)->deferred());
+  EXPECT_TRUE(schedule->block(ex2)->deferred());
+  EXPECT_TRUE(schedule->block(hdl)->deferred());
+  EXPECT_FALSE(schedule->block(m)->deferred());
 }
 
 
