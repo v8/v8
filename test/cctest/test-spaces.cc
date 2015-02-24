@@ -207,12 +207,13 @@ static void VerifyMemoryChunk(Isolate* isolate,
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  const int pageSize = Page::kPageSize;
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(
       memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
-  const size_t code_range_size = 4 * MB;
+  const size_t code_range_size = 4 * pageSize;
   if (!code_range->SetUp(
           code_range_size +
           RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
@@ -222,13 +223,13 @@ TEST(Regress3540) {
   }
   Address address;
   size_t size;
-  address = code_range->AllocateRawMemory(code_range_size - 2 * MB,
-                                          code_range_size - 2 * MB, &size);
+  address = code_range->AllocateRawMemory(
+      code_range_size - 2 * pageSize, code_range_size - 2 * pageSize, &size);
   CHECK(address != NULL);
   Address null_address;
   size_t null_size;
   null_address = code_range->AllocateRawMemory(
-      code_range_size - MB, code_range_size - MB, &null_size);
+      code_range_size - pageSize, code_range_size - pageSize, &null_size);
   CHECK(null_address == NULL);
   code_range->FreeRawMemory(address, size);
   delete code_range;
@@ -422,7 +423,9 @@ TEST(LargeObjectSpace) {
     { AllocationResult allocation = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
       if (allocation.IsRetry()) break;
     }
-    CHECK(lo->Available() < available);
+    // The available value is conservative such that it may report
+    // zero prior to heap exhaustion.
+    CHECK(lo->Available() < available || available == 0);
   }
 
   CHECK(!lo->IsEmpty());
@@ -460,7 +463,7 @@ TEST(SizeOfFirstPageIsLargeEnough) {
 
 
 UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
-  FLAG_target_semi_space_size = 2;
+  FLAG_target_semi_space_size = 2 * (Page::kPageSize / MB);
   if (FLAG_optimize_for_size) return;
 
   v8::Isolate* isolate = v8::Isolate::New();
