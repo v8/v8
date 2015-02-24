@@ -50,14 +50,11 @@ class InstructionOperand {
     DOUBLE_REGISTER
   };
 
-  InstructionOperand() : virtual_register_(kInvalidVirtualRegister) {
-    ConvertTo(INVALID, 0);
-  }
+  InstructionOperand() { ConvertTo(INVALID, 0, kInvalidVirtualRegister); }
 
-  InstructionOperand(Kind kind, int index)
-      : virtual_register_(kInvalidVirtualRegister) {
-    DCHECK(kind != INVALID);
-    ConvertTo(kind, index);
+  InstructionOperand(Kind kind, int index) {
+    DCHECK(kind != UNALLOCATED && kind != INVALID);
+    ConvertTo(kind, index, kInvalidVirtualRegister);
   }
 
   static InstructionOperand* New(Zone* zone, Kind kind, int index) {
@@ -65,7 +62,11 @@ class InstructionOperand {
   }
 
   Kind kind() const { return KindField::decode(value_); }
-  int index() const { return static_cast<int>(value_) >> KindField::kSize; }
+  // TODO(dcarney): move this to subkind operand.
+  int index() const {
+    DCHECK(kind() != UNALLOCATED && kind() != INVALID);
+    return static_cast<int64_t>(value_) >> IndexField::kShift;
+  }
 #define INSTRUCTION_OPERAND_PREDICATE(name, type) \
   bool Is##name() const { return kind() == type; }
   INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_PREDICATE)
@@ -77,11 +78,8 @@ class InstructionOperand {
   }
 
   void ConvertTo(Kind kind, int index) {
-    if (kind == REGISTER || kind == DOUBLE_REGISTER) DCHECK(index >= 0);
-    value_ = KindField::encode(kind);
-    value_ |= bit_cast<unsigned>(index << KindField::kSize);
-    DCHECK(this->index() == index);
-    if (kind != UNALLOCATED) virtual_register_ = kInvalidVirtualRegister;
+    DCHECK(kind != UNALLOCATED && kind != INVALID);
+    ConvertTo(kind, index, kInvalidVirtualRegister);
   }
 
  protected:
@@ -91,15 +89,28 @@ class InstructionOperand {
     return new (buffer) SubKindOperand(op);
   }
 
-  InstructionOperand(Kind kind, int index, int virtual_register)
-      : virtual_register_(virtual_register) {
-    ConvertTo(kind, index);
+  InstructionOperand(Kind kind, int index, int virtual_register) {
+    ConvertTo(kind, index, virtual_register);
   }
-  typedef BitField<Kind, 0, 3> KindField;
 
-  uint32_t value_;
-  // TODO(dcarney): this should really be unsigned.
-  int32_t virtual_register_;
+  void ConvertTo(Kind kind, int index, int virtual_register) {
+    if (kind == REGISTER || kind == DOUBLE_REGISTER) DCHECK(index >= 0);
+    if (kind != UNALLOCATED) {
+      DCHECK(virtual_register == kInvalidVirtualRegister);
+    }
+    value_ = KindField::encode(kind);
+    value_ |=
+        VirtualRegisterField::encode(static_cast<uint32_t>(virtual_register));
+    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
+    DCHECK(((kind == UNALLOCATED || kind == INVALID) && index == 0) ||
+           this->index() == index);
+  }
+
+  typedef BitField64<Kind, 0, 3> KindField;
+  typedef BitField64<uint32_t, 3, 32> VirtualRegisterField;
+  typedef BitField64<int32_t, 35, 29> IndexField;
+
+  uint64_t value_;
 };
 
 struct PrintableInstructionOperand {
@@ -148,7 +159,7 @@ class UnallocatedOperand : public InstructionOperand {
       : InstructionOperand(UNALLOCATED, 0, virtual_register) {
     DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
-    value_ |= static_cast<int32_t>(index) << FixedSlotIndexField::kShift;
+    value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
   }
 
@@ -196,35 +207,33 @@ class UnallocatedOperand : public InstructionOperand {
   // because it accommodates a larger pay-load.
   //
   // For FIXED_SLOT policy:
-  //     +-----------------------------+
-  //     |      slot_index   | 0 | 001 |
-  //     +-----------------------------+
+  //     +------------------------------------------------+
+  //     |      slot_index   | 0 | virtual_register | 001 |
+  //     +------------------------------------------------+
   //
   // For all other (extended) policies:
-  //     +----------------------------------+
-  //     |  reg_index  | L | PPP |  1 | 001 |    L ... Lifetime
-  //     +----------------------------------+    P ... Policy
+  //     +-----------------------------------------------------+
+  //     |  reg_index  | L | PPP |  1 | virtual_register | 001 |
+  //     +-----------------------------------------------------+
+  //     L ... Lifetime
+  //     P ... Policy
   //
   // The slot index is a signed value which requires us to decode it manually
   // instead of using the BitField utility class.
 
-  // The superclass has a KindField.
-  STATIC_ASSERT(KindField::kSize == 3);
+  // All bits fit into the index field.
+  STATIC_ASSERT(IndexField::kShift == 35);
 
   // BitFields for all unallocated operands.
-  class BasicPolicyField : public BitField<BasicPolicy, 3, 1> {};
+  class BasicPolicyField : public BitField64<BasicPolicy, 35, 1> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField : public BitField<int, 4, 28> {};
+  class FixedSlotIndexField : public BitField64<int, 36, 28> {};
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField : public BitField<ExtendedPolicy, 4, 3> {};
-  class LifetimeField : public BitField<Lifetime, 7, 1> {};
-  class FixedRegisterField : public BitField<int, 8, 6> {};
-
-  static const int kFixedSlotIndexWidth = FixedSlotIndexField::kSize;
-  static const int kMaxFixedSlotIndex = (1 << (kFixedSlotIndexWidth - 1)) - 1;
-  static const int kMinFixedSlotIndex = -(1 << (kFixedSlotIndexWidth - 1));
+  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
+  class LifetimeField : public BitField64<Lifetime, 39, 1> {};
+  class FixedRegisterField : public BitField64<int, 40, 6> {};
 
   // Predicates for the operand policy.
   bool HasAnyPolicy() const {
@@ -268,7 +277,7 @@ class UnallocatedOperand : public InstructionOperand {
   // [fixed_slot_index]: Only for FIXED_SLOT.
   int fixed_slot_index() const {
     DCHECK(HasFixedSlotPolicy());
-    return static_cast<int>(bit_cast<int32_t>(value_) >>
+    return static_cast<int>(static_cast<int64_t>(value_) >>
                             FixedSlotIndexField::kShift);
   }
 
@@ -281,13 +290,13 @@ class UnallocatedOperand : public InstructionOperand {
   // [virtual_register]: The virtual register ID for this operand.
   int32_t virtual_register() const {
     DCHECK_EQ(UNALLOCATED, kind());
-    return virtual_register_;
+    return static_cast<int32_t>(VirtualRegisterField::decode(value_));
   }
 
   // TODO(dcarney): remove this.
   void set_virtual_register(int32_t id) {
     DCHECK_EQ(UNALLOCATED, kind());
-    virtual_register_ = id;
+    value_ = VirtualRegisterField::update(value_, static_cast<uint32_t>(id));
   }
 
   // [lifetime]: Only for non-FIXED_SLOT.
