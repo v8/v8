@@ -703,7 +703,7 @@ class Parser : public ParserBase<ParserTraits> {
   void* ParseStatementList(ZoneList<Statement*>* body, int end_token,
                            bool is_eval, Scope** ad_hoc_eval_scope, bool* ok);
   Statement* ParseStatementListItem(bool* ok);
-  Statement* ParseModule(bool* ok);
+  void* ParseModule(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   Literal* ParseModuleSpecifier(bool* ok);
   Statement* ParseImportDeclaration(bool* ok);

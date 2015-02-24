@@ -928,6 +928,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
       }
     } else if (info->is_global()) {
       *scope = NewScope(*scope, SCRIPT_SCOPE);
+    } else if (info->is_module()) {
+      *scope = NewScope(*scope, MODULE_SCOPE);
     }
     (*scope)->set_start_position(0);
     // End position will be set by the caller.
@@ -951,10 +953,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     int beg_pos = scanner()->location().beg_pos;
     if (info->is_module()) {
       DCHECK(allow_harmony_modules());
-      Statement* stmt = ParseModule(&ok);
-      if (ok) {
-        body->Add(stmt, zone());
-      }
+      ParseModule(body, &ok);
     } else {
       ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
     }
@@ -1254,7 +1253,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 }
 
 
-Statement* Parser::ParseModule(bool* ok) {
+void* Parser::ParseModule(ZoneList<Statement*>* body, bool* ok) {
   // (Ecma 262 6th Edition, 15.2):
   // Module :
   //    ModuleBody?
@@ -1262,31 +1261,22 @@ Statement* Parser::ParseModule(bool* ok) {
   // ModuleBody :
   //    ModuleItem*
 
-  Block* body = factory()->NewBlock(NULL, 16, false, RelocInfo::kNoPosition);
-  Scope* scope = NewScope(scope_, MODULE_SCOPE);
-  scope->set_start_position(scanner()->location().beg_pos);
-  scope->SetLanguageMode(
-      static_cast<LanguageMode>(scope->language_mode() | STRICT_BIT));
+  DCHECK(scope_->is_module_scope());
+  scope_->SetLanguageMode(
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
 
-  {
-    BlockState block_state(&scope_, scope);
-
-    while (peek() != Token::EOS) {
-      Statement* stat = ParseModuleItem(CHECK_OK);
-      if (stat && !stat->IsEmpty()) {
-        body->AddStatement(stat, zone());
-      }
+  while (peek() != Token::EOS) {
+    Statement* stat = ParseModuleItem(CHECK_OK);
+    if (stat && !stat->IsEmpty()) {
+      body->Add(stat, zone());
     }
   }
 
-  scope->set_end_position(scanner()->location().end_pos);
-  body->set_scope(scope);
-
   // Check that all exports are bound.
-  ModuleDescriptor* descriptor = scope->module();
+  ModuleDescriptor* descriptor = scope_->module();
   for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
        it.Advance()) {
-    if (scope->LookupLocal(it.local_name()) == NULL) {
+    if (scope_->LookupLocal(it.local_name()) == NULL) {
       // TODO(adamk): Pass both local_name and export_name once ParserTraits
       // supports multiple arg error messages.
       // Also try to report this at a better location.
@@ -1296,8 +1286,8 @@ Statement* Parser::ParseModule(bool* ok) {
     }
   }
 
-  scope->module()->Freeze();
-  return body;
+  scope_->module()->Freeze();
+  return NULL;
 }
 
 

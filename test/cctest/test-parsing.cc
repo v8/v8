@@ -5072,12 +5072,8 @@ TEST(BasicImportExportParsing) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    int kProgramByteSize = i::StrLength(kSources[i]);
-    i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s", kSources[i]);
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program.start()))
-            .ToHandleChecked();
+        factory->NewStringFromAsciiChecked(kSources[i]);
 
     // Show that parsing as a module works
     {
@@ -5197,12 +5193,8 @@ TEST(ImportExportParsingErrors) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    int kProgramByteSize = i::StrLength(kErrorSources[i]);
-    i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s", kErrorSources[i]);
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program.start()))
-            .ToHandleChecked();
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
@@ -5214,6 +5206,42 @@ TEST(ImportExportParsingErrors) {
     info.MarkAsModule();
     CHECK(!parser.Parse(&info));
   }
+}
+
+
+TEST(ModuleParsingInternals) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  static const char kSource[] = "let x = 5; export { x as y };";
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::CompilationInfoWithZone info(script);
+  i::AstValueFactory avf(info.zone(), isolate->heap()->HashSeed());
+  i::Parser parser(&info, isolate->stack_guard()->real_climit(),
+                   isolate->heap()->HashSeed(), isolate->unicode_cache());
+  parser.set_allow_harmony_modules(true);
+  parser.set_allow_harmony_scoping(true);
+  info.MarkAsModule();
+  CHECK(parser.Parse(&info));
+  i::FunctionLiteral* func = info.function();
+  CHECK_EQ(i::MODULE_SCOPE, func->scope()->scope_type());
+  i::ModuleDescriptor* descriptor = func->scope()->module();
+  CHECK_NOT_NULL(descriptor);
+  const i::AstRawString* name_x = avf.GetOneByteString("x");
+  const i::AstRawString* name_y = avf.GetOneByteString("y");
+  int num_exports = 0;
+  for (auto it = descriptor->iterator(); !it.done(); it.Advance()) {
+    ++num_exports;
+    CHECK(*name_x == *it.local_name());
+    CHECK(*name_y == *it.export_name());
+  }
+  CHECK_EQ(1, num_exports);
 }
 
 
