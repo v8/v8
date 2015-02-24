@@ -82,6 +82,11 @@ class InstructionOperand {
     ConvertTo(kind, index, kInvalidVirtualRegister);
   }
 
+  // Useful for map/set keys.
+  bool operator<(const InstructionOperand& op) const {
+    return value_ < op.value_;
+  }
+
  protected:
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {

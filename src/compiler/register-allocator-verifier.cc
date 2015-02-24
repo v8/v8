@@ -245,8 +245,7 @@ class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
 struct OperandLess {
   bool operator()(const InstructionOperand* a,
                   const InstructionOperand* b) const {
-    if (a->kind() == b->kind()) return a->index() < b->index();
-    return a->kind() < b->kind();
+    return *a < *b;
   }
 };
 
