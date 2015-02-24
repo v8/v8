@@ -6,6 +6,7 @@
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
 #include "src/base/atomicops.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -38,7 +39,7 @@ class OptimizingCompilerThread : public base::Thread {
         osr_hits_(0),
         osr_attempts_(0),
         blocked_jobs_(0),
-        ref_count_(1),
+        ref_count_(0),
         tracing_enabled_(FLAG_trace_concurrent_recompilation),
         job_based_recompilation_(FLAG_job_based_recompilation),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
@@ -96,7 +97,7 @@ class OptimizingCompilerThread : public base::Thread {
   void FlushOutputQueue(bool restore_function_code);
   void FlushOsrBuffer(bool restore_function_code);
   void CompileNext(OptimizedCompileJob* job);
-  OptimizedCompileJob* NextInput(StopFlag* flag = NULL);
+  OptimizedCompileJob* NextInput(bool check_if_flushing = false);
 
   // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
   // Tasks evicted from the cyclic buffer are discarded.
@@ -145,7 +146,9 @@ class OptimizingCompilerThread : public base::Thread {
 
   int blocked_jobs_;
 
-  volatile base::AtomicWord ref_count_;
+  int ref_count_;
+  base::Mutex ref_count_mutex_;
+  base::ConditionVariable ref_count_zero_;
 
   // Copies of FLAG_trace_concurrent_recompilation,
   // FLAG_concurrent_recompilation_delay and
