@@ -211,7 +211,6 @@ void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
 
 
 void OptimizingCompilerThread::FlushOutputQueue(bool restore_function_code) {
-  base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
   OptimizedCompileJob* job;
   while (output_queue_.Dequeue(&job)) {
     // OSR jobs are dealt with separately.
