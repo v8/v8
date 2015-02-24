@@ -501,6 +501,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       if (info()->is_osr()) os << " OSR";
       os << "]" << std::endl;
     }
+
+    if (info()->shared_info()->asm_function()) {
+      info()->MarkAsContextSpecializing();
+    }
+
     Timer t(this, &time_taken_to_create_graph_);
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
@@ -930,7 +935,8 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
   if (FLAG_turbo_asm && function->shared()->asm_function() &&
-      (FLAG_turbo_deoptimization || !isolate->debug()->is_active())) {
+      (FLAG_turbo_deoptimization || !isolate->debug()->is_active()) &&
+      !FLAG_turbo_osr) {
     CompilationInfoWithZone info(function);
 
     VMState<COMPILER> state(isolate);
