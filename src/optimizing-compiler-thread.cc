@@ -169,7 +169,10 @@ OptimizedCompileJob* OptimizingCompilerThread::NextInput(
   input_queue_length_--;
   if (check_if_flushing) {
     if (static_cast<StopFlag>(base::Acquire_Load(&stop_thread_)) != CONTINUE) {
-      if (!job->info()->is_osr()) DisposeOptimizedCompileJob(job, true);
+      if (!job->info()->is_osr()) {
+        AllowHandleDereference allow_handle_dereference;
+        DisposeOptimizedCompileJob(job, true);
+      }
       return NULL;
     }
   }
