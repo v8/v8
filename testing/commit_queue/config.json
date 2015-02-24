@@ -11,6 +11,7 @@
                 "v8_linux_gcc_compile_rel": ["defaulttests"],
                 "v8_linux_nodcheck_rel": ["defaulttests"],
                 "v8_linux_rel": ["defaulttests"],
+                "v8_linux_dbg": ["defaulttests"],
                 "v8_mac_rel": ["defaulttests"],
                 "v8_presubmit": ["defaulttests"],
                 "v8_win64_rel": ["defaulttests"],
