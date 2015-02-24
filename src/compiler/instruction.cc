@@ -81,6 +81,28 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
+MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
+  auto move_ops = move_operands();
+  MoveOperands* replacement = nullptr;
+  MoveOperands* to_eliminate = nullptr;
+  for (auto curr = move_ops->begin(); curr != move_ops->end(); ++curr) {
+    if (curr->IsEliminated()) continue;
+    if (curr->destination()->Equals(move->source())) {
+      DCHECK(!replacement);
+      replacement = curr;
+      if (to_eliminate != nullptr) break;
+    } else if (curr->destination()->Equals(move->destination())) {
+      DCHECK(!to_eliminate);
+      to_eliminate = curr;
+      if (replacement != nullptr) break;
+    }
+  }
+  DCHECK_IMPLIES(replacement == to_eliminate, replacement == nullptr);
+  if (replacement != nullptr) move->set_source(replacement->source());
+  return to_eliminate;
+}
+
+
 Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |

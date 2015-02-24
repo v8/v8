@@ -301,6 +301,31 @@ TEST_F(RegisterAllocatorTest, SplitBeforeInstruction) {
 }
 
 
+TEST_F(RegisterAllocatorTest, SplitBeforeInstruction2) {
+  const int kNumRegs = 6;
+  SetNumRegs(kNumRegs, kNumRegs);
+
+  StartBlock();
+
+  // Stack parameters/spilled values.
+  auto p_0 = Define(Slot(-1));
+  auto p_1 = Define(Slot(-2));
+
+  // Fill registers.
+  VReg values[kNumRegs];
+  for (size_t i = 0; i < arraysize(values); ++i) {
+    values[i] = Define(Reg(static_cast<int>(i)));
+  }
+
+  // values[0] and [1] will be split in the second half of this instruction.
+  EmitOOI(Reg(0), Reg(1), Reg(p_0, 0), Reg(p_1, 1));
+  EmitI(Reg(values[0]), Reg(values[1]));
+  EndBlock(Last());
+
+  Allocate();
+}
+
+
 TEST_F(RegisterAllocatorTest, NestedDiamondPhiMerge) {
   // Outer diamond.
   StartBlock();

@@ -400,6 +400,12 @@ class ParallelMove FINAL : public ZoneObject {
     return &move_operands_;
   }
 
+  // Prepare this ParallelMove to insert move as if it happened in a subsequent
+  // ParallelMove.  move->source() may be changed.  The MoveOperand returned
+  // must be Eliminated and, as it points directly into move_operands_, it must
+  // be Eliminated before any further mutation.
+  MoveOperands* PrepareInsertAfter(MoveOperands* move) const;
+
  private:
   ZoneList<MoveOperands> move_operands_;
 };
@@ -596,12 +602,10 @@ std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
 class GapInstruction : public Instruction {
  public:
   enum InnerPosition {
-    BEFORE,
     START,
     END,
-    AFTER,
-    FIRST_INNER_POSITION = BEFORE,
-    LAST_INNER_POSITION = AFTER
+    FIRST_INNER_POSITION = START,
+    LAST_INNER_POSITION = END
   };
 
   ParallelMove* GetOrCreateParallelMove(InnerPosition pos, Zone* zone) {
@@ -640,10 +644,8 @@ class GapInstruction : public Instruction {
 
  protected:
   explicit GapInstruction(InstructionCode opcode) : Instruction(opcode) {
-    parallel_moves_[BEFORE] = NULL;
     parallel_moves_[START] = NULL;
     parallel_moves_[END] = NULL;
-    parallel_moves_[AFTER] = NULL;
   }
 
  private:

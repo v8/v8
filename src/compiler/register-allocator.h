@@ -564,10 +564,6 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
 
-  // Return parallel move that should be used to connect ranges split at the
-  // given position.
-  ParallelMove* GetConnectingParallelMove(LifetimePosition pos);
-
   // Return the block which contains give lifetime position.
   const InstructionBlock* GetInstructionBlock(LifetimePosition pos);
 

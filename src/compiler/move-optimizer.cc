@@ -10,33 +10,6 @@ namespace compiler {
 
 namespace {
 
-MoveOperands* PrepareInsertAfter(ParallelMove* left, MoveOperands* move,
-                                 Zone* zone) {
-  auto move_ops = left->move_operands();
-  MoveOperands* replacement = nullptr;
-  MoveOperands* to_eliminate = nullptr;
-  for (auto curr = move_ops->begin(); curr != move_ops->end(); ++curr) {
-    if (curr->IsEliminated()) continue;
-    if (curr->destination()->Equals(move->source())) {
-      DCHECK(!replacement);
-      replacement = curr;
-      if (to_eliminate != nullptr) break;
-    } else if (curr->destination()->Equals(move->destination())) {
-      DCHECK(!to_eliminate);
-      to_eliminate = curr;
-      if (replacement != nullptr) break;
-    }
-  }
-  DCHECK(!(replacement == to_eliminate && replacement != nullptr));
-  if (replacement != nullptr) {
-    auto new_source = InstructionOperand::New(
-        zone, replacement->source()->kind(), replacement->source()->index());
-    move->set_source(new_source);
-  }
-  return to_eliminate;
-}
-
-
 bool GapsCanMoveOver(Instruction* instr) {
   DCHECK(!instr->IsGapMoves());
   return instr->IsSourcePosition() || instr->IsNop();
@@ -90,7 +63,7 @@ void MoveOptimizer::CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
     // merging the two gaps.
     for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
       if (op->IsRedundant()) continue;
-      MoveOperands* to_eliminate = PrepareInsertAfter(left, op, code_zone());
+      auto to_eliminate = left->PrepareInsertAfter(op);
       if (to_eliminate != nullptr) eliminated->push_back(to_eliminate);
     }
     // Eliminate dead moves.  Must happen before insertion of new moves as the

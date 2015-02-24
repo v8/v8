@@ -1415,22 +1415,6 @@ void RegisterAllocator::ResolvePhis() {
 }
 
 
-ParallelMove* RegisterAllocator::GetConnectingParallelMove(
-    LifetimePosition pos) {
-  int index = pos.InstructionIndex();
-  if (code()->IsGapAt(index)) {
-    auto gap = code()->GapAt(index);
-    return gap->GetOrCreateParallelMove(
-        pos.IsInstructionStart() ? GapInstruction::START : GapInstruction::END,
-        code_zone());
-  }
-  int gap_pos = pos.IsInstructionStart() ? (index - 1) : (index + 1);
-  return code()->GapAt(gap_pos)->GetOrCreateParallelMove(
-      (gap_pos < index) ? GapInstruction::AFTER : GapInstruction::START,
-      code_zone());
-}
-
-
 const InstructionBlock* RegisterAllocator::GetInstructionBlock(
     LifetimePosition pos) {
   return code()->GetInstructionBlock(pos.InstructionIndex());
@@ -1438,33 +1422,74 @@ const InstructionBlock* RegisterAllocator::GetInstructionBlock(
 
 
 void RegisterAllocator::ConnectRanges() {
+  ZoneMap<std::pair<ParallelMove*, InstructionOperand*>, InstructionOperand*>
+      delayed_insertion_map(local_zone());
   for (auto first_range : live_ranges()) {
     if (first_range == nullptr || first_range->IsChild()) continue;
-    auto second_range = first_range->next();
-    while (second_range != nullptr) {
+    for (auto second_range = first_range->next(); second_range != nullptr;
+         first_range = second_range, second_range = second_range->next()) {
       auto pos = second_range->Start();
-      if (!second_range->IsSpilled()) {
-        // Add gap move if the two live ranges touch and there is no block
-        // boundary.
-        if (first_range->End().Value() == pos.Value()) {
-          bool should_insert = true;
-          if (IsBlockBoundary(pos)) {
-            should_insert =
-                CanEagerlyResolveControlFlow(GetInstructionBlock(pos));
-          }
-          if (should_insert) {
-            auto move = GetConnectingParallelMove(pos);
-            auto prev_operand =
-                first_range->GetAssignedOperand(operand_cache());
-            auto cur_operand =
-                second_range->GetAssignedOperand(operand_cache());
-            move->AddMove(prev_operand, cur_operand, code_zone());
-          }
-        }
+      // Add gap move if the two live ranges touch and there is no block
+      // boundary.
+      if (second_range->IsSpilled()) continue;
+      if (first_range->End().Value() != pos.Value()) continue;
+      if (IsBlockBoundary(pos) &&
+          !CanEagerlyResolveControlFlow(GetInstructionBlock(pos))) {
+        continue;
       }
-      first_range = second_range;
-      second_range = second_range->next();
+      auto prev_operand = first_range->GetAssignedOperand(operand_cache());
+      auto cur_operand = second_range->GetAssignedOperand(operand_cache());
+      if (prev_operand->Equals(cur_operand)) continue;
+      int index = pos.InstructionIndex();
+      bool delay_insertion = false;
+      GapInstruction::InnerPosition gap_pos;
+      int gap_index = index;
+      if (code()->IsGapAt(index)) {
+        gap_pos = pos.IsInstructionStart() ? GapInstruction::START
+                                           : GapInstruction::END;
+      } else {
+        gap_index = pos.IsInstructionStart() ? (index - 1) : (index + 1);
+        delay_insertion = gap_index < index;
+        gap_pos = delay_insertion ? GapInstruction::END : GapInstruction::START;
+      }
+      auto move = code()->GapAt(gap_index)->GetOrCreateParallelMove(
+          gap_pos, code_zone());
+      if (!delay_insertion) {
+        move->AddMove(prev_operand, cur_operand, code_zone());
+      } else {
+        delayed_insertion_map.insert(
+            std::make_pair(std::make_pair(move, prev_operand), cur_operand));
+      }
     }
+  }
+  if (delayed_insertion_map.empty()) return;
+  // Insert all the moves which should occur after the stored move.
+  ZoneVector<MoveOperands> to_insert(local_zone());
+  ZoneVector<MoveOperands*> to_eliminate(local_zone());
+  to_insert.reserve(4);
+  to_eliminate.reserve(4);
+  auto move = delayed_insertion_map.begin()->first.first;
+  for (auto it = delayed_insertion_map.begin();; ++it) {
+    bool done = it == delayed_insertion_map.end();
+    if (done || it->first.first != move) {
+      // Commit the MoveOperands for current ParallelMove.
+      for (auto move_ops : to_eliminate) {
+        move_ops->Eliminate();
+      }
+      for (auto move_ops : to_insert) {
+        move->AddMove(move_ops.source(), move_ops.destination(), code_zone());
+      }
+      if (done) break;
+      // Reset state.
+      to_eliminate.clear();
+      to_insert.clear();
+      move = it->first.first;
+    }
+    // Gather all MoveOperands for a single ParallelMove.
+    MoveOperands move_ops(it->first.second, it->second);
+    auto eliminate = move->PrepareInsertAfter(&move_ops);
+    to_insert.push_back(move_ops);
+    if (eliminate != nullptr) to_eliminate.push_back(eliminate);
   }
 }
 
