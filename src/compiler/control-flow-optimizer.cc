@@ -204,6 +204,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
 
   Node* branch = node;
+  if (BranchHintOf(branch->op()) != BranchHint::kNone) return false;
   Node* cond = NodeProperties::GetValueInput(branch, 0);
   if (cond->opcode() != IrOpcode::kWord32Equal) return false;
   Int32BinopMatcher m(cond);
@@ -227,6 +228,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
     if (it == if_false->uses().end()) break;
     Node* branch1 = *it++;
     if (branch1->opcode() != IrOpcode::kBranch) break;
+    if (BranchHintOf(branch1->op()) != BranchHint::kNone) break;
     if (it != if_false->uses().end()) break;
     Node* cond1 = branch1->InputAt(0);
     if (cond1->opcode() != IrOpcode::kWord32Equal) break;
