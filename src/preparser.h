@@ -820,11 +820,6 @@ class PreParserExpression {
                                ExpressionTypeField::encode(kThisExpression));
   }
 
-  static PreParserExpression Super() {
-    return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kSuperExpression));
-  }
-
   static PreParserExpression ThisProperty() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -957,7 +952,6 @@ class PreParserExpression {
     kThisPropertyExpression,
     kPropertyExpression,
     kCallExpression,
-    kSuperExpression,
     kNoTemplateTagExpression
   };
 
@@ -1399,7 +1393,7 @@ class PreParserTraits {
 
   static PreParserExpression SuperReference(Scope* scope,
                                             PreParserFactory* factory) {
-    return PreParserExpression::Super();
+    return PreParserExpression::Default();
   }
 
   static PreParserExpression DefaultConstructor(bool call_super, Scope* scope,
