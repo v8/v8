@@ -165,11 +165,18 @@ def clobber_if_necessary(new_landmines):
     # checkouts have the build directory mounted.
     for f in os.listdir(out_dir):
       path = os.path.join(out_dir, f)
-      # Soft version of chromium's clobber. Only delete directories not files
-      # as e.g. on windows the output dir is the build dir that shares some
-      # checked out files.
-      if os.path.isdir(path) and re.search(r"(?:[Rr]elease)|(?:[Dd]ebug)", f):
-        delete_build_dir(path)
+      if os.path.basename(out_dir) == 'build':
+        # Soft version of chromium's clobber. Only delete build directories not
+        # files in windows' build dir as the folder shares some checked out
+        # files and directories.
+        if (os.path.isdir(path) and
+            re.search(r'(?:[Rr]elease)|(?:[Dd]ebug)', f)):
+          delete_build_dir(path)
+      else:
+        if os.path.isfile(path):
+          os.unlink(path)
+        elif os.path.isdir(path):
+          delete_build_dir(path)
 
   # Save current set of landmines for next time.
   with open(landmines_path, 'w') as f:
