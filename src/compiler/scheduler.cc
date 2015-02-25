@@ -4,6 +4,8 @@
 
 #include "src/compiler/scheduler.h"
 
+#include <iomanip>
+
 #include "src/bit-vector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
@@ -950,17 +952,14 @@ class SpecialRPONumberer : public ZoneObject {
     os << ":\n";
 
     for (BasicBlock* block = order_; block != NULL; block = block->rpo_next()) {
-      BasicBlock::Id bid = block->id();
-      // TODO(jarin,svenpanne): Add formatting here once we have support for
-      // that in streams (we want an equivalent of PrintF("%5d:", x) here).
-      os << "  " << block->rpo_number() << ":";
+      os << std::setw(5) << block->rpo_number() << ":";
       for (size_t i = 0; i < loops_.size(); i++) {
         bool range = loops_[i].header->LoopContains(block);
         bool membership = loops_[i].header != block && range;
         os << (membership ? " |" : "  ");
         os << (range ? "x" : " ");
       }
-      os << "  B" << bid << ": ";
+      os << "  B" << block->id() << ": ";
       if (block->loop_end() != NULL) {
         os << " range: [" << block->rpo_number() << ", "
            << block->loop_end()->rpo_number() << ")";

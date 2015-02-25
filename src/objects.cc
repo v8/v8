@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <iomanip>
 #include <sstream>
 
 #include "src/v8.h"
@@ -11329,11 +11330,9 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
-    // TODO(svenpanne) Add some basic formatting to our streams.
-    Vector<char> buf1 = Vector<char>::New(128);
-    SNPrintF(buf1, "%6d  %6d  %6d %6d", i, AstId(i).ToInt(),
-             ArgumentsStackHeight(i)->value(), Pc(i)->value());
-    os << buf1.start();
+    os << std::setw(6) << i << "  " << std::setw(6) << AstId(i).ToInt() << "  "
+       << std::setw(6) << ArgumentsStackHeight(i)->value() << " "
+       << std::setw(6) << Pc(i)->value();
 
     if (!FLAG_print_code_verbose) {
       os << "\n";
@@ -11354,9 +11353,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
     while (iterator.HasNext() &&
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
-      Vector<char> buf2 = Vector<char>::New(128);
-      SNPrintF(buf2, "%27s    %s ", "", Translation::StringFor(opcode));
-      os << buf2.start();
+      os << std::setw(31) << "    " << Translation::StringFor(opcode) << " ";
 
       switch (opcode) {
         case Translation::BEGIN:
@@ -11488,13 +11485,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(
   os << "ast id        pc  state\n";
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
-    // TODO(svenpanne) Add some basic formatting to our streams.
-    Vector<char> buf = Vector<char>::New(100);
-    SNPrintF(buf, "%6d  %8d  %s\n", this->AstId(i).ToInt(),
-             FullCodeGenerator::PcField::decode(pc_and_state),
-             FullCodeGenerator::State2String(
-                 FullCodeGenerator::StateField::decode(pc_and_state)));
-    os << buf.start();
+    os << std::setw(6) << this->AstId(i).ToInt() << "  " << std::setw(8)
+       << FullCodeGenerator::PcField::decode(pc_and_state) << "  "
+       << FullCodeGenerator::State2String(
+              FullCodeGenerator::StateField::decode(pc_and_state)) << "\n";
   }
 }
 
@@ -11602,17 +11596,12 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
-      // TODO(svenpanne) Add some basic formatting to our streams.
-      Vector<char> buf1 = Vector<char>::New(30);
-      SNPrintF(buf1, "%4d", pc_offset);
-      os << buf1.start() << "  ";
+      os << std::setw(4) << pc_offset << "  ";
       table.PrintEntry(i, os);
       os << " (sp -> fp)  ";
       SafepointEntry entry = table.GetEntry(i);
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
-        Vector<char> buf2 = Vector<char>::New(30);
-        SNPrintF(buf2, "%6d", entry.deoptimization_index());
-        os << buf2.start();
+        os << std::setw(6) << entry.deoptimization_index();
       } else {
         os << "<none>";
       }
@@ -11634,10 +11623,9 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
       os << "ast_id  pc_offset  loop_depth\n";
 
       for (uint32_t i = 0; i < back_edges.length(); i++) {
-        Vector<char> buf = Vector<char>::New(100);
-        SNPrintF(buf, "%6d  %9u  %10u\n", back_edges.ast_id(i).ToInt(),
-                 back_edges.pc_offset(i), back_edges.loop_depth(i));
-        os << buf.start();
+        os << std::setw(6) << back_edges.ast_id(i).ToInt() << "  "
+           << std::setw(9) << back_edges.pc_offset(i) << "  " << std::setw(10)
+           << back_edges.loop_depth(i) << "\n";
       }
 
       os << "\n";
@@ -11656,10 +11644,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     for (int i = 0; i < handler_table()->length(); i += 2) {
       int pc_offset = Smi::cast(handler_table()->get(i))->value();
       int handler = Smi::cast(handler_table()->get(i + 1))->value();
-      os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
-      Vector<char> buf = Vector<char>::New(20);
-      SNPrintF(buf, "%4d %4d\n", pc_offset, handler);
-      os << buf.start();
+      os << static_cast<const void*>(instruction_start() + pc_offset) << "  "
+         << std::setw(4) << pc_offset << " " << std::setw(4) << handler << "\n";
     }
     os << "\n";
   }
