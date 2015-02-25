@@ -15,13 +15,14 @@
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/register-configuration.h"
-#include "src/compiler/schedule.h"
 #include "src/compiler/source-position.h"
 #include "src/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+class Schedule;
 
 // A couple of reserved opcodes are used for internal use.
 const InstructionCode kGapInstruction = -1;
@@ -691,6 +692,39 @@ class SourcePositionInstruction FINAL : public Instruction {
 };
 
 
+class RpoNumber FINAL {
+ public:
+  static const int kInvalidRpoNumber = -1;
+  int ToInt() const {
+    DCHECK(IsValid());
+    return index_;
+  }
+  size_t ToSize() const {
+    DCHECK(IsValid());
+    return static_cast<size_t>(index_);
+  }
+  bool IsValid() const { return index_ >= 0; }
+  static RpoNumber FromInt(int index) { return RpoNumber(index); }
+  static RpoNumber Invalid() { return RpoNumber(kInvalidRpoNumber); }
+
+  bool IsNext(const RpoNumber other) const {
+    DCHECK(IsValid());
+    return other.index_ == this->index_ + 1;
+  }
+
+  bool operator==(RpoNumber other) const {
+    return this->index_ == other.index_;
+  }
+
+ private:
+  explicit RpoNumber(int32_t index) : index_(index) {}
+  int32_t index_;
+};
+
+
+std::ostream& operator<<(std::ostream&, const RpoNumber&);
+
+
 class Constant FINAL {
  public:
   enum Type {
@@ -711,8 +745,7 @@ class Constant FINAL {
       : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
-  explicit Constant(BasicBlock::RpoNumber rpo)
-      : type_(kRpoNumber), value_(rpo.ToInt()) {}
+  explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
 
   Type type() const { return type_; }
 
@@ -745,9 +778,9 @@ class Constant FINAL {
     return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
   }
 
-  BasicBlock::RpoNumber ToRpoNumber() const {
+  RpoNumber ToRpoNumber() const {
     DCHECK_EQ(kRpoNumber, type());
-    return BasicBlock::RpoNumber::FromInt(static_cast<int>(value_));
+    return RpoNumber::FromInt(static_cast<int>(value_));
   }
 
   Handle<HeapObject> ToHeapObject() const {
@@ -831,10 +864,8 @@ class PhiInstruction FINAL : public ZoneObject {
 // Analogue of BasicBlock for Instructions instead of Nodes.
 class InstructionBlock FINAL : public ZoneObject {
  public:
-  InstructionBlock(Zone* zone, BasicBlock::Id id,
-                   BasicBlock::RpoNumber rpo_number,
-                   BasicBlock::RpoNumber loop_header,
-                   BasicBlock::RpoNumber loop_end, bool deferred);
+  InstructionBlock(Zone* zone, RpoNumber rpo_number, RpoNumber loop_header,
+                   RpoNumber loop_end, bool deferred);
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
@@ -858,23 +889,22 @@ class InstructionBlock FINAL : public ZoneObject {
 
   bool IsDeferred() const { return deferred_; }
 
-  BasicBlock::Id id() const { return id_; }
-  BasicBlock::RpoNumber ao_number() const { return ao_number_; }
-  BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
-  BasicBlock::RpoNumber loop_header() const { return loop_header_; }
-  BasicBlock::RpoNumber loop_end() const {
+  RpoNumber ao_number() const { return ao_number_; }
+  RpoNumber rpo_number() const { return rpo_number_; }
+  RpoNumber loop_header() const { return loop_header_; }
+  RpoNumber loop_end() const {
     DCHECK(IsLoopHeader());
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
 
-  typedef ZoneVector<BasicBlock::RpoNumber> Predecessors;
+  typedef ZoneVector<RpoNumber> Predecessors;
   Predecessors& predecessors() { return predecessors_; }
   const Predecessors& predecessors() const { return predecessors_; }
   size_t PredecessorCount() const { return predecessors_.size(); }
-  size_t PredecessorIndexOf(BasicBlock::RpoNumber rpo_number) const;
+  size_t PredecessorIndexOf(RpoNumber rpo_number) const;
 
-  typedef ZoneVector<BasicBlock::RpoNumber> Successors;
+  typedef ZoneVector<RpoNumber> Successors;
   Successors& successors() { return successors_; }
   const Successors& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
@@ -883,19 +913,16 @@ class InstructionBlock FINAL : public ZoneObject {
   const PhiInstructions& phis() const { return phis_; }
   void AddPhi(PhiInstruction* phi) { phis_.push_back(phi); }
 
-  void set_ao_number(BasicBlock::RpoNumber ao_number) {
-    ao_number_ = ao_number;
-  }
+  void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
  private:
   Successors successors_;
   Predecessors predecessors_;
   PhiInstructions phis_;
-  const BasicBlock::Id id_;
-  BasicBlock::RpoNumber ao_number_;  // Assembly order number.
-  const BasicBlock::RpoNumber rpo_number_;
-  const BasicBlock::RpoNumber loop_header_;
-  const BasicBlock::RpoNumber loop_end_;
+  RpoNumber ao_number_;  // Assembly order number.
+  const RpoNumber rpo_number_;
+  const RpoNumber loop_header_;
+  const RpoNumber loop_end_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_;     // end index of arch-specific code.
   const bool deferred_;  // Block contains deferred code.
@@ -937,7 +964,7 @@ class InstructionSequence FINAL : public ZoneObject {
     return static_cast<int>(instruction_blocks_->size());
   }
 
-  InstructionBlock* InstructionBlockAt(BasicBlock::RpoNumber rpo_number) {
+  InstructionBlock* InstructionBlockAt(RpoNumber rpo_number) {
     return instruction_blocks_->at(rpo_number.ToSize());
   }
 
@@ -946,8 +973,7 @@ class InstructionSequence FINAL : public ZoneObject {
         ->last_instruction_index();
   }
 
-  const InstructionBlock* InstructionBlockAt(
-      BasicBlock::RpoNumber rpo_number) const {
+  const InstructionBlock* InstructionBlockAt(RpoNumber rpo_number) const {
     return instruction_blocks_->at(rpo_number.ToSize());
   }
 
@@ -961,7 +987,7 @@ class InstructionSequence FINAL : public ZoneObject {
 
   void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
 
-  GapInstruction* GetBlockStart(BasicBlock::RpoNumber rpo) const;
+  GapInstruction* GetBlockStart(RpoNumber rpo) const;
 
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
@@ -984,8 +1010,8 @@ class InstructionSequence FINAL : public ZoneObject {
 
   // Used by the instruction selector while adding instructions.
   int AddInstruction(Instruction* instr);
-  void StartBlock(BasicBlock::RpoNumber rpo);
-  void EndBlock(BasicBlock::RpoNumber rpo);
+  void StartBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo);
 
   int AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
@@ -1030,7 +1056,7 @@ class InstructionSequence FINAL : public ZoneObject {
   FrameStateDescriptor* GetFrameStateDescriptor(StateId deoptimization_id);
   int GetFrameStateDescriptorCount();
 
-  BasicBlock::RpoNumber InputRpo(Instruction* instr, size_t index) {
+  RpoNumber InputRpo(Instruction* instr, size_t index) {
     InstructionOperand* operand = instr->InputAt(index);
     Constant constant = operand->IsImmediate() ? GetImmediate(operand->index())
                                                : GetConstant(operand->index());

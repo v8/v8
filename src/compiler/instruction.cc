@@ -5,6 +5,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/schedule.h"
 
 namespace v8 {
 namespace internal {
@@ -375,15 +376,12 @@ void PhiInstruction::SetInput(size_t offset, int virtual_register) {
 }
 
 
-InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
-                                   BasicBlock::RpoNumber rpo_number,
-                                   BasicBlock::RpoNumber loop_header,
-                                   BasicBlock::RpoNumber loop_end,
+InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
+                                   RpoNumber loop_header, RpoNumber loop_end,
                                    bool deferred)
     : successors_(zone),
       predecessors_(zone),
       phis_(zone),
-      id_(id),
       ao_number_(rpo_number),
       rpo_number_(rpo_number),
       loop_header_(loop_header),
@@ -393,8 +391,7 @@ InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
       deferred_(deferred) {}
 
 
-size_t InstructionBlock::PredecessorIndexOf(
-    BasicBlock::RpoNumber rpo_number) const {
+size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;
   for (InstructionBlock::Predecessors::const_iterator i = predecessors_.begin();
        i != predecessors_.end(); ++i, ++j) {
@@ -404,31 +401,31 @@ size_t InstructionBlock::PredecessorIndexOf(
 }
 
 
-static BasicBlock::RpoNumber GetRpo(BasicBlock* block) {
-  if (block == NULL) return BasicBlock::RpoNumber::Invalid();
-  return block->GetRpoNumber();
+static RpoNumber GetRpo(const BasicBlock* block) {
+  if (block == NULL) return RpoNumber::Invalid();
+  return RpoNumber::FromInt(block->rpo_number());
 }
 
 
-static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
-  if (!block->IsLoopHeader()) return BasicBlock::RpoNumber::Invalid();
-  return block->loop_end()->GetRpoNumber();
+static RpoNumber GetLoopEndRpo(const BasicBlock* block) {
+  if (!block->IsLoopHeader()) return RpoNumber::Invalid();
+  return RpoNumber::FromInt(block->loop_end()->rpo_number());
 }
 
 
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
-  InstructionBlock* instr_block = new (zone) InstructionBlock(
-      zone, block->id(), block->GetRpoNumber(), GetRpo(block->loop_header()),
-      GetLoopEndRpo(block), block->deferred());
+  InstructionBlock* instr_block = new (zone)
+      InstructionBlock(zone, GetRpo(block), GetRpo(block->loop_header()),
+                       GetLoopEndRpo(block), block->deferred());
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
-    instr_block->successors().push_back(successor->GetRpoNumber());
+    instr_block->successors().push_back(GetRpo(successor));
   }
   instr_block->predecessors().reserve(block->PredecessorCount());
   for (BasicBlock* predecessor : block->predecessors()) {
-    instr_block->predecessors().push_back(predecessor->GetRpoNumber());
+    instr_block->predecessors().push_back(GetRpo(predecessor));
   }
   return instr_block;
 }
@@ -443,7 +440,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
     DCHECK(!(*blocks)[rpo_number]);
-    DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
+    DCHECK(GetRpo(*it).ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
   ComputeAssemblyOrder(blocks);
@@ -455,12 +452,12 @@ void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
   int ao = 0;
   for (auto const block : *blocks) {
     if (!block->IsDeferred()) {
-      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+      block->set_ao_number(RpoNumber::FromInt(ao++));
     }
   }
   for (auto const block : *blocks) {
     if (block->IsDeferred()) {
-      block->set_ao_number(BasicBlock::RpoNumber::FromInt(ao++));
+      block->set_ao_number(RpoNumber::FromInt(ao++));
     }
   }
 }
@@ -493,14 +490,13 @@ int InstructionSequence::NextVirtualRegister() {
 }
 
 
-GapInstruction* InstructionSequence::GetBlockStart(
-    BasicBlock::RpoNumber rpo) const {
+GapInstruction* InstructionSequence::GetBlockStart(RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);
   return GapInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
-void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
+void InstructionSequence::StartBlock(RpoNumber rpo) {
   DCHECK(block_starts_.size() == rpo.ToSize());
   InstructionBlock* block = InstructionBlockAt(rpo);
   int code_start = static_cast<int>(instructions_.size());
@@ -509,7 +505,7 @@ void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
 }
 
 
-void InstructionSequence::EndBlock(BasicBlock::RpoNumber rpo) {
+void InstructionSequence::EndBlock(RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
   InstructionBlock* block = InstructionBlockAt(rpo);
   if (block->code_start() == end) {  // Empty block.  Insert a nop.
@@ -668,6 +664,11 @@ void FrameStateDescriptor::SetType(size_t index, MachineType type) {
 }
 
 
+std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
+  return os << rpo.ToSize();
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionSequence& printable) {
   const InstructionSequence& code = *printable.sequence_;
@@ -681,13 +682,12 @@ std::ostream& operator<<(std::ostream& os,
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
-    BasicBlock::RpoNumber rpo = BasicBlock::RpoNumber::FromInt(i);
+    RpoNumber rpo = RpoNumber::FromInt(i);
     const InstructionBlock* block = code.InstructionBlockAt(rpo);
     CHECK(block->rpo_number() == rpo);
 
-    os << "RPO#" << block->rpo_number();
+    os << "B" << block->rpo_number();
     os << ": AO#" << block->ao_number();
-    os << ": B" << block->id();
     if (block->IsDeferred()) os << " (deferred)";
     if (block->IsLoopHeader()) {
       os << " loop blocks: [" << block->rpo_number() << ", "
@@ -697,8 +697,7 @@ std::ostream& operator<<(std::ostream& os,
        << block->code_end() << ")\n  predecessors:";
 
     for (auto pred : block->predecessors()) {
-      const InstructionBlock* pred_block = code.InstructionBlockAt(pred);
-      os << " B" << pred_block->id();
+      os << " B" << pred.ToInt();
     }
     os << "\n";
 
@@ -725,8 +724,7 @@ std::ostream& operator<<(std::ostream& os,
     }
 
     for (auto succ : block->successors()) {
-      const InstructionBlock* succ_block = code.InstructionBlockAt(succ);
-      os << " B" << succ_block->id();
+      os << " B" << succ.ToInt();
     }
     os << "\n";
   }

@@ -10,6 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/schedule.h"
 
 namespace v8 {
 namespace internal {
@@ -61,15 +62,15 @@ void InstructionSelector::SelectInstructions() {
   // Schedule the selected instructions.
   for (auto const block : *blocks) {
     InstructionBlock* instruction_block =
-        sequence()->InstructionBlockAt(block->GetRpoNumber());
+        sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
     DCHECK_LE(end, start);
-    sequence()->StartBlock(block->GetRpoNumber());
+    sequence()->StartBlock(RpoNumber::FromInt(block->rpo_number()));
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start]);
     }
-    sequence()->EndBlock(block->GetRpoNumber());
+    sequence()->EndBlock(RpoNumber::FromInt(block->rpo_number()));
   }
 }
 
@@ -477,7 +478,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
 
   // We're done with the block.
   InstructionBlock* instruction_block =
-      sequence()->InstructionBlockAt(block->GetRpoNumber());
+      sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
   instruction_block->set_code_start(static_cast<int>(instructions_.size()));
   instruction_block->set_code_end(current_block_end);
 
@@ -1032,7 +1033,9 @@ void InstructionSelector::VisitPhi(Node* node) {
   PhiInstruction* phi = new (instruction_zone())
       PhiInstruction(instruction_zone(), GetVirtualRegister(node),
                      static_cast<size_t>(input_count));
-  sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
+  sequence()
+      ->InstructionBlockAt(RpoNumber::FromInt(current_block_->rpo_number()))
+      ->AddPhi(phi);
   for (int i = 0; i < input_count; ++i) {
     Node* const input = node->InputAt(i);
     MarkAsUsed(input);

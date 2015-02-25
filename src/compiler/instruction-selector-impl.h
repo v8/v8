@@ -8,6 +8,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/schedule.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -142,7 +143,8 @@ class OperandGenerator {
   }
 
   InstructionOperand Label(BasicBlock* block) {
-    int index = sequence()->AddImmediate(Constant(block->GetRpoNumber()));
+    int index = sequence()->AddImmediate(
+        Constant(RpoNumber::FromInt(block->rpo_number())));
     return ImmediateOperand(index);
   }
 

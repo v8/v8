@@ -121,11 +121,6 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo) {
-  return os << rpo.ToSize();
-}
-
-
 Schedule::Schedule(Zone* zone, size_t node_count_hint)
     : zone_(zone),
       all_blocks_(zone),
@@ -319,14 +314,14 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
 
 std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block : *s.rpo_order()) {
-    os << "--- BLOCK B" << block->id();
+    os << "--- BLOCK B" << block->rpo_number();
     if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;
     for (BasicBlock const* predecessor : block->predecessors()) {
       if (comma) os << ", ";
       comma = true;
-      os << "B" << predecessor->id();
+      os << "B" << predecessor->rpo_number();
     }
     os << " ---\n";
     for (Node* node : *block) {
@@ -355,7 +350,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
       for (BasicBlock const* successor : block->successors()) {
         if (comma) os << ", ";
         comma = true;
-        os << "B" << successor->id();
+        os << "B" << successor->rpo_number();
       }
       os << "\n";
     }

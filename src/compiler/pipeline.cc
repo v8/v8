@@ -746,7 +746,7 @@ struct JumpThreadingPhase {
   static const char* phase_name() { return "jump threading"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    ZoneVector<BasicBlock::RpoNumber> result(temp_zone);
+    ZoneVector<RpoNumber> result(temp_zone);
     if (JumpThreading::ComputeForwarding(temp_zone, result, data->sequence())) {
       JumpThreading::ApplyForwarding(result, data->sequence());
     }

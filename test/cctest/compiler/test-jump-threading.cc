@@ -13,8 +13,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef BasicBlock::RpoNumber RpoNumber;
-
 class TestCode : public HandleAndZoneScope {
  public:
   TestCode()
@@ -87,9 +85,9 @@ class TestCode : public HandleAndZoneScope {
   }
   void Start(bool deferred = false) {
     if (current_ == NULL) {
-      current_ = new (main_zone()) InstructionBlock(
-          main_zone(), BasicBlock::Id::FromInt(rpo_number_.ToInt()),
-          rpo_number_, RpoNumber::Invalid(), RpoNumber::Invalid(), deferred);
+      current_ = new (main_zone())
+          InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
+                           RpoNumber::Invalid(), deferred);
       blocks_.push_back(current_);
       sequence_.StartBlock(rpo_number_);
     }

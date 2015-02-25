@@ -214,7 +214,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
 
 namespace {
 
-typedef BasicBlock::RpoNumber Rpo;
+typedef RpoNumber Rpo;
 
 static const int kInvalidVreg = InstructionOperand::kInvalidVirtualRegister;
 

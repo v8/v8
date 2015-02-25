@@ -5,6 +5,7 @@
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
 #include "src/compiler/graph.h"
+#include "src/compiler/schedule.h"
 #include "src/flags.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 

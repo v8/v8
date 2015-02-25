@@ -406,7 +406,7 @@ class GraphC1Visualizer {
   void PrintStringProperty(const char* name, const char* value);
   void PrintLongProperty(const char* name, int64_t value);
   void PrintIntProperty(const char* name, int value);
-  void PrintBlockProperty(const char* name, BasicBlock::Id block_id);
+  void PrintBlockProperty(const char* name, int rpo_number);
   void PrintNodeId(Node* n);
   void PrintNode(Node* n);
   void PrintInputs(Node* n);
@@ -469,10 +469,9 @@ void GraphC1Visualizer::PrintLongProperty(const char* name, int64_t value) {
 }
 
 
-void GraphC1Visualizer::PrintBlockProperty(const char* name,
-                                           BasicBlock::Id block_id) {
+void GraphC1Visualizer::PrintBlockProperty(const char* name, int rpo_number) {
   PrintIndent();
-  os_ << name << " \"B" << block_id << "\"\n";
+  os_ << name << " \"B" << rpo_number << "\"\n";
 }
 
 
@@ -558,21 +557,21 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
   for (size_t i = 0; i < rpo->size(); i++) {
     BasicBlock* current = (*rpo)[i];
     Tag block_tag(this, "block");
-    PrintBlockProperty("name", current->id());
+    PrintBlockProperty("name", current->rpo_number());
     PrintIntProperty("from_bci", -1);
     PrintIntProperty("to_bci", -1);
 
     PrintIndent();
     os_ << "predecessors";
     for (BasicBlock* predecessor : current->predecessors()) {
-      os_ << " \"B" << predecessor->id() << "\"";
+      os_ << " \"B" << predecessor->rpo_number() << "\"";
     }
     os_ << "\n";
 
     PrintIndent();
     os_ << "successors";
     for (BasicBlock* successor : current->successors()) {
-      os_ << " \"B" << successor->id() << "\"";
+      os_ << " \"B" << successor->rpo_number() << "\"";
     }
     os_ << "\n";
 
@@ -583,13 +582,14 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
     os_ << "flags\n";
 
     if (current->dominator() != NULL) {
-      PrintBlockProperty("dominator", current->dominator()->id());
+      PrintBlockProperty("dominator", current->dominator()->rpo_number());
     }
 
     PrintIntProperty("loop_depth", current->loop_depth());
 
     const InstructionBlock* instruction_block =
-        instructions->InstructionBlockAt(current->GetRpoNumber());
+        instructions->InstructionBlockAt(
+            RpoNumber::FromInt(current->rpo_number()));
     if (instruction_block->code_start() >= 0) {
       int first_index = instruction_block->first_instruction_index();
       int last_index = instruction_block->last_instruction_index();
@@ -654,11 +654,11 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         if (current->control_input() != NULL) {
           PrintNode(current->control_input());
         } else {
-          os_ << -1 - current->id().ToInt() << " Goto";
+          os_ << -1 - current->rpo_number() << " Goto";
         }
         os_ << " ->";
         for (BasicBlock* successor : current->successors()) {
-          os_ << " B" << successor->id();
+          os_ << " B" << successor->rpo_number();
         }
         if (FLAG_trace_turbo_types && current->control_input() != NULL) {
           os_ << " ";

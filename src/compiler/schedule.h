@@ -51,35 +51,6 @@ class BasicBlock FINAL : public ZoneObject {
     size_t index_;
   };
 
-  static const int kInvalidRpoNumber = -1;
-  class RpoNumber FINAL {
-   public:
-    int ToInt() const {
-      DCHECK(IsValid());
-      return index_;
-    }
-    size_t ToSize() const {
-      DCHECK(IsValid());
-      return static_cast<size_t>(index_);
-    }
-    bool IsValid() const { return index_ >= 0; }
-    static RpoNumber FromInt(int index) { return RpoNumber(index); }
-    static RpoNumber Invalid() { return RpoNumber(kInvalidRpoNumber); }
-
-    bool IsNext(const RpoNumber other) const {
-      DCHECK(IsValid());
-      return other.index_ == this->index_ + 1;
-    }
-
-    bool operator==(RpoNumber other) const {
-      return this->index_ == other.index_;
-    }
-
-   private:
-    explicit RpoNumber(int32_t index) : index_(index) {}
-    int32_t index_;
-  };
-
   BasicBlock(Zone* zone, Id id);
 
   Id id() const { return id_; }
@@ -160,7 +131,6 @@ class BasicBlock FINAL : public ZoneObject {
   int32_t loop_number() const { return loop_number_; }
   void set_loop_number(int32_t loop_number) { loop_number_ = loop_number; }
 
-  RpoNumber GetRpoNumber() const { return RpoNumber::FromInt(rpo_number_); }
   int32_t rpo_number() const { return rpo_number_; }
   void set_rpo_number(int32_t rpo_number);
 
@@ -198,7 +168,6 @@ class BasicBlock FINAL : public ZoneObject {
 
 std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
-std::ostream& operator<<(std::ostream&, const BasicBlock::RpoNumber&);
 
 
 // A schedule represents the result of assigning nodes to basic blocks

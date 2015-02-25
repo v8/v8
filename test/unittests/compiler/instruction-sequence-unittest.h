@@ -18,7 +18,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   static const int kDefaultNRegs = 4;
   static const int kNoValue = kMinInt;
 
-  typedef BasicBlock::RpoNumber Rpo;
+  typedef RpoNumber Rpo;
 
   struct VReg {
     VReg() : value_(kNoValue) {}

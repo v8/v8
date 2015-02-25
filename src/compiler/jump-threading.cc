@@ -9,8 +9,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef BasicBlock::RpoNumber RpoNumber;
-
 #define TRACE(x) \
   if (FLAG_trace_turbo_jt) PrintF x
 
@@ -70,8 +68,8 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
     while (!state.stack.empty()) {
       InstructionBlock* block = code->InstructionBlockAt(state.stack.top());
       // Process the instructions in a block up to a non-empty instruction.
-      TRACE(("jt [%d] B%d RPO%d\n", static_cast<int>(stack.size()),
-             block->id().ToInt(), block->rpo_number().ToInt()));
+      TRACE(("jt [%d] B%d\n", static_cast<int>(stack.size()),
+             block->rpo_number().ToInt()));
       bool fallthru = true;
       RpoNumber fw = block->rpo_number();
       for (int i = block->code_start(); i < block->code_end(); ++i) {
@@ -120,12 +118,10 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 
   if (FLAG_trace_turbo_jt) {
     for (int i = 0; i < static_cast<int>(result.size()); i++) {
-      TRACE(("RPO%d B%d ", i,
-             code->InstructionBlockAt(RpoNumber::FromInt(i))->id().ToInt()));
+      TRACE(("B%d ", i));
       int to = result[i].ToInt();
       if (i != to) {
-        TRACE(("-> B%d\n",
-               code->InstructionBlockAt(RpoNumber::FromInt(to))->id().ToInt()));
+        TRACE(("-> B%d\n", to));
       } else {
         TRACE(("\n"));
       }

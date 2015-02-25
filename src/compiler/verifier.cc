@@ -865,7 +865,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                           use_pos)) {
       V8_Fatal(__FILE__, __LINE__,
                "Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
-               node->id(), node->op()->mnemonic(), block->id().ToInt(), j,
+               node->id(), node->op()->mnemonic(), block->rpo_number(), j,
                input->id(), input->op()->mnemonic());
     }
   }
@@ -878,8 +878,8 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
     if (!Dominates(schedule, ctl, node)) {
       V8_Fatal(__FILE__, __LINE__,
                "Node #%d:%s in B%d is not dominated by control input #%d:%s",
-               node->id(), node->op()->mnemonic(), block->id(), ctl->id(),
-               ctl->op()->mnemonic());
+               node->id(), node->op()->mnemonic(), block->rpo_number(),
+               ctl->id(), ctl->op()->mnemonic());
     }
   }
 }
@@ -973,7 +973,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       BasicBlock* idom = block->dominator();
       if (idom != NULL && !block_doms->Contains(idom->id().ToInt())) {
         V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
-                 block->id().ToInt(), idom->id().ToInt());
+                 block->rpo_number(), idom->rpo_number());
       }
       for (size_t s = 0; s < block->SuccessorCount(); s++) {
         BasicBlock* succ = block->SuccessorAt(s);
@@ -1011,7 +1011,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
             !dominators[idom->id().ToSize()]->Contains(dom->id().ToInt())) {
           V8_Fatal(__FILE__, __LINE__,
                    "Block B%d is not immediately dominated by B%d",
-                   block->id().ToInt(), idom->id().ToInt());
+                   block->rpo_number(), idom->rpo_number());
         }
       }
     }

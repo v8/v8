@@ -63,7 +63,7 @@ class InstructionOperandConverter {
 
   Label* InputLabel(size_t index) { return ToLabel(instr_->InputAt(index)); }
 
-  BasicBlock::RpoNumber InputRpo(size_t index) {
+  RpoNumber InputRpo(size_t index) {
     return ToRpoNumber(instr_->InputAt(index));
   }
 
@@ -85,7 +85,7 @@ class InstructionOperandConverter {
     return gen_->GetLabel(ToRpoNumber(op));
   }
 
-  BasicBlock::RpoNumber ToRpoNumber(InstructionOperand* op) {
+  RpoNumber ToRpoNumber(InstructionOperand* op) {
     return ToConstant(op).ToRpoNumber();
   }
 

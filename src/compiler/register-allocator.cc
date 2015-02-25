@@ -1706,8 +1706,7 @@ void RegisterAllocator::BuildLiveRanges() {
   // Process the blocks in reverse order.
   for (int block_id = code()->InstructionBlockCount() - 1; block_id >= 0;
        --block_id) {
-    auto block =
-        code()->InstructionBlockAt(BasicBlock::RpoNumber::FromInt(block_id));
+    auto block = code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
     auto live = ComputeLiveOut(block);
     // Initially consider all live_out values live for the entire block. We
     // will shorten these intervals if necessary.

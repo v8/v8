@@ -41,7 +41,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
-  Label* GetLabel(BasicBlock::RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
+  Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
 
  private:
   MacroAssembler* masm() { return &masm_; }
@@ -52,7 +52,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
-  bool IsNextInAssemblyOrder(BasicBlock::RpoNumber block) const;
+  bool IsNextInAssemblyOrder(RpoNumber block) const;
 
   // Record a safepoint with the given pointer map.
   void RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
@@ -68,7 +68,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // ===========================================================================
 
   void AssembleArchInstruction(Instruction* instr);
-  void AssembleArchJump(BasicBlock::RpoNumber target);
+  void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
@@ -158,7 +158,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   InstructionSequence* const code_;
   CompilationInfo* const info_;
   Label* const labels_;
-  BasicBlock::RpoNumber current_block_;
+  RpoNumber current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;
   GapResolver resolver_;

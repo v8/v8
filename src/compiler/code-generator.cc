@@ -37,7 +37,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       code_(code),
       info_(info),
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
-      current_block_(BasicBlock::RpoNumber::Invalid()),
+      current_block_(RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
       masm_(info->isolate(), NULL, 0),
       resolver_(this),
@@ -85,7 +85,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
       if (FLAG_code_comments) {
         // TODO(titzer): these code comments are a giant memory leak.
         Vector<char> buffer = Vector<char>::New(32);
-        SNPrintF(buffer, "-- B%d start --", block->id().ToInt());
+        SNPrintF(buffer, "-- B%d start --", block->rpo_number().ToInt());
         masm()->RecordComment(buffer.start());
       }
       masm()->bind(GetLabel(current_block_));
@@ -159,7 +159,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
 }
 
 
-bool CodeGenerator::IsNextInAssemblyOrder(BasicBlock::RpoNumber block) const {
+bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
   return code()->InstructionBlockAt(current_block_)->ao_number().IsNext(
       code()->InstructionBlockAt(block)->ao_number());
 }
@@ -199,8 +199,8 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
     if (mode == kFlags_branch) {
       // Assemble a branch after this instruction.
       InstructionOperandConverter i(this, instr);
-      BasicBlock::RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
-      BasicBlock::RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
+      RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
+      RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
 
       if (true_rpo == false_rpo) {
         // redundant branch.
@@ -343,7 +343,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
-    BasicBlock::RpoNumber handler_rpo =
+    RpoNumber handler_rpo =
         i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
     handlers_.push_back({GetLabel(handler_rpo), masm()->pc_offset()});
   }
@@ -592,9 +592,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 }
 
 
-void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
-  UNIMPLEMENTED();
-}
+void CodeGenerator::AssembleArchJump(RpoNumber target) { UNIMPLEMENTED(); }
 
 
 void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {

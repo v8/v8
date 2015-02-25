@@ -410,15 +410,14 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
 
 InstructionBlock* InstructionSequenceTest::NewBlock() {
   CHECK(current_block_ == nullptr);
-  auto block_id = BasicBlock::Id::FromSize(instruction_blocks_.size());
-  Rpo rpo = Rpo::FromInt(block_id.ToInt());
+  Rpo rpo = Rpo::FromInt(static_cast<int>(instruction_blocks_.size()));
   Rpo loop_header = Rpo::Invalid();
   Rpo loop_end = Rpo::Invalid();
   if (!loop_blocks_.empty()) {
     auto& loop_data = loop_blocks_.back();
     // This is a loop header.
     if (!loop_data.loop_header_.IsValid()) {
-      loop_end = Rpo::FromInt(block_id.ToInt() + loop_data.expected_blocks_);
+      loop_end = Rpo::FromInt(rpo.ToInt() + loop_data.expected_blocks_);
       loop_data.expected_blocks_--;
       loop_data.loop_header_ = rpo;
     } else {
@@ -430,8 +429,8 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
     }
   }
   // Construct instruction block.
-  auto instruction_block = new (zone())
-      InstructionBlock(zone(), block_id, rpo, loop_header, loop_end, false);
+  auto instruction_block =
+      new (zone()) InstructionBlock(zone(), rpo, loop_header, loop_end, false);
   instruction_blocks_.push_back(instruction_block);
   current_block_ = instruction_block;
   sequence()->StartBlock(rpo);

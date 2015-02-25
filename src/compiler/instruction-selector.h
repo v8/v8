@@ -18,10 +18,10 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+class BasicBlock;
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
-
 
 typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
