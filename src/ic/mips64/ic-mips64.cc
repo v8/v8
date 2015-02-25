@@ -668,7 +668,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ daddu(address, address, at);
   __ lw(scratch_value, MemOperand(address));
   __ Branch(&fast_double_without_map_check, ne, scratch_value,
-            Operand(kHoleNanUpper32));
+            Operand(static_cast<int32_t>(kHoleNanUpper32)));
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
                                       slow);
 

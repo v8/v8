@@ -2363,9 +2363,8 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 
   Register scratch = scratch0();
   __ FmoveHigh(scratch, input_reg);
-  __ dsll32(scratch, scratch, 0);  // FmoveHigh (mfhc1) sign-extends.
-  __ dsrl32(scratch, scratch, 0);  // Use only low 32-bits.
-  EmitBranch(instr, eq, scratch, Operand(kHoleNanUpper32));
+  EmitBranch(instr, eq, scratch,
+             Operand(static_cast<int32_t>(kHoleNanUpper32)));
 }
 
 
@@ -3279,9 +3278,9 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   __ ldc1(result, MemOperand(scratch));
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ lwu(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
+    __ FmoveHigh(scratch, result);
     DeoptimizeIf(eq, instr, Deoptimizer::kHole, scratch,
-                 Operand(kHoleNanUpper32));
+                 Operand(static_cast<int32_t>(kHoleNanUpper32)));
   }
 }
 

@@ -3884,13 +3884,14 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   DoubleRegister double_scratch = f2;
 
   ldc1(double_result, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+  Branch(USE_DELAY_SLOT, &done);  // Canonicalization is one instruction.
   FPUCanonicalizeNaN(double_result, double_result);
-  Branch(&done);
 
   bind(&smi_value);
   // scratch1 is now effective address of the double element.
   // Untag and transfer.
-  mthc1(value_reg, double_scratch);
+  dsrl32(at, value_reg, 0);
+  mtc1(at, double_scratch);
   cvt_d_w(double_result, double_scratch);
 
   bind(&done);
