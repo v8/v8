@@ -101,7 +101,8 @@ function f4(one) {
       assertEquals(4, eval('z'));
       assertEquals(5, eval('u'));
       assertEquals(6, eval('v'));
-    };
+    }
+    f();
   }
 }
 f4(1);
@@ -122,7 +123,8 @@ function f5(one) {
       assertEquals(4, z);
       assertEquals(5, u);
       assertEquals(6, v);
-    };
+    }
+    f();
   }
 }
 f5(1);
