@@ -381,6 +381,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
+  V(const v8::StartupData*, snapshot_blob, NULL)                               \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -993,6 +994,7 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+  bool snapshot_available() const { return snapshot_blob_ != NULL; }
 
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
@@ -1128,9 +1130,10 @@ class Isolate {
 
   List<Object*>* partial_snapshot_cache() { return &partial_snapshot_cache_; }
 
- private:
+ protected:
   explicit Isolate(bool enable_serializer);
 
+ private:
   friend struct GlobalState;
   friend struct InitializeGlobalState;
 
@@ -1364,6 +1367,7 @@ class Isolate {
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
+  friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };

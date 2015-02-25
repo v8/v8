@@ -207,7 +207,7 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
-bool RunExtraCode(Isolate* isolate, char* utf8_source) {
+bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
   // Run custom script if provided.
   TryCatch try_catch;
   Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
@@ -221,14 +221,13 @@ bool RunExtraCode(Isolate* isolate, char* utf8_source) {
 }
 
 
-StartupData V8::CreateSnapshotDataBlob(char* custom_source) {
-  Isolate::CreateParams params;
-  params.enable_serializer = true;
-  Isolate* isolate = v8::Isolate::New(params);
+StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
+  i::Isolate* internal_isolate = new i::Isolate(true);
+  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   StartupData result = {NULL, 0};
   {
     Isolate::Scope isolate_scope(isolate);
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->Init(NULL);
     Persistent<Context> context;
     i::Snapshot::Metadata metadata;
     {
@@ -6524,8 +6523,13 @@ Isolate* Isolate::GetCurrent() {
 
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
-  i::Isolate* isolate = new i::Isolate(params.enable_serializer);
+  i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  if (params.snapshot_blob != NULL) {
+    isolate->set_snapshot_blob(params.snapshot_blob);
+  } else {
+    isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
+  }
   if (params.entry_hook) {
     isolate->set_function_entry_hook(params.entry_hook);
   }
@@ -6540,6 +6544,12 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   if (params.entry_hook || !i::Snapshot::Initialize(isolate)) {
     // If the isolate has a function entry hook, it needs to re-build all its
     // code stubs with entry hooks embedded, so don't deserialize a snapshot.
+    if (i::Snapshot::EmbedsScript(isolate)) {
+      // If the snapshot embeds a script, we cannot initialize the isolate
+      // without the snapshot as a fallback. This is unlikely to happen though.
+      V8_Fatal(__FILE__, __LINE__,
+               "Initializing isolate from custom startup snapshot failed");
+    }
     isolate->Init(NULL);
   }
   return v8_isolate;

@@ -92,6 +92,7 @@ class Promise;
 class RawOperationDescriptor;
 class Script;
 class Signature;
+class StartupData;
 class StackFrame;
 class StackTrace;
 class String;
@@ -4644,9 +4645,7 @@ class V8_EXPORT Isolate {
    */
   struct CreateParams {
     CreateParams()
-        : entry_hook(NULL),
-          code_event_handler(NULL),
-          enable_serializer(false) {}
+        : entry_hook(NULL), code_event_handler(NULL), snapshot_blob(NULL) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -4669,9 +4668,9 @@ class V8_EXPORT Isolate {
     ResourceConstraints constraints;
 
     /**
-     * This flag currently renders the Isolate unusable.
+     * Explicitly specify a startup snapshot blob. The embedder owns the blob.
      */
-    bool enable_serializer;
+    StartupData* snapshot_blob;
   };
 
 
@@ -5397,7 +5396,7 @@ class V8_EXPORT V8 {
    * Returns { NULL, 0 } on failure.
    * The caller owns the data array in the return value.
    */
-  static StartupData CreateSnapshotDataBlob(char* custom_source = NULL);
+  static StartupData CreateSnapshotDataBlob(const char* custom_source = NULL);
 
   /**
    * Adds a message listener.

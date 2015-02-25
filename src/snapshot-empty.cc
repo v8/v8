@@ -22,7 +22,5 @@ void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 
-const v8::StartupData Snapshot::SnapshotBlob() {
-  return {NULL, 0};
-}
+const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return NULL; }
 } }  // namespace v8::internal

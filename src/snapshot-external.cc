@@ -35,9 +35,9 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
 }
 
 
-const v8::StartupData Snapshot::SnapshotBlob() {
+const v8::StartupData* Snapshot::DefaultSnapshotBlob() {
   base::LockGuard<base::Mutex> lock_guard(
       external_startup_data_mutex.Pointer());
-  return external_startup_blob;
+  return &external_startup_blob;
 }
 } }  // namespace v8::internal

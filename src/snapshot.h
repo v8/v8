@@ -36,14 +36,18 @@ class Snapshot : public AllStatic {
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       Handle<FixedArray>* outdated_contexts_out);
 
-  static bool HaveASnapshotToStartFrom();
+  static bool HaveASnapshotToStartFrom(Isolate* isolate) {
+    // Do not use snapshots if the isolate is used to create snapshots.
+    return isolate->snapshot_blob() != NULL;
+  }
 
-  static bool EmbedsScript();
+  static bool EmbedsScript(Isolate* isolate);
 
-  static uint32_t SizeOfFirstPage(AllocationSpace space);
+  static uint32_t SizeOfFirstPage(Isolate* isolate, AllocationSpace space);
+
 
   // To be implemented by the snapshot source.
-  static const v8::StartupData SnapshotBlob();
+  static const v8::StartupData* DefaultSnapshotBlob();
 
   static v8::StartupData CreateSnapshotBlob(
       const StartupSerializer& startup_ser,

@@ -5195,7 +5195,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     max_semi_space_size_ = Page::kPageSize;
   }
 
-  if (Snapshot::HaveASnapshotToStartFrom()) {
+  if (isolate()->snapshot_available()) {
     // If we are using a snapshot we always reserve the default amount
     // of memory for each semispace because code in the snapshot has
     // write-barrier code that relies on the size and alignment of new

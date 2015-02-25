@@ -437,9 +437,10 @@ TEST(LargeObjectSpace) {
 TEST(SizeOfFirstPageIsLargeEnough) {
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
-  if (!i::Snapshot::HaveASnapshotToStartFrom()) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  if (!isolate->snapshot_available()) return;
+  if (Snapshot::EmbedsScript(isolate)) return;
 
   // Freshly initialized VM gets by with one page per space.
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {

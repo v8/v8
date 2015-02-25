@@ -422,9 +422,8 @@ void FullCodeGenerator::Initialize() {
   // calculating PC offsets after generating a debug version of code.  Therefore
   // we disable the production of debug code in the full compiler if we are
   // either generating a snapshot or we booted from a snapshot.
-  generate_debug_code_ = FLAG_debug_code &&
-                         !masm_->serializer_enabled() &&
-                         !Snapshot::HaveASnapshotToStartFrom();
+  generate_debug_code_ = FLAG_debug_code && !masm_->serializer_enabled() &&
+                         !info_->isolate()->snapshot_available();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
 }

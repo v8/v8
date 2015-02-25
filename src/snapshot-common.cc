@@ -14,11 +14,6 @@
 namespace v8 {
 namespace internal {
 
-bool Snapshot::HaveASnapshotToStartFrom() {
-  return SnapshotBlob().data != NULL;
-}
-
-
 #ifdef DEBUG
 bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
   return !Snapshot::ExtractStartupData(snapshot_blob).is_empty() &&
@@ -27,32 +22,31 @@ bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
 #endif  // DEBUG
 
 
-bool Snapshot::EmbedsScript() {
-  if (!HaveASnapshotToStartFrom()) return false;
-  const v8::StartupData blob = SnapshotBlob();
-  return ExtractMetadata(&blob).embeds_script();
+bool Snapshot::EmbedsScript(Isolate* isolate) {
+  if (!isolate->snapshot_available()) return false;
+  return ExtractMetadata(isolate->snapshot_blob()).embeds_script();
 }
 
 
-uint32_t Snapshot::SizeOfFirstPage(AllocationSpace space) {
+uint32_t Snapshot::SizeOfFirstPage(Isolate* isolate, AllocationSpace space) {
   DCHECK(space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE);
-  if (!HaveASnapshotToStartFrom()) {
+  if (!isolate->snapshot_available()) {
     return static_cast<uint32_t>(MemoryAllocator::PageAreaSize(space));
   }
   uint32_t size;
   int offset = kFirstPageSizesOffset + (space - FIRST_PAGED_SPACE) * kInt32Size;
-  memcpy(&size, SnapshotBlob().data + offset, kInt32Size);
+  memcpy(&size, isolate->snapshot_blob()->data + offset, kInt32Size);
   return size;
 }
 
 
 bool Snapshot::Initialize(Isolate* isolate) {
-  if (!HaveASnapshotToStartFrom()) return false;
+  if (!isolate->snapshot_available()) return false;
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
-  const v8::StartupData blob = SnapshotBlob();
-  Vector<const byte> startup_data = ExtractStartupData(&blob);
+  const v8::StartupData* blob = isolate->snapshot_blob();
+  Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData snapshot_data(startup_data);
   Deserializer deserializer(&snapshot_data);
   bool success = isolate->Init(&deserializer);
@@ -68,12 +62,12 @@ bool Snapshot::Initialize(Isolate* isolate) {
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     Handle<FixedArray>* outdated_contexts_out) {
-  if (!HaveASnapshotToStartFrom()) return Handle<Context>();
+  if (!isolate->snapshot_available()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
-  const v8::StartupData blob = SnapshotBlob();
-  Vector<const byte> context_data = ExtractContextData(&blob);
+  const v8::StartupData* blob = isolate->snapshot_blob();
+  Vector<const byte> context_data = ExtractContextData(blob);
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
 
@@ -84,7 +78,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   CHECK(result->IsContext());
   // If the snapshot does not contain a custom script, we need to update
   // the global object for exactly one context.
-  CHECK(EmbedsScript() || (*outdated_contexts_out)->length() == 1);
+  CHECK(EmbedsScript(isolate) || (*outdated_contexts_out)->length() == 1);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();

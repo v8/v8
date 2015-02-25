@@ -70,11 +70,8 @@ class SnapshotWriter {
   }
 
   void WriteFileSuffix() const {
-    fprintf(fp_, "const v8::StartupData Snapshot::SnapshotBlob() {\n");
-    fprintf(fp_, "  v8::StartupData blob;\n");
-    fprintf(fp_, "  blob.data = reinterpret_cast<const char*>(blob_data);\n");
-    fprintf(fp_, "  blob.raw_size = blob_size;\n");
-    fprintf(fp_, "  return blob;\n");
+    fprintf(fp_, "const v8::StartupData* Snapshot::DefaultSnapshotBlob() {\n");
+    fprintf(fp_, "  return &blob;\n");
     fprintf(fp_, "}\n\n");
     fprintf(fp_, "}  // namespace internal\n");
     fprintf(fp_, "}  // namespace v8\n");
@@ -85,7 +82,8 @@ class SnapshotWriter {
     WriteSnapshotData(blob);
     fprintf(fp_, "};\n");
     fprintf(fp_, "static const int blob_size = %d;\n", blob.length());
-    fprintf(fp_, "\n");
+    fprintf(fp_, "static const v8::StartupData blob =\n");
+    fprintf(fp_, "{ (const char*) blob_data, blob_size };\n");
   }
 
   void WriteSnapshotData(const i::Vector<const i::byte>& blob) const {

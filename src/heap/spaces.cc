@@ -1039,7 +1039,7 @@ bool PagedSpace::Expand() {
   intptr_t size = AreaSize();
 
   if (anchor_.next_page() == &anchor_) {
-    size = Snapshot::SizeOfFirstPage(identity());
+    size = Snapshot::SizeOfFirstPage(heap()->isolate(), identity());
   }
 
   Page* p = heap()->isolate()->memory_allocator()->AllocatePage(size, this,
