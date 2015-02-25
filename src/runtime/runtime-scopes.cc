@@ -931,13 +931,6 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
   // property from it.
   if (!holder.is_null()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
-#ifdef DEBUG
-    if (!object->IsJSProxy()) {
-      Maybe<bool> maybe = JSReceiver::HasProperty(object, name);
-      DCHECK(maybe.has_value);
-      DCHECK(maybe.value);
-    }
-#endif
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
