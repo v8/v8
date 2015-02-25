@@ -4387,7 +4387,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: Fetch prototype from constructor field
     // in initial map.
     bind(&non_instance);
-    GetMapConstructor(result, result, scratch, at);
+    GetMapConstructor(result, result, scratch, scratch);
   }
 
   // All done.

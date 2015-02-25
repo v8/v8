@@ -2620,7 +2620,6 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   // Check if the constructor in the map is a function.
   Register instance_type = scratch1();
   DCHECK(!instance_type.is(temp));
-  DCHECK(!instance_type.is(temp2));
   __ GetMapConstructor(temp, temp, temp2, instance_type);
 
   // Objects with a non-function constructor have class 'Object'.
