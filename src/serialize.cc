@@ -1888,7 +1888,9 @@ void Serializer::ObjectSerializer::Serialize() {
 
   int size = object_->Size();
   Map* map = object_->map();
-  SerializePrologue(Serializer::SpaceOfObject(object_), size, map);
+  AllocationSpace space =
+      MemoryChunk::FromAddress(object_->address())->owner()->identity();
+  SerializePrologue(space, size, map);
 
   // Serialize the rest of the object.
   CHECK_EQ(0, bytes_processed_so_far_);
@@ -2125,19 +2127,6 @@ int Serializer::ObjectSerializer::OutputRawData(
     to_skip = 0;
   }
   return to_skip;
-}
-
-
-AllocationSpace Serializer::SpaceOfObject(HeapObject* object) {
-  for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
-    AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (object->GetHeap()->InSpace(object, s)) {
-      DCHECK(i < kNumberOfSpaces);
-      return s;
-    }
-  }
-  UNREACHABLE();
-  return FIRST_SPACE;
 }
 
 

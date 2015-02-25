@@ -732,7 +732,6 @@ class Serializer : public SerializerDeserializer {
   bool BackReferenceIsAlreadyAllocated(BackReference back_reference);
 
   // This will return the space for an object.
-  static AllocationSpace SpaceOfObject(HeapObject* object);
   BackReference AllocateLargeObject(int size);
   BackReference Allocate(AllocationSpace space, int size);
   int EncodeExternalReference(Address addr) {
