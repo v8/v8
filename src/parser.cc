@@ -942,7 +942,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     int beg_pos = scanner()->location().beg_pos;
     if (info->is_module()) {
       DCHECK(allow_harmony_modules());
-      ParseModule(body, &ok);
+      ParseModuleItemList(body, &ok);
     } else {
       ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
     }
@@ -1242,7 +1242,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 }
 
 
-void* Parser::ParseModule(ZoneList<Statement*>* body, bool* ok) {
+void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
   // (Ecma 262 6th Edition, 15.2):
   // Module :
   //    ModuleBody?
