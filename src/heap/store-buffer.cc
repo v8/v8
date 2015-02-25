@@ -378,27 +378,41 @@ void StoreBuffer::GCEpilogue() {
 }
 
 
+void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
+                                      ObjectSlotCallback slot_callback,
+                                      bool clear_maps) {
+  Object** slot = reinterpret_cast<Object**>(slot_address);
+  Object* object = reinterpret_cast<Object*>(
+      base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+
+  // If the object is not in from space, it must be a duplicate store buffer
+  // entry and the slot was already updated.
+  if (heap_->InFromSpace(object)) {
+    HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
+    DCHECK(heap_object->IsHeapObject());
+    // The new space object was not promoted if it still contains a map
+    // pointer. Clear the map field now lazily (during full GC).
+    if (clear_maps) ClearDeadObject(heap_object);
+    slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
+    object = reinterpret_cast<Object*>(
+        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    // If the object was in from space before and is after executing the
+    // callback in to space, the object is still live.
+    // Unfortunately, we do not know about the slot. It could be in a
+    // just freed free space object.
+    if (heap_->InToSpace(object)) {
+      EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(slot));
+    }
+  }
+}
+
+
 void StoreBuffer::FindPointersToNewSpaceInRegion(
     Address start, Address end, ObjectSlotCallback slot_callback,
     bool clear_maps) {
   for (Address slot_address = start; slot_address < end;
        slot_address += kPointerSize) {
-    Object** slot = reinterpret_cast<Object**>(slot_address);
-    Object* object = reinterpret_cast<Object*>(
-        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-    if (heap_->InNewSpace(object)) {
-      HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-      DCHECK(heap_object->IsHeapObject());
-      // The new space object was not promoted if it still contains a map
-      // pointer. Clear the map field now lazily.
-      if (clear_maps) ClearDeadObject(heap_object);
-      slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-      object = reinterpret_cast<Object*>(
-          base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-      if (heap_->InNewSpace(object)) {
-        EnterDirectlyIntoStoreBuffer(slot_address);
-      }
-    }
+    ProcessOldToNewSlot(slot_address, slot_callback, clear_maps);
   }
 }
 
@@ -413,21 +427,7 @@ void StoreBuffer::IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
 #ifdef DEBUG
       Address* saved_top = old_top_;
 #endif
-      Object** slot = reinterpret_cast<Object**>(*current);
-      Object* object = reinterpret_cast<Object*>(
-          base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-      if (heap_->InFromSpace(object)) {
-        HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-        // The new space object was not promoted if it still contains a map
-        // pointer. Clear the map field now lazily.
-        if (clear_maps) ClearDeadObject(heap_object);
-        slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-        object = reinterpret_cast<Object*>(
-            base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-        if (heap_->InNewSpace(object)) {
-          EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(slot));
-        }
-      }
+      ProcessOldToNewSlot(*current, slot_callback, clear_maps);
       DCHECK(old_top_ == saved_top + 1 || old_top_ == saved_top);
     }
   }

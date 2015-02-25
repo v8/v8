@@ -148,6 +148,9 @@ class StoreBuffer {
   // Set the map field of the object to NULL if contains a map.
   inline void ClearDeadObject(HeapObject* object);
 
+  void ProcessOldToNewSlot(Address slot_address,
+                           ObjectSlotCallback slot_callback, bool clear_maps);
+
   void IteratePointersToNewSpace(ObjectSlotCallback callback, bool clear_maps);
 
   void FindPointersToNewSpaceInRegion(Address start, Address end,
