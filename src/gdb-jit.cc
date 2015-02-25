@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef ENABLE_GDB_JIT_INTERFACE
 #include "src/v8.h"
 
 #include "src/base/bits.h"
@@ -14,14 +15,11 @@
 #include "src/global-handles.h"
 #include "src/messages.h"
 #include "src/natives.h"
-#include "src/objects.h"
 #include "src/ostreams.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
-namespace GDBJITInterface {
-
-#ifdef ENABLE_GDB_JIT_INTERFACE
 
 #ifdef __APPLE__
 #define __MACH_O
@@ -935,9 +933,15 @@ class CodeDescription BASE_EMBEDDED {
   };
 #endif
 
-  CodeDescription(const char* name, Code* code, SharedFunctionInfo* shared,
-                  LineInfo* lineinfo)
-      : name_(name), code_(code), shared_info_(shared), lineinfo_(lineinfo) {}
+  CodeDescription(const char* name, Code* code, Handle<Script> script,
+                  LineInfo* lineinfo, GDBJITInterface::CodeTag tag,
+                  CompilationInfo* info)
+      : name_(name),
+        code_(code),
+        script_(script),
+        lineinfo_(lineinfo),
+        tag_(tag),
+        info_(info) {}
 
   const char* name() const {
     return name_;
@@ -945,16 +949,16 @@ class CodeDescription BASE_EMBEDDED {
 
   LineInfo* lineinfo() const { return lineinfo_; }
 
-  bool is_function() const {
-    Code::Kind kind = code_->kind();
-    return kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION;
+  GDBJITInterface::CodeTag tag() const {
+    return tag_;
   }
 
-  bool has_scope_info() const { return shared_info_ != NULL; }
+  CompilationInfo* info() const {
+    return info_;
+  }
 
-  ScopeInfo* scope_info() const {
-    DCHECK(has_scope_info());
-    return shared_info_->scope_info();
+  bool IsInfoAvailable() const {
+    return info_ != NULL;
   }
 
   uintptr_t CodeStart() const {
@@ -969,16 +973,12 @@ class CodeDescription BASE_EMBEDDED {
     return CodeEnd() - CodeStart();
   }
 
-  bool has_script() {
-    return shared_info_ != NULL && shared_info_->script()->IsScript();
-  }
-
-  Script* script() { return Script::cast(shared_info_->script()); }
-
   bool IsLineInfoAvailable() {
-    return has_script() && script()->source()->IsString() &&
-           script()->HasValidSource() && script()->name()->IsString() &&
-           lineinfo_ != NULL;
+    return !script_.is_null() &&
+        script_->source()->IsString() &&
+        script_->HasValidSource() &&
+        script_->name()->IsString() &&
+        lineinfo_ != NULL;
   }
 
 #if V8_TARGET_ARCH_X64
@@ -994,17 +994,21 @@ class CodeDescription BASE_EMBEDDED {
 #endif
 
   SmartArrayPointer<char> GetFilename() {
-    return String::cast(script()->name())->ToCString();
+    return String::cast(script_->name())->ToCString();
   }
 
-  int GetScriptLineNumber(int pos) { return script()->GetLineNumber(pos) + 1; }
+  int GetScriptLineNumber(int pos) {
+    return script_->GetLineNumber(pos) + 1;
+  }
 
 
  private:
   const char* name_;
   Code* code_;
-  SharedFunctionInfo* shared_info_;
+  Handle<Script> script_;
   LineInfo* lineinfo_;
+  GDBJITInterface::CodeTag tag_;
+  CompilationInfo* info_;
 #if V8_TARGET_ARCH_X64
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
 #endif
@@ -1091,8 +1095,8 @@ class DebugInfoSection : public DebugSection {
     w->Write<uint8_t>(kPointerSize);
     w->WriteString("v8value");
 
-    if (desc_->has_scope_info()) {
-      ScopeInfo* scope = desc_->scope_info();
+    if (desc_->IsInfoAvailable()) {
+      Scope* scope = desc_->info()->scope();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1114,8 +1118,8 @@ class DebugInfoSection : public DebugSection {
 #endif
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
-      int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
+      int params = scope->num_parameters();
+      int slots = scope->num_stack_slots();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
@@ -1125,7 +1129,7 @@ class DebugInfoSection : public DebugSection {
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
         w->WriteString(
-            scope->ParameterName(param)->ToCString(DISALLOW_NULLS).get());
+            scope->parameter(param)->name()->ToCString(DISALLOW_NULLS).get());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1170,10 +1174,13 @@ class DebugInfoSection : public DebugSection {
         w->WriteString(builder.Finalize());
       }
 
+      ZoneList<Variable*> stack_locals(locals, scope->zone());
+      ZoneList<Variable*> context_locals(context_slots, scope->zone());
+      scope->CollectStackAndContextLocals(&stack_locals, &context_locals);
       for (int local = 0; local < locals; ++local) {
         w->WriteULEB128(current_abbreviation++);
         w->WriteString(
-            scope->StackLocalName(local)->ToCString(DISALLOW_NULLS).get());
+            stack_locals[local]->name()->ToCString(DISALLOW_NULLS).get());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1295,7 +1302,7 @@ class DebugAbbrevSection : public DebugSection {
 
   bool WriteBodyInternal(Writer* w) {
     int current_abbreviation = 1;
-    bool extra_info = desc_->has_scope_info();
+    bool extra_info = desc_->IsInfoAvailable();
     DCHECK(desc_->IsLineInfoAvailable());
     w->WriteULEB128(current_abbreviation++);
     w->WriteULEB128(DW_TAG_COMPILE_UNIT);
@@ -1312,9 +1319,9 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo* scope = desc_->scope_info();
-      int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
+      Scope* scope = desc_->info()->scope();
+      int params = scope->num_parameters();
+      int slots = scope->num_stack_slots();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
@@ -1861,7 +1868,27 @@ static void DestroyCodeEntry(JITCodeEntry* entry) {
 }
 
 
-static void RegisterCodeEntry(JITCodeEntry* entry) {
+static void RegisterCodeEntry(JITCodeEntry* entry,
+                              bool dump_if_enabled,
+                              const char* name_hint) {
+#if defined(DEBUG) && !V8_OS_WIN
+  static int file_num = 0;
+  if (FLAG_gdbjit_dump && dump_if_enabled) {
+    static const int kMaxFileNameSize = 64;
+    static const char* kElfFilePrefix = "/tmp/elfdump";
+    static const char* kObjFileExt = ".o";
+    char file_name[64];
+
+    SNPrintF(Vector<char>(file_name, kMaxFileNameSize),
+             "%s%s%d%s",
+             kElfFilePrefix,
+             (name_hint != NULL) ? name_hint : "",
+             file_num++,
+             kObjFileExt);
+    WriteBytes(file_name, entry->symfile_addr_, entry->symfile_size_);
+  }
+#endif
+
   entry->next_ = __jit_debug_descriptor.first_entry_;
   if (entry->next_ != NULL) entry->next_->prev_ = entry;
   __jit_debug_descriptor.first_entry_ =
@@ -1928,67 +1955,69 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 }
 
 
-struct AddressRange {
-  Address start;
-  Address end;
-};
+static bool SameCodeObjects(void* key1, void* key2) {
+  return key1 == key2;
+}
 
-class JITCodeEntry;
 
-struct SplayTreeConfig {
-  typedef AddressRange Key;
-  typedef JITCodeEntry* Value;
-  static const AddressRange kNoKey;
-  static Value NoValue() { return NULL; }
-  static int Compare(const AddressRange& a, const AddressRange& b) {
-    // ptrdiff_t probably doesn't fit in an int.
-    if (a.start < b.start) return -1;
-    if (a.start == b.start) return 0;
-    return 1;
+static HashMap* GetEntries() {
+  static HashMap* entries = NULL;
+  if (entries == NULL) {
+    entries = new HashMap(&SameCodeObjects);
   }
-};
-
-const AddressRange SplayTreeConfig::kNoKey = {0, 0};
-typedef SplayTree<SplayTreeConfig> CodeMap;
-
-static CodeMap* GetCodeMap() {
-  static CodeMap* code_map = NULL;
-  if (code_map == NULL) code_map = new CodeMap();
-  return code_map;
+  return entries;
 }
 
 
-static uint32_t HashCodeAddress(Address addr) {
-  static const intptr_t kGoldenRatio = 2654435761;
-  uintptr_t offset = OffsetFrom(addr);
-  return static_cast<uint32_t>((offset >> kCodeAlignmentBits) * kGoldenRatio);
+static uint32_t HashForCodeObject(Code* code) {
+  static const uintptr_t kGoldenRatio = 2654435761u;
+  uintptr_t hash = reinterpret_cast<uintptr_t>(code->address());
+  return static_cast<uint32_t>((hash >> kCodeAlignmentBits) * kGoldenRatio);
 }
 
 
-static HashMap* GetLineMap() {
-  static HashMap* line_map = NULL;
-  if (line_map == NULL) line_map = new HashMap(&HashMap::PointersMatch);
-  return line_map;
+static const intptr_t kLineInfoTag = 0x1;
+
+
+static bool IsLineInfoTagged(void* ptr) {
+  return 0 != (reinterpret_cast<intptr_t>(ptr) & kLineInfoTag);
 }
 
 
-static void PutLineInfo(Address addr, LineInfo* info) {
-  HashMap* line_map = GetLineMap();
-  HashMap::Entry* e = line_map->Lookup(addr, HashCodeAddress(addr), true);
-  if (e->value != NULL) delete static_cast<LineInfo*>(e->value);
-  e->value = info;
+static void* TagLineInfo(LineInfo* ptr) {
+  return reinterpret_cast<void*>(
+      reinterpret_cast<intptr_t>(ptr) | kLineInfoTag);
 }
 
 
-static LineInfo* GetLineInfo(Address addr) {
-  void* value = GetLineMap()->Remove(addr, HashCodeAddress(addr));
-  return static_cast<LineInfo*>(value);
+static LineInfo* UntagLineInfo(void* ptr) {
+  return reinterpret_cast<LineInfo*>(reinterpret_cast<intptr_t>(ptr) &
+                                     ~kLineInfoTag);
+}
+
+
+void GDBJITInterface::AddCode(Handle<Name> name,
+                              Handle<Script> script,
+                              Handle<Code> code,
+                              CompilationInfo* info) {
+  if (!FLAG_gdbjit) return;
+
+  Script::InitLineEnds(script);
+
+  if (!name.is_null() && name->IsString()) {
+    SmartArrayPointer<char> name_cstring =
+        Handle<String>::cast(name)->ToCString(DISALLOW_NULLS);
+    AddCode(name_cstring.get(), *code, GDBJITInterface::FUNCTION, *script,
+            info);
+  } else {
+    AddCode("", *code, GDBJITInterface::FUNCTION, *script, info);
+  }
 }
 
 
 static void AddUnwindInfo(CodeDescription* desc) {
 #if V8_TARGET_ARCH_X64
-  if (desc->is_function()) {
+  if (desc->tag() == GDBJITInterface::FUNCTION) {
     // To avoid propagating unwinding information through
     // compilation pipeline we use an approximation.
     // For most use cases this should not affect usability.
@@ -2026,83 +2055,39 @@ static void AddUnwindInfo(CodeDescription* desc) {
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
 
-// Remove entries from the splay tree that intersect the given address range,
-// and deregister them from GDB.
-static void RemoveJITCodeEntries(CodeMap* map, const AddressRange& range) {
-  DCHECK(range.start < range.end);
-  CodeMap::Locator cur;
-  if (map->FindGreatestLessThan(range, &cur) || map->FindLeast(&cur)) {
-    // Skip entries that are entirely less than the range of interest.
-    while (cur.key().end <= range.start) {
-      // CodeMap::FindLeastGreaterThan succeeds for entries whose key is greater
-      // than _or equal to_ the given key, so we have to advance our key to get
-      // the next one.
-      AddressRange new_key;
-      new_key.start = cur.key().end;
-      new_key.end = 0;
-      if (!map->FindLeastGreaterThan(new_key, &cur)) return;
-    }
-    // Evict intersecting ranges.
-    while (cur.key().start < range.end) {
-      AddressRange old_range = cur.key();
-      JITCodeEntry* old_entry = cur.value();
-
-      UnregisterCodeEntry(old_entry);
-      DestroyCodeEntry(old_entry);
-
-      CHECK(map->Remove(old_range));
-      if (!map->FindLeastGreaterThan(old_range, &cur)) return;
-    }
-  }
-}
-
-
-// Insert the entry into the splay tree and register it with GDB.
-static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
-                            JITCodeEntry* entry, bool dump_if_enabled,
-                            const char* name_hint) {
-#if defined(DEBUG) && !V8_OS_WIN
-  static int file_num = 0;
-  if (FLAG_gdbjit_dump && dump_if_enabled) {
-    static const int kMaxFileNameSize = 64;
-    char file_name[64];
-
-    SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
-             (name_hint != NULL) ? name_hint : "", file_num++);
-    WriteBytes(file_name, entry->symfile_addr_, entry->symfile_size_);
-  }
-#endif
-
-  CodeMap::Locator cur;
-  CHECK(map->Insert(range, &cur));
-  cur.set_value(entry);
-
-  RegisterCodeEntry(entry);
-}
-
-
-static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
-                    LineInfo* lineinfo) {
+void GDBJITInterface::AddCode(const char* name,
+                              Code* code,
+                              GDBJITInterface::CodeTag tag,
+                              Script* script,
+                              CompilationInfo* info) {
+  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   DisallowHeapAllocation no_gc;
 
-  CodeMap* code_map = GetCodeMap();
-  AddressRange range;
-  range.start = code->address();
-  range.end = code->address() + code->CodeSize();
-  RemoveJITCodeEntries(code_map, range);
+  HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
+  if (e->value != NULL && !IsLineInfoTagged(e->value)) return;
 
-  CodeDescription code_desc(name, code, shared, lineinfo);
+  LineInfo* lineinfo = UntagLineInfo(e->value);
+  CodeDescription code_desc(name,
+                            code,
+                            script != NULL ? Handle<Script>(script)
+                                           : Handle<Script>(),
+                            lineinfo,
+                            tag,
+                            info);
 
   if (!FLAG_gdbjit_full && !code_desc.IsLineInfoAvailable()) {
     delete lineinfo;
+    GetEntries()->Remove(code, HashForCodeObject(code));
     return;
   }
 
   AddUnwindInfo(&code_desc);
   Isolate* isolate = code->GetIsolate();
   JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
+  DCHECK(!IsLineInfoTagged(entry));
 
   delete lineinfo;
+  e->value = entry;
 
   const char* name_hint = NULL;
   bool should_dump = false;
@@ -2115,35 +2100,82 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
       should_dump = (name_hint != NULL);
     }
   }
-  AddJITCodeEntry(code_map, range, entry, should_dump, name_hint);
+  RegisterCodeEntry(entry, should_dump, name_hint);
 }
 
 
-void EventHandler(const v8::JitCodeEvent* event) {
+void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
+
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
+  HashMap::Entry* e = GetEntries()->Lookup(code,
+                                           HashForCodeObject(code),
+                                           false);
+  if (e == NULL) return;
+
+  if (IsLineInfoTagged(e->value)) {
+    delete UntagLineInfo(e->value);
+  } else {
+    JITCodeEntry* entry = static_cast<JITCodeEntry*>(e->value);
+    UnregisterCodeEntry(entry);
+    DestroyCodeEntry(entry);
+  }
+  e->value = NULL;
+  GetEntries()->Remove(code, HashForCodeObject(code));
+}
+
+
+void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
+  HashMap* entries = GetEntries();
+  Zone zone;
+  ZoneList<Code*> dead_codes(1, &zone);
+
+  for (HashMap::Entry* e = entries->Start(); e != NULL; e = entries->Next(e)) {
+    Code* code = reinterpret_cast<Code*>(e->key);
+    if (code->address() >= start && code->address() < end) {
+      dead_codes.Add(code, &zone);
+    }
+  }
+
+  for (int i = 0; i < dead_codes.length(); i++) {
+    RemoveCode(dead_codes.at(i));
+  }
+}
+
+
+static void RegisterDetailedLineInfo(Code* code, LineInfo* line_info) {
+  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
+  DCHECK(!IsLineInfoTagged(line_info));
+  HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
+  DCHECK(e->value == NULL);
+  e->value = TagLineInfo(line_info);
+}
+
+
+void GDBJITInterface::EventHandler(const v8::JitCodeEvent* event) {
+  if (!FLAG_gdbjit) return;
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
-      Address addr = reinterpret_cast<Address>(event->code_start);
-      Code* code = Code::GetCodeFromTargetAddress(addr);
-      LineInfo* lineinfo = GetLineInfo(addr);
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      if (code->kind() == Code::OPTIMIZED_FUNCTION ||
+          code->kind() == Code::FUNCTION) {
+        break;
+      }
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
-      // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo* shared =
-          event->script.IsEmpty() ? NULL : *Utils::OpenHandle(*event->script);
-      AddCode(builder.Finalize(), code, shared, lineinfo);
+      AddCode(builder.Finalize(), code, NON_FUNCTION, NULL, NULL);
       break;
     }
     case v8::JitCodeEvent::CODE_MOVED:
-      // Enabling the GDB JIT interface should disable code compaction.
-      UNREACHABLE();
       break;
-    case v8::JitCodeEvent::CODE_REMOVED:
-      // Do nothing.  Instead, adding code causes eviction of any entry whose
-      // address range intersects the address range of the added code.
+    case v8::JitCodeEvent::CODE_REMOVED: {
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      RemoveCode(code);
       break;
+    }
     case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
       LineInfo* line_info = reinterpret_cast<LineInfo*>(event->user_data);
       line_info->SetPosition(static_cast<intptr_t>(event->line_info.offset),
@@ -2159,12 +2191,14 @@ void EventHandler(const v8::JitCodeEvent* event) {
     }
     case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
       LineInfo* line_info = reinterpret_cast<LineInfo*>(event->user_data);
-      PutLineInfo(reinterpret_cast<Address>(event->code_start), line_info);
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      RegisterDetailedLineInfo(code, line_info);
       break;
     }
   }
 }
+
+
+} }  // namespace v8::internal
 #endif
-}  // namespace GDBJITInterface
-}  // namespace internal
-}  // namespace v8

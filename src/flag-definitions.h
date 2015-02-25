@@ -752,14 +752,6 @@ DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
 
-// mark-compact.cc
-DEFINE_BOOL(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
-
-DEFINE_BOOL(stress_compaction, false,
-            "stress the GC compactor to flush out bugs (implies "
-            "--force_marking_deque_overflows)")
 
 //
 // Dev shell flags
@@ -777,24 +769,21 @@ DEFINE_ARGS(js_arguments,
 //
 // GDB JIT integration flags.
 //
-#undef FLAG
-#ifdef ENABLE_GDB_JIT_INTERFACE
-#define FLAG FLAG_FULL
-#else
-#define FLAG FLAG_READONLY
-#endif
 
-DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface")
+DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
 DEFINE_BOOL(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_BOOL(gdbjit_dump, false, "dump elf objects with debug info to disk")
 DEFINE_STRING(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
-DEFINE_IMPLICATION(gdbjit_full, gdbjit)
-DEFINE_IMPLICATION(gdbjit_dump, gdbjit)
-#endif
-DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
+// mark-compact.cc
+DEFINE_BOOL(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
+DEFINE_BOOL(stress_compaction, false,
+            "stress the GC compactor to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
 
 //
 // Debug only flags
