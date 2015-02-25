@@ -132,16 +132,7 @@ depfile = build.ninja.d
     f.write('build.ninja: nonexistant_file.gn\n')
 
 
-def clobber_if_necessary(new_landmines):
-  """Does the work of setting, planting, and triggering landmines."""
-  out_dir = get_build_dir(landmine_utils.builder())
-  landmines_path = os.path.normpath(os.path.join(out_dir, '..', '.landmines'))
-  try:
-    os.makedirs(out_dir)
-  except OSError as e:
-    if e.errno == errno.EEXIST:
-      pass
-
+def needs_clobber(landmines_path, new_landmines):
   if os.path.exists(landmines_path):
     with open(landmines_path, 'r') as f:
       old_landmines = f.readlines()
@@ -152,16 +143,33 @@ def clobber_if_necessary(new_landmines):
           fromfiledate=old_date, tofiledate=time.ctime(), n=0)
       sys.stdout.write('Clobbering due to:\n')
       sys.stdout.writelines(diff)
+      return True
+  else:
+    sys.stdout.write('Clobbering due to missing landmines file.\n')
+    return True
+  return False
 
-      # Clobber contents of build directory but not directory itself: some
-      # checkouts have the build directory mounted.
-      for f in os.listdir(out_dir):
-        path = os.path.join(out_dir, f)
-        # Soft version of chromium's clobber. Only delete directories not files
-        # as e.g. on windows the output dir is the build dir that shares some
-        # checked out files.
-        if os.path.isdir(path) and re.search(r"(?:[Rr]elease)|(?:[Dd]ebug)", f):
-          delete_build_dir(path)
+
+def clobber_if_necessary(new_landmines):
+  """Does the work of setting, planting, and triggering landmines."""
+  out_dir = get_build_dir(landmine_utils.builder())
+  landmines_path = os.path.normpath(os.path.join(out_dir, '..', '.landmines'))
+  try:
+    os.makedirs(out_dir)
+  except OSError as e:
+    if e.errno == errno.EEXIST:
+      pass
+
+  if needs_clobber(landmines_path, new_landmines):
+    # Clobber contents of build directory but not directory itself: some
+    # checkouts have the build directory mounted.
+    for f in os.listdir(out_dir):
+      path = os.path.join(out_dir, f)
+      # Soft version of chromium's clobber. Only delete directories not files
+      # as e.g. on windows the output dir is the build dir that shares some
+      # checked out files.
+      if os.path.isdir(path) and re.search(r"(?:[Rr]elease)|(?:[Dd]ebug)", f):
+        delete_build_dir(path)
 
   # Save current set of landmines for next time.
   with open(landmines_path, 'w') as f:
