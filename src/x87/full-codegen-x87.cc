@@ -3141,8 +3141,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
-  if (!ValidateSuperCall(expr)) return;
-
   Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
   GetVar(eax, new_target_var);
   __ push(eax);

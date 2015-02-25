@@ -640,7 +640,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
 
   void EmitLoadSuperConstructor();
-  bool ValidateSuperCall(Call* expr);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
