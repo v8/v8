@@ -1338,7 +1338,8 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
 }
 
 
-void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* names,
+void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* import_names,
+                                ZoneList<const AstRawString*>* local_names,
                                 bool* ok) {
   // NamedImports :
   //   '{' '}'
@@ -1355,27 +1356,26 @@ void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* names,
 
   Expect(Token::LBRACE, CHECK_OK);
 
-  Token::Value name_tok;
-  while ((name_tok = peek()) != Token::RBRACE) {
-    const AstRawString* name = ParseIdentifierName(CHECK_OK);
-    const AstRawString* import_name = NULL;
+  while (peek() != Token::RBRACE) {
+    const AstRawString* import_name = ParseIdentifierName(CHECK_OK);
+    const AstRawString* local_name = import_name;
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
-    // BindingIdentiifer.
+    // BindingIdentifier.
     if (CheckContextualKeyword(CStrVector("as"))) {
-      import_name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-    } else if (!Token::IsIdentifier(name_tok, STRICT, false)) {
+      local_name = ParseIdentifierName(CHECK_OK);
+    }
+    if (!Token::IsIdentifier(scanner()->current_token(), STRICT, false)) {
       *ok = false;
-      ReportMessageAt(scanner()->location(), "unexpected_reserved");
+      ReportMessage("unexpected_reserved");
       return NULL;
-    } else if (IsEvalOrArguments(name)) {
+    } else if (IsEvalOrArguments(local_name)) {
       *ok = false;
-      ReportMessageAt(scanner()->location(), "strict_eval_arguments");
+      ReportMessage("strict_eval_arguments");
       return NULL;
     }
-    // TODO(ES6): Return the import_name as well as the name.
-    names->Add(name, zone());
-    USE(import_name);
+    import_names->Add(import_name, zone());
+    local_names->Add(local_name, zone());
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK);
   }
@@ -1408,8 +1408,10 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
 
   // 'import' ModuleSpecifier ';'
   if (tok == Token::STRING) {
-    ParseModuleSpecifier(CHECK_OK);
+    Literal* module_specifier = ParseModuleSpecifier(CHECK_OK);
     ExpectSemicolon(CHECK_OK);
+    // TODO(ES6): Add module to the requested modules of scope_->module().
+    USE(module_specifier);
     return factory()->NewEmptyStatement(pos);
   }
 
@@ -1421,7 +1423,8 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   const AstRawString* module_instance_binding = NULL;
-  ZoneList<const AstRawString*> names(1, zone());
+  ZoneList<const AstRawString*> local_names(1, zone());
+  ZoneList<const AstRawString*> import_names(1, zone());
   if (imported_default_binding == NULL || Check(Token::COMMA)) {
     switch (peek()) {
       case Token::MUL: {
@@ -1433,7 +1436,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
       }
 
       case Token::LBRACE:
-        ParseNamedImports(&names, CHECK_OK);
+        ParseNamedImports(&import_names, &local_names, CHECK_OK);
         break;
 
       default:
@@ -1457,7 +1460,9 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
     // TODO(ES6): Add an appropriate declaration.
   }
 
-  for (int i = 0; i < names.length(); ++i) {
+  const int length = import_names.length();
+  DCHECK_EQ(length, local_names.length());
+  for (int i = 0; i < length; ++i) {
     // TODO(ES6): Add an appropriate declaration for each name
   }
 
