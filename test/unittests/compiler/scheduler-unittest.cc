@@ -1579,10 +1579,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
   graph()->SetStart(n0);
   graph()->SetEnd(n22);
 
-  Schedule* schedule = ComputeAndVerifySchedule(19);
-  // Make sure the integer-only add gets hoisted to a different block that the
-  // JSAdd.
-  EXPECT_NE(schedule->block(n19), schedule->block(n20));
+  ComputeAndVerifySchedule(19);
 }
 
 

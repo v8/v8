@@ -589,7 +589,8 @@ class SpecialRPONumberer : public ZoneObject {
         loops_(zone),
         backedges_(zone),
         stack_(zone),
-        previous_block_count_(0) {}
+        previous_block_count_(0),
+        empty_(0, zone) {}
 
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
@@ -624,6 +625,14 @@ class SpecialRPONumberer : public ZoneObject {
     if (FLAG_trace_turbo_scheduler) PrintRPO();
     VerifySpecialRPO();
 #endif
+  }
+
+  const ZoneList<BasicBlock*>& GetOutgoingBlocks(BasicBlock* block) {
+    if (HasLoopNumber(block)) {
+      LoopInfo const& loop = loops_[GetLoopNumber(block)];
+      if (loop.outgoing) return *loop.outgoing;
+    }
+    return empty_;
   }
 
  private:
@@ -1045,6 +1054,7 @@ class SpecialRPONumberer : public ZoneObject {
   ZoneVector<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
+  ZoneList<BasicBlock*> const empty_;
 };
 
 
@@ -1345,7 +1355,7 @@ class ScheduleLateNodeVisitor {
     // Hoist nodes out of loops if possible. Nodes can be hoisted iteratively
     // into enclosing loop pre-headers until they would preceed their schedule
     // early position.
-    BasicBlock* hoist_block = GetPreHeader(block);
+    BasicBlock* hoist_block = GetHoistBlock(block);
     if (hoist_block &&
         hoist_block->dominator_depth() >= min_block->dominator_depth()) {
       do {
@@ -1353,7 +1363,7 @@ class ScheduleLateNodeVisitor {
               node->op()->mnemonic(), hoist_block->id().ToInt());
         DCHECK_LT(hoist_block->loop_depth(), block->loop_depth());
         block = hoist_block;
-        hoist_block = GetPreHeader(hoist_block);
+        hoist_block = GetHoistBlock(hoist_block);
       } while (hoist_block &&
                hoist_block->dominator_depth() >= min_block->dominator_depth());
     } else if (scheduler_->flags_ & Scheduler::kSplitNodes) {
@@ -1464,14 +1474,23 @@ class ScheduleLateNodeVisitor {
     return block;
   }
 
-  BasicBlock* GetPreHeader(BasicBlock* block) {
-    if (block->IsLoopHeader()) {
-      return block->dominator();
-    } else if (block->loop_header() != NULL) {
-      return block->loop_header()->dominator();
-    } else {
-      return NULL;
+  BasicBlock* GetHoistBlock(BasicBlock* block) {
+    if (block->IsLoopHeader()) return block->dominator();
+    // We have to check to make sure that the {block} dominates all
+    // of the outgoing blocks.  If it doesn't, then there is a path
+    // out of the loop which does not execute this {block}, so we
+    // can't hoist operations from this {block} out of the loop, as
+    // that would introduce additional computations.
+    if (BasicBlock* header_block = block->loop_header()) {
+      for (BasicBlock* outgoing_block :
+           scheduler_->special_rpo_->GetOutgoingBlocks(header_block)) {
+        if (BasicBlock::GetCommonDominator(block, outgoing_block) != block) {
+          return nullptr;
+        }
+      }
+      return header_block->dominator();
     }
+    return nullptr;
   }
 
   BasicBlock* GetCommonDominatorOfUses(Node* node) {
