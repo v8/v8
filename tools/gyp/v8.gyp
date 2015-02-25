@@ -767,6 +767,8 @@
         '../../src/ostreams.h',
         '../../src/parser.cc',
         '../../src/parser.h',
+        '../../src/pending-compilation-error-handler.cc',
+        '../../src/pending-compilation-error-handler.h',
         '../../src/perf-jit.cc',
         '../../src/perf-jit.h',
         '../../src/preparse-data-format.h',

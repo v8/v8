@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/compiler.h"  // For CachedDataMode
+#include "src/pending-compilation-error-handler.h"
 #include "src/preparse-data.h"
 #include "src/preparse-data-format.h"
 #include "src/preparser.h"
@@ -843,13 +844,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   bool parsing_lazy_arrow_parameters_;  // for lazily parsed arrow functions.
 
-  // Pending errors.
-  bool has_pending_error_;
-  Scanner::Location pending_error_location_;
-  const char* pending_error_message_;
-  const AstRawString* pending_error_arg_;
-  const char* pending_error_char_arg_;
-  ParseErrorType pending_error_type_;
+  PendingCompilationErrorHandler pending_error_handler_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.

@@ -608,12 +608,9 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     // and we want to report the stack overflow later.
     return;
   }
-  parser_->has_pending_error_ = true;
-  parser_->pending_error_location_ = source_location;
-  parser_->pending_error_message_ = message;
-  parser_->pending_error_char_arg_ = arg;
-  parser_->pending_error_arg_ = NULL;
-  parser_->pending_error_type_ = error_type;
+  parser_->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                                  source_location.end_pos,
+                                                  message, arg, error_type);
 }
 
 
@@ -640,12 +637,9 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     // and we want to report the stack overflow later.
     return;
   }
-  parser_->has_pending_error_ = true;
-  parser_->pending_error_location_ = source_location;
-  parser_->pending_error_message_ = message;
-  parser_->pending_error_char_arg_ = NULL;
-  parser_->pending_error_arg_ = arg;
-  parser_->pending_error_type_ = error_type;
+  parser_->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                                  source_location.end_pos,
+                                                  message, arg, error_type);
 }
 
 
@@ -789,11 +783,6 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
       compile_options_(info->compile_options()),
       cached_parse_data_(NULL),
       parsing_lazy_arrow_parameters_(false),
-      has_pending_error_(false),
-      pending_error_message_(NULL),
-      pending_error_arg_(NULL),
-      pending_error_char_arg_(NULL),
-      pending_error_type_(kSyntaxError),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
@@ -4283,57 +4272,6 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
 }
 
 
-void Parser::ThrowPendingError(Isolate* isolate, Handle<Script> script) {
-  DCHECK(ast_value_factory()->IsInternalized());
-  if (has_pending_error_) {
-    MessageLocation location(script, pending_error_location_.beg_pos,
-                             pending_error_location_.end_pos);
-    Factory* factory = isolate->factory();
-    bool has_arg =
-        pending_error_arg_ != NULL || pending_error_char_arg_ != NULL;
-    Handle<FixedArray> elements = factory->NewFixedArray(has_arg ? 1 : 0);
-    if (pending_error_arg_ != NULL) {
-      Handle<String> arg_string = pending_error_arg_->string();
-      elements->set(0, *arg_string);
-    } else if (pending_error_char_arg_ != NULL) {
-      Handle<String> arg_string =
-          factory->NewStringFromUtf8(CStrVector(pending_error_char_arg_))
-          .ToHandleChecked();
-      elements->set(0, *arg_string);
-    }
-    isolate->debug()->OnCompileError(script);
-
-    Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-    Handle<Object> error;
-    switch (pending_error_type_) {
-      case kReferenceError:
-        error = factory->NewReferenceError(pending_error_message_, array);
-        break;
-      case kSyntaxError:
-        error = factory->NewSyntaxError(pending_error_message_, array);
-        break;
-    }
-
-    Handle<JSObject> jserror = Handle<JSObject>::cast(error);
-
-    Handle<Name> key_start_pos = factory->error_start_pos_symbol();
-    JSObject::SetProperty(jserror, key_start_pos,
-                          handle(Smi::FromInt(location.start_pos()), isolate),
-                          SLOPPY).Check();
-
-    Handle<Name> key_end_pos = factory->error_end_pos_symbol();
-    JSObject::SetProperty(jserror, key_end_pos,
-                          handle(Smi::FromInt(location.end_pos()), isolate),
-                          SLOPPY).Check();
-
-    Handle<Name> key_script = factory->error_script_symbol();
-    JSObject::SetProperty(jserror, key_script, script, SLOPPY).Check();
-
-    isolate->Throw(*error, &location);
-  }
-}
-
-
 void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
   // Internalize strings.
   ast_value_factory()->Internalize(isolate);
@@ -4343,7 +4281,8 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
     if (stack_overflow()) {
       isolate->StackOverflow();
     } else {
-      ThrowPendingError(isolate, script);
+      DCHECK(pending_error_handler_.has_pending_error());
+      pending_error_handler_.ThrowPendingError(isolate, script);
     }
   }
 
