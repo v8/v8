@@ -1523,19 +1523,20 @@ void SerializerDeserializer::Iterate(Isolate* isolate,
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
   Isolate* isolate = this->isolate();
   List<Object*>* cache = isolate->partial_snapshot_cache();
-  for (int i = 0; i < cache->length(); ++i) {
-    Object* entry = cache->at(i);
-    if (entry == heap_object) return i;
-  }
+  int new_index = cache->length();
 
-  // We didn't find the object in the cache.  So we add it to the cache and
-  // then visit the pointer so that it becomes part of the startup snapshot
-  // and we can refer to it from the partial snapshot.
-  cache->Add(heap_object);
-  startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
-  // We don't recurse from the startup snapshot generator into the partial
-  // snapshot generator.
-  return cache->length() - 1;
+  int index = partial_cache_index_map_.LookupOrInsert(heap_object, new_index);
+  if (index == PartialCacheIndexMap::kInvalidIndex) {
+    // We didn't find the object in the cache.  So we add it to the cache and
+    // then visit the pointer so that it becomes part of the startup snapshot
+    // and we can refer to it from the partial snapshot.
+    cache->Add(heap_object);
+    startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
+    // We don't recurse from the startup snapshot generator into the partial
+    // snapshot generator.
+    return new_index;
+  }
+  return index;
 }
 
 

@@ -186,6 +186,28 @@ class RootIndexMap : public AddressMapBase {
 };
 
 
+class PartialCacheIndexMap : public AddressMapBase {
+ public:
+  PartialCacheIndexMap() : map_(HashMap::PointersMatch) {}
+
+  static const int kInvalidIndex = -1;
+
+  // Lookup object in the map. Return its index if found, or create
+  // a new entry with new_index as value, and return kInvalidIndex.
+  int LookupOrInsert(HeapObject* obj, int new_index) {
+    HashMap::Entry* entry = LookupEntry(&map_, obj, true);
+    if (entry->value != NULL) return GetValue(entry);
+    SetValue(entry, static_cast<uint32_t>(new_index));
+    return kInvalidIndex;
+  }
+
+ private:
+  HashMap map_;
+
+  DISALLOW_COPY_AND_ASSIGN(PartialCacheIndexMap);
+};
+
+
 class BackReference {
  public:
   explicit BackReference(uint32_t bitfield) : bitfield_(bitfield) {}
@@ -802,6 +824,7 @@ class PartialSerializer : public Serializer {
   Serializer* startup_serializer_;
   List<BackReference> outdated_contexts_;
   Object* global_object_;
+  PartialCacheIndexMap partial_cache_index_map_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 
