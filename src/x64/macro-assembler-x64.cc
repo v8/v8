@@ -2578,24 +2578,43 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     xorps(dst, dst);
   } else {
-    movl(kScratchRegister, Immediate(src));
-    movq(dst, kScratchRegister);
+    unsigned pop = base::bits::CountPopulation32(src);
+    DCHECK_NE(0u, pop);
+    if (pop == 32) {
+      pcmpeqd(dst, dst);
+    } else {
+      movl(kScratchRegister, Immediate(src));
+      movq(dst, kScratchRegister);
+    }
   }
 }
 
 
 void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
-  uint32_t lower = static_cast<uint32_t>(src);
-  uint32_t upper = static_cast<uint32_t>(src >> 32);
-  if (upper == 0) {
-    Move(dst, lower);
+  if (src == 0) {
+    xorps(dst, dst);
   } else {
-    if (lower == 0) {
-      Move(dst, upper);
-      psllq(dst, 32);
+    unsigned nlz = base::bits::CountLeadingZeros64(src);
+    unsigned ntz = base::bits::CountTrailingZeros64(src);
+    unsigned pop = base::bits::CountPopulation64(src);
+    DCHECK_NE(0u, pop);
+    if (pop == 64) {
+      pcmpeqd(dst, dst);
+    } else if (pop + ntz == 64) {
+      pcmpeqd(dst, dst);
+      psllq(dst, ntz);
+    } else if (pop + nlz == 64) {
+      pcmpeqd(dst, dst);
+      psrlq(dst, nlz);
     } else {
-      movq(kScratchRegister, src);
-      movq(dst, kScratchRegister);
+      uint32_t lower = static_cast<uint32_t>(src);
+      uint32_t upper = static_cast<uint32_t>(src >> 32);
+      if (upper == 0) {
+        Move(dst, lower);
+      } else {
+        movq(kScratchRegister, src);
+        movq(dst, kScratchRegister);
+      }
     }
   }
 }
