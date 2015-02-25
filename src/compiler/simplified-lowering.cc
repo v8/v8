@@ -1311,6 +1311,7 @@ Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
 Node* SimplifiedLowering::Int32Div(Node* const node) {
   Int32BinopMatcher m(node);
   Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const minus_one = jsgraph()->Int32Constant(-1);
   Node* const lhs = m.left().node();
   Node* const rhs = m.right().node();
 
@@ -1322,20 +1323,61 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
     return graph()->NewNode(machine()->Int32Div(), lhs, rhs, graph()->start());
   }
 
-  Diamond if_zero(graph(), common(),
-                  graph()->NewNode(machine()->Word32Equal(), rhs, zero),
-                  BranchHint::kFalse);
+  // General case for signed integer division.
+  //
+  //    if 0 < rhs then
+  //      lhs / rhs
+  //    else
+  //      if rhs < -1 then
+  //        lhs / rhs
+  //      else if rhs == 0 then
+  //        0
+  //      else
+  //        0 - lhs
+  //
+  // Note: We do not use the Diamond helper class here, because it really hurts
+  // readability with nested diamonds.
+  const Operator* const merge_op = common()->Merge(2);
+  const Operator* const phi_op = common()->Phi(kMachInt32, 2);
 
-  Diamond if_minus_one(graph(), common(),
-                       graph()->NewNode(machine()->Word32Equal(), rhs,
-                                        jsgraph()->Int32Constant(-1)),
-                       BranchHint::kFalse);
-  if_minus_one.Nest(if_zero, false);
-  Node* sub = graph()->NewNode(machine()->Int32Sub(), zero, lhs);
-  Node* div =
-      graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_minus_one.if_false);
+  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), check0,
+                                   graph()->start());
 
-  return if_zero.Phi(kMachInt32, zero, if_minus_one.Phi(kMachInt32, sub, div));
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* true0 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_true0);
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0;
+  {
+    Node* check1 = graph()->NewNode(machine()->Int32LessThan(), rhs, minus_one);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* true1 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* false1;
+    {
+      Node* check2 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+      Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_false1);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* true2 = zero;
+
+      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+      Node* false2 = graph()->NewNode(machine()->Int32Sub(), zero, lhs);
+
+      if_false1 = graph()->NewNode(merge_op, if_true2, if_false2);
+      false1 = graph()->NewNode(phi_op, true2, false2, if_false1);
+    }
+
+    if_false0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    false0 = graph()->NewNode(phi_op, true1, false1, if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
+  return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
 
