@@ -295,10 +295,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   int number_of_literals = source->NumberOfLiterals();
   Handle<FixedArray> literals =
       isolate->factory()->NewFixedArray(number_of_literals, TENURED);
-  if (number_of_literals > 0) {
-    literals->set(JSFunction::kLiteralNativeContextIndex,
-                  context->native_context());
-  }
   target->set_context(*context);
   target->set_literals(*literals);
 

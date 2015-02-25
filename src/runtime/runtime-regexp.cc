@@ -925,13 +925,7 @@ RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
 
-  // Get the RegExp function from the context in the literals array.
-  // This is the RegExp function from the context in which the
-  // function was created.  We do not use the RegExp function from the
-  // current native context because this might be the RegExp function
-  // from another context which we should not have access to.
-  Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::NativeContextFromLiterals(*literals)->regexp_function());
+  Handle<JSFunction> constructor = isolate->regexp_function();
   // Compute the regular expression literal.
   Handle<Object> regexp;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

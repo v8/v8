@@ -2292,11 +2292,11 @@ TEST(AllocationSitesAreVisible) {
       GetProperty(fun_code, v8::HeapGraphEdge::kInternal, "literals");
   CHECK(literals);
   CHECK_EQ(v8::HeapGraphNode::kArray, literals->GetType());
-  CHECK_EQ(2, literals->GetChildrenCount());
+  CHECK_EQ(1, literals->GetChildrenCount());
 
-  // The second value in the literals array should be the boilerplate,
+  // The first value in the literals array should be the boilerplate,
   // after an AllocationSite.
-  const v8::HeapGraphEdge* prop = literals->GetChild(1);
+  const v8::HeapGraphEdge* prop = literals->GetChild(0);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));

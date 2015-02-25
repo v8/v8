@@ -212,7 +212,7 @@ class ParserBase : public Traits {
       return next_materialized_literal_index_++;
     }
     int materialized_literal_count() {
-      return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
+      return next_materialized_literal_index_;
     }
 
     int NextHandlerIndex() { return next_handler_index_++; }
@@ -1658,7 +1658,7 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack, Scope* scope,
     FunctionKind kind, typename Traits::Type::Factory* factory)
-    : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
+    : next_materialized_literal_index_(0),
       next_handler_index_(0),
       expected_property_count_(0),
       kind_(kind),
