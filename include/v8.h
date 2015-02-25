@@ -2618,11 +2618,26 @@ class V8_EXPORT Object : public Value {
   Local<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
 
   /**
+   * Gets the property attributes of a real property in the prototype chain,
+   * which can be None or any combination of ReadOnly, DontEnum and DontDelete.
+   * Interceptors in the prototype chain are not called.
+   */
+  Maybe<PropertyAttribute> GetRealNamedPropertyAttributesInPrototypeChain(
+      Handle<String> key);
+
+  /**
    * If result.IsEmpty() no real property was located on the object or
    * in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
   Local<Value> GetRealNamedProperty(Handle<String> key);
+
+  /**
+   * Gets the property attributes of a real property which can be
+   * None or any combination of ReadOnly, DontEnum and DontDelete.
+   * Interceptors in the prototype chain are not called.
+   */
+  Maybe<PropertyAttribute> GetRealNamedPropertyAttributes(Handle<String> key);
 
   /** Tests for a named lookup interceptor.*/
   bool HasNamedLookupInterceptor();

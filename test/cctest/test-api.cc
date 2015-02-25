@@ -61,12 +61,15 @@ using ::v8::FunctionTemplate;
 using ::v8::Handle;
 using ::v8::HandleScope;
 using ::v8::Local;
-using ::v8::Name;
+using ::v8::Maybe;
 using ::v8::Message;
 using ::v8::MessageCallback;
+using ::v8::Name;
+using ::v8::None;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
 using ::v8::Persistent;
+using ::v8::PropertyAttribute;
 using ::v8::Script;
 using ::v8::StackTrace;
 using ::v8::String;
@@ -10869,15 +10872,31 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
   try_catch.Reset();
   CHECK(result.IsEmpty());
 
+  Maybe<PropertyAttribute> attr =
+      instance->GetRealNamedPropertyAttributes(v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(attr.has_value);
+  CHECK_EQ(attr.value, None);
+
   result = another->GetRealNamedProperty(v8_str("f"));
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
   CHECK(result.IsEmpty());
 
+  attr = another->GetRealNamedPropertyAttributes(v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(attr.has_value);
+  CHECK_EQ(attr.value, None);
+
   result = another->GetRealNamedPropertyInPrototypeChain(v8_str("f"));
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
   CHECK(result.IsEmpty());
+
+  attr = another->GetRealNamedPropertyAttributesInPrototypeChain(v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(attr.has_value);
+  CHECK_EQ(attr.value, None);
 
   result = another->Get(v8_str("f"));
   CHECK(try_catch.HasCaught());
@@ -10888,6 +10907,11 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
   CHECK(result.IsEmpty());
+
+  attr = with_js_getter->GetRealNamedPropertyAttributes(v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(attr.has_value);
+  CHECK_EQ(attr.value, None);
 
   result = with_js_getter->Get(v8_str("f"));
   CHECK(try_catch.HasCaught());

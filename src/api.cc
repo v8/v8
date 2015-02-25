@@ -3756,6 +3756,14 @@ static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
 }
 
 
+static Maybe<PropertyAttribute> GetPropertyAttributesByLookup(
+    i::LookupIterator* it) {
+  Maybe<PropertyAttributes> attr = i::JSReceiver::GetPropertyAttributes(it);
+  if (!it->IsFound()) return Maybe<PropertyAttribute>();
+  return Maybe<PropertyAttribute>(static_cast<PropertyAttribute>(attr.value));
+}
+
+
 Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
     Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -3774,6 +3782,24 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
 }
 
 
+Maybe<PropertyAttribute>
+v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(Handle<String> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::GetRealNamedPropertyAttributesInPrototypeChain()",
+             return Maybe<PropertyAttribute>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  i::PrototypeIterator iter(isolate, self_obj);
+  if (iter.IsAtEnd()) return Maybe<PropertyAttribute>();
+  i::Handle<i::Object> proto = i::PrototypeIterator::GetCurrent(iter);
+  i::LookupIterator it(self_obj, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  return GetPropertyAttributesByLookup(&it);
+}
+
+
 Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetRealNamedProperty()",
@@ -3784,6 +3810,20 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::LookupIterator it(self_obj, key_obj,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   return GetPropertyByLookup(&it);
+}
+
+
+Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
+    Handle<String> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetRealNamedPropertyAttributes()",
+             return Maybe<PropertyAttribute>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  i::LookupIterator it(self_obj, key_obj,
+                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  return GetPropertyAttributesByLookup(&it);
 }
 
 
