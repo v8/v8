@@ -149,7 +149,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 
   uint32_t first_page_sizes[kNumPagedSpaces];
 
-  CalculateFirstPageSizes(metadata.embeds_script(), startup_snapshot,
+  CalculateFirstPageSizes(!metadata.embeds_script(), startup_snapshot,
                           context_snapshot, first_page_sizes);
 
   int startup_length = startup_data.length();
