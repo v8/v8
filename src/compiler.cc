@@ -719,10 +719,6 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
             CodeCreateEvent(log_tag, *code, *shared, info, script_name,
                             line_num, column_num));
   }
-
-  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
-                 Handle<Script>(info->script()), Handle<Code>(info->code()),
-                 info));
 }
 
 
@@ -1183,7 +1179,6 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     PROFILE(isolate, CodeCreateEvent(
                 log_tag, *info->code(), *result, info, *script_name));
-    GDBJIT(AddCode(script_name, script, info->code(), info));
 
     // Hint to the runtime system used when allocating space for initial
     // property space by setting the expected number of properties for
