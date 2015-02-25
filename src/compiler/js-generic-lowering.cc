@@ -291,7 +291,8 @@ void JSGenericLowering::LowerJSToObject(Node* node) {
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
-  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  Callable callable =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
   if (FLAG_vector_ics) {
     node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
     node->InsertInput(zone(), 3,
@@ -317,7 +318,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
-  Callable callable = CodeFactory::KeyedStoreIC(isolate(), language_mode);
+  Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
+      isolate(), language_mode, UNINITIALIZED);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 

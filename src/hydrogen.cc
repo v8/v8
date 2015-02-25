@@ -6861,7 +6861,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* key,
     HValue* value) {
   if (access_type == LOAD) {
-    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(object, key);
+    HLoadKeyedGeneric* result =
+        New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
     if (FLAG_vector_ics) {
       Handle<SharedFunctionInfo> current_shared =
           function_state()->compilation_info()->shared_info();
@@ -6872,8 +6873,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     }
     return result;
   } else {
-    return New<HStoreKeyedGeneric>(object, key, value,
-                                   function_language_mode());
+    return New<HStoreKeyedGeneric>(object, key, value, function_language_mode(),
+                                   PREMONOMORPHIC);
   }
 }
 

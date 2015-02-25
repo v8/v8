@@ -944,9 +944,6 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state, State initialization_state) {
-  DCHECK(initialization_state == UNINITIALIZED ||
-         initialization_state == PREMONOMORPHIC ||
-         initialization_state == MEGAMORPHIC);
   if (FLAG_vector_ics) {
     return VectorLoadStub(isolate, LoadICState(extra_state)).GetCode();
   }
@@ -964,11 +961,45 @@ Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
 }
 
 
-Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, State initialization_state) {
   if (FLAG_vector_ics) {
     return VectorKeyedLoadStub(isolate).GetCode();
   }
-  return initialize_stub(isolate);
+  switch (initialization_state) {
+    case UNINITIALIZED:
+      return isolate->builtins()->KeyedLoadIC_Initialize();
+    case PREMONOMORPHIC:
+      return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
+    case MEGAMORPHIC:
+      return isolate->builtins()->KeyedLoadIC_Megamorphic();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>();
+}
+
+
+Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
+                                           LanguageMode language_mode,
+                                           State initialization_state) {
+  switch (initialization_state) {
+    case UNINITIALIZED:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_Initialize_Strict()
+                 : isolate->builtins()->KeyedStoreIC_Initialize();
+    case PREMONOMORPHIC:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict()
+                 : isolate->builtins()->KeyedStoreIC_PreMonomorphic();
+    case MEGAMORPHIC:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
+                 : isolate->builtins()->KeyedStoreIC_Megamorphic();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>();
 }
 
 

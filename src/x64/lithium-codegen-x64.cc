@@ -3313,7 +3313,9 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
+  Handle<Code> ic =
+      CodeFactory::KeyedLoadICInOptimizedCode(
+          isolate(), instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4534,8 +4536,9 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), instr->language_mode()).code();
+  Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
+                        isolate(), instr->language_mode(),
+                        instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

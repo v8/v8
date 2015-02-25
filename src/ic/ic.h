@@ -481,7 +481,8 @@ class KeyedLoadIC : public LoadIC {
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
   static Handle<Code> initialize_stub(Isolate* isolate);
-  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, State initialization_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
@@ -631,6 +632,10 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
   static void GenerateSloppyArguments(MacroAssembler* masm);
+
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      LanguageMode language_mode,
+                                      State initialization_state);
 
  protected:
   virtual Handle<Code> pre_monomorphic_stub() const {
