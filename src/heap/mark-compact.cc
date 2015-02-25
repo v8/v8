@@ -262,11 +262,6 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   if (!compacting_) {
     DCHECK(evacuation_candidates_.length() == 0);
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    // If GDBJIT interface is active disable compaction.
-    if (FLAG_gdbjit) return false;
-#endif
-
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
@@ -3223,11 +3218,6 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
         }
         freed_bytes = Free<parallelism>(space, free_list, free_start, size);
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
-#ifdef ENABLE_GDB_JIT_INTERFACE
-        if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
-          GDBJITInterface::RemoveCodeRange(free_start, free_end);
-        }
-#endif
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
@@ -3257,11 +3247,6 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
     }
     freed_bytes = Free<parallelism>(space, free_list, free_start, size);
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
-      GDBJITInterface::RemoveCodeRange(free_start, p->area_end());
-    }
-#endif
   }
   p->ResetLiveBytes();
 
