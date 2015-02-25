@@ -125,10 +125,12 @@ enum BindingFlags {
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     sloppy_function_with_readonly_prototype_map)                               \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
+  V(STRONG_FUNCTION_MAP_INDEX, Map, strong_function_map)                       \
   V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     sloppy_function_without_prototype_map)                                     \
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     strict_function_without_prototype_map)                                     \
+  V(STRONG_CONSTRUCTOR_MAP_INDEX, Map, strong_constructor_map)                 \
   V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map)                         \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
@@ -176,6 +178,7 @@ enum BindingFlags {
     native_object_notifier_perform_change)                                     \
   V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map)   \
   V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map)   \
+  V(STRONG_GENERATOR_FUNCTION_MAP_INDEX, Map, strong_generator_function_map)   \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
@@ -319,8 +322,10 @@ class Context: public FixedArray {
     SLOPPY_FUNCTION_MAP_INDEX,
     SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX,
     STRICT_FUNCTION_MAP_INDEX,
+    STRONG_FUNCTION_MAP_INDEX,
     SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    STRONG_CONSTRUCTOR_MAP_INDEX,
     BOUND_FUNCTION_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     INITIAL_ARRAY_PROTOTYPE_INDEX,
@@ -406,6 +411,7 @@ class Context: public FixedArray {
     NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE,
     SLOPPY_GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_GENERATOR_FUNCTION_MAP_INDEX,
+    STRONG_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     ITERATOR_RESULT_MAP_INDEX,
     MAP_ITERATOR_MAP_INDEX,
@@ -570,18 +576,27 @@ class Context: public FixedArray {
 
   static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
     if (IsGeneratorFunction(kind)) {
-      return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
+      return is_strong(language_mode) ? STRONG_GENERATOR_FUNCTION_MAP_INDEX :
+             is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
+    }
+
+    if (IsConstructor(kind)) {
+      return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX :
+             is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
+                                      : SLOPPY_FUNCTION_MAP_INDEX;
     }
 
     if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
         IsAccessorFunction(kind)) {
-      return is_strict(language_mode)
-                 ? STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX
-                 : SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+      return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
+             is_strict(language_mode) ?
+                 STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX :
+                 SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
     }
 
-    return is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
+    return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
+           is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
                                     : SLOPPY_FUNCTION_MAP_INDEX;
   }
 
