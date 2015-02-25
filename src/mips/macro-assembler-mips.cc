@@ -4321,6 +4321,20 @@ void MacroAssembler::IsObjectNameType(Register object,
 // Support functions.
 
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp, Register temp2) {
+  Label done, loop;
+  lw(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
+  bind(&loop);
+  JumpIfSmi(result, &done);
+  GetObjectType(result, temp, temp2);
+  Branch(&done, ne, temp2, Operand(MAP_TYPE));
+  lw(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
+  Branch(&loop);
+  bind(&done);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -4373,7 +4387,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: Fetch prototype from constructor field
     // in initial map.
     bind(&non_instance);
-    lw(result, FieldMemOperand(result, Map::kConstructorOffset));
+    GetMapConstructor(result, result, scratch, at);
   }
 
   // All done.

@@ -1028,6 +1028,11 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // Support functions.
 
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done, and |temp2| its instance type.
+  void GetMapConstructor(Register result, Register map, Register temp,
+                         Register temp2);
+
   // Try to get function prototype of a function and puts the value in
   // the result register. Checks that the function really is a
   // function and jumps to the miss label if the fast checks fail. The
