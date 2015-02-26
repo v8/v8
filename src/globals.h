@@ -717,9 +717,11 @@ enum VariableMode {
 
   CONST_LEGACY,    // declared via legacy 'const' declarations
 
-  LET,             // declared via 'let' declarations
+  LET,             // declared via 'let' declarations (first lexical)
 
   CONST,           // declared via 'const' declarations
+
+  IMPORT,          // declared via 'import' declarations (last lexical)
 
   // Variables introduced by the compiler:
   INTERNAL,        // like VAR, but not user-visible (may or may not
@@ -748,17 +750,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST;
+  return mode >= VAR && mode <= IMPORT;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode == LET || mode == CONST;
+  return mode >= LET && mode <= IMPORT;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY;
+  return mode == CONST || mode == CONST_LEGACY || mode == IMPORT;
 }
 
 

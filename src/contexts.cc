@@ -173,6 +173,10 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
                            ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
                            : IMMUTABLE_IS_INITIALIZED_HARMONY;
       break;
+    case IMPORT:
+      // TODO(ES6)
+      UNREACHABLE();
+      break;
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
     case DYNAMIC_LOCAL:

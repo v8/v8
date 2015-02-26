@@ -799,7 +799,6 @@ void AstTyper::VisitModuleDeclaration(ModuleDeclaration* declaration) {
 
 
 void AstTyper::VisitImportDeclaration(ImportDeclaration* declaration) {
-  RECURSE(Visit(declaration->module()));
 }
 
 

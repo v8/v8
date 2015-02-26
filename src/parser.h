@@ -707,7 +707,7 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseStatementListItem(bool* ok);
   void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
-  Literal* ParseModuleSpecifier(bool* ok);
+  const AstRawString* ParseModuleSpecifier(bool* ok);
   Statement* ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
@@ -715,8 +715,7 @@ class Parser : public ParserBase<ParserTraits> {
                           ZoneList<Scanner::Location>* export_locations,
                           ZoneList<const AstRawString*>* local_names,
                           Scanner::Location* reserved_loc, bool* ok);
-  void* ParseNamedImports(ZoneList<const AstRawString*>* import_names,
-                          ZoneList<const AstRawString*>* local_names, bool* ok);
+  ZoneList<ImportDeclaration*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseSubStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,

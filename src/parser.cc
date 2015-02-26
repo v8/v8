@@ -1284,13 +1284,12 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
 }
 
 
-Literal* Parser::ParseModuleSpecifier(bool* ok) {
+const AstRawString* Parser::ParseModuleSpecifier(bool* ok) {
   // ModuleSpecifier :
   //    StringLiteral
 
-  int pos = peek_position();
   Expect(Token::STRING, CHECK_OK);
-  return factory()->NewStringLiteral(GetSymbol(scanner()), pos);
+  return GetSymbol(scanner());
 }
 
 
@@ -1342,9 +1341,7 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
 }
 
 
-void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* import_names,
-                                ZoneList<const AstRawString*>* local_names,
-                                bool* ok) {
+ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
   // NamedImports :
   //   '{' '}'
   //   '{' ImportsList '}'
@@ -1360,6 +1357,8 @@ void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* import_names,
 
   Expect(Token::LBRACE, CHECK_OK);
 
+  ZoneList<ImportDeclaration*>* result =
+      new (zone()) ZoneList<ImportDeclaration*>(1, zone());
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* local_name = import_name;
@@ -1378,15 +1377,18 @@ void* Parser::ParseNamedImports(ZoneList<const AstRawString*>* import_names,
       ReportMessage("strict_eval_arguments");
       return NULL;
     }
-    import_names->Add(import_name, zone());
-    local_names->Add(local_name, zone());
+    VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+    ImportDeclaration* declaration =
+        factory()->NewImportDeclaration(proxy, import_name, NULL, scope_, pos);
+    Declare(declaration, true, CHECK_OK);
+    result->Add(declaration, zone());
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK);
   }
 
   Expect(Token::RBRACE, CHECK_OK);
 
-  return NULL;
+  return result;
 }
 
 
@@ -1412,7 +1414,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
 
   // 'import' ModuleSpecifier ';'
   if (tok == Token::STRING) {
-    Literal* module_specifier = ParseModuleSpecifier(CHECK_OK);
+    const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
     ExpectSemicolon(CHECK_OK);
     // TODO(ES6): Add module to the requested modules of scope_->module().
     USE(module_specifier);
@@ -1424,11 +1426,11 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   if (tok != Token::MUL && tok != Token::LBRACE) {
     imported_default_binding =
         ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    // TODO(ES6): Add an appropriate declaration.
   }
 
   const AstRawString* module_instance_binding = NULL;
-  ZoneList<const AstRawString*> local_names(1, zone());
-  ZoneList<const AstRawString*> import_names(1, zone());
+  ZoneList<ImportDeclaration*>* named_declarations = NULL;
   if (imported_default_binding == NULL || Check(Token::COMMA)) {
     switch (peek()) {
       case Token::MUL: {
@@ -1436,11 +1438,12 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
         ExpectContextualKeyword(CStrVector("as"), CHECK_OK);
         module_instance_binding =
             ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+        // TODO(ES6): Add an appropriate declaration.
         break;
       }
 
       case Token::LBRACE:
-        ParseNamedImports(&import_names, &local_names, CHECK_OK);
+        named_declarations = ParseNamedImports(pos, CHECK_OK);
         break;
 
       default:
@@ -1451,23 +1454,21 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-  Literal* module = ParseModuleSpecifier(CHECK_OK);
-  USE(module);
-
+  const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
   if (module_instance_binding != NULL) {
-    // TODO(ES6): Bind name to the Module Instance Object of module.
+    // TODO(ES6): Set the module specifier for the module namespace binding.
   }
 
   if (imported_default_binding != NULL) {
-    // TODO(ES6): Add an appropriate declaration.
+    // TODO(ES6): Set the module specifier for the default binding.
   }
 
-  const int length = import_names.length();
-  DCHECK_EQ(length, local_names.length());
-  for (int i = 0; i < length; ++i) {
-    // TODO(ES6): Add an appropriate declaration for each name
+  if (named_declarations != NULL) {
+    for (int i = 0; i < named_declarations->length(); ++i) {
+      named_declarations->at(i)->set_module_specifier(module_specifier);
+    }
   }
 
   return factory()->NewEmptyStatement(pos);
@@ -1544,10 +1545,10 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::MUL: {
       Consume(Token::MUL);
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-      Literal* module = ParseModuleSpecifier(CHECK_OK);
+      const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
       // TODO(ES6): scope_->module()->AddStarExport(...)
-      USE(module);
+      USE(module_specifier);
       return factory()->NewEmptyStatement(pos);
     }
 
@@ -1569,7 +1570,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ZoneList<const AstRawString*> local_names(1, zone());
       ParseExportClause(&export_names, &export_locations, &local_names,
                         &reserved_loc, CHECK_OK);
-      Literal* indirect_export_module_specifier = NULL;
+      const AstRawString* indirect_export_module_specifier = NULL;
       if (CheckContextualKeyword(CStrVector("from"))) {
         indirect_export_module_specifier = ParseModuleSpecifier(CHECK_OK);
       } else if (reserved_loc.IsValid()) {

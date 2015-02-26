@@ -790,7 +790,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
         case VAR:
         case LET:
         case CONST:
-        case CONST_LEGACY: {
+        case CONST_LEGACY:
+        case IMPORT: {
           PropertyAttributes attr =
               IsImmutableVariableMode(mode) ? FROZEN : SEALED;
           Handle<AccessorInfo> info =

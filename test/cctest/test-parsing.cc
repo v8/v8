@@ -5218,11 +5218,11 @@ TEST(ModuleParsingInternals) {
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
                                         128 * 1024);
 
-  static const char kSource[] = "let x = 5; export { x as y };";
+  static const char kSource[] =
+      "let x = 5; export { x as y }; import { q as z } from 'm.js';";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::CompilationInfoWithZone info(script);
-  i::AstValueFactory avf(info.zone(), isolate->heap()->HashSeed());
   i::Parser parser(&info, isolate->stack_guard()->real_climit(),
                    isolate->heap()->HashSeed(), isolate->unicode_cache());
   parser.set_allow_harmony_modules(true);
@@ -5233,15 +5233,21 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(i::MODULE_SCOPE, func->scope()->scope_type());
   i::ModuleDescriptor* descriptor = func->scope()->module();
   CHECK_NOT_NULL(descriptor);
-  const i::AstRawString* name_x = avf.GetOneByteString("x");
-  const i::AstRawString* name_y = avf.GetOneByteString("y");
   int num_exports = 0;
   for (auto it = descriptor->iterator(); !it.done(); it.Advance()) {
     ++num_exports;
-    CHECK(*name_x == *it.local_name());
-    CHECK(*name_y == *it.export_name());
+    CHECK(it.local_name()->IsOneByteEqualTo("x"));
+    CHECK(it.export_name()->IsOneByteEqualTo("y"));
   }
   CHECK_EQ(1, num_exports);
+  i::ZoneList<i::Declaration*>* declarations = func->scope()->declarations();
+  CHECK_EQ(2, declarations->length());
+  CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
+  i::ImportDeclaration* import_decl =
+      declarations->at(1)->AsImportDeclaration();
+  CHECK(import_decl->import_name()->IsOneByteEqualTo("q"));
+  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("m.js"));
 }
 
 

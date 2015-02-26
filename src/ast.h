@@ -609,23 +609,27 @@ class ImportDeclaration FINAL : public Declaration {
  public:
   DECLARE_NODE_TYPE(ImportDeclaration)
 
-  Module* module() const { return module_; }
+  const AstRawString* import_name() const { return import_name_; }
+  const AstRawString* module_specifier() const { return module_specifier_; }
+  void set_module_specifier(const AstRawString* module_specifier) {
+    DCHECK(module_specifier_ == NULL);
+    module_specifier_ = module_specifier;
+  }
   InitializationFlag initialization() const OVERRIDE {
-    return kCreatedInitialized;
+    return kNeedsInitialization;
   }
 
  protected:
-  ImportDeclaration(Zone* zone,
-                    VariableProxy* proxy,
-                    Module* module,
-                    Scope* scope,
-                    int pos)
-      : Declaration(zone, proxy, LET, scope, pos),
-        module_(module) {
-  }
+  ImportDeclaration(Zone* zone, VariableProxy* proxy,
+                    const AstRawString* import_name,
+                    const AstRawString* module_specifier, Scope* scope, int pos)
+      : Declaration(zone, proxy, IMPORT, scope, pos),
+        import_name_(import_name),
+        module_specifier_(module_specifier) {}
 
  private:
-  Module* module_;
+  const AstRawString* import_name_;
+  const AstRawString* module_specifier_;
 };
 
 
@@ -3168,10 +3172,11 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   }
 
   ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
-                                          Module* module,
-                                          Scope* scope,
-                                          int pos) {
-    return new (zone_) ImportDeclaration(zone_, proxy, module, scope, pos);
+                                          const AstRawString* import_name,
+                                          const AstRawString* module_specifier,
+                                          Scope* scope, int pos) {
+    return new (zone_) ImportDeclaration(zone_, proxy, import_name,
+                                         module_specifier, scope, pos);
   }
 
   ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
