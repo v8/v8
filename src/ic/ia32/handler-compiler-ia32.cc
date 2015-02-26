@@ -499,7 +499,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   // Log the check depth.
   LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
-  if (depth != 0 || check == CHECK_ALL_MAPS) {
+  if (!current_map->IsJSGlobalObjectMap() &&
+      (depth != 0 || check == CHECK_ALL_MAPS)) {
     // Check the holder map.
     __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
     Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
