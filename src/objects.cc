@@ -565,15 +565,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   if (object->IsGlobalObject()) {
     Handle<PropertyCell> cell(
         PropertyCell::cast(property_dictionary->ValueAt(entry)));
-    if (details.type() != property_dictionary->DetailsAt(entry).type()) {
-      Isolate* isolate = object->GetIsolate();
-      Handle<Object> hole = isolate->factory()->the_hole_value();
-      PropertyCell::SetValueInferType(cell, hole);
-      cell = isolate->factory()->NewPropertyCell(value);
-      property_dictionary->SetEntry(entry, name, cell, details);
-    } else {
-      PropertyCell::SetValueInferType(cell, value);
-    }
+    PropertyCell::SetValueInferType(cell, value);
     // Please note we have to update the property details.
     property_dictionary->DetailsAtPut(entry, details);
   } else {
@@ -7440,7 +7432,12 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
   Isolate* isolate = name->GetIsolate();
 
   // Dictionary maps can always have additional data properties.
-  if (map->is_dictionary_map()) return map;
+  if (map->is_dictionary_map()) {
+    // For global objects, property cells are inlined. We need to change the
+    // map.
+    if (map->IsGlobalObjectMap()) return Copy(map, "GlobalAccessor");
+    return map;
+  }
 
   // Migrate to the newest map before transitioning to the new property.
   map = Update(map);
