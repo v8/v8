@@ -99,7 +99,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   bool HolderIsReceiverOrHiddenPrototype() const;
 
   /* ACCESS_CHECK */
-  bool HasAccess(v8::AccessType access_type) const;
+  bool HasAccess() const;
 
   /* PROPERTY */
   void PrepareForDataProperty(Handle<Object> value);

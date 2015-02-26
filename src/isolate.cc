@@ -735,8 +735,7 @@ static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
 }
 
 
-void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver,
-                                      v8::AccessType type) {
+void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
     Handle<String> message = factory()->InternalizeUtf8String("no access");
     ScheduleThrow(*factory()->NewTypeError(message));
@@ -758,40 +757,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver,
   // Leaving JavaScript.
   VMState<EXTERNAL> state(this);
   thread_local_top()->failed_access_check_callback_(
-      v8::Utils::ToLocal(receiver),
-      type,
-      v8::Utils::ToLocal(data));
-}
-
-
-enum MayAccessDecision {
-  YES, NO, UNKNOWN
-};
-
-
-static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
-                                           Handle<JSObject> receiver,
-                                           v8::AccessType type) {
-  DisallowHeapAllocation no_gc;
-  // During bootstrapping, callback functions are not enabled yet.
-  if (isolate->bootstrapper()->IsActive()) return YES;
-
-  if (receiver->IsJSGlobalProxy()) {
-    Object* receiver_context = JSGlobalProxy::cast(*receiver)->native_context();
-    if (!receiver_context->IsContext()) return NO;
-
-    // Get the native context of current top context.
-    // avoid using Isolate::native_context() because it uses Handle.
-    Context* native_context =
-        isolate->context()->global_object()->native_context();
-    if (receiver_context == native_context) return YES;
-
-    if (Context::cast(receiver_context)->security_token() ==
-        native_context->security_token())
-      return YES;
-  }
-
-  return UNKNOWN;
+      v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
 }
 
 
@@ -807,21 +773,33 @@ bool Isolate::IsInternallyUsedPropertyName(Object* name) {
 }
 
 
-bool Isolate::MayNamedAccess(Handle<JSObject> receiver,
-                             Handle<Object> key,
-                             v8::AccessType type) {
+bool Isolate::MayAccess(Handle<JSObject> receiver) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
-
-  // Skip checks for internally used properties. Note, we do not
-  // require existence of a context in this case.
-  if (IsInternallyUsedPropertyName(key)) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
   DCHECK(context());
 
-  MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
-  if (decision != UNKNOWN) return decision == YES;
+  {
+    DisallowHeapAllocation no_gc;
+    // During bootstrapping, callback functions are not enabled yet.
+    if (bootstrapper()->IsActive()) return true;
+
+    if (receiver->IsJSGlobalProxy()) {
+      Object* receiver_context =
+          JSGlobalProxy::cast(*receiver)->native_context();
+      if (!receiver_context->IsContext()) return false;
+
+      // Get the native context of current top context.
+      // avoid using Isolate::native_context() because it uses Handle.
+      Context* native_context = context()->global_object()->native_context();
+      if (receiver_context == native_context) return true;
+
+      if (Context::cast(receiver_context)->security_token() ==
+          native_context->security_token())
+        return true;
+    }
+  }
 
   HandleScope scope(this);
   Handle<Object> data;
@@ -835,47 +813,13 @@ bool Isolate::MayNamedAccess(Handle<JSObject> receiver,
     data = handle(access_check_info->data(), this);
   }
 
-  LOG(this, ApiNamedSecurityCheck(*key));
+  LOG(this, ApiSecurityCheck());
 
   // Leaving JavaScript.
   VMState<EXTERNAL> state(this);
-  return callback(v8::Utils::ToLocal(receiver),
-                  v8::Utils::ToLocal(key),
-                  type,
-                  v8::Utils::ToLocal(data));
-}
-
-
-bool Isolate::MayIndexedAccess(Handle<JSObject> receiver,
-                               uint32_t index,
-                               v8::AccessType type) {
-  DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
-  // Check for compatibility between the security tokens in the
-  // current lexical context and the accessed object.
-  DCHECK(context());
-
-  MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
-  if (decision != UNKNOWN) return decision == YES;
-
-  HandleScope scope(this);
-  Handle<Object> data;
-  v8::IndexedSecurityCallback callback;
-  { DisallowHeapAllocation no_gc;
-    // Get named access check callback
-    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
-    if (!access_check_info) return false;
-    Object* fun_obj = access_check_info->indexed_callback();
-    callback = v8::ToCData<v8::IndexedSecurityCallback>(fun_obj);
-    if (!callback) return false;
-    data = handle(access_check_info->data(), this);
-  }
-
-  LOG(this, ApiIndexedSecurityCheck(index));
-
-  // Leaving JavaScript.
-  VMState<EXTERNAL> state(this);
-  return callback(
-      v8::Utils::ToLocal(receiver), index, type, v8::Utils::ToLocal(data));
+  Handle<Object> key = factory()->undefined_value();
+  return callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
+                  v8::ACCESS_HAS, v8::Utils::ToLocal(data));
 }
 
 

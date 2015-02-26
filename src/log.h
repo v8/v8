@@ -210,8 +210,7 @@ class Logger {
 
 
   // ==== Events logged by --log-api. ====
-  void ApiNamedSecurityCheck(Object* key);
-  void ApiIndexedSecurityCheck(uint32_t index);
+  void ApiSecurityCheck();
   void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
   void ApiIndexedPropertyAccess(const char* tag,
                                 JSObject* holder,

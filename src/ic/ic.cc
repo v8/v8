@@ -257,8 +257,7 @@ static void LookupForRead(LookupIterator* it) {
       case LookupIterator::ACCESS_CHECK:
         // PropertyHandlerCompiler::CheckPrototypes() knows how to emit
         // access checks for global proxies.
-        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() &&
-            it->HasAccess(v8::ACCESS_GET)) {
+        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() && it->HasAccess()) {
           break;
         }
         return;

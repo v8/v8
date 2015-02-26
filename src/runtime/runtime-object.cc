@@ -249,12 +249,10 @@ MaybeHandle<Object> Runtime::GetPrototype(Isolate* isolate,
   PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
   do {
     if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(
-            Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
-            isolate->factory()->proto_string(), v8::ACCESS_GET)) {
+        !isolate->MayAccess(
+            Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)))) {
       isolate->ReportFailedAccessCheck(
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
-          v8::ACCESS_GET);
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return isolate->factory()->undefined_value();
     }
@@ -297,10 +295,8 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  if (obj->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(obj, isolate->factory()->proto_string(),
-                               v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(obj, v8::ACCESS_SET);
+  if (obj->IsAccessCheckNeeded() && !isolate->MayAccess(obj)) {
+    isolate->ReportFailedAccessCheck(obj);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
   }
@@ -917,10 +913,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   // real global object.
   if (obj->IsJSGlobalProxy()) {
     // Only collect names if access is permitted.
-    if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(obj, isolate->factory()->undefined_value(),
-                                 v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(obj, v8::ACCESS_KEYS);
+    if (obj->IsAccessCheckNeeded() && !isolate->MayAccess(obj)) {
+      isolate->ReportFailedAccessCheck(obj);
       RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -941,11 +935,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
       Handle<JSObject> jsproto =
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       // Only collect names if access is permitted.
-      if (jsproto->IsAccessCheckNeeded() &&
-          !isolate->MayNamedAccess(jsproto,
-                                   isolate->factory()->undefined_value(),
-                                   v8::ACCESS_KEYS)) {
-        isolate->ReportFailedAccessCheck(jsproto, v8::ACCESS_KEYS);
+      if (jsproto->IsAccessCheckNeeded() && !isolate->MayAccess(jsproto)) {
+        isolate->ReportFailedAccessCheck(jsproto);
         RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
         return *isolate->factory()->NewJSArray(0);
       }
@@ -1094,10 +1085,8 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
 
   if (object->IsJSGlobalProxy()) {
     // Do access checks before going to the global object.
-    if (object->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(object, isolate->factory()->undefined_value(),
-                                 v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
+    if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+      isolate->ReportFailedAccessCheck(object);
       RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -1442,7 +1431,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
 
   LookupIterator it(js_object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.IsFound() && it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!isolate->MayNamedAccess(js_object, name, v8::ACCESS_SET)) {
+    if (!isolate->MayAccess(js_object)) {
       return isolate->heap()->undefined_value();
     }
     it.Next();

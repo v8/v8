@@ -745,17 +745,12 @@ class Isolate {
   // the result is false, the pending exception is guaranteed to be
   // set.
 
-  bool MayNamedAccess(Handle<JSObject> receiver,
-                      Handle<Object> key,
-                      v8::AccessType type);
-  bool MayIndexedAccess(Handle<JSObject> receiver,
-                        uint32_t index,
-                        v8::AccessType type);
+  bool MayAccess(Handle<JSObject> receiver);
   bool IsInternallyUsedPropertyName(Handle<Object> name);
   bool IsInternallyUsedPropertyName(Object* name);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
-  void ReportFailedAccessCheck(Handle<JSObject> receiver, v8::AccessType type);
+  void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.

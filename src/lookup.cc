@@ -72,9 +72,9 @@ bool LookupIterator::IsBootstrapping() const {
 }
 
 
-bool LookupIterator::HasAccess(v8::AccessType access_type) const {
+bool LookupIterator::HasAccess() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  return isolate_->MayNamedAccess(GetHolder<JSObject>(), name_, access_type);
+  return isolate_->MayAccess(GetHolder<JSObject>());
 }
 
 

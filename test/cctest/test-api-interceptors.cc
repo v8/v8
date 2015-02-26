@@ -2934,16 +2934,8 @@ struct AccessCheckData {
 };
 
 
-bool SimpleNamedAccessChecker(Local<v8::Object> global, Local<Value> name,
-                              v8::AccessType type, Local<Value> data) {
-  auto access_check_data = GetWrappedObject<AccessCheckData>(data);
-  access_check_data->count++;
-  return access_check_data->result;
-}
-
-
-bool SimpleIndexedAccessChecker(Local<v8::Object> global, uint32_t index,
-                                v8::AccessType type, Local<Value> data) {
+bool SimpleAccessChecker(Local<v8::Object> global, Local<Value> name,
+                         v8::AccessType type, Local<Value> data) {
   auto access_check_data = GetWrappedObject<AccessCheckData>(data);
   access_check_data->count++;
   return access_check_data->result;
@@ -3015,7 +3007,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
 
   auto checked = v8::ObjectTemplate::New(isolate);
   checked->SetAccessCheckCallbacks(
-      SimpleNamedAccessChecker, nullptr,
+      SimpleAccessChecker, nullptr,
       BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
@@ -3081,7 +3073,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
 
   auto checked = v8::ObjectTemplate::New(isolate);
   checked->SetAccessCheckCallbacks(
-      nullptr, SimpleIndexedAccessChecker,
+      SimpleAccessChecker, nullptr,
       BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());

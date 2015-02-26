@@ -126,7 +126,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         break;
       }
       case LookupIterator::ACCESS_CHECK:
-        if (it->HasAccess(v8::ACCESS_GET)) break;
+        if (it->HasAccess()) break;
         return JSObject::GetPropertyWithFailedAccessCheck(it);
       case LookupIterator::ACCESSOR:
         return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
@@ -156,7 +156,7 @@ Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
-        if (it->HasAccess(v8::ACCESS_GET)) continue;
+        if (it->HasAccess()) continue;
       // Fall through.
       case LookupIterator::JSPROXY:
         it->NotFound();
@@ -469,7 +469,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
     if (it->isolate()->has_scheduled_exception()) break;
     if (!result.is_null()) return result;
   }
-  it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_GET);
+  it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
   return it->factory()->undefined_value();
 }
@@ -488,7 +488,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
     if (it->isolate()->has_scheduled_exception()) break;
     if (result.has_value && result.value != ABSENT) return result;
   }
-  it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_HAS);
+  it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(),
                                       Maybe<PropertyAttributes>());
   return maybe(ABSENT);
@@ -517,7 +517,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
                                    it->GetAccessors(), language_mode);
   }
 
-  it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_SET);
+  it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
   return value;
 }
@@ -605,7 +605,7 @@ MaybeHandle<Object> JSObject::GetElementWithFailedAccessCheck(
     if (!result.is_null()) return result;
     where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
   }
-  isolate->ReportFailedAccessCheck(object, v8::ACCESS_GET);
+  isolate->ReportFailedAccessCheck(object);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return isolate->factory()->undefined_value();
 }
@@ -627,7 +627,7 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
     if (result.has_value && result.value != ABSENT) return result;
     where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
   }
-  isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+  isolate->ReportFailedAccessCheck(object);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<PropertyAttributes>());
   return maybe(ABSENT);
 }
@@ -664,7 +664,7 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
-      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
+      if (!isolate->MayAccess(js_object)) {
         return JSObject::GetElementWithFailedAccessCheck(isolate, js_object,
                                                          receiver, index);
       }
@@ -711,8 +711,8 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
 
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
-      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_SET)) {
-        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_SET);
+      if (!isolate->MayAccess(js_object)) {
+        isolate->ReportFailedAccessCheck(js_object);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
       }
@@ -3063,7 +3063,7 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
         // TODO(verwaest): Remove the distinction. This is mostly bogus since we
         // don't know whether we'll want to fetch attributes or call a setter
         // until we find the property.
-        if (it->HasAccess(v8::ACCESS_SET)) break;
+        if (it->HasAccess()) break;
         return JSObject::SetPropertyWithFailedAccessCheck(it, value,
                                                           language_mode);
 
@@ -3365,9 +3365,9 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
 
     if (js_proto->IsAccessCheckNeeded()) {
-      if (!isolate->MayIndexedAccess(js_proto, index, v8::ACCESS_SET)) {
+      if (!isolate->MayAccess(js_proto)) {
         *found = true;
-        isolate->ReportFailedAccessCheck(js_proto, v8::ACCESS_SET);
+        isolate->ReportFailedAccessCheck(js_proto);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return MaybeHandle<Object>();
       }
@@ -4174,7 +4174,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
-        if (!it.isolate()->MayNamedAccess(object, name, v8::ACCESS_SET)) {
+        if (!it.isolate()->MayAccess(object)) {
           return SetPropertyWithFailedAccessCheck(&it, value, SLOPPY);
         }
         break;
@@ -4343,7 +4343,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
         break;
       }
       case LookupIterator::ACCESS_CHECK:
-        if (it->HasAccess(v8::ACCESS_HAS)) break;
+        if (it->HasAccess()) break;
         return JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
       case LookupIterator::ACCESSOR:
       case LookupIterator::DATA:
@@ -4361,7 +4361,7 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithReceiver(
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS)) {
+    if (!isolate->MayAccess(object)) {
       return GetElementAttributesWithFailedAccessCheck(isolate, object,
                                                        receiver, index);
     }
@@ -5211,9 +5211,8 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   Factory* factory = isolate->factory();
 
   // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(object, index, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    isolate->ReportFailedAccessCheck(object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->false_value();
   }
@@ -5332,9 +5331,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
-        if (it.HasAccess(v8::ACCESS_DELETE)) break;
-        it.isolate()->ReportFailedAccessCheck(it.GetHolder<JSObject>(),
-                                              v8::ACCESS_DELETE);
+        if (it.HasAccess()) break;
+        it.isolate()->ReportFailedAccessCheck(it.GetHolder<JSObject>());
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it.isolate(), Object);
         return it.isolate()->factory()->false_value();
       case LookupIterator::INTERCEPTOR: {
@@ -5563,10 +5561,8 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 
   Isolate* isolate = object->GetIsolate();
 
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(
-          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    isolate->ReportFailedAccessCheck(object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -5674,10 +5670,8 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   DCHECK(!object->map()->is_observed());
 
   Isolate* isolate = object->GetIsolate();
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(
-          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    isolate->ReportFailedAccessCheck(object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -6282,10 +6276,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
 
     // Check access rights if required.
-    if (current->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(
-            current, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(current, v8::ACCESS_KEYS);
+    if (current->IsAccessCheckNeeded() && !isolate->MayAccess(current)) {
+      isolate->ReportFailedAccessCheck(current);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
       break;
     }
@@ -6554,9 +6546,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
                                              PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
   // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    isolate->ReportFailedAccessCheck(object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->undefined_value();
   }
@@ -6648,9 +6639,8 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   Handle<Name> name(Name::cast(info->name()));
 
   // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    isolate->ReportFailedAccessCheck(object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
   }
@@ -6739,10 +6729,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
       Handle<Object> current = PrototypeIterator::GetCurrent(iter);
       // Check access rights if needed.
       if (current->IsAccessCheckNeeded() &&
-          !isolate->MayNamedAccess(Handle<JSObject>::cast(current), name,
-                                   v8::ACCESS_HAS)) {
-        isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(current),
-                                         v8::ACCESS_HAS);
+          !isolate->MayAccess(Handle<JSObject>::cast(current))) {
+        isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(current));
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
       }
@@ -6773,9 +6761,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
           UNREACHABLE();
 
         case LookupIterator::ACCESS_CHECK:
-          if (it.HasAccess(v8::ACCESS_HAS)) continue;
-          isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>(),
-                                           v8::ACCESS_HAS);
+          if (it.HasAccess()) continue;
+          isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
           RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
           return isolate->factory()->undefined_value();
 
@@ -13025,8 +13012,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_SET)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
+    if (!isolate->MayAccess(object)) {
+      isolate->ReportFailedAccessCheck(object);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return value;
     }
@@ -13911,8 +13898,8 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
   HandleScope scope(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+    if (!isolate->MayAccess(object)) {
+      isolate->ReportFailedAccessCheck(object);
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<bool>());
       return maybe(false);
     }

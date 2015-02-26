@@ -876,27 +876,9 @@ void Logger::ApiEvent(const char* format, ...) {
 }
 
 
-void Logger::ApiNamedSecurityCheck(Object* key) {
+void Logger::ApiSecurityCheck() {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
-  if (key->IsString()) {
-    SmartArrayPointer<char> str =
-        String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    ApiEvent("api,check-security,\"%s\"", str.get());
-  } else if (key->IsSymbol()) {
-    Symbol* symbol = Symbol::cast(key);
-    if (symbol->name()->IsUndefined()) {
-      ApiEvent("api,check-security,symbol(hash %x)", Symbol::cast(key)->Hash());
-    } else {
-      SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
-          DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-      ApiEvent("api,check-security,symbol(\"%s\" hash %x)", str.get(),
-               Symbol::cast(key)->Hash());
-    }
-  } else if (key->IsUndefined()) {
-    ApiEvent("api,check-security,undefined");
-  } else {
-    ApiEvent("api,check-security,['no-name']");
-  }
+  ApiEvent("api,check-security");
 }
 
 
@@ -1026,12 +1008,6 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
   LogRegExpSource(regexp);
   msg.Append(in_cache ? ",hit" : ",miss");
   msg.WriteToLogFile();
-}
-
-
-void Logger::ApiIndexedSecurityCheck(uint32_t index) {
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
-  ApiEvent("api,check-security,%u", index);
 }
 
 
