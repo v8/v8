@@ -896,26 +896,6 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
   }
-
-  TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1L << bit;
-    StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
-    m.Branch(
-        m.Word64BinaryNot(m.Word64And(m.Parameter(0), m.Int64Constant(mask))),
-        &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-    EXPECT_EQ(4U, s[0]->InputCount());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
-  }
 }
 
 
@@ -933,26 +913,6 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-    EXPECT_EQ(4U, s[0]->InputCount());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
-  }
-
-  TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1L << bit;
-    StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
-    m.Branch(
-        m.Word64BinaryNot(m.Word64And(m.Int64Constant(mask), m.Parameter(0))),
-        &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));

@@ -4436,6 +4436,26 @@ TEST(RunInt32SubWithOverflowInBranchP) {
 }
 
 
+TEST(RunWord64EqualInBranchP) {
+  int64_t input;
+  MLabel blocka, blockb;
+  RawMachineAssemblerTester<int64_t> m;
+  if (!m.machine()->Is64()) return;
+  Node* value = m.LoadFromPointer(&input, kMachInt64);
+  m.Branch(m.Word64Equal(value, m.Int64Constant(0)), &blocka, &blockb);
+  m.Bind(&blocka);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&blockb);
+  m.Return(m.Int32Constant(2));
+  input = V8_INT64_C(0);
+  CHECK_EQ(1, m.Call());
+  input = V8_INT64_C(1);
+  CHECK_EQ(2, m.Call());
+  input = V8_INT64_C(0x100000000);
+  CHECK_EQ(2, m.Call());
+}
+
+
 TEST(RunChangeInt32ToInt64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
@@ -4793,4 +4813,5 @@ TEST(RunFloat64RoundTiesAway) {
     CHECK_EQ(expected, result);
   }
 }
+
 #endif  // V8_TURBOFAN_TARGET
