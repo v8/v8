@@ -1704,12 +1704,6 @@ String* JSReceiver::constructor_name() {
 }
 
 
-static Handle<Object> WrapType(Handle<HeapType> type) {
-  if (type->IsClass()) return Map::WeakCellForMap(type->AsClass()->Map());
-  return type;
-}
-
-
 MaybeHandle<Map> Map::CopyWithField(Handle<Map> map,
                                     Handle<Name> name,
                                     Handle<HeapType> type,
@@ -1735,10 +1729,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map,
     type = HeapType::Any(isolate);
   }
 
-  Handle<Object> wrapped_type(WrapType(type));
-
-  DataDescriptor new_field_desc(name, index, wrapped_type, attributes,
-                                representation);
+  DataDescriptor new_field_desc(name, index, type, attributes, representation);
   Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
   int unused_property_fields = new_map->unused_property_fields() - 1;
   if (unused_property_fields < 0) {
@@ -2314,16 +2305,15 @@ Map* Map::FindFieldOwner(int descriptor) {
 
 void Map::UpdateFieldType(int descriptor, Handle<Name> name,
                           Representation new_representation,
-                          Handle<Object> new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakCell());
+                          Handle<HeapType> new_type) {
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
   if (details.type() != DATA) return;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-      transitions->GetTarget(i)->UpdateFieldType(
-          descriptor, name, new_representation, new_wrapped_type);
+      transitions->GetTarget(i)
+          ->UpdateFieldType(descriptor, name, new_representation, new_type);
     }
   }
   // It is allowed to change representation here only from None to something.
@@ -2331,9 +2321,9 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
          details.representation().IsNone());
 
   // Skip if already updated the shared descriptor.
-  if (instance_descriptors()->GetValue(descriptor) == *new_wrapped_type) return;
+  if (instance_descriptors()->GetFieldType(descriptor) == *new_type) return;
   DataDescriptor d(name, instance_descriptors()->GetFieldIndex(descriptor),
-                   new_wrapped_type, details.attributes(), new_representation);
+                   new_type, details.attributes(), new_representation);
   instance_descriptors()->Replace(descriptor, &d);
 }
 
@@ -2381,10 +2371,8 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
 
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
-
-  Handle<Object> wrapped_type(WrapType(new_field_type));
   field_owner->UpdateFieldType(modify_index, name, new_representation,
-                               wrapped_type);
+                               new_field_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kFieldTypeGroup);
 
@@ -2776,8 +2764,7 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
           next_field_type =
               GeneralizeFieldType(target_field_type, old_field_type, isolate);
         }
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-        DataDescriptor d(target_key, current_offset, wrapped_type,
+        DataDescriptor d(target_key, current_offset, next_field_type,
                          next_attributes, next_representation);
         current_offset += d.GetDetails().field_width_in_words();
         new_descriptors->Set(i, &d);
@@ -2845,10 +2832,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
           next_field_type = old_field_type;
         }
 
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-
-        DataDescriptor d(old_key, current_offset, wrapped_type, next_attributes,
-                         next_representation);
+        DataDescriptor d(old_key, current_offset, next_field_type,
+                         next_attributes, next_representation);
         current_offset += d.GetDetails().field_width_in_words();
         new_descriptors->Set(i, &d);
       } else {
@@ -2979,41 +2964,33 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
     if (!old_details.representation().fits_into(new_details.representation())) {
       return MaybeHandle<Map>();
     }
+    Object* new_value = new_descriptors->GetValue(i);
+    Object* old_value = old_descriptors->GetValue(i);
     switch (new_details.type()) {
       case DATA: {
-        HeapType* new_type = new_descriptors->GetFieldType(i);
-        PropertyType old_property_type = old_details.type();
-        if (old_property_type == DATA) {
-          HeapType* old_type = old_descriptors->GetFieldType(i);
-          if (!old_type->NowIs(new_type)) {
+        PropertyType old_type = old_details.type();
+        if (old_type == DATA) {
+          if (!HeapType::cast(old_value)->NowIs(HeapType::cast(new_value))) {
             return MaybeHandle<Map>();
           }
         } else {
-          DCHECK(old_property_type == DATA_CONSTANT);
-          Object* old_value = old_descriptors->GetValue(i);
-          if (!new_type->NowContains(old_value)) {
+          DCHECK(old_type == DATA_CONSTANT);
+          if (!HeapType::cast(new_value)->NowContains(old_value)) {
             return MaybeHandle<Map>();
           }
         }
         break;
       }
-      case ACCESSOR: {
-#ifdef DEBUG
-        HeapType* new_type = new_descriptors->GetFieldType(i);
-        DCHECK(HeapType::Any()->Is(new_type));
-#endif
+      case ACCESSOR:
+        DCHECK(HeapType::Any()->Is(HeapType::cast(new_value)));
         break;
-      }
 
       case DATA_CONSTANT:
-      case ACCESSOR_CONSTANT: {
-        Object* old_value = old_descriptors->GetValue(i);
-        Object* new_value = new_descriptors->GetValue(i);
+      case ACCESSOR_CONSTANT:
         if (old_details.location() == kField || old_value != new_value) {
           return MaybeHandle<Map>();
         }
         break;
-      }
     }
   }
   if (new_map->NumberOfOwnDescriptors() != old_nof) return MaybeHandle<Map>();
