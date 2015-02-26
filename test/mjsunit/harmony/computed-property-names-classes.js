@@ -388,3 +388,45 @@ function assertIteratorResult(value, done, result) {
   assertIteratorResult(2, false, iter.next());
   assertIteratorResult(undefined, true, iter.next());
 })();
+
+
+(function TestExceptionInName() {
+  function MyError() {};
+  function throwMyError() {
+    throw new MyError();
+  }
+  assertThrows(function() {
+    class C {
+      [throwMyError()]() {}
+    }
+  }, MyError);
+  assertThrows(function() {
+    class C {
+      get [throwMyError()]() { return 42; }
+    }
+  }, MyError);
+  assertThrows(function() {
+    class C {
+      set [throwMyError()](_) { }
+    }
+  }, MyError);
+})();
+
+
+(function TestTdzName() {
+  assertThrows(function() {
+    class C {
+      [C]() {}
+    }
+  }, ReferenceError);
+  assertThrows(function() {
+    class C {
+      get [C]() { return 42; }
+    }
+  }, ReferenceError);
+  assertThrows(function() {
+    class C {
+      set [C](_) { }
+    }
+  }, ReferenceError);
+})();

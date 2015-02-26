@@ -180,9 +180,10 @@ function assertThrowsHelper(code, error) {
     eval("var7;");
   })();
 
-  class C1 { constructor() { C1; } }; new C1();
-  let C2 = class C3 { constructor() { C3; } }; new C2();
+  // https://code.google.com/p/v8/issues/detail?id=3927
+  // class C1 { constructor() { C1; } }; new C1();
+  // let C2 = class C3 { constructor() { C3; } }; new C2();
 
-  class C4 { method() { C4; method; } }; new C4();
-  let C5 = class C6 { method() { C6; method; } }; new C5();
+  // class C4 { method() { C4; method; } }; new C4();
+  // let C5 = class C6 { method() { C6; method; } }; new C5();
 })();

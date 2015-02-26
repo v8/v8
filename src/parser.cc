@@ -4118,7 +4118,6 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
-  int body_beg_pos = scanner()->location().beg_pos;
 
   const bool has_extends = extends != nullptr;
   while (peek() != Token::RBRACE) {
@@ -4159,7 +4158,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   if (name != NULL) {
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(block_scope);
-    proxy->var()->set_initializer_position(body_beg_pos);
+    proxy->var()->set_initializer_position(end_pos);
   }
 
   return factory()->NewClassLiteral(name, block_scope, proxy, extends,
