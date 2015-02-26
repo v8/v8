@@ -1414,7 +1414,6 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
   Kind kind() { return kind_; }
 
   // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsMonomorphic() { return !receiver_type_.is_null(); }
   Handle<Map> GetReceiverType() { return receiver_type_; }
 
@@ -1425,6 +1424,8 @@ class ObjectLiteralProperty FINAL : public ZoneObject {
 
   bool is_static() const { return is_static_; }
   bool is_computed_name() const { return is_computed_name_; }
+
+  void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
 
  protected:
   friend class AstNodeFactory;
@@ -1918,7 +1919,6 @@ class CallNew FINAL : public Expression {
     return CallNewFeedbackSlot().next();
   }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsMonomorphic() OVERRIDE { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   Handle<AllocationSite> allocation_site() const {
@@ -1928,6 +1928,12 @@ class CallNew FINAL : public Expression {
   static int num_ids() { return parent_num_ids() + 1; }
   static int feedback_slots() { return 1; }
   BailoutId ReturnId() const { return BailoutId(local_id(0)); }
+
+  void set_allocation_site(Handle<AllocationSite> site) {
+    allocation_site_ = site;
+  }
+  void set_is_monomorphic(bool monomorphic) { is_monomorphic_ = monomorphic; }
+  void set_target(Handle<JSFunction> target) { target_ = target; }
 
  protected:
   CallNew(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
