@@ -473,15 +473,14 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     } else {
       Register map_reg = scratch1;
       __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
-      if (depth != 1 || check == CHECK_ALL_MAPS) {
-        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
-        __ CmpWeakValue(map_reg, cell, scratch2);
-        __ b(ne, miss);
-      }
 
       if (current_map->IsJSGlobalObjectMap()) {
         GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
                                   name, scratch2, miss);
+      } else if (depth != 1 || check == CHECK_ALL_MAPS) {
+        Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
+        __ CmpWeakValue(map_reg, cell, scratch2);
+        __ b(ne, miss);
       }
 
       reg = holder_reg;  // From now on the object will be in holder_reg.
@@ -493,6 +492,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     current = prototype;
     current_map = handle(current->map());
   }
+
+  DCHECK(!current_map->IsJSGlobalProxyMap());
 
   // Log the check depth.
   LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
