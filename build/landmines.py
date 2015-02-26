@@ -166,17 +166,27 @@ def clobber_if_necessary(new_landmines):
     for f in os.listdir(out_dir):
       path = os.path.join(out_dir, f)
       if os.path.basename(out_dir) == 'build':
-        # Soft version of chromium's clobber. Only delete build directories not
-        # files in windows' build dir as the folder shares some checked out
-        # files and directories.
+        # Only delete build directories and files for MSVS builds as the folder
+        # shares some checked out files and directories.
         if (os.path.isdir(path) and
             re.search(r'(?:[Rr]elease)|(?:[Dd]ebug)', f)):
           delete_build_dir(path)
+        elif (os.path.isfile(path) and
+              (path.endswith('.sln') or
+               path.endswith('.vcxproj') or
+               path.endswith('.vcxproj.user'))):
+          os.unlink(path)
       else:
         if os.path.isfile(path):
           os.unlink(path)
         elif os.path.isdir(path):
           delete_build_dir(path)
+    if os.path.basename(out_dir) == 'xcodebuild':
+      # Xcodebuild puts an additional project file structure into build,
+      # while the output folder is xcodebuild.
+      project_dir = os.path.join(SRC_DIR, 'build', 'all.xcodeproj')
+      if os.path.exists(project_dir) and os.path.isdir(project_dir):
+        delete_build_dir(project_dir)
 
   # Save current set of landmines for next time.
   with open(landmines_path, 'w') as f:
