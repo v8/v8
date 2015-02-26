@@ -48,7 +48,7 @@ from git_recipes import GitFailedException
 CHANGELOG_FILE = "ChangeLog"
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
-VERSION_FILE = os.path.join("src", "version.cc")
+VERSION_FILE = os.path.join("include", "v8-version.h")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
 # V8 base directory.
@@ -569,10 +569,10 @@ class Step(GitRecipesMixin):
         value = match.group(1)
         self["%s%s" % (prefix, var_name)] = value
     for line in LinesInFile(os.path.join(self.default_cwd, VERSION_FILE)):
-      for (var_name, def_name) in [("major", "MAJOR_VERSION"),
-                                   ("minor", "MINOR_VERSION"),
-                                   ("build", "BUILD_NUMBER"),
-                                   ("patch", "PATCH_LEVEL")]:
+      for (var_name, def_name) in [("major", "V8_MAJOR_VERSION"),
+                                   ("minor", "V8_MINOR_VERSION"),
+                                   ("build", "V8_BUILD_NUMBER"),
+                                   ("patch", "V8_PATCH_LEVEL")]:
         ReadAndPersist(var_name, def_name)
 
   def WaitForLGTM(self):
@@ -701,16 +701,16 @@ class Step(GitRecipesMixin):
   def SetVersion(self, version_file, prefix):
     output = ""
     for line in FileToText(version_file).splitlines():
-      if line.startswith("#define MAJOR_VERSION"):
+      if line.startswith("#define V8_MAJOR_VERSION"):
         line = re.sub("\d+$", self[prefix + "major"], line)
-      elif line.startswith("#define MINOR_VERSION"):
+      elif line.startswith("#define V8_MINOR_VERSION"):
         line = re.sub("\d+$", self[prefix + "minor"], line)
-      elif line.startswith("#define BUILD_NUMBER"):
+      elif line.startswith("#define V8_BUILD_NUMBER"):
         line = re.sub("\d+$", self[prefix + "build"], line)
-      elif line.startswith("#define PATCH_LEVEL"):
+      elif line.startswith("#define V8_PATCH_LEVEL"):
         line = re.sub("\d+$", self[prefix + "patch"], line)
       elif (self[prefix + "candidate"] and
-            line.startswith("#define IS_CANDIDATE_VERSION")):
+            line.startswith("#define V8_IS_CANDIDATE_VERSION")):
         line = re.sub("\d+$", self[prefix + "candidate"], line)
       output += "%s\n" % line
     TextToFile(output, version_file)

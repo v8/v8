@@ -361,12 +361,12 @@ class ScriptTest(unittest.TestCase):
     with open(version_file, "w") as f:
       f.write("  // Some line...\n")
       f.write("\n")
-      f.write("#define MAJOR_VERSION    %s\n" % major)
-      f.write("#define MINOR_VERSION    %s\n" % minor)
-      f.write("#define BUILD_NUMBER     %s\n" % build)
-      f.write("#define PATCH_LEVEL      %s\n" % patch)
+      f.write("#define V8_MAJOR_VERSION    %s\n" % major)
+      f.write("#define V8_MINOR_VERSION    %s\n" % minor)
+      f.write("#define V8_BUILD_NUMBER     %s\n" % build)
+      f.write("#define V8_PATCH_LEVEL      %s\n" % patch)
       f.write("  // Some line...\n")
-      f.write("#define IS_CANDIDATE_VERSION 0\n")
+      f.write("#define V8_IS_CANDIDATE_VERSION 0\n")
 
   def MakeStep(self):
     """Convenience wrapper."""
@@ -528,10 +528,10 @@ class ScriptTest(unittest.TestCase):
                      "        too much\n"
                      "        trailing", cl)
 
-    self.assertEqual("//\n#define BUILD_NUMBER  3\n",
-                     MSub(r"(?<=#define BUILD_NUMBER)(?P<space>\s+)\d*$",
+    self.assertEqual("//\n#define V8_BUILD_NUMBER  3\n",
+                     MSub(r"(?<=#define V8_BUILD_NUMBER)(?P<space>\s+)\d*$",
                           r"\g<space>3",
-                          "//\n#define BUILD_NUMBER  321\n"))
+                          "//\n#define V8_BUILD_NUMBER  321\n"))
 
   def testPreparePushRevision(self):
     # Tests the default push hash used when the --revision option is not set.
@@ -629,7 +629,7 @@ test_tag
     self.Expect([
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
-      Cmd("git checkout -f origin/master -- src/version.cc",
+      Cmd("git checkout -f origin/master -- include/v8-version.h",
           "", cb=lambda: self.WriteFakeVersionFile(3, 22, 6)),
     ])
 
@@ -750,11 +750,12 @@ Performance and stability improvements on all platforms."""
       self.assertEquals(commit_msg, commit)
       version = FileToText(
           os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
-      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
-      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
-      self.assertFalse(re.search(r"#define BUILD_NUMBER\s+6", version))
-      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
-      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+      self.assertTrue(re.search(r"#define V8_MINOR_VERSION\s+22", version))
+      self.assertTrue(re.search(r"#define V8_BUILD_NUMBER\s+5", version))
+      self.assertFalse(re.search(r"#define V8_BUILD_NUMBER\s+6", version))
+      self.assertTrue(re.search(r"#define V8_PATCH_LEVEL\s+0", version))
+      self.assertTrue(
+          re.search(r"#define V8_IS_CANDIDATE_VERSION\s+0", version))
 
       # Check that the change log on the candidates branch got correctly
       # modified.
@@ -787,7 +788,7 @@ Performance and stability improvements on all platforms."""
            TEST_CONFIG["BRANCHNAME"]), ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
-      Cmd("git checkout -f origin/master -- src/version.cc",
+      Cmd("git checkout -f origin/master -- include/v8-version.h",
           "", cb=self.WriteFakeVersionFile),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
       Cmd("git log -1 --format=%s release_hash",
@@ -811,7 +812,7 @@ Performance and stability improvements on all platforms."""
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG["PATCH_FILE"], ""),
       Cmd("git checkout -f origin/candidates -- ChangeLog", "",
           cb=ResetChangeLog),
-      Cmd("git checkout -f origin/candidates -- src/version.cc", "",
+      Cmd("git checkout -f origin/candidates -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -am \"%s\"" % commit_msg_squashed, ""),
     ]
@@ -891,11 +892,12 @@ Performance and stability improvements on all platforms."""
       self.assertEquals(commit_msg, commit)
       version = FileToText(
           os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
-      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
-      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
-      self.assertFalse(re.search(r"#define BUILD_NUMBER\s+6", version))
-      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+0", version))
-      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+      self.assertTrue(re.search(r"#define V8_MINOR_VERSION\s+22", version))
+      self.assertTrue(re.search(r"#define V8_BUILD_NUMBER\s+5", version))
+      self.assertFalse(re.search(r"#define V8_BUILD_NUMBER\s+6", version))
+      self.assertTrue(re.search(r"#define V8_PATCH_LEVEL\s+0", version))
+      self.assertTrue(
+          re.search(r"#define V8_IS_CANDIDATE_VERSION\s+0", version))
 
       # Check that the change log on the candidates branch got correctly
       # modified.
@@ -926,7 +928,7 @@ Performance and stability improvements on all platforms."""
           "not_right wrong\npending_hash tree_hash\nsome other\n"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
-      Cmd("git checkout -f origin/master -- src/version.cc",
+      Cmd("git checkout -f origin/master -- include/v8-version.h",
           "", cb=self.WriteFakeVersionFile),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
       Cmd("git log -1 --format=%s release_hash", "Version 3.22.4\n"),
@@ -938,7 +940,7 @@ Performance and stability improvements on all platforms."""
       Cmd("git reset --hard origin/master", ""),
       Cmd("git checkout -b work-branch pending_hash", ""),
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
-      Cmd("git checkout -f 3.22.4 -- src/version.cc", "",
+      Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
@@ -1190,10 +1192,11 @@ LOG=N
       self.assertEquals(msg, commit)
       version = FileToText(
           os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
-      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
-      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
-      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+1", version))
-      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+      self.assertTrue(re.search(r"#define V8_MINOR_VERSION\s+22", version))
+      self.assertTrue(re.search(r"#define V8_BUILD_NUMBER\s+5", version))
+      self.assertTrue(re.search(r"#define V8_PATCH_LEVEL\s+1", version))
+      self.assertTrue(
+          re.search(r"#define V8_IS_CANDIDATE_VERSION\s+0", version))
 
     self.Expect([
       Cmd("git status -s -uno", ""),

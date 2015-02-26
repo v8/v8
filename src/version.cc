@@ -2,27 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-version.h"
 #include "src/v8.h"
-
 #include "src/version.h"
-
-// These macros define the version number for the current version.
-// NOTE these macros are used by some of the tool scripts and the build
-// system so their names cannot be changed without changing the scripts.
-#define MAJOR_VERSION     4
-#define MINOR_VERSION     3
-#define BUILD_NUMBER      0
-#define PATCH_LEVEL       0
-// Use 1 for candidates and 0 otherwise.
-// (Boolean macro values are not supported by all preprocessors.)
-#define IS_CANDIDATE_VERSION 1
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the build system script.
 #define SONAME            ""
 
-#if IS_CANDIDATE_VERSION
+#if V8_IS_CANDIDATE_VERSION
 #define CANDIDATE_STRING " (candidate)"
 #else
 #define CANDIDATE_STRING ""
@@ -31,23 +20,24 @@
 #define SX(x) #x
 #define S(x) SX(x)
 
-#if PATCH_LEVEL > 0
-#define VERSION_STRING                                                         \
-  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "." S(PATCH_LEVEL) \
-      CANDIDATE_STRING
+#if V8_PATCH_LEVEL > 0
+#define VERSION_STRING                                                      \
+  S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) "." S( \
+      V8_PATCH_LEVEL) CANDIDATE_STRING
 #else
-#define VERSION_STRING \
-  S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) CANDIDATE_STRING
+#define VERSION_STRING                                               \
+  S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) \
+      CANDIDATE_STRING
 #endif
 
 namespace v8 {
 namespace internal {
 
-int Version::major_ = MAJOR_VERSION;
-int Version::minor_ = MINOR_VERSION;
-int Version::build_ = BUILD_NUMBER;
-int Version::patch_ = PATCH_LEVEL;
-bool Version::candidate_ = (IS_CANDIDATE_VERSION != 0);
+int Version::major_ = V8_MAJOR_VERSION;
+int Version::minor_ = V8_MINOR_VERSION;
+int Version::build_ = V8_BUILD_NUMBER;
+int Version::patch_ = V8_PATCH_LEVEL;
+bool Version::candidate_ = (V8_IS_CANDIDATE_VERSION != 0);
 const char* Version::soname_ = SONAME;
 const char* Version::version_string_ = VERSION_STRING;
 
