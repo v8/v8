@@ -5214,6 +5214,9 @@ void v8::V8::SetArrayBufferAllocator(
 
 bool v8::V8::Dispose() {
   i::V8::TearDown();
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::DisposeNatives();
+#endif
   return true;
 }
 

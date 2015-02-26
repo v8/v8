@@ -132,6 +132,10 @@ class NativesHolder {
     DCHECK(store);
     holder_ = store;
   }
+  static void Dispose() {
+    DCHECK(holder_);
+    delete holder_;
+  }
 
  private:
   static NativesStore* holder_;
@@ -154,6 +158,15 @@ void SetNativesFromFile(StartupData* natives_blob) {
   NativesHolder<CORE>::set(NativesStore::MakeFromScriptsSource(&bytes));
   NativesHolder<EXPERIMENTAL>::set(NativesStore::MakeFromScriptsSource(&bytes));
   DCHECK(!bytes.HasMore());
+}
+
+
+/**
+ * Release memory allocated by SetNativesFromFile.
+ */
+void DisposeNatives() {
+  NativesHolder<CORE>::Dispose();
+  NativesHolder<EXPERIMENTAL>::Dispose();
 }
 
 

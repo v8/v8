@@ -40,6 +40,7 @@ typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 // Used for reading the natives at runtime. Implementation in natives-empty.cc
 void SetNativesFromFile(StartupData* natives_blob);
+void DisposeNatives();
 #endif
 
 } }  // namespace v8::internal
