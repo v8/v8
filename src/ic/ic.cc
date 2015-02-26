@@ -230,6 +230,14 @@ bool IC::AddressIsOptimizedCode() const {
 }
 
 
+bool IC::AddressIsDeoptimizedCode() const {
+  Code* host =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
+  return host->kind() == Code::OPTIMIZED_FUNCTION &&
+         host->marked_for_deoptimization();
+}
+
+
 static void LookupForRead(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -2516,9 +2524,17 @@ MaybeHandle<Object> BinaryOpIC::Transition(
       isolate(), result, Execution::Call(isolate(), function, left, 1, &right),
       Object);
 
+  // Do not try to update the target if the code was marked for lazy
+  // deoptimization. (Since we do not relocate addresses in these
+  // code objects, an attempt to access the target could fail.)
+  if (AddressIsDeoptimizedCode()) {
+    return result;
+  }
+
   // Execution::Call can execute arbitrary JavaScript, hence potentially
   // update the state of this very IC, so we must update the stored state.
   UpdateTarget();
+
   // Compute the new state.
   BinaryOpICState old_state(isolate(), target()->extra_ic_state());
   state.Update(left, right, result);
