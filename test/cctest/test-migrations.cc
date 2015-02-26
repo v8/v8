@@ -233,12 +233,14 @@ class Expectations {
                       representations_[descriptor])) {
       return false;
     }
-    Object* expected_value = *values_[descriptor];
     Object* value = descriptors->GetValue(descriptor);
+    Object* expected_value = *values_[descriptor];
     switch (type) {
       case DATA:
-      case ACCESSOR:
-        return HeapType::cast(expected_value)->Equals(HeapType::cast(value));
+      case ACCESSOR: {
+        HeapType* type = descriptors->GetFieldType(descriptor);
+        return HeapType::cast(expected_value)->Equals(type);
+      }
 
       case DATA_CONSTANT:
         return value == expected_value;
