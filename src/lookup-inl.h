@@ -38,7 +38,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
   switch (state_) {
     case NOT_FOUND:
       if (map->IsJSProxyMap()) return JSPROXY;
-      if (map->is_access_check_needed()) return ACCESS_CHECK;
+      if (map->is_access_check_needed() &&
+          !isolate_->IsInternallyUsedPropertyName(name_)) {
+        return ACCESS_CHECK;
+      }
     // Fall through.
     case ACCESS_CHECK:
       if (check_interceptor() && map->has_named_interceptor()) {
