@@ -95,7 +95,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   Register CheckPrototypes(Register object_reg, Register holder_reg,
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss,
-                           PrototypeCheckType check = CHECK_ALL_MAPS);
+                           PrototypeCheckType check);
 
   Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
