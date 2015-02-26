@@ -3637,15 +3637,11 @@ bool Map::IsMapInArrayPrototypeChain() {
 
 Handle<WeakCell> Map::WeakCellForMap(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
-  if (map->code_cache()->IsFixedArray()) {
-    return isolate->factory()->NewWeakCell(map);
-  }
-  Handle<CodeCache> code_cache(CodeCache::cast(map->code_cache()), isolate);
-  if (code_cache->weak_cell_cache()->IsWeakCell()) {
-    return Handle<WeakCell>(WeakCell::cast(code_cache->weak_cell_cache()));
+  if (map->weak_cell_cache()->IsWeakCell()) {
+    return Handle<WeakCell>(WeakCell::cast(map->weak_cell_cache()));
   }
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(map);
-  code_cache->set_weak_cell_cache(*weak_cell);
+  map->set_weak_cell_cache(*weak_cell);
   return weak_cell;
 }
 
@@ -6867,7 +6863,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
-      // applied to the shared map.
+      // applied to the shared map, dependent code and weak cell cache.
       Handle<Map> fresh = Map::CopyNormalized(fast_map, mode);
 
       DCHECK(memcmp(fresh->address(),
@@ -6875,7 +6871,9 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
                     Map::kCodeCacheOffset) == 0);
       STATIC_ASSERT(Map::kDependentCodeOffset ==
                     Map::kCodeCacheOffset + kPointerSize);
-      int offset = Map::kDependentCodeOffset + kPointerSize;
+      STATIC_ASSERT(Map::kWeakCellCacheOffset ==
+                    Map::kDependentCodeOffset + kPointerSize);
+      int offset = Map::kWeakCellCacheOffset + kPointerSize;
       DCHECK(memcmp(fresh->address() + offset,
                     new_map->address() + offset,
                     Map::kSize - offset) == 0);

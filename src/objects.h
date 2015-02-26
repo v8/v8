@@ -5991,6 +5991,9 @@ class Map: public HeapObject {
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
+  // [weak cell cache]: cache that stores a weak cell pointing to this map.
+  DECL_ACCESSORS(weak_cell_cache, Object)
+
   // [prototype transitions]: cache of prototype transitions.
   // Prototype transition is a transition that happens
   // when we change object's prototype to a new one.
@@ -6296,7 +6299,8 @@ class Map: public HeapObject {
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
 #endif
   static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
-  static const int kSize = kDependentCodeOffset + kPointerSize;
+  static const int kWeakCellCacheOffset = kDependentCodeOffset + kPointerSize;
+  static const int kSize = kWeakCellCacheOffset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
@@ -8108,7 +8112,6 @@ class CodeCache: public Struct {
  public:
   DECL_ACCESSORS(default_cache, FixedArray)
   DECL_ACCESSORS(normal_type_cache, Object)
-  DECL_ACCESSORS(weak_cell_cache, Object)
 
   // Add the code object to the cache.
   static void Update(
@@ -8136,8 +8139,7 @@ class CodeCache: public Struct {
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
   static const int kNormalTypeCacheOffset =
       kDefaultCacheOffset + kPointerSize;
-  static const int kWeakCellCacheOffset = kNormalTypeCacheOffset + kPointerSize;
-  static const int kSize = kWeakCellCacheOffset + kPointerSize;
+  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
 
  private:
   static void UpdateDefaultCache(

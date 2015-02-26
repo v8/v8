@@ -2449,6 +2449,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                    Map::OwnsDescriptors::encode(true) |
                    Map::Counter::encode(Map::kRetainingCounterStart);
   reinterpret_cast<Map*>(result)->set_bit_field3(bit_field3);
+  reinterpret_cast<Map*>(result)->set_weak_cell_cache(Smi::FromInt(0));
   return result;
 }
 
@@ -2471,6 +2472,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
+  map->set_weak_cell_cache(Smi::FromInt(0));
   map->init_transitions(undefined_value());
   map->set_unused_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());

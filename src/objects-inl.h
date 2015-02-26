@@ -5503,6 +5503,7 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
 
@@ -5863,7 +5864,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
-ACCESSORS(CodeCache, weak_cell_cache, Object, kWeakCellCacheOffset)
 
 ACCESSORS(PolymorphicCodeCache, cache, Object, kCacheOffset)
 
