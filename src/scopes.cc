@@ -263,7 +263,12 @@ bool Scope::Analyze(CompilationInfo* info) {
   // Allocate the variables.
   {
     AstNodeFactory ast_node_factory(info->ast_value_factory());
-    if (!top->AllocateVariables(info, &ast_node_factory)) return false;
+    if (!top->AllocateVariables(info, &ast_node_factory)) {
+      DCHECK(top->pending_error_handler_.has_pending_error());
+      top->pending_error_handler_.ThrowPendingError(info->isolate(),
+                                                    info->script());
+      return false;
+    }
   }
 
 #ifdef DEBUG
@@ -461,7 +466,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
 
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
-                              InitializationFlag init_flag,
+                              InitializationFlag init_flag, Variable::Kind kind,
                               MaybeAssignedFlag maybe_assigned_flag) {
   DCHECK(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
@@ -469,7 +474,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
-  return variables_.Declare(this, name, mode, true, Variable::NORMAL, init_flag,
+  return variables_.Declare(this, name, mode, true, kind, init_flag,
                             maybe_assigned_flag);
 }
 
@@ -768,6 +773,20 @@ void Scope::GetNestedScopeChain(Isolate* isolate,
 }
 
 
+void Scope::ReportMessage(int start_position, int end_position,
+                          const char* message, const AstRawString* arg) {
+  // Propagate the error to the topmost scope targeted by this scope analysis
+  // phase.
+  Scope* top = this;
+  while (!top->is_script_scope() && !top->outer_scope()->already_resolved()) {
+    top = top->outer_scope();
+  }
+
+  top->pending_error_handler_.ReportMessageAt(start_position, end_position,
+                                              message, arg, kReferenceError);
+}
+
+
 #ifdef DEBUG
 static const char* Header(ScopeType scope_type) {
   switch (scope_type) {
@@ -1050,6 +1069,31 @@ bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
   switch (binding_kind) {
     case BOUND:
       // We found a variable binding.
+      if (is_strong(language_mode())) {
+        // Check for declaration-after use (for variables) in strong mode. Note
+        // that we can only do this in the case where we have seen the
+        // declaration. And we always allow referencing functions (for now).
+
+        // If both the use and the declaration are inside an eval scope
+        // (possibly indirectly), or one of them is, we need to check whether
+        // they are inside the same eval scope or different
+        // ones.
+
+        // TODO(marja,rossberg): Detect errors across different evals (depends
+        // on the future of eval in strong mode).
+        const Scope* eval_for_use = NearestOuterEvalScope();
+        const Scope* eval_for_declaration =
+            var->scope()->NearestOuterEvalScope();
+
+        if (proxy->position() != RelocInfo::kNoPosition &&
+            proxy->position() < var->initializer_position() &&
+            !var->is_function() && eval_for_use == eval_for_declaration) {
+          DCHECK(proxy->end_position() != RelocInfo::kNoPosition);
+          ReportMessage(proxy->position(), proxy->end_position(),
+                        "strong_use_before_declaration", proxy->raw_name());
+          return false;
+        }
+      }
       break;
 
     case BOUND_EVAL_SHADOWED:

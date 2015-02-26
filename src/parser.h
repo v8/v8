@@ -542,7 +542,8 @@ class ParserTraits {
                                  int end_pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
-  Expression* ExpressionFromIdentifier(const AstRawString* name, int pos,
+  Expression* ExpressionFromIdentifier(const AstRawString* name,
+                                       int start_position, int end_position,
                                        Scope* scope, AstNodeFactory* factory);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
@@ -799,7 +800,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Parser support
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
-  void Declare(Declaration* declaration, bool resolve, bool* ok);
+  Variable* Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

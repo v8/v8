@@ -1408,8 +1408,8 @@ class PreParserTraits {
   }
 
   static PreParserExpression ExpressionFromIdentifier(
-      PreParserIdentifier name, int pos, Scope* scope,
-      PreParserFactory* factory) {
+      PreParserIdentifier name, int start_position, int end_position,
+      Scope* scope, PreParserFactory* factory) {
     return PreParserExpression::FromIdentifier(name);
   }
 
@@ -1859,14 +1859,15 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
   //   '(' Expression ')'
   //   TemplateLiteral
 
-  int pos = peek_position();
+  int beg_pos = scanner()->peek_location().beg_pos;
+  int end_pos = scanner()->peek_location().end_pos;
   ExpressionT result = this->EmptyExpression();
   Token::Value token = peek();
   switch (token) {
     case Token::THIS: {
       Consume(Token::THIS);
       scope_->RecordThisUsage();
-      result = this->ThisExpression(scope_, factory(), pos);
+      result = this->ThisExpression(scope_, factory(), beg_pos);
       break;
     }
 
@@ -1875,7 +1876,8 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::FALSE_LITERAL:
     case Token::NUMBER:
       Next();
-      result = this->ExpressionFromLiteral(token, pos, scanner(), factory());
+      result =
+          this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
       break;
 
     case Token::IDENTIFIER:
@@ -1885,13 +1887,14 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-      result = this->ExpressionFromIdentifier(name, pos, scope_, factory());
+      result = this->ExpressionFromIdentifier(name, beg_pos, end_pos, scope_,
+                                              factory());
       break;
     }
 
     case Token::STRING: {
       Consume(Token::STRING);
-      result = this->ExpressionFromString(pos, scanner(), factory());
+      result = this->ExpressionFromString(beg_pos, scanner(), factory());
       break;
     }
 
@@ -1918,7 +1921,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
         // for which an empty parameter list "()" is valid input.
         Consume(Token::RPAREN);
         result = this->ParseArrowFunctionLiteral(
-            pos, this->EmptyArrowParamList(), CHECK_OK);
+            beg_pos, this->EmptyArrowParamList(), CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.
@@ -1953,8 +1956,8 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
-      result =
-          this->ParseTemplateLiteral(Traits::NoTemplateTag(), pos, CHECK_OK);
+      result = this->ParseTemplateLiteral(Traits::NoTemplateTag(), beg_pos,
+                                          CHECK_OK);
       break;
 
     case Token::MOD:
@@ -2100,7 +2103,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
   bool is_generator = allow_harmony_object_literals_ && Check(Token::MUL);
 
   Token::Value name_token = peek();
-  int next_pos = peek_position();
+  int next_beg_pos = scanner()->peek_location().beg_pos;
+  int next_end_pos = scanner()->peek_location().end_pos;
   ExpressionT name_expression = ParsePropertyName(
       &name, &is_get, &is_set, &name_is_static, is_computed_name,
       CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -2195,7 +2199,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
                                  this->is_generator())) {
     DCHECK(!*is_computed_name);
     DCHECK(!is_static);
-    value = this->ExpressionFromIdentifier(name, next_pos, scope_, factory());
+    value = this->ExpressionFromIdentifier(name, next_beg_pos, next_end_pos,
+                                           scope_, factory());
     return factory()->NewObjectLiteralProperty(
         name_expression, value, ObjectLiteralProperty::COMPUTED, false, false);
 

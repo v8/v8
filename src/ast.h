@@ -1631,6 +1631,8 @@ class VariableProxy FINAL : public Expression {
     bit_field_ = IsResolvedField::update(bit_field_, true);
   }
 
+  int end_position() const { return end_position_; }
+
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
@@ -1653,10 +1655,11 @@ class VariableProxy FINAL : public Expression {
   }
 
  protected:
-  VariableProxy(Zone* zone, Variable* var, int position);
+  VariableProxy(Zone* zone, Variable* var, int start_position,
+                int end_position);
 
   VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                int position);
+                int start_position, int end_position);
 
   class IsThisField : public BitField8<bool, 0, 1> {};
   class IsAssignedField : public BitField8<bool, 1, 1> {};
@@ -1670,6 +1673,10 @@ class VariableProxy FINAL : public Expression {
     const AstRawString* raw_name_;  // if !is_resolved_
     Variable* var_;                 // if is_resolved_
   };
+  // Position is stored in the AstNode superclass, but VariableProxy needs to
+  // know its end position too (for error messages). It cannot be inferred from
+  // the variable name length because it can contain escapes.
+  int end_position_;
 };
 
 
@@ -3353,14 +3360,16 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
-                                  int pos = RelocInfo::kNoPosition) {
-    return new (zone_) VariableProxy(zone_, var, pos);
+                                  int start_position = RelocInfo::kNoPosition,
+                                  int end_position = RelocInfo::kNoPosition) {
+    return new (zone_) VariableProxy(zone_, var, start_position, end_position);
   }
 
-  VariableProxy* NewVariableProxy(const AstRawString* name,
-                                  bool is_this,
-                                  int position = RelocInfo::kNoPosition) {
-    return new (zone_) VariableProxy(zone_, name, is_this, position);
+  VariableProxy* NewVariableProxy(const AstRawString* name, bool is_this,
+                                  int start_position = RelocInfo::kNoPosition,
+                                  int end_position = RelocInfo::kNoPosition) {
+    return new (zone_)
+        VariableProxy(zone_, name, is_this, start_position, end_position);
   }
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {

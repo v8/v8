@@ -6,6 +6,7 @@
 #define V8_SCOPES_H_
 
 #include "src/ast.h"
+#include "src/pending-compilation-error-handler.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -130,7 +131,7 @@ class Scope: public ZoneObject {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag,
+                         InitializationFlag init_flag, Variable::Kind kind,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Declare an implicit global variable in this scope which must be a
@@ -142,12 +143,14 @@ class Scope: public ZoneObject {
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               int position = RelocInfo::kNoPosition) {
+                               int start_position = RelocInfo::kNoPosition,
+                               int end_position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     DCHECK(!already_resolved());
-    VariableProxy* proxy = factory->NewVariableProxy(name, false, position);
+    VariableProxy* proxy =
+        factory->NewVariableProxy(name, false, start_position, end_position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }
@@ -317,6 +320,12 @@ class Scope: public ZoneObject {
   // Does any inner scope access "this".
   bool inner_uses_this() const { return inner_scope_uses_this_; }
 
+  const Scope* NearestOuterEvalScope() const {
+    if (is_eval_scope()) return this;
+    if (outer_scope() == nullptr) return nullptr;
+    return outer_scope()->NearestOuterEvalScope();
+  }
+
   // ---------------------------------------------------------------------------
   // Accessors.
 
@@ -469,6 +478,10 @@ class Scope: public ZoneObject {
     // the assumptions explained above do not hold.
     return params_.Contains(variables_.Lookup(name));
   }
+
+  // Error handling.
+  void ReportMessage(int start_position, int end_position, const char* message,
+                     const AstRawString* arg);
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -696,6 +709,8 @@ class Scope: public ZoneObject {
 
   AstValueFactory* ast_value_factory_;
   Zone* zone_;
+
+  PendingCompilationErrorHandler pending_error_handler_;
 };
 
 } }  // namespace v8::internal

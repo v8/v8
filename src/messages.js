@@ -168,6 +168,7 @@ var kMessages = {
   strong_var:                    ["Please don't use 'var' in strong mode, use 'let' or 'const' instead"],
   strong_for_in:                 ["Please don't use 'for'-'in' loops in strong mode, use 'for'-'of' instead"],
   strong_empty:                  ["Please don't use empty sub-statements in strong mode, make them explicit with '{}' instead"],
+  strong_use_before_declaration: ["Please declare variable '", "%0", "' before use in strong mode"],
   sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
   malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
