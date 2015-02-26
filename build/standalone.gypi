@@ -199,8 +199,33 @@
         ],
         'conditions': [
           ['os_posix == 1 and OS != "mac"', {
+            # We don't want to get warnings from third-party code,
+            # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
+              '-pedantic',
+              '-Wall',
               '-Werror',
+              '-Wextra',
+            ],
+            'cflags+': [
+              # Clang considers the `register` keyword as deprecated, but
+              # ICU uses it all over the place.
+              '-Wno-deprecated-register',
+              # ICU uses its own deprecated functions.
+              '-Wno-deprecated-declarations',
+              # ICU prefers `a && b || c` over `(a && b) || c`.
+              '-Wno-logical-op-parentheses',
+              # ICU has some `unsigned < 0` checks.
+              '-Wno-tautological-compare',
+              # uresdata.c has switch(RES_GET_TYPE(x)) code. The
+              # RES_GET_TYPE macro returns an UResType enum, but some switch
+              # statement contains case values that aren't part of that
+              # enum (e.g. URES_TABLE32 which is in UResInternalType). This
+              # is on purpose.
+              '-Wno-switch',
+            ],
+            'cflags_cc!': [
+              '-Wnon-virtual-dtor',
             ],
           }],
           ['OS == "mac"', {
@@ -286,7 +311,6 @@
         'cflags': [
           '-Wall',
           '<(werror)',
-          '-W',
           '-Wno-unused-parameter',
           '-Wno-long-long',
           '-pthread',
@@ -317,7 +341,6 @@
         'cflags': [
           '-Wall',
           '<(werror)',
-          '-W',
           '-Wno-unused-parameter',
           '-fno-exceptions',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
@@ -460,7 +483,6 @@
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',
-            '-W',
             '-Wno-unused-parameter',
             # Don't warn about the "struct foo f = {0};" initialization pattern.
             '-Wno-missing-field-initializers',
