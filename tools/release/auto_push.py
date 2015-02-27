@@ -41,8 +41,8 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.InitialEnvironmentChecks(self.default_cwd)
-    self.CommonPrepare()
+    # Fetch unfetched revisions.
+    self.vc.Fetch()
 
 
 class FetchCandidate(Step):

@@ -1072,11 +1072,7 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
         auto_push.AutoPush, LastReleaseBailout, AUTO_PUSH_ARGS))
 
   def testAutoPush(self):
-    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
-
     self.Expect([
-      Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
       Cmd("git fetch origin +refs/heads/roll:refs/heads/roll", ""),
       Cmd("git show-ref -s refs/heads/roll", "abc123\n"),
