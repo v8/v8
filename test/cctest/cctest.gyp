@@ -86,6 +86,7 @@
         'compiler/test-run-machops.cc',
         'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
+        'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
