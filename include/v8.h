@@ -977,12 +977,31 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  * A simple Maybe type, representing an object which may or may not have a
  * value.
  */
-template<class T>
-struct Maybe {
+template <class T>
+class Maybe {
+ public:
   Maybe() : has_value(false) {}
-  explicit Maybe(T t) : has_value(true), value(t) {}
-  Maybe(bool has, T t) : has_value(has), value(t) {}
+  explicit Maybe(const T& t) : has_value(true), value(t) {}
+  // TODO(dcarney): remove this constructor, it makes no sense.
+  Maybe(bool has, const T& t) : has_value(has), value(t) {}
 
+  V8_INLINE bool HasValue() const { return has_value; }
+
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToValue(T* out) const {
+    *out = has_value ? value : T();
+    return has_value;
+  }
+
+  V8_INLINE T ToValueChecked() const {
+    // TODO(dcarney): add DCHECK.
+    return value;
+  }
+
+  V8_INLINE T From(const T& default_value) const {
+    return has_value ? value : default_value;
+  }
+
+  // TODO(dcarney): make private.
   bool has_value;
   T value;
 };
@@ -1921,6 +1940,13 @@ class V8_EXPORT Value : public Data {
    */
   Local<Uint32> ToArrayIndex() const;
 
+  Maybe<bool> BooleanValue(Local<Context> context) const;
+  Maybe<double> NumberValue(Local<Context> context) const;
+  Maybe<int64_t> IntegerValue(Local<Context> context) const;
+  Maybe<uint32_t> Uint32Value(Local<Context> context) const;
+  Maybe<int32_t> Int32Value(Local<Context> context) const;
+
+  // TODO(dcarney): deprecate all these.
   bool BooleanValue() const;
   double NumberValue() const;
   int64_t IntegerValue() const;

@@ -2643,6 +2643,12 @@ bool Value::IsSetIterator() const {
   } while (false);
 
 
+static Local<Context> ContextFromHeapObject(i::Handle<i::Object> obj) {
+  return reinterpret_cast<v8::Isolate*>(i::HeapObject::cast(*obj)->GetIsolate())
+      ->GetCurrentContext();
+}
+
+
 MaybeLocal<String> Value::ToString(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
@@ -2989,48 +2995,112 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 }
 
 
+Maybe<bool> Value::BooleanValue(Local<Context> context) const {
+  return maybe(Utils::OpenHandle(this)->BooleanValue());
+}
+
+
 bool Value::BooleanValue() const {
   return Utils::OpenHandle(this)->BooleanValue();
 }
 
 
+Maybe<double> Value::NumberValue(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return maybe(obj->Number());
+  CONTEXT_SCOPE_GET_ISOLATE(context, "NumberValue");
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> num;
+  has_pending_exception = !i::Execution::ToNumber(isolate, obj).ToHandle(&num);
+  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<double>());
+  return maybe(num->Number());
+}
+
+
 double Value::NumberValue() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return obj->Number();
+  return NumberValue(ContextFromHeapObject(obj))
+      .From(std::numeric_limits<double>::quiet_NaN());
+}
+
+
+Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-    LOG_API(isolate, "NumberValue");
-    ENTER_V8(isolate);
+    CONTEXT_SCOPE_GET_ISOLATE(context, "IntegerValue");
     EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToNumber(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, std::numeric_limits<double>::quiet_NaN());
+    has_pending_exception =
+        !i::Execution::ToInteger(isolate, obj).ToHandle(&num);
+    EXCEPTION_BAILOUT_CHECK(isolate, Maybe<int64_t>());
   }
-  return num->Number();
+  if (num->IsSmi()) {
+    return maybe(static_cast<int64_t>(i::Smi::cast(*num)->value()));
+  } else {
+    return maybe(static_cast<int64_t>(num->Number()));
+  }
 }
 
 
 int64_t Value::IntegerValue() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
+  auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) {
-    num = obj;
-  } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-    LOG_API(isolate, "IntegerValue");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToInteger(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, 0);
+    if (obj->IsSmi()) {
+      return i::Smi::cast(*obj)->value();
+    } else {
+      return static_cast<int64_t>(obj->Number());
+    }
   }
+  return IntegerValue(ContextFromHeapObject(obj)).From(0);
+}
+
+
+Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return maybe(NumberToInt32(*obj));
+  CONTEXT_SCOPE_GET_ISOLATE(context, "Int32Value");
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> num;
+  has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
+  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<int32_t>());
   if (num->IsSmi()) {
-    return i::Smi::cast(*num)->value();
+    return maybe(i::Smi::cast(*num)->value());
   } else {
-    return static_cast<int64_t>(num->Number());
+    return maybe(static_cast<int32_t>(num->Number()));
   }
+}
+
+
+int32_t Value::Int32Value() const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return NumberToInt32(*obj);
+  return Int32Value(ContextFromHeapObject(obj)).From(0);
+}
+
+
+Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return maybe(NumberToUint32(*obj));
+  CONTEXT_SCOPE_GET_ISOLATE(context, "Uint32Value");
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> num;
+  has_pending_exception = !i::Execution::ToUint32(isolate, obj).ToHandle(&num);
+  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<uint32_t>());
+  if (num->IsSmi()) {
+    return maybe(static_cast<uint32_t>(i::Smi::cast(*num)->value()));
+  } else {
+    return maybe(static_cast<uint32_t>(num->Number()));
+  }
+}
+
+
+uint32_t Value::Uint32Value() const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return NumberToUint32(*obj);
+  return Uint32Value(ContextFromHeapObject(obj)).From(0);
 }
 
 
@@ -3060,27 +3130,6 @@ Local<Uint32> Value::ToArrayIndex() const {
     return Utils::Uint32ToLocal(value);
   }
   return Local<Uint32>();
-}
-
-
-int32_t Value::Int32Value() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsNumber()) {
-    return NumberToInt32(*obj);
-  } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-    LOG_API(isolate, "Int32Value (slow)");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> num;
-    has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, 0);
-    if (num->IsSmi()) {
-      return i::Smi::cast(*num)->value();
-    } else {
-      return static_cast<int32_t>(num->Number());
-    }
-  }
 }
 
 
@@ -3161,28 +3210,6 @@ bool Value::SameValue(Handle<Value> that) const {
   }
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
   return obj->SameValue(*other);
-}
-
-
-uint32_t Value::Uint32Value() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsNumber()) {
-    return NumberToUint32(*obj);
-  } else {
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-    LOG_API(isolate, "Uint32Value");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> num;
-    has_pending_exception = !i::Execution::ToUint32(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, 0);
-    if (num->IsSmi()) {
-      return i::Smi::cast(*num)->value();
-    } else {
-      return static_cast<uint32_t>(num->Number());
-    }
-  }
 }
 
 
