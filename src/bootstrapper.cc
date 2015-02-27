@@ -2323,15 +2323,24 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
 
 void Genesis::InstallBuiltinFunctionIds() {
   HandleScope scope(isolate());
+  struct BuiltinFunctionIds {
+    const char* holder_expr;
+    const char* fun_name;
+    BuiltinFunctionId id;
+  };
+
 #define INSTALL_BUILTIN_ID(holder_expr, fun_name, name) \
-  {                                                     \
-    Handle<JSObject> holder = ResolveBuiltinIdHolder(   \
-        native_context(), #holder_expr);                \
-    BuiltinFunctionId id = k##name;                     \
-    InstallBuiltinFunctionId(holder, #fun_name, id);    \
-  }
-  FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
+  { #holder_expr, #fun_name, k##name }                  \
+  ,
+  const BuiltinFunctionIds builtins[] = {
+      FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)};
 #undef INSTALL_BUILTIN_ID
+
+  for (const BuiltinFunctionIds& builtin : builtins) {
+    Handle<JSObject> holder =
+        ResolveBuiltinIdHolder(native_context(), builtin.holder_expr);
+    InstallBuiltinFunctionId(holder, builtin.fun_name, builtin.id);
+  }
 }
 
 
