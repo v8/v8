@@ -981,7 +981,7 @@ class SerializedCodeData : public SerializedData {
     SOURCE_MISMATCH = 3,
     CPU_FEATURES_MISMATCH = 4,
     FLAGS_MISMATCH = 5,
-    CHECKSUM_MISMATCH = 6,
+    CHECKSUM_MISMATCH = 6
   };
 
   SanityCheckResult SanityCheck(String* source) const;
