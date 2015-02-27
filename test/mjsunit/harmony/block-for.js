@@ -147,7 +147,7 @@ function closure_in_for_cond() {
     assertEquals(k, a[k]());
   }
 }
-closure_in_for_next();
+closure_in_for_cond();
 
 
 function closure_in_for_next() {
