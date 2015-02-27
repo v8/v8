@@ -129,7 +129,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ Assert(eq, kUnexpectedInitialMapForArrayFunction);
   }
 
-  __ mov(r3, r1);
   // Run the native code for the Array function called as a normal function.
   // tail call a stub
   __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
