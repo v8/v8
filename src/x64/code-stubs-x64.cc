@@ -2520,7 +2520,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
     // Set up the roots and smi constant registers.
     // Needs to be done before any further smi loads.
-    __ InitializeSmiConstantRegister();
     __ InitializeRootRegister();
   }
 

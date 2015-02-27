@@ -17,10 +17,7 @@ namespace internal {
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
 const Register kScratchRegister = { 10 };      // r10.
-const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
 const Register kRootRegister = { 13 };         // r13 (callee save).
-// Value of smi in kSmiConstantRegister.
-const int kSmiConstantRegisterValue = 1;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
 const int kRootRegisterBias = 128;
@@ -390,11 +387,6 @@ class MacroAssembler: public Assembler {
   void SafeMove(Register dst, Smi* src);
   void SafePush(Smi* src);
 
-  void InitializeSmiConstantRegister() {
-    Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
-         Assembler::RelocInfoNone());
-  }
-
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an integer value. The result must be known to be a valid smi value.
@@ -473,11 +465,6 @@ class MacroAssembler: public Assembler {
   Condition CheckEitherSmi(Register first,
                            Register second,
                            Register scratch = kScratchRegister);
-
-  // Is the value the minimum smi value (since we are using
-  // two's complement numbers, negating the value is known to yield
-  // a non-smi value).
-  Condition CheckIsMinSmi(Register src);
 
   // Checks whether an 32-bit integer value is a valid for conversion
   // to a smi.
@@ -938,7 +925,7 @@ class MacroAssembler: public Assembler {
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
   // Does not push rsp/rbp nor any of the assembler's special purpose registers
-  // (kScratchRegister, kSmiConstantRegister, kRootRegister).
+  // (kScratchRegister, kRootRegister).
   void Pushad();
   void Popad();
   // Sets the stack as after performing Popad, without actually loading the
@@ -1468,9 +1455,9 @@ class MacroAssembler: public Assembler {
 
  private:
   // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
+  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.
   static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
-  static const int kNumSafepointSavedRegisters = 11;
+  static const int kNumSafepointSavedRegisters = 12;
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool generating_stub_;

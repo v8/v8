@@ -307,7 +307,6 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Set up the roots register.
   __ InitializeRootRegister();
-  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

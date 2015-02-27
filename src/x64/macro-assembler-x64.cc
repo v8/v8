@@ -920,67 +920,13 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
     xorl(kScratchRegister, kScratchRegister);
     return kScratchRegister;
   }
-  if (value == 1) {
-    return kSmiConstantRegister;
-  }
   LoadSmiConstant(kScratchRegister, source);
   return kScratchRegister;
 }
 
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
-  if (emit_debug_code()) {
-    Move(dst, Smi::FromInt(kSmiConstantRegisterValue),
-         Assembler::RelocInfoNone());
-    cmpp(dst, kSmiConstantRegister);
-    Assert(equal, kUninitializedKSmiConstantRegister);
-  }
-  int value = source->value();
-  if (value == 0) {
-    xorl(dst, dst);
-    return;
-  }
-  bool negative = value < 0;
-  unsigned int uvalue = negative ? -value : value;
-
-  switch (uvalue) {
-    case 9:
-      leap(dst,
-           Operand(kSmiConstantRegister, kSmiConstantRegister, times_8, 0));
-      break;
-    case 8:
-      xorl(dst, dst);
-      leap(dst, Operand(dst, kSmiConstantRegister, times_8, 0));
-      break;
-    case 4:
-      xorl(dst, dst);
-      leap(dst, Operand(dst, kSmiConstantRegister, times_4, 0));
-      break;
-    case 5:
-      leap(dst,
-           Operand(kSmiConstantRegister, kSmiConstantRegister, times_4, 0));
-      break;
-    case 3:
-      leap(dst,
-           Operand(kSmiConstantRegister, kSmiConstantRegister, times_2, 0));
-      break;
-    case 2:
-      leap(dst,
-           Operand(kSmiConstantRegister, kSmiConstantRegister, times_1, 0));
-      break;
-    case 1:
-      movp(dst, kSmiConstantRegister);
-      break;
-    case 0:
-      UNREACHABLE();
-      return;
-    default:
-      Move(dst, source, Assembler::RelocInfoNone());
-      return;
-  }
-  if (negative) {
-    negp(dst);
-  }
+  Move(dst, source, Assembler::RelocInfoNone());
 }
 
 
@@ -1273,14 +1219,6 @@ Condition MacroAssembler::CheckEitherSmi(Register first,
 }
 
 
-Condition MacroAssembler::CheckIsMinSmi(Register src) {
-  DCHECK(!src.is(kScratchRegister));
-  // If we overflow by subtracting one, it's the minimal smi value.
-  cmpp(src, kSmiConstantRegister);
-  return overflow;
-}
-
-
 Condition MacroAssembler::CheckInteger32ValidSmiValue(Register src) {
   if (SmiValuesAre32Bits()) {
     // A 32-bit integer value can always be converted to a smi.
@@ -1419,43 +1357,11 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
     return;
   } else if (dst.is(src)) {
     DCHECK(!dst.is(kScratchRegister));
-    switch (constant->value()) {
-      case 1:
-        addp(dst, kSmiConstantRegister);
-        return;
-      case 2:
-        leap(dst, Operand(src, kSmiConstantRegister, times_2, 0));
-        return;
-      case 4:
-        leap(dst, Operand(src, kSmiConstantRegister, times_4, 0));
-        return;
-      case 8:
-        leap(dst, Operand(src, kSmiConstantRegister, times_8, 0));
-        return;
-      default:
-        Register constant_reg = GetSmiConstant(constant);
-        addp(dst, constant_reg);
-        return;
-    }
+    Register constant_reg = GetSmiConstant(constant);
+    addp(dst, constant_reg);
   } else {
-    switch (constant->value()) {
-      case 1:
-        leap(dst, Operand(src, kSmiConstantRegister, times_1, 0));
-        return;
-      case 2:
-        leap(dst, Operand(src, kSmiConstantRegister, times_2, 0));
-        return;
-      case 4:
-        leap(dst, Operand(src, kSmiConstantRegister, times_4, 0));
-        return;
-      case 8:
-        leap(dst, Operand(src, kSmiConstantRegister, times_8, 0));
-        return;
-      default:
-        LoadSmiConstant(dst, constant);
-        addp(dst, src);
-        return;
-    }
+    LoadSmiConstant(dst, constant);
+    addp(dst, src);
   }
 }
 
@@ -2789,15 +2695,13 @@ void MacroAssembler::Pop(const Operand& dst) {
     popq(dst);
   } else {
     Register scratch = dst.AddressUsesRegister(kScratchRegister)
-        ? kSmiConstantRegister : kScratchRegister;
+        ? kRootRegister : kScratchRegister;
     movp(scratch, Operand(rsp, 0));
     movp(dst, scratch);
     leal(rsp, Operand(rsp, 4));
-    if (scratch.is(kSmiConstantRegister)) {
-      // Restore kSmiConstantRegister.
-      movp(kSmiConstantRegister,
-           reinterpret_cast<void*>(Smi::FromInt(kSmiConstantRegisterValue)),
-           Assembler::RelocInfoNone());
+    if (scratch.is(kRootRegister)) {
+      // Restore kRootRegister.
+      InitializeRootRegister();
     }
   }
 }
@@ -2940,11 +2844,11 @@ void MacroAssembler::Pushad() {
   Push(r9);
   // r10 is kScratchRegister.
   Push(r11);
-  // r12 is kSmiConstantRegister.
+  Push(r12);
   // r13 is kRootRegister.
   Push(r14);
   Push(r15);
-  STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
+  STATIC_ASSERT(12 == kNumSafepointSavedRegisters);
   // Use lea for symmetry with Popad.
   int sp_delta =
       (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
@@ -2959,6 +2863,7 @@ void MacroAssembler::Popad() {
   leap(rsp, Operand(rsp, sp_delta));
   Pop(r15);
   Pop(r14);
+  Pop(r12);
   Pop(r11);
   Pop(r9);
   Pop(r8);
@@ -2992,10 +2897,10 @@ MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     7,
     -1,
     8,
-    -1,
-    -1,
     9,
-    10
+    -1,
+    10,
+    11
 };
 
 

@@ -74,9 +74,8 @@ struct Register {
   //  rsp - stack pointer
   //  rbp - frame pointer
   //  r10 - fixed scratch register
-  //  r12 - smi constant register
   //  r13 - root register
-  static const int kMaxNumAllocatableRegisters = 11;
+  static const int kMaxNumAllocatableRegisters = 12;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
   }
@@ -104,6 +103,7 @@ struct Register {
       "r8",
       "r9",
       "r11",
+      "r12",
       "r14",
       "r15"
     };

@@ -310,7 +310,6 @@ namespace internal {
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                                \
     "Unexpected unused properties of string wrapper")                          \
   V(kUnimplemented, "unimplemented")                                           \
-  V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister")  \
   V(kUnsupportedConstCompoundAssignment,                                       \
     "Unsupported const compound assignment")                                   \
   V(kUnsupportedCountOperationWithConst,                                       \
@@ -345,7 +344,8 @@ enum BailoutReason {
 
 
 const char* GetBailoutReason(BailoutReason reason);
-}
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BAILOUT_REASON_H_

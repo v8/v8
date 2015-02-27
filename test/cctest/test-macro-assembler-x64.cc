@@ -98,21 +98,13 @@ typedef int (*F0)();
 
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
-  __ pushq(i::kSmiConstantRegister);
   __ pushq(i::kRootRegister);
-  __ InitializeSmiConstantRegister();
   __ InitializeRootRegister();
 }
 
 
 static void ExitCode(MacroAssembler* masm) {
-  // Return -1 if kSmiConstantRegister was clobbered during the test.
-  __ Move(rdx, Smi::FromInt(1));
-  __ cmpq(rdx, i::kSmiConstantRegister);
-  __ movq(rdx, Immediate(-1));
-  __ cmovq(not_equal, rax, rdx);
   __ popq(i::kRootRegister);
-  __ popq(i::kSmiConstantRegister);
 }
 
 
@@ -554,32 +546,6 @@ TEST(SmiCheck) {
   __ incq(rax);
   __ xorq(rcx, Immediate(kSmiTagMask));
   cond = masm->CheckNonNegativeSmi(rcx);  // "Positive" non-smi.
-  __ j(cond, &exit);
-
-  // CheckIsMinSmi
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckIsMinSmi(rcx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(0));
-  __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckIsMinSmi(rcx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(Smi::kMinValue));
-  __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckIsMinSmi(rcx);
-  __ j(NegateCondition(cond), &exit);
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(Smi::kMinValue + 1));
-  __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckIsMinSmi(rcx);
   __ j(cond, &exit);
 
   // CheckBothSmi
