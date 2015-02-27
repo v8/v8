@@ -5223,6 +5223,8 @@ TEST(ModuleParsingInternals) {
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::CompilationInfoWithZone info(script);
+  i::Zone* zone = info.zone();
+  i::AstValueFactory avf(zone, isolate->heap()->HashSeed());
   i::Parser parser(&info, isolate->stack_guard()->real_climit(),
                    isolate->heap()->HashSeed(), isolate->unicode_cache());
   parser.set_allow_harmony_modules(true);
@@ -5233,13 +5235,12 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(i::MODULE_SCOPE, func->scope()->scope_type());
   i::ModuleDescriptor* descriptor = func->scope()->module();
   CHECK_NOT_NULL(descriptor);
-  int num_exports = 0;
-  for (auto it = descriptor->iterator(); !it.done(); it.Advance()) {
-    ++num_exports;
-    CHECK(it.local_name()->IsOneByteEqualTo("x"));
-    CHECK(it.export_name()->IsOneByteEqualTo("y"));
-  }
-  CHECK_EQ(1, num_exports);
+  CHECK_EQ(1, descriptor->Length());
+  const i::AstRawString* export_name = avf.GetOneByteString("y");
+  const i::AstRawString* local_name =
+      descriptor->LookupLocalExport(export_name, zone);
+  CHECK_NOT_NULL(local_name);
+  CHECK(local_name->IsOneByteEqualTo("x"));
   i::ZoneList<i::Declaration*>* declarations = func->scope()->declarations();
   CHECK_EQ(2, declarations->length());
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));

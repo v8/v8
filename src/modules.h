@@ -58,6 +58,9 @@ class ModuleDescriptor : public ZoneObject {
     return index_;
   }
 
+  const AstRawString* LookupLocalExport(const AstRawString* export_name,
+                                        Zone* zone);
+
   // ---------------------------------------------------------------------------
   // Iterators.
 

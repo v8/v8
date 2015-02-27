@@ -20,9 +20,8 @@ void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
   ZoneAllocationPolicy allocator(zone);
 
   if (exports_ == nullptr) {
-    exports_ = new (zone->New(sizeof(ZoneHashMap)))
-        ZoneHashMap(ZoneHashMap::PointersMatch,
-                    ZoneHashMap::kDefaultHashMapCapacity, allocator);
+    exports_ = new (zone->New(sizeof(ZoneHashMap))) ZoneHashMap(
+        AstRawString::Compare, ZoneHashMap::kDefaultHashMapCapacity, allocator);
   }
 
   ZoneHashMap::Entry* p =
@@ -32,6 +31,19 @@ void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
   }
 
   p->value = const_cast<AstRawString*>(local_name);
+}
+
+
+const AstRawString* ModuleDescriptor::LookupLocalExport(
+    const AstRawString* export_name, Zone* zone) {
+  if (exports_ == nullptr) return nullptr;
+  ZoneAllocationPolicy allocator(zone);
+  ZoneHashMap::Entry* entry =
+      exports_->Lookup(const_cast<AstRawString*>(export_name),
+                       export_name->hash(), false, allocator);
+  if (entry == nullptr) return nullptr;
+  DCHECK_NOT_NULL(entry->value);
+  return static_cast<const AstRawString*>(entry->value);
 }
 }
 }  // namespace v8::internal
