@@ -119,6 +119,16 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
 }
 
 
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithOrderedNumber) {
+  Node* input = Parameter(Type::OrderedNumber(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberEqual(input, IsNumberConstant(0)));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
   Node* input = Parameter(
       Type::Union(

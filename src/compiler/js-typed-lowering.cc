@@ -516,6 +516,12 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     node->set_op(simplified()->BooleanNot());
     node->TrimInputCount(1);
     return Changed(node);
+  } else if (input_type->Is(Type::OrderedNumber())) {
+    // JSUnaryNot(x:number,context) => NumberEqual(x,#0)
+    node->set_op(simplified()->NumberEqual());
+    node->ReplaceInput(1, jsgraph()->ZeroConstant());
+    DCHECK_EQ(2, node->InputCount());
+    return Changed(node);
   }
   // JSUnaryNot(x,context) => BooleanNot(AnyToBoolean(x))
   node->set_op(simplified()->BooleanNot());
