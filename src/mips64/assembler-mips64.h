@@ -41,6 +41,7 @@
 #include <set>
 
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/serialize.h"
 
