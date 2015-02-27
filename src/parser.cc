@@ -1422,16 +1422,19 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   }
 
   // Parse ImportedDefaultBinding if present.
-  const AstRawString* imported_default_binding = NULL;
+  ImportDeclaration* import_default_declaration = NULL;
   if (tok != Token::MUL && tok != Token::LBRACE) {
-    imported_default_binding =
+    const AstRawString* local_name =
         ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
-    // TODO(ES6): Add an appropriate declaration.
+    VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+    import_default_declaration = factory()->NewImportDeclaration(
+        proxy, ast_value_factory()->default_string(), NULL, scope_, pos);
+    Declare(import_default_declaration, true, CHECK_OK);
   }
 
   const AstRawString* module_instance_binding = NULL;
   ZoneList<ImportDeclaration*>* named_declarations = NULL;
-  if (imported_default_binding == NULL || Check(Token::COMMA)) {
+  if (import_default_declaration == NULL || Check(Token::COMMA)) {
     switch (peek()) {
       case Token::MUL: {
         Consume(Token::MUL);
@@ -1461,8 +1464,8 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
     // TODO(ES6): Set the module specifier for the module namespace binding.
   }
 
-  if (imported_default_binding != NULL) {
-    // TODO(ES6): Set the module specifier for the default binding.
+  if (import_default_declaration != NULL) {
+    import_default_declaration->set_module_specifier(module_specifier);
   }
 
   if (named_declarations != NULL) {

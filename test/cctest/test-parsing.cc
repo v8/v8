@@ -5219,7 +5219,10 @@ TEST(ModuleParsingInternals) {
                                         128 * 1024);
 
   static const char kSource[] =
-      "let x = 5; export { x as y }; import { q as z } from 'm.js';";
+      "let x = 5;"
+      "export { x as y };"
+      "import { q as z } from 'm.js';"
+      "import n from 'n.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::CompilationInfoWithZone info(script);
@@ -5242,13 +5245,17 @@ TEST(ModuleParsingInternals) {
   CHECK_NOT_NULL(local_name);
   CHECK(local_name->IsOneByteEqualTo("x"));
   i::ZoneList<i::Declaration*>* declarations = func->scope()->declarations();
-  CHECK_EQ(2, declarations->length());
+  CHECK_EQ(3, declarations->length());
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
   i::ImportDeclaration* import_decl =
       declarations->at(1)->AsImportDeclaration();
   CHECK(import_decl->import_name()->IsOneByteEqualTo("q"));
   CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("z"));
   CHECK(import_decl->module_specifier()->IsOneByteEqualTo("m.js"));
+  import_decl = declarations->at(2)->AsImportDeclaration();
+  CHECK(import_decl->import_name()->IsOneByteEqualTo("default"));
+  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("n.js"));
 }
 
 
