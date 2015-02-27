@@ -192,12 +192,12 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_sloppy, "harmony features in sloppy mode")                  \
   V(harmony_unicode, "harmony unicode escapes")                         \
   V(harmony_unicode_regexps, "harmony unicode regexps")                 \
-  V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_rest_parameters, "harmony rest parameters")                 \
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                                 \
-  V(harmony_tostring, "harmony toString")                                 \
+#define HARMONY_STAGED(V)                                               \
+  V(harmony_computed_property_names, "harmony computed property names") \
+  V(harmony_tostring, "harmony toString")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                               \
