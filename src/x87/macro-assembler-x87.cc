@@ -1883,6 +1883,20 @@ void MacroAssembler::NegativeZeroTest(Register result,
 }
 
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp) {
+  Label done, loop;
+  mov(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
+  bind(&loop);
+  JumpIfSmi(result, &done);
+  CmpObjectType(result, MAP_TYPE, temp);
+  j(not_equal, &done);
+  mov(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
+  jmp(&loop);
+  bind(&done);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -1934,7 +1948,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: Fetch prototype from constructor field
     // in initial map.
     bind(&non_instance);
-    mov(result, FieldOperand(result, Map::kConstructorOffset));
+    GetMapConstructor(result, result, scratch);
   }
 
   // All done.
