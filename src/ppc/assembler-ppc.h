@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/ppc/constants-ppc.h"
 #include "src/serialize.h"
 
@@ -1302,7 +1303,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.

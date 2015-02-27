@@ -3650,7 +3650,7 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
 
 
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, int bailout_id) {
-  int last_position = 0;
+  SourcePosition last_position = SourcePosition::Unknown();
   Isolate* isolate = code->GetIsolate();
   Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
@@ -3659,7 +3659,9 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, int bailout_id) {
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->rmode() == RelocInfo::POSITION) {
-      last_position = static_cast<int>(info->data());
+      int raw_position = static_cast<int>(info->data());
+      last_position = raw_position ? SourcePosition::FromRaw(raw_position)
+                                   : SourcePosition::Unknown();
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
     } else if (last_reason != Deoptimizer::kNoReason) {
@@ -3677,6 +3679,6 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, int bailout_id) {
       }
     }
   }
-  return DeoptInfo(0, NULL, Deoptimizer::kNoReason);
+  return DeoptInfo(SourcePosition::Unknown(), NULL, Deoptimizer::kNoReason);
 }
 } }  // namespace v8::internal

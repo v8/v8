@@ -45,6 +45,7 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/serialize.h"
 
 namespace v8 {
@@ -1400,7 +1401,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   // Record the emission of a constant pool.
   //

@@ -894,7 +894,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     __ stop("trap_on_deopt", condition);
   }
 
-  Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position().raw(),
+  Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
                                     instr->Mnemonic(), deopt_reason);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or

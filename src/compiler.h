@@ -39,9 +39,9 @@ struct OffsetRange {
 // script start.
 class SourcePosition {
  public:
-  SourcePosition(const SourcePosition& other) : value_(other.value_) {}
-
-  static SourcePosition Unknown() { return SourcePosition(kNoPosition); }
+  static SourcePosition Unknown() {
+    return SourcePosition::FromRaw(kNoPosition);
+  }
 
   bool IsUnknown() const { return value_ == kNoPosition; }
 
@@ -72,10 +72,14 @@ class SourcePosition {
   // Offset from the start of the inlined function.
   typedef BitField<uint32_t, 9, 23> PositionField;
 
-  explicit SourcePosition(uint32_t value) : value_(value) {}
-
   friend class HPositionInfo;
-  friend class LCodeGenBase;
+  friend class Deoptimizer;
+
+  static SourcePosition FromRaw(uint32_t raw_position) {
+    SourcePosition position;
+    position.value_ = raw_position;
+    return position;
+  }
 
   // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
   // and PositionField.

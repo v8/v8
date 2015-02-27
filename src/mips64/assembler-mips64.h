@@ -1060,7 +1060,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                        intptr_t pc_delta);

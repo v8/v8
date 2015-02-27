@@ -8,6 +8,7 @@
 #include <map>
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
+#include "src/compiler.h"
 #include "src/hashmap.h"
 #include "src/strings-storage.h"
 
@@ -64,17 +65,17 @@ class CodeEntry {
   }
   const char* bailout_reason() const { return bailout_reason_; }
 
-  void set_deopt_info(const char* deopt_reason, int location) {
-    DCHECK(!deopt_location_);
+  void set_deopt_info(const char* deopt_reason, SourcePosition position) {
+    DCHECK(deopt_position_.IsUnknown());
     deopt_reason_ = deopt_reason;
-    deopt_location_ = location;
+    deopt_position_ = position;
   }
   const char* deopt_reason() const { return deopt_reason_; }
-  int deopt_location() const { return deopt_location_; }
-  bool has_deopt_info() const { return deopt_location_; }
+  SourcePosition deopt_position() const { return deopt_position_; }
+  bool has_deopt_info() const { return !deopt_position_.IsUnknown(); }
   void clear_deopt_info() {
     deopt_reason_ = kNoDeoptReason;
-    deopt_location_ = 0;
+    deopt_position_ = SourcePosition::Unknown();
   }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
@@ -119,7 +120,7 @@ class CodeEntry {
   List<OffsetRange>* no_frame_ranges_;
   const char* bailout_reason_;
   const char* deopt_reason_;
-  int deopt_location_;
+  SourcePosition deopt_position_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
 
@@ -132,13 +133,13 @@ class ProfileTree;
 class ProfileNode {
  private:
   struct DeoptInfo {
-    DeoptInfo(const char* deopt_reason, int deopt_location)
-        : deopt_reason(deopt_reason), deopt_location(deopt_location) {}
+    DeoptInfo(const char* deopt_reason, SourcePosition deopt_position)
+        : deopt_reason(deopt_reason), deopt_position(deopt_position) {}
     DeoptInfo(const DeoptInfo& info)
         : deopt_reason(info.deopt_reason),
-          deopt_location(info.deopt_location) {}
+          deopt_position(info.deopt_position) {}
     const char* deopt_reason;
-    int deopt_location;
+    SourcePosition deopt_position;
   };
 
  public:

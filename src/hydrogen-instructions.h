@@ -982,7 +982,7 @@ class HPositionInfo {
     if (has_operand_positions()) {
       return operand_positions()[kInstructionPosIndex];
     }
-    return SourcePosition(static_cast<int>(UntagPosition(data_)));
+    return SourcePosition::FromRaw(static_cast<int>(UntagPosition(data_)));
   }
 
   void set_position(SourcePosition pos) {

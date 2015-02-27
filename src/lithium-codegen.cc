@@ -153,7 +153,7 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.raw_position);
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.position);
 }
 
 

@@ -26,7 +26,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       no_frame_ranges_(NULL),
       bailout_reason_(kEmptyBailoutReason),
       deopt_reason_(kNoDeoptReason),
-      deopt_location_(0),
+      deopt_position_(SourcePosition::Unknown()),
       line_info_(line_info),
       instruction_start_(instruction_start) {}
 

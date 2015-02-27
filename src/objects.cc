@@ -15,6 +15,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/compiler.h"
 #include "src/cpu-profiler.h"
 #include "src/date.h"
 #include "src/debug.h"
@@ -11264,9 +11265,16 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 
 void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, bailout_id);
-  if (info.deopt_reason != Deoptimizer::kNoReason || info.raw_position != 0) {
-    PrintF(out, "            ;;; deoptimize at %d: %s\n", info.raw_position,
-           Deoptimizer::GetDeoptReason(info.deopt_reason));
+  class SourcePosition pos = info.position;
+  if (info.deopt_reason != Deoptimizer::kNoReason || !pos.IsUnknown()) {
+    if (FLAG_hydrogen_track_positions) {
+      PrintF(out, "            ;;; deoptimize at %d_%d: %s\n",
+             pos.inlining_id(), pos.position(),
+             Deoptimizer::GetDeoptReason(info.deopt_reason));
+    } else {
+      PrintF(out, "            ;;; deoptimize at %d: %s\n", pos.raw(),
+             Deoptimizer::GetDeoptReason(info.deopt_reason));
+    }
   }
 }
 

@@ -336,7 +336,7 @@ void CpuProfiler::CodeDeoptEvent(Code* code, int bailout_id, Address pc,
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, bailout_id);
   rec->start = code->address();
   rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
-  rec->raw_position = info.raw_position;
+  rec->position = info.position;
   processor_->Enqueue(evt_rec);
   processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
 }

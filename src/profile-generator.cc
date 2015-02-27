@@ -113,7 +113,7 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
 
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
-  deopt_infos_.Add(DeoptInfo(entry->deopt_reason(), entry->deopt_location()));
+  deopt_infos_.Add(DeoptInfo(entry->deopt_reason(), entry->deopt_position()));
   entry->clear_deopt_info();
 }
 
@@ -182,8 +182,14 @@ void ProfileNode::Print(int indent) {
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
   for (auto info : deopt_infos_) {
-    base::OS::Print("%*s deopted at %d with reason '%s'\n", indent + 10, "",
-                    info.deopt_location, info.deopt_reason);
+    if (FLAG_hydrogen_track_positions) {
+      base::OS::Print("%*s deopted at %d_%d with reason '%s'\n", indent + 10,
+                      "", info.deopt_position.inlining_id(),
+                      info.deopt_position.position(), info.deopt_reason);
+    } else {
+      base::OS::Print("%*s deopted at %d with reason '%s'\n", indent + 10, "",
+                      info.deopt_position.raw(), info.deopt_reason);
+    }
   }
   const char* bailout_reason = entry_->bailout_reason();
   if (bailout_reason != GetBailoutReason(BailoutReason::kNoReason) &&

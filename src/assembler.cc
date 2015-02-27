@@ -465,7 +465,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
     // Use signed delta-encoding for id.
-    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
     int id_delta = static_cast<int>(rinfo->data()) - last_id_;
     // Check if delta is small enough to fit in a tagged byte.
     if (is_intn(id_delta, kSmallDataBits)) {
@@ -483,12 +483,12 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedData(rinfo->data(), kDeoptReasonTag);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for position.
-    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
     int pos_delta = static_cast<int>(rinfo->data()) - last_position_;
     if (rmode == RelocInfo::STATEMENT_POSITION) {
       WritePosition(pc_delta, pos_delta, rmode);
     } else {
-      DCHECK(rmode == RelocInfo::POSITION);
+      DCHECK_EQ(rmode, RelocInfo::POSITION);
       if (pc_delta != 0 || last_mode_ != RelocInfo::POSITION) {
         FlushPosition();
         next_position_candidate_pc_delta_ = pc_delta;
@@ -1656,9 +1656,11 @@ bool PositionsRecorder::WriteRecordedPositions() {
 // Platform specific but identical code for all the platforms.
 
 
-void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+void Assembler::RecordDeoptReason(const int reason,
+                                  const SourcePosition position) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
+    int raw_position = position.IsUnknown() ? 0 : position.raw();
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
   }

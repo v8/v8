@@ -9,6 +9,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/circular-queue.h"
+#include "src/compiler.h"
 #include "src/sampler.h"
 #include "src/unbound-queue.h"
 
@@ -78,7 +79,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
  public:
   Address start;
   const char* deopt_reason;
-  int raw_position;
+  SourcePosition position;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
