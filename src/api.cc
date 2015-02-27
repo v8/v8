@@ -1873,7 +1873,7 @@ v8::TryCatch::~TryCatch() {
     if (HasCaught() && capture_message_) {
       // If an exception was caught and rethrow_ is indicated, the saved
       // message, script, and location need to be restored to Isolate TLS
-      // for reuse.  capture_message_ needs to be disabled so that DoThrow()
+      // for reuse.  capture_message_ needs to be disabled so that Throw()
       // does not create a new message.
       isolate_->thread_local_top()->rethrowing_message_ = true;
       isolate_->RestorePendingMessageFromTryCatch(this);

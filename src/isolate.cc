@@ -836,7 +836,7 @@ Object* Isolate::StackOverflow() {
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(
       Object::GetProperty(js_builtins_object(), key).ToHandleChecked());
   Handle<JSObject> exception = factory()->CopyJSObject(boilerplate);
-  DoThrow(*exception, NULL);
+  Throw(*exception, nullptr);
 
   CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());
   return heap()->exception();
@@ -844,8 +844,7 @@ Object* Isolate::StackOverflow() {
 
 
 Object* Isolate::TerminateExecution() {
-  DoThrow(heap_.termination_exception(), NULL);
-  return heap()->exception();
+  return Throw(heap_.termination_exception(), nullptr);
 }
 
 
@@ -890,8 +889,129 @@ void Isolate::InvokeApiInterruptCallbacks() {
 }
 
 
+void ReportBootstrappingException(Handle<Object> exception,
+                                  MessageLocation* location) {
+  base::OS::PrintError("Exception thrown during bootstrapping\n");
+  if (location == NULL || location->script().is_null()) return;
+  // We are bootstrapping and caught an error where the location is set
+  // and we have a script for the location.
+  // In this case we could have an extension (or an internal error
+  // somewhere) and we print out the line number at which the error occured
+  // to the console for easier debugging.
+  int line_number =
+      location->script()->GetLineNumber(location->start_pos()) + 1;
+  if (exception->IsString() && location->script()->name()->IsString()) {
+    base::OS::PrintError(
+        "Extension or internal compilation error: %s in %s at line %d.\n",
+        String::cast(*exception)->ToCString().get(),
+        String::cast(location->script()->name())->ToCString().get(),
+        line_number);
+  } else if (location->script()->name()->IsString()) {
+    base::OS::PrintError(
+        "Extension or internal compilation error in %s at line %d.\n",
+        String::cast(location->script()->name())->ToCString().get(),
+        line_number);
+  } else {
+    base::OS::PrintError("Extension or internal compilation error.\n");
+  }
+#ifdef OBJECT_PRINT
+  // Since comments and empty lines have been stripped from the source of
+  // builtins, print the actual source here so that line numbers match.
+  if (location->script()->source()->IsString()) {
+    Handle<String> src(String::cast(location->script()->source()));
+    PrintF("Failing script:\n");
+    int len = src->length();
+    int line_number = 1;
+    PrintF("%5d: ", line_number);
+    for (int i = 0; i < len; i++) {
+      uint16_t character = src->Get(i);
+      PrintF("%c", character);
+      if (character == '\n' && i < len - 2) {
+        PrintF("%5d: ", ++line_number);
+      }
+    }
+  }
+#endif
+}
+
+
+namespace {
+
+// Only use by Isolate::Throw for --abort-on-uncaught-exception.
+int fatal_exception_depth = 0;
+
+}  // namespace
+
+
 Object* Isolate::Throw(Object* exception, MessageLocation* location) {
-  DoThrow(exception, location);
+  DCHECK(!has_pending_exception());
+
+  HandleScope scope(this);
+  Handle<Object> exception_handle(exception, this);
+
+  // Determine reporting and whether the exception is caught externally.
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  bool can_be_caught_externally = false;
+  bool should_report_exception =
+      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+  bool report_exception = catchable_by_javascript && should_report_exception;
+  bool try_catch_needs_message =
+      can_be_caught_externally && try_catch_handler()->capture_message_;
+  bool rethrowing_message = thread_local_top()->rethrowing_message_;
+
+  thread_local_top()->rethrowing_message_ = false;
+
+  // Notify debugger of exception.
+  if (catchable_by_javascript) {
+    debug()->OnThrow(exception_handle, report_exception);
+  }
+
+  // Generate the message if required.
+  if (!rethrowing_message && (report_exception || try_catch_needs_message)) {
+    MessageLocation potential_computed_location;
+    if (location == NULL) {
+      // If no location was specified we use a computed one instead.
+      ComputeLocation(&potential_computed_location);
+      location = &potential_computed_location;
+    }
+
+    if (bootstrapper()->IsActive()) {
+      // It's not safe to try to make message objects or collect stack traces
+      // while the bootstrapper is active since the infrastructure may not have
+      // been properly initialized.
+      ReportBootstrappingException(exception_handle, location);
+    } else {
+      Handle<Object> message_obj = CreateMessage(exception_handle, location);
+
+      thread_local_top()->pending_message_obj_ = *message_obj;
+      thread_local_top()->pending_message_script_ = *location->script();
+      thread_local_top()->pending_message_start_pos_ = location->start_pos();
+      thread_local_top()->pending_message_end_pos_ = location->end_pos();
+
+      // If the abort-on-uncaught-exception flag is specified, abort on any
+      // exception not caught by JavaScript, even when an external handler is
+      // present.  This flag is intended for use by JavaScript developers, so
+      // print a user-friendly stack trace (not an internal one).
+      if (fatal_exception_depth == 0 && FLAG_abort_on_uncaught_exception &&
+          (report_exception || can_be_caught_externally)) {
+        fatal_exception_depth++;
+        PrintF(stderr, "%s\n\nFROM\n",
+               MessageHandler::GetLocalizedMessage(this, message_obj).get());
+        PrintCurrentStackTrace(stderr);
+        base::OS::Abort();
+      }
+    }
+  }
+
+  // Save the message for reporting if the the exception remains uncaught.
+  thread_local_top()->has_pending_message_ = report_exception;
+
+  // Do not forget to clean catcher_ if currently thrown exception cannot
+  // be caught.  If necessary, ReThrow will update the catcher.
+  thread_local_top()->catcher_ =
+      can_be_caught_externally ? try_catch_handler() : NULL;
+
+  set_pending_exception(*exception_handle);
   return heap()->exception();
 }
 
@@ -1121,8 +1241,6 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   return false;
 }
 
-static int fatal_exception_depth = 0;
-
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
@@ -1169,124 +1287,6 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
   return MessageHandler::MakeMessageObject(this, "uncaught_exception", location,
                                            HandleVector<Object>(&exception, 1),
                                            stack_trace_object);
-}
-
-
-void ReportBootstrappingException(Handle<Object> exception,
-                                  MessageLocation* location) {
-  base::OS::PrintError("Exception thrown during bootstrapping\n");
-  if (location == NULL || location->script().is_null()) return;
-  // We are bootstrapping and caught an error where the location is set
-  // and we have a script for the location.
-  // In this case we could have an extension (or an internal error
-  // somewhere) and we print out the line number at which the error occured
-  // to the console for easier debugging.
-  int line_number =
-      location->script()->GetLineNumber(location->start_pos()) + 1;
-  if (exception->IsString() && location->script()->name()->IsString()) {
-    base::OS::PrintError(
-        "Extension or internal compilation error: %s in %s at line %d.\n",
-        String::cast(*exception)->ToCString().get(),
-        String::cast(location->script()->name())->ToCString().get(),
-        line_number);
-  } else if (location->script()->name()->IsString()) {
-    base::OS::PrintError(
-        "Extension or internal compilation error in %s at line %d.\n",
-        String::cast(location->script()->name())->ToCString().get(),
-        line_number);
-  } else {
-    base::OS::PrintError("Extension or internal compilation error.\n");
-  }
-#ifdef OBJECT_PRINT
-  // Since comments and empty lines have been stripped from the source of
-  // builtins, print the actual source here so that line numbers match.
-  if (location->script()->source()->IsString()) {
-    Handle<String> src(String::cast(location->script()->source()));
-    PrintF("Failing script:\n");
-    int len = src->length();
-    int line_number = 1;
-    PrintF("%5d: ", line_number);
-    for (int i = 0; i < len; i++) {
-      uint16_t character = src->Get(i);
-      PrintF("%c", character);
-      if (character == '\n' && i < len - 2) {
-        PrintF("%5d: ", ++line_number);
-      }
-    }
-  }
-#endif
-}
-
-
-void Isolate::DoThrow(Object* exception, MessageLocation* location) {
-  DCHECK(!has_pending_exception());
-
-  HandleScope scope(this);
-  Handle<Object> exception_handle(exception, this);
-
-  // Determine reporting and whether the exception is caught externally.
-  bool catchable_by_javascript = is_catchable_by_javascript(exception);
-  bool can_be_caught_externally = false;
-  bool should_report_exception =
-      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
-  bool report_exception = catchable_by_javascript && should_report_exception;
-  bool try_catch_needs_message =
-      can_be_caught_externally && try_catch_handler()->capture_message_;
-  bool rethrowing_message = thread_local_top()->rethrowing_message_;
-
-  thread_local_top()->rethrowing_message_ = false;
-
-  // Notify debugger of exception.
-  if (catchable_by_javascript) {
-    debug()->OnThrow(exception_handle, report_exception);
-  }
-
-  // Generate the message if required.
-  if (!rethrowing_message && (report_exception || try_catch_needs_message)) {
-    MessageLocation potential_computed_location;
-    if (location == NULL) {
-      // If no location was specified we use a computed one instead.
-      ComputeLocation(&potential_computed_location);
-      location = &potential_computed_location;
-    }
-
-    if (bootstrapper()->IsActive()) {
-      // It's not safe to try to make message objects or collect stack traces
-      // while the bootstrapper is active since the infrastructure may not have
-      // been properly initialized.
-      ReportBootstrappingException(exception_handle, location);
-    } else {
-      Handle<Object> message_obj = CreateMessage(exception_handle, location);
-
-      thread_local_top()->pending_message_obj_ = *message_obj;
-      thread_local_top()->pending_message_script_ = *location->script();
-      thread_local_top()->pending_message_start_pos_ = location->start_pos();
-      thread_local_top()->pending_message_end_pos_ = location->end_pos();
-
-      // If the abort-on-uncaught-exception flag is specified, abort on any
-      // exception not caught by JavaScript, even when an external handler is
-      // present.  This flag is intended for use by JavaScript developers, so
-      // print a user-friendly stack trace (not an internal one).
-      if (fatal_exception_depth == 0 && FLAG_abort_on_uncaught_exception &&
-          (report_exception || can_be_caught_externally)) {
-        fatal_exception_depth++;
-        PrintF(stderr, "%s\n\nFROM\n",
-               MessageHandler::GetLocalizedMessage(this, message_obj).get());
-        PrintCurrentStackTrace(stderr);
-        base::OS::Abort();
-      }
-    }
-  }
-
-  // Save the message for reporting if the the exception remains uncaught.
-  thread_local_top()->has_pending_message_ = report_exception;
-
-  // Do not forget to clean catcher_ if currently thrown exception cannot
-  // be caught.  If necessary, ReThrow will update the catcher.
-  thread_local_top()->catcher_ = can_be_caught_externally ?
-      try_catch_handler() : NULL;
-
-  set_pending_exception(*exception_handle);
 }
 
 
