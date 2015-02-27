@@ -382,45 +382,47 @@ void Genesis::SetFunctionInstanceDescriptor(
   int size = IsFunctionModeWithPrototype(function_mode) ? 5 : 4;
   Map::EnsureDescriptorSlack(map, size);
 
-  PropertyAttributes attribs = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes ro_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes roc_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   Handle<AccessorInfo> length =
-      Accessors::FunctionLengthInfo(isolate(), attribs);
+      Accessors::FunctionLengthInfo(isolate(), ro_attribs);
   {  // Add length.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, attribs);
+                                 length, ro_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), attribs);
+      Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 attribs);
+                                 roc_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> args =
-      Accessors::FunctionArgumentsInfo(isolate(), attribs);
+      Accessors::FunctionArgumentsInfo(isolate(), ro_attribs);
   {  // Add arguments.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(args->name())), args,
-                                 attribs);
+                                 ro_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> caller =
-      Accessors::FunctionCallerInfo(isolate(), attribs);
+      Accessors::FunctionCallerInfo(isolate(), ro_attribs);
   {  // Add caller.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(caller->name())),
-                                 caller, attribs);
+                                 caller, ro_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
     if (function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE) {
-      attribs = static_cast<PropertyAttributes>(attribs & ~READ_ONLY);
+      ro_attribs = static_cast<PropertyAttributes>(ro_attribs & ~READ_ONLY);
     }
     Handle<AccessorInfo> prototype =
-        Accessors::FunctionPrototypeInfo(isolate(), attribs);
+        Accessors::FunctionPrototypeInfo(isolate(), ro_attribs);
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                                 prototype, attribs);
+                                 prototype, ro_attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -540,6 +542,8 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   PropertyAttributes ro_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes roc_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   // Add length.
   if (function_mode == BOUND_FUNCTION) {
@@ -557,10 +561,10 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), ro_attribs);
+      Accessors::FunctionNameInfo(isolate(), roc_attribs);
   {  // Add name.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 ro_attribs);
+                                 roc_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add arguments.
