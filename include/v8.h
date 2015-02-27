@@ -106,6 +106,8 @@ class Utils;
 class Value;
 template <class T> class Handle;
 template <class T> class Local;
+template <class T>
+class MaybeLocal;
 template <class T> class Eternal;
 template<class T> class NonCopyablePersistentTraits;
 template<class T> class PersistentBase;
@@ -322,6 +324,8 @@ template <class T> class Handle {
   template<class F> friend class PersistentBase;
   template<class F> friend class Handle;
   template<class F> friend class Local;
+  template <class F>
+  friend class MaybeLocal;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
   template<class F> friend class internal::CustomArguments;
@@ -399,6 +403,8 @@ template <class T> class Local : public Handle<T> {
   template<class F, class M> friend class Persistent;
   template<class F> friend class Handle;
   template<class F> friend class Local;
+  template <class F>
+  friend class MaybeLocal;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
   friend class String;
@@ -413,6 +419,39 @@ template <class T> class Local : public Handle<T> {
 
   template <class S> V8_INLINE Local(S* that) : Handle<T>(that) { }
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
+};
+
+
+template <class T>
+class MaybeLocal {
+ public:
+  V8_INLINE MaybeLocal() : val_(nullptr) {}
+  template <class S>
+  V8_INLINE MaybeLocal(Local<S> that)
+      : val_(reinterpret_cast<T*>(*that)) {
+    TYPE_CHECK(T, S);
+  }
+
+  V8_INLINE bool IsEmpty() { return val_ == nullptr; }
+
+  template <class S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
+    if (val_ == NULL) {
+      out->val_ = nullptr;
+      return false;
+    } else {
+      out->val_ = this->val_;
+      return true;
+    }
+  }
+
+  V8_INLINE Local<T> ToLocalChecked() {
+    // TODO(dcarney): add DCHECK.
+    return Local<T>(val_);
+  }
+
+ private:
+  T* val_;
 };
 
 
@@ -1847,6 +1886,16 @@ class V8_EXPORT Value : public Data {
    */
   bool IsDataView() const;
 
+  MaybeLocal<Boolean> ToBoolean(Local<Context> context) const;
+  MaybeLocal<Number> ToNumber(Local<Context> context) const;
+  MaybeLocal<String> ToString(Local<Context> context) const;
+  MaybeLocal<String> ToDetailString(Local<Context> context) const;
+  MaybeLocal<Object> ToObject(Local<Context> context) const;
+  MaybeLocal<Integer> ToInteger(Local<Context> context) const;
+  MaybeLocal<Uint32> ToUint32(Local<Context> context) const;
+  MaybeLocal<Int32> ToInt32(Local<Context> context) const;
+
+  // TODO(dcarney): deprecate all these.
   Local<Boolean> ToBoolean(Isolate* isolate) const;
   Local<Number> ToNumber(Isolate* isolate) const;
   Local<String> ToString(Isolate* isolate) const;
@@ -1856,7 +1905,7 @@ class V8_EXPORT Value : public Data {
   Local<Uint32> ToUint32(Isolate* isolate) const;
   Local<Int32> ToInt32(Isolate* isolate) const;
 
-  // TODO(dcarney): deprecate all these.
+  // TODO(dcarney): deprecate all these as well.
   inline Local<Boolean> ToBoolean() const;
   inline Local<Number> ToNumber() const;
   inline Local<String> ToString() const;

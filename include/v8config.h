@@ -421,4 +421,13 @@ namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
 # define V8_ALIGNOF(type) (sizeof(::v8::AlignOfHelper<type>) - sizeof(type))
 #endif
 
+// Annotate a function indicating the caller must examine the return value.
+// Use like:
+//   int foo() WARN_UNUSED_RESULT;
+#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
+#define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
+#endif
+
 #endif  // V8CONFIG_H_

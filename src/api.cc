@@ -2627,108 +2627,160 @@ bool Value::IsSetIterator() const {
 }
 
 
-Local<String> Value::ToString(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> str;
-  if (obj->IsString()) {
-    str = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToString");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToString(
-        isolate, obj).ToHandle(&str);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
-  }
-  return ToApiHandle<String>(str);
+#define CONTEXT_SCOPE_GET_ISOLATE(context, function_name)              \
+  v8::Context::Scope context_scope(context);                           \
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
+  LOG_API(isolate, function_name);                                     \
+  ENTER_V8(isolate);
+
+
+#define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
+  do {                                            \
+    Local<T> result;                              \
+    bool ignored = maybe_local.ToLocal(&result);  \
+    USE(ignored);                                 \
+    return result;                                \
+  } while (false);
+
+
+MaybeLocal<String> Value::ToString(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsString()) return ToApiHandle<String>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToString");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<String> result;
+  has_pending_exception =
+      !ToLocal<String>(i::Execution::ToString(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
 }
 
 
-Local<String> Value::ToDetailString(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> str;
-  if (obj->IsString()) {
-    str = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToDetailString");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToDetailString(
-        isolate, obj).ToHandle(&str);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
-  }
-  return ToApiHandle<String>(str);
+Local<String> Value::ToString(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToString(isolate->GetCurrentContext()), String);
 }
 
 
-Local<v8::Object> Value::ToObject(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> val;
-  if (obj->IsJSObject()) {
-    val = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToObject");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToObject(
-        isolate, obj).ToHandle(&val);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
-  }
-  return ToApiHandle<Object>(val);
+MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsString()) return ToApiHandle<String>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToDetailString");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<String> result;
+  has_pending_exception =
+      !ToLocal<String>(i::Execution::ToDetailString(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
+}
+
+
+Local<String> Value::ToDetailString(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToDetailString(isolate->GetCurrentContext()),
+                            String);
+}
+
+
+MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsJSObject()) return ToApiHandle<Object>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToObject");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<Object> result;
+  has_pending_exception =
+      !ToLocal<Object>(i::Execution::ToObject(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
+}
+
+
+Local<v8::Object> Value::ToObject(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToObject(isolate->GetCurrentContext()), Object);
+}
+
+
+MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsBoolean()) return ToApiHandle<Boolean>(obj);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  auto val = isolate->factory()->ToBoolean(obj->BooleanValue());
+  return ToApiHandle<Boolean>(val);
 }
 
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsBoolean()) {
-    return ToApiHandle<Boolean>(obj);
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToBoolean");
-    ENTER_V8(isolate);
-    i::Handle<i::Object> val =
-        isolate->factory()->ToBoolean(obj->BooleanValue());
-    return ToApiHandle<Boolean>(val);
-  }
+  return ToBoolean(v8_isolate->GetCurrentContext()).ToLocalChecked();
 }
 
 
-Local<Number> Value::ToNumber(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
-  if (obj->IsNumber()) {
-    num = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToNumber");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToNumber(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Number>());
-  }
-  return ToApiHandle<Number>(num);
+MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsNumber()) return ToApiHandle<Number>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToNumber");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<Number> result;
+  has_pending_exception =
+      !ToLocal<Number>(i::Execution::ToNumber(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
 }
 
 
-Local<Integer> Value::ToInteger(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
-  if (obj->IsSmi()) {
-    num = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToInteger");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToInteger(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Integer>());
-  }
-  return ToApiHandle<Integer>(num);
+Local<Number> Value::ToNumber(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToNumber(isolate->GetCurrentContext()), Number);
+}
+
+
+MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) return ToApiHandle<Integer>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToInteger");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<Integer> result;
+  has_pending_exception =
+      !ToLocal<Integer>(i::Execution::ToInteger(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
+}
+
+
+Local<Integer> Value::ToInteger(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToInteger(isolate->GetCurrentContext()), Integer);
+}
+
+
+MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) return ToApiHandle<Int32>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToInt32");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<Int32> result;
+  has_pending_exception =
+      !ToLocal<Int32>(i::Execution::ToInt32(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
+}
+
+
+Local<Int32> Value::ToInt32(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToInt32(isolate->GetCurrentContext()), Int32);
+}
+
+
+MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) return ToApiHandle<Uint32>(obj);
+  CONTEXT_SCOPE_GET_ISOLATE(context, "ToUInt32");
+  EXCEPTION_PREAMBLE(isolate);
+  Local<Uint32> result;
+  has_pending_exception =
+      !ToLocal<Uint32>(i::Execution::ToUint32(isolate, obj), &result);
+  EXCEPTION_BAILOUT_CHECK(isolate, result);
+  return result;
+}
+
+
+Local<Uint32> Value::ToUint32(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToUint32(isolate->GetCurrentContext()), Uint32);
 }
 
 
@@ -2979,41 +3031,6 @@ int64_t Value::IntegerValue() const {
   } else {
     return static_cast<int64_t>(num->Number());
   }
-}
-
-
-Local<Int32> Value::ToInt32(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
-  if (obj->IsSmi()) {
-    num = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToInt32");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Int32>());
-  }
-  return ToApiHandle<Int32>(num);
-}
-
-
-Local<Uint32> Value::ToUint32(Isolate* v8_isolate) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
-  if (obj->IsSmi()) {
-    num = obj;
-  } else {
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    LOG_API(isolate, "ToUInt32");
-    ENTER_V8(isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    has_pending_exception = !i::Execution::ToUint32(
-        isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
-  }
-  return ToApiHandle<Uint32>(num);
 }
 
 
