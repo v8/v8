@@ -1056,7 +1056,7 @@ class RepresentationSelector {
       replacements_.push_back(node);
       replacements_.push_back(replacement);
     }
-    // TODO(titzer) node->RemoveAllInputs();  // Node is now dead.
+    node->RemoveAllInputs();  // Node is now dead.
   }
 
   void PrintUseInfo(Node* node) {

@@ -1938,10 +1938,10 @@ TEST(NumberModulus_TruncatingToUint32) {
     Node* k = t.jsgraph.Constant(constants[i]);
     Node* mod = t.graph()->NewNode(t.simplified()->NumberModulus(), t.p0, k);
     Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), mod);
-    Node* ret = t.Return(trunc);
+    t.Return(trunc);
     t.Lower();
 
-    CHECK_EQ(IrOpcode::kUint32Mod, ret->InputAt(0)->opcode());
+    CHECK_EQ(IrOpcode::kUint32Mod, t.ret->InputAt(0)->InputAt(0)->opcode());
   }
 }
 
