@@ -1203,7 +1203,9 @@ MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 #undef DECLARE_UNIMPLEMENTED_SELECTOR
 
 
-void InstructionSelector::VisitCall(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+  UNIMPLEMENTED();
+}
 
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
