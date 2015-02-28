@@ -1192,6 +1192,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Get the Array function.
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, edi);
+  __ mov(edx, edi);
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array function should be a map.
