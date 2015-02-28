@@ -3936,6 +3936,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
 
   __ bind(&args_set_up);
   __ Peek(x1, Operand(x0, LSL, kPointerSizeLog2));
+  __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
 
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
