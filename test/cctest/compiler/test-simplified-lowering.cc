@@ -1463,6 +1463,20 @@ TEST(LowerStoreField_to_store) {
     }
     CHECK_EQ(kMachineReps[i], rep.machine_type());
   }
+
+  if (t.machine()->Is64()) {
+    FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Handle<Name>::null(), Type::Any(), kMachAnyTagged};
+    Node* val = t.graph()->NewNode(t.simplified()->ChangeInt32ToTagged(), t.p0);
+    Node* store = t.graph()->NewNode(t.simplified()->StoreField(access), t.p0,
+                                     val, t.start, t.start);
+    t.Effect(store);
+    t.Lower();
+    CHECK_EQ(IrOpcode::kStore, store->opcode());
+    CHECK_EQ(val, store->InputAt(2));
+    StoreRepresentation rep = OpParameter<StoreRepresentation>(store);
+    CHECK_EQ(kNoWriteBarrier, rep.write_barrier_kind());
+  }
 }
 
 

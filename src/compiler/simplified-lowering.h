@@ -57,6 +57,9 @@ class SimplifiedLowering FINAL {
   Node* IsTagged(Node* node);
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
+  WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                           MachineType representation,
+                                           Node* value);
   Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Node* StringComparison(Node* node, bool requires_ordering);
   Node* Int32Div(Node* const node);

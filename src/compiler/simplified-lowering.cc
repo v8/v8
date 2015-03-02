@@ -1135,10 +1135,14 @@ Node* SimplifiedLowering::OffsetMinusTagConstant(int32_t offset) {
 }
 
 
-static WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
-                                                MachineType representation,
-                                                Type* type) {
+WriteBarrierKind SimplifiedLowering::ComputeWriteBarrierKind(
+    BaseTaggedness base_is_tagged, MachineType representation, Node* value) {
   // TODO(turbofan): skip write barriers for Smis, etc.
+  if (machine()->Is64() && value->opcode() == IrOpcode::kChangeInt32ToTagged) {
+    // TODO(bmeurer): Remove this hack once we have a way to represent "sminess"
+    // of values, either in types or representations.
+    return kNoWriteBarrier;
+  }
   if (base_is_tagged == kTaggedBase &&
       RepresentationOf(representation) == kRepTagged) {
     // Write barriers are only for writes into heap objects (i.e. tagged base).
@@ -1159,7 +1163,7 @@ void SimplifiedLowering::DoLoadField(Node* node) {
 void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, access.type);
+      access.base_is_tagged, access.machine_type, node->InputAt(1));
   node->set_op(
       machine()->Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
@@ -1267,7 +1271,7 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   node->set_op(machine()->Store(StoreRepresentation(
       access.machine_type,
       ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
-                              access.type))));
+                              node->InputAt(2)))));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 
