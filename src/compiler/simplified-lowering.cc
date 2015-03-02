@@ -1140,12 +1140,13 @@ Node* SimplifiedLowering::OffsetMinusTagConstant(int32_t offset) {
 }
 
 
-WriteBarrierKind SimplifiedLowering::ComputeWriteBarrierKind(
-    BaseTaggedness base_is_tagged, MachineType representation, Node* value) {
-  // TODO(turbofan): skip write barriers for Smis, etc.
-  if (machine()->Is64() && value->opcode() == IrOpcode::kChangeInt32ToTagged) {
-    // TODO(bmeurer): Remove this hack once we have a way to represent "sminess"
-    // of values, either in types or representations.
+namespace {
+
+WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                         MachineType representation,
+                                         Type* type) {
+  if (type->Is(Type::TaggedSigned())) {
+    // Write barriers are only for writes of heap objects.
     return kNoWriteBarrier;
   }
   if (base_is_tagged == kTaggedBase &&
@@ -1155,6 +1156,8 @@ WriteBarrierKind SimplifiedLowering::ComputeWriteBarrierKind(
   }
   return kNoWriteBarrier;
 }
+
+}  // namespace
 
 
 void SimplifiedLowering::DoLoadField(Node* node) {
@@ -1167,8 +1170,9 @@ void SimplifiedLowering::DoLoadField(Node* node) {
 
 void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
-  WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, node->InputAt(1));
+  Type* type = NodeProperties::GetBounds(node->InputAt(1)).upper;
+  WriteBarrierKind kind =
+      ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type, type);
   node->set_op(
       machine()->Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
@@ -1273,10 +1277,11 @@ void SimplifiedLowering::DoLoadElement(Node* node) {
 
 void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  node->set_op(machine()->Store(StoreRepresentation(
-      access.machine_type,
-      ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
-                              node->InputAt(2)))));
+  Type* type = NodeProperties::GetBounds(node->InputAt(2)).upper;
+  node->set_op(machine()->Store(
+      StoreRepresentation(access.machine_type,
+                          ComputeWriteBarrierKind(access.base_is_tagged,
+                                                  access.machine_type, type))));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 

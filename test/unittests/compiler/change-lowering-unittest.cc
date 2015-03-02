@@ -181,7 +181,7 @@ class ChangeLowering32Test : public ChangeLoweringTest {
 TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
-  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Signed32()));
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Integral32()));
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 
@@ -209,7 +209,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
 TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTaggedSmall) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
-  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::Signed31()));
+  NodeProperties::SetBounds(val, Bounds(Type::None(), Type::SignedSmall()));
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 

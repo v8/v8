@@ -1616,15 +1616,14 @@ Bounds Typer::Visitor::TypeStringAdd(Node* node) {
 }
 
 
-static Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
-  // TODO(neis): Enable when expressible.
-  /*
-  return Type::Union(
-      Type::Intersect(type, Type::Semantic(), zone),
-      Type::Intersect(rep, Type::Representation(), zone), zone);
-  */
-  return type;
+namespace {
+
+Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
+  return Type::Union(Type::Semantic(type, zone),
+                     Type::Representation(rep, zone), zone);
 }
+
+}  // namespace
 
 
 Bounds Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
@@ -1657,9 +1656,12 @@ Bounds Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
 Bounds Typer::Visitor::TypeChangeInt32ToTagged(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Signed32()));
-  return Bounds(
-      ChangeRepresentation(arg.lower, Type::Tagged(), zone()),
-      ChangeRepresentation(arg.upper, Type::Tagged(), zone()));
+  Type* lower_rep = arg.lower->Is(Type::SignedSmall()) ? Type::TaggedSigned()
+                                                       : Type::Tagged();
+  Type* upper_rep = arg.upper->Is(Type::SignedSmall()) ? Type::TaggedSigned()
+                                                       : Type::Tagged();
+  return Bounds(ChangeRepresentation(arg.lower, lower_rep, zone()),
+                ChangeRepresentation(arg.upper, upper_rep, zone()));
 }
 
 
