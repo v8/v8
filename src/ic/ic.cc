@@ -949,6 +949,38 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 }
 
 
+Handle<Code> LoadIC::load_global(Isolate* isolate, Handle<GlobalObject> global,
+                                 Handle<String> name) {
+  Handle<ScriptContextTable> script_contexts(
+      global->native_context()->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+    return initialize_stub(isolate, LoadICState(CONTEXTUAL).GetExtraICState());
+  }
+
+  Handle<Map> global_map(global->map());
+  Handle<Code> handler = PropertyHandlerCompiler::Find(
+      name, global_map, Code::LOAD_IC, kCacheOnReceiver, Code::NORMAL);
+  if (handler.is_null()) {
+    LookupIterator it(global, name);
+    if (!it.IsFound() || !it.GetHolder<JSObject>().is_identical_to(global) ||
+        it.state() != LookupIterator::DATA) {
+      return initialize_stub(isolate,
+                             LoadICState(CONTEXTUAL).GetExtraICState());
+    }
+    NamedLoadHandlerCompiler compiler(isolate, global_map, global,
+                                      kCacheOnReceiver);
+    Handle<PropertyCell> cell = it.GetPropertyCell();
+    handler = compiler.CompileLoadGlobal(cell, name, it.IsConfigurable());
+    Map::UpdateCodeCache(global_map, name, handler);
+  }
+  return PropertyICCompiler::ComputeMonomorphic(
+      Code::LOAD_IC, name, handle(global->map()), handler,
+      LoadICState(CONTEXTUAL).GetExtraICState());
+}
+
+
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state, State initialization_state) {
   if (FLAG_vector_ics) {

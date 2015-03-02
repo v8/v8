@@ -1453,7 +1453,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         __ mov(VectorLoadICDescriptor::SlotRegister(),
                Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
       }
-      CallLoadIC(CONTEXTUAL);
+      CallGlobalLoadIC(var->name());
       context()->Plug(eax);
       break;
     }

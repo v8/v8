@@ -441,6 +441,14 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
 }
 
 
+void FullCodeGenerator::CallGlobalLoadIC(Handle<String> name) {
+  if (masm()->serializer_enabled()) return CallLoadIC(CONTEXTUAL);
+  Handle<Code> ic = CodeFactory::LoadGlobalIC(
+                        isolate(), isolate()->global_object(), name).code();
+  CallIC(ic, TypeFeedbackId::None());
+}
+
+
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);

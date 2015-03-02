@@ -398,6 +398,8 @@ class LoadIC : public IC {
                                       ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, ExtraICState extra_state, State initialization_state);
+  static Handle<Code> load_global(Isolate* isolate, Handle<GlobalObject> global,
+                                  Handle<String> name);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);

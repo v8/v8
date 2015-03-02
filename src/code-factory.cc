@@ -12,6 +12,15 @@ namespace v8 {
 namespace internal {
 
 // static
+Callable CodeFactory::LoadGlobalIC(Isolate* isolate,
+                                   Handle<GlobalObject> global,
+                                   Handle<String> name) {
+  return Callable(LoadIC::load_global(isolate, global, name),
+                  LoadDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
   return Callable(
       LoadIC::initialize_stub(isolate, LoadICState(mode).GetExtraICState()),
