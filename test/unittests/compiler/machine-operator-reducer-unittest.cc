@@ -616,6 +616,33 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithInt32AddAndConstant) {
 }
 
 
+TEST_F(MachineOperatorReducerTest, Word32AndWithInt32MulAndConstant) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FORRANGE(int32_t, l, 1, 31) {
+    TRACED_FOREACH(int32_t, k, kInt32Values) {
+      if ((k << l) == 0) continue;
+
+      // (x * (K << L)) & (-1 << L) => x * (K << L)
+      Reduction const r1 = Reduce(graph()->NewNode(
+          machine()->Word32And(),
+          graph()->NewNode(machine()->Int32Mul(), p0, Int32Constant(k << l)),
+          Int32Constant(-1 << l)));
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_THAT(r1.replacement(), IsInt32Mul(p0, IsInt32Constant(k << l)));
+
+      // ((K << L) * x) & (-1 << L) => x * (K << L)
+      Reduction const r2 = Reduce(graph()->NewNode(
+          machine()->Word32And(),
+          graph()->NewNode(machine()->Int32Mul(), Int32Constant(k << l), p0),
+          Int32Constant(-1 << l)));
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_THAT(r2.replacement(), IsInt32Mul(p0, IsInt32Constant(k << l)));
+    }
+  }
+}
+
+
 TEST_F(MachineOperatorReducerTest,
        Word32AndWithInt32AddAndInt32MulAndConstant) {
   Node* const p0 = Parameter(0);

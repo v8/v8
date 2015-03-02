@@ -906,6 +906,12 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
           return reduction.Changed() ? reduction : Changed(node);
         }
       }
+    } else if (m.left().IsInt32Mul()) {
+      Int32BinopMatcher mleft(m.left().node());
+      if (mleft.right().IsMultipleOf(-mask)) {
+        // (x * (K << L)) & (-1 << L) => x * (K << L)
+        return Replace(mleft.node());
+      }
     }
   }
   return NoChange();
