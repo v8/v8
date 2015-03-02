@@ -434,22 +434,22 @@ class MaybeLocal {
     TYPE_CHECK(T, S);
   }
 
-  V8_INLINE bool IsEmpty() { return val_ == nullptr; }
+  V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
 
   template <class S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
-    if (val_ == NULL) {
-      out->val_ = nullptr;
-      return false;
-    } else {
-      out->val_ = this->val_;
-      return true;
-    }
+    out->val_ = IsEmpty() ? nullptr : this->val_;
+    return IsEmpty();
   }
 
   V8_INLINE Local<T> ToLocalChecked() {
     // TODO(dcarney): add DCHECK.
     return Local<T>(val_);
+  }
+
+  template <class S>
+  V8_INLINE Local<S> FromMaybe(Local<S> default_value) const {
+    return IsEmpty() ? default_value : Local<S>(val_);
   }
 
  private:
@@ -2490,9 +2490,13 @@ enum AccessControl {
  */
 class V8_EXPORT Object : public Value {
  public:
+  // TODO(dcarney): deprecate
   bool Set(Handle<Value> key, Handle<Value> value);
+  Maybe<bool> Set(Local<Context> context, Local<Value> key, Local<Value> value);
 
+  // TODO(dcarney): deprecate
   bool Set(uint32_t index, Handle<Value> value);
+  Maybe<bool> Set(Local<Context> context, uint32_t index, Local<Value> value);
 
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
@@ -2502,46 +2506,74 @@ class V8_EXPORT Object : public Value {
   // will only be returned if the interceptor doesn't return a value.
   //
   // Note also that this only works for named properties.
+  // TODO(dcarney): deprecate
   bool ForceSet(Handle<Value> key,
                 Handle<Value> value,
                 PropertyAttribute attribs = None);
+  Maybe<bool> ForceSet(Local<Context> context, Local<Value> key,
+                       Local<Value> value, PropertyAttribute attribs = None);
 
+  // TODO(dcarney): deprecate
   Local<Value> Get(Handle<Value> key);
+  MaybeLocal<Value> Get(Local<Context> context, Local<Value> key);
 
+  // TODO(dcarney): deprecate
   Local<Value> Get(uint32_t index);
+  MaybeLocal<Value> Get(Local<Context> context, uint32_t index);
 
   /**
    * Gets the property attributes of a property which can be None or
    * any combination of ReadOnly, DontEnum and DontDelete. Returns
    * None when the property doesn't exist.
    */
+  // TODO(dcarney): deprecate
   PropertyAttribute GetPropertyAttributes(Handle<Value> key);
+  Maybe<PropertyAttribute> GetPropertyAttributes(Local<Context> context,
+                                                 Local<Value> key);
 
   /**
    * Returns Object.getOwnPropertyDescriptor as per ES5 section 15.2.3.3.
    */
+  // TODO(dcarney): deprecate
   Local<Value> GetOwnPropertyDescriptor(Local<String> key);
+  MaybeLocal<Value> GetOwnPropertyDescriptor(Local<Context> context,
+                                             Local<String> key);
 
+  // TODO(dcarney): deprecate
   bool Has(Handle<Value> key);
+  Maybe<bool> Has(Local<Context> context, Local<Value> key);
 
+  // TODO(dcarney): deprecate
   bool Delete(Handle<Value> key);
+  Maybe<bool> Delete(Local<Context> context, Local<Value> key);
 
+  // TODO(dcarney): deprecate
   bool Has(uint32_t index);
+  Maybe<bool> Has(Local<Context> context, uint32_t index);
 
+  // TODO(dcarney): deprecate
   bool Delete(uint32_t index);
+  Maybe<bool> Delete(Local<Context> context, uint32_t index);
 
+  // TODO(dcarney): deprecate
   bool SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
                    Handle<Value> data = Handle<Value>(),
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None);
-  bool SetAccessor(Handle<Name> name,
-                   AccessorNameGetterCallback getter,
+  // TODO(dcarney): deprecate
+  bool SetAccessor(Handle<Name> name, AccessorNameGetterCallback getter,
                    AccessorNameSetterCallback setter = 0,
                    Handle<Value> data = Handle<Value>(),
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None);
+  Maybe<bool> SetAccessor(Local<Context> context, Local<Name> name,
+                          AccessorNameGetterCallback getter,
+                          AccessorNameSetterCallback setter = 0,
+                          MaybeLocal<Value> data = MaybeLocal<Value>(),
+                          AccessControl settings = DEFAULT,
+                          PropertyAttribute attribute = None);
 
   void SetAccessorProperty(Local<Name> name,
                            Local<Function> getter,
@@ -5731,6 +5763,7 @@ class V8_EXPORT V8 {
 template <class T>
 class Maybe {
  public:
+  V8_INLINE bool IsNothing() const { return !has_value; }
   V8_INLINE bool IsJust() const { return has_value; }
 
   V8_INLINE T FromJust() const {

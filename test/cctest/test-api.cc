@@ -17915,18 +17915,22 @@ THREADED_TEST(CreationContext) {
     instance2 = func2->NewInstance();
   }
 
-  CHECK(object1->CreationContext() == context1);
-  CheckContextId(object1, 1);
-  CHECK(func1->CreationContext() == context1);
-  CheckContextId(func1, 1);
-  CHECK(instance1->CreationContext() == context1);
-  CheckContextId(instance1, 1);
-  CHECK(object2->CreationContext() == context2);
-  CheckContextId(object2, 2);
-  CHECK(func2->CreationContext() == context2);
-  CheckContextId(func2, 2);
-  CHECK(instance2->CreationContext() == context2);
-  CheckContextId(instance2, 2);
+  {
+    Handle<Context> other_context = Context::New(isolate);
+    Context::Scope scope(other_context);
+    CHECK(object1->CreationContext() == context1);
+    CheckContextId(object1, 1);
+    CHECK(func1->CreationContext() == context1);
+    CheckContextId(func1, 1);
+    CHECK(instance1->CreationContext() == context1);
+    CheckContextId(instance1, 1);
+    CHECK(object2->CreationContext() == context2);
+    CheckContextId(object2, 2);
+    CHECK(func2->CreationContext() == context2);
+    CheckContextId(func2, 2);
+    CHECK(instance2->CreationContext() == context2);
+    CheckContextId(instance2, 2);
+  }
 
   {
     Context::Scope scope(context1);
@@ -17973,6 +17977,8 @@ THREADED_TEST(CreationContextOfJsFunction) {
     function = CompileRun("function foo() {}; foo").As<Object>();
   }
 
+  Handle<Context> other_context = Context::New(CcTest::isolate());
+  Context::Scope scope(other_context);
   CHECK(function->CreationContext() == context);
   CheckContextId(function, 1);
 }
