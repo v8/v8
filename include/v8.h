@@ -5726,14 +5726,11 @@ class V8_EXPORT V8 {
 
 /**
  * A simple Maybe type, representing an object which may or may not have a
- * value.
+ * value, see https://hackage.haskell.org/package/base/docs/Data-Maybe.html.
  */
 template <class T>
 class Maybe {
  public:
-  // TODO(dcarney): remove this constructor, it makes no sense.
-  Maybe(bool has, const T& t) : has_value(has), value(t) {}
-
   V8_INLINE bool IsJust() const { return has_value; }
 
   V8_INLINE T FromJust() const {
@@ -5747,18 +5744,26 @@ class Maybe {
     return has_value ? value : default_value;
   }
 
-  // TODO(dcarney): make private.
+  V8_INLINE bool operator==(const Maybe& other) const {
+    return (IsJust() == other.IsJust()) &&
+           (!IsJust() || FromJust() == other.FromJust());
+  }
+
+  V8_INLINE bool operator!=(const Maybe& other) const {
+    return !operator==(other);
+  }
+
+ private:
+  Maybe() : has_value(false) {}
+  explicit Maybe(const T& t) : has_value(true), value(t) {}
+
   bool has_value;
   T value;
 
- private:
   template <class U>
   friend Maybe<U> Nothing();
   template <class U>
   friend Maybe<U> Just(const U& u);
-
-  Maybe() : has_value(false) {}
-  explicit Maybe(const T& t) : has_value(true), value(t) {}
 };
 
 

@@ -368,8 +368,8 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     // Get attributes.
     Maybe<PropertyAttributes> maybe =
         JSReceiver::GetOwnElementAttribute(obj, index);
-    if (!maybe.has_value) return MaybeHandle<Object>();
-    attrs = maybe.value;
+    if (!maybe.IsJust()) return MaybeHandle<Object>();
+    attrs = maybe.FromJust();
     if (attrs == ABSENT) return factory->undefined_value();
 
     // Get AccessorPair if present.
@@ -385,8 +385,8 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     // Get attributes.
     LookupIterator it(obj, name, LookupIterator::HIDDEN);
     Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
-    if (!maybe.has_value) return MaybeHandle<Object>();
-    attrs = maybe.value;
+    if (!maybe.IsJust()) return MaybeHandle<Object>();
+    attrs = maybe.FromJust();
     if (attrs == ABSENT) return factory->undefined_value();
 
     // Get AccessorPair if present.
@@ -667,7 +667,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   DCHECK(!key->ToArrayIndex(&index));
   LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.has_value) return isolate->heap()->exception();
+  if (!maybe.IsJust()) return isolate->heap()->exception();
   RUNTIME_ASSERT(!it.IsFound());
 #endif
 
@@ -736,8 +736,8 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
                                             Handle<JSObject> object,
                                             Handle<Name> key) {
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(object, key);
-  if (!maybe.has_value) return isolate->heap()->exception();
-  if (maybe.value) return isolate->heap()->true_value();
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.FromJust()) return isolate->heap()->true_value();
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
   // look like they are on this object.
@@ -778,9 +778,9 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
     } else {
       maybe = JSObject::HasRealNamedProperty(js_obj, key);
     }
-    if (!maybe.has_value) return isolate->heap()->exception();
+    if (!maybe.IsJust()) return isolate->heap()->exception();
     DCHECK(!isolate->has_pending_exception());
-    if (maybe.value) {
+    if (maybe.FromJust()) {
       return isolate->heap()->true_value();
     }
     Map* map = js_obj->map();
@@ -809,8 +809,8 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
   Maybe<bool> maybe = JSReceiver::HasProperty(receiver, key);
-  if (!maybe.has_value) return isolate->heap()->exception();
-  return isolate->heap()->ToBoolean(maybe.value);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(maybe.FromJust());
 }
 
 
@@ -821,8 +821,8 @@ RUNTIME_FUNCTION(Runtime_HasElement) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
 
   Maybe<bool> maybe = JSReceiver::HasElement(receiver, index);
-  if (!maybe.has_value) return isolate->heap()->exception();
-  return isolate->heap()->ToBoolean(maybe.value);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(maybe.FromJust());
 }
 
 
@@ -835,9 +835,9 @@ RUNTIME_FUNCTION(Runtime_IsPropertyEnumerable) {
 
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnPropertyAttributes(object, key);
-  if (!maybe.has_value) return isolate->heap()->exception();
-  if (maybe.value == ABSENT) maybe.value = DONT_ENUM;
-  return isolate->heap()->ToBoolean((maybe.value & DONT_ENUM) == 0);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.FromJust() == ABSENT) maybe = Just(DONT_ENUM);
+  return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
 }
 
 

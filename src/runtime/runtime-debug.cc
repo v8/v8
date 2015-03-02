@@ -913,8 +913,8 @@ static bool SetLocalVariableValue(Isolate* isolate, JavaScriptFrame* frame,
         Handle<JSObject> ext(JSObject::cast(function_context->extension()));
 
         Maybe<bool> maybe = JSReceiver::HasProperty(ext, variable_name);
-        DCHECK(maybe.has_value);
-        if (maybe.value) {
+        DCHECK(maybe.IsJust());
+        if (maybe.FromJust()) {
           // We don't expect this to do anything except replacing
           // property value.
           Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
@@ -996,8 +996,8 @@ static bool SetClosureVariableValue(Isolate* isolate, Handle<Context> context,
   if (context->has_extension()) {
     Handle<JSObject> ext(JSObject::cast(context->extension()));
     Maybe<bool> maybe = JSReceiver::HasProperty(ext, variable_name);
-    DCHECK(maybe.has_value);
-    if (maybe.value) {
+    DCHECK(maybe.IsJust());
+    if (maybe.FromJust()) {
       // We don't expect this to do anything except replacing property value.
       Runtime::DefineObjectProperty(ext, variable_name, new_value, NONE)
           .Assert();
@@ -2113,8 +2113,8 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeArgumentsObject(
   if (!function->shared()->is_function()) return target;
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(
       target, isolate->factory()->arguments_string());
-  if (!maybe.has_value) return MaybeHandle<JSObject>();
-  if (maybe.value) return target;
+  if (!maybe.IsJust()) return MaybeHandle<JSObject>();
+  if (maybe.FromJust()) return target;
 
   // FunctionGetArguments can't throw an exception.
   Handle<JSObject> arguments =

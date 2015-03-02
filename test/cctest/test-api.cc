@@ -10716,8 +10716,7 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
   Maybe<PropertyAttribute> attr =
       instance->GetRealNamedPropertyAttributes(v8_str("f"));
   CHECK(!try_catch.HasCaught());
-  CHECK(attr.has_value);
-  CHECK_EQ(attr.value, None);
+  CHECK(Just(None) == attr);
 
   result = another->GetRealNamedProperty(v8_str("f"));
   CHECK(try_catch.HasCaught());
@@ -10726,8 +10725,7 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
 
   attr = another->GetRealNamedPropertyAttributes(v8_str("f"));
   CHECK(!try_catch.HasCaught());
-  CHECK(attr.has_value);
-  CHECK_EQ(attr.value, None);
+  CHECK(Just(None) == attr);
 
   result = another->GetRealNamedPropertyInPrototypeChain(v8_str("f"));
   CHECK(try_catch.HasCaught());
@@ -10736,8 +10734,7 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
 
   attr = another->GetRealNamedPropertyAttributesInPrototypeChain(v8_str("f"));
   CHECK(!try_catch.HasCaught());
-  CHECK(attr.has_value);
-  CHECK_EQ(attr.value, None);
+  CHECK(Just(None) == attr);
 
   result = another->Get(v8_str("f"));
   CHECK(try_catch.HasCaught());
@@ -10751,8 +10748,7 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
 
   attr = with_js_getter->GetRealNamedPropertyAttributes(v8_str("f"));
   CHECK(!try_catch.HasCaught());
-  CHECK(attr.has_value);
-  CHECK_EQ(attr.value, None);
+  CHECK(Just(None) == attr);
 
   result = with_js_getter->Get(v8_str("f"));
   CHECK(try_catch.HasCaught());

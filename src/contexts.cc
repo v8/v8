@@ -122,8 +122,8 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   Isolate* isolate = it->isolate();
 
   Maybe<PropertyAttributes> attrs = JSReceiver::GetPropertyAttributes(it);
-  DCHECK(attrs.has_value || isolate->has_pending_exception());
-  if (!attrs.has_value || attrs.value == ABSENT) return attrs;
+  DCHECK(attrs.IsJust() || isolate->has_pending_exception());
+  if (!attrs.IsJust() || attrs.FromJust() == ABSENT) return attrs;
 
   Handle<Symbol> unscopables_symbol = isolate->factory()->unscopables_symbol();
   Handle<Object> receiver = it->GetReceiver();
@@ -264,11 +264,11 @@ Handle<Object> Context::Lookup(Handle<String> name,
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
 
-      if (!maybe.has_value) return Handle<Object>();
+      if (!maybe.IsJust()) return Handle<Object>();
       DCHECK(!isolate->has_pending_exception());
-      *attributes = maybe.value;
+      *attributes = maybe.FromJust();
 
-      if (maybe.value != ABSENT) {
+      if (maybe.FromJust() != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",
                  reinterpret_cast<void*>(*object));

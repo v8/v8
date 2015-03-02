@@ -487,7 +487,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
     auto result = GetPropertyAttributesWithInterceptor(
         it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
     if (it->isolate()->has_scheduled_exception()) break;
-    if (result.has_value && result.value != ABSENT) return result;
+    if (result.IsJust() && result.FromJust() != ABSENT) return result;
   }
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(),
@@ -625,7 +625,7 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
     auto result =
         JSObject::GetElementAttributeFromInterceptor(object, receiver, index);
     if (isolate->has_scheduled_exception()) break;
-    if (result.has_value && result.value != ABSENT) return result;
+    if (result.IsJust() && result.FromJust() != ABSENT) return result;
     where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
   }
   isolate->ReportFailedAccessCheck(object);
@@ -723,12 +723,12 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
       Maybe<PropertyAttributes> from_interceptor =
           JSObject::GetElementAttributeFromInterceptor(js_object, receiver,
                                                        index);
-      if (!from_interceptor.has_value) return MaybeHandle<Object>();
-      if ((from_interceptor.value & READ_ONLY) != 0) {
+      if (!from_interceptor.IsJust()) return MaybeHandle<Object>();
+      if ((from_interceptor.FromJust() & READ_ONLY) != 0) {
         return WriteToReadOnlyElement(isolate, receiver, index, value,
                                       language_mode);
       }
-      done = from_interceptor.value != ABSENT;
+      done = from_interceptor.FromJust() != ABSENT;
     }
 
     if (!done &&
@@ -3118,9 +3118,9 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(
                   it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
-          if (!maybe_attributes.has_value) return MaybeHandle<Object>();
-          done = maybe_attributes.value != ABSENT;
-          if (done && (maybe_attributes.value & READ_ONLY) != 0) {
+          if (!maybe_attributes.IsJust()) return MaybeHandle<Object>();
+          done = maybe_attributes.FromJust() != ABSENT;
+          if (done && (maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, language_mode);
           }
         }
@@ -4162,7 +4162,7 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(!object->IsJSProxy());
   DCHECK(!name->AsArrayIndex(&index));
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
-  DCHECK(maybe.has_value);
+  DCHECK(maybe.IsJust());
   DCHECK(!it.IsFound());
   DCHECK(object->map()->is_extensible() ||
          it.isolate()->IsInternallyUsedPropertyName(name));
@@ -4357,8 +4357,8 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(
                 it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
-        if (!result.has_value) return result;
-        if (result.value != ABSENT) return result;
+        if (!result.IsJust()) return result;
+        if (result.FromJust() != ABSENT) return result;
         break;
       }
       case LookupIterator::ACCESS_CHECK:
@@ -4418,8 +4418,9 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithInterceptor(
 
   Maybe<PropertyAttributes> from_interceptor =
       GetElementAttributeFromInterceptor(object, receiver, index);
-  if (!from_interceptor.has_value) return Nothing<PropertyAttributes>();
-  if (from_interceptor.value != ABSENT) return Just(from_interceptor.value);
+  if (!from_interceptor.IsJust()) return Nothing<PropertyAttributes>();
+  if (from_interceptor.FromJust() != ABSENT)
+    return Just(from_interceptor.FromJust());
 
   return GetElementAttributeWithoutInterceptor(object, receiver, index,
                                                check_prototype);
@@ -5086,8 +5087,8 @@ bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   LookupIterator it(object, hidden, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   // Cannot get an exception since the hidden_string isn't accessible to JS.
-  DCHECK(maybe.has_value);
-  return maybe.value != ABSENT;
+  DCHECK(maybe.IsJust());
+  return maybe.FromJust() != ABSENT;
 }
 
 
@@ -5262,8 +5263,8 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   bool should_enqueue_change_record = false;
   if (object->map()->is_observed()) {
     Maybe<bool> maybe = HasOwnElement(object, index);
-    if (!maybe.has_value) return MaybeHandle<Object>();
-    should_enqueue_change_record = maybe.value;
+    if (!maybe.IsJust()) return MaybeHandle<Object>();
+    should_enqueue_change_record = maybe.FromJust();
     if (should_enqueue_change_record) {
       if (!GetOwnElementAccessorPair(object, index).is_null()) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
@@ -5287,8 +5288,8 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   if (should_enqueue_change_record) {
     Maybe<bool> maybe = HasOwnElement(object, index);
-    if (!maybe.has_value) return MaybeHandle<Object>();
-    if (!maybe.value) {
+    if (!maybe.IsJust()) return MaybeHandle<Object>();
+    if (!maybe.FromJust()) {
       Handle<String> name = factory->Uint32ToString(index);
       RETURN_ON_EXCEPTION(
           isolate, EnqueueChangeRecord(object, "delete", name, old_value),
@@ -5939,8 +5940,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Handle<String> key_string(String::cast(names->get(i)));
         Maybe<PropertyAttributes> maybe =
             JSReceiver::GetOwnPropertyAttributes(copy, key_string);
-        DCHECK(maybe.has_value);
-        PropertyAttributes attributes = maybe.value;
+        DCHECK(maybe.IsJust());
+        PropertyAttributes attributes = maybe.FromJust();
         // Only deep copy fields from the object literal expression.
         // In particular, don't try to copy the length attribute of
         // an array.
@@ -6599,18 +6600,18 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
       Maybe<bool> maybe = HasOwnElement(object, index);
       // Workaround for a GCC 4.4.3 bug which leads to "‘preexists’ may be used
       // uninitialized in this function".
-      if (!maybe.has_value) {
+      if (!maybe.IsJust()) {
         DCHECK(false);
         return isolate->factory()->undefined_value();
       }
-      preexists = maybe.value;
+      preexists = maybe.FromJust();
       if (preexists && GetOwnElementAccessorPair(object, index).is_null()) {
         old_value =
             Object::GetElement(isolate, object, index).ToHandleChecked();
       }
     } else {
       LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
-      CHECK(GetPropertyAttributes(&it).has_value);
+      CHECK(GetPropertyAttributes(&it).IsJust());
       preexists = it.IsFound();
       if (preexists && (it.state() == LookupIterator::DATA ||
                         it.GetAccessors()->IsAccessorInfo())) {
@@ -6716,7 +6717,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   } else {
     // Lookup the name.
     LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
-    CHECK(GetPropertyAttributes(&it).has_value);
+    CHECK(GetPropertyAttributes(&it).IsJust());
     // ES5 forbids turning a property into an accessor if it's not
     // configurable. See 8.6.1 (Table 5).
     if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
@@ -11804,9 +11805,9 @@ static bool GetOldValue(Isolate* isolate,
                         List<uint32_t>* indices) {
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnElementAttribute(object, index);
-  DCHECK(maybe.has_value);
-  DCHECK(maybe.value != ABSENT);
-  if (maybe.value == DONT_DELETE) return false;
+  DCHECK(maybe.IsJust());
+  DCHECK(maybe.FromJust() != ABSENT);
+  if (maybe.FromJust() == DONT_DELETE) return false;
   Handle<Object> value;
   if (!JSObject::GetOwnElementAccessorPair(object, index).is_null()) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
@@ -13086,8 +13087,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnElementAttribute(object, index);
-  if (!maybe.has_value) return MaybeHandle<Object>();
-  PropertyAttributes old_attributes = maybe.value;
+  if (!maybe.IsJust()) return MaybeHandle<Object>();
+  PropertyAttributes old_attributes = maybe.FromJust();
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   Handle<Object> old_length_handle;
@@ -13117,8 +13118,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   maybe = GetOwnElementAttribute(object, index);
-  if (!maybe.has_value) return MaybeHandle<Object>();
-  PropertyAttributes new_attributes = maybe.value;
+  if (!maybe.IsJust()) return MaybeHandle<Object>();
+  PropertyAttributes new_attributes = maybe.FromJust();
 
   if (old_attributes == ABSENT) {
     if (object->IsJSArray() &&
@@ -13915,7 +13916,7 @@ Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
                                            Handle<Name> key) {
   LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
-  if (!maybe_result.has_value) return Nothing<bool>();
+  if (!maybe_result.IsJust()) return Nothing<bool>();
   return Just(it.IsFound());
 }
 
@@ -13944,7 +13945,7 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
 
   Maybe<PropertyAttributes> result =
       GetElementAttributeWithoutInterceptor(object, object, index, false);
-  return result.has_value ? Just(result.value != ABSENT) : Nothing<bool>();
+  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
 }
 
 
@@ -13952,8 +13953,8 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                                    Handle<Name> key) {
   LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
-  return maybe_result.has_value ? Just(it.state() == LookupIterator::ACCESSOR)
-                                : Nothing<bool>();
+  return maybe_result.IsJust() ? Just(it.state() == LookupIterator::ACCESSOR)
+                               : Nothing<bool>();
 }
 
 

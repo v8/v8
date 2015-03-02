@@ -2076,8 +2076,8 @@ class BinaryOperation FINAL : public Expression {
     return has_fixed_right_arg_ ? Just(fixed_right_arg_value_) : Nothing<int>();
   }
   void set_fixed_right_arg(Maybe<int> arg) {
-    has_fixed_right_arg_ = arg.has_value;
-    if (arg.has_value) fixed_right_arg_value_ = arg.value;
+    has_fixed_right_arg_ = arg.IsJust();
+    if (arg.IsJust()) fixed_right_arg_value_ = arg.FromJust();
   }
 
   virtual void RecordToBooleanTypeFeedback(

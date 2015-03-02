@@ -46,10 +46,10 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
   // Do the lookup own properties only, see ES5 erratum.
   LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.has_value) return isolate->heap()->exception();
+  if (!maybe.IsJust()) return isolate->heap()->exception();
 
   if (it.IsFound()) {
-    PropertyAttributes old_attributes = maybe.value;
+    PropertyAttributes old_attributes = maybe.FromJust();
     // The name was declared before; check for conflicting re-declarations.
     if (is_const) return ThrowRedeclarationError(isolate, name);
 
@@ -178,8 +178,8 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   // Lookup the property as own on the global object.
   LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  DCHECK(maybe.has_value);
-  PropertyAttributes old_attributes = maybe.value;
+  DCHECK(maybe.IsJust());
+  PropertyAttributes old_attributes = maybe.FromJust();
 
   PropertyAttributes attr =
       static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
@@ -331,8 +331,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 
     LookupIterator it(holder, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-    if (!maybe.has_value) return isolate->heap()->exception();
-    PropertyAttributes old_attributes = maybe.value;
+    if (!maybe.IsJust()) return isolate->heap()->exception();
+    PropertyAttributes old_attributes = maybe.FromJust();
 
     // Ignore if we can't reconfigure the value.
     if ((old_attributes & DONT_DELETE) != 0) {
@@ -596,8 +596,8 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
       LookupIterator it(global_object, name,
                         LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      if (!maybe.has_value) return isolate->heap()->exception();
-      if ((maybe.value & DONT_DELETE) != 0) {
+      if (!maybe.IsJust()) return isolate->heap()->exception();
+      if ((maybe.FromJust() & DONT_DELETE) != 0) {
         return ThrowRedeclarationError(isolate, name);
       }
 

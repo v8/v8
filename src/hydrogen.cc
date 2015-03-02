@@ -10341,9 +10341,9 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
     HConstant* constant = HConstant::cast(value);
     Maybe<HConstant*> number =
         constant->CopyToTruncatedNumber(isolate(), zone());
-    if (number.has_value) {
+    if (number.IsJust()) {
       *expected = Type::Number(zone());
-      return AddInstruction(number.value);
+      return AddInstruction(number.FromJust());
     }
   }
 
@@ -10564,10 +10564,10 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD: {
-        if (fixed_right_arg.has_value &&
-            !right->EqualsInteger32Constant(fixed_right_arg.value)) {
-          HConstant* fixed_right = Add<HConstant>(
-              static_cast<int>(fixed_right_arg.value));
+        if (fixed_right_arg.IsJust() &&
+            !right->EqualsInteger32Constant(fixed_right_arg.FromJust())) {
+          HConstant* fixed_right =
+              Add<HConstant>(static_cast<int>(fixed_right_arg.FromJust()));
           IfBuilder if_same(this);
           if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
           if_same.Then();

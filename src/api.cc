@@ -1943,9 +1943,9 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     {
       EXCEPTION_PREAMBLE(isolate_);
       Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
-      has_pending_exception = !maybe.has_value;
+      has_pending_exception = !maybe.IsJust();
       EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
-      if (!maybe.value) return v8::Local<Value>();
+      if (!maybe.FromJust()) return v8::Local<Value>();
     }
     i::Handle<i::Object> value;
     EXCEPTION_PREAMBLE(isolate_);
@@ -3358,10 +3358,10 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   EXCEPTION_PREAMBLE(isolate);
   Maybe<PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(self, key_name);
-  has_pending_exception = !result.has_value;
+  has_pending_exception = !result.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
-  if (result.value == ABSENT) return static_cast<PropertyAttribute>(NONE);
-  return static_cast<PropertyAttribute>(result.value);
+  if (result.FromJust() == ABSENT) return static_cast<PropertyAttribute>(NONE);
+  return static_cast<PropertyAttribute>(result.FromJust());
 }
 
 
@@ -3597,10 +3597,10 @@ bool v8::Object::Has(v8::Handle<Value> key) {
       maybe = i::JSReceiver::HasProperty(self, name);
     }
   }
-  if (!maybe.has_value) has_pending_exception = true;
+  if (!maybe.IsJust()) has_pending_exception = true;
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  DCHECK(maybe.has_value);
-  return maybe.value;
+  DCHECK(maybe.IsJust());
+  return maybe.FromJust();
 }
 
 
@@ -3634,9 +3634,9 @@ bool v8::Object::Has(uint32_t index) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
   Maybe<bool> maybe = i::JSReceiver::HasElement(self, index);
-  has_pending_exception = !maybe.has_value;
+  has_pending_exception = !maybe.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.value;
+  return maybe.FromJust();
 }
 
 
@@ -3721,9 +3721,9 @@ bool v8::Object::HasOwnProperty(Handle<String> key) {
   EXCEPTION_PREAMBLE(isolate);
   Maybe<bool> maybe = i::JSReceiver::HasOwnProperty(Utils::OpenHandle(this),
                                                     Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.has_value;
+  has_pending_exception = !maybe.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.value;
+  return maybe.FromJust();
 }
 
 
@@ -3734,9 +3734,9 @@ bool v8::Object::HasRealNamedProperty(Handle<String> key) {
   EXCEPTION_PREAMBLE(isolate);
   Maybe<bool> maybe = i::JSObject::HasRealNamedProperty(
       Utils::OpenHandle(this), Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.has_value;
+  has_pending_exception = !maybe.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.value;
+  return maybe.FromJust();
 }
 
 
@@ -3747,9 +3747,9 @@ bool v8::Object::HasRealIndexedProperty(uint32_t index) {
   EXCEPTION_PREAMBLE(isolate);
   Maybe<bool> maybe =
       i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
-  has_pending_exception = !maybe.has_value;
+  has_pending_exception = !maybe.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.value;
+  return maybe.FromJust();
 }
 
 
@@ -3762,9 +3762,9 @@ bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
   EXCEPTION_PREAMBLE(isolate);
   Maybe<bool> maybe = i::JSObject::HasRealNamedCallbackProperty(
       Utils::OpenHandle(this), Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.has_value;
+  has_pending_exception = !maybe.IsJust();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.value;
+  return maybe.FromJust();
 }
 
 
@@ -3800,7 +3800,7 @@ static Maybe<PropertyAttribute> GetPropertyAttributesByLookup(
     i::LookupIterator* it) {
   Maybe<PropertyAttributes> attr = i::JSReceiver::GetPropertyAttributes(it);
   return it->IsFound() ? Just<PropertyAttribute>(
-                             static_cast<PropertyAttribute>(attr.value))
+                             static_cast<PropertyAttribute>(attr.FromJust()))
                        : Nothing<PropertyAttribute>();
 }
 

@@ -2946,7 +2946,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
         HConstant(DoubleToInt32(double_value_), Representation::Integer32(),
                   NotInNewSpace(), object_);
   }
-  return Maybe<HConstant*>(res != NULL, res);
+  return res != NULL ? Just(res) : Nothing<HConstant*>();
 }
 
 
@@ -2962,7 +2962,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
-  return Maybe<HConstant*>(res != NULL, res);
+  return res != NULL ? Just(res) : Nothing<HConstant*>();
 }
 
 

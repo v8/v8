@@ -444,8 +444,8 @@ static bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
   for (uint32_t i = 0; i < length; ++i) {
     HandleScope loop_scope(isolate);
     Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
-    if (!maybe.has_value) return false;
-    if (maybe.value) {
+    if (!maybe.IsJust()) return false;
+    if (maybe.FromJust()) {
       Handle<Object> element_value;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, element_value,
@@ -511,8 +511,8 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
           visitor->visit(j, element_value);
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
-          if (!maybe.has_value) return false;
-          if (maybe.value) {
+          if (!maybe.IsJust()) return false;
+          if (maybe.FromJust()) {
             // Call GetElement on receiver, not its prototype, or getters won't
             // have the correct receiver.
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -547,8 +547,8 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
           visitor->visit(j, element_value);
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
-          if (!maybe.has_value) return false;
-          if (maybe.value) {
+          if (!maybe.IsJust()) return false;
+          if (maybe.FromJust()) {
             // Call GetElement on receiver, not its prototype, or getters won't
             // have the correct receiver.
             Handle<Object> element_value;

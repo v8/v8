@@ -40,6 +40,7 @@
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
+using v8::Just;
 
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
@@ -191,9 +192,7 @@ TEST(HeapObjects) {
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
   Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
-  v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, object_string);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
   CheckOddball(isolate, heap->true_value(), "true");
@@ -260,9 +259,7 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, name);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, name));
   // Check function is retained.
   Handle<Object> func_value =
       Object::GetProperty(global, name).ToHandleChecked();
@@ -280,9 +277,7 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   heap->CollectGarbage(NEW_SPACE);
 
-  maybe = JSReceiver::HasOwnProperty(global, obj_name);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, obj_name));
   Handle<Object> obj =
       Object::GetProperty(global, obj_name).ToHandleChecked();
   CHECK(obj->IsJSObject());
@@ -639,85 +634,55 @@ TEST(ObjectProperties) {
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
   // check for empty
-  v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first
   JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
   JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
   JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
   JSReceiver::SetProperty(obj, second, two, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
-  maybe = JSReceiver::HasOwnProperty(obj, second);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
   // delete first and then second
   JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, second);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
   JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
-  maybe = JSReceiver::HasOwnProperty(obj, second);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 
   // add first and then second
   JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
   JSReceiver::SetProperty(obj, second, two, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
-  maybe = JSReceiver::HasOwnProperty(obj, second);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
   // delete second and then first
   JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
   JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
-  maybe = JSReceiver::HasOwnProperty(obj, first);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
-  maybe = JSReceiver::HasOwnProperty(obj, second);
-  CHECK(maybe.has_value);
-  CHECK(!maybe.value);
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   JSReceiver::SetProperty(obj, s1, one, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
-  maybe = JSReceiver::HasOwnProperty(obj, s1_string);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
   JSReceiver::SetProperty(obj, s2_string, one, SLOPPY).Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
-  maybe = JSReceiver::HasOwnProperty(obj, s2);
-  CHECK(maybe.has_value);
-  CHECK(maybe.value);
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s2));
 }
 
 
