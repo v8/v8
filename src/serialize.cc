@@ -2046,14 +2046,12 @@ void Serializer::ObjectSerializer::VisitExternalOneByteString(
 }
 
 
-static Code* CloneCodeObject(HeapObject* code) {
-  Address copy = new byte[code->Size()];
-  MemCopy(copy, code->address(), code->Size());
-  return Code::cast(HeapObject::FromAddress(copy));
-}
-
-
-static void WipeOutRelocations(Code* code) {
+Address Serializer::ObjectSerializer::PrepareCode() {
+  // To make snapshots reproducible, we make a copy of the code object
+  // and wipe all pointers in the copy, which we then serialize.
+  Code* code = serializer_->CopyCode(Code::cast(object_));
+  // Code age headers are not serializable.
+  code->MakeYoung(serializer_->isolate());
   int mode_mask =
       RelocInfo::kCodeTargetMask |
       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
@@ -2064,6 +2062,10 @@ static void WipeOutRelocations(Code* code) {
       it.rinfo()->WipeOut();
     }
   }
+  // We need to wipe out the header fields *after* wiping out the
+  // relocations, because some of these fields are needed for the latter.
+  code->WipeOutHeader();
+  return code->address();
 }
 
 
@@ -2101,17 +2103,7 @@ int Serializer::ObjectSerializer::OutputRawData(
       sink_->PutInt(bytes_to_output, "length");
     }
 
-    // To make snapshots reproducible, we need to wipe out all pointers in code.
-    if (code_object_) {
-      Code* code = CloneCodeObject(object_);
-      // Code age headers are not serializable.
-      code->MakeYoung(serializer_->isolate());
-      WipeOutRelocations(code);
-      // We need to wipe out the header fields *after* wiping out the
-      // relocations, because some of these fields are needed for the latter.
-      code->WipeOutHeader();
-      object_start = code->address();
-    }
+    if (code_object_) object_start = PrepareCode();
 
     const char* description = code_object_ ? "Code" : "Byte";
 #ifdef MEMORY_SANITIZER
@@ -2119,7 +2111,6 @@ int Serializer::ObjectSerializer::OutputRawData(
     MSAN_MEMORY_IS_INITIALIZED(object_start + base, bytes_to_output);
 #endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
-    if (code_object_) delete[] object_start;
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {
     sink_->Put(kSkip, "Skip");
@@ -2175,6 +2166,14 @@ void Serializer::Pad() {
 void Serializer::InitializeCodeAddressMap() {
   isolate_->InitializeLoggingAndCounters();
   code_address_map_ = new CodeAddressMap(isolate_);
+}
+
+
+Code* Serializer::CopyCode(Code* code) {
+  code_buffer_.Rewind(0);  // Clear buffer without deleting backing store.
+  int size = code->CodeSize();
+  code_buffer_.AddAll(Vector<byte>(code->address(), size));
+  return Code::cast(HeapObject::FromAddress(&code_buffer_.first()));
 }
 
 

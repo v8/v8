@@ -703,6 +703,8 @@ class Serializer : public SerializerDeserializer {
     // External strings are serialized in a way to resemble sequential strings.
     void SerializeExternalString();
 
+    Address PrepareCode();
+
     Serializer* serializer_;
     HeapObject* object_;
     SnapshotByteSink* sink_;
@@ -749,6 +751,8 @@ class Serializer : public SerializerDeserializer {
   // of the serializer.  Initialize it on demand.
   void InitializeCodeAddressMap();
 
+  Code* CopyCode(Code* code);
+
   inline uint32_t max_chunk_size(int space) const {
     DCHECK_LE(0, space);
     DCHECK_LT(space, kNumberOfSpaces);
@@ -782,6 +786,8 @@ class Serializer : public SerializerDeserializer {
   // We map serialized large objects to indexes for back-referencing.
   uint32_t large_objects_total_size_;
   uint32_t seen_large_objects_index_;
+
+  List<byte> code_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
