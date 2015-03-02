@@ -103,8 +103,7 @@ namespace v8 {
     return bailout_value;                                                    \
   }                                                                          \
   HandleScopeClass handle_scope(isolate);                                    \
-  CallDepthScope call_depth_scope(isolate, false);                           \
-  v8::Context::Scope context_scope(context);                                 \
+  CallDepthScope call_depth_scope(isolate, context, false);                  \
   LOG_API(isolate, function_name);                                           \
   ENTER_V8(isolate);                                                         \
   bool has_pending_exception = false
@@ -160,12 +159,19 @@ class InternalEscapableScope : public v8::EscapableHandleScope {
 
 class CallDepthScope {
  public:
-  explicit CallDepthScope(i::Isolate* isolate, bool do_callback)
-      : isolate_(isolate), escaped_(false), do_callback_(do_callback) {
+  explicit CallDepthScope(i::Isolate* isolate, Local<Context> context,
+                          bool do_callback)
+      : isolate_(isolate),
+        context_(context),
+        escaped_(false),
+        do_callback_(do_callback) {
+    // TODO(dcarney): remove this when blink stops crashing.
     DCHECK(!isolate_->external_caught_exception());
     isolate_->handle_scope_implementer()->IncrementCallDepth();
+    if (!context_.IsEmpty()) context_->Enter();
   }
   ~CallDepthScope() {
+    if (!context_.IsEmpty()) context_->Exit();
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback_) isolate_->FireCallCompletedCallback();
   }
@@ -181,6 +187,7 @@ class CallDepthScope {
 
  private:
   i::Isolate* const isolate_;
+  Local<Context> context_;
   bool escaped_;
   bool do_callback_;
 };
