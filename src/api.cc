@@ -98,7 +98,9 @@ namespace v8 {
 
 #define PREPARE_FOR_EXECUTION_GENERIC(context, function_name, bailout_value, \
                                       HandleScopeClass)                      \
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());       \
+  auto isolate = context.IsEmpty()                                           \
+                     ? i::Isolate::Current()                                 \
+                     : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
   if (IsExecutionTerminatingCheck(isolate)) {                                \
     return bailout_value;                                                    \
   }                                                                          \
