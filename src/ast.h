@@ -2073,8 +2073,7 @@ class BinaryOperation FINAL : public Expression {
     return TypeFeedbackId(local_id(1));
   }
   Maybe<int> fixed_right_arg() const {
-    return has_fixed_right_arg_ ? Maybe<int>(fixed_right_arg_value_)
-                                : Maybe<int>();
+    return has_fixed_right_arg_ ? Just(fixed_right_arg_value_) : Nothing<int>();
   }
   void set_fixed_right_arg(Maybe<int> arg) {
     has_fixed_right_arg_ = arg.has_value;

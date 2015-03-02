@@ -471,6 +471,11 @@ Local<Value> V8::GetEternal(Isolate* v8_isolate, int index) {
 }
 
 
+void V8::CheckIsJust(bool is_just) {
+  Utils::ApiCheck(is_just, "v8::FromJust", "Maybe value is Nothing.");
+}
+
+
 // --- H a n d l e s ---
 
 
@@ -2996,7 +3001,7 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 
 Maybe<bool> Value::BooleanValue(Local<Context> context) const {
-  return maybe(Utils::OpenHandle(this)->BooleanValue());
+  return Just(Utils::OpenHandle(this)->BooleanValue());
 }
 
 
@@ -3007,13 +3012,13 @@ bool Value::BooleanValue() const {
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (obj->IsNumber()) return maybe(obj->Number());
+  if (obj->IsNumber()) return Just(obj->Number());
   CONTEXT_SCOPE_GET_ISOLATE(context, "NumberValue");
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> num;
   has_pending_exception = !i::Execution::ToNumber(isolate, obj).ToHandle(&num);
-  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<double>());
-  return maybe(num->Number());
+  EXCEPTION_BAILOUT_CHECK(isolate, Nothing<double>());
+  return Just(num->Number());
 }
 
 
@@ -3021,7 +3026,7 @@ double Value::NumberValue() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return obj->Number();
   return NumberValue(ContextFromHeapObject(obj))
-      .From(std::numeric_limits<double>::quiet_NaN());
+      .FromMaybe(std::numeric_limits<double>::quiet_NaN());
 }
 
 
@@ -3035,13 +3040,10 @@ Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
     EXCEPTION_PREAMBLE(isolate);
     has_pending_exception =
         !i::Execution::ToInteger(isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, Maybe<int64_t>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Nothing<int64_t>());
   }
-  if (num->IsSmi()) {
-    return maybe(static_cast<int64_t>(i::Smi::cast(*num)->value()));
-  } else {
-    return maybe(static_cast<int64_t>(num->Number()));
-  }
+  return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
+                           : static_cast<int64_t>(num->Number()));
 }
 
 
@@ -3054,53 +3056,47 @@ int64_t Value::IntegerValue() const {
       return static_cast<int64_t>(obj->Number());
     }
   }
-  return IntegerValue(ContextFromHeapObject(obj)).From(0);
+  return IntegerValue(ContextFromHeapObject(obj)).FromMaybe(0);
 }
 
 
 Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (obj->IsNumber()) return maybe(NumberToInt32(*obj));
+  if (obj->IsNumber()) return Just(NumberToInt32(*obj));
   CONTEXT_SCOPE_GET_ISOLATE(context, "Int32Value");
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> num;
   has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
-  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<int32_t>());
-  if (num->IsSmi()) {
-    return maybe(i::Smi::cast(*num)->value());
-  } else {
-    return maybe(static_cast<int32_t>(num->Number()));
-  }
+  EXCEPTION_BAILOUT_CHECK(isolate, Nothing<int32_t>());
+  return Just(num->IsSmi() ? i::Smi::cast(*num)->value()
+                           : static_cast<int32_t>(num->Number()));
 }
 
 
 int32_t Value::Int32Value() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return NumberToInt32(*obj);
-  return Int32Value(ContextFromHeapObject(obj)).From(0);
+  return Int32Value(ContextFromHeapObject(obj)).FromMaybe(0);
 }
 
 
 Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (obj->IsNumber()) return maybe(NumberToUint32(*obj));
+  if (obj->IsNumber()) return Just(NumberToUint32(*obj));
   CONTEXT_SCOPE_GET_ISOLATE(context, "Uint32Value");
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> num;
   has_pending_exception = !i::Execution::ToUint32(isolate, obj).ToHandle(&num);
-  EXCEPTION_BAILOUT_CHECK(isolate, Maybe<uint32_t>());
-  if (num->IsSmi()) {
-    return maybe(static_cast<uint32_t>(i::Smi::cast(*num)->value()));
-  } else {
-    return maybe(static_cast<uint32_t>(num->Number()));
-  }
+  EXCEPTION_BAILOUT_CHECK(isolate, Nothing<uint32_t>());
+  return Just(num->IsSmi() ? static_cast<uint32_t>(i::Smi::cast(*num)->value())
+                           : static_cast<uint32_t>(num->Number()));
 }
 
 
 uint32_t Value::Uint32Value() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return NumberToUint32(*obj);
-  return Uint32Value(ContextFromHeapObject(obj)).From(0);
+  return Uint32Value(ContextFromHeapObject(obj)).FromMaybe(0);
 }
 
 
@@ -3589,7 +3585,7 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  Maybe<bool> maybe;
+  Maybe<bool> maybe = Nothing<bool>();
   // Check if the given key is an array index.
   uint32_t index;
   if (key_obj->ToArrayIndex(&index)) {
@@ -3803,8 +3799,9 @@ static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
 static Maybe<PropertyAttribute> GetPropertyAttributesByLookup(
     i::LookupIterator* it) {
   Maybe<PropertyAttributes> attr = i::JSReceiver::GetPropertyAttributes(it);
-  if (!it->IsFound()) return Maybe<PropertyAttribute>();
-  return Maybe<PropertyAttribute>(static_cast<PropertyAttribute>(attr.value));
+  return it->IsFound() ? Just<PropertyAttribute>(
+                             static_cast<PropertyAttribute>(attr.value))
+                       : Nothing<PropertyAttribute>();
 }
 
 
@@ -3831,12 +3828,12 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate,
              "v8::Object::GetRealNamedPropertyAttributesInPrototypeChain()",
-             return Maybe<PropertyAttribute>());
+             return Nothing<PropertyAttribute>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::PrototypeIterator iter(isolate, self_obj);
-  if (iter.IsAtEnd()) return Maybe<PropertyAttribute>();
+  if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
   i::Handle<i::Object> proto = i::PrototypeIterator::GetCurrent(iter);
   i::LookupIterator it(self_obj, key_obj, i::Handle<i::JSReceiver>::cast(proto),
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
@@ -3861,7 +3858,7 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
     Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetRealNamedPropertyAttributes()",
-             return Maybe<PropertyAttribute>());
+             return Nothing<PropertyAttribute>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);

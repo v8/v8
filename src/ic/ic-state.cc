@@ -45,7 +45,7 @@ STATIC_CONST_MEMBER_DEFINITION const int BinaryOpICState::LAST_TOKEN;
 
 
 BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
-    : isolate_(isolate) {
+    : fixed_right_arg_(Nothing<int>()), isolate_(isolate) {
   op_ =
       static_cast<Token::Value>(FIRST_TOKEN + OpField::decode(extra_ic_state));
   fixed_right_arg_ =

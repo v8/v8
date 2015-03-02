@@ -131,7 +131,7 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   MaybeHandle<Object> maybe_unscopables =
       Object::GetProperty(receiver, unscopables_symbol);
   if (!maybe_unscopables.ToHandle(&unscopables)) {
-    return Maybe<PropertyAttributes>();
+    return Nothing<PropertyAttributes>();
   }
   if (!unscopables->IsSpecObject()) return attrs;
   Handle<Object> blacklist;
@@ -139,10 +139,9 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
       Object::GetProperty(unscopables, it->name());
   if (!maybe_blacklist.ToHandle(&blacklist)) {
     DCHECK(isolate->has_pending_exception());
-    return Maybe<PropertyAttributes>();
+    return Nothing<PropertyAttributes>();
   }
-  if (!blacklist->IsUndefined()) return maybe(ABSENT);
-  return attrs;
+  return blacklist->IsUndefined() ? attrs : Just(ABSENT);
 }
 
 static void GetAttributesAndBindingFlags(VariableMode mode,
@@ -254,7 +253,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
-      Maybe<PropertyAttributes> maybe;
+      Maybe<PropertyAttributes> maybe = Nothing<PropertyAttributes>();
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);

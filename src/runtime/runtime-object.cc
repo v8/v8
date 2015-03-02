@@ -772,7 +772,7 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden
     // prototypes.
-    Maybe<bool> maybe;
+    Maybe<bool> maybe = Nothing<bool>();
     if (key_is_array_index) {
       maybe = JSObject::HasOwnElement(js_obj, index);
     } else {

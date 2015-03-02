@@ -6961,8 +6961,7 @@ Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
   Maybe<PropertyAttributes> result = GetPropertyAttributes(object, name);
-  if (!result.has_value) return Maybe<bool>();
-  return maybe(result.value != ABSENT);
+  return result.has_value ? Just(result.value != ABSENT) : Nothing<bool>();
 }
 
 
@@ -6973,8 +6972,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
   Maybe<PropertyAttributes> result = GetOwnPropertyAttributes(object, name);
-  if (!result.has_value) return Maybe<bool>();
-  return maybe(result.value != ABSENT);
+  return result.has_value ? Just(result.value != ABSENT) : Nothing<bool>();
 }
 
 
@@ -7033,8 +7031,7 @@ Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
   }
   Maybe<PropertyAttributes> result = JSObject::GetElementAttributeWithReceiver(
       Handle<JSObject>::cast(object), object, index, true);
-  if (!result.has_value) return Maybe<bool>();
-  return maybe(result.value != ABSENT);
+  return result.has_value ? Just(result.value != ABSENT) : Nothing<bool>();
 }
 
 
@@ -7046,8 +7043,7 @@ Maybe<bool> JSReceiver::HasOwnElement(Handle<JSReceiver> object,
   }
   Maybe<PropertyAttributes> result = JSObject::GetElementAttributeWithReceiver(
       Handle<JSObject>::cast(object), object, index, false);
-  if (!result.has_value) return Maybe<bool>();
-  return maybe(result.value != ABSENT);
+  return result.has_value ? Just(result.value != ABSENT) : Nothing<bool>();
 }
 
 

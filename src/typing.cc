@@ -655,7 +655,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   Type* type;
   Type* left_type;
   Type* right_type;
-  Maybe<int> fixed_right_arg;
+  Maybe<int> fixed_right_arg = Nothing<int>();
   Handle<AllocationSite> allocation_site;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
       &left_type, &right_type, &type, &fixed_right_arg,

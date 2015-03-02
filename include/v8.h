@@ -81,6 +81,8 @@ class ImplementationUtilities;
 class Int32;
 class Integer;
 class Isolate;
+template <class T>
+class Maybe;
 class Name;
 class Number;
 class NumberObject;
@@ -971,47 +973,6 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
 
   internal::Object** escape_slot_;
 };
-
-
-/**
- * A simple Maybe type, representing an object which may or may not have a
- * value.
- */
-template <class T>
-class Maybe {
- public:
-  Maybe() : has_value(false) {}
-  explicit Maybe(const T& t) : has_value(true), value(t) {}
-  // TODO(dcarney): remove this constructor, it makes no sense.
-  Maybe(bool has, const T& t) : has_value(has), value(t) {}
-
-  V8_INLINE bool HasValue() const { return has_value; }
-
-  V8_WARN_UNUSED_RESULT V8_INLINE bool ToValue(T* out) const {
-    *out = has_value ? value : T();
-    return has_value;
-  }
-
-  V8_INLINE T ToValueChecked() const {
-    // TODO(dcarney): add DCHECK.
-    return value;
-  }
-
-  V8_INLINE T From(const T& default_value) const {
-    return has_value ? value : default_value;
-  }
-
-  // TODO(dcarney): make private.
-  bool has_value;
-  T value;
-};
-
-
-// Convenience wrapper.
-template <class T>
-inline Maybe<T> maybe(T t) {
-  return Maybe<T>(t);
-}
 
 
 // --- Special objects ---
@@ -5750,13 +5711,67 @@ class V8_EXPORT V8 {
                          int* index);
   static Local<Value> GetEternal(Isolate* isolate, int index);
 
+  static void CheckIsJust(bool is_just);
+
   template <class T> friend class Handle;
   template <class T> friend class Local;
+  template <class T>
+  friend class Maybe;
   template <class T> friend class Eternal;
   template <class T> friend class PersistentBase;
   template <class T, class M> friend class Persistent;
   friend class Context;
 };
+
+
+/**
+ * A simple Maybe type, representing an object which may or may not have a
+ * value.
+ */
+template <class T>
+class Maybe {
+ public:
+  // TODO(dcarney): remove this constructor, it makes no sense.
+  Maybe(bool has, const T& t) : has_value(has), value(t) {}
+
+  V8_INLINE bool IsJust() const { return has_value; }
+
+  V8_INLINE T FromJust() const {
+#ifdef V8_ENABLE_CHECKS
+    V8::CheckIsJust(IsJust());
+#endif
+    return value;
+  }
+
+  V8_INLINE T FromMaybe(const T& default_value) const {
+    return has_value ? value : default_value;
+  }
+
+  // TODO(dcarney): make private.
+  bool has_value;
+  T value;
+
+ private:
+  template <class U>
+  friend Maybe<U> Nothing();
+  template <class U>
+  friend Maybe<U> Just(const U& u);
+
+  Maybe() : has_value(false) {}
+  explicit Maybe(const T& t) : has_value(true), value(t) {}
+};
+
+
+template <class T>
+inline Maybe<T> Nothing() {
+  return Maybe<T>();
+}
+
+
+template <class T>
+inline Maybe<T> Just(const T& t) {
+  return Maybe<T>(t);
+}
 
 
 /**
