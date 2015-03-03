@@ -436,6 +436,9 @@ class Scanner {
   Location octal_position() const { return octal_pos_; }
   void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
+  // Returns the value of the last smi that was scanned.
+  int smi_value() const { return smi_value_; }
+
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
   // characters, but works for seeking forward until simple delimiter
@@ -721,6 +724,9 @@ class Scanner {
 
   // Start position of the octal literal last scanned.
   Location octal_pos_;
+
+  // Value of the last smi that was scanned.
+  int smi_value_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;

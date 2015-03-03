@@ -1688,6 +1688,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
   switch (token) {
     case Token::EOS:
       return ReportMessageAt(source_location, "unexpected_eos");
+    case Token::SMI:
     case Token::NUMBER:
       return ReportMessageAt(source_location, "unexpected_token_number");
     case Token::STRING:
@@ -1874,6 +1875,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::NULL_LITERAL:
     case Token::TRUE_LITERAL:
     case Token::FALSE_LITERAL:
+    case Token::SMI:
     case Token::NUMBER:
       Next();
       result =
@@ -2053,6 +2055,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
     case Token::STRING:
       Consume(Token::STRING);
       *name = this->GetSymbol(scanner());
+      break;
+
+    case Token::SMI:
+      Consume(Token::SMI);
+      *name = this->GetNumberAsSymbol(scanner());
       break;
 
     case Token::NUMBER:
@@ -3069,7 +3076,7 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
   DCHECK(!is_static);
   DCHECK(!is_generator || type == kMethodProperty);
 
-  if (property == Token::NUMBER) return;
+  if (property == Token::SMI || property == Token::NUMBER) return;
 
   if (type == kValueProperty && IsProto()) {
     if (has_seen_proto_) {
@@ -3089,7 +3096,7 @@ void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     bool* ok) {
   DCHECK(type == kMethodProperty || type == kAccessorProperty);
 
-  if (property == Token::NUMBER) return;
+  if (property == Token::SMI || property == Token::NUMBER) return;
 
   if (is_static) {
     if (IsPrototype()) {

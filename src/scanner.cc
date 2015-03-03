@@ -913,6 +913,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   enum { DECIMAL, HEX, OCTAL, IMPLICIT_OCTAL, BINARY } kind = DECIMAL;
 
   LiteralScope literal(this);
+  bool at_start = !seen_period;
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
@@ -962,6 +963,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         kind = IMPLICIT_OCTAL;
         while (true) {
           if (c0_ == '8' || c0_ == '9') {
+            at_start = false;
             kind = DECIMAL;
             break;
           }
@@ -977,6 +979,21 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
     // Parse decimal digits and allow trailing fractional part.
     if (kind == DECIMAL) {
+      if (at_start) {
+        int value = 0;
+        while (IsDecimalDigit(c0_)) {
+          value = 10 * value + (c0_ - '0');
+          AddLiteralCharAdvance();
+        }
+
+        if (next_.literal_chars->one_byte_literal().length() < 10 &&
+            c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
+          smi_value_ = value;
+          literal.Complete();
+          return Token::SMI;
+        }
+      }
+
       ScanDecimalDigits();  // optional
       if (c0_ == '.') {
         AddLiteralCharAdvance();

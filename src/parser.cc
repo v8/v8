@@ -694,6 +694,10 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
       return factory->NewBooleanLiteral(true, pos);
     case Token::FALSE_LITERAL:
       return factory->NewBooleanLiteral(false, pos);
+    case Token::SMI: {
+      int value = scanner->smi_value();
+      return factory->NewSmiLiteral(value, pos);
+    }
     case Token::NUMBER: {
       double value = scanner->DoubleValue();
       return factory->NewNumberLiteral(value, pos);
