@@ -108,11 +108,6 @@
   'es6/debug-stepin-microtasks': [PASS, NO_VARIANTS],
   'es6/debug-stepnext-for': [PASS, NO_VARIANTS],
   'harmony/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
-
-  # TODO(jarin): Some tests don't like --turbo-deoptimzation very much.
-  'asm/embenchen/lua_binarytrees': [SKIP],
-  'es6/symbols': [PASS, NO_VARIANTS],
-  'regress/regress-354433': [PASS, NO_VARIANTS],  # only on ARM simulator.
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
 
   ##############################################################################

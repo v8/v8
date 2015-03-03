@@ -329,7 +329,8 @@ class RepresentationSelector {
       } else if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
         // multiple uses, but we are within 32 bits range => pick kRepWord32.
         return kRepWord32;
-      } else if ((use & kRepMask) == kRepWord32 ||
+      } else if (((use & kRepMask) == kRepWord32 &&
+                  !CanObserveNonWord32(use)) ||
                  (use & kTypeMask) == kTypeInt32 ||
                  (use & kTypeMask) == kTypeUint32) {
         // We only use 32 bits or we use the result consistently.
@@ -454,6 +455,10 @@ class RepresentationSelector {
     return IsSafeIntAdditiveOperand(node->InputAt(0)) &&
            IsSafeIntAdditiveOperand(node->InputAt(1)) &&
            !CanObserveNonUint32(use);
+  }
+
+  bool CanObserveNonWord32(MachineTypeUnion use) {
+    return (use & ~(kTypeUint32 | kTypeInt32)) != 0;
   }
 
   bool CanObserveNonInt32(MachineTypeUnion use) {
