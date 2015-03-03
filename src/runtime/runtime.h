@@ -465,7 +465,6 @@ namespace internal {
                                                              \
   /* Arrays */                                               \
   F(ArrayConstructor, -1, 1)                                 \
-  F(ArrayConstructorWithSubclassing, -1, 1)                  \
   F(InternalArrayConstructor, -1, 1)                         \
                                                              \
   /* Literals */                                             \

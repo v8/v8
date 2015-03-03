@@ -4844,7 +4844,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- a1 : constructor
   //  -- a2 : AllocationSite or undefined
   //  -- a3 : original constructor
-  //  -- sp[0] : last argument
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
   // -----------------------------------
 
   if (FLAG_debug_code) {
@@ -4882,28 +4883,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 
-  // Subclassing.
   __ bind(&subclassing);
-  __ Push(a1);
-  __ Push(a3);
-
-  // Adjust argc.
-  switch (argument_count()) {
-    case ANY:
-    case MORE_THAN_ONE:
-      __ li(at, Operand(2));
-      __ addu(a0, a0, at);
-      break;
-    case NONE:
-      __ li(a0, Operand(2));
-      break;
-    case ONE:
-      __ li(a0, Operand(3));
-      break;
-  }
-
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
+  __ TailCallRuntime(Runtime::kThrowArrayNotSubclassableError, 0, 1);
 }
 
 
