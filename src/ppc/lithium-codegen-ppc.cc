@@ -110,7 +110,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // r4: Callee's JS function.
     // cp: Callee's context.
-    // pp: Callee's constant pool pointer (if FLAG_enable_ool_constant_pool)
+    // pp: Callee's constant pool pointer (if enabled)
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
     // ip: Our own function entry (required by the prologue)
@@ -942,12 +942,6 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers, Safepoint::Kind kind,
       safepoint.DefinePointerRegister(ToRegister(pointer), zone());
     }
   }
-#if V8_OOL_CONSTANT_POOL
-  if (kind & Safepoint::kWithRegisters) {
-    // Register always contains a pointer to the constant pool.
-    safepoint.DefinePointerRegister(kConstantPoolRegister, zone());
-  }
-#endif
 }
 
 
@@ -2788,10 +2782,11 @@ void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
 
   // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.
   // Check if the constructor in the map is a function.
-  __ LoadP(temp, FieldMemOperand(temp, Map::kConstructorOffset));
+  Register instance_type = ip;
+  __ GetMapConstructor(temp, temp, temp2, instance_type);
 
   // Objects with a non-function constructor have class 'Object'.
-  __ CompareObjectType(temp, temp2, temp2, JS_FUNCTION_TYPE);
+  __ cmpi(instance_type, Operand(JS_FUNCTION_TYPE));
   if (class_name->IsOneByteEqualTo(STATIC_CHAR_VECTOR("Object"))) {
     __ bne(is_true);
   } else {
@@ -3094,7 +3089,8 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), mode).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode,
+                                                       PREMONOMORPHIC).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3236,7 +3232,9 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   if (FLAG_vector_ics) {
     EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), NOT_CONTEXTUAL).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
+                        isolate(), NOT_CONTEXTUAL,
+                        instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3591,7 +3589,9 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> ic =
+      CodeFactory::KeyedLoadICInOptimizedCode(
+          isolate(), instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4530,7 +4530,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
   __ mov(StoreDescriptor::NameRegister(), Operand(instr->name()));
-  Handle<Code> ic = StoreIC::initialize_stub(isolate(), instr->language_mode());
+  Handle<Code> ic =
+      StoreIC::initialize_stub(isolate(), instr->language_mode(),
+                               instr->hydrogen()->initialization_state());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4794,8 +4796,9 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), instr->language_mode()).code();
+  Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
+                        isolate(), instr->language_mode(),
+                        instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -5520,6 +5523,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Register temp = ToRegister(instr->temp());
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -5527,9 +5531,9 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ CallRuntimeSaveDoubles(Runtime::kTryMigrateInstance);
     RecordSafepointWithRegisters(instr->pointer_map(), 1,
                                  Safepoint::kNoLazyDeopt);
-    __ StoreToSafepointRegisterSlot(r3, scratch0());
+    __ StoreToSafepointRegisterSlot(r3, temp);
   }
-  __ TestIfSmi(scratch0(), r0);
+  __ TestIfSmi(temp, r0);
   DeoptimizeIf(eq, instr, Deoptimizer::kInstanceMigrationFailed, cr0);
 }
 
@@ -5561,17 +5565,14 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     return;
   }
 
-  Register map_reg = scratch0();
+  Register object = ToRegister(instr->value());
+  Register map_reg = ToRegister(instr->temp());
 
-  LOperand* input = instr->value();
-  DCHECK(input->IsRegister());
-  Register reg = ToRegister(input);
-
-  __ LoadP(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ LoadP(map_reg, FieldMemOperand(object, HeapObject::kMapOffset));
 
   DeferredCheckMaps* deferred = NULL;
   if (instr->hydrogen()->HasMigrationTarget()) {
-    deferred = new (zone()) DeferredCheckMaps(this, instr, reg);
+    deferred = new (zone()) DeferredCheckMaps(this, instr, object);
     __ bind(deferred->check_maps());
   }
 

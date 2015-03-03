@@ -149,18 +149,14 @@ const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially
   // coded.  Being specially coded on PPC means that it is a lis/ori
-  // instruction sequence or is an out of line constant pool entry,
-  // and these are always the case inside code objects.
+  // instruction sequence, and these are always the case inside code
+  // objects.
   return true;
 }
 
 
 bool RelocInfo::IsInConstantPool() {
-#if V8_OOL_CONSTANT_POOL
-  return Assembler::IsConstantPoolLoadStart(pc_);
-#else
   return false;
-#endif
 }
 
 
@@ -227,9 +223,6 @@ MemOperand::MemOperand(Register ra, Register rb) {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-#if V8_OOL_CONSTANT_POOL
-      constant_pool_builder_(),
-#endif
       positions_recorder_(this) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -250,6 +243,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 void Assembler::GetCode(CodeDesc* desc) {
   reloc_info_writer.Finish();
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -486,8 +480,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + target_pos);
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                          kMovInstructionsNoConstantPool,
-                          CodePatcher::DONT_FLUSH);
+                          kMovInstructions, CodePatcher::DONT_FLUSH);
       AddBoundInternalReferenceLoad(pos);
       patcher.masm()->bitwise_mov(dst, addr);
       break;
@@ -1546,48 +1539,11 @@ void Assembler::RelocateInternalReference(Address pc, intptr_t delta,
 }
 
 
-int Assembler::instructions_required_for_mov(const Operand& x) const {
-#if V8_OOL_CONSTANT_POOL || DEBUG
-  bool canOptimize =
-      !(x.must_output_reloc_info(this) || is_trampoline_pool_blocked());
-#endif
-#if V8_OOL_CONSTANT_POOL
-  if (use_constant_pool_for_mov(x, canOptimize)) {
-    // Current usage guarantees that all constant pool references can
-    // use the same sequence.
-    return kMovInstructionsConstantPool;
-  }
-#endif
-  DCHECK(!canOptimize);
-  return kMovInstructionsNoConstantPool;
-}
-
-
-#if V8_OOL_CONSTANT_POOL
-bool Assembler::use_constant_pool_for_mov(const Operand& x,
-                                          bool canOptimize) const {
-  if (!is_ool_constant_pool_available() || is_constant_pool_full()) {
-    // If there is no constant pool available, we must use a mov
-    // immediate sequence.
-    return false;
-  }
-
-  intptr_t value = x.immediate();
-  if (canOptimize && is_int16(value)) {
-    // Prefer a single-instruction load-immediate.
-    return false;
-  }
-
-  return true;
-}
-
-
 void Assembler::EnsureSpaceFor(int space_needed) {
   if (buffer_space() <= (kGap + space_needed)) {
-    GrowBuffer();
+    GrowBuffer(space_needed);
   }
 }
-#endif
 
 
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
@@ -1612,29 +1568,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
   RelocInfo rinfo(pc_, src.rmode_, value, NULL);
 
-  if (src.must_output_reloc_info(this)) {
-    RecordRelocInfo(rinfo);
-  }
-
   canOptimize = !(src.must_output_reloc_info(this) ||
                   (is_trampoline_pool_blocked() && !is_int16(value)));
-
-#if V8_OOL_CONSTANT_POOL
-  if (use_constant_pool_for_mov(src, canOptimize)) {
-    DCHECK(is_ool_constant_pool_available());
-    ConstantPoolAddEntry(rinfo);
-#if V8_TARGET_ARCH_PPC64
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    // We are forced to use 2 instruction sequence since the constant
-    // pool pointer is tagged.
-    li(dst, Operand::Zero());
-    ldx(dst, MemOperand(kConstantPoolRegister, dst));
-#else
-    lwz(dst, MemOperand(kConstantPoolRegister, 0));
-#endif
-    return;
-  }
-#endif
 
   if (canOptimize) {
     if (is_int16(value)) {
@@ -1672,6 +1607,9 @@ void Assembler::mov(Register dst, const Operand& src) {
   }
 
   DCHECK(!canOptimize);
+  if (src.must_output_reloc_info(this)) {
+    RecordRelocInfo(rinfo);
+  }
   bitwise_mov(dst, value);
 }
 
@@ -1735,17 +1673,14 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
 }
 
 
-// TODO(mbrandy): allow loading internal reference from constant pool
 void Assembler::mov_label_addr(Register dst, Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   int position = link(label);
   if (label->is_bound()) {
-// CheckBuffer() is called too frequently. This will pre-grow
-// the buffer if needed to avoid spliting the relocation and instructions
-#if V8_OOL_CONSTANT_POOL
-    EnsureSpaceFor(kMovInstructionsNoConstantPool * kInstrSize);
-#endif
+    // CheckBuffer() is called too frequently. This will pre-grow
+    // the buffer if needed to avoid spliting the relocation and instructions
+    EnsureSpaceFor(kMovInstructions * kInstrSize);
 
     intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
     AddBoundInternalReferenceLoad(pc_offset());
@@ -1767,8 +1702,8 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructionsNoConstantPool >= 2);
-    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
+    DCHECK(kMovInstructions >= 2);
+    for (int i = 0; i < kMovInstructions - 2; i++) nop();
   }
 }
 
@@ -1778,11 +1713,9 @@ void Assembler::emit_label_addr(Label* label) {
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
   int position = link(label);
   if (label->is_bound()) {
-// CheckBuffer() is called too frequently. This will pre-grow
-// the buffer if needed to avoid spliting the relocation and entry.
-#if V8_OOL_CONSTANT_POOL
+    // CheckBuffer() is called too frequently. This will pre-grow
+    // the buffer if needed to avoid spliting the relocation and entry.
     EnsureSpaceFor(kPointerSize);
-#endif
 
     intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
     AddBoundInternalReference(pc_offset());
@@ -2266,8 +2199,7 @@ bool Assembler::IsNop(Instr instr, int type) {
 }
 
 
-// Debugging.
-void Assembler::GrowBuffer() {
+void Assembler::GrowBuffer(int needed) {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
@@ -2278,6 +2210,10 @@ void Assembler::GrowBuffer() {
     desc.buffer_size = 2 * buffer_size_;
   } else {
     desc.buffer_size = buffer_size_ + 1 * MB;
+  }
+  int space = buffer_space() + (desc.buffer_size - buffer_size_);
+  if (space < needed) {
+    desc.buffer_size += needed - space;
   }
   CHECK_GT(desc.buffer_size, 0);  // no overflow
 
@@ -2312,9 +2248,6 @@ void Assembler::GrowBuffer() {
     RelocateInternalReference(buffer_ + pos, pc_delta, 0,
                               RelocInfo::INTERNAL_REFERENCE_ENCODED);
   }
-#if V8_OOL_CONSTANT_POOL
-  constant_pool_builder_.Relocate(pc_delta);
-#endif
 }
 
 
@@ -2334,8 +2267,8 @@ void Assembler::dd(uint32_t data) {
 
 void Assembler::emit_ptr(intptr_t data) {
   CheckBuffer();
-  *reinterpret_cast<uintptr_t*>(pc_) = data;
-  pc_ += sizeof(uintptr_t);
+  *reinterpret_cast<intptr_t*>(pc_) = data;
+  pc_ += sizeof(intptr_t);
 }
 
 
@@ -2429,193 +2362,14 @@ void Assembler::CheckTrampolinePool() {
 
 
 Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-#if V8_OOL_CONSTANT_POOL
-  return constant_pool_builder_.New(isolate);
-#else
-  // No out-of-line constant pool support.
   DCHECK(!FLAG_enable_ool_constant_pool);
   return isolate->factory()->empty_constant_pool_array();
-#endif
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-#if V8_OOL_CONSTANT_POOL
-  constant_pool_builder_.Populate(this, constant_pool);
-#else
-  // No out-of-line constant pool support.
   DCHECK(!FLAG_enable_ool_constant_pool);
-#endif
 }
-
-
-#if V8_OOL_CONSTANT_POOL
-ConstantPoolBuilder::ConstantPoolBuilder()
-    : size_(0),
-      entries_(),
-      current_section_(ConstantPoolArray::SMALL_SECTION) {}
-
-
-bool ConstantPoolBuilder::IsEmpty() { return entries_.size() == 0; }
-
-
-ConstantPoolArray::Type ConstantPoolBuilder::GetConstantPoolType(
-    RelocInfo::Mode rmode) {
-#if V8_TARGET_ARCH_PPC64
-  // We don't support 32-bit entries at this time.
-  if (!RelocInfo::IsGCRelocMode(rmode)) {
-    return ConstantPoolArray::INT64;
-#else
-  if (rmode == RelocInfo::NONE64) {
-    return ConstantPoolArray::INT64;
-  } else if (!RelocInfo::IsGCRelocMode(rmode)) {
-    return ConstantPoolArray::INT32;
-#endif
-  } else if (RelocInfo::IsCodeTarget(rmode)) {
-    return ConstantPoolArray::CODE_PTR;
-  } else {
-    DCHECK(RelocInfo::IsGCRelocMode(rmode) && !RelocInfo::IsCodeTarget(rmode));
-    return ConstantPoolArray::HEAP_PTR;
-  }
-}
-
-
-ConstantPoolArray::LayoutSection ConstantPoolBuilder::AddEntry(
-    Assembler* assm, const RelocInfo& rinfo) {
-  RelocInfo::Mode rmode = rinfo.rmode();
-  DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::POSITION &&
-         rmode != RelocInfo::STATEMENT_POSITION &&
-         rmode != RelocInfo::CONST_POOL);
-
-  // Try to merge entries which won't be patched.
-  int merged_index = -1;
-  ConstantPoolArray::LayoutSection entry_section = current_section_;
-  if (RelocInfo::IsNone(rmode) ||
-      (!assm->serializer_enabled() && (rmode >= RelocInfo::CELL))) {
-    size_t i;
-    std::vector<ConstantPoolEntry>::const_iterator it;
-    for (it = entries_.begin(), i = 0; it != entries_.end(); it++, i++) {
-      if (RelocInfo::IsEqual(rinfo, it->rinfo_)) {
-        // Merge with found entry.
-        merged_index = i;
-        entry_section = entries_[i].section_;
-        break;
-      }
-    }
-  }
-  DCHECK(entry_section <= current_section_);
-  entries_.push_back(ConstantPoolEntry(rinfo, entry_section, merged_index));
-
-  if (merged_index == -1) {
-    // Not merged, so update the appropriate count.
-    number_of_entries_[entry_section].increment(GetConstantPoolType(rmode));
-  }
-
-  // Check if we still have room for another entry in the small section
-  // given the limitations of the header's layout fields.
-  if (current_section_ == ConstantPoolArray::SMALL_SECTION) {
-    size_ = ConstantPoolArray::SizeFor(*small_entries());
-    if (!is_uint12(size_)) {
-      current_section_ = ConstantPoolArray::EXTENDED_SECTION;
-    }
-  } else {
-    size_ = ConstantPoolArray::SizeForExtended(*small_entries(),
-                                               *extended_entries());
-  }
-
-  return entry_section;
-}
-
-
-void ConstantPoolBuilder::Relocate(intptr_t pc_delta) {
-  for (std::vector<ConstantPoolEntry>::iterator entry = entries_.begin();
-       entry != entries_.end(); entry++) {
-    DCHECK(entry->rinfo_.rmode() != RelocInfo::JS_RETURN);
-    entry->rinfo_.set_pc(entry->rinfo_.pc() + pc_delta);
-  }
-}
-
-
-Handle<ConstantPoolArray> ConstantPoolBuilder::New(Isolate* isolate) {
-  if (IsEmpty()) {
-    return isolate->factory()->empty_constant_pool_array();
-  } else if (extended_entries()->is_empty()) {
-    return isolate->factory()->NewConstantPoolArray(*small_entries());
-  } else {
-    DCHECK(current_section_ == ConstantPoolArray::EXTENDED_SECTION);
-    return isolate->factory()->NewExtendedConstantPoolArray(
-        *small_entries(), *extended_entries());
-  }
-}
-
-
-void ConstantPoolBuilder::Populate(Assembler* assm,
-                                   ConstantPoolArray* constant_pool) {
-  DCHECK_EQ(extended_entries()->is_empty(),
-            !constant_pool->is_extended_layout());
-  DCHECK(small_entries()->equals(ConstantPoolArray::NumberOfEntries(
-      constant_pool, ConstantPoolArray::SMALL_SECTION)));
-  if (constant_pool->is_extended_layout()) {
-    DCHECK(extended_entries()->equals(ConstantPoolArray::NumberOfEntries(
-        constant_pool, ConstantPoolArray::EXTENDED_SECTION)));
-  }
-
-  // Set up initial offsets.
-  int offsets[ConstantPoolArray::NUMBER_OF_LAYOUT_SECTIONS]
-             [ConstantPoolArray::NUMBER_OF_TYPES];
-  for (int section = 0; section <= constant_pool->final_section(); section++) {
-    int section_start = (section == ConstantPoolArray::EXTENDED_SECTION)
-                            ? small_entries()->total_count()
-                            : 0;
-    for (int i = 0; i < ConstantPoolArray::NUMBER_OF_TYPES; i++) {
-      ConstantPoolArray::Type type = static_cast<ConstantPoolArray::Type>(i);
-      if (number_of_entries_[section].count_of(type) != 0) {
-        offsets[section][type] = constant_pool->OffsetOfElementAt(
-            number_of_entries_[section].base_of(type) + section_start);
-      }
-    }
-  }
-
-  for (std::vector<ConstantPoolEntry>::iterator entry = entries_.begin();
-       entry != entries_.end(); entry++) {
-    RelocInfo rinfo = entry->rinfo_;
-    RelocInfo::Mode rmode = entry->rinfo_.rmode();
-    ConstantPoolArray::Type type = GetConstantPoolType(rmode);
-
-    // Update constant pool if necessary and get the entry's offset.
-    int offset;
-    if (entry->merged_index_ == -1) {
-      offset = offsets[entry->section_][type];
-      offsets[entry->section_][type] += ConstantPoolArray::entry_size(type);
-      if (type == ConstantPoolArray::INT64) {
-#if V8_TARGET_ARCH_PPC64
-        constant_pool->set_at_offset(offset, rinfo.data());
-#else
-        constant_pool->set_at_offset(offset, rinfo.data64());
-      } else if (type == ConstantPoolArray::INT32) {
-        constant_pool->set_at_offset(offset,
-                                     static_cast<int32_t>(rinfo.data()));
-#endif
-      } else if (type == ConstantPoolArray::CODE_PTR) {
-        constant_pool->set_at_offset(offset,
-                                     reinterpret_cast<Address>(rinfo.data()));
-      } else {
-        DCHECK(type == ConstantPoolArray::HEAP_PTR);
-        constant_pool->set_at_offset(offset,
-                                     reinterpret_cast<Object*>(rinfo.data()));
-      }
-      offset -= kHeapObjectTag;
-      entry->merged_index_ = offset;  // Stash offset for merged entries.
-    } else {
-      DCHECK(entry->merged_index_ < (entry - entries_.begin()));
-      offset = entries_[entry->merged_index_].merged_index_;
-    }
-
-    // Patch load instruction with correct offset.
-    Assembler::SetConstantPoolOffset(rinfo.pc(), offset);
-  }
-}
-#endif
 }
 }  // namespace v8::internal
 

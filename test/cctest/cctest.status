@@ -401,5 +401,20 @@
 ['arch == ppc64', {
   #issue 2857
   'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+  #test has assumption that does not hold for larger PPC page sizes
+  'test-heap/FirstPageFitsStartup' : [SKIP],
 }],  # 'arch == ppc64'
+
+##############################################################################
+['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/Threading1': [SKIP],
+  'test-api/Threading2': [SKIP],
+  'test-api/ExternalArrays': [SKIP],
+
+  # isses to be investigated
+  'test-run-machops/RunWord64EqualInBranchP': [SKIP],
+
+}],  # 'arch == ppc64 and simulator_run == True'
 ]

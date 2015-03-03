@@ -108,7 +108,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
                                           RegList non_object_regs) {
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Load padding words on stack.
     __ LoadSmiLiteral(ip, Smi::FromInt(LiveEdit::kFramePaddingValue));
@@ -317,8 +317,7 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ LoadP(r4, MemOperand(fp, StandardFrameConstants::kConstantPoolOffset -
                                   kPointerSize));
 
-  // Pop return address, frame and constant pool pointer (if
-  // FLAG_enable_ool_constant_pool).
+  // Pop return address and frame
   __ LeaveFrame(StackFrame::INTERNAL);
 
   // Load context from the function.

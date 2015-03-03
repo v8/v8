@@ -2029,7 +2029,9 @@ LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   if (instr->IsStabilityCheck()) return new (zone()) LCheckMaps;
   LOperand* value = UseRegisterAtStart(instr->value());
-  LInstruction* result = AssignEnvironment(new (zone()) LCheckMaps(value));
+  LOperand* temp = TempRegister();
+  LInstruction* result =
+      AssignEnvironment(new (zone()) LCheckMaps(value, temp));
   if (instr->HasMigrationTarget()) {
     info()->MarkAsDeferredCalling();
     result = AssignPointerMap(result);

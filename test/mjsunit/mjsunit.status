@@ -588,4 +588,15 @@
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
 }],  # 'deopt_fuzzer == True'
+
+##############################################################################
+['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+
+  # take too long with the simulator.
+  'regress/regress-1132': [SKIP],
+  'asm/embenchen/box2d': [SKIP],
+
+  # issues to be investigate4d
+  'es6/collections': [SKIP],
+}],  # 'arch == ppc and simulator_run == True'
 ]

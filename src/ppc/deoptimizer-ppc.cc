@@ -356,13 +356,8 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-#if V8_OOL_CONSTANT_POOL
-  DCHECK(FLAG_enable_ool_constant_pool);
-  SetFrameSlot(offset, value);
-#else
   // No out-of-line constant pool support.
   UNREACHABLE();
-#endif
 }
 
 

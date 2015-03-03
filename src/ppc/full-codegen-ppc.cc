@@ -467,9 +467,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // With 64bit we may need nop() instructions to ensure we have
       // enough space to SetDebugBreakAtReturn()
       if (is_int16(sp_delta)) {
-#if !V8_OOL_CONSTANT_POOL
         masm_->nop();
-#endif
         masm_->nop();
       }
 #endif
@@ -2294,13 +2292,7 @@ void FullCodeGenerator::EmitGeneratorResume(
     Label slow_resume;
     __ bne(&slow_resume, cr0);
     __ LoadP(ip, FieldMemOperand(r7, JSFunction::kCodeEntryOffset));
-#if V8_OOL_CONSTANT_POOL
     {
-      ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
-      // Load the new code object's constant pool pointer.
-      __ LoadP(kConstantPoolRegister,
-               MemOperand(ip, Code::kConstantPoolOffset - Code::kHeaderSize));
-#endif
       __ LoadP(r5, FieldMemOperand(r4, JSGeneratorObject::kContinuationOffset));
       __ SmiUntag(r5);
       __ add(ip, ip, r5);
@@ -2310,9 +2302,7 @@ void FullCodeGenerator::EmitGeneratorResume(
                 r0);
       __ Jump(ip);
       __ bind(&slow_resume);
-#if V8_OOL_CONSTANT_POOL
     }
-#endif
   } else {
     __ beq(&call_resume, cr0);
   }
@@ -3783,8 +3773,9 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
-  __ LoadP(r3, FieldMemOperand(r3, Map::kConstructorOffset));
-  __ CompareObjectType(r3, r4, r4, JS_FUNCTION_TYPE);
+  Register instance_type = r5;
+  __ GetMapConstructor(r3, r3, r4, instance_type);
+  __ cmpi(instance_type, Operand(JS_FUNCTION_TYPE));
   __ bne(&non_function_constructor);
 
   // r3 now contains the constructor function. Grab the

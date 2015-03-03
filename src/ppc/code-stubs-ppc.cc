@@ -110,7 +110,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm,
   int param_count = descriptor.GetEnvironmentParameterCount();
   {
     // Call the runtime system in a fresh internal frame.
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
     DCHECK(param_count == 0 ||
            r3.is(descriptor.GetEnvironmentParameterRegister(param_count - 1)));
     // Push arguments
@@ -1184,11 +1184,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r7: argv
   __ li(r0, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ push(r0);
-#if V8_OOL_CONSTANT_POOL
-  __ mov(kConstantPoolRegister,
-         Operand(isolate()->factory()->empty_constant_pool_array()));
-  __ push(kConstantPoolRegister);
-#endif
   int marker = type();
   __ LoadSmiLiteral(r0, Smi::FromInt(marker));
   __ push(r0);
@@ -1336,14 +1331,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register scratch = r5;
   Register scratch3 = no_reg;
 
-// delta = mov + unaligned LoadP + cmp + bne
-#if V8_TARGET_ARCH_PPC64
+  // delta = mov + tagged LoadP + cmp + bne
   const int32_t kDeltaToLoadBoolResult =
-      (Assembler::kMovInstructions + 4) * Assembler::kInstrSize;
-#else
-  const int32_t kDeltaToLoadBoolResult =
-      (Assembler::kMovInstructions + 3) * Assembler::kInstrSize;
-#endif
+      (Assembler::kMovInstructions + Assembler::kTaggedLoadInstructions + 2) *
+      Assembler::kInstrSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -1503,7 +1494,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
     {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(r3, r4);
       __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
     }
@@ -2585,7 +2576,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     // Create an AllocationSite if we don't already have it, store it in the
     // slot.
     {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::INTERNAL);
 
       // Arguments register must be smi-tagged to call out.
       __ SmiTag(r3);
@@ -2671,7 +2662,7 @@ static void EmitSlowCase(MacroAssembler* masm, int argc, Label* non_function) {
 static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
   // Wrap the receiver and patch it back onto the stack.
   {
-    FrameAndConstantPoolScope frame_scope(masm, StackFrame::INTERNAL);
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
     __ Push(r4, r6);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ pop(r4);
@@ -2988,7 +2979,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // r6 - slot
   // r4 - function
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
     __ Push(r4);
     __ CallStub(&create_stub);
@@ -3016,7 +3007,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
 
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
-  FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+  FrameScope scope(masm, StackFrame::INTERNAL);
 
   // Push the function and feedback info.
   __ Push(r4, r5, r6);
@@ -3974,7 +3965,7 @@ void CompareICStub::GenerateMiss(MacroAssembler* masm) {
     ExternalReference miss =
         ExternalReference(IC_Utility(IC::kCompareIC_Miss), isolate());
 
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(r4, r3);
     __ Push(r4, r3);
     __ LoadSmiLiteral(r0, Smi::FromInt(op()));

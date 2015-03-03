@@ -52,7 +52,7 @@ class PPCOperandConverter FINAL : public InstructionOperandConverter {
     return false;
   }
 
-  Operand InputImmediate(int index) {
+  Operand InputImmediate(size_t index) {
     Constant constant = ToConstant(instr_->InputAt(index));
     switch (constant.type()) {
       case Constant::kInt32:
@@ -76,8 +76,8 @@ class PPCOperandConverter FINAL : public InstructionOperandConverter {
     return Operand::Zero();
   }
 
-  MemOperand MemoryOperand(AddressingMode* mode, int* first_index) {
-    const int index = *first_index;
+  MemOperand MemoryOperand(AddressingMode* mode, size_t* first_index) {
+    const size_t index = *first_index;
     *mode = AddressingModeField::decode(instr_->opcode());
     switch (*mode) {
       case kMode_None:
@@ -93,7 +93,7 @@ class PPCOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(r0);
   }
 
-  MemOperand MemoryOperand(AddressingMode* mode, int first_index = 0) {
+  MemOperand MemoryOperand(AddressingMode* mode, size_t first_index = 0) {
     return MemoryOperand(mode, &first_index);
   }
 
@@ -109,7 +109,7 @@ class PPCOperandConverter FINAL : public InstructionOperandConverter {
 };
 
 
-static inline bool HasRegisterInput(Instruction* instr, int index) {
+static inline bool HasRegisterInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsRegister();
 }
 
@@ -369,7 +369,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 #define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrx)      \
   do {                                                   \
-    int index = 0;                                       \
+    size_t index = 0;                                    \
     AddressingMode mode = kMode_None;                    \
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     DoubleRegister value = i.InputDoubleRegister(index); \
@@ -384,7 +384,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 #define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrx)    \
   do {                                                   \
-    int index = 0;                                       \
+    size_t index = 0;                                    \
     AddressingMode mode = kMode_None;                    \
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     Register value = i.InputRegister(index);             \
@@ -401,8 +401,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr, asm_instrx, width)  \
   do {                                                             \
     DoubleRegister result = i.OutputDoubleRegister();              \
+    size_t index = 0;                                              \
     AddressingMode mode = kMode_None;                              \
-    MemOperand operand = i.MemoryOperand(&mode, 0);                \
+    MemOperand operand = i.MemoryOperand(&mode, index);            \
     DCHECK_EQ(kMode_MRR, mode);                                    \
     Register offset = operand.rb();                                \
     __ extsw(offset, offset);                                      \
@@ -427,8 +428,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr, asm_instrx) \
   do {                                                       \
     Register result = i.OutputRegister();                    \
+    size_t index = 0;                                        \
     AddressingMode mode = kMode_None;                        \
-    MemOperand operand = i.MemoryOperand(&mode, 0);          \
+    MemOperand operand = i.MemoryOperand(&mode, index);      \
     DCHECK_EQ(kMode_MRR, mode);                              \
     Register offset = operand.rb();                          \
     __ extsw(offset, offset);                                \
@@ -453,8 +455,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_CHECKED_STORE_FLOAT(asm_instr, asm_instrx) \
   do {                                                      \
     Label done;                                             \
+    size_t index = 0;                                       \
     AddressingMode mode = kMode_None;                       \
-    MemOperand operand = i.MemoryOperand(&mode, 0);         \
+    MemOperand operand = i.MemoryOperand(&mode, index);     \
     DCHECK_EQ(kMode_MRR, mode);                             \
     Register offset = operand.rb();                         \
     __ extsw(offset, offset);                               \
@@ -479,8 +482,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr, asm_instrx) \
   do {                                                        \
     Label done;                                               \
+    size_t index = 0;                                         \
     AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode, 0);           \
+    MemOperand operand = i.MemoryOperand(&mode, index);       \
     DCHECK_EQ(kMode_MRR, mode);                               \
     Register offset = operand.rb();                           \
     __ extsw(offset, offset);                                 \
@@ -1087,8 +1091,8 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ Cmpi(input, Operand(i.InputInt32(static_cast<int>(index + 0))), r0);
-    __ beq(GetLabel(i.InputRpo(static_cast<int>(index + 1))));
+    __ Cmpi(input, Operand(i.InputInt32(index + 0)), r0);
+    __ beq(GetLabel(i.InputRpo(index + 1)));
   }
   AssembleArchJump(i.InputRpo(1));
 }
@@ -1127,16 +1131,8 @@ void CodeGenerator::AssemblePrologue() {
     int register_save_area_size = 0;
     RegList frame_saves = fp.bit();
     __ mflr(r0);
-#if V8_OOL_CONSTANT_POOL
-    __ Push(r0, fp, kConstantPoolRegister);
-    // Adjust FP to point to saved FP.
-    __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
-    register_save_area_size += kPointerSize;
-    frame_saves |= kConstantPoolRegister.bit();
-#else
     __ Push(r0, fp);
     __ mr(fp, sp);
-#endif
     // Save callee-saved registers.
     const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
@@ -1187,9 +1183,6 @@ void CodeGenerator::AssembleReturn() {
       }
       // Restore registers.
       RegList frame_saves = fp.bit();
-#if V8_OOL_CONSTANT_POOL
-      frame_saves |= kConstantPoolRegister.bit();
-#endif
       const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
       if (saves != 0) {
         __ MultiPop(saves);

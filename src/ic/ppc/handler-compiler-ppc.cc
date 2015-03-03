@@ -25,7 +25,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   //  -- lr    : return address
   // -----------------------------------
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
@@ -62,7 +62,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   //  -- lr    : return address
   // -----------------------------------
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Save value register, so we can restore it later.
     __ push(value());
@@ -617,7 +617,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
   // Save necessary data before invoking an interceptor.
   // Requires a frame to make GC aware of pushed pointers.
   {
-    FrameAndConstantPoolScope frame_scope(masm(), StackFrame::INTERNAL);
+    FrameScope frame_scope(masm(), StackFrame::INTERNAL);
     if (must_preserve_receiver_reg) {
       __ Push(receiver(), holder_reg, this->name());
     } else {
@@ -669,11 +669,20 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, int accessor_index) {
+    Handle<JSObject> object, Handle<Name> name,
+    Handle<ExecutableAccessorInfo> callback) {
   Register holder_reg = Frontend(name);
 
   __ Push(receiver(), holder_reg);  // receiver
-  __ LoadSmiLiteral(ip, Smi::FromInt(accessor_index));
+
+  // If the callback cannot leak, then push the callback directly,
+  // otherwise wrap it in a weak cell.
+  if (callback->data()->IsUndefined() || callback->data()->IsSmi()) {
+    __ mov(ip, Operand(callback));
+  } else {
+    Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+    __ mov(ip, Operand(cell));
+  }
   __ push(ip);
   __ mov(ip, Operand(name));
   __ Push(ip, value());

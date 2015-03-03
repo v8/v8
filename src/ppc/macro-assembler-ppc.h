@@ -102,9 +102,7 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
 
-  // Returns the size of a call in instructions. Note, the value returned is
-  // only valid as long as no entries are added to the constant pool between
-  // checking the call size and emitting the actual call.
+  // Returns the size of a call in instructions.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSizeNotPredictableCodeSize(Address target,
@@ -683,6 +681,11 @@ class MacroAssembler : public Assembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
+
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done, and |temp2| its instance type.
+  void GetMapConstructor(Register result, Register map, Register temp,
+                         Register temp2);
 
   // Try to get function prototype of a function and puts the value in
   // the result register. Checks that the function really is a
@@ -1361,7 +1364,7 @@ class MacroAssembler : public Assembler {
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
-  // Retrieve/patch the relocated value (lis/ori pair or constant pool load).
+  // Retrieve/patch the relocated value (lis/ori pair).
   void GetRelocatedValue(Register location, Register result, Register scratch);
   void SetRelocatedValue(Register location, Register scratch,
                          Register new_value);
@@ -1485,17 +1488,13 @@ class MacroAssembler : public Assembler {
   // it.  See the implementation for register usage.
   void JumpToHandlerEntry();
 
+  static const RegList kSafepointSavedRegisters;
+  static const int kNumSafepointSavedRegisters;
+
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
-
-#if V8_OOL_CONSTANT_POOL
-  // Loads the constant pool pointer (kConstantPoolRegister).
-  enum CodeObjectAccessMethod { CAN_USE_IP, CONSTRUCT_INTERNAL_REFERENCE };
-  void LoadConstantPoolPointerRegister(CodeObjectAccessMethod access_method,
-                                       int ip_code_entry_delta = 0);
-#endif
 
   bool generating_stub_;
   bool has_frame_;
