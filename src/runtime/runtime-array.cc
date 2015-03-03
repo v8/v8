@@ -1038,6 +1038,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
 
 static Object* ArrayConstructorCommon(Isolate* isolate,
                                       Handle<JSFunction> constructor,
+                                      Handle<JSFunction> original_constructor,
                                       Handle<AllocationSite> site,
                                       Arguments* caller_args) {
   Factory* factory = isolate->factory();
@@ -1109,6 +1110,19 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     // We must mark the allocationsite as un-inlinable.
     site->SetDoNotInlineCall();
   }
+
+  // Set up the prototoype using original function.
+  // TODO(dslomov): instead of setting the __proto__,
+  // use and cache the correct map.
+  if (*original_constructor != *constructor) {
+    if (original_constructor->has_instance_prototype()) {
+      Handle<Object> prototype =
+          handle(original_constructor->instance_prototype(), isolate);
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, JSObject::SetPrototype(array, prototype, false));
+    }
+  }
+
   return *array;
 }
 
@@ -1142,7 +1156,20 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
     DCHECK(!site->SitePointsToLiteral());
   }
 
-  return ArrayConstructorCommon(isolate, constructor, site, caller_args);
+  return ArrayConstructorCommon(isolate, constructor, constructor, site,
+                                caller_args);
+}
+
+
+RUNTIME_FUNCTION(Runtime_ArrayConstructorWithSubclassing) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() >= 2);
+  int args_length = args.length();
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, args_length - 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, args_length - 1);
+  Arguments caller_args(args_length - 2, args.arguments());
+  return ArrayConstructorCommon(isolate, constructor, original_constructor,
+                                Handle<AllocationSite>::null(), &caller_args);
 }
 
 
@@ -1161,7 +1188,7 @@ RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
     DCHECK(arg_count == caller_args->length());
   }
 #endif
-  return ArrayConstructorCommon(isolate, constructor,
+  return ArrayConstructorCommon(isolate, constructor, constructor,
                                 Handle<AllocationSite>::null(), caller_args);
 }
 
