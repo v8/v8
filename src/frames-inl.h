@@ -77,6 +77,18 @@ inline bool StackHandler::is_finally() const {
 }
 
 
+inline Context* StackHandler::context() const {
+  const int offset = StackHandlerConstants::kContextOffset;
+  return Context::cast(Memory::Object_at(address() + offset));
+}
+
+
+inline Code* StackHandler::code() const {
+  const int offset = StackHandlerConstants::kCodeOffset;
+  return Code::cast(Memory::Object_at(address() + offset));
+}
+
+
 inline StackHandler::Kind StackHandler::kind() const {
   const int offset = StackHandlerConstants::kStateIntOffset;
   return KindField::decode(Memory::unsigned_at(address() + offset));
@@ -86,6 +98,12 @@ inline StackHandler::Kind StackHandler::kind() const {
 inline unsigned StackHandler::index() const {
   const int offset = StackHandlerConstants::kStateIntOffset;
   return IndexField::decode(Memory::unsigned_at(address() + offset));
+}
+
+
+inline Address StackHandler::frame_pointer() const {
+  const int offset = StackHandlerConstants::kFPOffset;
+  return Memory::Address_at(address() + offset);
 }
 
 

@@ -1078,22 +1078,6 @@ class MacroAssembler : public Assembler {
   // This is required for compatibility in architecture indepenedant code.
   inline void jmp(Label* L) { B(L); }
 
-  // Passes thrown value to the handler of top of the try handler chain.
-  // Register value must be x0.
-  void Throw(Register value,
-             Register scratch1,
-             Register scratch2,
-             Register scratch3,
-             Register scratch4);
-
-  // Propagates an uncatchable exception to the top of the current JS stack's
-  // handler chain. Register value must be x0.
-  void ThrowUncatchable(Register value,
-                        Register scratch1,
-                        Register scratch2,
-                        Register scratch3,
-                        Register scratch4);
-
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
 
@@ -2074,14 +2058,6 @@ class MacroAssembler : public Assembler {
   // proper PCS registers (and in calling order). The argument registers can
   // have mixed types. The format string (x0) should not be included.
   void CallPrintf(int arg_count = 0, const CPURegister * args = NULL);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry(Register exception,
-                          Register object,
-                          Register state,
-                          Register scratch1,
-                          Register scratch2);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object,

@@ -26,7 +26,6 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-
   return isolate->Throw(args[0]);
 }
 
@@ -34,8 +33,14 @@ RUNTIME_FUNCTION(Runtime_Throw) {
 RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-
   return isolate->ReThrow(args[0]);
+}
+
+
+RUNTIME_FUNCTION(Runtime_FindExceptionHandler) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return isolate->FindHandler();
 }
 
 

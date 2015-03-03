@@ -1011,6 +1011,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   thread_local_top()->catcher_ =
       can_be_caught_externally ? try_catch_handler() : NULL;
 
+  // Set the exception being thrown.
   set_pending_exception(*exception_handle);
   return heap()->exception();
 }
@@ -1027,6 +1028,43 @@ Object* Isolate::ReThrow(Object* exception) {
   // Set the exception being re-thrown.
   set_pending_exception(exception);
   return heap()->exception();
+}
+
+
+Object* Isolate::FindHandler() {
+  Object* exception = pending_exception();
+
+  // Determine target stack handler. Special handling of termination exceptions
+  // which are uncatchable by JavaScript code, we unwind the handlers until the
+  // top ENTRY handler is found.
+  StackHandler* handler =
+      StackHandler::FromAddress(Isolate::handler(thread_local_top()));
+  if (!is_catchable_by_javascript(exception)) {
+    while (!handler->is_js_entry()) handler = handler->next();
+  }
+
+  // Restore the next handler.
+  thread_local_top()->handler_ = handler->next()->address();
+
+  // Compute handler and stack unwinding information.
+  // TODO(mstarzinger): Extend this to perform actual stack-walk and take into
+  // account that TurboFan code can contain handlers as well.
+  Code* code = handler->code();
+  Context* context = handler->is_js_entry() ? nullptr : handler->context();
+  int offset = Smi::cast(code->handler_table()->get(handler->index()))->value();
+  Address handler_sp = handler->address() + StackHandlerConstants::kSize;
+  Address handler_fp = handler->frame_pointer();
+
+  // Store information to be consumed by the CEntryStub.
+  thread_local_top()->pending_handler_context_ = context;
+  thread_local_top()->pending_handler_code_ = code;
+  thread_local_top()->pending_handler_offset_ = offset;
+  thread_local_top()->pending_handler_fp_ = handler_fp;
+  thread_local_top()->pending_handler_sp_ = handler_sp;
+
+  // Return and clear pending exception.
+  clear_pending_exception();
+  return exception;
 }
 
 

@@ -114,7 +114,14 @@ class StackHandler BASE_EMBEDDED {
   // Conversion support.
   static inline StackHandler* FromAddress(Address address);
 
-  // Testers
+  // Accessors.
+  inline Context* context() const;
+  inline Code* code() const;
+  inline Kind kind() const;
+  inline unsigned index() const;
+  inline Address frame_pointer() const;
+
+  // Testers.
   inline bool is_js_entry() const;
   inline bool is_catch() const;
   inline bool is_finally() const;
@@ -125,11 +132,6 @@ class StackHandler BASE_EMBEDDED {
   int Rewind(Isolate* isolate, FixedArray* array, int offset, Address fp);
 
  private:
-  // Accessors.
-  inline Kind kind() const;
-  inline unsigned index() const;
-
-  inline Object** constant_pool_address() const;
   inline Object** context_address() const;
   inline Object** code_address() const;
   inline void SetFp(Address slot, Address fp);

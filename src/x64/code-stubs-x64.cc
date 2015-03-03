@@ -1043,6 +1043,54 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 }
 
 
+static void ThrowPendingException(MacroAssembler* masm) {
+  Isolate* isolate = masm->isolate();
+
+  ExternalReference pending_handler_context_address(
+      Isolate::kPendingHandlerContextAddress, isolate);
+  ExternalReference pending_handler_code_address(
+      Isolate::kPendingHandlerCodeAddress, isolate);
+  ExternalReference pending_handler_offset_address(
+      Isolate::kPendingHandlerOffsetAddress, isolate);
+  ExternalReference pending_handler_fp_address(
+      Isolate::kPendingHandlerFPAddress, isolate);
+  ExternalReference pending_handler_sp_address(
+      Isolate::kPendingHandlerSPAddress, isolate);
+
+  // Ask the runtime for help to determine the handler. This will set rax to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ movp(arg_reg_1, Immediate(0));  // argc.
+    __ movp(arg_reg_2, Immediate(0));  // argv.
+    __ Move(arg_reg_3, ExternalReference::isolate_address(isolate));
+    __ PrepareCallCFunction(3);
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ movp(rsi, masm->ExternalOperand(pending_handler_context_address));
+  __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
+  __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (kind == ENTRY) == (rbp == 0) == (rsi == 0), so we could test either
+  // rbp or rsi.
+  Label skip;
+  __ testp(rsi, rsi);
+  __ j(zero, &skip, Label::kNear);
+  __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+  __ bind(&skip);
+
+  // Compute the handler entry address and jump to it.
+  __ movp(rdi, masm->ExternalOperand(pending_handler_code_address));
+  __ movp(rdx, masm->ExternalOperand(pending_handler_offset_address));
+  __ leap(rdi, FieldOperand(rdi, rdx, times_1, Code::kHeaderSize));
+  __ jmp(rdi);
+}
+
+
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -1429,15 +1477,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ cmpp(rax, rdx);
   __ j(equal, &runtime);
-  __ movp(pending_exception_operand, rdx);
 
-  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  Label termination_exception;
-  __ j(equal, &termination_exception, Label::kNear);
-  __ Throw(rax);
-
-  __ bind(&termination_exception);
-  __ ThrowUncatchable(rax);
+  // For exception, throw the exception again.
+  __ EnterExitFrame(false);
+  ThrowPendingException(masm);
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
@@ -2427,14 +2470,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(rax, Heap::kExceptionRootIndex);
   __ j(equal, &exception_returned);
 
-  ExternalReference pending_exception_address(
-      Isolate::kPendingExceptionAddress, isolate());
-
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     Label okay;
     __ LoadRoot(r14, Heap::kTheHoleValueRootIndex);
+    ExternalReference pending_exception_address(
+        Isolate::kPendingExceptionAddress, isolate());
     Operand pending_exception_operand =
         masm->ExternalOperand(pending_exception_address);
     __ cmpp(r14, pending_exception_operand);
@@ -2449,27 +2491,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Handling of exception.
   __ bind(&exception_returned);
-
-  // Retrieve the pending exception.
-  Operand pending_exception_operand =
-      masm->ExternalOperand(pending_exception_address);
-  __ movp(rax, pending_exception_operand);
-
-  // Clear the pending exception.
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
-  __ movp(pending_exception_operand, rdx);
-
-  // Special handling of termination exceptions which are uncatchable
-  // by javascript code.
-  Label throw_termination_exception;
-  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  __ j(equal, &throw_termination_exception);
-
-  // Handle normal exception.
-  __ Throw(rax);
-
-  __ bind(&throw_termination_exception);
-  __ ThrowUncatchable(rax);
+  ThrowPendingException(masm);
 }
 
 

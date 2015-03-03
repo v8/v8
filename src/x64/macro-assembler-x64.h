@@ -1107,13 +1107,6 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
 
-  // Activate the top handler in the try hander chain and pass the
-  // thrown value.
-  void Throw(Register value);
-
-  // Propagate an uncatchable exception out of the current JS stack.
-  void ThrowUncatchable(Register value);
-
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -1528,10 +1521,6 @@ class MacroAssembler: public Assembler {
   inline void GetMarkBits(Register addr_reg,
                           Register bitmap_reg,
                           Register mask_reg);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry();
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);

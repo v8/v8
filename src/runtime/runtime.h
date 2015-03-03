@@ -486,6 +486,7 @@ namespace internal {
   F(ThrowConstAssignError, 0, 1)                             \
   F(StackGuard, 0, 1)                                        \
   F(Interrupt, 0, 1)                                         \
+  F(FindExceptionHandler, 0, 1)                              \
   F(PromoteScheduledException, 0, 1)                         \
                                                              \
   /* Contexts */                                             \
