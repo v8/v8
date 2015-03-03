@@ -336,9 +336,7 @@ bool CompilationInfo::is_simple_parameter_list() {
 
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position) {
-  if (!FLAG_hydrogen_track_positions) {
-    return 0;
-  }
+  DCHECK(FLAG_hydrogen_track_positions);
 
   DCHECK(inlined_function_infos_);
   DCHECK(inlining_id_to_function_id_);
@@ -395,22 +393,32 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
       : HOptimizedGraphBuilder(info) {
   }
 
-#define DEF_VISIT(type)                               \
-  void Visit##type(type* node) OVERRIDE {             \
-    if (node->position() != RelocInfo::kNoPosition) { \
-      SetSourcePosition(node->position());            \
-    }                                                 \
-    HOptimizedGraphBuilder::Visit##type(node);        \
+#define DEF_VISIT(type)                                      \
+  void Visit##type(type* node) OVERRIDE {                    \
+    SourcePosition old_position = SourcePosition::Unknown(); \
+    if (node->position() != RelocInfo::kNoPosition) {        \
+      old_position = source_position();                      \
+      SetSourcePosition(node->position());                   \
+    }                                                        \
+    HOptimizedGraphBuilder::Visit##type(node);               \
+    if (!old_position.IsUnknown()) {                         \
+      set_source_position(old_position);                     \
+    }                                                        \
   }
   EXPRESSION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-#define DEF_VISIT(type)                               \
-  void Visit##type(type* node) OVERRIDE {             \
-    if (node->position() != RelocInfo::kNoPosition) { \
-      SetSourcePosition(node->position());            \
-    }                                                 \
-    HOptimizedGraphBuilder::Visit##type(node);        \
+#define DEF_VISIT(type)                                      \
+  void Visit##type(type* node) OVERRIDE {                    \
+    SourcePosition old_position = SourcePosition::Unknown(); \
+    if (node->position() != RelocInfo::kNoPosition) {        \
+      old_position = source_position();                      \
+      SetSourcePosition(node->position());                   \
+    }                                                        \
+    HOptimizedGraphBuilder::Visit##type(node);               \
+    if (!old_position.IsUnknown()) {                         \
+      set_source_position(old_position);                     \
+    }                                                        \
   }
   STATEMENT_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT

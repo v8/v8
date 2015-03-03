@@ -3453,7 +3453,10 @@ HGraph::HGraph(CompilationInfo* info)
     start_environment_ = new (zone_)
         HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {
-    info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown());
+    if (FLAG_hydrogen_track_positions) {
+      info->TraceInlinedFunction(info->shared_info(),
+                                 SourcePosition::Unknown());
+    }
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   }
@@ -7794,8 +7797,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                                        int arguments_count,
                                        HValue* implicit_return_value,
                                        BailoutId ast_id, BailoutId return_id,
-                                       InliningKind inlining_kind,
-                                       SourcePosition position) {
+                                       InliningKind inlining_kind) {
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
 
@@ -7907,7 +7909,11 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   DCHECK(target_shared->has_deoptimization_support());
   AstTyper::Run(&target_info);
 
-  int function_id = top_info()->TraceInlinedFunction(target_shared, position);
+  int function_id = 0;
+  if (FLAG_hydrogen_track_positions) {
+    function_id =
+        top_info()->TraceInlinedFunction(target_shared, source_position());
+  }
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
@@ -8063,25 +8069,16 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
 
 bool HOptimizedGraphBuilder::TryInlineCall(Call* expr) {
-  return TryInline(expr->target(),
-                   expr->arguments()->length(),
-                   NULL,
-                   expr->id(),
-                   expr->ReturnId(),
-                   NORMAL_RETURN,
-                   ScriptPositionToSourcePosition(expr->position()));
+  return TryInline(expr->target(), expr->arguments()->length(), NULL,
+                   expr->id(), expr->ReturnId(), NORMAL_RETURN);
 }
 
 
 bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
                                                 HValue* implicit_return_value) {
-  return TryInline(expr->target(),
-                   expr->arguments()->length(),
-                   implicit_return_value,
-                   expr->id(),
-                   expr->ReturnId(),
-                   CONSTRUCT_CALL_RETURN,
-                   ScriptPositionToSourcePosition(expr->position()));
+  return TryInline(expr->target(), expr->arguments()->length(),
+                   implicit_return_value, expr->id(), expr->ReturnId(),
+                   CONSTRUCT_CALL_RETURN);
 }
 
 
@@ -8090,13 +8087,7 @@ bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                                              BailoutId ast_id,
                                              BailoutId return_id) {
   if (TryInlineApiGetter(getter, receiver_map, ast_id)) return true;
-  return TryInline(getter,
-                   0,
-                   NULL,
-                   ast_id,
-                   return_id,
-                   GETTER_CALL_RETURN,
-                   source_position());
+  return TryInline(getter, 0, NULL, ast_id, return_id, GETTER_CALL_RETURN);
 }
 
 
@@ -8106,25 +8097,16 @@ bool HOptimizedGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
                                              BailoutId assignment_id,
                                              HValue* implicit_return_value) {
   if (TryInlineApiSetter(setter, receiver_map, id)) return true;
-  return TryInline(setter,
-                   1,
-                   implicit_return_value,
-                   id, assignment_id,
-                   SETTER_CALL_RETURN,
-                   source_position());
+  return TryInline(setter, 1, implicit_return_value, id, assignment_id,
+                   SETTER_CALL_RETURN);
 }
 
 
 bool HOptimizedGraphBuilder::TryInlineIndirectCall(Handle<JSFunction> function,
                                                    Call* expr,
                                                    int arguments_count) {
-  return TryInline(function,
-                   arguments_count,
-                   NULL,
-                   expr->id(),
-                   expr->ReturnId(),
-                   NORMAL_RETURN,
-                   ScriptPositionToSourcePosition(expr->position()));
+  return TryInline(function, arguments_count, NULL, expr->id(),
+                   expr->ReturnId(), NORMAL_RETURN);
 }
 
 
@@ -9151,8 +9133,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
     CHECK_ALIVE(PushLoad(prop, receiver, key));
     HValue* function = Pop();
-
-    if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
     if (function->IsConstant() &&
         HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
@@ -10860,8 +10840,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
-
-  if (FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
   HValue* right = Pop();
   HValue* left = Pop();
