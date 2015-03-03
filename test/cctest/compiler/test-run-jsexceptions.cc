@@ -182,3 +182,78 @@ TEST(FinallyBreak) {
   T.CheckCall(T.Val("-A-B-D-"), T.false_value(), T.true_value());
   T.CheckCall(T.Val("-A-B-C-D-"), T.false_value(), T.false_value());
 }
+
+
+TEST(DeoptTry) {
+  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_deoptimization = true;
+  const char* src =
+      "(function f(a) {"
+      "  try {"
+      "    %DeoptimizeFunction(f);"
+      "    throw a;"
+      "  } catch (e) {"
+      "    return e + 1;"
+      "  }"
+      "})";
+  FunctionTester T(src);
+
+#if 0  // TODO(mstarzinger): Enable once we can.
+  T.CheckCall(T.Val(2), T.Val(1));
+#endif
+}
+
+
+TEST(DeoptCatch) {
+  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_deoptimization = true;
+  const char* src =
+      "(function f(a) {"
+      "  try {"
+      "    throw a;"
+      "  } catch (e) {"
+      "    %DeoptimizeFunction(f);"
+      "    return e + 1;"
+      "  }"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val(2), T.Val(1));
+}
+
+
+TEST(DeoptFinallyReturn) {
+  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_deoptimization = true;
+  const char* src =
+      "(function f(a) {"
+      "  try {"
+      "    throw a;"
+      "  } finally {"
+      "    %DeoptimizeFunction(f);"
+      "    return a + 1;"
+      "  }"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val(2), T.Val(1));
+}
+
+
+TEST(DeoptFinallyReThrow) {
+  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_deoptimization = true;
+  const char* src =
+      "(function f(a) {"
+      "  try {"
+      "    throw a;"
+      "  } finally {"
+      "    %DeoptimizeFunction(f);"
+      "  }"
+      "})";
+  FunctionTester T(src);
+
+#if 0  // TODO(mstarzinger): Enable once we can.
+  T.CheckThrows(T.NewObject("new Error"), T.Val(1));
+#endif
+}
