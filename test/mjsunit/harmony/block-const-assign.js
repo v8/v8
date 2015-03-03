@@ -93,6 +93,22 @@ function constDecl9(use) {
   return "(function constvar() { " + use + "; })();";
 }
 
+// For loop variable.
+function constDecl10(use) {
+  return "(function() { for (const constvar = 0; ;) { " + use + "; } })();";
+}
+
+// For-in loop variable.
+function constDecl11(use) {
+  return "(function() { for (const constvar in {a: 1}) { " + use + "; } })();";
+}
+
+// For-of loop variable.
+function constDecl12(use) {
+  return "(function() { for (const constvar of [1]) { " + use + "; } })();";
+}
+
+
 let decls = [ constDecl0,
               constDecl1,
               constDecl2,
@@ -102,7 +118,10 @@ let decls = [ constDecl0,
               constDecl6,
               constDecl7,
               constDecl8,
-              constDecl9
+              constDecl9,
+              constDecl10,
+              constDecl11,
+              constDecl12
               ];
 let declsForTDZ = new Set([constDecl1, constDecl3, constDecl5, constDecl7]);
 let uses = [ 'constvar = 1;',

@@ -3009,8 +3009,8 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
 }
 
 
-Statement* Parser::DesugarLetBindingsInForStatement(
-    Scope* inner_scope, ZoneList<const AstRawString*>* names,
+Statement* Parser::DesugarLexicalBindingsInForStatement(
+    Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
     ForStatement* loop, Statement* init, Expression* cond, Statement* next,
     Statement* body, bool* ok) {
   // ES6 13.6.3.4 specifies that on each loop iteration the let variables are
@@ -3020,16 +3020,16 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   //
   // We rewrite a for statement of the form
   //
-  //  labels: for (let x = i; cond; next) body
+  //  labels: for (let/const x = i; cond; next) body
   //
   // into
   //
   //  {
-  //    let x = i;
+  //    let/const x = i;
   //    temp_x = x;
   //    first = 1;
   //    outer: for (;;) {
-  //      let x = temp_x;
+  //      let/const x = temp_x;
   //      if (first == 1) {
   //        first = 0;
   //      } else {
@@ -3056,12 +3056,12 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   Block* outer_block = factory()->NewBlock(NULL, names->length() + 3, false,
                                            RelocInfo::kNoPosition);
 
-  // Add statement: let x = i.
+  // Add statement: let/const x = i.
   outer_block->AddStatement(init, zone());
 
   const AstRawString* temp_name = ast_value_factory()->dot_for_string();
 
-  // For each let variable x:
+  // For each lexical variable x:
   //   make statement: temp_x = x.
   for (int i = 0; i < names->length(); i++) {
     VariableProxy* proxy = NewUnresolved(names->at(i), LET);
@@ -3106,16 +3106,17 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   ZoneList<Variable*> inner_vars(names->length(), zone());
 
   // For each let variable x:
-  //    make statement: let x = temp_x.
+  //    make statement: let/const x = temp_x.
+  VariableMode mode = is_const ? CONST : LET;
   for (int i = 0; i < names->length(); i++) {
-    VariableProxy* proxy = NewUnresolved(names->at(i), LET);
+    VariableProxy* proxy = NewUnresolved(names->at(i), mode);
     Declaration* declaration = factory()->NewVariableDeclaration(
-        proxy, LET, scope_, RelocInfo::kNoPosition);
+        proxy, mode, scope_, RelocInfo::kNoPosition);
     Declare(declaration, true, CHECK_OK);
     inner_vars.Add(declaration->proxy()->var(), zone());
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
     Assignment* assignment = factory()->NewAssignment(
-        Token::INIT_LET, proxy, temp_proxy, pos);
+        is_const ? Token::INIT_CONST : Token::INIT_LET, proxy, temp_proxy, pos);
     Statement* assignment_statement =
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     proxy->var()->set_initializer_position(init->position());
@@ -3244,8 +3245,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
   int stmt_pos = peek_position();
+  bool is_const = false;
   Statement* init = NULL;
-  ZoneList<const AstRawString*> let_bindings(1, zone());
+  ZoneList<const AstRawString*> lexical_bindings(1, zone());
 
   // Create an in-between scope for let-bound iteration variables.
   Scope* saved_scope = scope_;
@@ -3297,12 +3299,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       }
     } else if ((peek() == Token::LET || peek() == Token::CONST) &&
                is_strict(language_mode())) {
-      bool is_const = peek() == Token::CONST;
+      is_const = peek() == Token::CONST;
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, &decl_props, &let_bindings,
-                                    &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, &decl_props,
+                                    &lexical_bindings, &name, CHECK_OK);
       bool accept_IN = name != NULL && decl_props != kHasInitializers;
       bool accept_OF = decl_props == kHasNoInitializers;
       ForEachStatement::VisitMode mode;
@@ -3419,7 +3421,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = NULL;
-  if (let_bindings.length() > 0) {
+  if (lexical_bindings.length() > 0) {
     inner_scope = NewScope(for_scope, BLOCK_SCOPE);
     inner_scope->set_start_position(scanner()->location().beg_pos);
     scope_ = inner_scope;
@@ -3442,10 +3444,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   Statement* body = ParseSubStatement(NULL, CHECK_OK);
 
   Statement* result = NULL;
-  if (let_bindings.length() > 0) {
+  if (lexical_bindings.length() > 0) {
     scope_ = for_scope;
-    result = DesugarLetBindingsInForStatement(inner_scope, &let_bindings, loop,
-                                              init, cond, next, body, CHECK_OK);
+    result = DesugarLexicalBindingsInForStatement(
+                 inner_scope, is_const, &lexical_bindings, loop, init, cond,
+                 next, body, CHECK_OK);
     scope_ = saved_scope;
     for_scope->set_end_position(scanner()->location().end_pos);
   } else {
