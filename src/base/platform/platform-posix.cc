@@ -356,6 +356,11 @@ bool OS::Remove(const char* path) {
 }
 
 
+bool OS::isDirectorySeparator(const char ch) {
+  return ch == '/';
+}
+
+
 FILE* OS::OpenTemporaryFile() {
   return tmpfile();
 }
