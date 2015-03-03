@@ -5016,12 +5016,11 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("ArrayConstructorStub::Generate");
   // ----------- S t a t e -------------
-  //  -- x0 : argc (only if argument_count() == ANY)
+  //  -- x0 : argc (only if argument_count() is ANY or MORE_THAN_ONE)
   //  -- x1 : constructor
   //  -- x2 : AllocationSite or undefined
   //  -- x3 : original constructor
-  //  -- sp[0] : return address
-  //  -- sp[4] : last argument
+  //  -- sp[0] : last argument
   // -----------------------------------
   Register constructor = x1;
   Register allocation_site = x2;
@@ -5065,8 +5064,24 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ Bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 
+  // Subclassing support.
   __ Bind(&subclassing);
-  __ TailCallRuntime(Runtime::kThrowArrayNotSubclassableError, 0, 1);
+  __ Push(constructor, original_constructor);
+  // Adjust argc.
+  switch (argument_count()) {
+    case ANY:
+    case MORE_THAN_ONE:
+      __ add(x0, x0, Operand(2));
+      break;
+    case NONE:
+      __ Mov(x0, Operand(2));
+      break;
+    case ONE:
+      __ Mov(x0, Operand(3));
+      break;
+  }
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
 }
 
 
