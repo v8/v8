@@ -320,6 +320,53 @@ TEST(InlineLoopGuardedTwice) {
 }
 
 
+TEST(InlineLoopUnguardedEmpty) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s) { AssertInlineCount(2); while (s); return s; };"
+      "  function bar(s, t) { return foo(s); };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(0.0), T.Val(0.0), T.Val(4));
+}
+
+
+TEST(InlineLoopUnguardedOnce) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s) { AssertInlineCount(2); while (s) {"
+      "                    s = s - 1; }; return s; };"
+      "  function bar(s, t) { return foo(s); };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(0.0), T.Val(0.0), T.Val(4));
+}
+
+
+TEST(InlineLoopUnguardedTwice) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s) { AssertInlineCount(2); while (s > 0) {"
+      "                    s = s - 1; }; return s; };"
+      "  function bar(s,t) { return foo(foo(s,t),t); };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(0.0), T.Val(0.0), T.Val(4));
+}
+
+
 TEST(InlineStrictIntoNonStrict) {
   FLAG_turbo_deoptimization = true;
   FunctionTester T(

@@ -79,6 +79,11 @@ class Inlinee {
   Node* value_output() {
     return NodeProperties::GetValueInput(unique_return(), 0);
   }
+  // Return the control output of the graph,
+  // that is the control input of the return statement of the inlinee.
+  Node* control_output() {
+    return NodeProperties::GetControlInput(unique_return(), 0);
+  }
   // Return the unique return statement of the graph.
   Node* unique_return() {
     Node* unique_return = NodeProperties::GetControlInput(end_);
@@ -263,7 +268,19 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     }
   }
 
-  NodeProperties::ReplaceWithValue(call, value_output(), effect_output());
+  for (Edge edge : call->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) {
+      // TODO(turbofan): Handle kIfException uses.
+      DCHECK_EQ(IrOpcode::kIfSuccess, edge.from()->opcode());
+      edge.from()->ReplaceUses(control_output());
+      edge.UpdateTo(nullptr);
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect_output());
+    } else {
+      edge.UpdateTo(value_output());
+    }
+  }
+
   return Reducer::Replace(value_output());
 }
 
@@ -311,16 +328,6 @@ Reduction JSInliner::Reduce(Node* node) {
   if (!match.HasValue()) return NoChange();
 
   Handle<JSFunction> function = match.Value().handle();
-
-  if (function->shared()->native()) {
-    if (FLAG_trace_turbo_inlining) {
-      SmartArrayPointer<char> name =
-          function->shared()->DebugName()->ToCString();
-      PrintF("Not Inlining %s into %s because inlinee is native\n", name.get(),
-             info_->shared_info()->DebugName()->ToCString().get());
-    }
-    return NoChange();
-  }
 
   CompilationInfoWithZone info(function);
 
