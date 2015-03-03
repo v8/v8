@@ -1303,6 +1303,12 @@ Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher) {
 }
 
 
+Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsControl1Matcher(IrOpcode::kIfSuccess, control_matcher));
+}
+
+
 Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsSwitchMatcher(value_matcher, control_matcher));

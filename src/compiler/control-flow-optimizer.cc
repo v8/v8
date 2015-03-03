@@ -46,8 +46,10 @@ void ControlFlowOptimizer::Enqueue(Node* node) {
 
 
 void ControlFlowOptimizer::VisitNode(Node* node) {
-  for (Node* use : node->uses()) {
-    if (NodeProperties::IsControl(use)) Enqueue(use);
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) {
+      Enqueue(edge.from());
+    }
   }
 }
 
@@ -258,20 +260,18 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   DCHECK_EQ(IrOpcode::kIfFalse, if_false->opcode());
   if (branch == node) {
     DCHECK_EQ(1u, values.size());
-    Enqueue(if_true);
-    Enqueue(if_false);
-  } else {
-    DCHECK_LT(1u, values.size());
-    node->set_op(common()->Switch(values.size() + 1));
-    node->ReplaceInput(0, index);
-    if_true->set_op(common()->IfValue(value));
-    if_true->ReplaceInput(0, node);
-    Enqueue(if_true);
-    if_false->set_op(common()->IfDefault());
-    if_false->ReplaceInput(0, node);
-    Enqueue(if_false);
-    branch->RemoveAllInputs();
+    return false;
   }
+  DCHECK_LT(1u, values.size());
+  node->set_op(common()->Switch(values.size() + 1));
+  node->ReplaceInput(0, index);
+  if_true->set_op(common()->IfValue(value));
+  if_true->ReplaceInput(0, node);
+  Enqueue(if_true);
+  if_false->set_op(common()->IfDefault());
+  if_false->ReplaceInput(0, node);
+  Enqueue(if_false);
+  branch->RemoveAllInputs();
   return true;
 }
 

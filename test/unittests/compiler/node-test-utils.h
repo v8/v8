@@ -47,6 +47,7 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                       const Matcher<Node*>& control2_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
