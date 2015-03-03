@@ -565,12 +565,16 @@ class Scanner {
   }
 
   // Low-level scanning support.
-  template <bool capture_raw = false>
+  template <bool capture_raw = false, bool check_surrogate = true>
   void Advance() {
     if (capture_raw) {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
+    if (check_surrogate) HandleLeadSurrugate();
+  }
+
+  void HandleLeadSurrugate() {
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
       if (!unibrow::Utf16::IsTrailSurrogate(c1)) {

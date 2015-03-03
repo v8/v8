@@ -983,15 +983,21 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         int value = 0;
         while (IsDecimalDigit(c0_)) {
           value = 10 * value + (c0_ - '0');
-          AddLiteralCharAdvance();
+
+          uc32 first_char = c0_;
+          Advance<false, false>();
+          AddLiteralChar(first_char);
         }
 
         if (next_.literal_chars->one_byte_literal().length() < 10 &&
             c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
           smi_value_ = value;
           literal.Complete();
+          HandleLeadSurrugate();
+
           return Token::SMI;
         }
+        HandleLeadSurrugate();
       }
 
       ScanDecimalDigits();  // optional
@@ -1193,8 +1199,53 @@ bool Scanner::IdentifierIsFutureStrictReserved(
 Token::Value Scanner::ScanIdentifierOrKeyword() {
   DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
-  // Scan identifier start character.
-  if (c0_ == '\\') {
+  if (IsInRange(c0_, 'a', 'z')) {
+    do {
+      uc32 first_char = c0_;
+      Advance<false, false>();
+      AddLiteralChar(first_char);
+    } while (IsInRange(c0_, 'a', 'z'));
+
+    if (IsDecimalDigit(c0_) || IsInRange(c0_, 'A', 'Z') || c0_ == '_' ||
+        c0_ == '$') {
+      // Identifier starting with lowercase.
+      uc32 first_char = c0_;
+      Advance<false, false>();
+      AddLiteralChar(first_char);
+      while (IsAsciiIdentifier(c0_)) {
+        uc32 first_char = c0_;
+        Advance<false, false>();
+        AddLiteralChar(first_char);
+      }
+      if (c0_ <= 127 && c0_ != '\\') {
+        literal.Complete();
+        return Token::IDENTIFIER;
+      }
+    } else if (c0_ <= 127 && c0_ != '\\') {
+      // Only a-z+: could be a keyword or identifier.
+      literal.Complete();
+      Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
+      return KeywordOrIdentifierToken(chars.start(), chars.length(),
+                                      harmony_scoping_, harmony_modules_,
+                                      harmony_classes_);
+    }
+
+    HandleLeadSurrugate();
+  } else if (IsInRange(c0_, 'A', 'Z') || c0_ == '_' || c0_ == '$') {
+    do {
+      uc32 first_char = c0_;
+      Advance<false, false>();
+      AddLiteralChar(first_char);
+    } while (IsAsciiIdentifier(c0_));
+
+    if (c0_ <= 127 && c0_ != '\\') {
+      literal.Complete();
+      return Token::IDENTIFIER;
+    }
+
+    HandleLeadSurrugate();
+  } else if (c0_ == '\\') {
+    // Scan identifier start character.
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
     if (c < 0 ||
@@ -1204,11 +1255,11 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     }
     AddLiteralChar(c);
     return ScanIdentifierSuffix(&literal);
+  } else {
+    uc32 first_char = c0_;
+    Advance();
+    AddLiteralChar(first_char);
   }
-
-  uc32 first_char = c0_;
-  Advance();
-  AddLiteralChar(first_char);
 
   // Scan the rest of the identifier characters.
   while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
@@ -1232,7 +1283,6 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
                                     harmony_modules_,
                                     harmony_classes_);
   }
-
   return Token::IDENTIFIER;
 }
 
