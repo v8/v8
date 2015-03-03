@@ -590,10 +590,14 @@ void HandleScope::Initialize(Isolate* isolate) {
   // We do not want to check the correct usage of the Locker class all over the
   // place, so we do it only here: Without a HandleScope, an embedder can do
   // almost nothing, so it is enough to check in this central place.
-  Utils::ApiCheck(!v8::Locker::IsActive() ||
-                  internal_isolate->thread_manager()->IsLockedByCurrentThread(),
-                  "HandleScope::HandleScope",
-                  "Entering the V8 API without proper locking in place");
+  // We make an exception if the serializer is enabled, which means that the
+  // Isolate is exclusively used to create a snapshot.
+  Utils::ApiCheck(
+      !v8::Locker::IsActive() ||
+          internal_isolate->thread_manager()->IsLockedByCurrentThread() ||
+          internal_isolate->serializer_enabled(),
+      "HandleScope::HandleScope",
+      "Entering the V8 API without proper locking in place");
   i::HandleScopeData* current = internal_isolate->handle_scope_data();
   isolate_ = internal_isolate;
   prev_next_ = current->next;
