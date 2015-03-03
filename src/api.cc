@@ -3481,43 +3481,40 @@ Local<Value> v8::Object::GetOwnPropertyDescriptor(Local<String> key) {
 
 
 Local<Value> v8::Object::GetPrototype() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetPrototype()", return Local<v8::Value>());
-  ENTER_V8(isolate);
-  i::Handle<i::Object> self = Utils::OpenHandle(this);
+  auto isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
   i::PrototypeIterator iter(isolate, self);
   return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
 }
 
 
-bool v8::Object::SetPrototype(Handle<Value> value) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::SetPrototype()", return false);
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
+                                     Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::SetPrototype()", bool);
+  auto self = Utils::OpenHandle(this);
+  auto value_obj = Utils::OpenHandle(*value);
   // We do not allow exceptions thrown while setting the prototype
   // to propagate outside.
-  TryCatch try_catch;
-  EXCEPTION_PREAMBLE(isolate);
-  i::MaybeHandle<i::Object> result =
-      i::JSObject::SetPrototype(self, value_obj, false);
+  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  auto result = i::JSObject::SetPrototype(self, value_obj, false);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return true;
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
+
+bool v8::Object::SetPrototype(Handle<Value> value) {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return SetPrototype(context, value).FromMaybe(false);
 }
 
 
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Handle<FunctionTemplate> tmpl) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate,
-             "v8::Object::FindInstanceInPrototypeChain()",
-             return Local<v8::Object>());
-  ENTER_V8(isolate);
+  auto isolate = Utils::OpenHandle(this)->GetIsolate();
   i::PrototypeIterator iter(isolate, *Utils::OpenHandle(this),
                             i::PrototypeIterator::START_AT_RECEIVER);
-  i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
+  auto tmpl_info = *Utils::OpenHandle(*tmpl);
   while (!tmpl_info->IsTemplateFor(iter.GetCurrent())) {
     iter.Advance();
     if (iter.IsAtEnd()) {
@@ -3529,47 +3526,47 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
 }
 
 
-Local<Array> v8::Object::GetPropertyNames() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetPropertyNames()",
-             return Local<v8::Array>());
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE(isolate);
+MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
+  PREPARE_FOR_EXECUTION(context, "v8::Object::GetPropertyNames()", Array);
+  auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
   has_pending_exception = !i::JSReceiver::GetKeys(
       self, i::JSReceiver::INCLUDE_PROTOS).ToHandle(&value);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Array>());
+  RETURN_ON_FAILED_EXECUTION(Array);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
-  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
-  i::Handle<i::JSArray> result =
-      isolate->factory()->NewJSArrayWithElements(elms);
-  return Utils::ToLocal(scope.CloseAndEscape(result));
+  auto elms = isolate->factory()->CopyFixedArray(value);
+  auto result = isolate->factory()->NewJSArrayWithElements(elms);
+  RETURN_ESCAPED(Utils::ToLocal(result));
+}
+
+
+Local<Array> v8::Object::GetPropertyNames() {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetPropertyNames(context), Array);
+}
+
+
+MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
+  PREPARE_FOR_EXECUTION(context, "v8::Object::GetOwnPropertyNames()", Array);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::FixedArray> value;
+  has_pending_exception = !i::JSReceiver::GetKeys(
+      self, i::JSReceiver::OWN_ONLY).ToHandle(&value);
+  RETURN_ON_FAILED_EXECUTION(Array);
+  // Because we use caching to speed up enumeration it is important
+  // to never change the result of the basic enumeration function so
+  // we clone the result.
+  auto elms = isolate->factory()->CopyFixedArray(value);
+  auto result = isolate->factory()->NewJSArrayWithElements(elms);
+  RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
 
 Local<Array> v8::Object::GetOwnPropertyNames() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetOwnPropertyNames()",
-             return Local<v8::Array>());
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::FixedArray> value;
-  has_pending_exception = !i::JSReceiver::GetKeys(
-      self, i::JSReceiver::OWN_ONLY).ToHandle(&value);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Array>());
-  // Because we use caching to speed up enumeration it is important
-  // to never change the result of the basic enumeration function so
-  // we clone the result.
-  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
-  i::Handle<i::JSArray> result =
-      isolate->factory()->NewJSArrayWithElements(elms);
-  return Utils::ToLocal(scope.CloseAndEscape(result));
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
 }
 
 
@@ -3821,157 +3818,197 @@ void Object::SetAccessorProperty(Local<Name> name,
 }
 
 
+Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
+                                       Local<Name> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::HasOwnProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_val = Utils::OpenHandle(*key);
+  auto result = i::JSReceiver::HasOwnProperty(self, key_val);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
+}
+
+
 bool v8::Object::HasOwnProperty(Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
-             return false);
-  EXCEPTION_PREAMBLE(isolate);
-  Maybe<bool> maybe = i::JSReceiver::HasOwnProperty(Utils::OpenHandle(this),
-                                                    Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.IsJust();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.FromJust();
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return HasOwnProperty(context, key).FromMaybe(false);
+}
+
+
+Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
+                                             Local<Name> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::HasRealNamedProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_val = Utils::OpenHandle(*key);
+  auto result = i::JSObject::HasRealNamedProperty(self, key_val);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
 }
 
 
 bool v8::Object::HasRealNamedProperty(Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::HasRealNamedProperty()",
-             return false);
-  EXCEPTION_PREAMBLE(isolate);
-  Maybe<bool> maybe = i::JSObject::HasRealNamedProperty(
-      Utils::OpenHandle(this), Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.IsJust();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.FromJust();
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return HasRealNamedProperty(context, key).FromMaybe(false);
+}
+
+
+Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
+                                               uint32_t index) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context,
+                                  "v8::Object::HasRealIndexedProperty()", bool);
+  auto self = Utils::OpenHandle(this);
+  auto result = i::JSObject::HasRealElementProperty(self, index);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
 }
 
 
 bool v8::Object::HasRealIndexedProperty(uint32_t index) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::HasRealIndexedProperty()",
-             return false);
-  EXCEPTION_PREAMBLE(isolate);
-  Maybe<bool> maybe =
-      i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
-  has_pending_exception = !maybe.IsJust();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.FromJust();
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return HasRealIndexedProperty(context, index).FromMaybe(false);
+}
+
+
+Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
+                                                     Local<Name> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(
+      context, "v8::Object::HasRealNamedCallbackProperty()", bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_val = Utils::OpenHandle(*key);
+  auto result = i::JSObject::HasRealNamedCallbackProperty(self, key_val);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
 }
 
 
 bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate,
-             "v8::Object::HasRealNamedCallbackProperty()",
-             return false);
-  ENTER_V8(isolate);
-  EXCEPTION_PREAMBLE(isolate);
-  Maybe<bool> maybe = i::JSObject::HasRealNamedCallbackProperty(
-      Utils::OpenHandle(this), Utils::OpenHandle(*key));
-  has_pending_exception = !maybe.IsJust();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return maybe.FromJust();
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return HasRealNamedCallbackProperty(context, key).FromMaybe(false);
 }
 
 
 bool v8::Object::HasNamedLookupInterceptor() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::HasNamedLookupInterceptor()",
-             return false);
-  return Utils::OpenHandle(this)->HasNamedInterceptor();
+  auto self = Utils::OpenHandle(this);
+  return self->HasNamedInterceptor();
 }
 
 
 bool v8::Object::HasIndexedLookupInterceptor() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::HasIndexedLookupInterceptor()",
-             return false);
-  return Utils::OpenHandle(this)->HasIndexedInterceptor();
+  auto self = Utils::OpenHandle(this);
+  return self->HasIndexedInterceptor();
 }
 
 
-static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
-  // If the property being looked up is a callback, it can throw an exception.
-  EXCEPTION_PREAMBLE(it->isolate());
-  i::Handle<i::Object> result;
-  has_pending_exception = !i::Object::GetProperty(it).ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(it->isolate(), Local<Value>());
-
-  if (it->IsFound()) return Utils::ToLocal(result);
-  return Local<Value>();
-}
-
-
-static Maybe<PropertyAttribute> GetPropertyAttributesByLookup(
-    i::LookupIterator* it) {
-  Maybe<PropertyAttributes> attr = i::JSReceiver::GetPropertyAttributes(it);
-  return it->IsFound() ? Just<PropertyAttribute>(
-                             static_cast<PropertyAttribute>(attr.FromJust()))
-                       : Nothing<PropertyAttribute>();
+MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
+    Local<Context> context, Local<Name> key) {
+  PREPARE_FOR_EXECUTION(
+      context, "v8::Object::GetRealNamedPropertyInPrototypeChain()", Value);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  i::PrototypeIterator iter(isolate, self);
+  if (iter.IsAtEnd()) return MaybeLocal<Value>();
+  auto proto = i::PrototypeIterator::GetCurrent(iter);
+  i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  if (!it.IsFound()) return MaybeLocal<Value>();
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 
 Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
     Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate,
-             "v8::Object::GetRealNamedPropertyInPrototypeChain()",
-             return Local<Value>());
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::PrototypeIterator iter(isolate, self_obj);
-  if (iter.IsAtEnd()) return Local<Value>();
-  i::Handle<i::Object> proto = i::PrototypeIterator::GetCurrent(iter);
-  i::LookupIterator it(self_obj, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetRealNamedPropertyInPrototypeChain(context, key),
+                            Value);
+}
+
+
+Maybe<PropertyAttribute>
+v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
+    Local<Context> context, Local<Name> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(
+      context, "v8::Object::GetRealNamedPropertyAttributesInPrototypeChain()",
+      PropertyAttribute);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  i::PrototypeIterator iter(isolate, self);
+  if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
+  auto proto = i::PrototypeIterator::GetCurrent(iter);
+  i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  return GetPropertyByLookup(&it);
+  if (!it.IsFound()) return Nothing<PropertyAttribute>();
+  auto result = i::JSReceiver::GetPropertyAttributes(&it);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
+  if (result.FromJust() == ABSENT) {
+    return Just(static_cast<PropertyAttribute>(NONE));
+  }
+  return Just<PropertyAttribute>(
+      static_cast<PropertyAttribute>(result.FromJust()));
 }
 
 
 Maybe<PropertyAttribute>
 v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate,
-             "v8::Object::GetRealNamedPropertyAttributesInPrototypeChain()",
-             return Nothing<PropertyAttribute>());
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::PrototypeIterator iter(isolate, self_obj);
-  if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
-  i::Handle<i::Object> proto = i::PrototypeIterator::GetCurrent(iter);
-  i::LookupIterator it(self_obj, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return GetRealNamedPropertyAttributesInPrototypeChain(context, key);
+}
+
+
+MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
+                                                   Local<Name> key) {
+  PREPARE_FOR_EXECUTION(
+      context, "v8::Object::GetRealNamedPropertyInPrototypeChain()", Value);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  i::LookupIterator it(self, key_obj,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  return GetPropertyAttributesByLookup(&it);
+  if (!it.IsFound()) return MaybeLocal<Value>();
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 
 Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetRealNamedProperty()",
-             return Local<Value>());
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self_obj, key_obj,
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetRealNamedProperty(context, key), Value);
+}
+
+
+Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
+    Local<Context> context, Local<Name> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(
+      context, "v8::Object::GetRealNamedPropertyAttributes()",
+      PropertyAttribute);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  i::LookupIterator it(self, key_obj,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  return GetPropertyByLookup(&it);
+  if (!it.IsFound()) return Nothing<PropertyAttribute>();
+  auto result = i::JSReceiver::GetPropertyAttributes(&it);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
+  if (result.FromJust() == ABSENT) {
+    return Just(static_cast<PropertyAttribute>(NONE));
+  }
+  return Just<PropertyAttribute>(
+      static_cast<PropertyAttribute>(result.FromJust()));
 }
 
 
 Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
     Handle<String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetRealNamedPropertyAttributes()",
-             return Nothing<PropertyAttribute>());
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self_obj, key_obj,
-                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  return GetPropertyAttributesByLookup(&it);
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return GetRealNamedPropertyAttributes(context, key);
 }
 
 
@@ -3980,7 +4017,6 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
 // the old map of this object will fail.
 void v8::Object::TurnOnAccessCheck() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::TurnOnAccessCheck()", return);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
@@ -4010,22 +4046,16 @@ Local<v8::Object> v8::Object::Clone() {
 
 
 Local<v8::Context> v8::Object::CreationContext() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate,
-             "v8::Object::CreationContext()", return Local<v8::Context>());
-  ENTER_V8(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Context* context = self->GetCreationContext();
-  return Utils::ToLocal(i::Handle<i::Context>(context));
+  auto self = Utils::OpenHandle(this);
+  auto context = handle(self->GetCreationContext());
+  return Utils::ToLocal(context);
 }
 
 
 int v8::Object::GetIdentityHash() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetIdentityHash()", return 0);
-  ENTER_V8(isolate);
+  auto isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  auto self = Utils::OpenHandle(this);
   return i::JSReceiver::GetOrCreateIdentityHash(self)->value();
 }
 
@@ -4033,7 +4063,6 @@ int v8::Object::GetIdentityHash() {
 bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::SetHiddenValue()", return false);
   if (value.IsEmpty()) return DeleteHiddenValue(key);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -4050,8 +4079,6 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
 
 v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetHiddenValue()",
-             return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
@@ -4065,7 +4092,6 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
 
 bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::DeleteHiddenValue()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);

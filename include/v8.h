@@ -2587,6 +2587,7 @@ class V8_EXPORT Object : public Value {
    * Note: Private properties are inherited. Do not rely on this, since it may
    * change.
    */
+  // TODO(dcarney): convert these or remove?
   bool HasPrivate(Handle<Private> key);
   bool SetPrivate(Handle<Private> key, Handle<Value> value);
   bool DeletePrivate(Handle<Private> key);
@@ -2598,14 +2599,18 @@ class V8_EXPORT Object : public Value {
    * array returned by this method contains the same values as would
    * be enumerated by a for-in statement over this object.
    */
+  // TODO(dcarney): deprecate
   Local<Array> GetPropertyNames();
+  MaybeLocal<Array> GetPropertyNames(Local<Context> context);
 
   /**
    * This function has the same functionality as GetPropertyNames but
    * the returned array doesn't contain the names of properties from
    * prototype objects.
    */
+  // TODO(dcarney): deprecate
   Local<Array> GetOwnPropertyNames();
+  MaybeLocal<Array> GetOwnPropertyNames(Local<Context> context);
 
   /**
    * Get the prototype object.  This does not skip objects marked to
@@ -2619,7 +2624,9 @@ class V8_EXPORT Object : public Value {
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
+  // TODO(dcarney): deprecate
   bool SetPrototype(Handle<Value> prototype);
+  Maybe<bool> SetPrototype(Local<Context> context, Local<Value> prototype);
 
   /**
    * Finds an instance of the given function template in the prototype
@@ -2632,6 +2639,7 @@ class V8_EXPORT Object : public Value {
    * This is different from Value::ToString() that may call
    * user-defined toString function. This one does not.
    */
+  // TODO(dcarney): convert this - needs recursion currently.
   Local<String> ObjectProtoToString();
 
   /**
@@ -2675,38 +2683,59 @@ class V8_EXPORT Object : public Value {
   void SetAlignedPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
+  // TODO(dcarney): deprecate
   bool HasOwnProperty(Handle<String> key);
+  Maybe<bool> HasOwnProperty(Local<Context> context, Local<Name> key);
+  // TODO(dcarney): deprecate
   bool HasRealNamedProperty(Handle<String> key);
+  Maybe<bool> HasRealNamedProperty(Local<Context> context, Local<Name> key);
+  // TODO(dcarney): deprecate
   bool HasRealIndexedProperty(uint32_t index);
+  Maybe<bool> HasRealIndexedProperty(Local<Context> context, uint32_t index);
+  // TODO(dcarney): deprecate
   bool HasRealNamedCallbackProperty(Handle<String> key);
+  Maybe<bool> HasRealNamedCallbackProperty(Local<Context> context,
+                                           Local<Name> key);
 
   /**
    * If result.IsEmpty() no real property was located in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
+  // TODO(dcarney): deprecate
   Local<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
+  MaybeLocal<Value> GetRealNamedPropertyInPrototypeChain(Local<Context> context,
+                                                         Local<Name> key);
 
   /**
    * Gets the property attributes of a real property in the prototype chain,
    * which can be None or any combination of ReadOnly, DontEnum and DontDelete.
    * Interceptors in the prototype chain are not called.
    */
+  // TODO(dcarney): deprecate
   Maybe<PropertyAttribute> GetRealNamedPropertyAttributesInPrototypeChain(
       Handle<String> key);
+  Maybe<PropertyAttribute> GetRealNamedPropertyAttributesInPrototypeChain(
+      Local<Context> context, Local<Name> key);
 
   /**
    * If result.IsEmpty() no real property was located on the object or
    * in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
+  // TODO(dcarney): deprecate
   Local<Value> GetRealNamedProperty(Handle<String> key);
+  MaybeLocal<Value> GetRealNamedProperty(Local<Context> context,
+                                         Local<Name> key);
 
   /**
    * Gets the property attributes of a real property which can be
    * None or any combination of ReadOnly, DontEnum and DontDelete.
    * Interceptors in the prototype chain are not called.
    */
+  // TODO(dcarney): deprecate
   Maybe<PropertyAttribute> GetRealNamedPropertyAttributes(Handle<String> key);
+  Maybe<PropertyAttribute> GetRealNamedPropertyAttributes(
+      Local<Context> context, Local<Name> key);
 
   /** Tests for a named lookup interceptor.*/
   bool HasNamedLookupInterceptor();
@@ -2719,6 +2748,7 @@ class V8_EXPORT Object : public Value {
    * a template that has access check callbacks. If an object has no
    * access check info, the object cannot be accessed by anyone.
    */
+  // TODO(dcarney): deprecate
   void TurnOnAccessCheck();
 
   /**
@@ -2736,6 +2766,7 @@ class V8_EXPORT Object : public Value {
    * C++ API. Hidden properties introduced by V8 internally (for example the
    * identity hash) are prefixed with "v8::".
    */
+  // TODO(dcarney): convert these?
   bool SetHiddenValue(Handle<String> key, Handle<Value> value);
   Local<Value> GetHiddenValue(Handle<String> key);
   bool DeleteHiddenValue(Handle<String> key);
@@ -2744,6 +2775,7 @@ class V8_EXPORT Object : public Value {
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
    */
+  // TODO(dcarney): convert this?
   Local<Object> Clone();
 
   /**
