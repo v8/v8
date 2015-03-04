@@ -5366,6 +5366,9 @@ void v8::V8::ShutdownPlatform() {
 
 bool v8::V8::Initialize() {
   i::V8::Initialize();
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::ReadNatives();
+#endif
   return true;
 }
 

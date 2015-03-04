@@ -19,6 +19,7 @@ namespace internal {
 // below. This happens when compiling the mksnapshot utility.
 void SetNativesFromFile(StartupData* data) { CHECK(false); }
 void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
+void ReadNatives() {}
 void DisposeNatives() {}
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
