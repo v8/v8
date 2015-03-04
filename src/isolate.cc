@@ -2054,6 +2054,15 @@ bool Isolate::Init(Deserializer* des) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
   }
 
+  // Set default value if not yet set.
+  // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
+  // once ResourceConstraints becomes an argument to the Isolate constructor.
+  if (max_available_threads_ < 1) {
+    // Choose the default between 1 and 4.
+    max_available_threads_ =
+        Max(Min(base::SysInfo::NumberOfProcessors(), 4), 1);
+  }
+
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompilerThread::Enabled(max_available_threads_)) {
