@@ -442,7 +442,10 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
 
 
 void FullCodeGenerator::CallGlobalLoadIC(Handle<String> name) {
-  if (masm()->serializer_enabled()) return CallLoadIC(CONTEXTUAL);
+  if (masm()->serializer_enabled() || FLAG_vector_ics) {
+    // Vector-ICs don't work with LoadGlobalIC.
+    return CallLoadIC(CONTEXTUAL);
+  }
   Handle<Code> ic = CodeFactory::LoadGlobalIC(
                         isolate(), isolate()->global_object(), name).code();
   CallIC(ic, TypeFeedbackId::None());

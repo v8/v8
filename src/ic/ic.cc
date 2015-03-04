@@ -951,6 +951,9 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 
 Handle<Code> LoadIC::load_global(Isolate* isolate, Handle<GlobalObject> global,
                                  Handle<String> name) {
+  // This special IC doesn't work with vector ics.
+  DCHECK(!FLAG_vector_ics);
+
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
 
