@@ -571,10 +571,10 @@ class Scanner {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
-    if (check_surrogate) HandleLeadSurrugate();
+    if (check_surrogate) HandleLeadSurrogate();
   }
 
-  void HandleLeadSurrugate() {
+  void HandleLeadSurrogate() {
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
       if (!unibrow::Utf16::IsTrailSurrogate(c1)) {

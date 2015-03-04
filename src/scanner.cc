@@ -788,11 +788,31 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
 }
 
 
+const int kMaxAscii = 127;
+
+
 Token::Value Scanner::ScanString() {
   uc32 quote = c0_;
-  Advance();  // consume quote
+  Advance<false, false>();  // consume quote
 
   LiteralScope literal(this);
+  while (true) {
+    if (c0_ > kMaxAscii) {
+      HandleLeadSurrogate();
+      break;
+    }
+    if (c0_ < 0 || c0_ == '\n' || c0_ == '\r') return Token::ILLEGAL;
+    if (c0_ == quote) {
+      literal.Complete();
+      Advance<false, false>();
+      return Token::STRING;
+    }
+    uc32 c = c0_;
+    if (c == '\\') break;
+    Advance<false, false>();
+    AddLiteralChar(c);
+  }
+
   while (c0_ != quote && c0_ >= 0
          && !unicode_cache_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
@@ -993,11 +1013,11 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
             c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
           smi_value_ = value;
           literal.Complete();
-          HandleLeadSurrugate();
+          HandleLeadSurrogate();
 
           return Token::SMI;
         }
-        HandleLeadSurrugate();
+        HandleLeadSurrogate();
       }
 
       ScanDecimalDigits();  // optional
@@ -1217,11 +1237,11 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
         Advance<false, false>();
         AddLiteralChar(first_char);
       }
-      if (c0_ <= 127 && c0_ != '\\') {
+      if (c0_ <= kMaxAscii && c0_ != '\\') {
         literal.Complete();
         return Token::IDENTIFIER;
       }
-    } else if (c0_ <= 127 && c0_ != '\\') {
+    } else if (c0_ <= kMaxAscii && c0_ != '\\') {
       // Only a-z+: could be a keyword or identifier.
       literal.Complete();
       Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
@@ -1230,7 +1250,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
                                       harmony_classes_);
     }
 
-    HandleLeadSurrugate();
+    HandleLeadSurrogate();
   } else if (IsInRange(c0_, 'A', 'Z') || c0_ == '_' || c0_ == '$') {
     do {
       uc32 first_char = c0_;
@@ -1238,12 +1258,12 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       AddLiteralChar(first_char);
     } while (IsAsciiIdentifier(c0_));
 
-    if (c0_ <= 127 && c0_ != '\\') {
+    if (c0_ <= kMaxAscii && c0_ != '\\') {
       literal.Complete();
       return Token::IDENTIFIER;
     }
 
-    HandleLeadSurrugate();
+    HandleLeadSurrogate();
   } else if (c0_ == '\\') {
     // Scan identifier start character.
     uc32 c = ScanIdentifierUnicodeEscape();
