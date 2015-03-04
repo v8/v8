@@ -659,9 +659,11 @@ class Assembler : public AssemblerBase {
   //   blrl
   static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
 
-  // This is the length of the BreakLocationIterator::SetDebugBreakAtReturn()
+  // This is the length of the BreakLocation::SetDebugBreakAtReturn()
   // code patch FIXED_SEQUENCE
   static const int kJSReturnSequenceInstructions = kMovInstructions + 3;
+  static const int kJSReturnSequenceLength =
+      kJSReturnSequenceInstructions * kInstrSize;
 
   // This is the length of the code sequence from SetDebugBreakAtSlot()
   // FIXED_SEQUENCE

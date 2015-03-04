@@ -476,6 +476,9 @@ class RelocInfo {
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
   }
+  static inline bool IsDebuggerStatement(Mode mode) {
+    return mode == DEBUG_BREAK;
+  }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
   }
@@ -594,9 +597,6 @@ class RelocInfo {
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
-
-  // Patch the code with some other code.
-  void PatchCode(byte* instructions, int instruction_count);
 
   // Patch the code with a call.
   void PatchCodeWithCall(Address target, int guard_bytes);

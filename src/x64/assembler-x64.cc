@@ -108,50 +108,6 @@ void CpuFeatures::PrintFeatures() {
 
 
 // -----------------------------------------------------------------------------
-// Implementation of RelocInfo
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard int3 instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  int code_size = Assembler::kCallSequenceLength + guard_bytes;
-
-  // Create a code patcher.
-  CodePatcher patcher(pc_, code_size);
-
-  // Add a label for checking the size of the code used for returning.
-#ifdef DEBUG
-  Label check_codesize;
-  patcher.masm()->bind(&check_codesize);
-#endif
-
-  // Patch the code.
-  patcher.masm()->movp(kScratchRegister, reinterpret_cast<void*>(target),
-                       Assembler::RelocInfoNone());
-  patcher.masm()->call(kScratchRegister);
-
-  // Check that the size of the code generated is as expected.
-  DCHECK_EQ(Assembler::kCallSequenceLength,
-            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
-
-  // Add the requested number of int3 instructions after the call.
-  for (int i = 0; i < guard_bytes; i++) {
-    patcher.masm()->int3();
-  }
-}
-
-
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  // Patch the code at the current address with the supplied instructions.
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc_ + i) = *(instructions + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count);
-}
-
-
-// -----------------------------------------------------------------------------
 // Register constants.
 
 const int

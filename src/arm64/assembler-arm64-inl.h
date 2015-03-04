@@ -838,7 +838,7 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // The sequence must be:
   //   ldr ip0, [pc, #offset]
   //   blr ip0
-  // See arm64/debug-arm64.cc BreakLocationIterator::SetDebugBreakAtReturn().
+  // See arm64/debug-arm64.cc BreakLocation::SetDebugBreakAtReturn().
   Instruction* i1 = reinterpret_cast<Instruction*>(pc_);
   Instruction* i2 = i1->following();
   return i1->IsLdrLiteralX() && (i1->Rt() == ip0.code()) &&

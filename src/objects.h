@@ -10773,10 +10773,10 @@ class DebugInfo: public Struct {
                             int source_position, int statement_position,
                             Handle<Object> break_point_object);
   // Get the break point objects for a code position.
-  Object* GetBreakPointObjects(int code_position);
+  Handle<Object> GetBreakPointObjects(int code_position);
   // Find the break point info holding this break point object.
-  static Object* FindBreakPointInfo(Handle<DebugInfo> debug_info,
-                                    Handle<Object> break_point_object);
+  static Handle<Object> FindBreakPointInfo(Handle<DebugInfo> debug_info,
+                                           Handle<Object> break_point_object);
   // Get the number of break points for this function.
   int GetBreakPointCount();
 

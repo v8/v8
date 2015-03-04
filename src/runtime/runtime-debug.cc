@@ -1164,18 +1164,19 @@ class ScopeIterator {
     if (!ignore_nested_scopes) {
       Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
 
-      // Find the break point where execution has stopped.
-      BreakLocationIterator break_location_iterator(debug_info,
-                                                    ALL_BREAK_LOCATIONS);
-      // pc points to the instruction after the current one, possibly a break
+      // PC points to the instruction after the current one, possibly a break
       // location as well. So the "- 1" to exclude it from the search.
-      break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
+      Address call_pc = frame->pc() - 1;
+
+      // Find the break point where execution has stopped.
+      BreakLocation location =
+          BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
 
       // Within the return sequence at the moment it is not possible to
       // get a source position which is consistent with the current scope chain.
       // Thus all nested with, catch and block contexts are skipped and we only
       // provide the function scope.
-      ignore_nested_scopes = break_location_iterator.IsExit();
+      ignore_nested_scopes = location.IsExit();
     }
 
     if (ignore_nested_scopes) {
@@ -1559,18 +1560,19 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
 
   Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
 
-  int len = 0;
-  Handle<JSArray> array(isolate->factory()->NewJSArray(10));
-  // Find the break point where execution has stopped.
-  BreakLocationIterator break_location_iterator(debug_info,
-                                                ALL_BREAK_LOCATIONS);
+  // Find range of break points starting from the break point where execution
+  // has stopped.
+  Address call_pc = frame->pc() - 1;
+  List<BreakLocation> locations;
+  BreakLocation::FromAddressSameStatement(debug_info, ALL_BREAK_LOCATIONS,
+                                          call_pc, &locations);
 
-  break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
-  int current_statement_pos = break_location_iterator.statement_position();
+  Handle<JSArray> array = isolate->factory()->NewJSArray(locations.length());
 
-  while (!break_location_iterator.Done()) {
+  int index = 0;
+  for (BreakLocation location : locations) {
     bool accept;
-    if (break_location_iterator.pc() > frame->pc()) {
+    if (location.pc() > frame->pc()) {
       accept = true;
     } else {
       StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
@@ -1587,19 +1589,14 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
       }
     }
     if (accept) {
-      if (break_location_iterator.IsStepInLocation(isolate)) {
-        Smi* position_value = Smi::FromInt(break_location_iterator.position());
+      if (location.IsStepInLocation()) {
+        Smi* position_value = Smi::FromInt(location.position());
         RETURN_FAILURE_ON_EXCEPTION(
             isolate, JSObject::SetElement(
-                         array, len, Handle<Object>(position_value, isolate),
+                         array, index, Handle<Object>(position_value, isolate),
                          NONE, SLOPPY));
-        len++;
+        index++;
       }
-    }
-    // Advance iterator.
-    break_location_iterator.Next();
-    if (current_statement_pos != break_location_iterator.statement_position()) {
-      break;
     }
   }
   return *array;

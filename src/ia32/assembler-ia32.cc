@@ -179,17 +179,6 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  // Patch the code at the current address with the supplied instructions.
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc_ + i) = *(instructions + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count);
-}
-
-
 // Patch the code at the current PC with a call to the target address.
 // Additional guard int3 instructions can be added if required.
 void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {

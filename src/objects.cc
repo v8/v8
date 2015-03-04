@@ -16726,12 +16726,14 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
 
 
 // Get the break point objects for a code position.
-Object* DebugInfo::GetBreakPointObjects(int code_position) {
+Handle<Object> DebugInfo::GetBreakPointObjects(int code_position) {
   Object* break_point_info = GetBreakPointInfo(code_position);
   if (break_point_info->IsUndefined()) {
-    return GetHeap()->undefined_value();
+    return GetIsolate()->factory()->undefined_value();
   }
-  return BreakPointInfo::cast(break_point_info)->break_point_objects();
+  return Handle<Object>(
+      BreakPointInfo::cast(break_point_info)->break_point_objects(),
+      GetIsolate());
 }
 
 
@@ -16750,22 +16752,22 @@ int DebugInfo::GetBreakPointCount() {
 }
 
 
-Object* DebugInfo::FindBreakPointInfo(Handle<DebugInfo> debug_info,
-                                      Handle<Object> break_point_object) {
-  Heap* heap = debug_info->GetHeap();
-  if (debug_info->break_points()->IsUndefined()) return heap->undefined_value();
-  for (int i = 0; i < debug_info->break_points()->length(); i++) {
-    if (!debug_info->break_points()->get(i)->IsUndefined()) {
-      Handle<BreakPointInfo> break_point_info =
-          Handle<BreakPointInfo>(BreakPointInfo::cast(
-              debug_info->break_points()->get(i)));
-      if (BreakPointInfo::HasBreakPointObject(break_point_info,
-                                              break_point_object)) {
-        return *break_point_info;
+Handle<Object> DebugInfo::FindBreakPointInfo(
+    Handle<DebugInfo> debug_info, Handle<Object> break_point_object) {
+  Isolate* isolate = debug_info->GetIsolate();
+  if (!debug_info->break_points()->IsUndefined()) {
+    for (int i = 0; i < debug_info->break_points()->length(); i++) {
+      if (!debug_info->break_points()->get(i)->IsUndefined()) {
+        Handle<BreakPointInfo> break_point_info = Handle<BreakPointInfo>(
+            BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
+        if (BreakPointInfo::HasBreakPointObject(break_point_info,
+                                                break_point_object)) {
+          return break_point_info;
+        }
       }
     }
   }
-  return heap->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 

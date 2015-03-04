@@ -191,27 +191,6 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 
-// Patch the code at the current address with the supplied instructions.
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  Instr* pc = reinterpret_cast<Instr*>(pc_);
-  Instr* instr = reinterpret_cast<Instr*>(instructions);
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc + i) = *(instr + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
-}
-
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  // Patch the code at the current address with a call to the target.
-  UNIMPLEMENTED_MIPS();
-}
-
-
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand.
 // See assembler-mips-inl.h for inlined constructors.

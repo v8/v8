@@ -456,10 +456,10 @@ void FullCodeGenerator::EmitReturnSequence() {
 
     // Make sure that the constant pool is not emitted inside of the return
     // sequence. This sequence can get patched when the debugger is used. See
-    // debug-arm64.cc:BreakLocationIterator::SetDebugBreakAtReturn().
+    // debug-arm64.cc:BreakLocation::SetDebugBreakAtReturn().
     {
       InstructionAccurateScope scope(masm_,
-                                     Assembler::kJSRetSequenceInstructions);
+                                     Assembler::kJSReturnSequenceInstructions);
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
       // This code is generated using Assembler methods rather than Macro

@@ -952,7 +952,9 @@ class Assembler : public AssemblerBase {
 
   // Number of instructions generated for the return sequence in
   // FullCodeGenerator::EmitReturnSequence.
-  static const int kJSRetSequenceInstructions = 7;
+  static const int kJSReturnSequenceInstructions = 7;
+  static const int kJSReturnSequenceLength =
+      kJSReturnSequenceInstructions * kInstructionSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset =  0;
@@ -960,7 +962,7 @@ class Assembler : public AssemblerBase {
 
   // Number of instructions necessary to be able to later patch it to a call.
   // See DebugCodegen::GenerateSlot() and
-  // BreakLocationIterator::SetDebugBreakAtSlot().
+  // BreakLocation::SetDebugBreakAtSlot().
   static const int kDebugBreakSlotInstructions = 4;
   static const int kDebugBreakSlotLength =
     kDebugBreakSlotInstructions * kInstructionSize;
