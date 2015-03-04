@@ -2894,10 +2894,9 @@ Genesis::Genesis(Isolate* isolate,
   // Install experimental natives. Do not include them into the snapshot as we
   // should be able to turn them off at runtime. Re-installing them after
   // they have already been deserialized would also fail.
-  if (!isolate->serializer_enabled()) {
-    if (!InstallExperimentalNatives()) return;
-    InitializeExperimentalGlobal();
-  }
+  if (!isolate->serializer_enabled() && !InstallExperimentalNatives()) return;
+
+  InitializeExperimentalGlobal();
 
   // The serializer cannot serialize typed arrays. Reset those typed arrays
   // for each new context.

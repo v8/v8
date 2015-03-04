@@ -709,7 +709,8 @@ TEST(PerIsolateSnapshotBlobs) {
   const char* source1 = "function f() { return 42; }";
   const char* source2 =
       "function f() { return g() * 2; }"
-      "function g() { return 43; }";
+      "function g() { return 43; }"
+      "/./.test('a')";
 
   v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
   v8::StartupData data2 = v8::V8::CreateSnapshotDataBlob(source2);
