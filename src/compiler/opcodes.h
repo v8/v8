@@ -18,6 +18,7 @@
   V(IfValue)                     \
   V(IfDefault)                   \
   V(Merge)                       \
+  V(Deoptimize)                  \
   V(Return)                      \
   V(OsrNormalEntry)              \
   V(OsrLoopEntry)                \

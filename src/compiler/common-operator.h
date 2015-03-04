@@ -178,6 +178,7 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
+  const Operator* Deoptimize();
   const Operator* Return();
 
   const Operator* Start(int num_formal_parameters);

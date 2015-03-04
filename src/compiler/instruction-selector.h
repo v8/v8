@@ -205,9 +205,9 @@ class InstructionSelector FINAL {
   void VisitSwitch(Node* node, BasicBlock* default_branch,
                    BasicBlock** case_branches, int32_t* case_values,
                    size_t case_count, int32_t min_value, int32_t max_value);
+  void VisitDeoptimize(Node* value);
   void VisitReturn(Node* value);
   void VisitThrow(Node* value);
-  void VisitDeoptimize(Node* deopt);
 
   // ===========================================================================
 

@@ -62,6 +62,7 @@ namespace internal {
   F(GetFunctionDelegate, 1, 1)                 \
   F(GetConstructorDelegate, 1, 1)              \
   F(DeoptimizeFunction, 1, 1)                  \
+  F(DeoptimizeNow, 0, 1)                       \
   F(ClearFunctionTypeFeedback, 1, 1)           \
   F(RunningInSimulator, 0, 1)                  \
   F(IsConcurrentRecompilationSupported, 0, 1)  \

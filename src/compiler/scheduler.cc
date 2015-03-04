@@ -345,6 +345,10 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectSwitch(node);
         break;
+      case IrOpcode::kDeoptimize:
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
+        ConnectDeoptimize(node);
+        break;
       case IrOpcode::kReturn:
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectReturn(node);
@@ -492,6 +496,13 @@ class CFGBuilder : public ZoneObject {
     BasicBlock* return_block = FindPredecessorBlock(return_control);
     TraceConnect(ret, return_block, NULL);
     schedule_->AddReturn(return_block, ret);
+  }
+
+  void ConnectDeoptimize(Node* deopt) {
+    Node* deoptimize_control = NodeProperties::GetControlInput(deopt);
+    BasicBlock* deoptimize_block = FindPredecessorBlock(deoptimize_control);
+    TraceConnect(deopt, deoptimize_block, NULL);
+    schedule_->AddDeoptimize(deoptimize_block, deopt);
   }
 
   void ConnectThrow(Node* thr) {

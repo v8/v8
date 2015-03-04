@@ -545,10 +545,18 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kReturn: {
       // If the result itself is a return, return its input.
-      Node* value = (input != NULL && input->opcode() == IrOpcode::kReturn)
+      Node* value = (input != nullptr && input->opcode() == IrOpcode::kReturn)
                         ? input->InputAt(0)
                         : input;
       return VisitReturn(value);
+    }
+    case BasicBlock::kDeoptimize: {
+      // If the result itself is a return, return its input.
+      Node* value =
+          (input != nullptr && input->opcode() == IrOpcode::kDeoptimize)
+              ? input->InputAt(0)
+              : input;
+      return VisitDeoptimize(value);
     }
     case BasicBlock::kThrow:
       DCHECK_EQ(IrOpcode::kThrow, input->opcode());
@@ -1087,6 +1095,29 @@ void InstructionSelector::VisitReturn(Node* value) {
   } else {
     Emit(kArchRet, g.NoOutput());
   }
+}
+
+
+void InstructionSelector::VisitDeoptimize(Node* value) {
+  DCHECK(FLAG_turbo_deoptimization);
+
+  OperandGenerator g(this);
+
+  FrameStateDescriptor* desc = GetFrameStateDescriptor(value);
+  size_t arg_count = desc->GetTotalSize() + 1;  // Include deopt id.
+
+  InstructionOperandVector args(instruction_zone());
+  args.reserve(arg_count);
+
+  InstructionSequence::StateId state_id =
+      sequence()->AddFrameStateDescriptor(desc);
+  args.push_back(g.TempImmediate(state_id.ToInt()));
+
+  AddFrameStateInputs(value, &args, desc);
+
+  DCHECK_EQ(args.size(), arg_count);
+
+  Emit(kArchDeoptimize, 0, nullptr, arg_count, &args.front(), 0, nullptr);
 }
 
 

@@ -106,6 +106,8 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
       return os << "branch";
     case BasicBlock::kSwitch:
       return os << "switch";
+    case BasicBlock::kDeoptimize:
+      return os << "deoptimize";
     case BasicBlock::kReturn:
       return os << "return";
     case BasicBlock::kThrow:
@@ -234,6 +236,14 @@ void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
 void Schedule::AddReturn(BasicBlock* block, Node* input) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kReturn);
+  SetControlInput(block, input);
+  if (block != end()) AddSuccessor(block, end());
+}
+
+
+void Schedule::AddDeoptimize(BasicBlock* block, Node* input) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  block->set_control(BasicBlock::kDeoptimize);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
 }

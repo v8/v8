@@ -20,8 +20,9 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
-  if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
+    case Runtime::kDeoptimizeNow:
+      return ReduceDeoptimizeNow(node);
     case Runtime::kInlineIsSmi:
       return ReduceInlineIsSmi(node);
     case Runtime::kInlineIsNonNegativeSmi:
@@ -38,6 +39,46 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+
+Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
+  if (!FLAG_turbo_deoptimization) return NoChange();
+
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // We are making the continuation after the call dead. To
+  // model this, we generate if (true) statement with deopt
+  // in the true branch and continuation in the false branch.
+  Node* branch =
+      graph()->NewNode(common()->Branch(), jsgraph()->TrueConstant(), control);
+
+  // False branch - the original continuation.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  NodeProperties::ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect,
+                                   if_false);
+
+  // True branch: deopt.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* deopt =
+      graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_true);
+
+  // Connect the deopt to the merge exiting the graph.
+  Node* end_pred = NodeProperties::GetControlInput(graph()->end());
+  if (end_pred->opcode() == IrOpcode::kMerge) {
+    int inputs = end_pred->op()->ControlInputCount() + 1;
+    end_pred->AppendInput(graph()->zone(), deopt);
+    end_pred->set_op(common()->Merge(inputs));
+  } else {
+    Node* merge = graph()->NewNode(common()->Merge(2), end_pred, deopt);
+    NodeProperties::ReplaceControlInput(graph()->end(), merge);
+  }
+
+  return Changed(deopt);
 }
 
 

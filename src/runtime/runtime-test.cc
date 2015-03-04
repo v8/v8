@@ -30,6 +30,36 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+
+  Handle<JSFunction> function;
+
+  // If the argument is 'undefined', deoptimize the topmost
+  // function.
+  JavaScriptFrameIterator it(isolate);
+  while (!it.done()) {
+    if (it.frame()->is_java_script()) {
+      function = Handle<JSFunction>(it.frame()->function());
+      break;
+    }
+  }
+  if (function.is_null()) return isolate->heap()->undefined_value();
+
+  if (!function->IsOptimized()) return isolate->heap()->undefined_value();
+
+  // TODO(turbofan): Deoptimization is not supported yet.
+  if (function->code()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+    return isolate->heap()->undefined_value();
+  }
+
+  Deoptimizer::DeoptimizeFunction(*function);
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);

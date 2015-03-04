@@ -83,8 +83,8 @@ class NodeProperties FINAL {
   // Replace value uses of {node} with {value} and effect uses of {node} with
   // {effect}. If {effect == NULL}, then use the effect input to {node}. All
   // control uses will be relaxed assuming {node} cannot throw.
-  static void ReplaceWithValue(Node* node, Node* value, Node* effect = nullptr);
-
+  static void ReplaceWithValue(Node* node, Node* value, Node* effect = nullptr,
+                               Node* control = nullptr);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.

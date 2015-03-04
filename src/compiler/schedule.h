@@ -30,13 +30,15 @@ class BasicBlock FINAL : public ZoneObject {
  public:
   // Possible control nodes that can end a block.
   enum Control {
-    kNone,    // Control not initialized yet.
-    kGoto,    // Goto a single successor block.
-    kCall,    // Call with continuation as first successor, exception second.
-    kBranch,  // Branch if true to first successor, otherwise second.
-    kSwitch,  // Table dispatch to one of the successor blocks.
-    kReturn,  // Return a value from this method.
-    kThrow    // Throw an exception.
+    kNone,        // Control not initialized yet.
+    kGoto,        // Goto a single successor block.
+    kCall,        // Call with continuation as first successor, exception
+                  // second.
+    kBranch,      // Branch if true to first successor, otherwise second.
+    kSwitch,      // Table dispatch to one of the successor blocks.
+    kDeoptimize,  // Return a value from this method.
+    kReturn,      // Return a value from this method.
+    kThrow        // Throw an exception.
   };
 
   class Id {
@@ -214,6 +216,9 @@ class Schedule FINAL : public ZoneObject {
   // BasicBlock building: add a switch at the end of {block}.
   void AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
                  size_t succ_count);
+
+  // BasicBlock building: add a deoptimize at the end of {block}.
+  void AddDeoptimize(BasicBlock* block, Node* input);
 
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input);

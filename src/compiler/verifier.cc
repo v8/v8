@@ -282,6 +282,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kDeoptimize:
+      // TODO(rossberg): check successor is End
+      // Type is empty.
+      CheckNotTyped(node);
     case IrOpcode::kReturn:
       // TODO(rossberg): check successor is End
       // Type is empty.
