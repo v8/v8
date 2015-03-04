@@ -1011,8 +1011,7 @@ static bool fits_shifter(uint32_t imm32,
                          Instr* instr) {
   // imm32 must be unsigned.
   for (int rot = 0; rot < 16; rot++) {
-    uint32_t imm8 =
-        rot == 0 ? imm32 : (imm32 << 2 * rot) | (imm32 >> (32 - 2 * rot));
+    uint32_t imm8 = base::bits::RotateLeft32(imm32, 2 * rot);
     if ((imm8 <= 0xff)) {
       *rotate_imm = rot;
       *immed_8 = imm8;
@@ -3325,7 +3324,7 @@ Instr Assembler::PatchMovwImmediate(Instr instruction, uint32_t immediate) {
 int Assembler::DecodeShiftImm(Instr instr) {
   int rotate = Instruction::RotateValue(instr) * 2;
   int immed8 = Instruction::Immed8Value(instr);
-  return (immed8 >> rotate) | (immed8 << (32 - rotate));
+  return base::bits::RotateRight32(immed8, rotate);
 }
 
 
