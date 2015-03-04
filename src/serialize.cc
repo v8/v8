@@ -480,16 +480,14 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
 RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = new HashMap(HashMap::PointersMatch);
   Object** root_array = isolate->heap()->roots_array_start();
-  for (int i = 0; i < Heap::kStrongRootListLength; i++) {
+  for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Object* root = root_array[i];
     if (root->IsHeapObject() && !isolate->heap()->InNewSpace(root)) {
       HeapObject* heap_object = HeapObject::cast(root);
-      if (LookupEntry(map_, heap_object, false) != NULL) {
-        // Some root values are initialized to the empty FixedArray();
-        // Do not add them to the map.
-        // TODO(yangguo): This assert is not true. Some roots like
-        // instanceof_cache_answer can be e.g. null.
-        // DCHECK_EQ(isolate->heap()->empty_fixed_array(), heap_object);
+      HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
+      if (entry != NULL) {
+        // Some are initialized to a previous value in the root list.
+        DCHECK_LT(GetValue(entry), i);
       } else {
         SetValue(LookupEntry(map_, heap_object, true), i);
       }

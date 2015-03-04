@@ -150,8 +150,8 @@ class AddressMapBase {
     return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   }
 
-  static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
-                                     bool insert) {
+  inline static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
+                                            bool insert) {
     return map->Lookup(Key(obj), Hash(obj), insert);
   }
 
@@ -195,9 +195,9 @@ class PartialCacheIndexMap : public AddressMapBase {
   // Lookup object in the map. Return its index if found, or create
   // a new entry with new_index as value, and return kInvalidIndex.
   int LookupOrInsert(HeapObject* obj, int new_index) {
-    HashMap::Entry* entry = LookupEntry(&map_, obj, true);
-    if (entry->value != NULL) return GetValue(entry);
-    SetValue(entry, static_cast<uint32_t>(new_index));
+    HashMap::Entry* entry = LookupEntry(&map_, obj, false);
+    if (entry != NULL) return GetValue(entry);
+    SetValue(LookupEntry(&map_, obj, true), static_cast<uint32_t>(new_index));
     return kInvalidIndex;
   }
 
