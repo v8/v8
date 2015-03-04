@@ -1021,13 +1021,12 @@ Object* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   DCHECK(max_capacity_ % AreaSize() == 0);
-
-  if (Capacity() == max_capacity_) return false;
-
-  DCHECK(Capacity() < max_capacity_);
+  DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
+  DCHECK(heap()->CommittedOldGenerationMemory() <=
+         heap()->MaxOldGenerationSize());
 
   // Are we going to exceed capacity for this space?
-  if ((Capacity() + Page::kPageSize) > max_capacity_) return false;
+  if (!heap()->CanExpandOldGeneration(Page::kPageSize)) return false;
 
   return true;
 }
@@ -1049,7 +1048,9 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
-  DCHECK(Capacity() <= max_capacity_);
+  DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
+  DCHECK(heap()->CommittedOldGenerationMemory() <=
+         heap()->MaxOldGenerationSize());
 
   p->InsertAfter(anchor_.prev_page());
 

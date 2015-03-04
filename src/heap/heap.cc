@@ -177,13 +177,20 @@ intptr_t Heap::Capacity() {
 }
 
 
-intptr_t Heap::CommittedMemory() {
+intptr_t Heap::CommittedOldGenerationMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.CommittedMemory() + old_pointer_space_->CommittedMemory() +
+  return old_pointer_space_->CommittedMemory() +
          old_data_space_->CommittedMemory() + code_space_->CommittedMemory() +
          map_space_->CommittedMemory() + cell_space_->CommittedMemory() +
          property_cell_space_->CommittedMemory() + lo_space_->Size();
+}
+
+
+intptr_t Heap::CommittedMemory() {
+  if (!HasBeenSetUp()) return 0;
+
+  return new_space_.CommittedMemory() + CommittedOldGenerationMemory();
 }
 
 

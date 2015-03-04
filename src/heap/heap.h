@@ -607,6 +607,9 @@ class Heap {
   // Returns the amount of memory currently committed for the heap.
   intptr_t CommittedMemory();
 
+  // Returns the amount of memory currently committed for the old space.
+  intptr_t CommittedOldGenerationMemory();
+
   // Returns the amount of executable memory currently committed for the heap.
   intptr_t CommittedMemoryExecutable();
 
@@ -688,6 +691,12 @@ class Heap {
   }
   Address* OldDataSpaceAllocationLimitAddress() {
     return old_data_space_->allocation_limit_address();
+  }
+
+  // TODO(hpayer): There is still a missmatch between capacity and actual
+  // committed memory size.
+  bool CanExpandOldGeneration(int size) {
+    return (CommittedOldGenerationMemory() + size) < MaxOldGenerationSize();
   }
 
   // Returns a deep copy of the JavaScript object.
