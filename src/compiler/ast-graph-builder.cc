@@ -212,7 +212,6 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   struct Entry {
     Command command;       // The command type being applied on this path.
     Statement* statement;  // The target statement for the command or {NULL}.
-    Node* value;           // The passed value node for the command or {NULL}.
     Node* token;           // A token identifying this particular path.
   };
 
@@ -220,7 +219,7 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   // generates a new dispatch token that identifies one particular path.
   Node* RecordCommand(Command cmd, Statement* stmt, Node* value) {
     Node* token = NewPathTokenForDeferredCommand();
-    deferred_.push_back({cmd, stmt, value, token});
+    deferred_.push_back({cmd, stmt, token});
     return token;
   }
 
@@ -230,7 +229,7 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
 
   // Applies all recorded control-flow commands after the finally-block again.
   // This generates a dynamic dispatch on the token from the entry point.
-  void ApplyDeferredCommands(Node* token) {
+  void ApplyDeferredCommands(Node* token, Node* value) {
     SwitchBuilder dispatch(owner_, static_cast<int>(deferred_.size()));
     dispatch.BeginSwitch();
     for (size_t i = 0; i < deferred_.size(); ++i) {
@@ -241,7 +240,7 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
     for (size_t i = 0; i < deferred_.size(); ++i) {
       dispatch.BeginCase(static_cast<int>(i));
       owner_->execution_control()->PerformCommand(
-          deferred_[i].command, deferred_[i].statement, deferred_[i].value);
+          deferred_[i].command, deferred_[i].statement, value);
       dispatch.EndCase();
     }
     dispatch.EndSwitch();
@@ -369,7 +368,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  protected:
   virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
     Node* token = commands_->RecordCommand(cmd, target, value);
-    control_->LeaveTry(token);
+    control_->LeaveTry(token, value);
     return true;
   }
 
@@ -719,12 +718,12 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
 
 
 void AstGraphBuilder::ControlScope::BreakTo(BreakableStatement* stmt) {
-  PerformCommand(CMD_BREAK, stmt, nullptr);
+  PerformCommand(CMD_BREAK, stmt, builder()->jsgraph()->TheHoleConstant());
 }
 
 
 void AstGraphBuilder::ControlScope::ContinueTo(BreakableStatement* stmt) {
-  PerformCommand(CMD_CONTINUE, stmt, nullptr);
+  PerformCommand(CMD_CONTINUE, stmt, builder()->jsgraph()->TheHoleConstant());
 }
 
 
@@ -1262,6 +1261,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // 2. By exiting the try-block with a function-local control flow transfer
   //    (i.e. through break/continue/return statements).
   // 3. By exiting the try-block with a thrown exception.
+  Node* fallthrough_result = jsgraph()->TheHoleConstant();
   ControlScope::DeferredCommands* commands =
       new (zone()) ControlScope::DeferredCommands(this);
 
@@ -1272,15 +1272,32 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     ControlScopeForFinally scope(this, commands, &try_control);
     Visit(stmt->try_block());
   }
-  try_control.EndTry(commands->GetFallThroughToken());
+  try_control.EndTry(commands->GetFallThroughToken(), fallthrough_result);
+
+  // The result value semantics depend on how the block was entered:
+  //  - ReturnStatement: It represents the return value being returned.
+  //  - ThrowStatement: It represents the exception being thrown.
+  //  - BreakStatement/ContinueStatement: Filled with the hole.
+  //  - Falling through into finally-block: Filled with the hole.
+  Node* result = try_control.GetResultValueNode();
+
+  // TODO(mstarzinger): See FullCodeGenerator::EnterFinallyBlock.
+  environment()->Push(jsgraph()->SmiConstant(Code::kHeaderSize));
+  environment()->Push(result);
+  environment()->Push(jsgraph()->TheHoleConstant());  // pending_message_obj
+  environment()->Push(jsgraph()->SmiConstant(0));     // has_pending_message
+  environment()->Push(jsgraph()->TheHoleConstant());  // pending_message_script
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
   try_control.EndFinally();
 
+  // TODO(mstarzinger): See FullCodeGenerator::ExitFinallyBlock.
+  environment()->Drop(5);
+
   // Dynamic dispatch after the finally-block.
   Node* token = try_control.GetDispatchTokenNode();
-  commands->ApplyDeferredCommands(token);
+  commands->ApplyDeferredCommands(token, result);
 
   // TODO(mstarzinger): Remove bailout once everything works.
   if (!FLAG_turbo_exceptions) SetStackOverflow();
@@ -3022,7 +3039,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         Node* on_exception = graph()->NewNode(common()->IfException(), result);
         environment_->UpdateControlDependency(on_exception);
-        execution_control()->ThrowValue(jsgraph()->UndefinedConstant());
+        execution_control()->ThrowValue(result);
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {

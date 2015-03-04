@@ -114,6 +114,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kNewArguments:
     case Runtime::kNewClosure:
     case Runtime::kNewFunctionContext:
+    case Runtime::kNewRestParamSlow:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
@@ -124,7 +125,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
     case Runtime::kTypeof:
-    case Runtime::kNewRestParamSlow:
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
