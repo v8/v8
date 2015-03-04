@@ -1374,13 +1374,14 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
+  MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kWord32ShiftIsSafe;
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    return MachineOperatorBuilder::kFloat64Floor |
-           MachineOperatorBuilder::kFloat64Ceil |
-           MachineOperatorBuilder::kFloat64RoundTruncate |
-           MachineOperatorBuilder::kWord32ShiftIsSafe;
+    flags |= MachineOperatorBuilder::kFloat64Floor |
+             MachineOperatorBuilder::kFloat64Ceil |
+             MachineOperatorBuilder::kFloat64RoundTruncate;
   }
-  return MachineOperatorBuilder::kNoFlags;
+  return flags;
 }
 
 }  // namespace compiler
