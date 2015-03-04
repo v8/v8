@@ -97,7 +97,7 @@ namespace v8 {
 
 
 #define PREPARE_FOR_EXECUTION_GENERIC(context, function_name, bailout_value, \
-                                      HandleScopeClass)                      \
+                                      HandleScopeClass, do_callback)         \
   auto isolate = context.IsEmpty()                                           \
                      ? i::Isolate::Current()                                 \
                      : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
@@ -105,7 +105,7 @@ namespace v8 {
     return bailout_value;                                                    \
   }                                                                          \
   HandleScopeClass handle_scope(isolate);                                    \
-  CallDepthScope call_depth_scope(isolate, context, false);                  \
+  CallDepthScope call_depth_scope(isolate, context, do_callback);            \
   LOG_API(isolate, function_name);                                           \
   ENTER_V8(isolate);                                                         \
   bool has_pending_exception = false
@@ -113,12 +113,17 @@ namespace v8 {
 
 #define PREPARE_FOR_EXECUTION(context, function_name, T)                 \
   PREPARE_FOR_EXECUTION_GENERIC(context, function_name, MaybeLocal<T>(), \
-                                InternalEscapableScope)
+                                InternalEscapableScope, false)
+
+
+#define PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, function_name, T)   \
+  PREPARE_FOR_EXECUTION_GENERIC(context, function_name, MaybeLocal<T>(), \
+                                InternalEscapableScope, true)
 
 
 #define PREPARE_FOR_EXECUTION_PRIMITIVE(context, function_name, T)    \
   PREPARE_FOR_EXECUTION_GENERIC(context, function_name, Nothing<T>(), \
-                                i::HandleScope)
+                                i::HandleScope, false)
 
 
 #define EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, value) \
@@ -3574,15 +3579,11 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 }
 
 
-Local<String> v8::Object::ObjectProtoToString() {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
-  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  ON_BAILOUT(i_isolate, "v8::Object::ObjectProtoToString()",
-             return Local<v8::String>());
-  ENTER_V8(i_isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-
-  i::Handle<i::Object> name(self->class_name(), i_isolate);
+MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  i::Handle<i::Object> name(self->class_name(), isolate);
   i::Handle<i::Object> tag;
 
   // Native implementation of Object.prototype.toString (v8natives.js):
@@ -3591,55 +3592,54 @@ Local<String> v8::Object::ObjectProtoToString() {
   //   return "[object " + c + "]";
 
   if (!name->IsString()) {
-    return v8::String::NewFromUtf8(isolate, "[object ]");
-  } else {
-    i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
-    if (i::String::Equals(class_name,
-                          i_isolate->factory()->Arguments_string())) {
-      return v8::String::NewFromUtf8(isolate, "[object Object]");
-    } else {
-      if (internal::FLAG_harmony_tostring) {
-        i::Handle<i::Symbol> toStringTag =
-            Utils::OpenHandle(*Symbol::GetToStringTag(isolate));
-        EXCEPTION_PREAMBLE(i_isolate);
-        has_pending_exception =
-            !i::Runtime::GetObjectProperty(i_isolate, self, toStringTag)
-                 .ToHandle(&tag);
-        EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::String>());
-
-        if (tag->IsString()) {
-          class_name = i::Handle<i::String>::cast(tag);
-        }
-      }
-      const char* prefix = "[object ";
-      Local<String> str = Utils::ToLocal(class_name);
-      const char* postfix = "]";
-
-      int prefix_len = i::StrLength(prefix);
-      int str_len = str->Utf8Length();
-      int postfix_len = i::StrLength(postfix);
-
-      int buf_len = prefix_len + str_len + postfix_len;
-      i::ScopedVector<char> buf(buf_len);
-
-      // Write prefix.
-      char* ptr = buf.start();
-      i::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
-      ptr += prefix_len;
-
-      // Write real content.
-      str->WriteUtf8(ptr, str_len);
-      ptr += str_len;
-
-      // Write postfix.
-      i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
-
-      // Copy the buffer into a heap-allocated string and return it.
-      Local<String> result = v8::String::NewFromUtf8(
-          isolate, buf.start(), String::kNormalString, buf_len);
-      return result;
+    return v8::String::NewFromUtf8(v8_isolate, "[object ]");
+  }
+  auto class_name = i::Handle<i::String>::cast(name);
+  if (i::String::Equals(class_name, isolate->factory()->Arguments_string())) {
+    return v8::String::NewFromUtf8(v8_isolate, "[object Object]");
+  }
+  if (internal::FLAG_harmony_tostring) {
+    PREPARE_FOR_EXECUTION(context, "v8::Object::ObjectProtoToString()", String);
+    auto toStringTag = isolate->factory()->to_string_tag_symbol();
+    has_pending_exception = !i::Runtime::GetObjectProperty(
+                                 isolate, self, toStringTag).ToHandle(&tag);
+    RETURN_ON_FAILED_EXECUTION(String);
+    if (tag->IsString()) {
+      class_name = i::Handle<i::String>::cast(tag).EscapeFrom(&handle_scope);
     }
   }
+  const char* prefix = "[object ";
+  Local<String> str = Utils::ToLocal(class_name);
+  const char* postfix = "]";
+
+  int prefix_len = i::StrLength(prefix);
+  int str_len = str->Utf8Length();
+  int postfix_len = i::StrLength(postfix);
+
+  int buf_len = prefix_len + str_len + postfix_len;
+  i::ScopedVector<char> buf(buf_len);
+
+  // Write prefix.
+  char* ptr = buf.start();
+  i::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
+  ptr += prefix_len;
+
+  // Write real content.
+  str->WriteUtf8(ptr, str_len);
+  ptr += str_len;
+
+  // Write postfix.
+  i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
+
+  // Copy the buffer into a heap-allocated string and return it.
+  return v8::String::NewFromUtf8(v8_isolate, buf.start(), String::kNormalString,
+                                 buf_len);
+}
+
+
+Local<String> v8::Object::ObjectProtoToString() {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(ObjectProtoToString(context), String);
 }
 
 
@@ -4037,14 +4037,11 @@ void v8::Object::TurnOnAccessCheck() {
 
 
 Local<v8::Object> v8::Object::Clone() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::Clone()", return Local<Object>());
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
   ENTER_V8(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::JSObject> result = isolate->factory()->CopyJSObject(self);
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
+  auto result = isolate->factory()->CopyJSObject(self);
+  CHECK(!result.is_null());
   return Utils::ToLocal(result);
 }
 
@@ -4144,8 +4141,8 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
 
 
 void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::SetElementsToPixelData()", return);
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   if (!Utils::ApiCheck(length >= 0 &&
@@ -4154,7 +4151,6 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
                        "length exceeds max acceptable value")) {
     return;
   }
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   if (!Utils::ApiCheck(!self->IsJSArray(),
                        "v8::Object::SetIndexedPropertiesToPixelData()",
                        "JSArray is not supported")) {
@@ -4165,35 +4161,27 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
 
 
 bool v8::Object::HasIndexedPropertiesInPixelData() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(), "v8::HasIndexedPropertiesInPixelData()",
-             return false);
+  auto self = Utils::OpenHandle(this);
   return self->HasExternalUint8ClampedElements();
 }
 
 
 uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelData()",
-             return NULL);
+  auto self = Utils::OpenHandle(this);
   if (self->HasExternalUint8ClampedElements()) {
     return i::ExternalUint8ClampedArray::cast(self->elements())->
         external_uint8_clamped_pointer();
-  } else {
-    return NULL;
   }
+  return nullptr;
 }
 
 
 int v8::Object::GetIndexedPropertiesPixelDataLength() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelDataLength()",
-             return -1);
+  auto self = Utils::OpenHandle(this);
   if (self->HasExternalUint8ClampedElements()) {
     return i::ExternalUint8ClampedArray::cast(self->elements())->length();
-  } else {
-    return -1;
   }
+  return -1;
 }
 
 
@@ -4201,8 +4189,8 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,
     ExternalArrayType array_type,
     int length) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::SetIndexedPropertiesToExternalArrayData()", return);
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   if (!Utils::ApiCheck(length >= 0 && length <= i::ExternalArray::kMaxLength,
@@ -4210,7 +4198,6 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
                        "length exceeds max acceptable value")) {
     return;
   }
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   if (!Utils::ApiCheck(!self->IsJSArray(),
                        "v8::Object::SetIndexedPropertiesToExternalArrayData()",
                        "JSArray is not supported")) {
@@ -4221,32 +4208,22 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
 
 
 bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(),
-             "v8::HasIndexedPropertiesInExternalArrayData()",
-             return false);
+  auto self = Utils::OpenHandle(this);
   return self->HasExternalArrayElements();
 }
 
 
 void* v8::Object::GetIndexedPropertiesExternalArrayData() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(),
-             "v8::GetIndexedPropertiesExternalArrayData()",
-             return NULL);
+  auto self = Utils::OpenHandle(this);
   if (self->HasExternalArrayElements()) {
     return i::ExternalArray::cast(self->elements())->external_pointer();
-  } else {
-    return NULL;
   }
+  return nullptr;
 }
 
 
 ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(),
-             "v8::GetIndexedPropertiesExternalArrayDataType()",
-             return static_cast<ExternalArrayType>(-1));
+  auto self = Utils::OpenHandle(this);
   switch (self->elements()->map()->instance_type()) {
 #define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
     case i::EXTERNAL_##TYPE##_ARRAY_TYPE:                                     \
@@ -4260,101 +4237,99 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
 
 
 int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  ON_BAILOUT(self->GetIsolate(),
-             "v8::GetIndexedPropertiesExternalArrayDataLength()",
-             return 0);
+  auto self = Utils::OpenHandle(this);
   if (self->HasExternalArrayElements()) {
     return i::ExternalArray::cast(self->elements())->length();
-  } else {
-    return -1;
   }
+  return -1;
 }
 
 
 bool v8::Object::IsCallable() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::IsCallable()", return false);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  return obj->IsCallable();
+  auto self = Utils::OpenHandle(this);
+  return self->IsCallable();
 }
 
 
-Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv,
-                                        int argc,
-                                        v8::Handle<v8::Value> argv[]) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::CallAsFunction()",
-             return Local<v8::Value>());
-  LOG_API(isolate, "Object::CallAsFunction");
-  ENTER_V8(isolate);
+MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
+                                         Handle<Value> recv, int argc,
+                                         Handle<Value> argv[]) {
+  PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Object::CallAsFunction()",
+                                      Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
+  auto self = Utils::OpenHandle(this);
+  auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>();
-  if (obj->IsJSFunction()) {
-    fun = i::Handle<i::JSFunction>::cast(obj);
+  i::Handle<i::JSFunction> fun;
+  if (self->IsJSFunction()) {
+    fun = i::Handle<i::JSFunction>::cast(self);
   } else {
-    EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> delegate;
-    has_pending_exception = !i::Execution::TryGetFunctionDelegate(
-        isolate, obj).ToHandle(&delegate);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+    has_pending_exception = !i::Execution::TryGetFunctionDelegate(isolate, self)
+                                 .ToHandle(&delegate);
+    RETURN_ON_FAILED_EXECUTION(Value);
     fun = i::Handle<i::JSFunction>::cast(delegate);
-    recv_obj = obj;
+    recv_obj = self;
   }
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> returned;
-  has_pending_exception = !i::Execution::Call(
-      isolate, fun, recv_obj, argc, args, true).ToHandle(&returned);
-  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
-  return Utils::ToLocal(scope.CloseAndEscape(returned));
+  Local<Value> result;
+  has_pending_exception =
+      !ToLocal<Value>(
+          i::Execution::Call(isolate, fun, recv_obj, argc, args, true),
+          &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv, int argc,
+                                        v8::Handle<v8::Value> argv[]) {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  Local<Value>* argv_cast = reinterpret_cast<Local<Value>*>(argv);
+  RETURN_TO_LOCAL_UNCHECKED(CallAsFunction(context, recv, argc, argv_cast),
+                            Value);
+}
+
+
+MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
+                                            Local<Value> argv[]) {
+  PREPARE_FOR_EXECUTION_WITH_CALLBACK(context,
+                                      "v8::Object::CallAsConstructor()", Value);
+  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  auto self = Utils::OpenHandle(this);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  if (self->IsJSFunction()) {
+    auto fun = i::Handle<i::JSFunction>::cast(self);
+    Local<Value> result;
+    has_pending_exception =
+        !ToLocal<Value>(i::Execution::New(fun, argc, args), &result);
+    RETURN_ON_FAILED_EXECUTION(Value);
+    RETURN_ESCAPED(result);
+  }
+  i::Handle<i::Object> delegate;
+  has_pending_exception = !i::Execution::TryGetConstructorDelegate(
+                               isolate, self).ToHandle(&delegate);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  if (!delegate->IsUndefined()) {
+    auto fun = i::Handle<i::JSFunction>::cast(delegate);
+    Local<Value> result;
+    has_pending_exception =
+        !ToLocal<Value>(i::Execution::Call(isolate, fun, self, argc, args),
+                        &result);
+    RETURN_ON_FAILED_EXECUTION(Value);
+    DCHECK(!delegate->IsUndefined());
+    RETURN_ESCAPED(result);
+  }
+  return MaybeLocal<Value>();
 }
 
 
 Local<v8::Value> Object::CallAsConstructor(int argc,
                                            v8::Handle<v8::Value> argv[]) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::CallAsConstructor()",
-             return Local<v8::Object>());
-  LOG_API(isolate, "Object::CallAsConstructor");
-  ENTER_V8(isolate);
-  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-  if (obj->IsJSFunction()) {
-    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned;
-    has_pending_exception = !i::Execution::New(
-        fun, argc, args).ToHandle(&returned);
-    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
-    return Utils::ToLocal(scope.CloseAndEscape(
-        i::Handle<i::JSObject>::cast(returned)));
-  }
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> delegate;
-  has_pending_exception = !i::Execution::TryGetConstructorDelegate(
-      isolate, obj).ToHandle(&delegate);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
-  if (!delegate->IsUndefined()) {
-    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned;
-    has_pending_exception = !i::Execution::Call(
-        isolate, fun, obj, argc, args).ToHandle(&returned);
-    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
-    DCHECK(!delegate->IsUndefined());
-    return Utils::ToLocal(scope.CloseAndEscape(returned));
-  }
-  return Local<v8::Object>();
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  Local<Value>* argv_cast = reinterpret_cast<Local<Value>*>(argv);
+  RETURN_TO_LOCAL_UNCHECKED(CallAsConstructor(context, argc, argv_cast), Value);
 }
 
 

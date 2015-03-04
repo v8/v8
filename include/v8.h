@@ -2639,8 +2639,9 @@ class V8_EXPORT Object : public Value {
    * This is different from Value::ToString() that may call
    * user-defined toString function. This one does not.
    */
-  // TODO(dcarney): convert this - needs recursion currently.
+  // TODO(dcarney): deprecate
   Local<String> ObjectProtoToString();
+  MaybeLocal<String> ObjectProtoToString(Local<Context> context);
 
   /**
    * Returns the name of the function invoked as a constructor for this object.
@@ -2766,7 +2767,7 @@ class V8_EXPORT Object : public Value {
    * C++ API. Hidden properties introduced by V8 internally (for example the
    * identity hash) are prefixed with "v8::".
    */
-  // TODO(dcarney): convert these?
+  // TODO(dcarney): convert these to take a isolate and optionally bailout?
   bool SetHiddenValue(Handle<String> key, Handle<Value> value);
   Local<Value> GetHiddenValue(Handle<String> key);
   bool DeleteHiddenValue(Handle<String> key);
@@ -2775,7 +2776,7 @@ class V8_EXPORT Object : public Value {
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
    */
-  // TODO(dcarney): convert this?
+  // TODO(dcarney): take an isolate and optionally bail out?
   Local<Object> Clone();
 
   /**
@@ -2824,6 +2825,8 @@ class V8_EXPORT Object : public Value {
   Local<Value> CallAsFunction(Handle<Value> recv,
                               int argc,
                               Handle<Value> argv[]);
+  MaybeLocal<Value> CallAsFunction(Local<Context> context, Handle<Value> recv,
+                                   int argc, Handle<Value> argv[]);
 
   /**
    * Call an Object as a constructor if a callback is set by the
@@ -2831,10 +2834,13 @@ class V8_EXPORT Object : public Value {
    * Note: This method behaves like the Function::NewInstance method.
    */
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
+  MaybeLocal<Value> CallAsConstructor(Local<Context> context, int argc,
+                                      Local<Value> argv[]);
 
   /**
    * Return the isolate to which the Object belongs to.
    */
+  // TODO(dcarney): deprecate - this is an implementation detail.
   Isolate* GetIsolate();
 
   static Local<Object> New(Isolate* isolate);
