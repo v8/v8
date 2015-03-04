@@ -529,6 +529,13 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
+    ['clang==1 and "<(GENERATOR)"=="ninja"', {
+      # See http://crbug.com/110262
+      'target_defaults': {
+        'cflags': [ '-fcolor-diagnostics' ],
+        'xcode_settings': { 'OTHER_CFLAGS': [ '-fcolor-diagnostics' ] },
+      },
+    }],
     ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
         'and OS!="win" and "<(GENERATOR)"=="make"', {
       'make_global_settings': [
