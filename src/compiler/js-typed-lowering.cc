@@ -38,25 +38,13 @@ static void RelaxControls(Node* node) {
 
 JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
     : jsgraph_(jsgraph), simplified_(graph()->zone()), conversions_(zone) {
-  zero_range_ = Type::Range(0.0, 1.0, graph()->zone());
+  zero_range_ = Type::Range(0.0, 0.0, graph()->zone());
   one_range_ = Type::Range(1.0, 1.0, graph()->zone());
   zero_thirtyone_range_ = Type::Range(0.0, 31.0, graph()->zone());
-  // TODO(jarin): Can we have a correctification of the stupid type system?
-  // These stupid work-arounds are just stupid!
-  shifted_int32_ranges_[0] = Type::Signed32();
-  if (SmiValuesAre31Bits()) {
-    shifted_int32_ranges_[1] = Type::SignedSmall();
-    for (size_t k = 2; k < arraysize(shifted_int32_ranges_); ++k) {
-      double min = kMinInt / (1 << k);
-      double max = kMaxInt / (1 << k);
-      shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
-    }
-  } else {
-    for (size_t k = 1; k < arraysize(shifted_int32_ranges_); ++k) {
-      double min = kMinInt / (1 << k);
-      double max = kMaxInt / (1 << k);
-      shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
-    }
+  for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
+    double min = kMinInt / (1 << k);
+    double max = kMaxInt / (1 << k);
+    shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
   }
 }
 
