@@ -152,6 +152,11 @@
       }, {
         'clang%': 0,
       }],
+      ['(OS=="linux")', {
+        # Gradually roll out v8_use_external_startup_data.
+        # Should eventually be default enabled on all platforms.
+        'v8_use_external_startup_data%': 1,
+      }],
     ],
     # Default ARM variable settings.
     'arm_version%': 'default',
