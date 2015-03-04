@@ -80,8 +80,9 @@ assertFalse(Object.getOwnPropertyDescriptor(f, 'prototype').writable);
 assertThrows("'use strict'; f.prototype = {}");
 assertThrows("Object.defineProperty(f, 'prototype', { value: {} })");
 
-// Verify that non-writability of other properties is respected.
-assertThrows("Object.defineProperty(f, 'name', { value: {} })");
+// Verify that non-configurability of other properties is respected, but
+// non-writability is ignored by Object.defineProperty().
+Object.defineProperty(f, 'name', { value: {} });
 assertThrows("Object.defineProperty(f, 'length', { value: {} })");
 assertThrows("Object.defineProperty(f, 'caller', { value: {} })");
 assertThrows("Object.defineProperty(f, 'arguments', { value: {} })");
