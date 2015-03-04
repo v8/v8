@@ -2891,9 +2891,13 @@ Genesis::Genesis(Isolate* isolate,
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
-  // Install experimental natives.
-  if (!InstallExperimentalNatives()) return;
-  InitializeExperimentalGlobal();
+  // Install experimental natives. Do not include them into the snapshot as we
+  // should be able to turn them off at runtime. Re-installing them after
+  // they have already been deserialized would also fail.
+  if (!isolate->serializer_enabled()) {
+    if (!InstallExperimentalNatives()) return;
+    InitializeExperimentalGlobal();
+  }
 
   // The serializer cannot serialize typed arrays. Reset those typed arrays
   // for each new context.

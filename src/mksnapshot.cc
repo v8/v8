@@ -138,11 +138,6 @@ char* GetExtraCode(char* filename) {
 int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
-
-  // Omit from the snapshot natives for features that can be turned off
-  // at runtime.
-  i::FLAG_harmony_shipping = false;
-
   i::FLAG_logfile_per_isolate = false;
 
   // Print the usage if an error occurs when parsing the command line

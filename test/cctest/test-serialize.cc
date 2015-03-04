@@ -706,10 +706,6 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
 
 
 TEST(PerIsolateSnapshotBlobs) {
-  // Disable experimental natives that are loaded after deserialization.
-  FLAG_harmony_shipping = false;
-  FlagList::EnforceFlagImplications();
-
   const char* source1 = "function f() { return 42; }";
   const char* source2 =
       "function f() { return g() * 2; }"
@@ -749,10 +745,6 @@ TEST(PerIsolateSnapshotBlobs) {
 
 
 TEST(PerIsolateSnapshotBlobsWithLocker) {
-  // Disable experimental natives that are loaded after deserialization.
-  FLAG_harmony_shipping = false;
-  FlagList::EnforceFlagImplications();
-
   v8::Isolate* isolate0 = v8::Isolate::New();
   {
     v8::Locker locker(isolate0);
