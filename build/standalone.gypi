@@ -334,26 +334,6 @@
           }],
         ],
       },
-      'conditions': [
-        ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
-          'make_global_settings': [
-            ['CC.host', '../<(clang_dir)/bin/clang'],
-            ['CXX.host', '../<(clang_dir)/bin/clang++'],
-          ],
-        }],
-        ['clang==0 and host_clang==1', {
-          'target_conditions': [
-            ['_toolset=="host"', {
-              'cflags_cc': [ '-std=gnu++11', ],
-            }],
-          ],
-          'target_defaults': {
-            'target_conditions': [
-              ['_toolset=="host"', { 'cflags!': [ '-Wno-unused-local-typedefs' ]}],
-            ],
-          },
-        }],
-      ],
     }],
     # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"
     #  or OS=="netbsd"'
@@ -529,6 +509,24 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
+    ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
+      'make_global_settings': [
+        ['CC.host', '../<(clang_dir)/bin/clang'],
+        ['CXX.host', '../<(clang_dir)/bin/clang++'],
+      ],
+    }],
+    ['clang==0 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
+      'target_conditions': [
+        ['_toolset=="host"', {
+          'cflags_cc': [ '-std=gnu++11', ],
+        }],
+      ],
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="host"', { 'cflags!': [ '-Wno-unused-local-typedefs' ]}],
+        ],
+      },
+    }],
     ['clang==1 and "<(GENERATOR)"=="ninja"', {
       # See http://crbug.com/110262
       'target_defaults': {
