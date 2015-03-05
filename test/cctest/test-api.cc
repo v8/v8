@@ -14909,6 +14909,54 @@ TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
 }
 
 
+static void StackTraceFunctionNameListener(v8::Handle<v8::Message> message,
+                                           v8::Handle<Value>) {
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK_EQ(5, stack_trace->GetFrameCount());
+  checkStackFrame("origin", "foo:0", 4, 7, false, false,
+                  stack_trace->GetFrame(0));
+  checkStackFrame("origin", "foo:1", 5, 27, false, false,
+                  stack_trace->GetFrame(1));
+  checkStackFrame("origin", "foo", 5, 27, false, false,
+                  stack_trace->GetFrame(2));
+  checkStackFrame("origin", "foo", 5, 27, false, false,
+                  stack_trace->GetFrame(3));
+  checkStackFrame("origin", "", 1, 14, false, false, stack_trace->GetFrame(4));
+}
+
+
+TEST(GetStackTraceContainsFunctionsWithFunctionName) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRunWithOrigin(
+      "function gen(name, counter) {\n"
+      "  var f = function foo() {\n"
+      "    if (counter === 0)\n"
+      "      throw 1;\n"
+      "    gen(name, counter - 1)();\n"
+      "  };\n"
+      "  if (counter == 3) {\n"
+      "    Object.defineProperty(f, 'name', {get: function(){ throw 239; }});\n"
+      "  } else {\n"
+      "    Object.defineProperty(f, 'name', {writable:true});\n"
+      "    if (counter == 2)\n"
+      "      f.name = 42;\n"
+      "    else\n"
+      "      f.name = name + ':' + counter;\n"
+      "  }\n"
+      "  return f;\n"
+      "};",
+      "origin");
+
+  v8::V8::AddMessageListener(StackTraceFunctionNameListener);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRunWithOrigin("gen('foo', 3)();", "origin");
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(StackTraceFunctionNameListener);
+}
+
+
 static void RethrowStackTraceHandler(v8::Handle<v8::Message> message,
                                      v8::Handle<v8::Value> data) {
   // Use the frame where JavaScript is called from.
