@@ -89,6 +89,7 @@ void MacroAssembler::LoadRoot(Register destination,
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   sd(source, MemOperand(s6, index << kPointerSizeLog2));
 }
 
@@ -97,6 +98,7 @@ void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond,
                                Register src1, const Operand& src2) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   Branch(2, NegateCondition(cond), src1, src2);
   sd(source, MemOperand(s6, index << kPointerSizeLog2));
 }

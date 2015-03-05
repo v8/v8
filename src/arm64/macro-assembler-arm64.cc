@@ -1403,6 +1403,7 @@ void MacroAssembler::LoadRoot(CPURegister destination,
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   Str(source, MemOperand(root, index << kPointerSizeLog2));
 }
 

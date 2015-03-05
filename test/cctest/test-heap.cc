@@ -5092,3 +5092,14 @@ TEST(PathTracer) {
   CcTest::i_isolate()->heap()->TracePathToObject(*o);
 }
 #endif  // DEBUG
+
+
+TEST(WritableVsImmortalRoots) {
+  for (int i = 0; i < Heap::kStrongRootListLength; ++i) {
+    Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
+    bool writable = Heap::RootCanBeWrittenAfterInitialization(root_index);
+    bool immortal = Heap::RootIsImmortalImmovable(root_index);
+    // A root value can be writable, immortal, or neither, but not both.
+    CHECK(!immortal || !writable);
+  }
+}

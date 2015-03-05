@@ -481,8 +481,12 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = new HashMap(HashMap::PointersMatch);
   Object** root_array = isolate->heap()->roots_array_start();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
-    Object* root = root_array[i];
-    if (root->IsHeapObject() && !isolate->heap()->InNewSpace(root)) {
+    Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
+    Object* root = root_array[root_index];
+    // Omit root entries that can be written after initialization. They must
+    // not be referenced through the root list in the snapshot.
+    if (root->IsHeapObject() &&
+        isolate->heap()->RootCanBeTreatedAsConstant(root_index)) {
       HeapObject* heap_object = HeapObject::cast(root);
       HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
       if (entry != NULL) {

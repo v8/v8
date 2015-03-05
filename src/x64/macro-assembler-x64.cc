@@ -177,6 +177,7 @@ void MacroAssembler::LoadRootIndexed(Register destination,
 
 
 void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   DCHECK(root_array_available_);
   movp(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias),
        source);

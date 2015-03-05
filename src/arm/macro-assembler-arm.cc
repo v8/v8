@@ -439,6 +439,7 @@ void MacroAssembler::LoadRoot(Register destination,
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 

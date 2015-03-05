@@ -3144,30 +3144,33 @@ void Heap::CreateInitialObjects() {
 
 
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
-  RootListIndex writable_roots[] = {
-      kStoreBufferTopRootIndex,
-      kStackLimitRootIndex,
-      kNumberStringCacheRootIndex,
-      kInstanceofCacheFunctionRootIndex,
-      kInstanceofCacheMapRootIndex,
-      kInstanceofCacheAnswerRootIndex,
-      kCodeStubsRootIndex,
-      kNonMonomorphicCacheRootIndex,
-      kPolymorphicCodeCacheRootIndex,
-      kLastScriptIdRootIndex,
-      kEmptyScriptRootIndex,
-      kRealStackLimitRootIndex,
-      kArgumentsAdaptorDeoptPCOffsetRootIndex,
-      kConstructStubDeoptPCOffsetRootIndex,
-      kGetterStubDeoptPCOffsetRootIndex,
-      kSetterStubDeoptPCOffsetRootIndex,
-      kStringTableRootIndex,
-  };
+  switch (root_index) {
+    case kStoreBufferTopRootIndex:
+    case kNumberStringCacheRootIndex:
+    case kInstanceofCacheFunctionRootIndex:
+    case kInstanceofCacheMapRootIndex:
+    case kInstanceofCacheAnswerRootIndex:
+    case kCodeStubsRootIndex:
+    case kNonMonomorphicCacheRootIndex:
+    case kPolymorphicCodeCacheRootIndex:
+    case kEmptyScriptRootIndex:
+    case kSymbolRegistryRootIndex:
+    case kMaterializedObjectsRootIndex:
+    case kAllocationSitesScratchpadRootIndex:
+    case kMicrotaskQueueRootIndex:
+    case kDetachedContextsRootIndex:
+    case kWeakObjectToCodeTableRootIndex:
+// Smi values
+#define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
+      SMI_ROOT_LIST(SMI_ENTRY)
+#undef SMI_ENTRY
+    // String table
+    case kStringTableRootIndex:
+      return true;
 
-  for (unsigned int i = 0; i < arraysize(writable_roots); i++) {
-    if (root_index == writable_roots[i]) return true;
+    default:
+      return false;
   }
-  return false;
 }
 
 

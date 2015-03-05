@@ -159,10 +159,11 @@ namespace internal {
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
+  V(Map, neander_map, NeanderMap)                                              \
+  V(Map, external_map, ExternalMap)                                            \
   V(HeapNumber, nan_value, NanValue)                                           \
   V(HeapNumber, infinity_value, InfinityValue)                                 \
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
-  V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
   V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
@@ -172,9 +173,8 @@ namespace internal {
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
-  V(Cell, undefined_cell, UndefineCell)                                        \
+  V(Cell, undefined_cell, UndefinedCell)                                       \
   V(JSObject, observation_state, ObservationState)                             \
-  V(Map, external_map, ExternalMap)                                            \
   V(Object, symbol_registry, SymbolRegistry)                                   \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
@@ -194,6 +194,7 @@ namespace internal {
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)       \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)             \
   V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
+
 
 #define ROOT_LIST(V)  \
   STRONG_ROOT_LIST(V) \
@@ -1600,6 +1601,8 @@ class Heap {
   inline void set_##name(type* value) {                                       \
     /* The deserializer makes use of the fact that these common roots are */  \
     /* never in new space and never on a page that is being compacted.    */  \
+    DCHECK(!deserialization_complete() ||                                     \
+           RootCanBeWrittenAfterInitialization(k##camel_name##RootIndex));    \
     DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value)); \
     roots_[k##camel_name##RootIndex] = value;                                 \
   }
