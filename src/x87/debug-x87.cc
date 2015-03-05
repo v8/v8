@@ -15,7 +15,7 @@ namespace internal {
 
 // Patch the code at the current PC with a call to the target address.
 // Additional guard int3 instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address pc, Address target, int guard_bytes) {
+void PatchCodeWithCall(Address pc, Address target, int guard_bytes) {
   // Call instruction takes up 5 bytes and int3 takes up one byte.
   static const int kCallCodeSize = 5;
   int code_size = kCallCodeSize + guard_bytes;
@@ -58,10 +58,10 @@ void BreakLocation::SetDebugBreakAtReturn() {
 }
 
 
-void BreakLocationIterator::SetDebugBreakAtSlot() {
+void BreakLocation::SetDebugBreakAtSlot() {
   DCHECK(IsDebugBreakSlot());
   Isolate* isolate = debug_info_->GetIsolate();
-  rinfo().PatchCodeWithCall(
+  PatchCodeWithCall(
       pc(), isolate->builtins()->Slot_DebugBreak()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
 }
