@@ -2127,7 +2127,7 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
   CheckAlignedPointerInInternalField(obj, huge);
 
-  v8::UniquePersistent<v8::Object> persistent(isolate, obj);
+  v8::Global<v8::Object> persistent(isolate, obj);
   CHECK_EQ(1, Object::InternalFieldCount(persistent));
   CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
 }
@@ -3038,20 +3038,20 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
 
 
 template <class T>
-static v8::UniquePersistent<T> PassUnique(v8::UniquePersistent<T> unique) {
+static v8::Global<T> PassUnique(v8::Global<T> unique) {
   return unique.Pass();
 }
 
 
 template <class T>
-static v8::UniquePersistent<T> ReturnUnique(v8::Isolate* isolate,
-                                            const v8::Persistent<T>& global) {
-  v8::UniquePersistent<String> unique(isolate, global);
+static v8::Global<T> ReturnUnique(v8::Isolate* isolate,
+                                  const v8::Persistent<T>& global) {
+  v8::Global<String> unique(isolate, global);
   return unique.Pass();
 }
 
 
-THREADED_TEST(UniquePersistent) {
+THREADED_TEST(Global) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Persistent<String> global;
   {
@@ -3062,11 +3062,11 @@ THREADED_TEST(UniquePersistent) {
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
   int initial_handle_count = global_handles->global_handles_count();
   {
-    v8::UniquePersistent<String> unique(isolate, global);
+    v8::Global<String> unique(isolate, global);
     CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
     // Test assignment via Pass
     {
-      v8::UniquePersistent<String> copy = unique.Pass();
+      v8::Global<String> copy = unique.Pass();
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
       CHECK_EQ(initial_handle_count + 1,
@@ -3075,7 +3075,7 @@ THREADED_TEST(UniquePersistent) {
     }
     // Test ctor via Pass
     {
-      v8::UniquePersistent<String> copy(unique.Pass());
+      v8::Global<String> copy(unique.Pass());
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
       CHECK_EQ(initial_handle_count + 1,
@@ -3084,7 +3084,7 @@ THREADED_TEST(UniquePersistent) {
     }
     // Test pass through function call
     {
-      v8::UniquePersistent<String> copy = PassUnique(unique.Pass());
+      v8::Global<String> copy = PassUnique(unique.Pass());
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
       CHECK_EQ(initial_handle_count + 1,
@@ -3095,7 +3095,7 @@ THREADED_TEST(UniquePersistent) {
   }
   // Test pass from function call
   {
-    v8::UniquePersistent<String> unique = ReturnUnique(isolate, global);
+    v8::Global<String> unique = ReturnUnique(isolate, global);
     CHECK(unique == global);
     CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
   }
@@ -3129,8 +3129,7 @@ class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
     return data.GetParameter()->key;
   }
   static void DisposeCallbackData(WeakCallbackDataType* data) { delete data; }
-  static void Dispose(v8::Isolate* isolate, v8::UniquePersistent<V> value,
-                      K key) {}
+  static void Dispose(v8::Isolate* isolate, v8::Global<V> value, K key) {}
 };
 
 
@@ -3156,7 +3155,7 @@ static void TestPersistentValueMap() {
       typename Map::PersistentValueReference ref = map.GetReference(7);
       CHECK(expected->Equals(ref.NewLocal(isolate)));
     }
-    v8::UniquePersistent<v8::Object> removed = map.Remove(7);
+    v8::Global<v8::Object> removed = map.Remove(7);
     CHECK_EQ(0, static_cast<int>(map.Size()));
     CHECK(expected == removed);
     removed = map.Remove(7);
@@ -3168,8 +3167,7 @@ static void TestPersistentValueMap() {
     {
       typename Map::PersistentValueReference ref;
       Local<v8::Object> expected2 = v8::Object::New(isolate);
-      removed = map.Set(8, v8::UniquePersistent<v8::Object>(isolate, expected2),
-                        &ref);
+      removed = map.Set(8, v8::Global<v8::Object>(isolate, expected2), &ref);
       CHECK_EQ(1, static_cast<int>(map.Size()));
       CHECK(expected == removed);
       CHECK(expected2->Equals(ref.NewLocal(isolate)));
@@ -3212,7 +3210,7 @@ TEST(PersistentValueVector) {
 
   Local<v8::Object> obj1 = v8::Object::New(isolate);
   Local<v8::Object> obj2 = v8::Object::New(isolate);
-  v8::UniquePersistent<v8::Object> obj3(isolate, v8::Object::New(isolate));
+  v8::Global<v8::Object> obj3(isolate, v8::Object::New(isolate));
 
   CHECK(vector.IsEmpty());
   CHECK_EQ(0, static_cast<int>(vector.Size()));

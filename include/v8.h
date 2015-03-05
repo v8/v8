@@ -115,7 +115,8 @@ template<class T> class NonCopyablePersistentTraits;
 template<class T> class PersistentBase;
 template<class T,
          class M = NonCopyablePersistentTraits<T> > class Persistent;
-template<class T> class UniquePersistent;
+template <class T>
+class Global;
 template<class K, class V, class T> class PersistentValueMap;
 template <class K, class V, class T>
 class PersistentValueMapBase;
@@ -656,7 +657,8 @@ template <class T> class PersistentBase {
   template<class F> friend class Handle;
   template<class F> friend class Local;
   template<class F1, class F2> friend class Persistent;
-  template<class F> friend class UniquePersistent;
+  template <class F>
+  friend class Global;
   template<class F> friend class PersistentBase;
   template<class F> friend class ReturnValue;
   template <class F1, class F2, class F3>
@@ -812,46 +814,45 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
  *
  * Note: Persistent class hierarchy is subject to future changes.
  */
-template<class T>
-class UniquePersistent : public PersistentBase<T> {
+template <class T>
+class Global : public PersistentBase<T> {
  public:
   /**
-   * A UniquePersistent with no storage cell.
+   * A Global with no storage cell.
    */
-  V8_INLINE UniquePersistent() : PersistentBase<T>(nullptr) {}
+  V8_INLINE Global() : PersistentBase<T>(nullptr) {}
   /**
-   * Construct a UniquePersistent from a Handle.
+   * Construct a Global from a Handle.
    * When the Handle is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
   template <class S>
-  V8_INLINE UniquePersistent(Isolate* isolate, Handle<S> that)
+  V8_INLINE Global(Isolate* isolate, Handle<S> that)
       : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
     TYPE_CHECK(T, S);
   }
   /**
-   * Construct a UniquePersistent from a PersistentBase.
+   * Construct a Global from a PersistentBase.
    * When the Persistent is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
   template <class S>
-  V8_INLINE UniquePersistent(Isolate* isolate, const PersistentBase<S>& that)
-    : PersistentBase<T>(PersistentBase<T>::New(isolate, that.val_)) {
+  V8_INLINE Global(Isolate* isolate, const PersistentBase<S>& that)
+      : PersistentBase<T>(PersistentBase<T>::New(isolate, that.val_)) {
     TYPE_CHECK(T, S);
   }
   /**
    * Move constructor.
    */
-  V8_INLINE UniquePersistent(UniquePersistent&& other)
-      : PersistentBase<T>(other.val_) {
+  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {
     other.val_ = nullptr;
   }
-  V8_INLINE ~UniquePersistent() { this->Reset(); }
+  V8_INLINE ~Global() { this->Reset(); }
   /**
    * Move via assignment.
    */
   template <class S>
-  V8_INLINE UniquePersistent& operator=(UniquePersistent<S>&& rhs) {
+  V8_INLINE Global& operator=(Global<S>&& rhs) {
     TYPE_CHECK(T, S);
     if (this != &rhs) {
       this->Reset();
@@ -863,12 +864,17 @@ class UniquePersistent : public PersistentBase<T> {
   /**
    * Pass allows returning uniques from functions, etc.
    */
-  UniquePersistent Pass() { return static_cast<UniquePersistent&&>(*this); }
+  Global Pass() { return static_cast<Global&&>(*this); }
 
  private:
-  UniquePersistent(UniquePersistent&) = delete;
-  void operator=(UniquePersistent&) = delete;
+  Global(Global&) = delete;
+  void operator=(Global&) = delete;
 };
+
+
+// UniquePersistent is an alias for Global for historical reason.
+template <class T>
+using UniquePersistent = Global<T>;
 
 
  /**
