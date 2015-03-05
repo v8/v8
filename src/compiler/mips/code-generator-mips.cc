@@ -621,6 +621,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMipsFmoveLowUwD:
+      __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMipsFmoveLowDUw:
+      __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
+    case kMipsFmoveHighUwD:
+      __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMipsFmoveHighDUw:
+      __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
     // ... more basic instructions ...
 
     case kMipsLbu:

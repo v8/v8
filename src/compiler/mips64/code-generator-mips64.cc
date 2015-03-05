@@ -685,6 +685,21 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMips64FmoveLowUwD:
+      __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
+      // remove sign.
+      __ dsll32(i.OutputRegister(), i.OutputRegister(), 0);
+      __ dsrl32(i.OutputRegister(), i.OutputRegister(), 0);
+      break;
+    case kMips64FmoveLowDUw:
+      __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
+    case kMips64FmoveHighUwD:
+      __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMips64FmoveHighDUw:
+      __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
     // ... more basic instructions ...
 
     case kMips64Lbu:

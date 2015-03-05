@@ -76,6 +76,10 @@ namespace compiler {
   V(Mips64Swc1)                    \
   V(Mips64Ldc1)                    \
   V(Mips64Sdc1)                    \
+  V(Mips64FmoveLowUwD)             \
+  V(Mips64FmoveLowDUw)             \
+  V(Mips64FmoveHighUwD)            \
+  V(Mips64FmoveHighDUw)            \
   V(Mips64Push)                    \
   V(Mips64StoreToStackSlot)        \
   V(Mips64StackClaim)              \

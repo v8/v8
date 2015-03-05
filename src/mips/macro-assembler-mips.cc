@@ -1549,6 +1549,18 @@ void MacroAssembler::BranchF(Label* target,
 }
 
 
+void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
+  if (IsFp64Mode()) {
+    DCHECK(!src_low.is(at));
+    mfhc1(at, dst);
+    mtc1(src_low, dst);
+    mthc1(at, dst);
+  } else {
+    mtc1(src_low, dst);
+  }
+}
+
+
 void MacroAssembler::Move(FPURegister dst, float imm) {
   li(at, Operand(bit_cast<int32_t>(imm)));
   mtc1(at, dst);
