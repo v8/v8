@@ -439,7 +439,7 @@ class MaybeLocal {
   template <class S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
     out->val_ = IsEmpty() ? nullptr : this->val_;
-    return IsEmpty();
+    return !IsEmpty();
   }
 
   V8_INLINE Local<T> ToLocalChecked() {
@@ -1059,10 +1059,14 @@ class V8_EXPORT Script {
   /**
    * A shorthand for ScriptCompiler::Compile().
    */
+  // TODO(dcarney): deprecate.
   static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL);
+                               ScriptOrigin* origin = nullptr);
+  static MaybeLocal<Script> Compile(Local<Context> context,
+                                    Handle<String> source,
+                                    ScriptOrigin* origin = nullptr);
 
-  // To be decprecated, use the Compile above.
+  // TODO(dcarney): deprecate.
   static Local<Script> Compile(Handle<String> source,
                                Handle<String> file_name);
 
@@ -1258,7 +1262,11 @@ class V8_EXPORT ScriptCompiler {
    * \return Compiled script object (context independent; for running it must be
    *   bound to a context).
    */
+  // TODO(dcarney): deprecate
   static Local<UnboundScript> CompileUnbound(
+      Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions);
+  static MaybeLocal<UnboundScript> CompileUnboundScript(
       Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
 
@@ -1273,9 +1281,12 @@ class V8_EXPORT ScriptCompiler {
    *   when this function was called. When run it will always use this
    *   context.
    */
+  // TODO(dcarney): deprecate
   static Local<Script> Compile(
       Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
+  static MaybeLocal<Script> Compile(Local<Context> context, Source* source,
+                                    CompileOptions options = kNoCompileOptions);
 
   /**
    * Returns a task which streams script data into V8, or NULL if the script
@@ -1299,9 +1310,14 @@ class V8_EXPORT ScriptCompiler {
    * (ScriptStreamingTask has been run). V8 doesn't construct the source string
    * during streaming, so the embedder needs to pass the full source here.
    */
+  // TODO(dcarney): deprecate
   static Local<Script> Compile(Isolate* isolate, StreamedSource* source,
                                Handle<String> full_source_string,
                                const ScriptOrigin& origin);
+  static MaybeLocal<Script> Compile(Local<Context> context,
+                                    StreamedSource* source,
+                                    Handle<String> full_source_string,
+                                    const ScriptOrigin& origin);
 
   /**
    * Return a version tag for CachedData for the current V8 version & flags.
@@ -1331,8 +1347,12 @@ class V8_EXPORT ScriptCompiler {
    * TODO(adamk): Script is likely the wrong return value for this;
    * should return some new Module type.
    */
+  // TODO(dcarney): deprecate.
   static Local<Script> CompileModule(
       Isolate* isolate, Source* source,
+      CompileOptions options = kNoCompileOptions);
+  static MaybeLocal<Script> CompileModule(
+      Local<Context> context, Source* source,
       CompileOptions options = kNoCompileOptions);
 
   /**
@@ -1345,16 +1365,19 @@ class V8_EXPORT ScriptCompiler {
    * It is possible to specify multiple context extensions (obj in the above
    * example).
    */
+  // TODO(dcarney): deprecate.
   static Local<Function> CompileFunctionInContext(
       Isolate* isolate, Source* source, Local<Context> context,
       size_t arguments_count, Local<String> arguments[],
       size_t context_extension_count, Local<Object> context_extensions[]);
+  static MaybeLocal<Function> CompileFunctionInContext(
+      Local<Context> context, Source* source, size_t arguments_count,
+      Local<String> arguments[], size_t context_extension_count,
+      Local<Object> context_extensions[]);
 
  private:
-  static Local<UnboundScript> CompileUnboundInternal(Isolate* isolate,
-                                                     Source* source,
-                                                     CompileOptions options,
-                                                     bool is_module);
+  static MaybeLocal<UnboundScript> CompileUnboundInternal(
+      Isolate* isolate, Source* source, CompileOptions options, bool is_module);
 };
 
 

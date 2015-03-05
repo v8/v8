@@ -96,34 +96,47 @@ namespace v8 {
   EXCEPTION_BAILOUT_CHECK_GENERIC(isolate, value, ;)
 
 
-#define PREPARE_FOR_EXECUTION_GENERIC(context, function_name, bailout_value, \
-                                      HandleScopeClass, do_callback)         \
-  auto isolate = context.IsEmpty()                                           \
-                     ? i::Isolate::Current()                                 \
-                     : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
-  if (IsExecutionTerminatingCheck(isolate)) {                                \
-    return bailout_value;                                                    \
-  }                                                                          \
-  HandleScopeClass handle_scope(isolate);                                    \
-  CallDepthScope call_depth_scope(isolate, context, do_callback);            \
-  LOG_API(isolate, function_name);                                           \
-  ENTER_V8(isolate);                                                         \
+#define PREPARE_FOR_EXECUTION_GENERIC(isolate, context, function_name, \
+                                      bailout_value, HandleScopeClass, \
+                                      do_callback)                     \
+  if (IsExecutionTerminatingCheck(isolate)) {                          \
+    return bailout_value;                                              \
+  }                                                                    \
+  HandleScopeClass handle_scope(isolate);                              \
+  CallDepthScope call_depth_scope(isolate, context, do_callback);      \
+  LOG_API(isolate, function_name);                                     \
+  ENTER_V8(isolate);                                                   \
   bool has_pending_exception = false
 
 
-#define PREPARE_FOR_EXECUTION(context, function_name, T)                 \
-  PREPARE_FOR_EXECUTION_GENERIC(context, function_name, MaybeLocal<T>(), \
-                                InternalEscapableScope, false)
+#define PREPARE_FOR_EXECUTION_WITH_CONTEXT(                                  \
+    context, function_name, bailout_value, HandleScopeClass, do_callback)    \
+  auto isolate = context.IsEmpty()                                           \
+                     ? i::Isolate::Current()                                 \
+                     : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
+  PREPARE_FOR_EXECUTION_GENERIC(isolate, context, function_name,             \
+                                bailout_value, HandleScopeClass, do_callback);
 
 
-#define PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, function_name, T)   \
-  PREPARE_FOR_EXECUTION_GENERIC(context, function_name, MaybeLocal<T>(), \
-                                InternalEscapableScope, true)
+#define PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, function_name, T)     \
+  PREPARE_FOR_EXECUTION_GENERIC(isolate, Local<Context>(), function_name, \
+                                MaybeLocal<T>(), InternalEscapableScope,  \
+                                false);
 
 
-#define PREPARE_FOR_EXECUTION_PRIMITIVE(context, function_name, T)    \
-  PREPARE_FOR_EXECUTION_GENERIC(context, function_name, Nothing<T>(), \
-                                i::HandleScope, false)
+#define PREPARE_FOR_EXECUTION(context, function_name, T)                      \
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, function_name, MaybeLocal<T>(), \
+                                     InternalEscapableScope, false)
+
+
+#define PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, function_name, T)        \
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, function_name, MaybeLocal<T>(), \
+                                     InternalEscapableScope, true)
+
+
+#define PREPARE_FOR_EXECUTION_PRIMITIVE(context, function_name, T)         \
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, function_name, Nothing<T>(), \
+                                     i::HandleScope, false)
 
 
 #define EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, value) \
@@ -1582,12 +1595,12 @@ Local<UnboundScript> Script::GetUnboundScript() {
 }
 
 
-Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
+MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     Isolate* v8_isolate, Source* source, CompileOptions options,
     bool is_module) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileUnbound()",
-             return Local<UnboundScript>());
+  PREPARE_FOR_EXECUTION_WITH_ISOLATE(
+      isolate, "v8::ScriptCompiler::CompileUnbound()", UnboundScript);
 
   // Support the old API for a transition period:
   // - kProduceToCache -> kProduceParserCache
@@ -1613,8 +1626,6 @@ Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   }
 
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
-  LOG_API(isolate, "ScriptCompiler::CompileUnbound");
-  ENTER_V8(isolate);
   i::SharedFunctionInfo* raw_result = NULL;
   { i::HandleScope scope(isolate);
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
@@ -1641,7 +1652,6 @@ Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       is_embedder_debug_script =
           source->resource_is_embedder_debug_script->IsTrue();
     }
-    EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_embedder_debug_script,
         is_shared_cross_origin, isolate->native_context(), NULL, &script_data,
@@ -1654,7 +1664,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       delete script_data;
       script_data = NULL;
     }
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<UnboundScript>());
+    RETURN_ON_FAILED_EXECUTION(UnboundScript);
     raw_result = *result;
 
     if ((options == kProduceParserCache || options == kProduceCodeCache) &&
@@ -1670,14 +1680,34 @@ Local<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     delete script_data;
   }
   i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
-  return ToApiHandle<UnboundScript>(result);
+  RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
+}
+
+
+MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
+    Isolate* v8_isolate, Source* source, CompileOptions options) {
+  return CompileUnboundInternal(v8_isolate, source, options, false);
 }
 
 
 Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
                                                     Source* source,
                                                     CompileOptions options) {
-  return CompileUnboundInternal(v8_isolate, source, options, false);
+  RETURN_TO_LOCAL_UNCHECKED(
+      CompileUnboundInternal(v8_isolate, source, options, false),
+      UnboundScript);
+}
+
+
+MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
+                                           Source* source,
+                                           CompileOptions options) {
+  auto isolate = context->GetIsolate();
+  auto maybe = CompileUnboundInternal(isolate, source, options, false);
+  Local<UnboundScript> result;
+  if (!maybe.ToLocal(&result)) return MaybeLocal<Script>();
+  v8::Context::Scope scope(context);
+  return result->BindToCurrentContext();
 }
 
 
@@ -1685,28 +1715,28 @@ Local<Script> ScriptCompiler::Compile(
     Isolate* v8_isolate,
     Source* source,
     CompileOptions options) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()", return Local<Script>());
-  LOG_API(isolate, "ScriptCompiler::CompileBound()");
-  ENTER_V8(isolate);
-  Local<UnboundScript> generic = CompileUnbound(v8_isolate, source, options);
-  if (generic.IsEmpty()) return Local<Script>();
+  auto context = v8_isolate->GetCurrentContext();
+  RETURN_TO_LOCAL_UNCHECKED(Compile(context, source, options), Script);
+}
+
+
+MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
+                                                 Source* source,
+                                                 CompileOptions options) {
+  CHECK(i::FLAG_harmony_modules);
+  auto isolate = context->GetIsolate();
+  auto maybe = CompileUnboundInternal(isolate, source, options, true);
+  Local<UnboundScript> generic;
+  if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
+  v8::Context::Scope scope(context);
   return generic->BindToCurrentContext();
 }
 
 
 Local<Script> ScriptCompiler::CompileModule(Isolate* v8_isolate, Source* source,
                                             CompileOptions options) {
-  CHECK(i::FLAG_harmony_modules);
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileModule()",
-             return Local<Script>());
-  LOG_API(isolate, "ScriptCompiler::CompileModule()");
-  ENTER_V8(isolate);
-  Local<UnboundScript> generic =
-      CompileUnboundInternal(v8_isolate, source, options, true);
-  if (generic.IsEmpty()) return Local<Script>();
-  return generic->BindToCurrentContext();
+  auto context = v8_isolate->GetCurrentContext();
+  RETURN_TO_LOCAL_UNCHECKED(CompileModule(context, source, options), Script);
 }
 
 
@@ -1749,64 +1779,52 @@ class IsIdentifierHelper {
 };
 
 
-Local<Function> ScriptCompiler::CompileFunctionInContext(
-    Isolate* v8_isolate, Source* source, Local<Context> v8_context,
-    size_t arguments_count, Local<String> arguments[],
-    size_t context_extension_count, Local<Object> context_extensions[]) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileFunctionInContext()",
-             return Local<Function>());
-  LOG_API(isolate, "ScriptCompiler::CompileFunctionInContext()");
-  ENTER_V8(isolate);
-
+MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
+    Local<Context> v8_context, Source* source, size_t arguments_count,
+    Local<String> arguments[], size_t context_extension_count,
+    Local<Object> context_extensions[]) {
+  PREPARE_FOR_EXECUTION(
+      v8_context, "v8::ScriptCompiler::CompileFunctionInContext()", Function);
   i::Handle<i::String> source_string;
+  auto factory = isolate->factory();
   if (arguments_count) {
-    source_string =
-        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "(function("));
+    source_string = factory->NewStringFromStaticChars("(function(");
     for (size_t i = 0; i < arguments_count; ++i) {
       IsIdentifierHelper helper;
       if (!helper.Check(*Utils::OpenHandle(*arguments[i]))) {
         return Local<Function>();
       }
-      i::MaybeHandle<i::String> maybe_source =
-          isolate->factory()->NewConsString(source_string,
-                                            Utils::OpenHandle(*arguments[i]));
-      if (!maybe_source.ToHandle(&source_string)) {
-        return Local<Function>();
-      }
+      has_pending_exception =
+          !factory->NewConsString(source_string,
+                                  Utils::OpenHandle(*arguments[i]))
+               .ToHandle(&source_string);
+      RETURN_ON_FAILED_EXECUTION(Function);
       if (i + 1 == arguments_count) continue;
-      maybe_source = isolate->factory()->NewConsString(
-          source_string,
-          isolate->factory()->LookupSingleCharacterStringFromCode(','));
-      if (!maybe_source.ToHandle(&source_string)) {
-        return Local<Function>();
-      }
+      has_pending_exception =
+          !factory->NewConsString(source_string,
+                                  factory->LookupSingleCharacterStringFromCode(
+                                      ',')).ToHandle(&source_string);
+      RETURN_ON_FAILED_EXECUTION(Function);
     }
-    i::Handle<i::String> brackets =
-        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "){"));
-    i::MaybeHandle<i::String> maybe_source =
-        isolate->factory()->NewConsString(source_string, brackets);
-    if (!maybe_source.ToHandle(&source_string)) {
-      return Local<Function>();
-    }
+    auto brackets = factory->NewStringFromStaticChars("){");
+    has_pending_exception = !factory->NewConsString(source_string, brackets)
+                                 .ToHandle(&source_string);
+    RETURN_ON_FAILED_EXECUTION(Function);
   } else {
-    source_string =
-        Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "(function(){"));
+    source_string = factory->NewStringFromStaticChars("(function(){");
   }
 
   int scope_position = source_string->length();
-  i::MaybeHandle<i::String> maybe_source = isolate->factory()->NewConsString(
-      source_string, Utils::OpenHandle(*source->source_string));
-  if (!maybe_source.ToHandle(&source_string)) {
-    return Local<Function>();
-  }
+  has_pending_exception =
+      !factory->NewConsString(source_string,
+                              Utils::OpenHandle(*source->source_string))
+           .ToHandle(&source_string);
+  RETURN_ON_FAILED_EXECUTION(Function);
   // Include \n in case the source contains a line end comment.
-  i::Handle<i::String> brackets =
-      Utils::OpenHandle(*v8::String::NewFromUtf8(v8_isolate, "\n})"));
-  maybe_source = isolate->factory()->NewConsString(source_string, brackets);
-  if (!maybe_source.ToHandle(&source_string)) {
-    return Local<Function>();
-  }
+  auto brackets = factory->NewStringFromStaticChars("\n})");
+  has_pending_exception =
+      !factory->NewConsString(source_string, brackets).ToHandle(&source_string);
+  RETURN_ON_FAILED_EXECUTION(Function);
 
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Handle<i::SharedFunctionInfo> outer_info(context->closure()->shared(),
@@ -1815,23 +1833,34 @@ Local<Function> ScriptCompiler::CompileFunctionInContext(
     i::Handle<i::JSObject> extension =
         Utils::OpenHandle(*context_extensions[i]);
     i::Handle<i::JSFunction> closure(context->closure(), isolate);
-    context = isolate->factory()->NewWithContext(closure, context, extension);
+    context = factory->NewWithContext(closure, context, extension);
   }
 
-  EXCEPTION_PREAMBLE(isolate);
-  i::MaybeHandle<i::JSFunction> maybe_fun = i::Compiler::GetFunctionFromEval(
-      source_string, outer_info, context, i::SLOPPY,
-      i::ONLY_SINGLE_FUNCTION_LITERAL, scope_position);
   i::Handle<i::JSFunction> fun;
-  has_pending_exception = !maybe_fun.ToHandle(&fun);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
+  has_pending_exception =
+      !i::Compiler::GetFunctionFromEval(
+           source_string, outer_info, context, i::SLOPPY,
+           i::ONLY_SINGLE_FUNCTION_LITERAL, scope_position).ToHandle(&fun);
+  RETURN_ON_FAILED_EXECUTION(Function);
 
-  i::MaybeHandle<i::Object> result = i::Execution::Call(
-      isolate, fun, Utils::OpenHandle(*v8_context->Global()), 0, NULL);
-  i::Handle<i::Object> final_result;
-  has_pending_exception = !result.ToHandle(&final_result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Function>());
-  return Utils::ToLocal(i::Handle<i::JSFunction>::cast(final_result));
+  i::Handle<i::Object> result;
+  has_pending_exception =
+      !i::Execution::Call(isolate, fun,
+                          Utils::OpenHandle(*v8_context->Global()), 0,
+                          nullptr).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Function);
+  RETURN_ESCAPED(Utils::ToLocal(i::Handle<i::JSFunction>::cast(result)));
+}
+
+
+Local<Function> ScriptCompiler::CompileFunctionInContext(
+    Isolate* v8_isolate, Source* source, Local<Context> v8_context,
+    size_t arguments_count, Local<String> arguments[],
+    size_t context_extension_count, Local<Object> context_extensions[]) {
+  RETURN_TO_LOCAL_UNCHECKED(
+      CompileFunctionInContext(v8_context, source, arguments_count, arguments,
+                               context_extension_count, context_extensions),
+      Function);
 }
 
 
@@ -1843,17 +1872,13 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
 }
 
 
-Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
-                                      StreamedSource* v8_source,
-                                      Handle<String> full_source_string,
-                                      const ScriptOrigin& origin) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
+                                           StreamedSource* v8_source,
+                                           Handle<String> full_source_string,
+                                           const ScriptOrigin& origin) {
+  PREPARE_FOR_EXECUTION(context, "v8::ScriptCompiler::Compile()", Script);
   i::StreamedSource* source = v8_source->impl();
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()", return Local<Script>());
-  LOG_API(isolate, "ScriptCompiler::Compile()");
-  ENTER_V8(isolate);
-  i::SharedFunctionInfo* raw_result = NULL;
-
+  i::SharedFunctionInfo* raw_result = nullptr;
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
@@ -1880,24 +1905,21 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
     source->info->set_script(script);
     source->info->SetContext(isolate->native_context());
 
-    EXCEPTION_PREAMBLE(isolate);
-
     // Do the parsing tasks which need to be done on the main thread. This will
     // also handle parse errors.
     source->parser->Internalize(isolate, script,
-                                source->info->function() == NULL);
+                                source->info->function() == nullptr);
     source->parser->HandleSourceURLComments(isolate, script);
 
-    i::Handle<i::SharedFunctionInfo> result =
-        i::Handle<i::SharedFunctionInfo>::null();
-    if (source->info->function() != NULL) {
+    i::Handle<i::SharedFunctionInfo> result;
+    if (source->info->function() != nullptr) {
       // Parsing has succeeded.
       result =
           i::Compiler::CompileStreamedScript(source->info.get(), str->length());
     }
     has_pending_exception = result.is_null();
     if (has_pending_exception) isolate->ReportPendingMessages();
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+    RETURN_ON_FAILED_EXECUTION(Script);
 
     raw_result = *result;
     // The Handle<Script> will go out of scope soon; make sure CompilationInfo
@@ -1906,10 +1928,18 @@ Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
   }  // HandleScope goes out of scope.
   i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
-  if (generic.IsEmpty()) {
-    return Local<Script>();
-  }
-  return generic->BindToCurrentContext();
+  if (generic.IsEmpty()) return Local<Script>();
+  RETURN_ESCAPED(generic->BindToCurrentContext());
+}
+
+
+Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
+                                      StreamedSource* v8_source,
+                                      Handle<String> full_source_string,
+                                      const ScriptOrigin& origin) {
+  auto context = v8_isolate->GetCurrentContext();
+  RETURN_TO_LOCAL_UNCHECKED(
+      Compile(context, v8_source, full_source_string, origin), Script);
 }
 
 
@@ -1920,19 +1950,23 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
 }
 
 
-Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::ScriptOrigin* origin) {
-  i::Handle<i::String> str = Utils::OpenHandle(*source);
+MaybeLocal<Script> Script::Compile(Local<Context> context,
+                                   Handle<String> source,
+                                   ScriptOrigin* origin) {
   if (origin) {
     ScriptCompiler::Source script_source(source, *origin);
-    return ScriptCompiler::Compile(
-        reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
-        &script_source);
+    return ScriptCompiler::Compile(context, &script_source);
   }
   ScriptCompiler::Source script_source(source);
-  return ScriptCompiler::Compile(
-      reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
-      &script_source);
+  return ScriptCompiler::Compile(context, &script_source);
+}
+
+
+Local<Script> Script::Compile(v8::Handle<String> source,
+                              v8::ScriptOrigin* origin) {
+  auto str = Utils::OpenHandle(*source);
+  auto context = ContextFromHeapObject(str);
+  RETURN_TO_LOCAL_UNCHECKED(Compile(context, source, origin), Script);
 }
 
 
