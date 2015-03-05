@@ -2207,11 +2207,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                   object_size)) {
       return;
     }
-
-    // If promotion failed, we try to copy the object to the other semi-space
-    if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) return;
-
-    UNREACHABLE();
+    V8::FatalProcessOutOfMemory("Scavenge promotion failed");
   }
 
 
