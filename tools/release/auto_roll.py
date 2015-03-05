@@ -56,6 +56,8 @@ class DetectLastRoll(Step):
 
     # The revision rolled last.
     self["last_roll"] = vars['v8_revision']
+    last_version = self.GetVersionTag(self["last_roll"])
+    assert last_version, "The last rolled v8 revision is not tagged."
 
     # There must be some progress between the last roll and the new candidate
     # revision (i.e. we don't go backwards). The revisions are ordered newest
@@ -63,9 +65,10 @@ class DetectLastRoll(Step):
     # compared to the last roll, i.e. if the newest release is a cherry-pick
     # on a release branch. Then we look further.
     for revision in revisions:
-      commits = self.GitLog(
-        format="%H", git_hash="%s..%s" % (self["last_roll"], revision))
-      if commits:
+      version = self.GetVersionTag(revision)
+      assert version, "Internal error. All recent releases should have a tag"
+
+      if SortingKey(last_version) < SortingKey(version):
         self["roll"] = revision
         break
     else:

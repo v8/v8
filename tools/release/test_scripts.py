@@ -1115,8 +1115,9 @@ deps = {
       Cmd("git describe --tags bad_tag", ""),
       Cmd("git describe --tags hash_234", "3.22.4"),
       Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git log --format=%H abcd123455..hash_234", ""),
-      Cmd("git log --format=%H abcd123455..hash_123", ""),
+      Cmd("git describe --tags abcd123455", "3.22.4"),
+      Cmd("git describe --tags hash_234", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -1137,7 +1138,8 @@ deps = {
       Cmd("git describe --tags bad_tag", ""),
       Cmd("git describe --tags hash_234", "3.22.4"),
       Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git log --format=%H abcd123455..hash_234", "hash1\nhash2\n"),
+      Cmd("git describe --tags abcd123455", "3.22.3.1"),
+      Cmd("git describe --tags hash_234", "3.22.4"),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
