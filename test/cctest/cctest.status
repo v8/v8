@@ -98,6 +98,9 @@
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
 
+  'test-heap/TestInternalWeakLists': [PASS, ['arch==arm', NO_VARIANTS]],
+  'test-heap/TestInternalWeakListsTraverseWithGC': [PASS, ['arch==arm', NO_VARIANTS]],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
