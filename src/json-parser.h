@@ -314,7 +314,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       Advance();
 
       uint32_t index = 0;
-      if (c0_ >= '0' && c0_ <= '9') {
+      if (IsDecimalDigit(c0_)) {
         // Maybe an array index, try to parse it.
         if (c0_ == '0') {
           // With a leading zero, the string has to be "0" only to be an index.
@@ -325,7 +325,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
             if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
             index = (index * 10) + d;
             Advance();
-          } while (c0_ >= '0' && c0_ <= '9');
+          } while (IsDecimalDigit(c0_));
         }
 
         if (c0_ == '"') {
@@ -515,7 +515,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
     Advance();
     // Prefix zero is only allowed if it's the only digit before
     // a decimal point or exponent.
-    if ('0' <= c0_ && c0_ <= '9') return ReportUnexpectedCharacter();
+    if (IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
   } else {
     int i = 0;
     int digits = 0;
@@ -524,7 +524,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
       i = i * 10 + c0_ - '0';
       digits++;
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
     if (c0_ != '.' && c0_ != 'e' && c0_ != 'E' && digits < 10) {
       SkipWhitespace();
       return Handle<Smi>(Smi::FromInt((negative ? -i : i)), isolate());
@@ -532,18 +532,18 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   }
   if (c0_ == '.') {
     Advance();
-    if (c0_ < '0' || c0_ > '9') return ReportUnexpectedCharacter();
+    if (!IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
     do {
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
   }
   if (AsciiAlphaToLower(c0_) == 'e') {
     Advance();
     if (c0_ == '-' || c0_ == '+') Advance();
-    if (c0_ < '0' || c0_ > '9') return ReportUnexpectedCharacter();
+    if (!IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
     do {
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
   }
   int length = position_ - beg_pos;
   double number;
