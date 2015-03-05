@@ -3894,6 +3894,7 @@ static void check_message_3(v8::Handle<v8::Message> message,
   CHECK(message->GetScriptOrigin().ResourceIsSharedCrossOrigin()->Value());
   CHECK(message->GetScriptOrigin().ResourceIsEmbedderDebugScript()->Value());
   CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
+  CHECK_EQ(7.40, message->GetScriptOrigin().SourceMapUrl()->NumberValue());
   message_received = true;
 }
 
@@ -3905,10 +3906,10 @@ TEST(MessageHandler3) {
   CHECK(!message_received);
   v8::V8::AddMessageListener(check_message_3);
   LocalContext context;
-  v8::ScriptOrigin origin =
-      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
-                       v8::Integer::New(isolate, 2), v8::True(isolate),
-                       Handle<v8::Integer>(), v8::True(isolate));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(
+      v8_str("6.75"), v8::Integer::New(isolate, 1),
+      v8::Integer::New(isolate, 2), v8::True(isolate), Handle<v8::Integer>(),
+      v8::True(isolate), v8_str("7.40"));
   v8::Handle<v8::Script> script =
       Script::Compile(v8_str("throw 'error'"), &origin);
   script->Run();
@@ -16280,7 +16281,8 @@ THREADED_TEST(ScriptOrigin) {
       v8::String::NewFromUtf8(env->GetIsolate(), "test"),
       v8::Integer::New(env->GetIsolate(), 1),
       v8::Integer::New(env->GetIsolate(), 1), v8::True(env->GetIsolate()),
-      v8::Handle<v8::Integer>(), v8::True(env->GetIsolate()));
+      v8::Handle<v8::Integer>(), v8::True(env->GetIsolate()),
+      v8::String::NewFromUtf8(env->GetIsolate(), "http://sourceMapUrl"));
   v8::Handle<v8::String> script = v8::String::NewFromUtf8(
       env->GetIsolate(), "function f() {}\n\nfunction g() {}");
   v8::Script::Compile(script, &origin)->Run();
@@ -16295,6 +16297,10 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(1, script_origin_f.ResourceLineOffset()->Int32Value());
   CHECK(script_origin_f.ResourceIsSharedCrossOrigin()->Value());
   CHECK(script_origin_f.ResourceIsEmbedderDebugScript()->Value());
+  printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
+
+  CHECK_EQ(0, strcmp("http://sourceMapUrl",
+                     *v8::String::Utf8Value(script_origin_f.SourceMapUrl())));
 
   v8::ScriptOrigin script_origin_g = g->GetScriptOrigin();
   CHECK_EQ(0, strcmp("test",
@@ -16302,6 +16308,8 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(1, script_origin_g.ResourceLineOffset()->Int32Value());
   CHECK(script_origin_g.ResourceIsSharedCrossOrigin()->Value());
   CHECK(script_origin_g.ResourceIsEmbedderDebugScript()->Value());
+  CHECK_EQ(0, strcmp("http://sourceMapUrl",
+                     *v8::String::Utf8Value(script_origin_g.SourceMapUrl())));
 }
 
 

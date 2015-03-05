@@ -811,8 +811,9 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> CompileScript(
       Handle<String> source, Handle<Object> script_name, int line_offset,
       int column_offset, bool is_debugger_script, bool is_shared_cross_origin,
-      Handle<Context> context, v8::Extension* extension,
-      ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
+      Handle<Object> source_map_url, Handle<Context> context,
+      v8::Extension* extension, ScriptData** cached_data,
+      ScriptCompiler::CompileOptions compile_options,
       NativesFlag is_natives_code, bool is_module);
 
   static Handle<SharedFunctionInfo> CompileStreamedScript(CompilationInfo* info,

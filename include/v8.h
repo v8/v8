@@ -991,13 +991,15 @@ class ScriptOrigin {
       Handle<Integer> resource_column_offset = Handle<Integer>(),
       Handle<Boolean> resource_is_shared_cross_origin = Handle<Boolean>(),
       Handle<Integer> script_id = Handle<Integer>(),
-      Handle<Boolean> resource_is_embedder_debug_script = Handle<Boolean>())
+      Handle<Boolean> resource_is_embedder_debug_script = Handle<Boolean>(),
+      Handle<Value> source_map_url = Handle<Value>())
       : resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
         resource_column_offset_(resource_column_offset),
         resource_is_embedder_debug_script_(resource_is_embedder_debug_script),
         resource_is_shared_cross_origin_(resource_is_shared_cross_origin),
-        script_id_(script_id) {}
+        script_id_(script_id),
+        source_map_url_(source_map_url) {}
   V8_INLINE Handle<Value> ResourceName() const;
   V8_INLINE Handle<Integer> ResourceLineOffset() const;
   V8_INLINE Handle<Integer> ResourceColumnOffset() const;
@@ -1007,6 +1009,7 @@ class ScriptOrigin {
   V8_INLINE Handle<Boolean> ResourceIsEmbedderDebugScript() const;
   V8_INLINE Handle<Boolean> ResourceIsSharedCrossOrigin() const;
   V8_INLINE Handle<Integer> ScriptID() const;
+  V8_INLINE Handle<Value> SourceMapUrl() const;
 
  private:
   Handle<Value> resource_name_;
@@ -1015,6 +1018,7 @@ class ScriptOrigin {
   Handle<Boolean> resource_is_embedder_debug_script_;
   Handle<Boolean> resource_is_shared_cross_origin_;
   Handle<Integer> script_id_;
+  Handle<Value> source_map_url_;
 };
 
 
@@ -1164,6 +1168,7 @@ class V8_EXPORT ScriptCompiler {
     Handle<Integer> resource_column_offset;
     Handle<Boolean> resource_is_embedder_debug_script;
     Handle<Boolean> resource_is_shared_cross_origin;
+    Handle<Value> source_map_url;
 
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
@@ -7001,6 +7006,9 @@ Handle<Integer> ScriptOrigin::ScriptID() const {
 }
 
 
+Handle<Value> ScriptOrigin::SourceMapUrl() const { return source_map_url_; }
+
+
 ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
                                CachedData* data)
     : source_string(string),
@@ -7009,6 +7017,7 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_column_offset(origin.ResourceColumnOffset()),
       resource_is_embedder_debug_script(origin.ResourceIsEmbedderDebugScript()),
       resource_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin()),
+      source_map_url(origin.SourceMapUrl()),
       cached_data(data) {}
 
 

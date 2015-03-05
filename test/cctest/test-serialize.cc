@@ -808,10 +808,10 @@ int CountBuiltins() {
 static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
-  return Compiler::CompileScript(source, name, 0, 0, false, false,
-                                 Handle<Context>(isolate->native_context()),
-                                 NULL, cached_data, options, NOT_NATIVES_CODE,
-                                 false);
+  return Compiler::CompileScript(
+      source, name, 0, 0, false, false, Handle<Object>(),
+      Handle<Context>(isolate->native_context()), NULL, cached_data, options,
+      NOT_NATIVES_CODE, false);
 }
 
 

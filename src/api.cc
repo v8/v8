@@ -215,6 +215,24 @@ class CallDepthScope {
 }  // namespace
 
 
+static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
+                                             i::Handle<i::Script> script) {
+  i::Handle<i::Object> scriptName(i::Script::GetNameOrSourceURL(script));
+  i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
+  v8::Isolate* v8_isolate =
+      reinterpret_cast<v8::Isolate*>(script->GetIsolate());
+  v8::ScriptOrigin origin(
+      Utils::ToLocal(scriptName),
+      v8::Integer::New(v8_isolate, script->line_offset()->value()),
+      v8::Integer::New(v8_isolate, script->column_offset()->value()),
+      v8::Boolean::New(v8_isolate, script->is_shared_cross_origin()),
+      v8::Integer::New(v8_isolate, script->id()->value()),
+      v8::Boolean::New(v8_isolate, script->is_embedder_debug_script()),
+      Utils::ToLocal(source_map_url));
+  return origin;
+}
+
+
 // --- E x c e p t i o n   B e h a v i o r ---
 
 
@@ -1630,6 +1648,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   { i::HandleScope scope(isolate);
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     i::Handle<i::Object> name_obj;
+    i::Handle<i::Object> source_map_url;
     int line_offset = 0;
     int column_offset = 0;
     bool is_embedder_debug_script = false;
@@ -1652,10 +1671,13 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       is_embedder_debug_script =
           source->resource_is_embedder_debug_script->IsTrue();
     }
+    if (!source->source_map_url.IsEmpty()) {
+      source_map_url = Utils::OpenHandle(*(source->source_map_url));
+    }
     i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_embedder_debug_script,
-        is_shared_cross_origin, isolate->native_context(), NULL, &script_data,
-        options, i::NOT_NATIVES_CODE, is_module);
+        is_shared_cross_origin, source_map_url, isolate->native_context(), NULL,
+        &script_data, options, i::NOT_NATIVES_CODE, is_module);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -1902,6 +1924,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
       script->set_is_embedder_debug_script(
           origin.ResourceIsEmbedderDebugScript()->IsTrue());
     }
+    if (!origin.SourceMapUrl().IsEmpty()) {
+      script->set_source_mapping_url(
+          *Utils::OpenHandle(*(origin.SourceMapUrl())));
+    }
+
     source->info->set_script(script);
     source->info->SetContext(isolate->native_context());
 
@@ -2168,17 +2195,7 @@ ScriptOrigin Message::GetScriptOrigin() const {
   i::Handle<i::JSValue> script_value =
       i::Handle<i::JSValue>::cast(script_wraper);
   i::Handle<i::Script> script(i::Script::cast(script_value->value()));
-  i::Handle<i::Object> scriptName(i::Script::GetNameOrSourceURL(script));
-  v8::Isolate* v8_isolate =
-      reinterpret_cast<v8::Isolate*>(script->GetIsolate());
-  v8::ScriptOrigin origin(
-      Utils::ToLocal(scriptName),
-      v8::Integer::New(v8_isolate, script->line_offset()->value()),
-      v8::Integer::New(v8_isolate, script->column_offset()->value()),
-      v8::Boolean::New(v8_isolate, script->is_shared_cross_origin()),
-      v8::Integer::New(v8_isolate, script->id()->value()),
-      v8::Boolean::New(v8_isolate, script->is_embedder_debug_script()));
-  return origin;
+  return GetScriptOriginForScript(isolate, script);
 }
 
 
@@ -4476,16 +4493,7 @@ ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    i::Handle<i::Object> scriptName = i::Script::GetNameOrSourceURL(script);
-    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(func->GetIsolate());
-    v8::ScriptOrigin origin(
-        Utils::ToLocal(scriptName),
-        v8::Integer::New(isolate, script->line_offset()->value()),
-        v8::Integer::New(isolate, script->column_offset()->value()),
-        v8::Boolean::New(isolate, script->is_shared_cross_origin()),
-        v8::Integer::New(isolate, script->id()->value()),
-        v8::Boolean::New(isolate, script->is_embedder_debug_script()));
-    return origin;
+    return GetScriptOriginForScript(func->GetIsolate(), script);
   }
   return v8::ScriptOrigin(Handle<Value>());
 }
