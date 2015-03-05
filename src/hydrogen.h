@@ -2553,10 +2553,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       number_ = number;
     }
     void LookupTransition(Map* map, Name* name, PropertyAttributes attributes) {
-      int transition_index = map->SearchTransition(kData, name, attributes);
-      if (transition_index == TransitionArray::kNotFound) return NotFound();
+      Map* target =
+          TransitionArray::SearchTransition(map, kData, name, attributes);
+      if (target == NULL) return NotFound();
       lookup_type_ = TRANSITION_TYPE;
-      transition_ = handle(map->GetTransition(transition_index));
+      transition_ = handle(target);
       number_ = transition_->LastAdded();
       details_ = transition_->instance_descriptors()->GetDetails(number_);
     }

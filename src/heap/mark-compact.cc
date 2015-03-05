@@ -1470,8 +1470,9 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
       heap->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
                                          fixed_array_size);
     }
-    if (map_obj->HasTransitionArray()) {
-      int fixed_array_size = map_obj->transitions()->Size();
+    if (TransitionArray::IsFullTransitionArray(map_obj->raw_transitions())) {
+      int fixed_array_size =
+          TransitionArray::cast(map_obj->raw_transitions())->Size();
       heap->RecordFixedArraySubTypeStats(TRANSITION_ARRAY_SUB_TYPE,
                                          fixed_array_size);
     }
@@ -2346,10 +2347,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
 
 void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
-  int number_of_transitions = map->NumberOfProtoTransitions();
-  FixedArray* prototype_transitions = map->GetPrototypeTransitions();
+  FixedArray* prototype_transitions =
+      TransitionArray::GetPrototypeTransitions(map);
+  int number_of_transitions =
+      TransitionArray::NumberOfPrototypeTransitions(prototype_transitions);
 
-  const int header = Map::kProtoTransitionHeaderSize;
+  const int header = TransitionArray::kProtoTransitionHeaderSize;
   int new_number_of_transitions = 0;
   for (int i = 0; i < number_of_transitions; i++) {
     Object* cached_map = prototype_transitions->get(header + i);
@@ -2363,7 +2366,8 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   }
 
   if (new_number_of_transitions != number_of_transitions) {
-    map->SetNumberOfProtoTransitions(new_number_of_transitions);
+    TransitionArray::SetNumberOfPrototypeTransitions(prototype_transitions,
+                                                     new_number_of_transitions);
   }
 
   // Fill slots that became free with undefined value.
@@ -2384,7 +2388,7 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
   bool current_is_alive = map_mark.Get();
   bool parent_is_alive = Marking::MarkBitFrom(parent).Get();
   if (!current_is_alive && parent_is_alive) {
-    ClearMapTransitions(parent);
+    ClearMapTransitions(parent, map);
   }
 }
 
@@ -2398,28 +2402,43 @@ bool MarkCompactCollector::ClearMapBackPointer(Map* target) {
 }
 
 
-void MarkCompactCollector::ClearMapTransitions(Map* map) {
-  // If there are no transitions to be cleared, return.
-  // TODO(verwaest) Should be an assert, otherwise back pointers are not
-  // properly cleared.
-  if (!map->HasTransitionArray()) return;
+void MarkCompactCollector::ClearMapTransitions(Map* map, Map* dead_transition) {
+  Object* transitions = map->raw_transitions();
+  int num_transitions = TransitionArray::NumberOfTransitions(transitions);
 
-  TransitionArray* t = map->transitions();
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  DescriptorArray* descriptors = map->instance_descriptors();
+
+  // A previously existing simple transition (stored in a WeakCell) may have
+  // been cleared. Clear the useless cell pointer, and take ownership
+  // of the descriptor array.
+  if (transitions->IsWeakCell() && WeakCell::cast(transitions)->cleared()) {
+    map->set_raw_transitions(Smi::FromInt(0));
+  }
+  if (num_transitions == 0 &&
+      descriptors == dead_transition->instance_descriptors() &&
+      number_of_own_descriptors > 0) {
+    TrimDescriptorArray(map, descriptors, number_of_own_descriptors);
+    DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+    map->set_owns_descriptors(true);
+    return;
+  }
 
   int transition_index = 0;
 
-  DescriptorArray* descriptors = map->instance_descriptors();
   bool descriptors_owner_died = false;
 
   // Compact all live descriptors to the left.
-  for (int i = 0; i < t->number_of_transitions(); ++i) {
-    Map* target = t->GetTarget(i);
+  for (int i = 0; i < num_transitions; ++i) {
+    Map* target = TransitionArray::GetTarget(transitions, i);
     if (ClearMapBackPointer(target)) {
       if (target->instance_descriptors() == descriptors) {
         descriptors_owner_died = true;
       }
     } else {
       if (i != transition_index) {
+        DCHECK(TransitionArray::IsFullTransitionArray(transitions));
+        TransitionArray* t = TransitionArray::cast(transitions);
         Name* key = t->GetKey(i);
         t->SetKey(transition_index, key);
         Object** key_slot = t->GetKeySlot(transition_index);
@@ -2434,9 +2453,7 @@ void MarkCompactCollector::ClearMapTransitions(Map* map) {
   // If there are no transitions to be cleared, return.
   // TODO(verwaest) Should be an assert, otherwise back pointers are not
   // properly cleared.
-  if (transition_index == t->number_of_transitions()) return;
-
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (transition_index == num_transitions) return;
 
   if (descriptors_owner_died) {
     if (number_of_own_descriptors > 0) {
@@ -2452,14 +2469,17 @@ void MarkCompactCollector::ClearMapTransitions(Map* map) {
   // such that number_of_transitions() == 0. If this assumption changes,
   // TransitionArray::Insert() will need to deal with the case that a transition
   // array disappeared during GC.
-  int trim = t->number_of_transitions_storage() - transition_index;
+  int trim = TransitionArray::Capacity(transitions) - transition_index;
   if (trim > 0) {
+    // Non-full-TransitionArray cases can never reach this point.
+    DCHECK(TransitionArray::IsFullTransitionArray(transitions));
+    TransitionArray* t = TransitionArray::cast(transitions);
     heap_->RightTrimFixedArray<Heap::FROM_GC>(
-        t, t->IsSimpleTransition() ? trim
-                                   : trim * TransitionArray::kTransitionSize);
+        t, trim * TransitionArray::kTransitionSize);
     t->SetNumberOfTransitions(transition_index);
+    // The map still has a full transition array.
+    DCHECK(TransitionArray::IsFullTransitionArray(map->raw_transitions()));
   }
-  DCHECK(map->HasTransitionArray());
 }
 
 
@@ -4171,7 +4191,7 @@ void MarkCompactCollector::SweepSpaces() {
 
   EvacuateNewSpaceAndCandidates();
 
-  // ClearNonLiveTransitions depends on precise sweeping of map space to
+  // ClearNonLiveReferences depends on precise sweeping of map space to
   // detect whether unmarked map became dead in this collection or in one
   // of the previous ones.
   {

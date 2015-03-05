@@ -1286,27 +1286,30 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
 
 
 void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
-  if (map->HasTransitionArray()) {
-    TransitionArray* transitions = map->transitions();
+  Object* raw_transitions = map->raw_transitions();
+  if (TransitionArray::IsFullTransitionArray(raw_transitions)) {
+    TransitionArray* transitions = TransitionArray::cast(raw_transitions);
     int transitions_entry = GetEntry(transitions)->index();
 
     if (FLAG_collect_maps && map->CanTransition()) {
-      if (!transitions->IsSimpleTransition()) {
-        if (transitions->HasPrototypeTransitions()) {
-          FixedArray* prototype_transitions =
-              transitions->GetPrototypeTransitions();
-          MarkAsWeakContainer(prototype_transitions);
-          TagObject(prototype_transitions, "(prototype transitions");
-          SetInternalReference(transitions, transitions_entry,
-                               "prototype_transitions", prototype_transitions);
-        }
-        // TODO(alph): transitions keys are strong links.
-        MarkAsWeakContainer(transitions);
+      if (transitions->HasPrototypeTransitions()) {
+        FixedArray* prototype_transitions =
+            transitions->GetPrototypeTransitions();
+        MarkAsWeakContainer(prototype_transitions);
+        TagObject(prototype_transitions, "(prototype transitions");
+        SetInternalReference(transitions, transitions_entry,
+                             "prototype_transitions", prototype_transitions);
       }
+      // TODO(alph): transitions keys are strong links.
+      MarkAsWeakContainer(transitions);
     }
 
     TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry, "transitions", transitions,
+                         Map::kTransitionsOffset);
+  } else if (TransitionArray::IsSimpleTransition(raw_transitions)) {
+    TagObject(raw_transitions, "(transition)");
+    SetInternalReference(map, entry, "transition", raw_transitions,
                          Map::kTransitionsOffset);
   }
   DescriptorArray* descriptors = map->instance_descriptors();
