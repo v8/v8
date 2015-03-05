@@ -2701,7 +2701,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           value = BuildHoleCheckSilent(current, value, current);
         }
       } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
-        // Non-initializing assignments to legacy const is
+        // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
         if (is_strict(language_mode())) {
@@ -2720,7 +2720,13 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           value = BuildHoleCheckThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op != Token::INIT_CONST) {
-        // Non-initializing assignments to const is exception in all modes.
+        // Assignment to const is exception in all modes.
+        Node* current = environment()->Lookup(variable);
+        if (current->op() == the_hole->op()) {
+          return BuildThrowReferenceError(variable, bailout_id);
+        } else if (value->opcode() == IrOpcode::kPhi) {
+          BuildHoleCheckThrow(current, variable, value, bailout_id);
+        }
         return BuildThrowConstAssignError(bailout_id);
       }
       environment()->Bind(variable, value);
@@ -2735,7 +2741,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckSilent(current, value, current);
       } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
-        // Non-initializing assignments to legacy const is
+        // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
         if (is_strict(language_mode())) {
@@ -2749,7 +2755,11 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckThrow(current, variable, value, bailout_id);
       } else if (mode == CONST && op != Token::INIT_CONST) {
-        // Non-initializing assignments to const is exception in all modes.
+        // Assignment to const is exception in all modes.
+        const Operator* op =
+            javascript()->LoadContext(depth, variable->index(), false);
+        Node* current = NewNode(op, current_context());
+        BuildHoleCheckThrow(current, variable, value, bailout_id);
         return BuildThrowConstAssignError(bailout_id);
       }
       const Operator* op = javascript()->StoreContext(depth, variable->index());

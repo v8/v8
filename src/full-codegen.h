@@ -589,19 +589,6 @@ class FullCodeGenerator: public AstVisitor {
   // is expected in the accumulator.
   void EmitAssignment(Expression* expr);
 
-  // Shall an error be thrown if assignment with 'op' operation is perfomed
-  // on this variable in given language mode?
-  static bool IsSignallingAssignmentToConst(Variable* var, Token::Value op,
-                                            LanguageMode language_mode) {
-    if (var->mode() == CONST) return op != Token::INIT_CONST;
-
-    if (var->mode() == CONST_LEGACY) {
-      return is_strict(language_mode) && op != Token::INIT_CONST_LEGACY;
-    }
-
-    return false;
-  }
-
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var,

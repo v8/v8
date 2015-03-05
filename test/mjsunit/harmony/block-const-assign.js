@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping
+// Flags: --harmony-scoping --harmony-computed-property-names
 
 // Test that we throw early syntax errors in harmony mode
 // when using an immutable binding in an assigment or with
@@ -33,124 +33,128 @@
 
 "use strict";
 
-// Function local const.
-function constDecl0(use) {
-  return "(function() { const constvar = 1; " + use + "; })();";
-}
+const decls = [
+  // Const declaration.
+  function(use) { return "const c = 1; " + use + ";" }, TypeError,
+  function(use) { return "const x = 0, c = 1; " + use + ";" }, TypeError,
+  function(use) { return "const c = 1, x = (" + use + ");" }, TypeError,
+  function(use) { return use + "; const c = 1;" }, ReferenceError,
+  function(use) { return use + "; const x = 0, c = 1;" }, ReferenceError,
+  function(use) { return "const x = (" + use + "), c = 1;" }, ReferenceError,
+  function(use) { return "const c = (" + use + ");" }, ReferenceError,
 
+  // Function expression.
+  function(use) { return "(function c() { " + use + "; })();"; }, TypeError,
+  // TODO(rossberg): Once we have default parameters, test using 'c' there.
 
-function constDecl1(use) {
-  return "(function() { " + use + "; const constvar = 1; })();";
-}
+  // Class expression.
+  function(use) {
+    return "new class c { constructor() { " + use + " } };";
+  }, TypeError,
+  function(use) {
+    return "(new class c { m() { " + use + " } }).m();";
+  }, TypeError,
+  function(use) {
+    return "(new class c { get a() { " + use + " } }).a;";
+  }, TypeError,
+  function(use) {
+    return "(new class c { set a(x) { " + use + " } }).a = 0;";
+  }, TypeError,
+  function(use) {
+    return "(class c { static m() { " + use + " } }).s();";
+  }, TypeError,
+  function(use) {
+    return "(class c extends (" + use + ") {});";
+  }, ReferenceError,
+  function(use) {
+    return "(class c { [" + use + "]() {} });";
+  }, ReferenceError,
+  function(use) {
+    return "(class c { get [" + use + "]() {} });";
+  }, ReferenceError,
+  function(use) {
+    return "(class c { set [" + use + "](x) {} });";
+  }, ReferenceError,
+  function(use) {
+    return "(class c { static [" + use + "]() {} });";
+  }, ReferenceError,
 
+  // For loop.
+  function(use) {
+    return "for (const c = 0; " + use + ";) {}"
+  }, TypeError,
+  function(use) {
+    return "for (const x = 0, c = 0; " + use + ";) {}"
+  }, TypeError,
+  function(use) {
+    return "for (const c = 0; ; " + use + ") {}"
+  }, TypeError,
+  function(use) {
+    return "for (const x = 0, c = 0; ; " + use + ") {}"
+  }, TypeError,
+  function(use) {
+    return "for (const c = 0; ;) { " + use + "; }"
+  }, TypeError,
+  function(use) {
+    return "for (const x = 0, c = 0; ;) { " + use + "; }"
+  }, TypeError,
+  function(use) {
+    return "for (const c in {a: 1}) { " + use + "; }"
+  }, TypeError,
+  function(use) {
+    return "for (const c of [1]) { " + use + "; }"
+  }, TypeError,
+  function(use) {
+    return "for (const x = (" + use + "), c = 0; ;) {}"
+  }, ReferenceError,
+  function(use) {
+    return "for (const c = (" + use + "); ;) {}"
+  }, ReferenceError,
+]
 
-// Function local const, assign from eval.
-function constDecl2(use) {
-  use = "eval('(function() { " + use + " })')()";
-  return "(function() { const constvar = 1; " + use + "; })();";
-}
+let uses = [
+  'c = 1',
+  'c += 1',
+  '++c',
+  'c--',
+];
 
+let declcontexts = [
+  function(decl) { return decl; },
+  function(decl) { return "eval(\'" + decl + "\')"; },
+  function(decl) { return "{ " + decl + " }"; },
+  function(decl) { return "(function() { " + decl + " })()"; },
+];
 
-function constDecl3(use) {
-  use = "eval('(function() { " + use + " })')()";
-  return "(function() { " + use + "; const constvar = 1; })();";
-}
+let usecontexts = [
+  function(use) { return use; },
+  function(use) { return "eval(\"" + use + "\")"; },
+  function(use) { return "(function() { " + use + " })()"; },
+  function(use) { return "(function() { eval(\"" + use + "\"); })()"; },
+  function(use) { return "eval(\"(function() { " + use + "; })\")()"; },
+];
 
-
-// Block local const.
-function constDecl4(use) {
-  return "(function() { { const constvar = 1; " + use + "; } })();";
-}
-
-
-function constDecl5(use) {
-  return "(function() { { " + use + "; const constvar = 1; } })();";
-}
-
-
-// Block local const, assign from eval.
-function constDecl6(use) {
-  use = "eval('(function() {" + use + "})')()";
-  return "(function() { { const constvar = 1; " + use + "; } })();";
-}
-
-
-function constDecl7(use) {
-  use = "eval('(function() {" + use + "})')()";
-  return "(function() { { " + use + "; const constvar = 1; } })();";
-}
-
-
-// Function expression name.
-function constDecl8(use) {
-  return "(function constvar() { " + use + "; })();";
-}
-
-
-// Function expression name, assign from eval.
-function constDecl9(use) {
-  use = "eval('(function(){" + use + "})')()";
-  return "(function constvar() { " + use + "; })();";
-}
-
-// For loop variable.
-function constDecl10(use) {
-  return "(function() { for (const constvar = 0; ;) { " + use + "; } })();";
-}
-
-// For-in loop variable.
-function constDecl11(use) {
-  return "(function() { for (const constvar in {a: 1}) { " + use + "; } })();";
-}
-
-// For-of loop variable.
-function constDecl12(use) {
-  return "(function() { for (const constvar of [1]) { " + use + "; } })();";
-}
-
-
-let decls = [ constDecl0,
-              constDecl1,
-              constDecl2,
-              constDecl3,
-              constDecl4,
-              constDecl5,
-              constDecl6,
-              constDecl7,
-              constDecl8,
-              constDecl9,
-              constDecl10,
-              constDecl11,
-              constDecl12
-              ];
-let declsForTDZ = new Set([constDecl1, constDecl3, constDecl5, constDecl7]);
-let uses = [ 'constvar = 1;',
-             'constvar += 1;',
-             '++constvar;',
-             'constvar++;'
-             ];
-
-function Test(d,u) {
-  'use strict';
+function Test(program, error) {
+  program = "'use strict'; " + program;
   try {
-    print(d(u));
-    eval(d(u));
+    print(program, "  // throw " + error.name);
+    eval(program);
   } catch (e) {
-    if (declsForTDZ.has(d) && u !== uses[0]) {
-      // In these cases, read of a const variable occurs
-      // before a write to it, so TDZ kicks in before const check.
-      assertInstanceof(e, ReferenceError);
-      return;
+    assertInstanceof(e, error);
+    if (e === TypeError) {
+      assertTrue(e.toString().indexOf("Assignment to constant variable") >= 0);
     }
-    assertInstanceof(e, TypeError);
-    assertTrue(e.toString().indexOf("Assignment to constant variable") >= 0);
     return;
   }
   assertUnreachable();
 }
 
-for (var d = 0; d < decls.length; ++d) {
+for (var d = 0; d < decls.length; d += 2) {
   for (var u = 0; u < uses.length; ++u) {
-    Test(decls[d], uses[u]);
+    for (var o = 0; o < declcontexts.length; ++o) {
+      for (var i = 0; i < usecontexts.length; ++i) {
+        Test(declcontexts[o](decls[d](usecontexts[i](uses[u]))), decls[d + 1]);
+      }
+    }
   }
 }

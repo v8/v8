@@ -174,7 +174,7 @@ var kMessages = {
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
-  harmony_const_assign:          ["Assignment to constant variable."],
+  const_assign:                  ["Assignment to constant variable."],
   symbol_to_string:              ["Cannot convert a Symbol value to a string"],
   symbol_to_primitive:           ["Cannot convert a Symbol wrapper object to a primitive value"],
   symbol_to_number:              ["Cannot convert a Symbol value to a number"],

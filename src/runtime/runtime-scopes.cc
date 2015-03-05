@@ -26,7 +26,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
-      NewTypeError("harmony_const_assign", HandleVector<Object>(NULL, 0)));
+      NewTypeError("const_assign", HandleVector<Object>(NULL, 0)));
 }
 
 
