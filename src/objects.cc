@@ -10754,7 +10754,7 @@ void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
-  Address p = rinfo->target_reference();
+  Address p = rinfo->target_external_reference();
   VisitExternalReference(&p);
 }
 

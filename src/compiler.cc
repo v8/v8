@@ -522,6 +522,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
   }
 
+  // Do not use Crankshaft if the code is intended to be serialized.
+  if (!isolate()->use_crankshaft()) return SetLastStatus(FAILED);
+
   if (FLAG_trace_opt) {
     OFStream os(stdout);
     os << "[compiling method " << Brief(*info()->closure())
@@ -947,7 +950,6 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
     PostponeInterruptsScope postpone(isolate);
 
     info.SetOptimizing(BailoutId::None(), handle(function->shared()->code()));
-    info.MarkAsContextSpecializing();
 
     if (GetOptimizedCodeNow(&info)) {
       DCHECK(function->shared()->is_compiled());
@@ -967,7 +969,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCodeCommon(&info),
                              Code);
 
-  if (FLAG_always_opt && isolate->use_crankshaft()) {
+  if (FLAG_always_opt) {
     Handle<Code> opt_code;
     if (Compiler::GetOptimizedCode(
             function, result,
@@ -1488,7 +1490,6 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   Isolate* isolate = info->isolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
   VMState<COMPILER> state(isolate);
-  DCHECK(isolate->use_crankshaft());
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 

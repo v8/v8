@@ -101,6 +101,8 @@
   'debug-stepin-builtin': [PASS, NO_VARIANTS],
   'debug-stepin-constructor': [PASS, NO_VARIANTS],
   'debug-stepin-function-call': [PASS, NO_VARIANTS],
+  'debug-stepin-positions': [PASS, NO_VARIANTS],
+  'debug-stepin-property-function-call': [PASS, NO_VARIANTS],
   'debug-stepnext-do-while': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],

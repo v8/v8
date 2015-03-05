@@ -706,6 +706,9 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
 
 
 TEST(PerIsolateSnapshotBlobs) {
+  const char* flag = "--turbo-filter=\"\"";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+
   const char* source1 = "function f() { return 42; }";
   const char* source2 =
       "function f() { return g() * 2; }"
@@ -1495,4 +1498,53 @@ TEST(SerializeWithHarmonyScoping) {
     CHECK(result->ToString(isolate2)->Equals(v8_str("XY")));
   }
   isolate2->Dispose();
+}
+
+
+TEST(SerializeInternalReference) {
+  // Disable experimental natives that are loaded after deserialization.
+  FLAG_turbo_deoptimization = false;
+  FLAG_context_specialization = false;
+  FLAG_always_opt = true;
+  const char* flag = "--turbo-filter=foo";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+
+  const char* source =
+      "var foo = (function(stdlib, foreign, heap) {"
+      "  function foo(i) {"
+      "    i = i|0;"
+      "    var j = 0;"
+      "    switch (i) {"
+      "      case 0:"
+      "      case 1: j = 1; break;"
+      "      case 2:"
+      "      case 3: j = 2; break;"
+      "      case 4:"
+      "      case 5: j = 3; break;"
+      "      default: j = 0; break;"
+      "    }"
+      "    return j|0;"
+      "  }"
+      "  return { foo: foo };"
+      "})(this, {}, undefined).foo;"
+      "foo(1);";
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
+  CHECK(data.data);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    v8::Handle<v8::Function> foo =
+        v8::Handle<v8::Function>::Cast(CompileRun("foo"));
+    CHECK(v8::Utils::OpenHandle(*foo)->code()->is_turbofanned());
+    CHECK_EQ(3, CompileRun("foo(4)")->ToInt32(isolate)->Int32Value());
+  }
+  isolate->Dispose();
 }

@@ -184,9 +184,21 @@ void RelocInfo::set_target_object(Object* target,
 }
 
 
-Address RelocInfo::target_reference() {
+Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
+}
+
+
+Address RelocInfo::target_internal_reference() {
+  DCHECK(rmode_ == INTERNAL_REFERENCE);
+  return Memory::Address_at(pc_);
+}
+
+
+void RelocInfo::set_target_internal_reference(Address target) {
+  DCHECK(rmode_ == INTERNAL_REFERENCE);
+  Memory::Address_at(pc_) = target;
 }
 
 

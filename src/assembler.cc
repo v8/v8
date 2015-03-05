@@ -861,8 +861,9 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
-    os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
-       << static_cast<const void*>(target_reference()) << ")";
+    os << " (" << ref_encoder.NameOfAddress(target_external_reference())
+       << ")  (" << static_cast<const void*>(target_external_reference())
+       << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     os << " (" << Code::Kind2String(code->kind()) << ")  ("
