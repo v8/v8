@@ -2453,7 +2453,7 @@ void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     return;
   }
   pshufd(xmm0, src, 1);
-  movd(dst, src);
+  movd(dst, xmm0);
 }
 
 
