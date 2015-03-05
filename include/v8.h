@@ -665,8 +665,8 @@ template <class T> class PersistentBase {
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
-  PersistentBase(PersistentBase& other); // NOLINT
-  void operator=(PersistentBase&);
+  PersistentBase(PersistentBase& other) = delete;  // NOLINT
+  void operator=(PersistentBase&) = delete;
   V8_INLINE static T* New(Isolate* isolate, T* that);
 
   T* val_;
@@ -814,16 +814,11 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
  */
 template<class T>
 class UniquePersistent : public PersistentBase<T> {
-  struct RValue {
-    V8_INLINE explicit RValue(UniquePersistent* obj) : object(obj) {}
-    UniquePersistent* object;
-  };
-
  public:
   /**
    * A UniquePersistent with no storage cell.
    */
-  V8_INLINE UniquePersistent() : PersistentBase<T>(0) { }
+  V8_INLINE UniquePersistent() : PersistentBase<T>(nullptr) {}
   /**
    * Construct a UniquePersistent from a Handle.
    * When the Handle is non-empty, a new storage cell is created
@@ -847,34 +842,32 @@ class UniquePersistent : public PersistentBase<T> {
   /**
    * Move constructor.
    */
-  V8_INLINE UniquePersistent(RValue rvalue)
-    : PersistentBase<T>(rvalue.object->val_) {
-    rvalue.object->val_ = 0;
+  V8_INLINE UniquePersistent(UniquePersistent&& other)
+      : PersistentBase<T>(other.val_) {
+    other.val_ = nullptr;
   }
   V8_INLINE ~UniquePersistent() { this->Reset(); }
   /**
    * Move via assignment.
    */
-  template<class S>
-  V8_INLINE UniquePersistent& operator=(UniquePersistent<S> rhs) {
+  template <class S>
+  V8_INLINE UniquePersistent& operator=(UniquePersistent<S>&& rhs) {
     TYPE_CHECK(T, S);
-    this->Reset();
-    this->val_ = rhs.val_;
-    rhs.val_ = 0;
+    if (this != &rhs) {
+      this->Reset();
+      this->val_ = rhs.val_;
+      rhs.val_ = nullptr;
+    }
     return *this;
   }
   /**
-   * Cast operator for moves.
-   */
-  V8_INLINE operator RValue() { return RValue(this); }
-  /**
    * Pass allows returning uniques from functions, etc.
    */
-  UniquePersistent Pass() { return UniquePersistent(RValue(this)); }
+  UniquePersistent Pass() { return static_cast<UniquePersistent&&>(*this); }
 
  private:
-  UniquePersistent(UniquePersistent&);
-  void operator=(UniquePersistent&);
+  UniquePersistent(UniquePersistent&) = delete;
+  void operator=(UniquePersistent&) = delete;
 };
 
 
