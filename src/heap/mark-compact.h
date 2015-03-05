@@ -808,7 +808,7 @@ class MarkCompactCollector {
   void ClearNonLiveReferences();
   void ClearNonLivePrototypeTransitions(Map* map);
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
-  void ClearMapTransitions(Map* map, Map* dead_transition);
+  void ClearMapTransitions(Map* map);
   bool ClearMapBackPointer(Map* map);
   void TrimDescriptorArray(Map* map, DescriptorArray* descriptors,
                            int number_of_own_descriptors);

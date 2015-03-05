@@ -2476,7 +2476,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
   map->set_weak_cell_cache(Smi::FromInt(0));
-  map->set_raw_transitions(Smi::FromInt(0));
+  map->init_transitions(undefined_value());
   map->set_unused_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
@@ -2610,7 +2610,7 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  meta_map()->set_raw_transitions(Smi::FromInt(0));
+  meta_map()->init_transitions(undefined_value());
   meta_map()->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     meta_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
@@ -2619,7 +2619,7 @@ bool Heap::CreateInitialMaps() {
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->set_dependent_code(
       DependentCode::cast(empty_fixed_array()));
-  fixed_array_map()->set_raw_transitions(Smi::FromInt(0));
+  fixed_array_map()->init_transitions(undefined_value());
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     fixed_array_map()->set_layout_descriptor(
@@ -2628,7 +2628,7 @@ bool Heap::CreateInitialMaps() {
 
   undefined_map()->set_code_cache(empty_fixed_array());
   undefined_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  undefined_map()->set_raw_transitions(Smi::FromInt(0));
+  undefined_map()->init_transitions(undefined_value());
   undefined_map()->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     undefined_map()->set_layout_descriptor(
@@ -2637,7 +2637,7 @@ bool Heap::CreateInitialMaps() {
 
   null_map()->set_code_cache(empty_fixed_array());
   null_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  null_map()->set_raw_transitions(Smi::FromInt(0));
+  null_map()->init_transitions(undefined_value());
   null_map()->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     null_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
@@ -2646,7 +2646,7 @@ bool Heap::CreateInitialMaps() {
   constant_pool_array_map()->set_code_cache(empty_fixed_array());
   constant_pool_array_map()->set_dependent_code(
       DependentCode::cast(empty_fixed_array()));
-  constant_pool_array_map()->set_raw_transitions(Smi::FromInt(0));
+  constant_pool_array_map()->init_transitions(undefined_value());
   constant_pool_array_map()->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     constant_pool_array_map()->set_layout_descriptor(

@@ -342,10 +342,9 @@ class Expectations {
     SetDataField(property_index, attributes, representation, heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    Map* target =
-        TransitionArray::SearchTransition(*map, kData, *name, attributes);
-    CHECK(target != NULL);
-    return handle(target);
+    int t = map->SearchTransition(kData, *name, attributes);
+    CHECK_NE(TransitionArray::kNotFound, t);
+    return handle(map->GetTransition(t));
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -1478,10 +1477,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = MakeName("prop", i);
-      Map* target =
-          TransitionArray::SearchTransition(*map2, kData, *name, NONE);
-      CHECK(target != NULL);
-      map2 = handle(target);
+      int t = map2->SearchTransition(kData, *name, NONE);
+      CHECK_NE(TransitionArray::kNotFound, t);
+      map2 = handle(map2->GetTransition(t));
     }
 
     map2 = Map::ReconfigureProperty(map2, kSplitProp, kData, NONE,
@@ -1501,12 +1499,12 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionArray::kMaxNumberOfTransitions; i++) {
-    CHECK(TransitionArray::CanHaveMoreTransitions(map2));
+    CHECK(map2->CanHaveMoreTransitions());
     Handle<String> name = MakeName("foo", i);
     Map::CopyWithField(map2, name, any_type, NONE, Representation::Smi(),
                        INSERT_TRANSITION).ToHandleChecked();
   }
-  CHECK(!TransitionArray::CanHaveMoreTransitions(map2));
+  CHECK(!map2->CanHaveMoreTransitions());
 
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become "copy-generalized".

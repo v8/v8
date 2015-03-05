@@ -5869,11 +5869,26 @@ class Map: public HeapObject {
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly();
 
-  inline Map* ElementsTransitionMap();
+  inline bool HasTransitionArray() const;
+  inline bool HasElementsTransition();
+  inline Map* elements_transition_map();
 
+  inline Map* GetTransition(int transition_index);
+  inline int SearchSpecialTransition(Symbol* name);
+  inline int SearchTransition(PropertyKind kind, Name* name,
+                              PropertyAttributes attributes);
   inline FixedArrayBase* GetInitialElements();
 
-  DECL_ACCESSORS(raw_transitions, Object)
+  DECL_ACCESSORS(transitions, TransitionArray)
+  inline void init_transitions(Object* undefined);
+
+  static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
+  static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
+
+  // Try to follow an existing transition to a field with attributes NONE. The
+  // return value indicates whether the transition was successful.
+  static inline Handle<Map> FindTransitionToField(Handle<Map> map,
+                                                  Handle<Name> key);
 
   Map* FindRootMap();
   Map* FindFieldOwner(int descriptor);
@@ -5947,8 +5962,6 @@ class Map: public HeapObject {
   inline Object* GetConstructor() const;
   inline void SetConstructor(Object* constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // [back pointer]: points back to the parent map from which a transition
-  // leads to this map. The field overlaps with the constructor (see above).
   inline Object* GetBackPointer();
   inline void SetBackPointer(Object* value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -5981,7 +5994,37 @@ class Map: public HeapObject {
   // [weak cell cache]: cache that stores a weak cell pointing to this map.
   DECL_ACCESSORS(weak_cell_cache, Object)
 
+  // [prototype transitions]: cache of prototype transitions.
+  // Prototype transition is a transition that happens
+  // when we change object's prototype to a new one.
+  // Cache format:
+  //    0: finger - index of the first free cell in the cache
+  //    1 + i: target map
+  inline FixedArray* GetPrototypeTransitions();
+  inline bool HasPrototypeTransitions();
+
+  static const int kProtoTransitionNumberOfEntriesOffset = 0;
+  static const int kProtoTransitionHeaderSize = 1;
+
+  inline int NumberOfProtoTransitions() {
+    FixedArray* cache = GetPrototypeTransitions();
+    if (cache->length() == 0) return 0;
+    return
+        Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
+  }
+
+  inline void SetNumberOfProtoTransitions(int value) {
+    FixedArray* cache = GetPrototypeTransitions();
+    DCHECK(cache->length() != 0);
+    cache->set(kProtoTransitionNumberOfEntriesOffset, Smi::FromInt(value));
+  }
+
   inline PropertyDetails GetLastDescriptorDetails();
+
+  // The size of transition arrays are limited so they do not end up in large
+  // object space. Otherwise ClearNonLiveTransitions would leak memory while
+  // applying in-place right trimming.
+  inline bool CanHaveMoreTransitions();
 
   int LastAdded() {
     int number_of_own_descriptors = NumberOfOwnDescriptors();
@@ -6150,6 +6193,11 @@ class Map: public HeapObject {
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(Name* name, Code* code, int index);
 
+  // Set all map transitions from this map to dead maps to null.  Also clear
+  // back pointers in transition targets so that we do not process this map
+  // again while following back pointers.
+  void ClearNonLiveTransitions(Heap* heap);
+
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
@@ -6215,6 +6263,18 @@ class Map: public HeapObject {
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
 
+  typedef void (*TraverseCallback)(Map* map, void* data);
+
+  void TraverseTransitionTree(TraverseCallback callback, void* data);
+
+  // When you set the prototype of an object using the __proto__ accessor you
+  // need a new map for the object (the prototype is stored in the map).  In
+  // order not to multiply maps unnecessarily we store these as transitions in
+  // the original map.  That way we can transition to the same map if the same
+  // prototype is set, rather than creating a new map every time.  The
+  // transitions are in the form of a map where the keys are prototype objects
+  // and the values are the maps they transition to.
+  static const int kMaxCachedPrototypeTransitions = 256;
   static Handle<Map> TransitionToPrototype(Handle<Map> map,
                                            Handle<Object> prototype,
                                            PrototypeOptimizationMode mode);
@@ -6228,10 +6288,6 @@ class Map: public HeapObject {
   static const int kPrototypeOffset = kBitField3Offset + kPointerSize;
   static const int kConstructorOrBackPointerOffset =
       kPrototypeOffset + kPointerSize;
-  // When there is only one transition, it is stored directly in this field;
-  // otherwise a transition array is used.
-  // For prototype maps, this slot is used to store a pointer to the prototype
-  // object using this map.
   static const int kTransitionsOffset =
       kConstructorOrBackPointerOffset + kPointerSize;
   static const int kDescriptorsOffset = kTransitionsOffset + kPointerSize;
@@ -6374,6 +6430,15 @@ class Map: public HeapObject {
   static Handle<Map> TransitionElementsToSlow(Handle<Map> object,
                                               ElementsKind to_kind);
 
+  // Zaps the contents of backing data structures. Note that the
+  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
+  // holding weak references when incremental marking is used, because it also
+  // iterates over objects that are otherwise unreachable.
+  // In general we only want to call these functions in release mode when
+  // heap verification is turned on.
+  void ZapPrototypeTransitions();
+  void ZapTransitions();
+
   void DeprecateTransitionTree();
   bool DeprecateTarget(PropertyKind kind, Name* key,
                        PropertyAttributes attributes,
@@ -6401,6 +6466,16 @@ class Map: public HeapObject {
                            Representation new_representation,
                            HeapType* old_field_type,
                            HeapType* new_field_type);
+
+  static inline void SetPrototypeTransitions(
+      Handle<Map> map,
+      Handle<FixedArray> prototype_transitions);
+
+  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;

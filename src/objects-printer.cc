@@ -432,9 +432,8 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (FLAG_unbox_double_fields) {
     os << "\n - layout descriptor: " << Brief(layout_descriptor());
   }
-  if (TransitionArray::NumberOfTransitions(raw_transitions()) > 0) {
-    os << "\n - transitions: ";
-    TransitionArray::PrintTransitions(os, raw_transitions());
+  if (HasTransitionArray()) {
+    os << "\n - transitions: " << Brief(transitions());
   }
   os << "\n - prototype: " << Brief(prototype());
   os << "\n - constructor: " << Brief(GetConstructor());
@@ -1139,20 +1138,19 @@ void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
 
 void TransitionArray::Print() {
   OFStream os(stdout);
-  TransitionArray::PrintTransitions(os, this);
+  this->PrintTransitions(os);
   os << std::flush;
 }
 
 
-void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
+void TransitionArray::PrintTransitions(std::ostream& os,
                                        bool print_header) {  // NOLINT
-  int num_transitions = NumberOfTransitions(transitions);
   if (print_header) {
-    os << "Transition array " << num_transitions << "\n";
+    os << "Transition array " << number_of_transitions() << "\n";
   }
-  for (int i = 0; i < num_transitions; i++) {
-    Name* key = GetKey(transitions, i);
-    Map* target = GetTarget(transitions, i);
+  for (int i = 0; i < number_of_transitions(); i++) {
+    Name* key = GetKey(i);
+    Map* target = GetTarget(i);
     os << "   ";
 #ifdef OBJECT_PRINT
     key->NamePrint(os);
@@ -1160,17 +1158,16 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     key->ShortPrint(os);
 #endif
     os << ": ";
-    Heap* heap = key->GetHeap();
-    if (key == heap->nonextensible_symbol()) {
+    if (key == GetHeap()->nonextensible_symbol()) {
       os << " (transition to non-extensible)";
-    } else if (key == heap->sealed_symbol()) {
+    } else if (key == GetHeap()->sealed_symbol()) {
       os << " (transition to sealed)";
-    } else if (key == heap->frozen_symbol()) {
+    } else if (key == GetHeap()->frozen_symbol()) {
       os << " (transition to frozen)";
-    } else if (key == heap->elements_transition_symbol()) {
+    } else if (key == GetHeap()->elements_transition_symbol()) {
       os << " (transition to " << ElementsKindToString(target->elements_kind())
          << ")";
-    } else if (key == heap->observed_symbol()) {
+    } else if (key == GetHeap()->observed_symbol()) {
       os << " (transition to Object.observe)";
     } else {
       PropertyDetails details = GetTargetDetails(key, target);
@@ -1180,9 +1177,7 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
       }
       os << (details.kind() == kData ? "data" : "accessor");
       if (details.location() == kDescriptor) {
-        Object* value =
-            target->instance_descriptors()->GetValue(target->LastAdded());
-        os << " " << Brief(value);
+        os << " " << Brief(GetTargetValue(i));
       }
       os << "), attrs: " << details.attributes();
     }
@@ -1192,7 +1187,8 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
 
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
-  TransitionArray::PrintTransitions(os, map()->raw_transitions());
+  if (!map()->HasTransitionArray()) return;
+  map()->transitions()->PrintTransitions(os, false);
 }
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
 } }  // namespace v8::internal
