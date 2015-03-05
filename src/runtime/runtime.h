@@ -436,7 +436,7 @@ namespace internal {
   F(InternalizeString, 1, 1)                                 \
   F(StringCompare, 2, 1)                                     \
   F(StringCharCodeAtRT, 2, 1)                                \
-  F(GetFromCache, 2, 1)                                      \
+  F(GetFromCacheRT, 2, 1)                                    \
                                                              \
   /* Compilation */                                          \
   F(CompileLazy, 1, 1)                                       \

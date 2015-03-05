@@ -1229,13 +1229,13 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCharFromCode) {
+RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_CharFromCode(args, isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
+RUNTIME_FUNCTION(Runtime_StringCharAt) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   if (!args[0]->IsString()) return Smi::FromInt(0);
@@ -1247,7 +1247,7 @@ RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
+RUNTIME_FUNCTION(Runtime_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_INT32_ARG_CHECKED(index, 0);
@@ -1258,7 +1258,7 @@ RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
+RUNTIME_FUNCTION(Runtime_TwoByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_INT32_ARG_CHECKED(index, 0);
@@ -1269,13 +1269,7 @@ RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCompare) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringCompare(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_StringCharCodeAt) {
+RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   if (!args[0]->IsString()) return isolate->heap()->undefined_value();
@@ -1285,19 +1279,7 @@ RUNTIME_FUNCTION(RuntimeReference_StringCharCodeAt) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_SubString) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_SubString(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_StringAdd) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringAdd(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_IsStringWrapperSafeForDefaultValueOf) {
+RUNTIME_FUNCTION(Runtime_IsStringWrapperSafeForDefaultValueOf) {
   UNIMPLEMENTED();
   return NULL;
 }

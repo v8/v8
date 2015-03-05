@@ -1477,7 +1477,7 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_ValueOf) {
+RUNTIME_FUNCTION(Runtime_ValueOf) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1486,7 +1486,7 @@ RUNTIME_FUNCTION(RuntimeReference_ValueOf) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_SetValueOf) {
+RUNTIME_FUNCTION(Runtime_SetValueOf) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1497,7 +1497,7 @@ RUNTIME_FUNCTION(RuntimeReference_SetValueOf) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_ObjectEquals) {
+RUNTIME_FUNCTION(Runtime_ObjectEquals) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_CHECKED(Object, obj1, 0);
@@ -1506,7 +1506,7 @@ RUNTIME_FUNCTION(RuntimeReference_ObjectEquals) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsObject) {
+RUNTIME_FUNCTION(Runtime_IsObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1521,7 +1521,7 @@ RUNTIME_FUNCTION(RuntimeReference_IsObject) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsUndetectableObject) {
+RUNTIME_FUNCTION(Runtime_IsUndetectableObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1529,7 +1529,7 @@ RUNTIME_FUNCTION(RuntimeReference_IsUndetectableObject) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsSpecObject) {
+RUNTIME_FUNCTION(Runtime_IsSpecObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1537,7 +1537,7 @@ RUNTIME_FUNCTION(RuntimeReference_IsSpecObject) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_ClassOf) {
+RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);

@@ -2803,13 +2803,13 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DebugIsActive) {
+RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DebugBreakInOptimizedCode) {
+RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
 }

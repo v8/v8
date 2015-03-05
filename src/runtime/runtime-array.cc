@@ -1322,7 +1322,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsArray) {
+RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1330,21 +1330,21 @@ RUNTIME_FUNCTION(RuntimeReference_IsArray) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_HasCachedArrayIndex) {
+RUNTIME_FUNCTION(Runtime_HasCachedArrayIndex) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   return isolate->heap()->false_value();
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GetCachedArrayIndex) {
+RUNTIME_FUNCTION(Runtime_GetCachedArrayIndex) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   return isolate->heap()->undefined_value();
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_FastOneByteArrayJoin) {
+RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   return isolate->heap()->undefined_value();

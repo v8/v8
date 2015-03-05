@@ -1104,19 +1104,13 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_RegExpConstructResult) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_RegExpConstructResult(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_RegExpExec) {
+RUNTIME_FUNCTION(Runtime_RegExpExec) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_RegExpExecRT(args, isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsRegExp) {
+RUNTIME_FUNCTION(Runtime_IsRegExp) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);

@@ -1106,7 +1106,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_ArgumentsLength) {
+RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   JavaScriptFrameIterator it(isolate);
@@ -1115,7 +1115,7 @@ RUNTIME_FUNCTION(RuntimeReference_ArgumentsLength) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_Arguments) {
+RUNTIME_FUNCTION(Runtime_Arguments) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_GetArgumentsProperty(args, isolate);
 }

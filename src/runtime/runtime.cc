@@ -19,19 +19,14 @@ namespace internal {
   ObjectPair Runtime_##name(int args_length, Object** args_object, \
                             Isolate* isolate);
 
-// Reference implementation for inlined runtime functions.  Only used when the
-// compiler does not support a certain intrinsic.  Don't optimize these, but
-// implement the intrinsic in the respective compiler instead.
-#define I(name, number_of_args, result_size)                             \
-  Object* RuntimeReference_##name(int args_length, Object** args_object, \
-                                  Isolate* isolate);
-
 RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F)
 RUNTIME_FUNCTION_LIST_RETURN_PAIR(P)
 INLINE_OPTIMIZED_FUNCTION_LIST(F)
-INLINE_FUNCTION_LIST(I)
+// Reference implementation for inlined runtime functions.  Only used when the
+// compiler does not support a certain intrinsic.  Don't optimize these, but
+// implement the intrinsic in the respective compiler instead.
+INLINE_FUNCTION_LIST(F)
 
-#undef I
 #undef F
 #undef P
 
@@ -44,11 +39,11 @@ INLINE_FUNCTION_LIST(I)
   ,
 
 
-#define I(name, number_of_args, result_size)                                \
-  {                                                                         \
-    Runtime::kInline##name, Runtime::INLINE, "_" #name,                     \
-        FUNCTION_ADDR(RuntimeReference_##name), number_of_args, result_size \
-  }                                                                         \
+#define I(name, number_of_args, result_size)                       \
+  {                                                                \
+    Runtime::kInline##name, Runtime::INLINE, "_" #name,            \
+        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size \
+  }                                                                \
   ,
 
 

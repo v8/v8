@@ -170,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DateField) {
+RUNTIME_FUNCTION(Runtime_DateField) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_CHECKED(Object, obj, 0);

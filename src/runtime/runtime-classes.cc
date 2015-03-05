@@ -429,7 +429,7 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DefaultConstructorCallSuper) {
+RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   UNREACHABLE();
   return nullptr;
 }

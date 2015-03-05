@@ -227,13 +227,13 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_MathPow) {
+RUNTIME_FUNCTION(Runtime_MathPow) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_MathPowSlow(args, isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsMinusZero) {
+RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);

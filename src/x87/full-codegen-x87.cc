@@ -4175,7 +4175,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   // Call runtime to perform the lookup.
   __ push(cache);
   __ push(key);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
 
   __ bind(&done);
   context()->Plug(eax);

@@ -201,7 +201,7 @@ RUNTIME_FUNCTION(Runtime_RenderCallSite) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetFromCache) {
+RUNTIME_FUNCTION(Runtime_GetFromCacheRT) {
   SealHandleScope shs(isolate);
   // This is only called from codegen, so checks might be more lax.
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
@@ -319,12 +319,12 @@ RUNTIME_FUNCTION(Runtime_IS_VAR) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GetFromCache) {
+RUNTIME_FUNCTION(Runtime_GetFromCache) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(id, 0);
   args[0] = isolate->native_context()->jsfunction_result_caches()->get(id);
-  return __RT_impl_Runtime_GetFromCache(args, isolate);
+  return __RT_impl_Runtime_GetFromCacheRT(args, isolate);
 }
 }
 }  // namespace v8::internal

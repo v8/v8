@@ -213,13 +213,13 @@ RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorNext) {
+RUNTIME_FUNCTION(Runtime_GeneratorNext) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorThrow) {
+RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }
