@@ -1436,6 +1436,46 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
 
 
 // -----------------------------------------------------------------------------
+// Float64InsertLowWord32
+
+
+TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(uint32_t, y, kUint32Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64InsertLowWord32(),
+                                  Float64Constant(x), Uint32Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(
+          r.replacement(),
+          IsFloat64Constant(BitEq(bit_cast<double>(
+              (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF00000000)) | y))));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Float64InsertHighWord32
+
+
+TEST_F(MachineOperatorReducerTest, Float64InsertHighWord32WithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(uint32_t, y, kUint32Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64InsertHighWord32(),
+                                  Float64Constant(x), Uint32Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsFloat64Constant(BitEq(bit_cast<double>(
+                      (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF)) |
+                      (static_cast<uint64_t>(y) << 32)))));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Store
 
 

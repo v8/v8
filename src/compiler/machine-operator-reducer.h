@@ -78,6 +78,8 @@ class MachineOperatorReducer FINAL : public Reducer {
   Reduction ReduceWord32Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
   Reduction ReduceWord32Or(Node* node);
+  Reduction ReduceFloat64InsertLowWord32(Node* node);
+  Reduction ReduceFloat64InsertHighWord32(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

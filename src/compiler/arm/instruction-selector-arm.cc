@@ -1394,6 +1394,52 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmVmovLowU32F64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmVmovHighU32F64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
+  ArmOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
+      CanCover(node, left)) {
+    left = left->InputAt(1);
+    Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(right),
+         g.UseRegister(left));
+    return;
+  }
+  Emit(kArmVmovLowF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
+}
+
+
+void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
+  ArmOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
+      CanCover(node, left)) {
+    left = left->InputAt(1);
+    Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(left),
+         g.UseRegister(right));
+    return;
+  }
+  Emit(kArmVmovHighF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
+}
+
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

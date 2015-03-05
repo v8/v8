@@ -1179,6 +1179,19 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%d", (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x16) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pextrd ");  // reg/m32, xmm, imm8
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+        current += 1;
+      } else if (third_byte == 0x22) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pinsrd ");  // xmm, reg/m32, imm8
+        AppendToBuffer(" %s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%d", (*current) & 3);
+        current += 1;
       } else {
         UnimplementedInstruction();
       }
@@ -1229,12 +1242,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
       } else if (opcode == 0x72) {
         current += 1;
-        AppendToBuffer("%s,%s,%d", (regop == 6) ? "pslld" : "psrld",
+        AppendToBuffer("%s %s,%d", (regop == 6) ? "pslld" : "psrld",
                        NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else if (opcode == 0x73) {
         current += 1;
-        AppendToBuffer("%s,%s,%d", (regop == 6) ? "psllq" : "psrlq",
+        AppendToBuffer("%s %s,%d", (regop == 6) ? "psllq" : "psrlq",
                        NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
@@ -1251,6 +1264,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "comisd";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
+        } else if (opcode == 0x62) {
+          mnemonic = "punpckldq";
+        } else if (opcode == 0x6A) {
+          mnemonic = "punpckhdq";
         } else {
           UnimplementedInstruction();
         }

@@ -177,6 +177,12 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   bool HasFloat64RoundTruncate() { return flags_ & kFloat64RoundTruncate; }
   bool HasFloat64RoundTiesAway() { return flags_ & kFloat64RoundTiesAway; }
 
+  // Floating point bit representation.
+  const Operator* Float64ExtractLowWord32();
+  const Operator* Float64ExtractHighWord32();
+  const Operator* Float64InsertLowWord32();
+  const Operator* Float64InsertHighWord32();
+
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
 
@@ -226,10 +232,10 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
-  Zone* zone_;
-  const MachineOperatorGlobalCache& cache_;
-  const MachineType word_;
-  const Flags flags_;
+  Zone* const zone_;
+  MachineOperatorGlobalCache const& cache_;
+  MachineType const word_;
+  Flags const flags_;
 
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };

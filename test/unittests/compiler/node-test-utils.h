@@ -210,6 +210,12 @@ Matcher<Node*> IsFloat64Floor(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Ceil(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTruncate(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTiesAway(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64ExtractLowWord32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64ExtractHighWord32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64InsertLowWord32(const Matcher<Node*>& lhs_matcher,
+                                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64InsertHighWord32(const Matcher<Node*>& lhs_matcher,
+                                         const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
                           const Matcher<Node*>& effect_matcher,

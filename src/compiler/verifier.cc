@@ -805,13 +805,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
+    case IrOpcode::kFloat64ExtractLowWord32:
+    case IrOpcode::kFloat64ExtractHighWord32:
+    case IrOpcode::kFloat64InsertLowWord32:
+    case IrOpcode::kFloat64InsertHighWord32:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
       // TODO(rossberg): Check.
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 void Verifier::Run(Graph* graph, Typing typing) {

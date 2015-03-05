@@ -617,6 +617,27 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmVmovLowU32F64:
+      __ VmovLow(i.OutputRegister(), i.InputFloat64Register(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovLowF64U32:
+      __ VmovLow(i.OutputFloat64Register(), i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovHighU32F64:
+      __ VmovHigh(i.OutputRegister(), i.InputFloat64Register(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovHighF64U32:
+      __ VmovHigh(i.OutputFloat64Register(), i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovF64U32U32:
+      __ vmov(i.OutputFloat64Register(), i.InputRegister(0),
+              i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());

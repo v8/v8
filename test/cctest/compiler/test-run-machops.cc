@@ -4647,6 +4647,72 @@ TEST(RunFloat32Constant) {
 }
 
 
+TEST(RunFloat64ExtractLowWord32) {
+  uint64_t input = 0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Float64ExtractLowWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = bit_cast<uint64_t>(*i);
+    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input));
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunFloat64ExtractHighWord32) {
+  uint64_t input = 0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Float64ExtractHighWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = bit_cast<uint64_t>(*i);
+    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input >> 32));
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunFloat64InsertLowWord32) {
+  uint64_t input = 0;
+  uint64_t result = 0;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  m.StoreToPointer(
+      &result, kMachFloat64,
+      m.Float64InsertLowWord32(m.LoadFromPointer(&input, kMachFloat64),
+                               m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      input = bit_cast<uint64_t>(*i);
+      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF))) |
+                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)));
+      CHECK_EQ(0, m.Call(*j));
+      CHECK_EQ(expected, result);
+    }
+  }
+}
+
+
+TEST(RunFloat64InsertHighWord32) {
+  uint64_t input = 0;
+  uint64_t result = 0;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  m.StoreToPointer(
+      &result, kMachFloat64,
+      m.Float64InsertHighWord32(m.LoadFromPointer(&input, kMachFloat64),
+                                m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      input = bit_cast<uint64_t>(*i);
+      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF) << 32)) |
+                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)) << 32);
+      CHECK_EQ(0, m.Call(*j));
+      CHECK_EQ(expected, result);
+    }
+  }
+}
+
+
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.
 static double two_52 = two_30 * (1 << 22);  // 2^52 is a precision boundary.
 static double kValues[] = {0.1,

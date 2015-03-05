@@ -2217,6 +2217,24 @@ void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::punpckldq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x62);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::punpckhdq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x6A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);

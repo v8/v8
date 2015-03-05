@@ -446,6 +446,9 @@ TEST(DisasmX64) {
     __ psrlq(xmm0, 6);
 
     __ pcmpeqd(xmm1, xmm0);
+
+    __ punpckldq(xmm1, xmm11);
+    __ punpckhdq(xmm8, xmm15);
   }
 
   // cmov.
@@ -472,6 +475,10 @@ TEST(DisasmX64) {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ extractps(rax, xmm1, 0);
+      __ pextrd(rbx, xmm15, 0);
+      __ pextrd(r12, xmm0, 1);
+      __ pinsrd(xmm9, r9, 0);
+      __ pinsrd(xmm5, rax, 1);
     }
   }
 

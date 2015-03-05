@@ -433,6 +433,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kFloat64InsertLowWord32:
+      return ReduceFloat64InsertLowWord32(node);
+    case IrOpcode::kFloat64InsertHighWord32:
+      return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
       return ReduceStore(node);
     default:
@@ -972,6 +976,32 @@ Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
   node->ReplaceInput(0, mshl.left().node());
   node->ReplaceInput(1, mshr.right().node());
   return Changed(node);
+}
+
+
+Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {
+  DCHECK_EQ(IrOpcode::kFloat64InsertLowWord32, node->opcode());
+  Float64Matcher mlhs(node->InputAt(0));
+  Uint32Matcher mrhs(node->InputAt(1));
+  if (mlhs.HasValue() && mrhs.HasValue()) {
+    return ReplaceFloat64(bit_cast<double>(
+        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF00000000)) |
+        mrhs.Value()));
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
+  DCHECK_EQ(IrOpcode::kFloat64InsertHighWord32, node->opcode());
+  Float64Matcher mlhs(node->InputAt(0));
+  Uint32Matcher mrhs(node->InputAt(1));
+  if (mlhs.HasValue() && mrhs.HasValue()) {
+    return ReplaceFloat64(bit_cast<double>(
+        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF)) |
+        (static_cast<uint64_t>(mrhs.Value()) << 32)));
+  }
+  return NoChange();
 }
 
 

@@ -451,6 +451,11 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
     __ por(xmm0, xmm1);
+
+    __ pcmpeqd(xmm1, xmm0);
+
+    __ punpckldq(xmm1, xmm6);
+    __ punpckhdq(xmm7, xmm5);
   }
 
   // cmov.

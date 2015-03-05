@@ -693,6 +693,29 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Uint32ToFloat64:
       __ Ucvtf(i.OutputDoubleRegister(), i.InputRegister32(0));
       break;
+    case kArm64Float64ExtractLowWord32:
+      __ Fmov(i.OutputRegister32(), i.InputFloat32Register(0));
+      break;
+    case kArm64Float64ExtractHighWord32:
+      __ Fmov(i.OutputRegister(), i.InputFloat64Register(0));
+      __ Lsr(i.OutputRegister(), i.OutputRegister(), 32);
+      break;
+    case kArm64Float64InsertLowWord32: {
+      UseScratchRegisterScope scope(masm());
+      Register tmp = scope.AcquireX();
+      __ Fmov(tmp, i.InputFloat64Register(0));
+      __ Bfi(tmp, i.InputRegister(1), 0, 32);
+      __ Fmov(i.OutputFloat64Register(), tmp);
+      break;
+    }
+    case kArm64Float64InsertHighWord32: {
+      UseScratchRegisterScope scope(masm());
+      Register tmp = scope.AcquireX();
+      __ Fmov(tmp.W(), i.InputFloat32Register(0));
+      __ Bfi(tmp, i.InputRegister(1), 32, 32);
+      __ Fmov(i.OutputFloat64Register(), tmp);
+      break;
+    }
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;

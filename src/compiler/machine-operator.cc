@@ -130,6 +130,10 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float64Equal, Operator::kCommutative, 2, 0, 1)                            \
   V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
   V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
+  V(Float64ExtractLowWord32, Operator::kNoProperties, 1, 0, 1)                \
+  V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
+  V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
+  V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)
 
 

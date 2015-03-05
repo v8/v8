@@ -31,6 +31,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
       return ReduceInlineIsInstanceType(node, JS_FUNCTION_TYPE);
+    case Runtime::kInlineOptimizedConstructDouble:
+      return ReduceInlineOptimizedConstructDouble(node);
+    case Runtime::kInlineOptimizedDoubleLo:
+      return ReduceInlineOptimizedDoubleLo(node);
+    case Runtime::kInlineOptimizedDoubleHi:
+      return ReduceInlineOptimizedDoubleHi(node);
     case Runtime::kInlineIsRegExp:
       return ReduceInlineIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineValueOf:
@@ -89,6 +95,30 @@ Reduction JSIntrinsicLowering::ReduceInlineIsSmi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceInlineIsNonNegativeSmi(Node* node) {
   return Change(node, simplified()->ObjectIsNonNegativeSmi());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineOptimizedConstructDouble(
+    Node* node) {
+  Node* high = NodeProperties::GetValueInput(node, 0);
+  Node* low = NodeProperties::GetValueInput(node, 1);
+  Node* value =
+      graph()->NewNode(machine()->Float64InsertHighWord32(),
+                       graph()->NewNode(machine()->Float64InsertLowWord32(),
+                                        jsgraph()->Constant(0), low),
+                       high);
+  NodeProperties::ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineOptimizedDoubleLo(Node* node) {
+  return Change(node, machine()->Float64ExtractLowWord32());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineOptimizedDoubleHi(Node* node) {
+  return Change(node, machine()->Float64ExtractHighWord32());
 }
 
 

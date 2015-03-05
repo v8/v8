@@ -1371,6 +1371,43 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractLowWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractHighWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Float64Matcher mleft(left);
+  if (mleft.HasValue() && (bit_cast<uint64_t>(mleft.Value()) >> 32) == 0u) {
+    Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+    return;
+  }
+  Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.Use(right));
+}
+
+
+void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kSSEFloat64InsertHighWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.Use(right));
+}
+
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

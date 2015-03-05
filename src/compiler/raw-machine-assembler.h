@@ -393,6 +393,20 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->Float64RoundTiesAway(), a);
   }
 
+  // Float64 bit operations.
+  Node* Float64ExtractLowWord32(Node* a) {
+    return NewNode(machine()->Float64ExtractLowWord32(), a);
+  }
+  Node* Float64ExtractHighWord32(Node* a) {
+    return NewNode(machine()->Float64ExtractHighWord32(), a);
+  }
+  Node* Float64InsertLowWord32(Node* a, Node* b) {
+    return NewNode(machine()->Float64InsertLowWord32(), a, b);
+  }
+  Node* Float64InsertHighWord32(Node* a, Node* b) {
+    return NewNode(machine()->Float64InsertHighWord32(), a, b);
+  }
+
   // Parameters.
   Node* Parameter(size_t index);
 

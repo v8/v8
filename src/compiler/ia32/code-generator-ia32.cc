@@ -24,8 +24,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
   IA32OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  Operand InputOperand(size_t index) {
-    return ToOperand(instr_->InputAt(index));
+  Operand InputOperand(size_t index, int extra = 0) {
+    return ToOperand(instr_->InputAt(index), extra);
   }
 
   Immediate InputImmediate(size_t index) {
@@ -530,6 +530,29 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEUint32ToFloat64:
       __ LoadUint32(i.OutputDoubleRegister(), i.InputOperand(0));
+      break;
+    case kSSEFloat64ExtractLowWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ mov(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kSSEFloat64ExtractHighWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ mov(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
+      } else {
+        __ Pextrd(i.OutputRegister(), i.InputDoubleRegister(0), 1);
+      }
+      break;
+    case kSSEFloat64InsertLowWord32:
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
+      break;
+    case kSSEFloat64InsertHighWord32:
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
+      break;
+    case kSSEFloat64LoadLowWord32:
+      __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kAVXFloat64Add: {
       CpuFeatureScope avx_scope(masm(), AVX);

@@ -18,6 +18,9 @@ namespace compiler {
 #define __ masm()->
 
 
+#define kScratchDoubleReg xmm0
+
+
 // Adds X64 specific methods for decoding operands.
 class X64OperandConverter : public InstructionOperandConverter {
  public:
@@ -28,8 +31,8 @@ class X64OperandConverter : public InstructionOperandConverter {
     return ToImmediate(instr_->InputAt(index));
   }
 
-  Operand InputOperand(size_t index) {
-    return ToOperand(instr_->InputAt(index));
+  Operand InputOperand(size_t index, int extra = 0) {
+    return ToOperand(instr_->InputAt(index), extra);
   }
 
   Operand OutputOperand() { return ToOperand(instr_->Output()); }
@@ -808,6 +811,41 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
+    case kSSEFloat64ExtractLowWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ movl(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kSSEFloat64ExtractHighWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ movl(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
+      } else {
+        __ Pextrd(i.OutputRegister(), i.InputDoubleRegister(0), 1);
+      }
+      break;
+    case kSSEFloat64InsertLowWord32:
+      if (instr->InputAt(1)->IsRegister()) {
+        __ Pinsrd(i.OutputDoubleRegister(), i.InputRegister(1), 0);
+      } else {
+        __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
+      }
+      break;
+    case kSSEFloat64InsertHighWord32:
+      if (instr->InputAt(1)->IsRegister()) {
+        __ Pinsrd(i.OutputDoubleRegister(), i.InputRegister(1), 1);
+      } else {
+        __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
+      }
+      break;
+    case kSSEFloat64LoadLowWord32:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
+      break;
     case kAVXFloat64Add:
       ASSEMBLE_AVX_DOUBLE_BINOP(vaddsd);
       break;
@@ -1014,7 +1052,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 // Assembles branches after this instruction.

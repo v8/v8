@@ -813,6 +813,13 @@ class MacroAssembler: public Assembler {
   void Push(Register src) { push(src); }
   void Pop(Register dst) { pop(dst); }
 
+  // Non-SSE2 instructions.
+  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+    Pinsrd(dst, Operand(src), imm8);
+  }
+  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
+
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));

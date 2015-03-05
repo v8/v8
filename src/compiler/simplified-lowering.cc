@@ -273,13 +273,19 @@ class RepresentationSelector {
     SetOutput(node, kMachAnyTagged);
   }
 
+  // Helper for binops of the R x L -> O variety.
+  void VisitBinop(Node* node, MachineTypeUnion left_use,
+                  MachineTypeUnion right_use, MachineTypeUnion output) {
+    DCHECK_EQ(2, node->InputCount());
+    ProcessInput(node, 0, left_use);
+    ProcessInput(node, 1, right_use);
+    SetOutput(node, output);
+  }
+
   // Helper for binops of the I x I -> O variety.
   void VisitBinop(Node* node, MachineTypeUnion input_use,
                   MachineTypeUnion output) {
-    DCHECK_EQ(2, node->InputCount());
-    ProcessInput(node, 0, input_use);
-    ProcessInput(node, 1, input_use);
-    SetOutput(node, output);
+    VisitBinop(node, input_use, input_use, output);
   }
 
   // Helper for unops of the I -> O variety.
@@ -1033,6 +1039,12 @@ class RepresentationSelector {
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
         return VisitFloat64Cmp(node);
+      case IrOpcode::kFloat64ExtractLowWord32:
+      case IrOpcode::kFloat64ExtractHighWord32:
+        return VisitUnop(node, kMachFloat64, kMachInt32);
+      case IrOpcode::kFloat64InsertLowWord32:
+      case IrOpcode::kFloat64InsertHighWord32:
+        return VisitBinop(node, kMachFloat64, kMachInt32, kMachFloat64);
       case IrOpcode::kLoadStackPointer:
         return VisitLeaf(node, kMachPtr);
       case IrOpcode::kStateValues:

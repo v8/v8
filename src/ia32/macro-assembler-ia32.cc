@@ -2441,6 +2441,41 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
 }
 
 
+void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
+  if (imm8 == 0) {
+    movd(dst, src);
+    return;
+  }
+  DCHECK_EQ(1, imm8);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pextrd(dst, src, imm8);
+    return;
+  }
+  pshufd(xmm0, src, 1);
+  movd(dst, src);
+}
+
+
+void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
+  DCHECK(imm8 == 0 || imm8 == 1);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pinsrd(dst, src, imm8);
+    return;
+  }
+  movd(xmm0, src);
+  if (imm8 == 1) {
+    punpckldq(dst, xmm0);
+  } else {
+    DCHECK_EQ(0, imm8);
+    psrlq(dst, 32);
+    punpckldq(xmm0, dst);
+    movaps(dst, xmm0);
+  }
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));

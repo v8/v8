@@ -1506,6 +1506,11 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsFunction:
     case Runtime::kInlineIsRegExp:
       return Bounds(Type::None(zone()), Type::Boolean(zone()));
+    case Runtime::kInlineOptimizedDoubleLo:
+    case Runtime::kInlineOptimizedDoubleHi:
+      return Bounds(Type::None(zone()), Type::Signed32());
+    case Runtime::kInlineOptimizedConstructDouble:
+      return Bounds(Type::None(zone()), Type::Number());
     default:
       break;
   }
@@ -2094,6 +2099,26 @@ Bounds Typer::Visitor::TypeFloat64RoundTruncate(Node* node) {
 
 Bounds Typer::Visitor::TypeFloat64RoundTiesAway(Node* node) {
   // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64ExtractLowWord32(Node* node) {
+  return Bounds(Type::Signed32());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64ExtractHighWord32(Node* node) {
+  return Bounds(Type::Signed32());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64InsertLowWord32(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64InsertHighWord32(Node* node) {
   return Bounds(Type::Number());
 }
 

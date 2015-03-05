@@ -699,6 +699,12 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kFloat64LessThan:
     case IrOpcode::kFloat64LessThanOrEqual:
       return kMachBool;
+    case IrOpcode::kFloat64ExtractLowWord32:
+    case IrOpcode::kFloat64ExtractHighWord32:
+      return kMachInt32;
+    case IrOpcode::kFloat64InsertLowWord32:
+    case IrOpcode::kFloat64InsertHighWord32:
+      return kMachFloat64;
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -903,6 +909,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64RoundTruncate(node);
     case IrOpcode::kFloat64RoundTiesAway:
       return MarkAsDouble(node), VisitFloat64RoundTiesAway(node);
+    case IrOpcode::kFloat64ExtractLowWord32:
+      return VisitFloat64ExtractLowWord32(node);
+    case IrOpcode::kFloat64ExtractHighWord32:
+      return VisitFloat64ExtractHighWord32(node);
+    case IrOpcode::kFloat64InsertLowWord32:
+      return MarkAsDouble(node), VisitFloat64InsertLowWord32(node);
+    case IrOpcode::kFloat64InsertHighWord32:
+      return MarkAsDouble(node), VisitFloat64InsertHighWord32(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
     case IrOpcode::kCheckedLoad: {

@@ -252,6 +252,10 @@
   V(Float64Ceil)                \
   V(Float64RoundTruncate)       \
   V(Float64RoundTiesAway)       \
+  V(Float64ExtractLowWord32)    \
+  V(Float64ExtractHighWord32)   \
+  V(Float64InsertLowWord32)     \
+  V(Float64InsertHighWord32)    \
   V(LoadStackPointer)           \
   V(CheckedLoad)                \
   V(CheckedStore)
