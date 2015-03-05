@@ -51,6 +51,12 @@ bool DefaultSnapshotAvailable() {
 }
 
 
+void DisableTurbofan() {
+  const char* flag = "--turbo-filter=\"\"";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+}
+
+
 // TestIsolate is used for testing isolate serialization.
 class TestIsolate : public Isolate {
  public:
@@ -194,6 +200,7 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
 
 // Test that the whole heap can be serialized.
 UNINITIALIZED_TEST(Serialize) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Serialize(isolate);
@@ -202,6 +209,7 @@ UNINITIALIZED_TEST(Serialize) {
 
 // Test that heap serialization is non-destructive.
 UNINITIALIZED_TEST(SerializeTwice) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   Serialize(isolate);
@@ -254,6 +262,7 @@ UNINITIALIZED_DEPENDENT_TEST(Deserialize, Serialize) {
   // The serialize-deserialize tests only work if the VM is built without
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = Deserialize();
   {
@@ -271,6 +280,7 @@ UNINITIALIZED_DEPENDENT_TEST(Deserialize, Serialize) {
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerialization,
                              SerializeTwice) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = Deserialize();
   {
@@ -287,6 +297,7 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerialization,
 
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = Deserialize();
   {
@@ -308,6 +319,7 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                              SerializeTwice) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* isolate = Deserialize();
   {
@@ -327,6 +339,7 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 
 
 UNINITIALIZED_TEST(PartialSerialization) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -397,6 +410,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
 
 
 UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -448,6 +462,7 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 
 
 UNINITIALIZED_TEST(ContextSerialization) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -512,6 +527,7 @@ UNINITIALIZED_TEST(ContextSerialization) {
 
 
 UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -562,6 +578,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 
 
 UNINITIALIZED_TEST(CustomContextSerialization) {
+  DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -646,6 +663,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
 
 UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
                              CustomContextSerialization) {
+  DisableTurbofan();
   FLAG_crankshaft = false;
   if (DefaultSnapshotAvailable()) return;
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
@@ -706,9 +724,7 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
 
 
 TEST(PerIsolateSnapshotBlobs) {
-  const char* flag = "--turbo-filter=\"\"";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
-
+  DisableTurbofan();
   const char* source1 = "function f() { return 42; }";
   const char* source2 =
       "function f() { return g() * 2; }"
@@ -749,6 +765,7 @@ TEST(PerIsolateSnapshotBlobs) {
 
 
 TEST(PerIsolateSnapshotBlobsWithLocker) {
+  DisableTurbofan();
   v8::Isolate* isolate0 = v8::Isolate::New();
   {
     v8::Locker locker(isolate0);
