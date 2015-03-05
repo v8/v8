@@ -5266,7 +5266,6 @@ static void CallApiFunctionAndReturn(
   }
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
@@ -5288,19 +5287,13 @@ static void CallApiFunctionAndReturn(
   __ Cmp(limit_reg, x1);
   __ B(ne, &delete_allocated_handles);
 
+  // Leave the API exit frame.
   __ Bind(&leave_exit_frame);
   // Restore callee-saved registers.
   __ Peek(x19, (spill_offset + 0) * kXRegSize);
   __ Peek(x20, (spill_offset + 1) * kXRegSize);
   __ Peek(x21, (spill_offset + 2) * kXRegSize);
   __ Peek(x22, (spill_offset + 3) * kXRegSize);
-
-  // Check if the function scheduled an exception.
-  __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
-  __ Ldr(x5, MemOperand(x5));
-  __ JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex,
-                   &promote_scheduled_exception);
-  __ Bind(&exception_handled);
 
   bool restore_context = context_restore_operand != NULL;
   if (restore_context) {
@@ -5312,6 +5305,13 @@ static void CallApiFunctionAndReturn(
   }
 
   __ LeaveExitFrame(false, x1, !restore_context);
+
+  // Check if the function scheduled an exception.
+  __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
+  __ Ldr(x5, MemOperand(x5));
+  __ JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex,
+                   &promote_scheduled_exception);
+
   if (stack_space_operand != NULL) {
     __ Drop(x2, 1);
   } else {
@@ -5319,13 +5319,9 @@ static void CallApiFunctionAndReturn(
   }
   __ Ret();
 
+  // Re-throw by promoting a scheduled exception.
   __ Bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate), 0);
-  }
-  __ B(&exception_handled);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ Bind(&delete_allocated_handles);

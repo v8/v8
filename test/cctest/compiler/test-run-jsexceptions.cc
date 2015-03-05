@@ -19,6 +19,7 @@ TEST(Throw) {
 
 
 TEST(ThrowSourcePosition) {
+  i::FLAG_turbo_exceptions = true;
   static const char* src =
       "(function(a, b) {        \n"
       "  if (a == 1) throw 1;   \n"
@@ -134,9 +135,7 @@ TEST(CatchCall) {
   FunctionTester T(src);
 
   CompileRun("function thrower() { throw 'T-'; }");
-#if 0  // TODO(mstarzinger): Enable once we have exception handlers.
   T.CheckCall(T.Val("-A-T-"), T.NewFunction("thrower"));
-#endif
   CompileRun("function returner() { return 'R-'; }");
   T.CheckCall(T.Val("-A-B-R-"), T.NewFunction("returner"));
 }

@@ -4782,7 +4782,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
                                      Operand* context_restore_operand) {
   Label prologue;
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label write_back;
@@ -4859,13 +4858,22 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ movp(Operand(base_reg, kNextOffset), prev_next_address_reg);
   __ cmpp(prev_limit_reg, Operand(base_reg, kLimitOffset));
   __ j(not_equal, &delete_allocated_handles);
+
+  // Leave the API exit frame.
   __ bind(&leave_exit_frame);
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    __ movp(rsi, *context_restore_operand);
+  }
+  if (stack_space_operand != nullptr) {
+    __ movp(rbx, *stack_space_operand);
+  }
+  __ LeaveApiExitFrame(!restore_context);
 
   // Check if the function scheduled an exception.
-  __ Move(rsi, scheduled_exception_address);
-  __ Cmp(Operand(rsi, 0), factory->the_hole_value());
+  __ Move(rdi, scheduled_exception_address);
+  __ Cmp(Operand(rdi, 0), factory->the_hole_value());
   __ j(not_equal, &promote_scheduled_exception);
-  __ bind(&exception_handled);
 
 #if DEBUG
   // Check if the function returned a valid JavaScript value.
@@ -4902,14 +4910,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&ok);
 #endif
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    __ movp(rsi, *context_restore_operand);
-  }
-  if (stack_space_operand != nullptr) {
-    __ movp(rbx, *stack_space_operand);
-  }
-  __ LeaveApiExitFrame(!restore_context);
   if (stack_space_operand != nullptr) {
     DCHECK_EQ(stack_space, 0);
     __ PopReturnAddressTo(rcx);
@@ -4919,12 +4919,9 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ ret(stack_space * kPointerSize);
   }
 
+  // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  __ jmp(&exception_handled);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);

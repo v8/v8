@@ -4813,7 +4813,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   }
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
@@ -4835,15 +4834,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ cmp(r5, ip);
   __ b(ne, &delete_allocated_handles);
 
-  // Check if the function scheduled an exception.
+  // Leave the API exit frame.
   __ bind(&leave_exit_frame);
-  __ LoadRoot(r4, Heap::kTheHoleValueRootIndex);
-  __ mov(ip, Operand(ExternalReference::scheduled_exception_address(isolate)));
-  __ ldr(r5, MemOperand(ip));
-  __ cmp(r4, r5);
-  __ b(ne, &promote_scheduled_exception);
-  __ bind(&exception_handled);
-
   bool restore_context = context_restore_operand != NULL;
   if (restore_context) {
     __ ldr(cp, *context_restore_operand);
@@ -4855,15 +4847,19 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ mov(r4, Operand(stack_space));
   }
   __ LeaveExitFrame(false, r4, !restore_context, stack_space_operand != NULL);
+
+  // Check if the function scheduled an exception.
+  __ LoadRoot(r4, Heap::kTheHoleValueRootIndex);
+  __ mov(ip, Operand(ExternalReference::scheduled_exception_address(isolate)));
+  __ ldr(r5, MemOperand(ip));
+  __ cmp(r4, r5);
+  __ b(ne, &promote_scheduled_exception);
+
   __ mov(pc, lr);
 
+  // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate), 0);
-  }
-  __ jmp(&exception_handled);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);

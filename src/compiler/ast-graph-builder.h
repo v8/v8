@@ -240,6 +240,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr);
 
   // Builders for error reporting at runtime.
+  Node* BuildThrowError(Node* exception, BailoutId bailout_id);
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
 

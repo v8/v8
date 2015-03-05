@@ -1870,16 +1870,8 @@ void AstGraphBuilder::VisitYield(Yield* expr) {
 void AstGraphBuilder::VisitThrow(Throw* expr) {
   VisitForValue(expr->exception());
   Node* exception = environment()->Pop();
-  if (FLAG_turbo_exceptions) {
-    execution_control()->ThrowValue(exception);
-    ast_context()->ProduceValue(exception);
-  } else {
-    // TODO(mstarzinger): Temporary workaround for bailout-id for debugger.
-    const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
-    Node* value = NewNode(op, exception);
-    PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
-    ast_context()->ProduceValue(value);
-  }
+  Node* value = BuildThrowError(exception, expr->id());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -2859,9 +2851,16 @@ Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
 }
 
 
+Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
+  const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
+  Node* call = NewNode(op, exception);
+  PrepareFrameState(call, bailout_id);
+  return call;
+}
+
+
 Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
                                                 BailoutId bailout_id) {
-  // TODO(mstarzinger): Should be unified with the VisitThrow implementation.
   Node* variable_name = jsgraph()->Constant(variable->name());
   const Operator* op =
       javascript()->CallRuntime(Runtime::kThrowReferenceError, 1);
@@ -2872,7 +2871,6 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
 
 
 Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
-  // TODO(mstarzinger): Should be unified with the VisitThrow implementation.
   const Operator* op =
       javascript()->CallRuntime(Runtime::kThrowConstAssignError, 0);
   Node* call = NewNode(op);

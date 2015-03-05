@@ -1031,29 +1031,94 @@ Object* Isolate::ReThrow(Object* exception) {
 }
 
 
+// TODO(turbofan): Make sure table is sorted and use binary search.
+static int LookupInHandlerTable(Code* code, int pc_offset) {
+  FixedArray* handler_table = code->handler_table();
+  for (int i = 0; i < handler_table->length(); i += 2) {
+    int return_offset = Smi::cast(handler_table->get(i))->value();
+    int handler_offset = Smi::cast(handler_table->get(i + 1))->value();
+    if (pc_offset == return_offset) return handler_offset;
+  }
+  return -1;
+}
+
+
 Object* Isolate::FindHandler() {
   Object* exception = pending_exception();
 
-  // Determine target stack handler. Special handling of termination exceptions
-  // which are uncatchable by JavaScript code, we unwind the handlers until the
-  // top ENTRY handler is found.
-  StackHandler* handler =
-      StackHandler::FromAddress(Isolate::handler(thread_local_top()));
-  if (!is_catchable_by_javascript(exception)) {
-    while (!handler->is_js_entry()) handler = handler->next();
+  Code* code = nullptr;
+  Context* context = nullptr;
+  intptr_t offset = 0;
+  Address handler_sp = nullptr;
+  Address handler_fp = nullptr;
+
+  // Special handling of termination exceptions, uncatchable by JavaScript code,
+  // we unwind the handlers until the top ENTRY handler is found.
+  bool catchable_by_js = is_catchable_by_javascript(exception);
+
+  // Compute handler and stack unwinding information by performing a full walk
+  // over the stack and dispatching according to the frame type.
+  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
+    StackFrame* frame = iter.frame();
+
+    // For JSEntryStub frames we always have a handler.
+    if (frame->is_entry() || frame->is_entry_construct()) {
+      StackHandler* handler = frame->top_handler();
+      DCHECK_EQ(StackHandler::JS_ENTRY, handler->kind());
+      DCHECK_EQ(0, handler->index());
+
+      // Restore the next handler.
+      thread_local_top()->handler_ = handler->next()->address();
+
+      // Gather information from the handler.
+      code = handler->code();
+      handler_sp = handler->address() + StackHandlerConstants::kSize;
+      offset = Smi::cast(code->handler_table()->get(0))->value();
+      break;
+    }
+
+    // For JavaScript frames which have a handler, we use the handler.
+    if (frame->is_java_script() && catchable_by_js && frame->HasHandler()) {
+      StackHandler* handler = frame->top_handler();
+      DCHECK_NE(StackHandler::JS_ENTRY, handler->kind());
+
+      // Restore the next handler.
+      thread_local_top()->handler_ = handler->next()->address();
+
+      // Gather information from the handler.
+      code = handler->code();
+      context = handler->context();
+      offset = Smi::cast(code->handler_table()->get(handler->index()))->value();
+      handler_sp = handler->address() + StackHandlerConstants::kSize;
+      handler_fp = handler->frame_pointer();
+      break;
+    }
+
+    // For optimized frames we perform a lookup in the handler table.
+    if (frame->is_optimized() && catchable_by_js) {
+      Code* frame_code = frame->LookupCode();
+      DCHECK(frame_code->is_optimized_code());
+      int pc_offset = static_cast<int>(frame->pc() - frame_code->entry());
+      int handler_offset = LookupInHandlerTable(frame_code, pc_offset);
+      if (handler_offset < 0) continue;
+
+      // Compute the stack pointer from the frame pointer. This ensures that
+      // argument slots on the stack are dropped as returning would.
+      Address return_sp = frame->fp() -
+                          StandardFrameConstants::kFixedFrameSizeFromFp -
+                          frame_code->stack_slots() * kPointerSize;
+
+      // Gather information from the frame.
+      code = frame_code;
+      offset = handler_offset;
+      handler_sp = return_sp;
+      handler_fp = frame->fp();
+      break;
+    }
   }
 
-  // Restore the next handler.
-  thread_local_top()->handler_ = handler->next()->address();
-
-  // Compute handler and stack unwinding information.
-  // TODO(mstarzinger): Extend this to perform actual stack-walk and take into
-  // account that TurboFan code can contain handlers as well.
-  Code* code = handler->code();
-  Context* context = handler->is_js_entry() ? nullptr : handler->context();
-  int offset = Smi::cast(code->handler_table()->get(handler->index()))->value();
-  Address handler_sp = handler->address() + StackHandlerConstants::kSize;
-  Address handler_fp = handler->frame_pointer();
+  // Handler must exist.
+  CHECK(code != nullptr);
 
   // Store information to be consumed by the CEntryStub.
   thread_local_top()->pending_handler_context_ = context;
