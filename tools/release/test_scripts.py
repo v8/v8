@@ -64,7 +64,6 @@ TEST_CONFIG = {
   "ALREADY_MERGING_SENTINEL_FILE":
       "/tmp/test-merge-to-branch-tempfile-already-merging",
   "TEMPORARY_PATCH_FILE": "/tmp/test-merge-to-branch-tempfile-temporary-patch",
-  "CLUSTERFUZZ_API_KEY_FILE": "/tmp/test-fake-cf-api-key",
 }
 
 
@@ -396,11 +395,6 @@ class ScriptTest(unittest.TestCase):
       return self._mock.Call("readurl", url, params)
     else:
       return self._mock.Call("readurl", url)
-
-  def ReadClusterFuzzAPI(self, api_key, **params):
-    # TODO(machenbach): Use a mock for this and add a test that stops rolling
-    # due to clustefuzz results.
-    return []
 
   def Sleep(self, seconds):
     pass
@@ -994,7 +988,7 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
   ROLL_COMMIT_MSG = """Update V8 to version 3.22.4 (based on abc).
 
 Summary of changes available at:
-https://chromium.googlesource.com/v8/v8/+log/last_rol..abc
+https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
 
 Please follow these instructions for assigning/CC'ing issues:
 https://code.google.com/p/v8-wiki/wiki/TriagingIssues
@@ -1018,18 +1012,10 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git tag", self.TAGS),
-      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
-      Cmd("git log -1 --format=%s push_hash",
+      Cmd("git log -1 --format=%s roll_hsh",
           "Version 3.22.4 (based on abc)\n"),
-      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
-      Cmd("git log -1 --format=%s push_hash",
-          "Version 3.22.4 (based on abc)"),
+      Cmd("git describe --tags roll_hsh", "3.22.4"),
       Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
-      Cmd("git log -1 --format=%H 3.22.2", "last_roll_base_hash"),
-      Cmd("git log -1 --format=%s last_roll_base_hash", "Version 3.22.2"),
-      Cmd("git log -1 --format=%H last_roll_base_hash^",
-          "last_roll_master_hash"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
           "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
@@ -1037,8 +1023,8 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
       Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
-      Cmd("git new-branch v8-roll-push_hash", "", cwd=chrome_dir),
-      Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
+      Cmd("git new-branch v8-roll-roll_hsh", "", cwd=chrome_dir),
+      Cmd("roll-dep v8 roll_hsh", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
@@ -1051,7 +1037,8 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
             "--sheriff",
             "-r", "reviewer@chromium.org",
-            "--last-roll", "last_roll_hsh"]
+            "--last-roll", "last_roll_hsh",
+            "roll_hsh"]
     ChromiumRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
@@ -1123,8 +1110,13 @@ deps = {
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git tag", self.TAGS),
-      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
+      Cmd("git rev-list --max-age=740800 --tags",
+          "bad_tag\nhash_234\nhash_123"),
+      Cmd("git describe --tags bad_tag", ""),
+      Cmd("git describe --tags hash_234", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
+      Cmd("git log --format=%H abcd123455..hash_234", ""),
+      Cmd("git log --format=%H abcd123455..hash_123", ""),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -1134,16 +1126,18 @@ deps = {
   def testAutoRoll(self):
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    TEST_CONFIG["CLUSTERFUZZ_API_KEY_FILE"]  = self.MakeEmptyTempFile()
-    TextToFile("fake key", TEST_CONFIG["CLUSTERFUZZ_API_KEY_FILE"])
 
     self.Expect([
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git tag", self.TAGS),
-      Cmd("git log -1 --format=%H 3.22.4", "push_hash\n"),
+      Cmd("git rev-list --max-age=740800 --tags",
+          "bad_tag\nhash_234\nhash_123"),
+      Cmd("git describe --tags bad_tag", ""),
+      Cmd("git describe --tags hash_234", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
+      Cmd("git log --format=%H abcd123455..hash_234", "hash1\nhash2\n"),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(

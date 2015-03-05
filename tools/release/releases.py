@@ -294,7 +294,7 @@ class RetrieveV8Releases(Step):
     releases = []
     if self._options.branch == 'recent':
       # List every release from the last 7 days.
-      revisions = self.GetRecentReleases(max_age=7 * 24 * 60 * 60)
+      revisions = self.GetRecentReleases(max_age=7 * DAY_IN_SECONDS)
       for revision in revisions:
         releases += self.GetReleaseFromRevision(revision)
     elif self._options.branch == 'all':  # pragma: no cover

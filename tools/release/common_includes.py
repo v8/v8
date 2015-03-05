@@ -46,6 +46,7 @@ from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
 CHANGELOG_FILE = "ChangeLog"
+DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("include", "v8-version.h")
