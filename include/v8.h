@@ -866,6 +866,11 @@ class Global : public PersistentBase<T> {
    */
   Global Pass() { return static_cast<Global&&>(*this); }
 
+  /*
+   * For compatibility with Chromium's base::Bind (base::Passed).
+   */
+  typedef void MoveOnlyTypeForCPP03;
+
  private:
   Global(Global&) = delete;
   void operator=(Global&) = delete;
