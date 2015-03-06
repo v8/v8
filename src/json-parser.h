@@ -300,6 +300,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
+  int descriptor = 0;
   ZoneList<Handle<Object> > properties(8, zone());
   DCHECK_EQ(c0_, '{');
 
@@ -382,18 +383,15 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         if (value.is_null()) return ReportUnexpectedCharacter();
 
         if (transitioning) {
-          int descriptor = map->NumberOfOwnDescriptors();
           PropertyDetails details =
               target->instance_descriptors()->GetDetails(descriptor);
           Representation expected_representation = details.representation();
 
           if (value->FitsRepresentation(expected_representation)) {
-            if (expected_representation.IsDouble()) {
-              value = Object::NewStorageFor(isolate(), value,
-                                            expected_representation);
-            } else if (expected_representation.IsHeapObject() &&
-                       !target->instance_descriptors()->GetFieldType(
-                           descriptor)->NowContains(value)) {
+            if (expected_representation.IsHeapObject() &&
+                !target->instance_descriptors()
+                     ->GetFieldType(descriptor)
+                     ->NowContains(value)) {
               Handle<HeapType> value_type(value->OptimalType(
                       isolate(), expected_representation));
               Map::GeneralizeFieldType(target, descriptor,
@@ -403,6 +401,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                     descriptor)->NowContains(value));
             properties.Add(value, zone());
             map = target;
+            descriptor++;
             continue;
           } else {
             transitioning = false;
@@ -444,30 +443,11 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-  Factory* factory = isolate()->factory();
-  // If the |json_object|'s map is exactly the same as |map| then the
-  // |properties| values correspond to the |map| and nothing more has to be
-  // done. But if the |json_object|'s map is different then we have to
-  // iterate descriptors to ensure that properties still correspond to the
-  // map.
-  bool slow_case = json_object->map() != *map;
-  DescriptorArray* descriptors = NULL;
 
   int length = properties->length();
-  if (slow_case) {
-    descriptors = json_object->map()->instance_descriptors();
-    DCHECK(json_object->map()->NumberOfOwnDescriptors() == length);
-  }
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
-    if (slow_case && value->IsMutableHeapNumber() &&
-        !descriptors->GetDetails(i).representation().IsDouble()) {
-      // Turn mutable heap numbers into immutable if the field representation
-      // is not double.
-      HeapNumber::cast(*value)->set_map(*factory->heap_number_map());
-    }
-    FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-    json_object->FastPropertyAtPut(index, *value);
+    json_object->WriteToField(i, *value);
   }
 }
 

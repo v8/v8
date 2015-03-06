@@ -2139,6 +2139,31 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
 }
 
 
+void JSObject::WriteToField(int descriptor, Object* value) {
+  DisallowHeapAllocation no_gc;
+
+  DescriptorArray* desc = map()->instance_descriptors();
+  PropertyDetails details = desc->GetDetails(descriptor);
+
+  DCHECK(details.type() == DATA);
+
+  FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
+  if (details.representation().IsDouble()) {
+    // Nothing more to be done.
+    if (value->IsUninitialized()) return;
+    if (IsUnboxedDoubleField(index)) {
+      RawFastDoublePropertyAtPut(index, value->Number());
+    } else {
+      HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
+      DCHECK(box->IsMutableHeapNumber());
+      box->set_value(value->Number());
+    }
+  } else {
+    RawFastPropertyAtPut(index, value);
+  }
+}
+
+
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }
