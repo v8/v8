@@ -917,9 +917,6 @@ Performance and stability improvements on all platforms."""
           "+refs/pending-tags/*:refs/pending-tags/*", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", ""),
-      Cmd("git log -1 --format=\"%H %T\" push_hash", "push_hash tree_hash"),
-      Cmd("git log -200 --format=\"%H %T\" refs/pending/heads/master",
-          "not_right wrong\npending_hash tree_hash\nsome other\n"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git checkout -f origin/master -- include/v8-version.h",
@@ -932,7 +929,7 @@ Performance and stability improvements on all platforms."""
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Cmd("git log -1 --format=%an rev1", "author1@chromium.org\n"),
       Cmd("git reset --hard origin/master", ""),
-      Cmd("git checkout -b work-branch pending_hash", ""),
+      Cmd("git checkout -b work-branch push_hash", ""),
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
@@ -940,7 +937,7 @@ Performance and stability improvements on all platforms."""
           cb=CheckVersionCommit),
       Cmd("git push origin "
           "refs/heads/work-branch:refs/pending/heads/3.22.5 "
-          "pending_hash:refs/pending-tags/heads/3.22.5 "
+          "push_hash:refs/pending-tags/heads/3.22.5 "
           "push_hash:refs/heads/3.22.5", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
