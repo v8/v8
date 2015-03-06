@@ -1085,7 +1085,9 @@ class V8_EXPORT Script {
    * context in which it was created (ScriptCompiler::CompileBound or
    * UnboundScript::BindToCurrentContext()).
    */
+  // TODO(dcarney): deprecate
   Local<Value> Run();
+  MaybeLocal<Value> Run(Local<Context> context);
 
   /**
    * Returns the corresponding context-unbound script.
@@ -1398,7 +1400,10 @@ class V8_EXPORT ScriptCompiler {
 class V8_EXPORT Message {
  public:
   Local<String> Get() const;
+
+  // TODO(dcarney): deprecate
   Local<String> GetSourceLine() const;
+  MaybeLocal<String> GetSourceLine(Local<Context> context) const;
 
   /**
    * Returns the origin for the script from where the function causing the
@@ -1422,7 +1427,9 @@ class V8_EXPORT Message {
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
+  // TODO(dcarney): deprecate
   int GetLineNumber() const;
+  Maybe<int> GetLineNumber(Local<Context> context) const;
 
   /**
    * Returns the index within the script of the first character where
@@ -1440,13 +1447,17 @@ class V8_EXPORT Message {
    * Returns the index within the line of the first character where
    * the error occurred.
    */
+  // TODO(dcarney): deprecate
   int GetStartColumn() const;
+  Maybe<int> GetStartColumn(Local<Context> context) const;
 
   /**
    * Returns the index within the line of the last character where
    * the error occurred.
    */
+  // TODO(dcarney): deprecate
   int GetEndColumn() const;
+  Maybe<int> GetEndColumn(Local<Context> context) const;
 
   /**
    * Passes on the value set by the embedder when it fed the script from which
@@ -1613,7 +1624,9 @@ class V8_EXPORT JSON {
    * \param json_string The string to parse.
    * \return The corresponding value if successfully parsed.
    */
+  // TODO(dcarney): deprecate
   static Local<Value> Parse(Local<String> json_string);
+  static MaybeLocal<Value> Parse(Isolate* isolate, Local<String> json_string);
 };
 
 
@@ -1926,7 +1939,9 @@ class V8_EXPORT Value : public Data {
    * Attempts to convert a string to an array index.
    * Returns an empty handle if the conversion fails.
    */
+  // TODO(dcarney): deprecate.
   Local<Uint32> ToArrayIndex() const;
+  MaybeLocal<Uint32> ToArrayIndex(Local<Context> context) const;
 
   Maybe<bool> BooleanValue(Local<Context> context) const;
   Maybe<double> NumberValue(Local<Context> context) const;
@@ -1942,7 +1957,9 @@ class V8_EXPORT Value : public Data {
   int32_t Int32Value() const;
 
   /** JS == */
+  // TODO(dcarney): deprecate.
   bool Equals(Handle<Value> that) const;
+  Maybe<bool> Equals(Local<Context> context, Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
   bool SameValue(Handle<Value> that) const;
 

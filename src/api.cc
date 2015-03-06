@@ -1508,15 +1508,12 @@ int UnboundScript::GetId() {
   i::Handle<i::HeapObject> obj =
       i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::UnboundScript::GetId()", return -1);
   LOG_API(isolate, "v8::UnboundScript::GetId");
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::SharedFunctionInfo> function_info(
-        i::SharedFunctionInfo::cast(*obj));
-    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
-    return script->id()->value();
-  }
+  i::HandleScope scope(isolate);
+  i::Handle<i::SharedFunctionInfo> function_info(
+      i::SharedFunctionInfo::cast(*obj));
+  i::Handle<i::Script> script(i::Script::cast(function_info->script()));
+  return script->id()->value();
 }
 
 
@@ -1524,7 +1521,6 @@ int UnboundScript::GetLineNumber(int code_pos) {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::UnboundScript::GetLineNumber()", return -1);
   LOG_API(isolate, "UnboundScript::GetLineNumber");
   if (obj->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(obj->script()));
@@ -1539,8 +1535,6 @@ Handle<Value> UnboundScript::GetScriptName() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::UnboundScript::GetName()",
-             return Handle<String>());
   LOG_API(isolate, "UnboundScript::GetName");
   if (obj->script()->IsScript()) {
     i::Object* name = i::Script::cast(obj->script())->name();
@@ -1555,8 +1549,6 @@ Handle<Value> UnboundScript::GetSourceURL() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceURL()",
-             return Handle<String>());
   LOG_API(isolate, "UnboundScript::GetSourceURL");
   if (obj->script()->IsScript()) {
     i::Object* url = i::Script::cast(obj->script())->source_url();
@@ -1571,8 +1563,6 @@ Handle<Value> UnboundScript::GetSourceMappingURL() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceMappingURL()",
-             return Handle<String>());
   LOG_API(isolate, "UnboundScript::GetSourceMappingURL");
   if (obj->script()->IsScript()) {
     i::Object* url = i::Script::cast(obj->script())->source_mapping_url();
@@ -1583,26 +1573,28 @@ Handle<Value> UnboundScript::GetSourceMappingURL() {
 }
 
 
-Local<Value> Script::Run() {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
-  // If execution is terminating, Compile(..)->Run() requires this
-  // check.
-  if (obj.is_null()) return Local<Value>();
-  i::Isolate* isolate = i::Handle<i::HeapObject>::cast(obj)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
-  LOG_API(isolate, "Script::Run");
-  ENTER_V8(isolate);
+MaybeLocal<Value> Script::Run(Local<Context> context) {
+  PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Script::Run()", Value)
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
-  EXCEPTION_PREAMBLE(isolate);
+  auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> receiver(isolate->global_proxy(), isolate);
-  i::Handle<i::Object> result;
-  has_pending_exception = !i::Execution::Call(
-      isolate, fun, receiver, 0, NULL).ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
-  return Utils::ToLocal(scope.CloseAndEscape(result));
+  Local<Value> result;
+  has_pending_exception =
+      !ToLocal<Value>(i::Execution::Call(isolate, fun, receiver, 0, NULL),
+                      &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
+Local<Value> Script::Run() {
+  auto self = Utils::OpenHandle(this, true);
+  // If execution is terminating, Compile(..)->Run() requires this
+  // check.
+  if (self.is_null()) return Local<Value>();
+  auto context = ContextFromHeapObject(self);
+  RETURN_TO_LOCAL_UNCHECKED(Run(context), Value);
 }
 
 
@@ -2176,7 +2168,6 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Message::Get()", return Local<String>());
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2188,12 +2179,9 @@ Local<String> Message::Get() const {
 
 ScriptOrigin Message::GetScriptOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> script_wraper =
-      i::Handle<i::Object>(message->script(), isolate);
-  i::Handle<i::JSValue> script_value =
-      i::Handle<i::JSValue>::cast(script_wraper);
+  auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  auto script_wraper = i::Handle<i::Object>(message->script(), isolate);
+  auto script_value = i::Handle<i::JSValue>::cast(script_wraper);
   i::Handle<i::Script> script(i::Script::cast(script_value->value()));
   return GetScriptOriginForScript(isolate, script);
 }
@@ -2208,12 +2196,10 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
   if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
-  i::Handle<i::JSArray> stackTrace =
-      i::Handle<i::JSArray>::cast(stackFramesObj);
+  auto stackTrace = i::Handle<i::JSArray>::cast(stackFramesObj);
   return scope.Escape(Utils::StackTraceToLocal(stackTrace));
 }
 
@@ -2237,107 +2223,102 @@ MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
 }
 
 
-int Message::GetLineNumber() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Message::GetLineNumber()", return kNoLineNumberInfo);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-
-  EXCEPTION_PREAMBLE(isolate);
+Maybe<int> Message::GetLineNumber(Local<Context> context) const {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetLineNumber()", int);
   i::Handle<i::Object> result;
   has_pending_exception =
       !CallV8HeapFunction(isolate, "GetLineNumber", Utils::OpenHandle(this))
            .ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, 0);
-  return static_cast<int>(result->Number());
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
+  return Just(static_cast<int>(result->Number()));
+}
+
+
+int Message::GetLineNumber() const {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return GetLineNumber(context).FromMaybe(0);
 }
 
 
 int Message::GetStartPosition() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  return message->start_position();
+  auto self = Utils::OpenHandle(this);
+  return self->start_position();
 }
 
 
 int Message::GetEndPosition() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  return message->end_position();
+  auto self = Utils::OpenHandle(this);
+  return self->end_position();
+}
+
+
+Maybe<int> Message::GetStartColumn(Local<Context> context) const {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetStartColumn()",
+                                  int);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> start_col_obj;
+  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
+                                              self).ToHandle(&start_col_obj);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
+  return Just(static_cast<int>(start_col_obj->Number()));
 }
 
 
 int Message::GetStartColumn() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Message::GetStartColumn()", return kNoColumnInfo);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE(isolate);
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  const int default_value = kNoColumnInfo;
+  return GetStartColumn(context).FromMaybe(default_value);
+}
+
+
+Maybe<int> Message::GetEndColumn(Local<Context> context) const {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetEndColumn()", int);
+  auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> start_col_obj;
-  has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetPositionInLine", data_obj)
-           .ToHandle(&start_col_obj);
-  EXCEPTION_BAILOUT_CHECK(isolate, 0);
-  return static_cast<int>(start_col_obj->Number());
+  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
+                                              self).ToHandle(&start_col_obj);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
+  int start = self->start_position();
+  int end = self->end_position();
+  return Just(static_cast<int>(start_col_obj->Number()) + (end - start));
 }
 
 
 int Message::GetEndColumn() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Message::GetEndColumn()", return kNoColumnInfo);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> start_col_obj;
-  has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetPositionInLine", data_obj)
-           .ToHandle(&start_col_obj);
-  EXCEPTION_BAILOUT_CHECK(isolate, 0);
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(data_obj);
-  int start = message->start_position();
-  int end = message->end_position();
-  return static_cast<int>(start_col_obj->Number()) + (end - start);
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  const int default_value = kNoColumnInfo;
+  return GetEndColumn(context).FromMaybe(default_value);
 }
 
 
 bool Message::IsSharedCrossOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSMessageObject> message =
-      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
-                                                       isolate));
+  auto self = Utils::OpenHandle(this);
+  auto script = i::Handle<i::JSValue>::cast(
+      i::Handle<i::Object>(self->script(), isolate));
   return i::Script::cast(script->value())->is_shared_cross_origin();
 }
 
 
-Local<String> Message::GetSourceLine() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Message::GetSourceLine()", return Local<String>());
-  ENTER_V8(isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  EXCEPTION_PREAMBLE(isolate);
+MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
+  PREPARE_FOR_EXECUTION(context, "v8::Message::GetSourceLine()", String);
   i::Handle<i::Object> result;
   has_pending_exception =
       !CallV8HeapFunction(isolate, "GetSourceLine", Utils::OpenHandle(this))
            .ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::String>());
+  RETURN_ON_FAILED_EXECUTION(String);
+  Local<String> str;
   if (result->IsString()) {
-    return scope.Escape(Utils::ToLocal(i::Handle<i::String>::cast(result)));
-  } else {
-    return Local<String>();
+    str = Utils::ToLocal(i::Handle<i::String>::cast(result));
   }
+  RETURN_ESCAPED(str);
+}
+
+
+Local<String> Message::GetSourceLine() const {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetSourceLine(context), String)
 }
 
 
@@ -2354,24 +2335,19 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> obj =
-      i::Object::GetElement(isolate, self, index).ToHandleChecked();
-  i::Handle<i::JSObject> jsobj = i::Handle<i::JSObject>::cast(obj);
+  auto self = Utils::OpenHandle(this);
+  auto obj = i::Object::GetElement(isolate, self, index).ToHandleChecked();
+  auto jsobj = i::Handle<i::JSObject>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(jsobj));
 }
 
 
 int StackTrace::GetFrameCount() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
   return i::Smi::cast(Utils::OpenHandle(this)->length())->value();
 }
 
 
 Local<Array> StackTrace::AsArray() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
   return Utils::ToLocal(Utils::OpenHandle(this));
 }
 
@@ -2564,21 +2540,25 @@ bool NativeWeakMap::Delete(Handle<Value> v8_key) {
 
 // --- J S O N ---
 
-Local<Value> JSON::Parse(Local<String> json_string) {
+MaybeLocal<Value> JSON::Parse(Isolate* v8_isolate, Local<String> json_string) {
+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, "JSON::Parse", Value);
   i::Handle<i::String> string = Utils::OpenHandle(*json_string);
-  i::Isolate* isolate = string->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
   i::Handle<i::String> source = i::String::Flatten(string);
-  EXCEPTION_PREAMBLE(isolate);
-  i::MaybeHandle<i::Object> maybe_result =
-      source->IsSeqOneByteString() ? i::JsonParser<true>::Parse(source)
-                                   : i::JsonParser<false>::Parse(source);
-  i::Handle<i::Object> result;
-  has_pending_exception = !maybe_result.ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
-  return Utils::ToLocal(
-      i::Handle<i::Object>::cast(scope.CloseAndEscape(result)));
+  auto maybe = source->IsSeqOneByteString()
+                   ? i::JsonParser<true>::Parse(source)
+                   : i::JsonParser<false>::Parse(source);
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(maybe, &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
+Local<Value> JSON::Parse(Local<String> json_string) {
+  auto isolate = reinterpret_cast<v8::Isolate*>(
+      Utils::OpenHandle(*json_string)->GetIsolate());
+  RETURN_TO_LOCAL_UNCHECKED(Parse(isolate, json_string), Value);
 }
 
 
@@ -3228,20 +3208,17 @@ uint32_t Value::Uint32Value() const {
 }
 
 
-Local<Uint32> Value::ToArrayIndex() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsSmi()) {
-    if (i::Smi::cast(*obj)->value() >= 0) return Utils::Uint32ToLocal(obj);
+MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
+  auto self = Utils::OpenHandle(this);
+  if (self->IsSmi()) {
+    if (i::Smi::cast(*self)->value() >= 0) return Utils::Uint32ToLocal(self);
     return Local<Uint32>();
   }
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  LOG_API(isolate, "ToArrayIndex");
-  ENTER_V8(isolate);
-  EXCEPTION_PREAMBLE(isolate);
+  PREPARE_FOR_EXECUTION(context, "ToArrayIndex", Uint32);
   i::Handle<i::Object> string_obj;
-  has_pending_exception = !i::Execution::ToString(
-      isolate, obj).ToHandle(&string_obj);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
+  has_pending_exception =
+      !i::Execution::ToString(isolate, self).ToHandle(&string_obj);
+  RETURN_ON_FAILED_EXECUTION(Uint32);
   i::Handle<i::String> str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
   if (str->AsArrayIndex(&index)) {
@@ -3251,56 +3228,65 @@ Local<Uint32> Value::ToArrayIndex() const {
     } else {
       value = isolate->factory()->NewNumber(index);
     }
-    return Utils::Uint32ToLocal(value);
+    RETURN_ESCAPED(Utils::Uint32ToLocal(value));
   }
   return Local<Uint32>();
 }
 
 
-bool Value::Equals(Handle<Value> that) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
-  i::Handle<i::Object> other = Utils::OpenHandle(*that);
-  if (obj->IsSmi() && other->IsSmi()) {
-    return obj->Number() == other->Number();
+Local<Uint32> Value::ToArrayIndex() const {
+  auto self = Utils::OpenHandle(this);
+  if (self->IsSmi()) {
+    if (i::Smi::cast(*self)->value() >= 0) return Utils::Uint32ToLocal(self);
+    return Local<Uint32>();
   }
-  i::Object* ho = obj->IsSmi() ? *other : *obj;
-  i::Isolate* isolate = i::HeapObject::cast(ho)->GetIsolate();
-  if (!Utils::ApiCheck(!obj.is_null() && !that.IsEmpty(),
-                       "v8::Value::Equals()",
-                       "Reading from empty handle")) {
-    return false;
+  auto context = ContextFromHeapObject(self);
+  RETURN_TO_LOCAL_UNCHECKED(ToArrayIndex(context), Uint32);
+}
+
+
+Maybe<bool> Value::Equals(Local<Context> context, Handle<Value> that) const {
+  auto self = Utils::OpenHandle(this);
+  auto other = Utils::OpenHandle(*that);
+  if (self->IsSmi() && other->IsSmi()) {
+    return Just(self->Number() == other->Number());
   }
-  LOG_API(isolate, "Equals");
-  ENTER_V8(isolate);
-  // If both obj and other are JSObjects, we'd better compare by identity
-  // immediately when going into JS builtin.  The reason is Invoke
-  // would overwrite global object receiver with global proxy.
-  if (obj->IsJSObject() && other->IsJSObject()) {
-    return *obj == *other;
+  if (self->IsJSObject() && other->IsJSObject()) {
+    return Just(*self == *other);
   }
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Value::Equals()", bool);
   i::Handle<i::Object> args[] = { other };
-  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "EQUALS", obj, arraysize(args), args)
+      !CallV8HeapFunction(isolate, "EQUALS", self, arraysize(args), args)
            .ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return *result == i::Smi::FromInt(i::EQUAL);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(*result == i::Smi::FromInt(i::EQUAL));
+}
+
+
+bool Value::Equals(Handle<Value> that) const {
+  auto self = Utils::OpenHandle(this);
+  auto other = Utils::OpenHandle(*that);
+  if (self->IsSmi() && other->IsSmi()) {
+    return self->Number() == other->Number();
+  }
+  if (self->IsJSObject() && other->IsJSObject()) {
+    return *self == *other;
+  }
+  auto heap_object = self->IsSmi() ? other : self;
+  auto context = ContextFromHeapObject(heap_object);
+  return Equals(context, that).FromMaybe(false);
 }
 
 
 bool Value::StrictEquals(Handle<Value> that) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
   if (obj->IsSmi()) {
     return other->IsNumber() && obj->Number() == other->Number();
   }
   i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  if (!Utils::ApiCheck(!obj.is_null() && !that.IsEmpty(),
-                       "v8::Value::StrictEquals()",
-                       "Reading from empty handle")) {
-    return false;
-  }
   LOG_API(isolate, "StrictEquals");
   // Must check HeapNumber first, since NaN !== NaN.
   if (obj->IsHeapNumber()) {
@@ -3326,14 +3312,9 @@ bool Value::StrictEquals(Handle<Value> that) const {
 
 
 bool Value::SameValue(Handle<Value> that) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
-  if (!Utils::ApiCheck(!obj.is_null() && !that.IsEmpty(),
-                       "v8::Value::SameValue()",
-                       "Reading from empty handle")) {
-    return false;
-  }
-  i::Handle<i::Object> other = Utils::OpenHandle(*that);
-  return obj->SameValue(*other);
+  auto self = Utils::OpenHandle(this);
+  auto other = Utils::OpenHandle(*that);
+  return self->SameValue(*other);
 }
 
 
@@ -3859,7 +3840,6 @@ void Object::SetAccessorProperty(Local<Name> name,
   // TODO(verwaest): Remove |settings|.
   DCHECK_EQ(v8::DEFAULT, settings);
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::SetAccessorProperty()", return);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
@@ -4553,11 +4533,7 @@ Local<v8::Value> Function::GetBoundFunction() const {
 
 
 int Name::GetIdentityHash() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Name::GetIdentityHash()", return 0);
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::Name> self = Utils::OpenHandle(this);
+  auto self = Utils::OpenHandle(this);
   return static_cast<int>(self->Hash());
 }
 
@@ -5522,8 +5498,6 @@ Local<Context> v8::Context::New(
 
 void v8::Context::SetSecurityToken(Handle<Value> token) {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  i::Isolate* isolate = env->GetIsolate();
-  ENTER_V8(isolate);
   i::Handle<i::Object> token_handle = Utils::OpenHandle(*token);
   env->set_security_token(*token_handle);
 }
@@ -5531,8 +5505,6 @@ void v8::Context::SetSecurityToken(Handle<Value> token) {
 
 void v8::Context::UseDefaultSecurityToken() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  i::Isolate* isolate = env->GetIsolate();
-  ENTER_V8(isolate);
   env->set_security_token(env->global_object());
 }
 
