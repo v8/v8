@@ -3106,7 +3106,9 @@ void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     }
   } else if (IsConstructor()) {
     if (is_generator || type == kAccessorProperty) {
-      this->parser()->ReportMessage("constructor_special_method");
+      const char* msg =
+          is_generator ? "constructor_is_generator" : "constructor_is_accessor";
+      this->parser()->ReportMessage(msg);
       *ok = false;
       return;
     }

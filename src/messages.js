@@ -8,7 +8,8 @@ var kMessages = {
   // Error
   cyclic_proto:                  ["Cyclic __proto__ value"],
   code_gen_from_strings:         ["%0"],
-  constructor_special_method:    ["Class constructor may not be an accessor"],
+  constructor_is_generator:      ["Class constructor may not be a generator"],
+  constructor_is_accessor:       ["Class constructor may not be an accessor"],
   // TypeError
   generator_running:             ["Generator is already running"],
   unexpected_token:              ["Unexpected token ", "%0"],
