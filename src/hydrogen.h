@@ -2122,6 +2122,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   typedef void (HOptimizedGraphBuilder::*InlineFunctionGenerator)
       (CallRuntime* call);
 
+  InlineFunctionGenerator FindInlineFunctionGenerator(CallRuntime* expr);
+
   // Forward declarations for inner scope classes.
   class SubgraphScope;
 

@@ -771,8 +771,8 @@ class Runtime : public AllStatic {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
     RUNTIME_FUNCTION_LIST(F) INLINE_FUNCTION_LIST(F)
-        INLINE_OPTIMIZED_FUNCTION_LIST(F) INLINE_FUNCTION_LIST(I)
-            INLINE_OPTIMIZED_FUNCTION_LIST(I)
+        INLINE_OPTIMIZED_FUNCTION_LIST(F) RUNTIME_FUNCTION_LIST(I)
+            INLINE_FUNCTION_LIST(I) INLINE_OPTIMIZED_FUNCTION_LIST(I)
 #undef I
 #undef F
                 kNumFunctions,

@@ -9535,6 +9535,22 @@ const HOptimizedGraphBuilder::InlineFunctionGenerator
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
 
+HOptimizedGraphBuilder::InlineFunctionGenerator
+HOptimizedGraphBuilder::FindInlineFunctionGenerator(CallRuntime* expr) {
+  const Runtime::Function* function = expr->function();
+  if (function == nullptr || function->intrinsic_type != Runtime::INLINE) {
+    return nullptr;
+  }
+  Runtime::FunctionId id = function->function_id;
+  if (id < Runtime::kFirstInlineFunction) return nullptr;
+  int lookup_index =
+      static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction);
+  DCHECK(static_cast<size_t>(lookup_index) <
+         arraysize(kInlineFunctionGenerators));
+  return kInlineFunctionGenerators[lookup_index];
+}
+
+
 template <class ViewClass>
 void HGraphBuilder::BuildArrayBufferViewInitialization(
     HValue* obj,
@@ -9914,21 +9930,13 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   const Runtime::Function* function = expr->function();
   DCHECK(function != NULL);
 
-  if (function->intrinsic_type == Runtime::INLINE) {
+  InlineFunctionGenerator generator = FindInlineFunctionGenerator(expr);
+  if (generator != nullptr) {
     DCHECK(expr->name()->length() > 0);
     DCHECK(expr->name()->Get(0) == '_');
-    // Call to an inline function.
-    int lookup_index = static_cast<int>(function->function_id) -
-        static_cast<int>(Runtime::kFirstInlineFunction);
-    DCHECK(lookup_index >= 0);
-    DCHECK(static_cast<size_t>(lookup_index) <
-           arraysize(kInlineFunctionGenerators));
-    InlineFunctionGenerator generator = kInlineFunctionGenerators[lookup_index];
-
     // Call the inline code generator using the pointer-to-member.
     (this->*generator)(expr);
   } else {
-    DCHECK(function->intrinsic_type == Runtime::RUNTIME);
     Handle<String> name = expr->name();
     int argument_count = expr->arguments()->length();
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
