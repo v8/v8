@@ -916,7 +916,7 @@ class RepresentationSelector {
         MachineTypeUnion tBase = kRepTagged | kMachPtr;
         LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
-        ProcessInput(node, 1, kMachInt32);  // index
+        ProcessInput(node, 1, kMachIntPtr);  // index
         ProcessRemainingInputs(node, 2);
         SetOutput(node, rep);
         break;
@@ -926,7 +926,7 @@ class RepresentationSelector {
         MachineTypeUnion tBase = kRepTagged | kMachPtr;
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
-        ProcessInput(node, 1, kMachInt32);  // index
+        ProcessInput(node, 1, kMachIntPtr);  // index
         ProcessInput(node, 2, rep.machine_type());
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);

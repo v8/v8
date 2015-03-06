@@ -18,7 +18,7 @@ TEST(Throw) {
 }
 
 
-TEST(ThrowSourcePosition) {
+TEST(ThrowMessagePosition) {
   i::FLAG_turbo_exceptions = true;
   static const char* src =
       "(function(a, b) {        \n"
@@ -44,6 +44,48 @@ TEST(ThrowSourcePosition) {
   CHECK(!message.IsEmpty());
   CHECK_EQ(4, message->GetLineNumber());
   CHECK_EQ(95, message->GetStartPosition());
+}
+
+
+TEST(ThrowMessageDirectly) {
+  i::FLAG_turbo_exceptions = true;
+  static const char* src =
+      "(function(a, b) {"
+      "  if (a) { throw b; } else { throw new Error(b); }"
+      "})";
+  FunctionTester T(src);
+  v8::Handle<v8::Message> message;
+
+  message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
+  CHECK(!message.IsEmpty());
+  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+
+  message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
+  CHECK(!message.IsEmpty());
+  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
+}
+
+
+TEST(ThrowMessageIndirectly) {
+  i::FLAG_turbo_exceptions = true;
+  static const char* src =
+      "(function(a, b) {"
+      "  try {"
+      "    if (a) { throw b; } else { throw new Error(b); }"
+      "  } finally {"
+      "    try { throw 'clobber'; } catch (e) { 'unclobber'; }"
+      "  }"
+      "})";
+  FunctionTester T(src);
+  v8::Handle<v8::Message> message;
+
+  message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
+  CHECK(!message.IsEmpty());
+  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+
+  message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
+  CHECK(!message.IsEmpty());
+  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
 }
 
 

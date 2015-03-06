@@ -1252,6 +1252,13 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control(this);
 
+  ExternalReference message_object =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  ExternalReference message_present =
+      ExternalReference::address_of_has_pending_message(isolate());
+  ExternalReference message_script =
+      ExternalReference::address_of_pending_message_script(isolate());
+
   // We keep a record of all paths that enter the finally-block to be able to
   // dispatch to the correct continuation point after the statements in the
   // finally-block have been evaluated.
@@ -1280,23 +1287,29 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   //  - BreakStatement/ContinueStatement: Filled with the hole.
   //  - Falling through into finally-block: Filled with the hole.
   Node* result = try_control.GetResultValueNode();
+  Node* token = try_control.GetDispatchTokenNode();
 
-  // TODO(mstarzinger): See FullCodeGenerator::EnterFinallyBlock.
-  environment()->Push(jsgraph()->SmiConstant(Code::kHeaderSize));
+  // The result value, dispatch token and message is expected on the operand
+  // stack (this is in sync with FullCodeGenerator::EnterFinallyBlock).
+  environment()->Push(token);  // TODO(mstarzinger): Cook token!
   environment()->Push(result);
-  environment()->Push(jsgraph()->TheHoleConstant());  // pending_message_obj
-  environment()->Push(jsgraph()->SmiConstant(0));     // has_pending_message
-  environment()->Push(jsgraph()->TheHoleConstant());  // pending_message_script
+  environment()->Push(BuildLoadExternal(message_object, kMachAnyTagged));
+  environment()->Push(BuildLoadExternal(message_present, kMachBool));
+  environment()->Push(BuildLoadExternal(message_script, kMachAnyTagged));
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
   try_control.EndFinally();
 
-  // TODO(mstarzinger): See FullCodeGenerator::ExitFinallyBlock.
-  environment()->Drop(5);
+  // The result value, dispatch token and message is restored from the operand
+  // stack (this is in sync with FullCodeGenerator::ExitFinallyBlock).
+  BuildStoreExternal(message_script, kMachAnyTagged, environment()->Pop());
+  BuildStoreExternal(message_present, kMachBool, environment()->Pop());
+  BuildStoreExternal(message_object, kMachAnyTagged, environment()->Pop());
+  result = environment()->Pop();
+  token = environment()->Pop();  // TODO(mstarzinger): Uncook token!
 
   // Dynamic dispatch after the finally-block.
-  Node* token = try_control.GetDispatchTokenNode();
   commands->ApplyDeferredCommands(token, result);
 
   // TODO(mstarzinger): Remove bailout once everything works.
@@ -2776,9 +2789,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 
 
 Node* AstGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  Node* field_load = NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
-                             jsgraph()->Int32Constant(offset - kHeapObjectTag));
-  return field_load;
+  return NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
+                 jsgraph()->IntPtrConstant(offset - kHeapObjectTag));
 }
 
 
@@ -2802,6 +2814,23 @@ Node* AstGraphBuilder::BuildLoadGlobalProxy() {
   Node* proxy =
       BuildLoadObjectField(global, JSGlobalObject::kGlobalProxyOffset);
   return proxy;
+}
+
+
+Node* AstGraphBuilder::BuildLoadExternal(ExternalReference reference,
+                                         MachineType type) {
+  return NewNode(jsgraph()->machine()->Load(type),
+                 jsgraph()->ExternalConstant(reference),
+                 jsgraph()->IntPtrConstant(0));
+}
+
+
+Node* AstGraphBuilder::BuildStoreExternal(ExternalReference reference,
+                                          MachineType type, Node* value) {
+  StoreRepresentation representation(type, kNoWriteBarrier);
+  return NewNode(jsgraph()->machine()->Store(representation),
+                 jsgraph()->ExternalConstant(reference),
+                 jsgraph()->IntPtrConstant(0), value);
 }
 
 
@@ -2940,11 +2969,8 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
 
 Node* AstGraphBuilder::BuildStackCheck() {
   IfBuilder stack_check(this);
-  Node* limit =
-      NewNode(jsgraph()->machine()->Load(kMachPtr),
-              jsgraph()->ExternalConstant(
-                  ExternalReference::address_of_stack_limit(isolate())),
-              jsgraph()->ZeroConstant());
+  Node* limit = BuildLoadExternal(
+      ExternalReference::address_of_stack_limit(isolate()), kMachPtr);
   Node* stack = NewNode(jsgraph()->machine()->LoadStackPointer());
   Node* tag = NewNode(jsgraph()->machine()->UintLessThan(), limit, stack);
   stack_check.If(tag, BranchHint::kTrue);

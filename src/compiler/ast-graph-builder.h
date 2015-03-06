@@ -231,6 +231,10 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildLoadClosure();
   Node* BuildLoadObjectField(Node* object, int offset);
 
+  // Builders for accessing external references.
+  Node* BuildLoadExternal(ExternalReference ref, MachineType type);
+  Node* BuildStoreExternal(ExternalReference ref, MachineType type, Node* val);
+
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* value);
   Node* BuildToName(Node* value, BailoutId bailout_id);
