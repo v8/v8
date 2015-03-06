@@ -6187,20 +6187,6 @@ void JSBuiltinsObject::set_javascript_builtin(Builtins::JavaScript id,
 }
 
 
-Code* JSBuiltinsObject::javascript_builtin_code(Builtins::JavaScript id) {
-  DCHECK(id < kJSBuiltinsCount);  // id is unsigned.
-  return Code::cast(READ_FIELD(this, OffsetOfCodeWithId(id)));
-}
-
-
-void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
-                                                   Code* value) {
-  DCHECK(id < kJSBuiltinsCount);  // id is unsigned.
-  WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
-  DCHECK(!GetHeap()->InNewSpace(value));
-}
-
-
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
 ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)

@@ -8,7 +8,6 @@
 #include <sstream>
 
 #include "src/base/platform/elapsed-timer.h"
-#include "src/bootstrapper.h"  // TODO(mstarzinger): Only temporary.
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
@@ -837,11 +836,10 @@ Handle<Code> Pipeline::GenerateCode() {
   // the correct solution is to restore the context register after invoking
   // builtins from full-codegen.
   Handle<SharedFunctionInfo> shared = info()->shared_info();
-  if (isolate()->bootstrapper()->IsActive() ||
-      shared->disable_optimization_reason() ==
-          kBuiltinFunctionCannotBeOptimized) {
-    shared->DisableOptimization(kBuiltinFunctionCannotBeOptimized);
-    return Handle<Code>::null();
+  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
+    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
+    Object* builtin = isolate()->js_builtins_object()->javascript_builtin(id);
+    if (*info()->closure() == builtin) return Handle<Code>::null();
   }
 
   // TODO(dslomov): support turbo optimization of subclass constructors.

@@ -1532,6 +1532,10 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     return;
   }
 
+  if (obj->IsCode() && Code::cast(obj)->kind() == Code::FUNCTION) {
+    obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
+  }
+
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
