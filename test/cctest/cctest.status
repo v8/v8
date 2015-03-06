@@ -228,20 +228,11 @@
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
-
-  # BUG(2657): Test sometimes times out on MIPS simulator.
-  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
-
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/Deserialize': [SKIP],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
-  'codegen-tester/CompareWrapper': [SKIP],
-  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -259,10 +250,6 @@
 
 ##############################################################################
 ['arch == mips64el', {
-
-  # BUG(2657): Test sometimes times out on MIPS simulator.
-  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
-
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
@@ -271,11 +258,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
-  'codegen-tester/CompareWrapper': [SKIP],
-  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
