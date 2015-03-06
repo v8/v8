@@ -943,7 +943,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   InitializeFunctionTemplate(obj);
   obj->set_do_not_cache(do_not_cache);
   int next_serial_number = 0;
-  if (!do_not_cache) {
+  if (!do_not_cache && !obj->serial_number()->IsSmi()) {
     next_serial_number = isolate->next_serial_number() + 1;
     isolate->set_next_serial_number(next_serial_number);
   }
