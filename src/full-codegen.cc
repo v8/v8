@@ -895,22 +895,23 @@ const FullCodeGenerator::InlineFunctionGenerator
 
 
 FullCodeGenerator::InlineFunctionGenerator
-  FullCodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
-    int lookup_index =
-        static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction);
-    DCHECK(lookup_index >= 0);
-    DCHECK(static_cast<size_t>(lookup_index) <
-           arraysize(kInlineFunctionGenerators));
-    return kInlineFunctionGenerators[lookup_index];
+FullCodeGenerator::FindInlineFunctionGenerator(CallRuntime* expr) {
+  const Runtime::Function* function = expr->function();
+  if (function == nullptr || function->intrinsic_type != Runtime::INLINE) {
+    return nullptr;
+  }
+  Runtime::FunctionId id = function->function_id;
+  if (id < Runtime::kFirstInlineFunction || Runtime::kLastInlineFunction < id) {
+    return nullptr;
+  }
+  return kInlineFunctionGenerators[static_cast<int>(id) -
+                                   static_cast<int>(
+                                       Runtime::kFirstInlineFunction)];
 }
 
 
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
-  const Runtime::Function* function = expr->function();
-  DCHECK(function != NULL);
-  DCHECK(function->intrinsic_type == Runtime::INLINE);
-  InlineFunctionGenerator generator =
-      FindInlineFunctionGenerator(function->function_id);
+void FullCodeGenerator::EmitInlineRuntimeCall(
+    CallRuntime* expr, InlineFunctionGenerator generator) {
   ((*this).*(generator))(expr);
 }
 

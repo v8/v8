@@ -129,7 +129,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
     case Runtime::kInlineDateField:
-    case Runtime::kInlineOptimizedGetPrototype:
+    case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
       return true;
     default:

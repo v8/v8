@@ -47,19 +47,10 @@ INLINE_FUNCTION_LIST(F)
   ,
 
 
-#define IO(name, number_of_args, result_size)                              \
-  {                                                                        \
-    Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, "_" #name, \
-        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size         \
-  }                                                                        \
-  ,
-
-
 static const Runtime::Function kIntrinsicFunctions[] = {
     RUNTIME_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
-    INLINE_FUNCTION_LIST(I) INLINE_OPTIMIZED_FUNCTION_LIST(IO)};
+        INLINE_FUNCTION_LIST(I) INLINE_OPTIMIZED_FUNCTION_LIST(I)};
 
-#undef IO
 #undef I
 #undef F
 

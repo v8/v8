@@ -772,16 +772,15 @@ class Runtime : public AllStatic {
     RUNTIME_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
 #undef F
 #define F(name, nargs, ressize) kInline##name,
-    INLINE_FUNCTION_LIST(F)
+        INLINE_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
 #undef F
-#define F(name, nargs, ressize) kInlineOptimized##name,
-    INLINE_OPTIMIZED_FUNCTION_LIST(F)
-#undef F
-    kNumFunctions,
-    kFirstInlineFunction = kInlineIsSmi
+            kNumFunctions,
+    // TODO(svenpanne) The values below are cruel hacks, remove them!
+    kFirstInlineFunction = kInlineIsSmi,
+    kLastInlineFunction = kInlineDebugIsActive
   };
 
-  enum IntrinsicType { RUNTIME, INLINE, INLINE_OPTIMIZED };
+  enum IntrinsicType { RUNTIME, INLINE };
 
   // Intrinsic function descriptor.
   struct Function {

@@ -4530,10 +4530,10 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  if (expr->function() != NULL &&
-      expr->function()->intrinsic_type == Runtime::INLINE) {
+  InlineFunctionGenerator generator = FindInlineFunctionGenerator(expr);
+  if (generator != nullptr) {
     Comment cmnt(masm_, "[ InlineRuntimeCall");
-    EmitInlineRuntimeCall(expr);
+    EmitInlineRuntimeCall(expr, generator);
     return;
   }
 

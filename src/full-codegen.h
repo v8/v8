@@ -496,9 +496,10 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedSuperCallWithLoadIC(Call* expr);
 
   // Platform-specific code for inline runtime calls.
-  InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
+  InlineFunctionGenerator FindInlineFunctionGenerator(CallRuntime* expr);
 
-  void EmitInlineRuntimeCall(CallRuntime* expr);
+  void EmitInlineRuntimeCall(CallRuntime* expr,
+                             InlineFunctionGenerator generator);
 
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
   void Emit##name(CallRuntime* expr);

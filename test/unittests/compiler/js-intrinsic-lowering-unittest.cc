@@ -52,8 +52,8 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedConstructDouble) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineOptimizedConstructDouble, 2),
-      input0, input1, context, effect, control));
+      javascript()->CallRuntime(Runtime::kInlineConstructDouble, 2), input0,
+      input1, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64InsertHighWord32(
                                    IsFloat64InsertLowWord32(
@@ -71,9 +71,9 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleLo) {
   Node* const context = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineOptimizedDoubleLo, 1), input,
-      context, effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleLo, 1),
+                       input, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64ExtractLowWord32(input));
 }
@@ -88,9 +88,9 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleHi) {
   Node* const context = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineOptimizedDoubleHi, 1), input,
-      context, effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleHi, 1),
+                       input, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64ExtractHighWord32(input));
 }

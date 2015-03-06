@@ -9916,8 +9916,7 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   const Runtime::Function* function = expr->function();
   DCHECK(function != NULL);
 
-  if (function->intrinsic_type == Runtime::INLINE ||
-      function->intrinsic_type == Runtime::INLINE_OPTIMIZED) {
+  if (function->intrinsic_type == Runtime::INLINE) {
     DCHECK(expr->name()->length() > 0);
     DCHECK(expr->name()->Get(0) == '_');
     // Call to an inline function.

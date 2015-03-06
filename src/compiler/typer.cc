@@ -1506,10 +1506,10 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsFunction:
     case Runtime::kInlineIsRegExp:
       return Bounds(Type::None(zone()), Type::Boolean(zone()));
-    case Runtime::kInlineOptimizedDoubleLo:
-    case Runtime::kInlineOptimizedDoubleHi:
+    case Runtime::kInlineDoubleLo:
+    case Runtime::kInlineDoubleHi:
       return Bounds(Type::None(zone()), Type::Signed32());
-    case Runtime::kInlineOptimizedConstructDouble:
+    case Runtime::kInlineConstructDouble:
       return Bounds(Type::None(zone()), Type::Number());
     default:
       break;

@@ -31,12 +31,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
       return ReduceInlineIsInstanceType(node, JS_FUNCTION_TYPE);
-    case Runtime::kInlineOptimizedConstructDouble:
-      return ReduceInlineOptimizedConstructDouble(node);
-    case Runtime::kInlineOptimizedDoubleLo:
-      return ReduceInlineOptimizedDoubleLo(node);
-    case Runtime::kInlineOptimizedDoubleHi:
-      return ReduceInlineOptimizedDoubleHi(node);
+    case Runtime::kInlineConstructDouble:
+      return ReduceInlineConstructDouble(node);
+    case Runtime::kInlineDoubleLo:
+      return ReduceInlineDoubleLo(node);
+    case Runtime::kInlineDoubleHi:
+      return ReduceInlineDoubleHi(node);
     case Runtime::kInlineIsRegExp:
       return ReduceInlineIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineValueOf:
@@ -98,8 +98,7 @@ Reduction JSIntrinsicLowering::ReduceInlineIsNonNegativeSmi(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceInlineOptimizedConstructDouble(
-    Node* node) {
+Reduction JSIntrinsicLowering::ReduceInlineConstructDouble(Node* node) {
   Node* high = NodeProperties::GetValueInput(node, 0);
   Node* low = NodeProperties::GetValueInput(node, 1);
   Node* value =
@@ -112,12 +111,12 @@ Reduction JSIntrinsicLowering::ReduceInlineOptimizedConstructDouble(
 }
 
 
-Reduction JSIntrinsicLowering::ReduceInlineOptimizedDoubleLo(Node* node) {
+Reduction JSIntrinsicLowering::ReduceInlineDoubleLo(Node* node) {
   return Change(node, machine()->Float64ExtractLowWord32());
 }
 
 
-Reduction JSIntrinsicLowering::ReduceInlineOptimizedDoubleHi(Node* node) {
+Reduction JSIntrinsicLowering::ReduceInlineDoubleHi(Node* node) {
   return Change(node, machine()->Float64ExtractHighWord32());
 }
 
