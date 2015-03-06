@@ -731,6 +731,7 @@ var date_cache_version = NAN;
 function CheckDateCacheCurrent() {
   if (!date_cache_version_holder) {
     date_cache_version_holder = %DateCacheVersion();
+    if (!date_cache_version_holder) return;
   }
   if (date_cache_version_holder[0] == date_cache_version) {
     return;
