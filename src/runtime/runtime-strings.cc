@@ -279,7 +279,7 @@ RUNTIME_FUNCTION(Runtime_StringLocaleCompare) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SubString) {
+RUNTIME_FUNCTION(Runtime_SubStringRT) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
 
@@ -307,7 +307,13 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringAdd) {
+RUNTIME_FUNCTION(Runtime_SubString) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_SubStringRT(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(Runtime_StringAddRT) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
@@ -317,6 +323,12 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewConsString(str1, str2));
   return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StringAdd) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_StringAddRT(args, isolate);
 }
 
 
@@ -414,7 +426,7 @@ RUNTIME_FUNCTION(Runtime_CharFromCode) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringCompare) {
+RUNTIME_FUNCTION(Runtime_StringCompareRT) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
 
@@ -480,6 +492,12 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
   return result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StringCompare) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_StringCompareRT(args, isolate);
 }
 
 

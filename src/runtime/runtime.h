@@ -429,12 +429,12 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_ALWAYS_3(F)                    \
   /* String and Regexp */                                    \
   F(NumberToStringRT, 1, 1)                                  \
-  F(RegExpConstructResult, 3, 1)                             \
+  F(RegExpConstructResultRT, 3, 1)                           \
   F(RegExpExecRT, 4, 1)                                      \
-  F(StringAdd, 2, 1)                                         \
-  F(SubString, 3, 1)                                         \
+  F(StringAddRT, 2, 1)                                       \
+  F(SubStringRT, 3, 1)                                       \
   F(InternalizeString, 1, 1)                                 \
-  F(StringCompare, 2, 1)                                     \
+  F(StringCompareRT, 2, 1)                                   \
   F(StringCharCodeAtRT, 2, 1)                                \
   F(GetFromCacheRT, 2, 1)                                    \
                                                              \
@@ -769,12 +769,13 @@ class Runtime : public AllStatic {
  public:
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
-    RUNTIME_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
+#define I(name, nargs, ressize) kInline##name,
+    RUNTIME_FUNCTION_LIST(F) INLINE_FUNCTION_LIST(F)
+        INLINE_OPTIMIZED_FUNCTION_LIST(F) INLINE_FUNCTION_LIST(I)
+            INLINE_OPTIMIZED_FUNCTION_LIST(I)
+#undef I
 #undef F
-#define F(name, nargs, ressize) kInline##name,
-        INLINE_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
-#undef F
-            kNumFunctions,
+                kNumFunctions,
     // TODO(svenpanne) The values below are cruel hacks, remove them!
     kFirstInlineFunction = kInlineIsSmi,
     kLastInlineFunction = kInlineDebugIsActive

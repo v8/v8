@@ -684,7 +684,7 @@ void CreateWeakCellStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
+      Runtime::FunctionForId(Runtime::kRegExpConstructResultRT)->entry);
 }
 
 
@@ -730,7 +730,7 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
 
 
 void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAddRT)->entry);
 }
 
 

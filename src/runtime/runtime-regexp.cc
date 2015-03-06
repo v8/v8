@@ -779,7 +779,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
+RUNTIME_FUNCTION(Runtime_RegExpConstructResultRT) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(size, 0);
@@ -797,6 +797,12 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
   array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, *index);
   array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, *input);
   return *array;
+}
+
+
+RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_RegExpConstructResultRT(args, isolate);
 }
 
 
