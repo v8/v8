@@ -1844,7 +1844,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      BuildVariableAssignment(variable, value, expr->op(), expr->AssignmentId(),
+      BuildVariableAssignment(variable, value, expr->op(), expr->id(),
                               ast_context()->GetStateCombine());
       break;
     }
@@ -1854,8 +1854,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store = NewNode(javascript()->StoreNamed(language_mode(), name),
                             object, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
       break;
     }
     case KEYED_PROPERTY: {
@@ -1863,8 +1862,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(language_mode()),
                             object, key, value);
-      PrepareFrameState(store, expr->AssignmentId(),
-                        ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
       break;
     }
   }
