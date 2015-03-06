@@ -32,20 +32,6 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Coding of external references.
 
-// The encoding of an external reference. The type is in the high word.
-// The id is in the low word.
-static uint32_t EncodeExternal(TypeCode type, uint16_t id) {
-  return static_cast<uint32_t>(type) << 16 | id;
-}
-
-
-static int* GetInternalPointer(StatsCounter* counter) {
-  // All counters refer to dummy_counter, if deserializing happens without
-  // setting up counters.
-  static int dummy_counter = 0;
-  return counter->Enabled() ? counter->GetInternalPointer() : &dummy_counter;
-}
-
 
 ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
   ExternalReferenceTable* external_reference_table =
@@ -58,63 +44,7 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 
-void ExternalReferenceTable::AddFromId(TypeCode type,
-                                       uint16_t id,
-                                       const char* name,
-                                       Isolate* isolate) {
-  Address address;
-  switch (type) {
-    case C_BUILTIN: {
-      ExternalReference ref(static_cast<Builtins::CFunctionId>(id), isolate);
-      address = ref.address();
-      break;
-    }
-    case BUILTIN: {
-      ExternalReference ref(static_cast<Builtins::Name>(id), isolate);
-      address = ref.address();
-      break;
-    }
-    case RUNTIME_FUNCTION: {
-      ExternalReference ref(static_cast<Runtime::FunctionId>(id), isolate);
-      address = ref.address();
-      break;
-    }
-    case IC_UTILITY: {
-      ExternalReference ref(IC_Utility(static_cast<IC::UtilityId>(id)),
-                            isolate);
-      address = ref.address();
-      break;
-    }
-    default:
-      UNREACHABLE();
-      return;
-  }
-  Add(address, type, id, name);
-}
-
-
-void ExternalReferenceTable::Add(Address address,
-                                 TypeCode type,
-                                 uint16_t id,
-                                 const char* name) {
-  DCHECK_NOT_NULL(address);
-  ExternalReferenceEntry entry;
-  entry.address = address;
-  entry.code = EncodeExternal(type, id);
-  entry.name = name;
-  DCHECK_NE(0u, entry.code);
-  // Assert that the code is added in ascending order to rule out duplicates.
-  DCHECK((size() == 0) || (code(size() - 1) < entry.code));
-  refs_.Add(entry);
-  if (id > max_id_[type]) max_id_[type] = id;
-}
-
-
-void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
-  for (int type_code = 0; type_code < kTypeCodeCount; type_code++) {
-    max_id_[type_code] = 0;
-  }
-
+ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   // Miscellaneous
   Add(ExternalReference::roots_array_start(isolate).address(),
       "Heap::roots_array_start()");
@@ -179,10 +109,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   Add(ExternalReference::get_make_code_young_function(isolate).address(),
       "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");
-  Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
-      "Runtime::AllocateInNewSpace");
-  Add(ExternalReference(Runtime::kAllocateInTargetSpace, isolate).address(),
-      "Runtime::AllocateInTargetSpace");
   Add(ExternalReference::old_pointer_space_allocation_top_address(isolate)
           .address(),
       "Heap::OldPointerSpaceAllocationTopAddress");
@@ -218,9 +144,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "double_constants.minus_one_half");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
-  Add(ExternalReference::incremental_marking_record_write_function(isolate)
-          .address(),
-      "IncrementalMarking::RecordWriteFromCode");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
@@ -260,143 +183,151 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   // new references.
 
   struct RefTableEntry {
-    TypeCode type;
     uint16_t id;
     const char* name;
   };
 
-  static const RefTableEntry ref_table[] = {
-  // Builtins
-#define DEF_ENTRY_C(name, ignored) \
-  { C_BUILTIN, \
-    Builtins::c_##name, \
-    "Builtins::" #name },
-
-  BUILTIN_LIST_C(DEF_ENTRY_C)
+  static const RefTableEntry c_builtins[] = {
+#define DEF_ENTRY_C(name, ignored)           \
+  { Builtins::c_##name, "Builtins::" #name } \
+  ,
+      BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
+  };
 
-#define DEF_ENTRY_C(name, ignored) \
-  { BUILTIN, \
-    Builtins::k##name, \
-    "Builtins::" #name },
-#define DEF_ENTRY_A(name, kind, state, extra) DEF_ENTRY_C(name, ignored)
+  for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
+    ExternalReference ref(static_cast<Builtins::CFunctionId>(c_builtins[i].id),
+                          isolate);
+    Add(ref.address(), c_builtins[i].name);
+  }
 
-  BUILTIN_LIST_C(DEF_ENTRY_C)
-  BUILTIN_LIST_A(DEF_ENTRY_A)
-  BUILTIN_LIST_DEBUG_A(DEF_ENTRY_A)
+  static const RefTableEntry builtins[] = {
+#define DEF_ENTRY_C(name, ignored)          \
+  { Builtins::k##name, "Builtins::" #name } \
+  ,
+#define DEF_ENTRY_A(name, i1, i2, i3)       \
+  { Builtins::k##name, "Builtins::" #name } \
+  ,
+      BUILTIN_LIST_C(DEF_ENTRY_C) BUILTIN_LIST_A(DEF_ENTRY_A)
+          BUILTIN_LIST_DEBUG_A(DEF_ENTRY_A)
 #undef DEF_ENTRY_C
 #undef DEF_ENTRY_A
+  };
 
-  // Runtime functions
-#define RUNTIME_ENTRY(name, nargs, ressize) \
-  { RUNTIME_FUNCTION, \
-    Runtime::k##name, \
-    "Runtime::" #name },
+  for (unsigned i = 0; i < arraysize(builtins); ++i) {
+    ExternalReference ref(static_cast<Builtins::Name>(builtins[i].id), isolate);
+    Add(ref.address(), builtins[i].name);
+  }
 
-  RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
-  INLINE_OPTIMIZED_FUNCTION_LIST(RUNTIME_ENTRY)
+  static const RefTableEntry runtime_functions[] = {
+#define RUNTIME_ENTRY(name, i1, i2)       \
+  { Runtime::k##name, "Runtime::" #name } \
+  ,
+      RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
+          INLINE_OPTIMIZED_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
+  };
 
-#define INLINE_OPTIMIZED_ENTRY(name, nargs, ressize) \
-  { RUNTIME_FUNCTION, \
-    Runtime::kInlineOptimized##name, \
-    "Runtime::" #name },
+  for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
+    ExternalReference ref(
+        static_cast<Runtime::FunctionId>(runtime_functions[i].id), isolate);
+    Add(ref.address(), runtime_functions[i].name);
+  }
 
-  INLINE_OPTIMIZED_FUNCTION_LIST(INLINE_OPTIMIZED_ENTRY)
-#undef INLINE_OPTIMIZED_ENTRY
-
-  // IC utilities
-#define IC_ENTRY(name) \
-  { IC_UTILITY, \
-    IC::k##name, \
-    "IC::" #name },
-
-  IC_UTIL_LIST(IC_ENTRY)
+  static const RefTableEntry inline_caches[] = {
+#define IC_ENTRY(name)          \
+  { IC::k##name, "IC::" #name } \
+  ,
+      IC_UTIL_LIST(IC_ENTRY)
 #undef IC_ENTRY
-  };  // end of ref_table[].
+  };
 
-  for (size_t i = 0; i < arraysize(ref_table); ++i) {
-    AddFromId(ref_table[i].type,
-              ref_table[i].id,
-              ref_table[i].name,
-              isolate);
+  for (unsigned i = 0; i < arraysize(inline_caches); ++i) {
+    ExternalReference ref(
+        IC_Utility(static_cast<IC::UtilityId>(inline_caches[i].id)), isolate);
+    Add(ref.address(), runtime_functions[i].name);
   }
 
   // Stat counters
   struct StatsRefTableEntry {
     StatsCounter* (Counters::*counter)();
-    uint16_t id;
     const char* name;
   };
 
-  const StatsRefTableEntry stats_ref_table[] = {
-#define COUNTER_ENTRY(name, caption) \
-  { &Counters::name,    \
-    Counters::k_##name, \
-    "Counters::" #name },
-
-  STATS_COUNTER_LIST_1(COUNTER_ENTRY)
-  STATS_COUNTER_LIST_2(COUNTER_ENTRY)
+  static const StatsRefTableEntry stats_ref_table[] = {
+#define COUNTER_ENTRY(name, caption)      \
+  { &Counters::name, "Counters::" #name } \
+  ,
+      STATS_COUNTER_LIST_1(COUNTER_ENTRY) STATS_COUNTER_LIST_2(COUNTER_ENTRY)
 #undef COUNTER_ENTRY
-  };  // end of stats_ref_table[].
+  };
 
   Counters* counters = isolate->counters();
-  for (size_t i = 0; i < arraysize(stats_ref_table); ++i) {
-    Add(reinterpret_cast<Address>(GetInternalPointer(
-            (counters->*(stats_ref_table[i].counter))())),
-        STATS_COUNTER,
-        stats_ref_table[i].id,
-        stats_ref_table[i].name);
+  for (unsigned i = 0; i < arraysize(stats_ref_table); ++i) {
+    // To make sure the indices are not dependent on whether counters are
+    // enabled, use a dummy address as filler.
+    Address address = NotAvailable();
+    StatsCounter* counter = (counters->*(stats_ref_table[i].counter))();
+    if (counter->Enabled()) {
+      address = reinterpret_cast<Address>(counter->GetInternalPointer());
+    }
+    Add(address, stats_ref_table[i].name);
   }
 
   // Top addresses
-
-  const char* AddressNames[] = {
-#define BUILD_NAME_LITERAL(CamelName, hacker_name)      \
-    "Isolate::" #hacker_name "_address",
-    FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL)
-    NULL
+  static const char* address_names[] = {
+#define BUILD_NAME_LITERAL(Name, name) "Isolate::" #name "_address",
+      FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL) NULL
 #undef BUILD_NAME_LITERAL
   };
 
-  for (uint16_t i = 0; i < Isolate::kIsolateAddressCount; ++i) {
-    Add(isolate->get_address_from_id((Isolate::AddressId)i),
-        TOP_ADDRESS, i, AddressNames[i]);
+  for (int i = 0; i < Isolate::kIsolateAddressCount; ++i) {
+    Add(isolate->get_address_from_id(static_cast<Isolate::AddressId>(i)),
+        address_names[i]);
   }
 
   // Accessors
-#define ACCESSOR_INFO_DECLARATION(name)                          \
-  Add(FUNCTION_ADDR(&Accessors::name##Getter), ACCESSOR_CODE,    \
-      Accessors::k##name##Getter, "Accessors::" #name "Getter"); \
-  Add(FUNCTION_ADDR(&Accessors::name##Setter), ACCESSOR_CODE,    \
-      Accessors::k##name##Setter, "Accessors::" #name "Setter");
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
+  struct AccessorRefTable {
+    Address address;
+    const char* name;
+  };
+
+  static const AccessorRefTable accessors[] = {
+#define ACCESSOR_INFO_DECLARATION(name)                                     \
+  { FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter" } \
+  , {FUNCTION_ADDR(&Accessors::name##Setter), "Accessors::" #name "Setter"},
+      ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
+  };
+
+  for (unsigned i = 0; i < arraysize(accessors); ++i) {
+    Add(accessors[i].address, accessors[i].name);
+  }
 
   StubCache* stub_cache = isolate->stub_cache();
 
   // Stub cache tables
   Add(stub_cache->key_reference(StubCache::kPrimary).address(),
-      STUB_CACHE_TABLE, 1, "StubCache::primary_->key");
+      "StubCache::primary_->key");
   Add(stub_cache->value_reference(StubCache::kPrimary).address(),
-      STUB_CACHE_TABLE, 2, "StubCache::primary_->value");
+      "StubCache::primary_->value");
   Add(stub_cache->map_reference(StubCache::kPrimary).address(),
-      STUB_CACHE_TABLE, 3, "StubCache::primary_->map");
+      "StubCache::primary_->map");
   Add(stub_cache->key_reference(StubCache::kSecondary).address(),
-      STUB_CACHE_TABLE, 4, "StubCache::secondary_->key");
+      "StubCache::secondary_->key");
   Add(stub_cache->value_reference(StubCache::kSecondary).address(),
-      STUB_CACHE_TABLE, 5, "StubCache::secondary_->value");
+      "StubCache::secondary_->value");
   Add(stub_cache->map_reference(StubCache::kSecondary).address(),
-      STUB_CACHE_TABLE, 6, "StubCache::secondary_->map");
+      "StubCache::secondary_->map");
 
   // Runtime entries
   Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
-      RUNTIME_ENTRY, 1, "HandleScope::DeleteExtensions");
+      "HandleScope::DeleteExtensions");
   Add(ExternalReference::incremental_marking_record_write_function(isolate)
           .address(),
-      RUNTIME_ENTRY, 2, "IncrementalMarking::RecordWrite");
+      "IncrementalMarking::RecordWrite");
   Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
-      RUNTIME_ENTRY, 3, "StoreBuffer::StoreBufferOverflow");
+      "StoreBuffer::StoreBufferOverflow");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
@@ -407,78 +338,44 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, LAZY_DEOPTIMIZATION, entry, "lazy_deopt");
+    Add(address, "lazy_deopt");
   }
 }
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
-    : encodings_(HashMap::PointersMatch),
-      isolate_(isolate) {
-  ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance(isolate_);
-  for (int i = 0; i < external_references->size(); ++i) {
-    Put(external_references->address(i), i);
+    : map_(HashMap::PointersMatch) {
+  ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
+  for (int i = 0; i < table->size(); ++i) {
+    Address addr = table->address(i);
+    if (addr == ExternalReferenceTable::NotAvailable()) continue;
+    // We expect no duplicate external references entries in the table.
+    DCHECK_NULL(map_.Lookup(addr, Hash(addr), false));
+    map_.Lookup(addr, Hash(addr), true)->value = reinterpret_cast<void*>(i);
   }
 }
 
 
-uint32_t ExternalReferenceEncoder::Encode(Address key) const {
-  int index = IndexOf(key);
-  DCHECK(key == NULL || index >= 0);
-  return index >= 0 ?
-         ExternalReferenceTable::instance(isolate_)->code(index) : 0;
-}
-
-
-const char* ExternalReferenceEncoder::NameOfAddress(Address key) const {
-  int index = IndexOf(key);
-  return index >= 0 ? ExternalReferenceTable::instance(isolate_)->name(index)
-                    : "<unknown>";
-}
-
-
-int ExternalReferenceEncoder::IndexOf(Address key) const {
-  if (key == NULL) return -1;
+uint32_t ExternalReferenceEncoder::Encode(Address address) const {
+  DCHECK_NOT_NULL(address);
   HashMap::Entry* entry =
-      const_cast<HashMap&>(encodings_).Lookup(key, Hash(key), false);
-  return entry == NULL
-      ? -1
-      : static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+      const_cast<HashMap&>(map_).Lookup(address, Hash(address), false);
+  DCHECK_NOT_NULL(entry);
+  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
 }
 
 
-void ExternalReferenceEncoder::Put(Address key, int index) {
-  HashMap::Entry* entry = encodings_.Lookup(key, Hash(key), true);
-  entry->value = reinterpret_cast<void*>(index);
+const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
+                                                    Address address) const {
+  HashMap::Entry* entry =
+      const_cast<HashMap&>(map_).Lookup(address, Hash(address), false);
+  if (entry == NULL) return "<unknown>";
+  uint32_t i = static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
+  return ExternalReferenceTable::instance(isolate)->name(i);
 }
 
 
-ExternalReferenceDecoder::ExternalReferenceDecoder(Isolate* isolate)
-    : encodings_(NewArray<Address*>(kTypeCodeCount)),
-      isolate_(isolate) {
-  ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance(isolate_);
-  for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
-    int max = external_references->max_id(type) + 1;
-    encodings_[type] = NewArray<Address>(max + 1);
-  }
-  for (int i = 0; i < external_references->size(); ++i) {
-    Put(external_references->code(i), external_references->address(i));
-  }
-}
-
-
-ExternalReferenceDecoder::~ExternalReferenceDecoder() {
-  for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
-    DeleteArray(encodings_[type]);
-  }
-  DeleteArray(encodings_);
-}
-
-
-RootIndexMap::RootIndexMap(Isolate* isolate) {
-  map_ = new HashMap(HashMap::PointersMatch);
+RootIndexMap::RootIndexMap(Isolate* isolate) : map_(HashMap::PointersMatch) {
   Object** root_array = isolate->heap()->roots_array_start();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
@@ -488,12 +385,12 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
     if (root->IsHeapObject() &&
         isolate->heap()->RootCanBeTreatedAsConstant(root_index)) {
       HeapObject* heap_object = HeapObject::cast(root);
-      HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
+      HashMap::Entry* entry = LookupEntry(&map_, heap_object, false);
       if (entry != NULL) {
         // Some are initialized to a previous value in the root list.
         DCHECK_LT(GetValue(entry), i);
       } else {
-        SetValue(LookupEntry(map_, heap_object, true), i);
+        SetValue(LookupEntry(&map_, heap_object, true), i);
       }
     }
   }
@@ -654,8 +551,10 @@ void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NULL(isolate_);
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
-  DCHECK_NULL(external_reference_decoder_);
-  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
+  DCHECK_NULL(external_reference_table_);
+  external_reference_table_ = ExternalReferenceTable::instance(isolate);
+  CHECK_EQ(magic_number_,
+           SerializedData::ComputeMagicNumber(external_reference_table_));
 }
 
 
@@ -751,10 +650,6 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
   // DCHECK(source_.AtEOF());
-  if (external_reference_decoder_) {
-    delete external_reference_decoder_;
-    external_reference_decoder_ = NULL;
-  }
   attached_objects_.Dispose();
 }
 
@@ -1004,7 +899,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
         int reference_id = source_.GetInt();                                   \
-        Address address = external_reference_decoder_->Decode(reference_id);   \
+        Address address = external_reference_table_->address(reference_id);    \
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kBackref) {                                          \
         emit_write_barrier = (space_number == NEW_SPACE);                      \
@@ -2387,7 +2282,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   HandleScope scope(isolate);
 
   SmartPointer<SerializedCodeData> scd(
-      SerializedCodeData::FromCachedData(cached_data, *source));
+      SerializedCodeData::FromCachedData(isolate, cached_data, *source));
   if (scd.is_empty()) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
@@ -2465,6 +2360,7 @@ SnapshotData::SnapshotData(const Serializer& ser) {
   AllocateData(size);
 
   // Set header values.
+  SetMagicNumber(ser.isolate());
   SetHeaderValue(kCheckSumOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload.length());
@@ -2555,7 +2451,7 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   AllocateData(size);
 
   // Set header values.
-  SetHeaderValue(kMagicNumberOffset, kMagicNumber);
+  SetMagicNumber(cs.isolate());
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
   SetHeaderValue(kCpuFeaturesOffset,
@@ -2587,15 +2483,15 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
 
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
-    String* source) const {
-  uint32_t magic_number = GetHeaderValue(kMagicNumberOffset);
+    Isolate* isolate, String* source) const {
+  uint32_t magic_number = GetMagicNumber();
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t c1 = GetHeaderValue(kChecksum1Offset);
   uint32_t c2 = GetHeaderValue(kChecksum2Offset);
-  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
+  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != SourceHash(source)) return SOURCE_MISMATCH;
   if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
@@ -2655,11 +2551,12 @@ SerializedCodeData::SerializedCodeData(ScriptData* data)
     : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
 
-SerializedCodeData* SerializedCodeData::FromCachedData(ScriptData* cached_data,
+SerializedCodeData* SerializedCodeData::FromCachedData(Isolate* isolate,
+                                                       ScriptData* cached_data,
                                                        String* source) {
   DisallowHeapAllocation no_gc;
   SerializedCodeData* scd = new SerializedCodeData(cached_data);
-  SanityCheckResult r = scd->SanityCheck(source);
+  SanityCheckResult r = scd->SanityCheck(isolate, source);
   if (r == CHECK_SUCCESS) return scd;
   cached_data->Reject();
   source->GetIsolate()->counters()->code_cache_reject_reason()->AddSample(r);

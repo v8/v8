@@ -15,30 +15,7 @@ namespace internal {
 
 class ScriptData;
 
-// A TypeCode is used to distinguish different kinds of external reference.
-// It is a single bit to make testing for types easy.
-enum TypeCode {
-  UNCLASSIFIED,  // One-of-a-kind references.
-  C_BUILTIN,
-  BUILTIN,
-  RUNTIME_FUNCTION,
-  IC_UTILITY,
-  STATS_COUNTER,
-  TOP_ADDRESS,
-  ACCESSOR_CODE,
-  STUB_CACHE_TABLE,
-  RUNTIME_ENTRY,
-  LAZY_DEOPTIMIZATION
-};
-
-const int kTypeCodeCount = LAZY_DEOPTIMIZATION + 1;
-const int kFirstTypeCode = UNCLASSIFIED;
-
-const int kReferenceIdBits = 16;
-const int kReferenceIdMask = (1 << kReferenceIdBits) - 1;
-const int kReferenceTypeShift = kReferenceIdBits;
-
-const int kDeoptTableSerializeEntryCount = 64;
+static const int kDeoptTableSerializeEntryCount = 64;
 
 // ExternalReferenceTable is a helper class that defines the relationship
 // between external references and their encodings. It is used to build
@@ -47,46 +24,28 @@ class ExternalReferenceTable {
  public:
   static ExternalReferenceTable* instance(Isolate* isolate);
 
-  ~ExternalReferenceTable() { }
-
   int size() const { return refs_.length(); }
-
   Address address(int i) { return refs_[i].address; }
-
-  uint32_t code(int i) { return refs_[i].code; }
-
   const char* name(int i) { return refs_[i].name; }
 
-  int max_id(int code) { return max_id_[code]; }
+  inline static Address NotAvailable() { return NULL; }
 
  private:
-  explicit ExternalReferenceTable(Isolate* isolate) : refs_(64) {
-    PopulateTable(isolate);
-  }
-
   struct ExternalReferenceEntry {
     Address address;
-    uint32_t code;
     const char* name;
   };
 
-  void PopulateTable(Isolate* isolate);
-
-  // For a few types of references, we can get their address from their id.
-  void AddFromId(TypeCode type,
-                 uint16_t id,
-                 const char* name,
-                 Isolate* isolate);
-
-  // For other types of references, the caller will figure out the address.
-  void Add(Address address, TypeCode type, uint16_t id, const char* name);
+  explicit ExternalReferenceTable(Isolate* isolate);
 
   void Add(Address address, const char* name) {
-    Add(address, UNCLASSIFIED, ++max_id_[UNCLASSIFIED], name);
+    ExternalReferenceEntry entry = {address, name};
+    refs_.Add(entry);
   }
 
   List<ExternalReferenceEntry> refs_;
-  uint16_t max_id_[kTypeCodeCount];
+
+  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
 
 
@@ -96,47 +55,17 @@ class ExternalReferenceEncoder {
 
   uint32_t Encode(Address key) const;
 
-  const char* NameOfAddress(Address key) const;
+  const char* NameOfAddress(Isolate* isolate, Address address) const;
 
  private:
-  HashMap encodings_;
   static uint32_t Hash(Address key) {
-    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key) >> 2);
+    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key) >>
+                                 kPointerSizeLog2);
   }
 
-  int IndexOf(Address key) const;
+  HashMap map_;
 
-  void Put(Address key, int index);
-
-  Isolate* isolate_;
-};
-
-
-class ExternalReferenceDecoder {
- public:
-  explicit ExternalReferenceDecoder(Isolate* isolate);
-  ~ExternalReferenceDecoder();
-
-  Address Decode(uint32_t key) const {
-    if (key == 0) return NULL;
-    return *Lookup(key);
-  }
-
- private:
-  Address** encodings_;
-
-  Address* Lookup(uint32_t key) const {
-    int type = key >> kReferenceTypeShift;
-    DCHECK(kFirstTypeCode <= type && type < kTypeCodeCount);
-    int id = key & kReferenceIdMask;
-    return &encodings_[type][id];
-  }
-
-  void Put(uint32_t key, Address value) {
-    *Lookup(key) = value;
-  }
-
-  Isolate* isolate_;
+  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };
 
 
@@ -170,17 +99,16 @@ class RootIndexMap : public AddressMapBase {
  public:
   explicit RootIndexMap(Isolate* isolate);
 
-  ~RootIndexMap() { delete map_; }
-
   static const int kInvalidRootIndex = -1;
+
   int Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(map_, obj, false);
+    HashMap::Entry* entry = LookupEntry(&map_, obj, false);
     if (entry) return GetValue(entry);
     return kInvalidRootIndex;
   }
 
  private:
-  HashMap* map_;
+  HashMap map_;
 
   DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
@@ -519,8 +447,15 @@ class SerializedData {
     if (owns_data_) DeleteArray<byte>(data_);
   }
 
+  uint32_t GetMagicNumber() const { return GetHeaderValue(kMagicNumberOffset); }
+
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
+
+  static uint32_t ComputeMagicNumber(ExternalReferenceTable* table) {
+    uint32_t external_refs = table->size();
+    return 0xC0DE0000 ^ external_refs;
+  }
 
  protected:
   void SetHeaderValue(int offset, uint32_t value) {
@@ -536,6 +471,16 @@ class SerializedData {
 
   void AllocateData(int size);
 
+  static uint32_t ComputeMagicNumber(Isolate* isolate) {
+    return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
+  }
+
+  void SetMagicNumber(Isolate* isolate) {
+    SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
+  }
+
+  static const int kMagicNumberOffset = 0;
+
   byte* data_;
   int size_;
   bool owns_data_;
@@ -550,7 +495,8 @@ class Deserializer: public SerializerDeserializer {
   explicit Deserializer(Data* data)
       : isolate_(NULL),
         source_(data->Payload()),
-        external_reference_decoder_(NULL),
+        magic_number_(data->GetMagicNumber()),
+        external_reference_table_(NULL),
         deserialized_large_objects_(0),
         deserializing_user_code_(false) {
     DecodeReservation(data->Reservations());
@@ -624,6 +570,8 @@ class Deserializer: public SerializerDeserializer {
   Vector<Handle<Object> > attached_objects_;
 
   SnapshotByteSource source_;
+  uint32_t magic_number_;
+
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk
   // fitting into a page. Deserialized objects are allocated into the
@@ -632,7 +580,7 @@ class Deserializer: public SerializerDeserializer {
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
 
-  ExternalReferenceDecoder* external_reference_decoder_;
+  ExternalReferenceTable* external_reference_table_;
 
   List<HeapObject*> deserialized_large_objects_;
 
@@ -945,13 +893,15 @@ class SnapshotData : public SerializedData {
 
  private:
   bool IsSane();
+
   // The data header consists of uint32_t-sized entries:
-  // [0] version hash
-  // [1] number of reservation size entries
-  // [2] payload length
+  // [0] magic number and external reference count
+  // [1] version hash
+  // [2] number of reservation size entries
+  // [3] payload length
   // ... reservations
   // ... serialized payload
-  static const int kCheckSumOffset = 0;
+  static const int kCheckSumOffset = kMagicNumberOffset + kInt32Size;
   static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
   static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
   static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
@@ -962,7 +912,8 @@ class SnapshotData : public SerializedData {
 class SerializedCodeData : public SerializedData {
  public:
   // Used when consuming.
-  static SerializedCodeData* FromCachedData(ScriptData* cached_data,
+  static SerializedCodeData* FromCachedData(Isolate* isolate,
+                                            ScriptData* cached_data,
                                             String* source);
 
   // Used when producing.
@@ -990,14 +941,12 @@ class SerializedCodeData : public SerializedData {
     CHECKSUM_MISMATCH = 6
   };
 
-  SanityCheckResult SanityCheck(String* source) const;
+  SanityCheckResult SanityCheck(Isolate* isolate, String* source) const;
 
   uint32_t SourceHash(String* source) const { return source->length(); }
 
-  static const uint32_t kMagicNumber = 0xC0D1F1ED;
-
   // The data header consists of uint32_t-sized entries:
-  // [ 0] magic number
+  // [ 0] magic number and external reference count
   // [ 1] version hash
   // [ 2] source hash
   // [ 3] cpu features
@@ -1011,7 +960,6 @@ class SerializedCodeData : public SerializedData {
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
-  static const int kMagicNumberOffset = 0;
   static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
   static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
   static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
