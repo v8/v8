@@ -320,10 +320,8 @@ void Map::MapVerify() {
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
-  if (HasTransitionArray()) {
-    SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
-    SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
-  }
+  SLOW_DCHECK(TransitionArray::IsSortedNoDuplicates(this));
+  SLOW_DCHECK(TransitionArray::IsConsistentWithBackPointers(this));
   // TODO(ishell): turn it back to SLOW_DCHECK.
   CHECK(!FLAG_unbox_double_fields ||
         layout_descriptor()->IsConsistentWithMap(this));
@@ -344,7 +342,6 @@ void Map::VerifyOmittedMapChecks() {
   if (!FLAG_omit_map_checks_for_leaf_maps) return;
   if (!is_stable() ||
       is_deprecated() ||
-      HasTransitionArray() ||
       is_dictionary_map()) {
     CHECK_EQ(0, dependent_code()->number_of_entries(
         DependentCode::kPrototypeCheckGroup));
@@ -1208,14 +1205,28 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
 }
 
 
+// static
+bool TransitionArray::IsSortedNoDuplicates(Map* map) {
+  Object* raw_transitions = map->raw_transitions();
+  if (IsFullTransitionArray(raw_transitions)) {
+    return TransitionArray::cast(raw_transitions)->IsSortedNoDuplicates();
+  }
+  // Simple and non-existent transitions are always sorted.
+  return true;
+}
+
+
 static bool CheckOneBackPointer(Map* current_map, Object* target) {
   return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
 }
 
 
-bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
-  for (int i = 0; i < number_of_transitions(); ++i) {
-    if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
+// static
+bool TransitionArray::IsConsistentWithBackPointers(Map* map) {
+  Object* transitions = map->raw_transitions();
+  for (int i = 0; i < TransitionArray::NumberOfTransitions(transitions); ++i) {
+    Map* target = TransitionArray::GetTarget(transitions, i);
+    if (!CheckOneBackPointer(map, target)) return false;
   }
   return true;
 }

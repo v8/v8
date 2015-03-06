@@ -2142,6 +2142,12 @@ TEST(InstanceOfStubWriteBarrier) {
 }
 
 
+static int NumberOfProtoTransitions(Map* map) {
+  return TransitionArray::NumberOfPrototypeTransitions(
+      TransitionArray::GetPrototypeTransitions(map));
+}
+
+
 TEST(PrototypeTransitionClearing) {
   if (FLAG_never_compact) return;
   CcTest::InitializeVM();
@@ -2154,7 +2160,7 @@ TEST(PrototypeTransitionClearing) {
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
               CcTest::global()->Get(v8_str("base"))));
-  int initialTransitions = baseObject->map()->NumberOfProtoTransitions();
+  int initialTransitions = NumberOfProtoTransitions(baseObject->map());
 
   CompileRun(
       "var live = [];"
@@ -2167,16 +2173,17 @@ TEST(PrototypeTransitionClearing) {
 
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(initialTransitions + 10,
-      baseObject->map()->NumberOfProtoTransitions());
+           NumberOfProtoTransitions(baseObject->map()));
   CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   const int transitions = 10 - 3;
   CHECK_EQ(initialTransitions + transitions,
-      baseObject->map()->NumberOfProtoTransitions());
+           NumberOfProtoTransitions(baseObject->map()));
 
   // Verify that prototype transitions array was compacted.
-  FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
+  FixedArray* trans =
+      TransitionArray::GetPrototypeTransitions(baseObject->map());
   for (int i = initialTransitions; i < initialTransitions + transitions; i++) {
-    int j = Map::kProtoTransitionHeaderSize + i;
+    int j = TransitionArray::kProtoTransitionHeaderSize + i;
     CHECK(trans->get(j)->IsMap());
   }
 
@@ -2194,7 +2201,7 @@ TEST(PrototypeTransitionClearing) {
   i::FLAG_always_compact = true;
   Handle<Map> map(baseObject->map());
   CHECK(!space->LastPage()->Contains(
-      map->GetPrototypeTransitions()->address()));
+      TransitionArray::GetPrototypeTransitions(*map)->address()));
   CHECK(space->LastPage()->Contains(prototype->address()));
 }
 
@@ -2877,7 +2884,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 
 
 static int CountMapTransitions(Map* map) {
-  return map->transitions()->number_of_transitions();
+  return TransitionArray::NumberOfTransitions(map->raw_transitions());
 }
 
 
@@ -3058,7 +3065,7 @@ TEST(TransitionArraySimpleToFull) {
   CompileRun("o = new F;"
              "root = new F");
   root = GetByName("root");
-  DCHECK(root->map()->transitions()->IsSimpleTransition());
+  DCHECK(TransitionArray::IsSimpleTransition(root->map()->raw_transitions()));
   AddPropertyTo(2, root, "happy");
 
   // Count number of live transitions after marking.  Note that one transition
