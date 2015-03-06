@@ -1918,6 +1918,50 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
+// Returns true if during migration from |old_map| to |new_map| "tagged"
+// inobject fields are going to be replaced with unboxed double fields.
+static bool ShouldClearSlotsRecorded(Map* old_map, Map* new_map,
+                                     int new_number_of_fields) {
+  DisallowHeapAllocation no_gc;
+  int inobject = new_map->inobject_properties();
+  DCHECK(inobject <= old_map->inobject_properties());
+
+  int limit = Min(inobject, new_number_of_fields);
+  for (int i = 0; i < limit; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(new_map, i);
+    if (new_map->IsUnboxedDoubleField(index) &&
+        !old_map->IsUnboxedDoubleField(index)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+static void RemoveOldToOldSlotsRecorded(Heap* heap, JSObject* object,
+                                        FieldIndex index) {
+  DisallowHeapAllocation no_gc;
+
+  Object* old_value = object->RawFastPropertyAt(index);
+  if (old_value->IsHeapObject()) {
+    HeapObject* ho = HeapObject::cast(old_value);
+    if (heap->InNewSpace(ho)) {
+      // At this point there must be no old-to-new slots recorded for this
+      // object.
+      SLOW_DCHECK(
+          !heap->store_buffer()->CellIsInStoreBuffer(reinterpret_cast<Address>(
+              HeapObject::RawField(object, index.offset()))));
+    } else {
+      Page* p = Page::FromAddress(reinterpret_cast<Address>(ho));
+      if (p->IsEvacuationCandidate()) {
+        Object** slot = HeapObject::RawField(object, index.offset());
+        SlotsBuffer::RemoveSlot(p->slots_buffer(), slot);
+      }
+    }
+  }
+}
+
+
 // To migrate a fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2071,24 +2115,37 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
 
+  Heap* heap = isolate->heap();
+
+  // If we are going to put an unboxed double to the field that used to
+  // contain HeapObject we should ensure that this slot is removed from
+  // both StoreBuffer and respective SlotsBuffer.
+  bool clear_slots_recorded =
+      FLAG_unbox_double_fields && !heap->InNewSpace(object->address()) &&
+      ShouldClearSlotsRecorded(*old_map, *new_map, number_of_fields);
+  if (clear_slots_recorded) {
+    Address obj_address = object->address();
+    Address end_address = obj_address + old_map->instance_size();
+    heap->store_buffer()->RemoveSlots(obj_address, end_address);
+  }
+
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
     Object* value = array->get(external + i);
-    // Can't use JSObject::FastPropertyAtPut() because proper map was not set
-    // yet.
     if (new_map->IsUnboxedDoubleField(index)) {
       DCHECK(value->IsMutableHeapNumber());
+      if (clear_slots_recorded && !old_map->IsUnboxedDoubleField(index)) {
+        RemoveOldToOldSlotsRecorded(heap, *object, index);
+      }
       object->RawFastDoublePropertyAtPut(index,
                                          HeapNumber::cast(value)->value());
     } else {
       object->RawFastPropertyAtPut(index, value);
     }
   }
-
-  Heap* heap = isolate->heap();
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.

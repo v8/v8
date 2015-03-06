@@ -105,6 +105,11 @@ class StoreBuffer {
 
   void Filter(int flag);
 
+
+  // Removes all the slots in [start_address, end_address) range from the store
+  // buffer.
+  void RemoveSlots(Address start_address, Address end_address);
+
  private:
   Heap* heap_;
 
