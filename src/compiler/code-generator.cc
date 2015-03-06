@@ -595,7 +595,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 void CodeGenerator::AssembleArchJump(RpoNumber target) { UNIMPLEMENTED(); }
 
 
-void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+void CodeGenerator::AssembleDeoptimizerCall(
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   UNIMPLEMENTED();
 }
 
