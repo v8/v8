@@ -8312,6 +8312,37 @@ Handle<WeakFixedArray> WeakFixedArray::Allocate(
 }
 
 
+Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj) {
+  int length = array->Length();
+  array = EnsureSpace(array, length + 1);
+  array->Set(length, *obj);
+  array->SetLength(length + 1);
+  return array;
+}
+
+
+Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
+                                 Handle<Object> obj2) {
+  int length = array->Length();
+  array = EnsureSpace(array, length + 2);
+  array->Set(length, *obj1);
+  array->Set(length + 1, *obj2);
+  array->SetLength(length + 2);
+  return array;
+}
+
+
+Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
+  int capacity = array->length();
+  if (capacity < kFirstIndex + length) {
+    capacity = kFirstIndex + length;
+    capacity = capacity + Max(capacity / 2, 2);
+    array = Handle<ArrayList>::cast(FixedArray::CopySize(array, capacity));
+  }
+  return array;
+}
+
+
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                   int number_of_descriptors,
                                                   int slack) {

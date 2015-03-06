@@ -100,6 +100,7 @@
         'test-api.cc',
         'test-api.h',
         'test-api-interceptors.cc',
+        'test-array-list.cc',
         'test-ast.cc',
         'test-atomicops.cc',
         'test-bignum.cc',

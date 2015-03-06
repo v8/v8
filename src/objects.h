@@ -941,6 +941,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedArray)                    \
   V(FixedDoubleArray)              \
   V(WeakFixedArray)                \
+  V(ArrayList)                     \
   V(ConstantPoolArray)             \
   V(Context)                       \
   V(ScriptContextTable)            \
@@ -2624,6 +2625,28 @@ class WeakFixedArray : public FixedArray {
   void set(int index, Object* value);
   void set(int index, Object* value, WriteBarrierMode mode);
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+};
+
+
+// Generic array grows dynamically with O(1) amortized insertion.
+class ArrayList : public FixedArray {
+ public:
+  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj);
+  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
+                               Handle<Object> obj2);
+  inline int Length();
+  inline void SetLength(int length);
+  inline Object* Get(int index);
+  inline Object** Slot(int index);
+  inline void Set(int index, Object* obj);
+  inline void Clear(int index, Object* undefined);
+  DECLARE_CAST(ArrayList)
+
+ private:
+  static Handle<ArrayList> EnsureSpace(Handle<ArrayList> array, int length);
+  static const int kLengthIndex = 0;
+  static const int kFirstIndex = 1;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
 };
 
 

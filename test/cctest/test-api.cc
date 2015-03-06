@@ -16235,6 +16235,7 @@ THREADED_TEST(SpaghettiStackReThrow) {
 TEST(Regress528) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
+  i::FLAG_retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);
   v8::Local<Context> other_context;
   int gc_count;

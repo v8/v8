@@ -787,6 +787,10 @@ class MarkCompactCollector {
   // otherwise a map can die and deoptimize the code.
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
 
+  // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
+  // increase chances of reusing of map transition tree in future.
+  void RetainMaps();
+
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's

@@ -928,6 +928,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     isolate()->optimizing_compiler_thread()->Flush();
   }
   AgeInlineCaches();
+  set_retained_maps(ArrayList::cast(empty_fixed_array()));
   tracer()->AddContextDisposalTime(base::OS::TimeCurrentMillis());
   return ++contexts_disposed_;
 }
@@ -3110,6 +3111,7 @@ void Heap::CreateInitialObjects() {
   }
 
   set_detached_contexts(empty_fixed_array());
+  set_retained_maps(ArrayList::cast(empty_fixed_array()));
 
   set_weak_object_to_code_table(
       *WeakHashTable::New(isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY,
@@ -3160,6 +3162,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kMicrotaskQueueRootIndex:
     case kDetachedContextsRootIndex:
     case kWeakObjectToCodeTableRootIndex:
+    case kRetainedMapsRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)
@@ -5750,6 +5753,18 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
   Object* dep = weak_object_to_code_table()->Lookup(obj);
   if (dep->IsDependentCode()) return DependentCode::cast(dep);
   return DependentCode::cast(empty_fixed_array());
+}
+
+
+void Heap::AddRetainedMap(Handle<Map> map) {
+  if (FLAG_retain_maps_for_n_gc == 0) return;
+  Handle<WeakCell> cell = Map::WeakCellForMap(map);
+  Handle<ArrayList> array(retained_maps(), isolate());
+  array = ArrayList::Add(
+      array, cell, handle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
+  if (*array != retained_maps()) {
+    set_retained_maps(*array);
+  }
 }
 
 

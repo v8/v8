@@ -2113,6 +2113,61 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 
+void MarkCompactCollector::RetainMaps() {
+  if (reduce_memory_footprint_ || abort_incremental_marking_ ||
+      FLAG_retain_maps_for_n_gc == 0) {
+    // Do not retain dead maps if flag disables it or there is
+    // - memory pressure (reduce_memory_footprint_),
+    // - GC is requested by tests or dev-tools (abort_incremental_marking_).
+    return;
+  }
+
+  ArrayList* retained_maps = heap()->retained_maps();
+  int length = retained_maps->Length();
+  int new_length = 0;
+  for (int i = 0; i < length; i += 2) {
+    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
+    if (cell->cleared()) continue;
+    int age = Smi::cast(retained_maps->Get(i + 1))->value();
+    int new_age;
+    Map* map = Map::cast(cell->value());
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    if (!map_mark.Get()) {
+      if (age == 0) {
+        // The map has aged. Do not retain this map.
+        continue;
+      }
+      Object* constructor = map->GetConstructor();
+      if (!constructor->IsHeapObject() ||
+          !Marking::MarkBitFrom(HeapObject::cast(constructor)).Get()) {
+        // The constructor is dead, no new objects with this map can
+        // be created. Do not retain this map.
+        continue;
+      }
+      new_age = age - 1;
+      MarkObject(map, map_mark);
+    } else {
+      new_age = FLAG_retain_maps_for_n_gc;
+    }
+    if (i != new_length) {
+      retained_maps->Set(new_length, cell);
+      Object** slot = retained_maps->Slot(new_length);
+      RecordSlot(slot, slot, cell);
+      retained_maps->Set(new_length + 1, Smi::FromInt(new_age));
+    } else if (new_age != age) {
+      retained_maps->Set(new_length + 1, Smi::FromInt(new_age));
+    }
+    new_length += 2;
+  }
+  Object* undefined = heap()->undefined_value();
+  for (int i = new_length; i < length; i++) {
+    retained_maps->Clear(i, undefined);
+  }
+  if (new_length != length) retained_maps->SetLength(new_length);
+  ProcessMarkingDeque();
+}
+
+
 void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize() {
   if (marking_deque_memory_ == NULL) {
     marking_deque_memory_ = new base::VirtualMemory(4 * MB);
@@ -2227,6 +2282,11 @@ void MarkCompactCollector::MarkLiveObjects() {
   MarkRoots(&root_visitor);
 
   ProcessTopOptimizedFrame(&root_visitor);
+
+  // Retaining dying maps should happen before or during ephemeral marking
+  // because a map could keep the key of an ephemeron alive. Note that map
+  // aging is imprecise: maps that are kept alive only by ephemerons will age.
+  RetainMaps();
 
   {
     GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCLOSURE);

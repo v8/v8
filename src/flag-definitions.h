@@ -577,6 +577,8 @@ DEFINE_INT(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_INT(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
+DEFINE_INT(retain_maps_for_n_gc, 2,
+           "keeps maps alive for <n> old space garbage collections")
 DEFINE_BOOL(trace_gc, false,
             "print one trace line following each garbage collection")
 DEFINE_BOOL(trace_gc_nvp, false,

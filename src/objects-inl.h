@@ -719,6 +719,9 @@ bool Object::IsDescriptorArray() const {
 }
 
 
+bool Object::IsArrayList() const { return IsFixedArray(); }
+
+
 bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
@@ -2426,6 +2429,39 @@ void WeakFixedArray::set_last_used_index(int index) {
 }
 
 
+int ArrayList::Length() {
+  if (FixedArray::cast(this)->length() == 0) return 0;
+  return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
+}
+
+
+void ArrayList::SetLength(int length) {
+  return FixedArray::cast(this)->set(kLengthIndex, Smi::FromInt(length));
+}
+
+
+Object* ArrayList::Get(int index) {
+  return FixedArray::cast(this)->get(kFirstIndex + index);
+}
+
+
+Object** ArrayList::Slot(int index) {
+  return data_start() + kFirstIndex + index;
+}
+
+
+void ArrayList::Set(int index, Object* obj) {
+  FixedArray::cast(this)->set(kFirstIndex + index, obj);
+}
+
+
+void ArrayList::Clear(int index, Object* undefined) {
+  DCHECK(undefined->IsUndefined());
+  FixedArray::cast(this)
+      ->set(kFirstIndex + index, undefined, SKIP_WRITE_BARRIER);
+}
+
+
 void ConstantPoolArray::NumberOfEntries::increment(Type type) {
   DCHECK(type < NUMBER_OF_TYPES);
   element_counts_[type]++;
@@ -3324,6 +3360,7 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 
 
 CAST_ACCESSOR(AccessorInfo)
+CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(Code)

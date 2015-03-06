@@ -183,6 +183,7 @@ namespace internal {
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, keyed_load_dummy_vector, KeyedLoadDummyVector)                 \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
+  V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)
 
 // Entries in this list are limited to Smis and are not visited during GC.
@@ -1448,6 +1449,8 @@ class Heap {
                                      Handle<DependentCode> dep);
 
   DependentCode* LookupWeakObjectToCodeDependency(Handle<HeapObject> obj);
+
+  void AddRetainedMap(Handle<Map> map);
 
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
