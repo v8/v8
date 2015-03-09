@@ -16,12 +16,16 @@ class JSCallFunctionAccessor;
 
 class JSInliner FINAL : public Reducer {
  public:
-  JSInliner(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph)
-      : local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
+  enum Mode { kBuiltinsInlining, kGeneralInlining };
+
+  JSInliner(Mode mode, Zone* local_zone, CompilationInfo* info,
+            JSGraph* jsgraph)
+      : mode_(mode), local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) FINAL;
 
  private:
+  Mode const mode_;
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;

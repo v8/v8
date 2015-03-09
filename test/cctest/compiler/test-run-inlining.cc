@@ -11,9 +11,11 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+namespace {
+
 // Helper to determine inline count via JavaScriptFrame::GetInlineCount.
 // Note that a count of 1 indicates that no inlining has occured.
-static void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
   StackTraceFrameIterator it(CcTest::i_isolate());
   int frames_seen = 0;
   JavaScriptFrame* topmost = it.frame();
@@ -30,7 +32,7 @@ static void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-static void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
+void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, AssertInlineCount);
@@ -38,9 +40,15 @@ static void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
 }
 
 
-static uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
-                               CompilationInfo::kContextSpecializing |
-                               CompilationInfo::kTypingEnabled;
+const uint32_t kBuiltinInlineFlags = CompilationInfo::kBuiltinInliningEnabled |
+                                     CompilationInfo::kContextSpecializing |
+                                     CompilationInfo::kTypingEnabled;
+
+const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
+                              CompilationInfo::kContextSpecializing |
+                              CompilationInfo::kTypingEnabled;
+
+}  // namespace
 
 
 TEST(SimpleInlining) {
@@ -482,6 +490,22 @@ TEST(InlineWithArguments) {
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.true_value(), T.Val(12), T.Val(14));
+}
+
+
+TEST(InlineBuiltin) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s,t,u) { AssertInlineCount(2); return true; }"
+      "  function bar() { return foo(); };"
+      "  %SetInlineBuiltinFlag(foo);"
+      "  return bar;"
+      "})();",
+      kBuiltinInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value());
 }
 
 #endif  // V8_TURBOFAN_TARGET

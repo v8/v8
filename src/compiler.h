@@ -167,7 +167,8 @@ class CompilationInfo {
     kDisableFutureOptimization = 1 << 20,
     kModule = 1 << 21,
     kToplevel = 1 << 22,
-    kSplittingEnabled = 1 << 23
+    kSplittingEnabled = 1 << 23,
+    kBuiltinInliningEnabled = 1 << 24
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -293,6 +294,12 @@ class CompilationInfo {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
+
+  void MarkAsBuiltinInliningEnabled() { SetFlag(kBuiltinInliningEnabled); }
+
+  bool is_builtin_inlining_enabled() const {
+    return GetFlag(kBuiltinInliningEnabled);
+  }
 
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
 

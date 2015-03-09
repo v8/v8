@@ -450,7 +450,10 @@ struct InliningPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    JSInliner inliner(temp_zone, data->info(), data->jsgraph());
+    JSInliner inliner(data->info()->is_inlining_enabled()
+                          ? JSInliner::kGeneralInlining
+                          : JSInliner::kBuiltinsInlining,
+                      temp_zone, data->info(), data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
@@ -915,7 +918,7 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Context specialized", true);
   }
 
-  if (info()->is_inlining_enabled()) {
+  if (info()->is_builtin_inlining_enabled() || info()->is_inlining_enabled()) {
     Run<InliningPhase>();
     RunPrintAndVerify("Inlined", true);
   }

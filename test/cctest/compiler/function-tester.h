@@ -34,6 +34,7 @@ class FunctionTester : public InitializedHandleScope {
         flags_(flags) {
     Compile(function);
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
+                                     CompilationInfo::kBuiltinInliningEnabled |
                                      CompilationInfo::kInliningEnabled |
                                      CompilationInfo::kTypingEnabled;
     CHECK_EQ(0u, flags_ & ~supported_flags);

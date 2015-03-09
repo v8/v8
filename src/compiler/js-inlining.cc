@@ -328,6 +328,10 @@ Reduction JSInliner::Reduce(Node* node) {
   if (!match.HasValue()) return NoChange();
 
   Handle<JSFunction> function = match.Value().handle();
+  if (!function->IsJSFunction()) return NoChange();
+  if (mode_ == kBuiltinsInlining && !function->shared()->inline_builtin()) {
+    return NoChange();
+  }
 
   CompilationInfoWithZone info(function);
 
