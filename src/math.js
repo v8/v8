@@ -8,18 +8,22 @@
 // in runtime.js:
 // var $Object = global.Object;
 
-// Keep reference to original values of some global properties.  This
-// has the added benefit that the code in this file is isolated from
-// changes to these properties.
-var $floor = MathFloor;
-var $abs = MathAbs;
-
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
 function MathConstructor() {}
 var $Math = new MathConstructor();
 
+var rngstate;  // Initialized to a Uint32Array during genesis.
+
+var $abs;
+var $exp;
+var $floor;
+var $max;
+var $min;
+
 // -------------------------------------------------------------------
+
+(function() {
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
@@ -142,7 +146,6 @@ function MathPow(x, y) {
 }
 
 // ECMA 262 - 15.8.2.14
-var rngstate;  // Initialized to a Uint32Array during genesis.
 function MathRandom() {
   var r0 = (MathImul(18030, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
   rngstate[0] = r0;
@@ -303,75 +306,71 @@ function CubeRoot(x) {
 
 // -------------------------------------------------------------------
 
-function SetUpMath() {
-  %CheckIsBootstrapping();
+%CheckIsBootstrapping();
 
-  %InternalSetPrototype($Math, $Object.prototype);
-  %AddNamedProperty(global, "Math", $Math, DONT_ENUM);
-  %FunctionSetInstanceClassName(MathConstructor, 'Math');
+%InternalSetPrototype($Math, $Object.prototype);
+%AddNamedProperty(global, "Math", $Math, DONT_ENUM);
+%FunctionSetInstanceClassName(MathConstructor, 'Math');
 
-  %AddNamedProperty($Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
+%AddNamedProperty($Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
-  // Set up math constants.
-  InstallConstants($Math, $Array(
-    // ECMA-262, section 15.8.1.1.
-    "E", 2.7182818284590452354,
-    // ECMA-262, section 15.8.1.2.
-    "LN10", 2.302585092994046,
-    // ECMA-262, section 15.8.1.3.
-    "LN2", 0.6931471805599453,
-    // ECMA-262, section 15.8.1.4.
-    "LOG2E", 1.4426950408889634,
-    "LOG10E", 0.4342944819032518,
-    "PI", 3.1415926535897932,
-    "SQRT1_2", 0.7071067811865476,
-    "SQRT2", 1.4142135623730951
-  ));
+// Set up math constants.
+InstallConstants($Math, $Array(
+  // ECMA-262, section 15.8.1.1.
+  "E", 2.7182818284590452354,
+  // ECMA-262, section 15.8.1.2.
+  "LN10", 2.302585092994046,
+  // ECMA-262, section 15.8.1.3.
+  "LN2", 0.6931471805599453,
+  // ECMA-262, section 15.8.1.4.
+  "LOG2E", 1.4426950408889634,
+  "LOG10E", 0.4342944819032518,
+  "PI", 3.1415926535897932,
+  "SQRT1_2", 0.7071067811865476,
+  "SQRT2", 1.4142135623730951
+));
 
-  // Set up non-enumerable functions of the Math object and
-  // set their names.
-  InstallFunctions($Math, DONT_ENUM, $Array(
-    "random", MathRandom,
-    "abs", MathAbs,
-    "acos", MathAcosJS,
-    "asin", MathAsinJS,
-    "atan", MathAtanJS,
-    "ceil", MathCeil,
-    "cos", MathCos,       // implemented by third_party/fdlibm
-    "exp", MathExp,
-    "floor", MathFloor,
-    "log", MathLog,
-    "round", MathRound,
-    "sin", MathSin,       // implemented by third_party/fdlibm
-    "sqrt", MathSqrt,
-    "tan", MathTan,       // implemented by third_party/fdlibm
-    "atan2", MathAtan2JS,
-    "pow", MathPow,
-    "max", MathMax,
-    "min", MathMin,
-    "imul", MathImul,
-    "sign", MathSign,
-    "trunc", MathTrunc,
-    "sinh", MathSinh,     // implemented by third_party/fdlibm
-    "cosh", MathCosh,     // implemented by third_party/fdlibm
-    "tanh", MathTanh,
-    "asinh", MathAsinh,
-    "acosh", MathAcosh,
-    "atanh", MathAtanh,
-    "log10", MathLog10,   // implemented by third_party/fdlibm
-    "log2", MathLog2,     // implemented by third_party/fdlibm
-    "hypot", MathHypot,
-    "fround", MathFroundJS,
-    "clz32", MathClz32,
-    "cbrt", MathCbrt,
-    "log1p", MathLog1p,   // implemented by third_party/fdlibm
-    "expm1", MathExpm1    // implemented by third_party/fdlibm
-  ));
+// Set up non-enumerable functions of the Math object and
+// set their names.
+InstallFunctions($Math, DONT_ENUM, $Array(
+  "random", MathRandom,
+  "abs", MathAbs,
+  "acos", MathAcosJS,
+  "asin", MathAsinJS,
+  "atan", MathAtanJS,
+  "ceil", MathCeil,
+  "exp", MathExp,
+  "floor", MathFloor,
+  "log", MathLog,
+  "round", MathRound,
+  "sqrt", MathSqrt,
+  "atan2", MathAtan2JS,
+  "pow", MathPow,
+  "max", MathMax,
+  "min", MathMin,
+  "imul", MathImul,
+  "sign", MathSign,
+  "trunc", MathTrunc,
+  "tanh", MathTanh,
+  "asinh", MathAsinh,
+  "acosh", MathAcosh,
+  "atanh", MathAtanh,
+  "hypot", MathHypot,
+  "fround", MathFroundJS,
+  "clz32", MathClz32,
+  "cbrt", MathCbrt
+));
 
-  %SetInlineBuiltinFlag(MathCeil);
-  %SetInlineBuiltinFlag(MathRandom);
-  %SetInlineBuiltinFlag(MathSin);
-  %SetInlineBuiltinFlag(MathCos);
-}
+%SetInlineBuiltinFlag(MathCeil);
+%SetInlineBuiltinFlag(MathRandom);
 
-SetUpMath();
+// Keep reference to original values of some global properties.  This
+// has the added benefit that the code in this file is isolated from
+// changes to these properties.
+$abs = MathAbs;
+$exp = MathExp;
+$floor = MathFloor;
+$max = MathMax;
+$min = MathMin;
+
+})();

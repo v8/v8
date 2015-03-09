@@ -230,8 +230,8 @@ function LocalTimezoneString(date) {
 
   var timezoneOffset = -TIMEZONE_OFFSET(date);
   var sign = (timezoneOffset >= 0) ? 1 : -1;
-  var hours = FLOOR((sign * timezoneOffset)/60);
-  var min   = FLOOR((sign * timezoneOffset)%60);
+  var hours = $floor((sign * timezoneOffset)/60);
+  var min   = $floor((sign * timezoneOffset)%60);
   var gmt = ' GMT' + ((sign == 1) ? '+' : '-') +
       TwoDigitString(hours) + TwoDigitString(min);
   return gmt + ' (' +  timezone + ')';
@@ -684,7 +684,7 @@ function DateToGMTString() {
 
 function PadInt(n, digits) {
   if (digits == 1) return n;
-  return n < MathPow(10, digits - 1) ? '0' + PadInt(n, digits - 1) : n;
+  return n < %_MathPow(10, digits - 1) ? '0' + PadInt(n, digits - 1) : n;
 }
 
 

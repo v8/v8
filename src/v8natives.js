@@ -9,9 +9,6 @@
 // var $Number = global.Number;
 // var $Function = global.Function;
 // var $Array = global.Array;
-//
-// in math.js:
-// var $floor = MathFloor
 
 var $isNaN = GlobalIsNaN;
 var $isFinite = GlobalIsFinite;
@@ -1655,8 +1652,7 @@ function NumberIsNaN(number) {
 function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
-    if (integral == number)
-      return MathAbs(integral) <= $Number.MAX_SAFE_INTEGER;
+    if (integral == number) return $abs(integral) <= $Number.MAX_SAFE_INTEGER;
   }
   return false;
 }

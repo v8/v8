@@ -52,7 +52,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  var start = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -83,7 +83,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = MathMin(MathMax(pos, 0), s_len);
+  var end = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   var start = end - ss_len;
   if (start < 0) {
@@ -113,7 +113,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  var start = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
