@@ -6,17 +6,13 @@
 
 #include "src/ast.h"
 #include "src/ast-numbering.h"
-#include "src/compiler/access-builder.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
@@ -103,7 +99,7 @@ class Inlinee {
 
   // Inline this graph at {call}, use {jsgraph} and its zone to create
   // any new nodes.
-  Reduction InlineAtCall(JSGraph* jsgraph, Node* call);
+  Reduction InlineAtCall(JSGraph* jsgraph, Node* call, Node* context);
 
   // Ensure that only a single return reaches the end node.
   static void UnifyReturn(JSGraph* jsgraph);
@@ -216,18 +212,12 @@ class CopyVisitor {
 };
 
 
-Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
+Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call, Node* context) {
   // The scheduler is smart enough to place our code; we just ensure {control}
-  // becomes the control input of the start of the inlinee.
+  // becomes the control input of the start of the inlinee, and {effect} becomes
+  // the effect input of the start of the inlinee.
   Node* control = NodeProperties::GetControlInput(call);
-
-  // The inlinee uses the context from the JSFunction object. This will
-  // also be the effect dependency for the inlinee as it produces an effect.
-  SimplifiedOperatorBuilder simplified(jsgraph->zone());
-  Node* context = jsgraph->graph()->NewNode(
-      simplified.LoadField(AccessBuilder::ForJSFunctionContext()),
-      NodeProperties::GetValueInput(call, 0),
-      NodeProperties::GetEffectInput(call), control);
+  Node* effect = NodeProperties::GetEffectInput(call);
 
   // Context is last argument.
   int inlinee_context_index = static_cast<int>(total_parameters()) - 1;
@@ -259,7 +249,7 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
       }
       default:
         if (NodeProperties::IsEffectEdge(edge)) {
-          edge.UpdateTo(context);
+          edge.UpdateTo(effect);
         } else if (NodeProperties::IsControlEdge(edge)) {
           edge.UpdateTo(control);
         } else {
@@ -269,18 +259,8 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     }
   }
 
-  for (Edge edge : call->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge)) {
-      // TODO(turbofan): Handle kIfException uses.
-      DCHECK_EQ(IrOpcode::kIfSuccess, edge.from()->opcode());
-      edge.from()->ReplaceUses(control_output());
-      edge.UpdateTo(nullptr);
-    } else if (NodeProperties::IsEffectEdge(edge)) {
-      edge.UpdateTo(effect_output());
-    } else {
-      edge.UpdateTo(value_output());
-    }
-  }
+  NodeProperties::ReplaceWithValue(call, value_output(), effect_output(),
+                                   control_output());
 
   return Reducer::Replace(value_output());
 }
@@ -387,7 +367,13 @@ Reduction JSInliner::Reduce(Node* node) {
     }
   }
 
-  return inlinee.InlineAtCall(jsgraph_, node);
+  // The inlinee uses the context from the JSFunction object.
+  // TODO(turbofan): We might want to load the context from the JSFunction at
+  // runtime in case we only know the SharedFunctionInfo once we have dynamic
+  // type feedback in the compiler.
+  Node* context = jsgraph_->HeapConstant(handle(function->context()));
+
+  return inlinee.InlineAtCall(jsgraph_, node, context);
 }
 
 }  // namespace compiler

@@ -411,8 +411,6 @@ DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
 DEFINE_BOOL(turbo_builtin_inlining, true, "enable builtin inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(loop_assignment_analysis, true, "perform loop assignment analysis")
-DEFINE_IMPLICATION(turbo_inlining, turbo_types)
-DEFINE_IMPLICATION(turbo_builtin_inlining, turbo_types)
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_delay_ssa_decon, false,
