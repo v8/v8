@@ -608,9 +608,10 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
   typedef PhantomCallbackData<void>::Callback Callback;
-  GlobalHandles::MakePhantom(
-      reinterpret_cast<Object**>(debug_info_.location()), this, 0,
-      reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo));
+  GlobalHandles::MakeWeak(
+      reinterpret_cast<Object**>(debug_info_.location()), this,
+      reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo),
+      v8::WeakCallbackType::kParameter);
 }
 
 

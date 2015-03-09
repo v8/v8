@@ -100,12 +100,11 @@ struct ObjectGroupRetainerInfo {
 enum WeaknessType {
   NORMAL_WEAK,  // Embedder gets a handle to the dying object.
   // In the following cases, the embedder gets the parameter they passed in
-  // earlier, and the 0, 1 or 2 first internal fields. Note that the internal
+  // earlier, and 0 or 2 first internal fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
   // objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
-  PHANTOM_WEAK_0_INTERNAL_FIELDS,
-  PHANTOM_WEAK_1_INTERNAL_FIELDS,
+  PHANTOM_WEAK,
   PHANTOM_WEAK_2_INTERNAL_FIELDS
 };
 
@@ -145,9 +144,9 @@ class GlobalHandles {
 
   // It would be nice to template this one, but it's really hard to get
   // the template instantiator to work right if you do.
-  static void MakePhantom(Object** location, void* parameter,
-                          int number_of_internal_fields,
-                          PhantomCallbackData<void>::Callback weak_callback);
+  static void MakeWeak(Object** location, void* parameter,
+                       WeakCallbackInfo<void>::Callback weak_callback,
+                       v8::WeakCallbackType type);
 
   void RecordStats(HeapStats* stats);
 
@@ -349,7 +348,7 @@ class GlobalHandles {
 
 class GlobalHandles::PendingPhantomCallback {
  public:
-  typedef PhantomCallbackData<void> Data;
+  typedef v8::WeakCallbackInfo<void> Data;
   PendingPhantomCallback(Node* node, Data data, Data::Callback callback)
       : node_(node), data_(data), callback_(callback) {}
 

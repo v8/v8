@@ -230,20 +230,20 @@ class GlobalHandles::Node {
     weak_callback_ = weak_callback;
   }
 
-  void MakePhantom(void* parameter, int number_of_internal_fields,
-                   PhantomCallbackData<void>::Callback phantom_callback) {
-    DCHECK(number_of_internal_fields >= 0);
-    DCHECK(number_of_internal_fields <= 2);
-    DCHECK(phantom_callback != NULL);
+  void MakeWeak(void* parameter,
+                WeakCallbackInfo<void>::Callback phantom_callback,
+                v8::WeakCallbackType type) {
+    DCHECK(phantom_callback != nullptr);
     DCHECK(IsInUse());
-    CHECK(object_ != NULL);
+    CHECK(object_ != nullptr);
     set_state(WEAK);
-    if (number_of_internal_fields == 0) {
-      set_weakness_type(PHANTOM_WEAK_0_INTERNAL_FIELDS);
-    } else if (number_of_internal_fields == 1) {
-      set_weakness_type(PHANTOM_WEAK_1_INTERNAL_FIELDS);
-    } else {
+    switch (type) {
+      case v8::WeakCallbackType::kParameter:
+        set_weakness_type(PHANTOM_WEAK);
+        break;
+      case v8::WeakCallbackType::kInternalFields:
       set_weakness_type(PHANTOM_WEAK_2_INTERNAL_FIELDS);
+      break;
     }
     set_parameter(parameter);
     weak_callback_ = reinterpret_cast<WeakCallback>(phantom_callback);
@@ -266,29 +266,29 @@ class GlobalHandles::Node {
 
       v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
-      DCHECK(weakness_type() == PHANTOM_WEAK_0_INTERNAL_FIELDS ||
-             weakness_type() == PHANTOM_WEAK_1_INTERNAL_FIELDS ||
+      DCHECK(weakness_type() == PHANTOM_WEAK ||
              weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
 
       Object* internal_field0 = nullptr;
       Object* internal_field1 = nullptr;
-      if (weakness_type() != PHANTOM_WEAK_0_INTERNAL_FIELDS) {
-        JSObject* jsobject = reinterpret_cast<JSObject*>(object());
-        DCHECK(jsobject->IsJSObject());
-        DCHECK(jsobject->GetInternalFieldCount() >= 1);
-        internal_field0 = jsobject->GetInternalField(0);
-        if (weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS) {
-          DCHECK(jsobject->GetInternalFieldCount() >= 2);
-          internal_field1 = jsobject->GetInternalField(1);
+      if (weakness_type() != PHANTOM_WEAK) {
+        if (object()->IsJSObject()) {
+          JSObject* jsobject = JSObject::cast(object());
+          int field_count = jsobject->GetInternalFieldCount();
+          if (field_count > 0) {
+            internal_field0 = jsobject->GetInternalField(0);
+            if (!internal_field0->IsSmi()) internal_field0 = nullptr;
+          }
+          if (field_count > 1) {
+            internal_field1 = jsobject->GetInternalField(1);
+            if (!internal_field1->IsSmi()) internal_field1 = nullptr;
+          }
         }
       }
 
       // Zap with harmless value.
       *location() = Smi::FromInt(0);
-      typedef PhantomCallbackData<void> Data;
-
-      if (!internal_field0->IsSmi()) internal_field0 = nullptr;
-      if (!internal_field1->IsSmi()) internal_field1 = nullptr;
+      typedef v8::WeakCallbackInfo<void> Data;
 
       Data data(api_isolate, parameter(), internal_field0, internal_field1);
       Data::Callback callback =
@@ -562,14 +562,13 @@ void GlobalHandles::MakeWeak(Object** location, void* parameter,
 }
 
 
-typedef PhantomCallbackData<void>::Callback GenericCallback;
+typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
 
-void GlobalHandles::MakePhantom(Object** location, void* parameter,
-                                int number_of_internal_fields,
-                                GenericCallback phantom_callback) {
-  Node::FromLocation(location)
-      ->MakePhantom(parameter, number_of_internal_fields, phantom_callback);
+void GlobalHandles::MakeWeak(Object** location, void* parameter,
+                             GenericCallback phantom_callback,
+                             v8::WeakCallbackType type) {
+  Node::FromLocation(location)->MakeWeak(parameter, phantom_callback, type);
 }
 
 
@@ -633,13 +632,12 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
       // In the internal fields case we will need the internal
       // fields, so we can't zap the handle.
       if (node->state() == Node::PENDING) {
-        if (node->weakness_type() == PHANTOM_WEAK_0_INTERNAL_FIELDS) {
+        if (node->weakness_type() == PHANTOM_WEAK) {
           *(node->location()) = Smi::FromInt(0);
         } else if (node->weakness_type() == NORMAL_WEAK) {
           v->VisitPointer(node->location());
         } else {
-          DCHECK(node->weakness_type() == PHANTOM_WEAK_1_INTERNAL_FIELDS ||
-                 node->weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
+          DCHECK(node->weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
         }
       } else {
         // Node is not pending, so that means the object survived.  We still
@@ -692,13 +690,12 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || node->is_partially_dependent()) &&
         node->IsWeakRetainer()) {
-      if (node->weakness_type() == PHANTOM_WEAK_0_INTERNAL_FIELDS) {
+      if (node->weakness_type() == PHANTOM_WEAK) {
         *(node->location()) = Smi::FromInt(0);
       } else if (node->weakness_type() == NORMAL_WEAK) {
         v->VisitPointer(node->location());
       } else {
-        DCHECK(node->weakness_type() == PHANTOM_WEAK_1_INTERNAL_FIELDS ||
-               node->weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
+        DCHECK(node->weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
         // For this case we only need to trace if it's alive: The tracing of
         // something that is already alive is just to get the pointer updated
         // to the new location of the object).

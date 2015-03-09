@@ -6272,7 +6272,7 @@ struct FlagAndPersistent {
 };
 
 
-static void SetFlag(const v8::PhantomCallbackData<FlagAndPersistent>& data) {
+static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->flag = true;
 }
 
@@ -6311,8 +6311,10 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
 
   object_a.flag = false;
   object_b.flag = false;
-  object_a.handle.SetPhantom(&object_a, &SetFlag);
-  object_b.handle.SetPhantom(&object_b, &SetFlag);
+  object_a.handle.SetWeak(&object_a, &SetFlag,
+                          v8::WeakCallbackType::kParameter);
+  object_b.handle.SetWeak(&object_b, &SetFlag,
+                          v8::WeakCallbackType::kParameter);
   CHECK(!object_b.handle.IsIndependent());
   object_a.handle.MarkIndependent();
   object_b.handle.MarkIndependent();
@@ -6367,7 +6369,7 @@ class Trivial2 {
 
 
 void CheckInternalFields(
-    const v8::PhantomCallbackData<v8::Persistent<v8::Object>>& data) {
+    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
   v8::Persistent<v8::Object>* handle = data.GetParameter();
   handle->Reset();
   Trivial* t1 = reinterpret_cast<Trivial*>(data.GetInternalField1());
@@ -6407,8 +6409,8 @@ void InternalFieldCallback(bool global_gc) {
         reinterpret_cast<Trivial2*>(obj->GetAlignedPointerFromInternalField(1));
     CHECK_EQ(103, t2->x());
 
-    handle.SetPhantom<v8::Persistent<v8::Object>>(&handle, CheckInternalFields,
-                                                  0, 1);
+    handle.SetWeak<v8::Persistent<v8::Object>>(
+        &handle, CheckInternalFields, v8::WeakCallbackType::kInternalFields);
     if (!global_gc) {
       handle.MarkIndependent();
     }

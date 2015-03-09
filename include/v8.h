@@ -121,7 +121,7 @@ template<class K, class V, class T> class PersistentValueMap;
 template <class K, class V, class T>
 class PersistentValueMapBase;
 template <class K, class V, class T>
-class PhantomPersistentValueMap;
+class GlobalValueMap;
 template<class V, class T> class PersistentValueVector;
 template<class T, class P> class WeakCallbackObject;
 class FunctionTemplate;
@@ -147,20 +147,6 @@ template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
-
-template <typename T>
-class CallbackData {
- public:
-  V8_INLINE v8::Isolate* GetIsolate() const { return isolate_; }
-
-  explicit CallbackData(v8::Isolate* isolate, T* parameter)
-      : isolate_(isolate), parameter_(parameter) {}
-  V8_INLINE T* GetParameter() const { return parameter_; }
-
- private:
-  v8::Isolate* isolate_;
-  T* parameter_;
-};
 }
 
 
@@ -478,41 +464,55 @@ template <class T> class Eternal {
 
 
 template <typename T>
-class PhantomCallbackData : public internal::CallbackData<T> {
+class WeakCallbackInfo {
  public:
-  typedef void (*Callback)(const PhantomCallbackData<T>& data);
+  typedef void (*Callback)(const WeakCallbackInfo<T>& data);
 
-  V8_INLINE void* GetInternalField1() const { return internal_field1_; }
-  V8_INLINE void* GetInternalField2() const { return internal_field2_; }
-
-  PhantomCallbackData(Isolate* isolate, T* parameter, void* internal_field1,
-                      void* internal_field2)
-      : internal::CallbackData<T>(isolate, parameter),
+  WeakCallbackInfo(Isolate* isolate, T* parameter, void* internal_field1,
+                   void* internal_field2)
+      : isolate_(isolate),
+        parameter_(parameter),
         internal_field1_(internal_field1),
         internal_field2_(internal_field2) {}
 
+  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
+  V8_INLINE T* GetParameter() const { return parameter_; }
+  V8_INLINE void* GetInternalField1() const { return internal_field1_; }
+  V8_INLINE void* GetInternalField2() const { return internal_field2_; }
+
  private:
+  Isolate* isolate_;
+  T* parameter_;
   void* internal_field1_;
   void* internal_field2_;
 };
 
 
 template <class T, class P>
-class WeakCallbackData : public internal::CallbackData<P> {
+class WeakCallbackData {
  public:
   typedef void (*Callback)(const WeakCallbackData<T, P>& data);
 
+  WeakCallbackData(Isolate* isolate, P* parameter, Local<T> handle)
+      : isolate_(isolate), parameter_(parameter), handle_(handle) {}
+
+  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
+  V8_INLINE P* GetParameter() const { return parameter_; }
   V8_INLINE Local<T> GetValue() const { return handle_; }
 
  private:
-  friend class internal::GlobalHandles;
-  WeakCallbackData(Isolate* isolate, P* parameter, Local<T> handle)
-      : internal::CallbackData<P>(isolate, parameter), handle_(handle) {}
+  Isolate* isolate_;
+  P* parameter_;
   Local<T> handle_;
 };
 
 
-static const int kNoInternalFieldIndex = -1;
+// TODO(dcarney): delete this with WeakCallbackData
+template <class T>
+using PhantomCallbackData = WeakCallbackInfo<T>;
+
+
+enum class WeakCallbackType { kParameter, kInternalFields };
 
 
 /**
@@ -585,15 +585,17 @@ template <class T> class PersistentBase {
    *  As always, GC-based finalization should *not* be relied upon for any
    *  critical form of resource management!
    */
-  template<typename P>
-  V8_INLINE void SetWeak(
-      P* parameter,
-      typename WeakCallbackData<T, P>::Callback callback);
+  template <typename P>
+  V8_INLINE V8_DEPRECATE_SOON(
+      "use WeakCallbackInfo version",
+      void SetWeak(P* parameter,
+                   typename WeakCallbackData<T, P>::Callback callback));
 
-  template<typename S, typename P>
-  V8_INLINE void SetWeak(
-      P* parameter,
-      typename WeakCallbackData<S, P>::Callback callback);
+  template <typename S, typename P>
+  V8_INLINE V8_DEPRECATE_SOON(
+      "use WeakCallbackInfo version",
+      void SetWeak(P* parameter,
+                   typename WeakCallbackData<S, P>::Callback callback));
 
   // Phantom persistents work like weak persistents, except that the pointer to
   // the object being collected is not available in the finalization callback.
@@ -602,10 +604,17 @@ template <class T> class PersistentBase {
   // specify a parameter for the callback or the location of two internal
   // fields in the dying object.
   template <typename P>
-  V8_INLINE void SetPhantom(P* parameter,
-                            typename PhantomCallbackData<P>::Callback callback,
-                            int internal_field_index1 = kNoInternalFieldIndex,
-                            int internal_field_index2 = kNoInternalFieldIndex);
+  V8_INLINE V8_DEPRECATE_SOON(
+      "use SetWeak",
+      void SetPhantom(P* parameter,
+                      typename WeakCallbackInfo<P>::Callback callback,
+                      int internal_field_index1 = -1,
+                      int internal_field_index2 = -1));
+
+  template <typename P>
+  V8_INLINE void SetWeak(P* parameter,
+                         typename WeakCallbackInfo<P>::Callback callback,
+                         WeakCallbackType type);
 
   template<typename P>
   V8_INLINE P* ClearWeak();
@@ -5815,8 +5824,6 @@ class V8_EXPORT V8 {
  private:
   V8();
 
-  enum WeakHandleType { PhantomHandle, NonphantomHandle };
-
   static internal::Object** GlobalizeReference(internal::Isolate* isolate,
                                                internal::Object** handle);
   static internal::Object** CopyPersistent(internal::Object** handle);
@@ -5824,12 +5831,15 @@ class V8_EXPORT V8 {
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
   static void MakeWeak(internal::Object** global_handle, void* data,
                        WeakCallback weak_callback);
-  static void MakePhantom(internal::Object** global_handle, void* data,
-                          // Must be 0 or kNoInternalFieldIndex.
-                          int internal_field_index1,
-                          // Must be 1 or kNoInternalFieldIndex.
-                          int internal_field_index2,
-                          PhantomCallbackData<void>::Callback weak_callback);
+  static void MakeWeak(internal::Object** global_handle, void* data,
+                       WeakCallbackInfo<void>::Callback weak_callback,
+                       WeakCallbackType type);
+  static void MakeWeak(internal::Object** global_handle, void* data,
+                       // Must be 0 or -1.
+                       int internal_field_index1,
+                       // Must be 1 or -1.
+                       int internal_field_index2,
+                       WeakCallbackInfo<void>::Callback weak_callback);
   static void* ClearWeak(internal::Object** global_handle);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
@@ -6776,12 +6786,23 @@ void PersistentBase<T>::SetWeak(
 template <class T>
 template <typename P>
 void PersistentBase<T>::SetPhantom(
-    P* parameter, typename PhantomCallbackData<P>::Callback callback,
+    P* parameter, typename WeakCallbackInfo<P>::Callback callback,
     int internal_field_index1, int internal_field_index2) {
-  typedef typename PhantomCallbackData<void>::Callback Callback;
-  V8::MakePhantom(reinterpret_cast<internal::Object**>(this->val_), parameter,
-                  internal_field_index1, internal_field_index2,
-                  reinterpret_cast<Callback>(callback));
+  typedef typename WeakCallbackInfo<void>::Callback Callback;
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               internal_field_index1, internal_field_index2,
+               reinterpret_cast<Callback>(callback));
+}
+
+
+template <class T>
+template <typename P>
+V8_INLINE void PersistentBase<T>::SetWeak(
+    P* parameter, typename WeakCallbackInfo<P>::Callback callback,
+    WeakCallbackType type) {
+  typedef typename WeakCallbackInfo<void>::Callback Callback;
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
+               reinterpret_cast<Callback>(callback), type);
 }
 
 
