@@ -6,6 +6,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-generic-lowering.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -18,6 +19,9 @@ namespace compiler {
 
 JSGenericLowering::JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph)
     : is_typing_enabled_(is_typing_enabled), jsgraph_(jsgraph) {}
+
+
+JSGenericLowering::~JSGenericLowering() {}
 
 
 Reduction JSGenericLowering::Reduce(Node* node) {
@@ -526,6 +530,25 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
 
   // Turn the stack check into a runtime call.
   ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
+}
+
+
+Zone* JSGenericLowering::zone() const { return graph()->zone(); }
+
+
+Isolate* JSGenericLowering::isolate() const { return jsgraph()->isolate(); }
+
+
+Graph* JSGenericLowering::graph() const { return jsgraph()->graph(); }
+
+
+CommonOperatorBuilder* JSGenericLowering::common() const {
+  return jsgraph()->common();
+}
+
+
+MachineOperatorBuilder* JSGenericLowering::machine() const {
+  return jsgraph()->machine();
 }
 
 }  // namespace compiler
