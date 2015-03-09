@@ -712,7 +712,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   int count = 0;
   int fragmentation = 0;
-  int page_number = 0;
   Candidate* least = NULL;
 
   PageIterator it(space);
@@ -727,16 +726,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     CHECK(p->slots_buffer() == NULL);
 
     if (FLAG_stress_compaction) {
-      if (FLAG_manual_evacuation_candidates_selection) {
-        if (p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
-          p->ClearFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-          fragmentation = 1;
-        }
-      } else {
-        unsigned int counter = space->heap()->ms_count();
-        if ((counter & 1) == (page_number & 1)) fragmentation = 1;
-        page_number++;
-      }
+      unsigned int counter = space->heap()->ms_count();
+      uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
+      if ((counter & 1) == (page_number & 1)) fragmentation = 1;
     } else if (mode == REDUCE_MEMORY_FOOTPRINT) {
       // Don't try to release too many pages.
       if (estimated_release >= over_reserved) {
@@ -4367,21 +4359,6 @@ bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
   buffer->Add(reinterpret_cast<ObjectSlot>(type));
   buffer->Add(reinterpret_cast<ObjectSlot>(addr));
   return true;
-}
-
-
-static Object* g_smi_slot = NULL;
-
-
-void SlotsBuffer::RemoveSlot(SlotsBuffer* buffer, ObjectSlot slot_to_remove) {
-  DCHECK_EQ(Smi::FromInt(0), g_smi_slot);
-  DCHECK(!IsTypedSlot(slot_to_remove));
-  while (buffer != NULL) {
-    ObjectSlot* slots = buffer->slots_;
-    // Remove entries by replacing them with a dummy slot containing a smi.
-    std::replace(&slots[0], &slots[buffer->idx_], slot_to_remove, &g_smi_slot);
-    buffer = buffer->next_;
-  }
 }
 
 

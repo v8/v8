@@ -247,55 +247,6 @@ void StoreBuffer::Filter(int flag) {
 }
 
 
-void StoreBuffer::RemoveSlots(Address start_address, Address end_address) {
-  struct IsValueInRangePredicate {
-    Address start_address_;
-    Address end_address_;
-
-    IsValueInRangePredicate(Address start_address, Address end_address)
-        : start_address_(start_address), end_address_(end_address) {}
-
-    bool operator()(Address addr) {
-      return start_address_ <= addr && addr < end_address_;
-    }
-  };
-
-  IsValueInRangePredicate predicate(start_address, end_address);
-  // Some address in old space that does not move.
-  const Address kRemovedSlot = heap_->undefined_value()->address();
-  DCHECK(Page::FromAddress(kRemovedSlot)->NeverEvacuate());
-
-  {
-    Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
-    std::replace_if(start_, top, predicate, kRemovedSlot);
-  }
-
-  if (old_buffer_is_sorted_) {
-    // Remove slots from an old buffer preserving the order.
-    Address* lower = std::lower_bound(old_start_, old_top_, start_address);
-    if (lower != old_top_) {
-      // [lower, old_top_) range contain elements that are >= |start_address|.
-      Address* upper = std::lower_bound(lower, old_top_, end_address);
-      // Remove [lower, upper) from the buffer.
-      if (upper == old_top_) {
-        // All elements in [lower, old_top_) range are < |end_address|.
-        old_top_ = lower;
-      } else if (lower != upper) {
-        // [upper, old_top_) range contain elements that are >= |end_address|,
-        // move [upper, old_top_) range to [lower, ...) and update old_top_.
-        Address* new_top = lower;
-        for (Address* p = upper; p < old_top_; p++) {
-          *new_top++ = *p;
-        }
-        old_top_ = new_top;
-      }
-    }
-  } else {
-    std::replace_if(old_start_, old_top_, predicate, kRemovedSlot);
-  }
-}
-
-
 void StoreBuffer::SortUniq() {
   Compact();
   if (old_buffer_is_sorted_) return;
@@ -346,18 +297,12 @@ static Address* in_store_buffer_1_element_cache = NULL;
 
 
 bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
-  DCHECK_NOT_NULL(cell_address);
-  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
+  if (!FLAG_enable_slow_asserts) return true;
   if (in_store_buffer_1_element_cache != NULL &&
       *in_store_buffer_1_element_cache == cell_address) {
-    // Check if the cache still points into the active part of the buffer.
-    if ((start_ <= in_store_buffer_1_element_cache &&
-         in_store_buffer_1_element_cache < top) ||
-        (old_start_ <= in_store_buffer_1_element_cache &&
-         in_store_buffer_1_element_cache < old_top_)) {
-      return true;
-    }
+    return true;
   }
+  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   for (Address* current = top - 1; current >= start_; current--) {
     if (*current == cell_address) {
       in_store_buffer_1_element_cache = current;
