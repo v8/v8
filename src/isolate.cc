@@ -1555,14 +1555,9 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   StackHandler* promise_try = tltop->promise_on_stack_->handler();
   // Find the top-most try-catch handler.
   StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
-  do {
-    if (handler == promise_try) {
-      return tltop->promise_on_stack_->promise();
-    }
-    handler = handler->next();
-    // Throwing inside a Promise can be intercepted by an inner try-catch, so
-    // we stop at the first try-catch handler.
-  } while (handler != NULL && !handler->is_catch());
+  // Throwing inside a Promise only leads to a reject if not caught by an inner
+  // try-catch or try-finally.
+  if (handler == promise_try) return tltop->promise_on_stack_->promise();
   return undefined;
 }
 
