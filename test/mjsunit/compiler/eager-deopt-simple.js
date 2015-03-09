@@ -9,7 +9,7 @@ function g(a, b, c) {
 }
 
 function f() {
-  return g(1, (%DeoptimizeNow(), 2), 3);
+  return g(1, (%_DeoptimizeNow(), 2), 3);
 }
 
 f();

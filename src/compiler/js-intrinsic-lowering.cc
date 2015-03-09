@@ -20,9 +20,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
+  if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
-    case Runtime::kDeoptimizeNow:
-      return ReduceDeoptimizeNow(node);
+    case Runtime::kInlineDeoptimizeNow:
+      return ReduceInlineDeoptimizeNow(node);
     case Runtime::kInlineIsSmi:
       return ReduceInlineIsSmi(node);
     case Runtime::kInlineIsNonNegativeSmi:
@@ -48,7 +49,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
+Reduction JSIntrinsicLowering::ReduceInlineDeoptimizeNow(Node* node) {
   if (!FLAG_turbo_deoptimization) return NoChange();
 
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
