@@ -235,8 +235,7 @@ class CpuProfiler : public CodeEventListener {
   virtual void CodeMovingGCEvent() {}
   virtual void CodeMoveEvent(Address from, Address to);
   virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
-  virtual void CodeDeoptEvent(Code* code, int bailout_id, Address pc,
-                              int fp_to_sp_delta);
+  virtual void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
   virtual void CodeDeleteEvent(Address from);
   virtual void GetterCallbackEvent(Name* name, Address entry_point);
   virtual void RegExpCodeCreateEvent(Code* code, String* source);

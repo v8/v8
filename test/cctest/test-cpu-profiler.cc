@@ -1696,6 +1696,16 @@ TEST(DontStopOnFinishedProfileDelete) {
 }
 
 
+const char* GetBranchDeoptReason(i::CpuProfile* iprofile, const char* branch[],
+                                 int length) {
+  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
+  const ProfileNode* iopt_function = NULL;
+  iopt_function = GetSimpleBranch(profile, branch, length);
+  CHECK_EQ(1, iopt_function->deopt_infos().length());
+  return iopt_function->deopt_infos()[0].deopt_reason;
+}
+
+
 // deopt at top function
 TEST(CollectDeoptEvents) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
@@ -1707,34 +1717,46 @@ TEST(CollectDeoptEvents) {
   v8::CpuProfiler* profiler = isolate->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
 
+  const char opt_source[] =
+      "function opt_function%d(value, depth) {\n"
+      "  if (depth) return opt_function%d(value, depth - 1);\n"
+      "\n"
+      "  return  10 / value;\n"
+      "}\n"
+      "\n";
+
+  for (int i = 0; i < 3; ++i) {
+    i::EmbeddedVector<char, sizeof(opt_source) + 100> buffer;
+    i::SNPrintF(buffer, opt_source, i, i);
+    v8::Script::Compile(v8_str(buffer.start()))->Run();
+  }
+
   const char* source =
-      "function opt_function(left, right, depth) {\n"
-      "  if (depth) return opt_function(left, right, depth - 1);\n"
-      "\n"
-      "  var k = left / 10;\n"
-      "  var r = 10 / right;\n"
-      "  return k + r;"
-      "}\n"
-      "\n"
-      "function test(left, right) {\n"
-      "  return opt_function(left, right, 1);\n"
-      "}\n"
-      "\n"
       "startProfiling();\n"
       "\n"
-      "test(10, 10);\n"
+      "opt_function0(1, 1);\n"
       "\n"
-      "%OptimizeFunctionOnNextCall(opt_function)\n"
+      "%OptimizeFunctionOnNextCall(opt_function0)\n"
       "\n"
-      "test(10, 10);\n"
+      "opt_function0(1, 1);\n"
       "\n"
-      "test(undefined, 10);\n"
+      "opt_function0(undefined, 1);\n"
       "\n"
-      "%OptimizeFunctionOnNextCall(opt_function)\n"
+      "opt_function1(1, 1);\n"
       "\n"
-      "test(10, 10);\n"
+      "%OptimizeFunctionOnNextCall(opt_function1)\n"
       "\n"
-      "test(10, 0);\n"
+      "opt_function1(1, 1);\n"
+      "\n"
+      "opt_function1(NaN, 1);\n"
+      "\n"
+      "opt_function2(1, 1);\n"
+      "\n"
+      "%OptimizeFunctionOnNextCall(opt_function2)\n"
+      "\n"
+      "opt_function2(1, 1);\n"
+      "\n"
+      "opt_function2(0, 1);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -1742,15 +1764,21 @@ TEST(CollectDeoptEvents) {
   v8::Script::Compile(v8_str(source))->Run();
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
-  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
-  const char* branch[] = {"", "test", "opt_function", "opt_function"};
-  const ProfileNode* iopt_function =
-      GetSimpleBranch(profile, branch, arraysize(branch));
-  CHECK_EQ(2, iopt_function->deopt_infos().length());
-  CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber),
-           iopt_function->deopt_infos()[0].deopt_reason);
-  CHECK_EQ(reason(i::Deoptimizer::kDivisionByZero),
-           iopt_function->deopt_infos()[1].deopt_reason);
+  {
+    const char* branch[] = {"", "opt_function0", "opt_function0"};
+    CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber),
+             GetBranchDeoptReason(iprofile, branch, arraysize(branch)));
+  }
+  {
+    const char* branch[] = {"", "opt_function1", "opt_function1"};
+    CHECK_EQ(reason(i::Deoptimizer::kNaN),
+             GetBranchDeoptReason(iprofile, branch, arraysize(branch)));
+  }
+  {
+    const char* branch[] = {"", "opt_function2", "opt_function2"};
+    CHECK_EQ(reason(i::Deoptimizer::kDivisionByZero),
+             GetBranchDeoptReason(iprofile, branch, arraysize(branch)));
+  }
   iprofiler->DeleteProfile(iprofile);
 }
 

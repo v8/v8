@@ -192,7 +192,7 @@ class Deoptimizer : public Malloced {
     DeoptReason deopt_reason;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, int bailout_id);
+  static DeoptInfo GetDeoptInfo(Code* code, byte* from);
 
   struct JumpTableEntry : public ZoneObject {
     inline JumpTableEntry(Address entry, const DeoptInfo& deopt_info,

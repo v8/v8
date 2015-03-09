@@ -329,11 +329,10 @@ void CpuProfiler::CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
 }
 
 
-void CpuProfiler::CodeDeoptEvent(Code* code, int bailout_id, Address pc,
-                                 int fp_to_sp_delta) {
+void CpuProfiler::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, bailout_id);
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   rec->start = code->address();
   rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
   rec->position = info.position;

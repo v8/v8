@@ -11238,8 +11238,8 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 }
 
 
-void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, bailout_id);
+void Code::PrintDeoptLocation(FILE* out, Address pc) {
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
   class SourcePosition pos = info.position;
   if (info.deopt_reason != Deoptimizer::kNoReason || !pos.IsUnknown()) {
     if (FLAG_hydrogen_track_positions) {

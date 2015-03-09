@@ -893,9 +893,8 @@ void Logger::SharedLibraryEvent(const std::string& library_path,
 }
 
 
-void Logger::CodeDeoptEvent(Code* code, int bailout_id, Address from,
-                            int fp_to_sp_delta) {
-  PROFILER_LOG(CodeDeoptEvent(code, bailout_id, from, fp_to_sp_delta));
+void Logger::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
+  PROFILER_LOG(CodeDeoptEvent(code, pc, fp_to_sp_delta));
   if (!log_->IsEnabled() || !FLAG_log_internal_timer_events) return;
   Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());

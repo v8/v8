@@ -291,8 +291,7 @@ class Logger {
                           uintptr_t start,
                           uintptr_t end);
 
-  void CodeDeoptEvent(Code* code, int bailout_id, Address from,
-                      int fp_to_sp_delta);
+  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
   void CurrentTimeEvent();
 
   void TimerEvent(StartEnd se, const char* name);
