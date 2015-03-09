@@ -111,6 +111,7 @@ ARCH_GUESS = utils.DefaultArch()
 SUPPORTED_ARCHS = ["android_arm",
                    "android_arm64",
                    "android_ia32",
+                   "android_x64",
                    "arm",
                    "ia32",
                    "mips",
