@@ -107,7 +107,7 @@ REPLACE_UNIMPLEMENTED(JSDebugger)
 
 static CallDescriptor::Flags FlagsForNode(Node* node) {
   CallDescriptor::Flags result = CallDescriptor::kNoFlags;
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
+  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
     result |= CallDescriptor::kNeedsFrameState;
   }
   return result;
@@ -130,14 +130,14 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   if (node->op()->HasProperty(Operator::kPure)) {
     // A pure (strict) comparison doesn't have an effect, control or frame
     // state.  But for the graph, we need to add control and effect inputs.
-    DCHECK(!OperatorProperties::HasFrameStateInput(node->op()));
+    DCHECK(OperatorProperties::GetFrameStateInputCount(node->op()) == 0);
     inputs.push_back(graph()->start());
     inputs.push_back(graph()->start());
   } else {
-    DCHECK(OperatorProperties::HasFrameStateInput(node->op()) ==
+    DCHECK((OperatorProperties::GetFrameStateInputCount(node->op()) == 1) ==
            FLAG_turbo_deoptimization);
     if (FLAG_turbo_deoptimization) {
-      inputs.push_back(NodeProperties::GetFrameStateInput(node));
+      inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
     }
     inputs.push_back(NodeProperties::GetEffectInput(node));
     inputs.push_back(NodeProperties::GetControlInput(node));
@@ -198,12 +198,26 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags) {
   Operator::Properties properties = node->op()->properties();
-  CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), zone(), callable.descriptor(),
-                                     0, flags | FlagsForNode(node), properties);
+  flags |= FlagsForNode(node);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 0, flags, properties);
+  const Operator* new_op = common()->Call(desc);
+
+  // Take care of frame states.
+  int old_frame_state_count =
+      OperatorProperties::GetFrameStateInputCount(node->op());
+  int new_frame_state_count =
+      (flags & CallDescriptor::kNeedsFrameState) ? 1 : 0;
+  DCHECK_GE(old_frame_state_count, new_frame_state_count);
+  // If there are extra frame states, get rid of them.
+  for (int i = new_frame_state_count; i < old_frame_state_count; i++) {
+    node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) +
+                      new_frame_state_count);
+  }
+
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
-  node->set_op(common()->Call(desc));
+  node->set_op(new_op);
 }
 
 

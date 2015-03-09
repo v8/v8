@@ -320,6 +320,9 @@ class AstGraphBuilder : public AstVisitor {
   void PrepareFrameState(
       Node* node, BailoutId ast_id,
       OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
+  void PrepareFrameStateAfterAndBefore(Node* node, BailoutId ast_id,
+                                       OutputFrameStateCombine combine,
+                                       Node* frame_state_before);
 
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
@@ -410,7 +413,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine);
+  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine =
+                                         OutputFrameStateCombine::Ignore());
 
   // Control dependency tracked by this environment.
   Node* GetControlDependency() { return control_dependency_; }

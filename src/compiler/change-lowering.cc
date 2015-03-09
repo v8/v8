@@ -229,10 +229,12 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Diamond d1(graph(), common(), TestNotSmi(object), BranchHint::kFalse);
     d1.Chain(control);
 
+    DCHECK_EQ(FLAG_turbo_deoptimization,
+              OperatorProperties::GetFrameStateInputCount(value->op()) == 1);
     Node* number =
-        OperatorProperties::HasFrameStateInput(value->op())
+        FLAG_turbo_deoptimization
             ? graph()->NewNode(value->op(), object, context,
-                               NodeProperties::GetFrameStateInput(value),
+                               NodeProperties::GetFrameStateInput(value, 0),
                                effect, d1.if_true)
             : graph()->NewNode(value->op(), object, context, effect,
                                d1.if_true);

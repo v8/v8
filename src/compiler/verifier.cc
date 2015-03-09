@@ -125,8 +125,8 @@ void Verifier::Visitor::Check(Node* node) {
   CHECK_EQ(input_count, node->InputCount());
 
   // Verify that frame state has been inserted for the nodes that need it.
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
-    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  for (int i = 0; i < frame_state_count; i++) {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, i);
     CHECK(frame_state->opcode() == IrOpcode::kFrameState ||
           // kFrameState uses undefined as a sentinel.
           (node->opcode() == IrOpcode::kFrameState &&

@@ -646,8 +646,9 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
       NodeProperties::ReplaceControlInput(node, graph()->start());
       NodeProperties::ReplaceEffectInput(node, graph()->start());
-      if (OperatorProperties::HasFrameStateInput(node->op())) {
-        NodeProperties::ReplaceFrameStateInput(node,
+      if (FLAG_turbo_deoptimization) {
+        DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+        NodeProperties::ReplaceFrameStateInput(node, 0,
                                                jsgraph()->EmptyFrameState());
       }
       return Changed(node);
@@ -769,8 +770,10 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         if (number_reduction.Changed()) {
           value = number_reduction.replacement();
         } else {
-          if (OperatorProperties::HasFrameStateInput(
-                  javascript()->ToNumber())) {
+          DCHECK(FLAG_turbo_deoptimization ==
+                 (OperatorProperties::GetFrameStateInputCount(
+                      javascript()->ToNumber()) == 1));
+          if (FLAG_turbo_deoptimization) {
             value = effect =
                 graph()->NewNode(javascript()->ToNumber(), value, context,
                                  jsgraph()->EmptyFrameState(), effect, control);

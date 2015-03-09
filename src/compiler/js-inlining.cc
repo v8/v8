@@ -14,6 +14,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
 #include "src/full-codegen.h"
@@ -49,7 +50,7 @@ class JSCallFunctionAccessor {
     return value_inputs - 2;
   }
 
-  Node* frame_state() { return NodeProperties::GetFrameStateInput(call_); }
+  Node* frame_state() { return NodeProperties::GetFrameStateInput(call_, 0); }
 
  private:
   Node* call_;
@@ -379,8 +380,9 @@ Reduction JSInliner::Reduce(Node* node) {
 
     for (Node* node : visitor.copies()) {
       if (node && node->opcode() == IrOpcode::kFrameState) {
+        DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
         AddClosureToFrameState(node, function);
-        NodeProperties::ReplaceFrameStateInput(node, outer_frame_state);
+        NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
       }
     }
   }

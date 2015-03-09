@@ -1177,7 +1177,9 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
       Node* index_inc =
           NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
       // TODO(jarin): provide real bailout id.
-      PrepareFrameState(index_inc, BailoutId::None());
+      PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
+                                      OutputFrameStateCombine::Ignore(),
+                                      jsgraph()->EmptyFrameState());
       environment()->Poke(0, index_inc);
       for_loop.Continue();
       is_property_missing.Else();
@@ -1197,7 +1199,9 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* index_inc =
       NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
   // TODO(jarin): provide real bailout id.
-  PrepareFrameState(index_inc, BailoutId::None());
+  PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
+                                  OutputFrameStateCombine::Ignore(),
+                                  jsgraph()->EmptyFrameState());
   environment()->Poke(0, index_inc);
   for_loop.EndLoop();
   environment()->Drop(5);
@@ -1831,11 +1835,13 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     }
     environment()->Push(old_value);
     VisitForValue(expr->value());
+    Node* frame_state_before = environment()->Checkpoint(expr->value()->id());
     Node* right = environment()->Pop();
     Node* left = environment()->Pop();
     Node* value = BuildBinaryOp(left, right, expr->binary_op());
-    PrepareFrameState(value, expr->binary_operation()->id(),
-                      OutputFrameStateCombine::Push());
+    PrepareFrameStateAfterAndBefore(value, expr->binary_operation()->id(),
+                                    OutputFrameStateCombine::Push(),
+                                    frame_state_before);
     environment()->Push(value);
   } else {
     VisitForValue(expr->value());
@@ -2173,9 +2179,11 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   // Create node to perform +1/-1 operation.
   Node* value =
       BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
-  // TODO(jarin) Insert proper bailout id here (will need to change
-  // full code generator).
-  PrepareFrameState(value, BailoutId::None());
+  // This should never deoptimize because we have converted to number
+  // before.
+  PrepareFrameStateAfterAndBefore(value, BailoutId::None(),
+                                  OutputFrameStateCombine::Ignore(),
+                                  jsgraph()->EmptyFrameState());
 
   // Store the value.
   switch (assign_type) {
@@ -2227,10 +2235,13 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     default: {
       VisitForValue(expr->left());
       VisitForValue(expr->right());
+      Node* frame_state_before = environment()->Checkpoint(expr->right()->id());
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
       Node* value = BuildBinaryOp(left, right, expr->op());
-      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameStateAfterAndBefore(value, expr->id(),
+                                      ast_context()->GetStateCombine(),
+                                      frame_state_before);
       ast_context()->ProduceValue(value);
     }
   }
@@ -2979,11 +2990,31 @@ bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
 
 void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
                                         OutputFrameStateCombine combine) {
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
-    DCHECK(NodeProperties::GetFrameStateInput(node)->opcode() ==
-           IrOpcode::kDead);
+  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+
+    DCHECK_EQ(IrOpcode::kDead,
+              NodeProperties::GetFrameStateInput(node, 0)->opcode());
     NodeProperties::ReplaceFrameStateInput(
-        node, environment()->Checkpoint(ast_id, combine));
+        node, 0, environment()->Checkpoint(ast_id, combine));
+  }
+}
+
+
+void AstGraphBuilder::PrepareFrameStateAfterAndBefore(
+    Node* node, BailoutId ast_id, OutputFrameStateCombine combine,
+    Node* frame_state_before) {
+  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
+    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
+
+    DCHECK_EQ(IrOpcode::kDead,
+              NodeProperties::GetFrameStateInput(node, 0)->opcode());
+    NodeProperties::ReplaceFrameStateInput(
+        node, 0, environment()->Checkpoint(ast_id, combine));
+
+    DCHECK_EQ(IrOpcode::kDead,
+              NodeProperties::GetFrameStateInput(node, 1)->opcode());
+    NodeProperties::ReplaceFrameStateInput(node, 1, frame_state_before);
   }
 }
 
@@ -3010,7 +3041,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
   DCHECK(op->ValueInputCount() == value_input_count);
 
   bool has_context = OperatorProperties::HasContextInput(op);
-  bool has_framestate = OperatorProperties::HasFrameStateInput(op);
+  int frame_state_count = OperatorProperties::GetFrameStateInputCount(op);
   bool has_control = op->ControlInputCount() == 1;
   bool has_effect = op->EffectInputCount() == 1;
 
@@ -3018,13 +3049,13 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
   DCHECK(op->EffectInputCount() < 2);
 
   Node* result = NULL;
-  if (!has_context && !has_framestate && !has_control && !has_effect) {
+  if (!has_context && frame_state_count == 0 && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
     bool inside_try_scope = try_nesting_level_ > 0;
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
-    if (has_framestate) ++input_count_with_deps;
+    input_count_with_deps += frame_state_count;
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
     Node** buffer = EnsureInputBufferSize(input_count_with_deps);
@@ -3033,7 +3064,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_context) {
       *current_input++ = current_context();
     }
-    if (has_framestate) {
+    for (int i = 0; i < frame_state_count; i++) {
       // The frame state will be inserted later. Here we misuse
       // the {DeadControl} node as a sentinel to be later overwritten
       // with the real frame state.

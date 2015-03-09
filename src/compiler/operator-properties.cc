@@ -20,13 +20,13 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 
 // static
-bool OperatorProperties::HasFrameStateInput(const Operator* op) {
+int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
   if (!FLAG_turbo_deoptimization) {
-    return false;
+    return 0;
   }
   switch (op->opcode()) {
     case IrOpcode::kFrameState:
-      return true;
+      return 1;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
       return Linkage::NeedsFrameState(p.id());
@@ -35,7 +35,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSStrictNotEqual:
-      return false;
+      return 0;
 
     // Calls
     case IrOpcode::kJSCallFunction:
@@ -50,19 +50,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSNotEqual:
-
-    // Binary operations
-    case IrOpcode::kJSAdd:
-    case IrOpcode::kJSBitwiseAnd:
-    case IrOpcode::kJSBitwiseOr:
-    case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus:
-    case IrOpcode::kJSMultiply:
-    case IrOpcode::kJSShiftLeft:
-    case IrOpcode::kJSShiftRight:
-    case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSSubtract:
 
     // Context operations
     case IrOpcode::kJSCreateWithContext:
@@ -81,10 +68,26 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSDeleteProperty:
-      return true;
+      return 1;
+
+    // Binary operators that can deopt in the middle the operation (e.g.,
+    // as a result of lazy deopt in ToNumber conversion) need a second frame
+    // state so that we can resume before the operation.
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSBitwiseAnd:
+    case IrOpcode::kJSBitwiseOr:
+    case IrOpcode::kJSBitwiseXor:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus:
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical:
+    case IrOpcode::kJSSubtract:
+      return 2;
 
     default:
-      return false;
+      return 0;
   }
 }
 

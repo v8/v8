@@ -113,8 +113,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Binop(const Operator* op, Node* left, Node* right) {
     // JS binops also require context, effect, and control
-    if (OperatorProperties::HasFrameStateInput(op)) {
+    if (OperatorProperties::GetFrameStateInputCount(op) == 1) {
       return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()), start(), control());
+    } else if (OperatorProperties::GetFrameStateInputCount(op) == 2) {
+      return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()),
                            EmptyFrameState(context()), start(), control());
     } else {
       return graph.NewNode(op, left, right, context(), start(), control());
@@ -123,7 +127,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Unop(const Operator* op, Node* input) {
     // JS unops also require context, effect, and control
-    if (OperatorProperties::HasFrameStateInput(op)) {
+    if (OperatorProperties::GetFrameStateInputCount(op) > 0) {
+      DCHECK(OperatorProperties::GetFrameStateInputCount(op) == 1);
       return graph.NewNode(op, input, context(), EmptyFrameState(context()),
                            start(), control());
     } else {
@@ -133,7 +138,10 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* UseForEffect(Node* node) {
     // TODO(titzer): use EffectPhi after fixing EffectCount
-    if (OperatorProperties::HasFrameStateInput(javascript.ToNumber())) {
+    if (OperatorProperties::GetFrameStateInputCount(javascript.ToNumber()) >
+        0) {
+      DCHECK(OperatorProperties::GetFrameStateInputCount(
+                 javascript.ToNumber()) == 1);
       return graph.NewNode(javascript.ToNumber(), node, context(),
                            EmptyFrameState(context()), node, control());
     } else {
@@ -748,8 +756,9 @@ TEST(RemoveToNumberEffects) {
 
     switch (i) {
       case 0:
-        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
-        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+        if (FLAG_turbo_deoptimization) {
+          DCHECK(OperatorProperties::GetFrameStateInputCount(
+                     R.javascript.ToNumber()) == 1);
           effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
                                        frame_state, ton, R.start());
         } else {
@@ -758,8 +767,9 @@ TEST(RemoveToNumberEffects) {
         }
         break;
       case 1:
-        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
-        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+        if (FLAG_turbo_deoptimization) {
+          DCHECK(OperatorProperties::GetFrameStateInputCount(
+                     R.javascript.ToNumber()) == 1);
           effect_use =
               R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
                               frame_state, ton, R.start());
@@ -772,11 +782,11 @@ TEST(RemoveToNumberEffects) {
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
       case 3:
         effect_use = R.graph.NewNode(R.javascript.Add(), ton, ton, R.context(),
-                                     frame_state, ton, R.start());
+                                     frame_state, frame_state, ton, R.start());
         break;
       case 4:
         effect_use = R.graph.NewNode(R.javascript.Add(), p0, p0, R.context(),
-                                     frame_state, ton, R.start());
+                                     frame_state, frame_state, ton, R.start());
         break;
       case 5:
         effect_use = R.graph.NewNode(R.common.Return(), p0, ton, R.start());

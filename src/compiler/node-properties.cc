@@ -58,9 +58,9 @@ Node* NodeProperties::GetContextInput(Node* node) {
 
 
 // static
-Node* NodeProperties::GetFrameStateInput(Node* node) {
-  DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
-  return node->InputAt(FirstFrameStateIndex(node));
+Node* NodeProperties::GetFrameStateInput(Node* node, int index) {
+  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
+  return node->InputAt(FirstFrameStateIndex(node) + index);
 }
 
 
@@ -138,9 +138,10 @@ void NodeProperties::ReplaceEffectInput(Node* node, Node* effect, int index) {
 
 
 // static
-void NodeProperties::ReplaceFrameStateInput(Node* node, Node* frame_state) {
-  DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
-  node->ReplaceInput(FirstFrameStateIndex(node), frame_state);
+void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
+                                            Node* frame_state) {
+  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
+  node->ReplaceInput(FirstFrameStateIndex(node) + index, frame_state);
 }
 
 

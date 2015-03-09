@@ -51,7 +51,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   if (!FLAG_turbo_deoptimization) return NoChange();
 
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
   DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
 
   Node* effect = NodeProperties::GetEffectInput(node);

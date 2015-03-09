@@ -673,6 +673,8 @@ TEST_F(SchedulerTest, BuildScheduleIfSplit) {
 
 
 TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -809,6 +811,8 @@ TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
 
 
 TEST_F(SchedulerTest, BuildScheduleSimpleLoop) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -912,6 +916,8 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoop) {
 
 
 TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -1150,6 +1156,8 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
 
 
 TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -1470,6 +1478,8 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
 
 
 TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
