@@ -193,6 +193,16 @@
         # Xcode insists on this empty entry.
       },
     },
+    'conditions':[
+      ['(clang==1 or host_clang==1) and OS!="win"', {
+        # This is here so that all files get recompiled after a clang roll and
+        # when turning clang on or off.
+        # (defines are passed via the command line, and build systems rebuild
+        # things when their commandline changes). Nothing should ever read this
+        # define.
+        'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
+      }],
+    ],
     'target_conditions': [
       ['v8_code == 0', {
         'defines!': [
@@ -557,14 +567,6 @@
         # On Windows, gyp's ninja generator only looks at CC.
         ['CC', '../<(clang_dir)/bin/clang-cl'],
       ],
-    }],
-    ['(clang==1 or host_clang==1) and OS!="win"', {
-      # This is here so that all files get recompiled after a clang roll and
-      # when turning clang on or off.
-      # (defines are passed via the command line, and build systems rebuild
-      # things when their commandline changes). Nothing should ever read this
-      # define.
-      'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
     }],
     # TODO(yyanagisawa): supports GENERATOR==make
     #  make generator doesn't support CC_wrapper without CC
