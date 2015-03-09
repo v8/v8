@@ -105,6 +105,13 @@ class StoreBuffer {
 
   void Filter(int flag);
 
+  // Eliminates all stale store buffer entries from the store buffer, i.e.,
+  // slots that are not part of live objects anymore. This method must be
+  // called after marking, when the whole transitive closure is known and
+  // must be called before sweeping when mark bits are still intact.
+  void ClearInvalidStoreBufferEntries();
+  void VerifyValidStoreBufferEntries();
+
  private:
   Heap* heap_;
 

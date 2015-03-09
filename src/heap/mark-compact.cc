@@ -314,6 +314,14 @@ void MarkCompactCollector::CollectGarbage() {
   }
 #endif
 
+  heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    heap_->store_buffer()->VerifyValidStoreBufferEntries();
+  }
+#endif
+
   SweepSpaces();
 
 #ifdef VERIFY_HEAP
@@ -3045,6 +3053,137 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   }
 
   return false;
+}
+
+
+bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot) {
+  // This function does not support large objects right now.
+  if (p->owner() == NULL) return true;
+
+  uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
+  unsigned int start_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
+  MarkBit::CellType index_in_cell = 1U
+                                    << (mark_bit_index & Bitmap::kBitIndexMask);
+  MarkBit::CellType* cells = p->markbits()->cells();
+  Address cell_base = p->area_start();
+  unsigned int cell_base_start_index = Bitmap::IndexToCell(
+      Bitmap::CellAlignIndex(p->AddressToMarkbitIndex(cell_base)));
+
+  // First check if the object is in the current cell.
+  MarkBit::CellType slot_mask;
+  if ((cells[start_index] == 0) ||
+      (base::bits::CountTrailingZeros32(cells[start_index]) >
+       base::bits::CountTrailingZeros32(cells[start_index] | index_in_cell))) {
+    // If we are already in the first cell, there is no live object.
+    if (start_index == cell_base_start_index) return false;
+
+    // If not, find a cell in a preceding cell slot that has a mark bit set.
+    do {
+      start_index--;
+    } while (start_index > cell_base_start_index && cells[start_index] == 0);
+
+    // The slot must be in a dead object if there are no preceding cells that
+    // have mark bits set.
+    if (cells[start_index] == 0) {
+      return false;
+    }
+
+    // The object is in a preceding cell. Set the mask to find any object.
+    slot_mask = 0xffffffff;
+  } else {
+    // We are interested in object mark bits right before the slot.
+    slot_mask = index_in_cell - 1;
+  }
+
+  MarkBit::CellType current_cell = cells[start_index];
+  DCHECK(current_cell != 0);
+
+  // Find the last live object in the cell.
+  unsigned int leading_zeros =
+      base::bits::CountLeadingZeros32(current_cell & slot_mask);
+  DCHECK(leading_zeros != 32);
+  unsigned int offset = Bitmap::kBitIndexMask - leading_zeros;
+
+  cell_base += (start_index - cell_base_start_index) * 32 * kPointerSize;
+  Address address = cell_base + offset * kPointerSize;
+  HeapObject* object = HeapObject::FromAddress(address);
+  DCHECK(object->address() < reinterpret_cast<Address>(slot));
+  if (object->address() <= slot &&
+      (object->address() + object->Size()) > slot) {
+    // If the slot is within the last found object in the cell, the slot is
+    // in a live object.
+    return true;
+  }
+  return false;
+}
+
+
+bool MarkCompactCollector::IsSlotInBlackObjectSlow(Page* p, Address slot) {
+  // This function does not support large objects right now.
+  if (p->owner() == NULL) return true;
+
+  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
+
+    MarkBit::CellType current_cell = *cell;
+    if (current_cell == 0) continue;
+
+    int offset = 0;
+    while (current_cell != 0) {
+      int trailing_zeros = base::bits::CountTrailingZeros32(current_cell);
+      current_cell >>= trailing_zeros;
+      offset += trailing_zeros;
+      Address address = cell_base + offset * kPointerSize;
+
+      HeapObject* object = HeapObject::FromAddress(address);
+      int size = object->Size();
+
+      if (object->address() > slot) return false;
+      if (object->address() <= slot && slot < (object->address() + size)) {
+        return true;
+      }
+
+      offset++;
+      current_cell >>= 1;
+    }
+  }
+  return false;
+}
+
+
+bool MarkCompactCollector::IsSlotInLiveObject(HeapObject** address,
+                                              HeapObject* object) {
+  // If the target object is not black, the source slot must be part
+  // of a non-black (dead) object.
+  if (!Marking::IsBlack(Marking::MarkBitFrom(object))) {
+    return false;
+  }
+
+  // The target object is black but we don't know if the source slot is black.
+  // The source object could have died and the slot could be part of a free
+  // space. Find out based on mark bits if the slot is part of a live object.
+  if (!IsSlotInBlackObject(
+          Page::FromAddress(reinterpret_cast<Address>(address)),
+          reinterpret_cast<Address>(address))) {
+    return false;
+  }
+
+  return true;
+}
+
+
+void MarkCompactCollector::VerifyIsSlotInLiveObject(HeapObject** address,
+                                                    HeapObject* object) {
+  // The target object has to be black.
+  CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+
+  // The target object is black but we don't know if the source slot is black.
+  // The source object could have died and the slot could be part of a free
+  // space. Use the mark bit iterator to find out about liveness of the slot.
+  CHECK(IsSlotInBlackObjectSlow(
+      Page::FromAddress(reinterpret_cast<Address>(address)),
+      reinterpret_cast<Address>(address)));
 }
 
 

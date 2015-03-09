@@ -670,6 +670,14 @@ class MarkCompactCollector {
 
   void OverApproximateWeakClosure();
 
+  // The following four methods can just be called after marking, when the
+  // whole transitive closure is known. They must be called before sweeping
+  // when mark bits are still intact.
+  bool IsSlotInBlackObject(Page* p, Address slot);
+  bool IsSlotInBlackObjectSlow(Page* p, Address slot);
+  bool IsSlotInLiveObject(HeapObject** address, HeapObject* object);
+  void VerifyIsSlotInLiveObject(HeapObject** address, HeapObject* object);
+
  private:
   class SweeperTask;
 

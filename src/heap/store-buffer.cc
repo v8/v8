@@ -434,6 +434,40 @@ void StoreBuffer::IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
 }
 
 
+void StoreBuffer::ClearInvalidStoreBufferEntries() {
+  Compact();
+  Address* new_top = old_start_;
+  for (Address* current = old_start_; current < old_top_; current++) {
+    Address addr = *current;
+    Object** slot = reinterpret_cast<Object**>(*current);
+    Object* object = reinterpret_cast<Object*>(
+        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    if (heap_->InNewSpace(object)) {
+      if (heap_->mark_compact_collector()->IsSlotInLiveObject(
+              reinterpret_cast<HeapObject**>(slot),
+              reinterpret_cast<HeapObject*>(object))) {
+        *new_top++ = addr;
+      }
+    }
+  }
+  old_top_ = new_top;
+  ClearFilteringHashSets();
+}
+
+
+void StoreBuffer::VerifyValidStoreBufferEntries() {
+  for (Address* current = old_start_; current < old_top_; current++) {
+    Object** slot = reinterpret_cast<Object**>(*current);
+    Object* object = reinterpret_cast<Object*>(
+        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    CHECK(heap_->InNewSpace(object));
+    heap_->mark_compact_collector()->VerifyIsSlotInLiveObject(
+        reinterpret_cast<HeapObject**>(slot),
+        reinterpret_cast<HeapObject*>(object));
+  }
+}
+
+
 void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
   IteratePointersToNewSpace(slot_callback, false);
 }
