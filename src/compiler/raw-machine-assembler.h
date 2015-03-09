@@ -90,6 +90,9 @@ class RawMachineAssembler : public GraphBuilder {
     Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
     return NewNode(common()->HeapConstant(val));
   }
+  Node* ExternalConstant(ExternalReference address) {
+    return NewNode(common()->ExternalConstant(address));
+  }
 
   Node* Projection(int index, Node* a) {
     return NewNode(common()->Projection(index), a);
@@ -97,14 +100,14 @@ class RawMachineAssembler : public GraphBuilder {
 
   // Memory Operations.
   Node* Load(MachineType rep, Node* base) {
-    return Load(rep, base, Int32Constant(0));
+    return Load(rep, base, IntPtrConstant(0));
   }
   Node* Load(MachineType rep, Node* base, Node* index) {
     return NewNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
   void Store(MachineType rep, Node* base, Node* value) {
-    Store(rep, base, Int32Constant(0), value);
+    Store(rep, base, IntPtrConstant(0), value);
   }
   void Store(MachineType rep, Node* base, Node* index, Node* value) {
     NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
@@ -281,6 +284,9 @@ class RawMachineAssembler : public GraphBuilder {
   Node* Int64LessThan(Node* a, Node* b) {
     return NewNode(machine()->Int64LessThan(), a, b);
   }
+  Node* Uint64LessThan(Node* a, Node* b) {
+    return NewNode(machine()->Uint64LessThan(), a, b);
+  }
   Node* Int64LessThanOrEqual(Node* a, Node* b) {
     return NewNode(machine()->Int64LessThanOrEqual(), a, b);
   }
@@ -406,6 +412,9 @@ class RawMachineAssembler : public GraphBuilder {
   Node* Float64InsertHighWord32(Node* a, Node* b) {
     return NewNode(machine()->Float64InsertHighWord32(), a, b);
   }
+
+  // Stack operations.
+  Node* LoadStackPointer() { return NewNode(machine()->LoadStackPointer()); }
 
   // Parameters.
   Node* Parameter(size_t index);

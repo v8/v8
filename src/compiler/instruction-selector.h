@@ -129,6 +129,8 @@ class InstructionSelector FINAL {
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
+  Isolate* isolate() const { return sequence()->isolate(); }
+
  private:
   friend class OperandGenerator;
 

@@ -730,6 +730,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedStoreFloat64:
       ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
       break;
+    case kIA32StackCheck: {
+      ExternalReference const stack_limit =
+          ExternalReference::address_of_stack_limit(isolate());
+      __ cmp(esp, Operand::StaticVariable(stack_limit));
+      break;
+    }
   }
 }
 

@@ -66,7 +66,8 @@ namespace compiler {
   V(IA32Movsd)                     \
   V(IA32Lea)                       \
   V(IA32Push)                      \
-  V(IA32StoreWriteBarrier)
+  V(IA32StoreWriteBarrier)         \
+  V(IA32StackCheck)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

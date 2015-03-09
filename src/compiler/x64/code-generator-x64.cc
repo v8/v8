@@ -1051,6 +1051,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedStoreFloat64:
       ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
       break;
+    case kX64StackCheck:
+      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      break;
   }
 }  // NOLINT(readability/fn_size)
 

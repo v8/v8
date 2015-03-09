@@ -987,10 +987,12 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 }
 
 
+namespace {
+
 // Shared routine for multiple compare operations.
-static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         InstructionOperand left, InstructionOperand right,
-                         FlagsContinuation* cont) {
+void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
+                  InstructionOperand left, InstructionOperand right,
+                  FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
@@ -1005,9 +1007,9 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 
 
 // Shared routine for multiple compare operations.
-static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         Node* left, Node* right, FlagsContinuation* cont,
-                         bool commutative) {
+void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
+                  Node* left, Node* right, FlagsContinuation* cont,
+                  bool commutative) {
   X64OperandGenerator g(selector);
   if (commutative && g.CanBeBetterLeftOperand(right)) {
     std::swap(left, right);
@@ -1017,8 +1019,8 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 
 
 // Shared routine for multiple word compare operations.
-static void VisitWordCompare(InstructionSelector* selector, Node* node,
-                             InstructionCode opcode, FlagsContinuation* cont) {
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   Node* const left = node->InputAt(0);
   Node* const right = node->InputAt(1);
@@ -1036,21 +1038,50 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
 }
 
 
+// Shared routine for 64-bit word comparison operations.
+void VisitWord64Compare(InstructionSelector* selector, Node* node,
+                        FlagsContinuation* cont) {
+  X64OperandGenerator g(selector);
+  Int64BinopMatcher m(node);
+  if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
+    LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());
+    ExternalReference js_stack_limit =
+        ExternalReference::address_of_stack_limit(selector->isolate());
+    if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) {
+      // Compare(Load(js_stack_limit), LoadStackPointer)
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode = cont->Encode(kX64StackCheck);
+      if (cont->IsBranch()) {
+        selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
+                       g.Label(cont->false_block()))->MarkAsControl();
+      } else {
+        DCHECK(cont->IsSet());
+        selector->Emit(opcode, g.DefineAsRegister(cont->result()));
+      }
+      return;
+    }
+  }
+  VisitWordCompare(selector, node, kX64Cmp, cont);
+}
+
+
 // Shared routine for comparison with zero.
-static void VisitCompareZero(InstructionSelector* selector, Node* node,
-                             InstructionCode opcode, FlagsContinuation* cont) {
+void VisitCompareZero(InstructionSelector* selector, Node* node,
+                      InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
 }
 
 
 // Shared routine for multiple float64 compare operations (inputs commuted).
-static void VisitFloat64Compare(InstructionSelector* selector, Node* node,
-                                FlagsContinuation* cont) {
+void VisitFloat64Compare(InstructionSelector* selector, Node* node,
+                         FlagsContinuation* cont) {
   Node* const left = node->InputAt(0);
   Node* const right = node->InputAt(1);
   VisitCompare(selector, kSSEFloat64Cmp, right, left, cont, false);
 }
+
+}  // namespace
 
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
@@ -1093,16 +1124,16 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         return VisitWordCompare(this, value, kX64Cmp32, &cont);
       case IrOpcode::kWord64Equal:
         cont.OverwriteAndNegateIfEqual(kEqual);
-        return VisitWordCompare(this, value, kX64Cmp, &cont);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kInt64LessThan:
         cont.OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, kX64Cmp, &cont);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kInt64LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kX64Cmp, &cont);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kUint64LessThan:
         cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, kX64Cmp, &cont);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kFloat64Equal:
         cont.OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat64Compare(this, value, &cont);
@@ -1140,7 +1171,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kInt32Sub:
         return VisitWordCompare(this, value, kX64Cmp32, &cont);
       case IrOpcode::kInt64Sub:
-        return VisitWordCompare(this, value, kX64Cmp, &cont);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kWord32And:
         return VisitWordCompare(this, value, kX64Test32, &cont);
       case IrOpcode::kWord64And:
@@ -1302,7 +1333,7 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt64Sub:
-          return VisitWordCompare(this, value, kX64Cmp, &cont);
+          return VisitWord64Compare(this, value, &cont);
         case IrOpcode::kWord64And:
           return VisitWordCompare(this, value, kX64Test, &cont);
         default:
@@ -1311,7 +1342,7 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
     }
     return VisitCompareZero(this, value, kX64Cmp, &cont);
   }
-  VisitWordCompare(this, node, kX64Cmp, &cont);
+  VisitWord64Compare(this, node, &cont);
 }
 
 
@@ -1337,19 +1368,19 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64LessThan(Node* node) {
   FlagsContinuation cont(kSignedLessThan, node);
-  VisitWordCompare(this, node, kX64Cmp, &cont);
+  VisitWord64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kSignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kX64Cmp, &cont);
+  VisitWord64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
-  VisitWordCompare(this, node, kX64Cmp, &cont);
+  VisitWord64Compare(this, node, &cont);
 }
 
 
