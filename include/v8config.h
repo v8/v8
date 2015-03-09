@@ -339,6 +339,10 @@ declarator __attribute__((deprecated))
 #endif
 
 
+// a macro to make it easier to see what will be deprecated.
+#define V8_DEPRECATE_SOON(message, declarator) declarator
+
+
 // A macro to provide the compiler with branch prediction information.
 #if V8_HAS_BUILTIN_EXPECT
 # define V8_UNLIKELY(condition) (__builtin_expect(!!(condition), 0))
