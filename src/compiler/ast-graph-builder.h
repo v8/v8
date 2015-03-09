@@ -31,7 +31,7 @@ class AstGraphBuilder : public AstVisitor {
                   LoopAssignmentAnalysis* loop_assignment = NULL);
 
   // Creates a graph by visiting the entire AST.
-  bool CreateGraph(bool constant_context);
+  bool CreateGraph(bool constant_context, bool stack_check = true);
 
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
@@ -125,7 +125,7 @@ class AstGraphBuilder : public AstVisitor {
   void set_exit_control(Node* exit) { exit_control_ = exit; }
 
   // Create the main graph body by visiting the AST.
-  void CreateGraphBody();
+  void CreateGraphBody(bool stack_check);
 
   // Create the node that represents the outer context of the function.
   void CreateFunctionContext(bool constant_context);

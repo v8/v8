@@ -357,7 +357,7 @@ Reduction JSInliner::Reduce(Node* node) {
                   jsgraph_->javascript(), jsgraph_->machine());
 
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
-  graph_builder.CreateGraph(false);
+  graph_builder.CreateGraph(false, false);
   Inlinee::UnifyReturn(&jsgraph);
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());

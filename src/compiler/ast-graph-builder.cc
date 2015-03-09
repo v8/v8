@@ -430,7 +430,7 @@ Node* AstGraphBuilder::NewCurrentContextOsrValue() {
 }
 
 
-bool AstGraphBuilder::CreateGraph(bool constant_context) {
+bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
 
@@ -469,10 +469,10 @@ bool AstGraphBuilder::CreateGraph(bool constant_context) {
     Node* inner_context =
         BuildLocalFunctionContext(function_context_.get(), closure);
     ContextScope top_context(this, scope, inner_context);
-    CreateGraphBody();
+    CreateGraphBody(stack_check);
   } else {
     // Simply use the outer function context in building the graph.
-    CreateGraphBody();
+    CreateGraphBody(stack_check);
   }
 
   // Finish the basic structure of the graph.
@@ -483,7 +483,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context) {
 }
 
 
-void AstGraphBuilder::CreateGraphBody() {
+void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   Scope* scope = info()->scope();
 
   // Build the arguments object if it is used.
@@ -508,8 +508,10 @@ void AstGraphBuilder::CreateGraphBody() {
   VisitDeclarations(scope->declarations());
 
   // Build a stack-check before the body.
-  Node* node = NewNode(javascript()->StackCheck());
-  PrepareFrameState(node, BailoutId::FunctionEntry());
+  if (stack_check) {
+    Node* node = NewNode(javascript()->StackCheck());
+    PrepareFrameState(node, BailoutId::FunctionEntry());
+  }
 
   // Visit statements in the function body.
   VisitStatements(info()->function()->body());
