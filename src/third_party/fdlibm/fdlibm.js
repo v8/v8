@@ -141,16 +141,18 @@ endmacro
 //     then                   3    2
 //          sin(x) = X + (S1*X + (X *(r-Y/2)+Y))
 //
-macro KSIN(x)
-kMath[7+x]
-endmacro
+const S1 = -1.66666666666666324348e-01;
+const S2 = 8.33333333332248946124e-03;
+const S3 = -1.98412698298579493134e-04;
+const S4 = 2.75573137070700676789e-06;
+const S5 = -2.50507602534068634195e-08;
+const S6 = 1.58969099521155010221e-10;
 
 macro RETURN_KERNELSIN(X, Y, SIGN)
   var z = X * X;
   var v = z * X;
-  var r = KSIN(1) + z * (KSIN(2) + z * (KSIN(3) +
-                    z * (KSIN(4) + z * KSIN(5))));
-  return (X - ((z * (0.5 * Y - v * r) - Y) - v * KSIN(0))) SIGN;
+  var r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
+  return (X - ((z * (0.5 * Y - v * r) - Y) - v * S1)) SIGN;
 endmacro
 
 // __kernel_cos(X, Y)
@@ -185,15 +187,17 @@ endmacro
 //     magnitude of the latter is at least a quarter of X*X/2,
 //     thus, reducing the rounding error in the subtraction.
 //
-macro KCOS(x)
-kMath[13+x]
-endmacro
+const C1 = 4.16666666666666019037e-02;
+const C2 = -1.38888888888741095749e-03;
+const C3 = 2.48015872894767294178e-05;
+const C4 = -2.75573143513906633035e-07;
+const C5 = 2.08757232129817482790e-09;
+const C6 = -1.13596475577881948265e-11;
 
 macro RETURN_KERNELCOS(X, Y, SIGN)
   var ix = %_DoubleHi(X) & 0x7fffffff;
   var z = X * X;
-  var r = z * (KCOS(0) + z * (KCOS(1) + z * (KCOS(2)+
-          z * (KCOS(3) + z * (KCOS(4) + z * KCOS(5))))));
+  var r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
   if (ix < 0x3fd33333) {  // |x| ~< 0.3
     return (1 - (0.5 * z - (z * r - X * Y))) SIGN;
   } else {
@@ -336,22 +340,22 @@ function MathCosSlow(x) {
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  x = x * 1;  // Convert to number.
+  x = +x;  // Convert to number.
   if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
     // |x| < pi/4, approximately.  No reduction needed.
     RETURN_KERNELSIN(x, 0, /* empty */);
   }
-  return MathSinSlow(x);
+  return +MathSinSlow(x);
 }
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  x = x * 1;  // Convert to number.
+  x = +x;  // Convert to number.
   if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
     // |x| < pi/4, approximately.  No reduction needed.
     RETURN_KERNELCOS(x, 0, /* empty */);
   }
-  return MathCosSlow(x);
+  return +MathCosSlow(x);
 }
 
 // ECMA 262 - 15.8.2.18
