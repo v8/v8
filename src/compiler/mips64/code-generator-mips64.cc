@@ -687,9 +687,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kMips64FmoveLowUwD:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
-      // remove sign.
-      __ dsll32(i.OutputRegister(), i.OutputRegister(), 0);
-      __ dsrl32(i.OutputRegister(), i.OutputRegister(), 0);
       break;
     case kMips64FmoveLowDUw:
       __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
