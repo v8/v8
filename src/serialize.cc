@@ -223,7 +223,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
 #define RUNTIME_ENTRY(name, i1, i2)       \
   { Runtime::k##name, "Runtime::" #name } \
   ,
-      RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
+      RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY) INLINE_FUNCTION_LIST(RUNTIME_ENTRY)
           INLINE_OPTIMIZED_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
   };
