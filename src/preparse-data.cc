@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
-#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
+#include "src/parser.h"
 #include "src/preparse-data.h"
 #include "src/preparse-data-format.h"
 

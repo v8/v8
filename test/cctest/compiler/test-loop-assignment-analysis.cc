@@ -29,14 +29,16 @@ struct TestHelper : public HandleAndZoneScope {
 
   void CheckLoopAssignedCount(int expected, const char* var_name) {
     // TODO(titzer): don't scope analyze every single time.
-    CompilationInfo info(function, main_zone());
+    ParseInfo parse_info(main_zone());
+    parse_info.InitializeFromJSFunction(function);
+    CompilationInfo info(&parse_info);
 
-    CHECK(Parser::ParseStatic(&info));
-    CHECK(Rewriter::Rewrite(&info));
-    CHECK(Scope::Analyze(&info));
+    CHECK(Parser::ParseStatic(&parse_info));
+    CHECK(Rewriter::Rewrite(&parse_info));
+    CHECK(Scope::Analyze(&parse_info));
 
     Scope* scope = info.function()->scope();
-    AstValueFactory* factory = info.ast_value_factory();
+    AstValueFactory* factory = parse_info.ast_value_factory();
     CHECK(scope);
 
     if (result == NULL) {

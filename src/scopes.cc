@@ -4,13 +4,12 @@
 
 #include "src/v8.h"
 
-#include "src/scopes.h"
-
 #include "src/accessors.h"
 #include "src/bootstrapper.h"
-#include "src/compiler.h"
 #include "src/messages.h"
+#include "src/parser.h"
 #include "src/scopeinfo.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -253,8 +252,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
 }
 
 
-bool Scope::Analyze(CompilationInfo* info) {
+bool Scope::Analyze(ParseInfo* info) {
   DCHECK(info->function() != NULL);
+  DCHECK(info->scope() == NULL);
   Scope* scope = info->function()->scope();
   Scope* top = scope;
 
@@ -284,7 +284,7 @@ bool Scope::Analyze(CompilationInfo* info) {
   }
 #endif
 
-  info->PrepareForCompilation(scope);
+  info->set_scope(scope);
   return true;
 }
 
@@ -645,7 +645,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
 }
 
 
-bool Scope::AllocateVariables(CompilationInfo* info, AstNodeFactory* factory) {
+bool Scope::AllocateVariables(ParseInfo* info, AstNodeFactory* factory) {
   // 1) Propagate scope information.
   bool outer_scope_calls_sloppy_eval = false;
   if (outer_scope_ != NULL) {
@@ -1061,7 +1061,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
 }
 
 
-bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
+bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                             AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 
@@ -1171,7 +1171,7 @@ Variable* Scope::ClassVariableForMethod() const {
 }
 
 
-bool Scope::ResolveVariablesRecursively(CompilationInfo* info,
+bool Scope::ResolveVariablesRecursively(ParseInfo* info,
                                         AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 

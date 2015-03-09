@@ -23,7 +23,7 @@ TEST(PipelineAdd) {
       *v8::Handle<v8::Function>::Cast(CompileRun(source)));
   CompilationInfoWithZone info(function);
 
-  CHECK(Compiler::ParseAndAnalyze(&info));
+  CHECK(Compiler::ParseAndAnalyze(info.parse_info()));
 
   Pipeline pipeline(&info);
 #if V8_TURBOFAN_TARGET

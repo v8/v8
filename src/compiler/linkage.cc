@@ -39,6 +39,14 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
 
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
+  if (info->code_stub() != NULL) {
+    // Use the code stub interface descriptor.
+    CallInterfaceDescriptor descriptor =
+        info->code_stub()->GetCallInterfaceDescriptor();
+    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
+                                 CallDescriptor::kNoFlags,
+                                 Operator::kNoProperties);
+  }
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
@@ -53,14 +61,6 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
     return GetJSCallDescriptor(zone, info->is_osr(),
                                1 + shared->internal_formal_parameter_count(),
                                CallDescriptor::kNoFlags);
-  }
-  if (info->code_stub() != NULL) {
-    // Use the code stub interface descriptor.
-    CallInterfaceDescriptor descriptor =
-        info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
-                                 CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties);
   }
   return NULL;  // TODO(titzer): ?
 }

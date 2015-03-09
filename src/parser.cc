@@ -23,6 +23,64 @@
 namespace v8 {
 namespace internal {
 
+ScriptData::ScriptData(const byte* data, int length)
+    : owns_data_(false), rejected_(false), data_(data), length_(length) {
+  if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
+    byte* copy = NewArray<byte>(length);
+    DCHECK(IsAligned(reinterpret_cast<intptr_t>(copy), kPointerAlignment));
+    CopyBytes(copy, data, length);
+    data_ = copy;
+    AcquireDataOwnership();
+  }
+}
+
+
+ParseInfo* ParseInfo::InitializeFromJSFunction(Handle<JSFunction> function) {
+  Handle<SharedFunctionInfo> shared(function->shared());
+  InitializeFromSharedFunctionInfo(shared);
+  set_closure(function);
+  set_context(Handle<Context>(function->context()));
+  return this;
+}
+
+
+ParseInfo* ParseInfo::InitializeFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> shared) {
+  isolate_ = shared->GetIsolate();
+
+  set_lazy();
+  set_this_has_uses();
+  set_hash_seed(isolate_->heap()->HashSeed());
+  set_stack_limit(isolate_->stack_guard()->real_climit());
+  set_unicode_cache(isolate_->unicode_cache());
+  set_language_mode(shared->language_mode());
+  set_shared_info(shared);
+
+  Handle<Script> script(Script::cast(shared->script()));
+  set_script(script);
+  if (!script.is_null() && script->type()->value() == Script::TYPE_NATIVE) {
+    set_native();
+  }
+  return this;
+}
+
+
+ParseInfo* ParseInfo::InitializeFromScript(Handle<Script> script) {
+  isolate_ = script->GetIsolate();
+
+  set_this_has_uses();
+  set_hash_seed(isolate_->heap()->HashSeed());
+  set_stack_limit(isolate_->stack_guard()->real_climit());
+  set_unicode_cache(isolate_->unicode_cache());
+  set_script(script);
+
+  if (script->type()->value() == Script::TYPE_NATIVE) {
+    set_native();
+  }
+  return this;
+}
+
+
 RegExpBuilder::RegExpBuilder(Zone* zone)
     : zone_(zone),
       pending_empty_(false),
@@ -251,7 +309,7 @@ int ParseData::FunctionsSize() {
 }
 
 
-void Parser::SetCachedData(CompilationInfo* info) {
+void Parser::SetCachedData(ParseInfo* info) {
   if (compile_options_ == ScriptCompiler::kNoCompileOptions) {
     cached_parse_data_ = NULL;
   } else {
@@ -779,12 +837,11 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
 }
 
 
-Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
-               UnicodeCache* unicode_cache)
-    : ParserBase<ParserTraits>(info->zone(), &scanner_, stack_limit,
+Parser::Parser(ParseInfo* info)
+    : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
                                info->extension(), info->ast_value_factory(),
                                NULL, this),
-      scanner_(unicode_cache),
+      scanner_(info->unicode_cache()),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
@@ -794,11 +851,11 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
-  // Even though we were passed CompilationInfo, we should not store it in
+  // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
-  // CompilationInfo during background parsing.
+  // ParseInfo during background parsing.
   DCHECK(!info->script().is_null() || info->source_stream() != NULL);
-  set_allow_lazy(false);  // Must be explicitly enabled.
+  set_allow_lazy(info->allow_lazy_parsing());
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
   set_allow_harmony_modules(!info->is_native() && FLAG_harmony_modules);
@@ -819,13 +876,14 @@ Parser::Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
   }
   if (info->ast_value_factory() == NULL) {
     // info takes ownership of AstValueFactory.
-    info->SetAstValueFactory(new AstValueFactory(zone(), hash_seed));
+    info->set_ast_value_factory(new AstValueFactory(zone(), info->hash_seed()));
+    info->set_ast_value_factory_owned();
     ast_value_factory_ = info->ast_value_factory();
   }
 }
 
 
-FunctionLiteral* Parser::ParseProgram(Isolate* isolate, CompilationInfo* info) {
+FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
 
@@ -896,18 +954,18 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, CompilationInfo* info) {
 }
 
 
-FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
+FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
                                         Scope** eval_scope) {
   // Note that this function can be called from the main thread or from a
   // background thread. We should not access anything Isolate / heap dependent
-  // via CompilationInfo, and also not pass it forward.
+  // via ParseInfo, and also not pass it forward.
   DCHECK(scope_ == NULL);
   DCHECK(target_stack_ == NULL);
 
   FunctionLiteral* result = NULL;
   {
     *scope = NewScope(scope_, SCRIPT_SCOPE);
-    info->SetScriptScope(*scope);
+    info->set_script_scope(*scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       *scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
                                             *info->context(), *scope);
@@ -992,7 +1050,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info) {
+FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
@@ -1030,7 +1088,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info) {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info,
+FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
                                    Utf16CharacterStream* source) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
@@ -1051,7 +1109,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, CompilationInfo* info,
   {
     // Parse the function literal.
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
-    info->SetScriptScope(scope);
+    info->set_script_scope(scope);
     if (!info->closure().is_null()) {
       // Ok to use Isolate here, since lazy function parsing is only done in the
       // main thread.
@@ -5253,20 +5311,17 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
 }
 
 
-bool Parser::ParseStatic(CompilationInfo* info, bool allow_lazy) {
-  Parser parser(info, info->isolate()->stack_guard()->real_climit(),
-                info->isolate()->heap()->HashSeed(),
-                info->isolate()->unicode_cache());
-  parser.set_allow_lazy(allow_lazy);
+bool Parser::ParseStatic(ParseInfo* info) {
+  Parser parser(info);
   if (parser.Parse(info)) {
-    info->SetLanguageMode(info->function()->language_mode());
+    info->set_language_mode(info->function()->language_mode());
     return true;
   }
   return false;
 }
 
 
-bool Parser::Parse(CompilationInfo* info) {
+bool Parser::Parse(ParseInfo* info) {
   DCHECK(info->function() == NULL);
   FunctionLiteral* result = NULL;
   // Ok to use Isolate here; this function is only called in the main thread.
@@ -5291,7 +5346,7 @@ bool Parser::Parse(CompilationInfo* info) {
     SetCachedData(info);
     result = ParseProgram(isolate, info);
   }
-  info->SetFunction(result);
+  info->set_literal(result);
 
   Internalize(isolate, info->script(), result == NULL);
   DCHECK(ast_value_factory()->IsInternalized());
@@ -5299,7 +5354,7 @@ bool Parser::Parse(CompilationInfo* info) {
 }
 
 
-void Parser::ParseOnBackground(CompilationInfo* info) {
+void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
 
   DCHECK(info->function() == NULL);
@@ -5330,7 +5385,7 @@ void Parser::ParseOnBackground(CompilationInfo* info) {
     eval_scope->set_end_position(scanner()->location().end_pos);
   }
 
-  info->SetFunction(result);
+  info->set_literal(result);
 
   // We cannot internalize on a background thread; a foreground task will take
   // care of calling Parser::Internalize just before compilation.

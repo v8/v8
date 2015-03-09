@@ -316,7 +316,7 @@ Reduction JSInliner::Reduce(Node* node) {
 
   CompilationInfoWithZone info(function);
 
-  if (!Compiler::ParseAndAnalyze(&info)) return NoChange();
+  if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
   if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {

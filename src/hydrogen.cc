@@ -5295,7 +5295,7 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
 
 void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (expr->is_this()) {
-    current_info()->set_this_has_uses(true);
+    current_info()->parse_info()->set_this_has_uses(true);
   }
 
   DCHECK(!HasStackOverflow());
@@ -7839,12 +7839,17 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   }
 
   // Parse and allocate variables.
-  CompilationInfo target_info(target, zone());
   // Use the same AstValueFactory for creating strings in the sub-compilation
   // step, but don't transfer ownership to target_info.
-  target_info.SetAstValueFactory(top_info()->ast_value_factory(), false);
+  ParseInfo parse_info(zone());
+  parse_info.InitializeFromJSFunction(target);
+  parse_info.set_ast_value_factory(
+      top_info()->parse_info()->ast_value_factory());
+  parse_info.set_ast_value_factory_owned(false);
+
+  CompilationInfo target_info(&parse_info);
   Handle<SharedFunctionInfo> target_shared(target->shared());
-  if (!Compiler::ParseAndAnalyze(&target_info)) {
+  if (!Compiler::ParseAndAnalyze(target_info.parse_info())) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();

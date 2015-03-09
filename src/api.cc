@@ -1922,7 +1922,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
     }
 
     source->info->set_script(script);
-    source->info->SetContext(isolate->native_context());
+    source->info->set_context(isolate->native_context());
 
     // Do the parsing tasks which need to be done on the main thread. This will
     // also handle parse errors.
@@ -1933,18 +1933,17 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
     i::Handle<i::SharedFunctionInfo> result;
     if (source->info->function() != nullptr) {
       // Parsing has succeeded.
-      result =
-          i::Compiler::CompileStreamedScript(source->info.get(), str->length());
+      result = i::Compiler::CompileStreamedScript(script, source->info.get(),
+                                                  str->length());
     }
     has_pending_exception = result.is_null();
     if (has_pending_exception) isolate->ReportPendingMessages();
     RETURN_ON_FAILED_EXECUTION(Script);
 
-    raw_result = *result;
-    // The Handle<Script> will go out of scope soon; make sure CompilationInfo
-    // doesn't point to it.
-    source->info->set_script(i::Handle<i::Script>());
-  }  // HandleScope goes out of scope.
+    source->info->clear_script();  // because script goes out of scope.
+    raw_result = *result;          // TODO(titzer): use CloseAndEscape?
+  }
+
   i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
   if (generic.IsEmpty()) return Local<Script>();

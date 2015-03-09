@@ -1045,15 +1045,16 @@ TEST(ScopeUsesArgumentsSuperThis) {
           factory->NewStringFromUtf8(i::CStrVector(program.start()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::CompilationInfoWithZone info(script);
-      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                       isolate->heap()->HashSeed(), isolate->unicode_cache());
+      i::Zone zone;
+      i::ParseInfo info(&zone);
+      info.InitializeFromScript(script);
+      i::Parser parser(&info);
       parser.set_allow_harmony_arrow_functions(true);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_object_literals(true);
       parser.set_allow_harmony_scoping(true);
       parser.set_allow_harmony_sloppy(true);
-      info.MarkAsGlobal();
+      info.set_global();
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       CHECK(i::Scope::Analyze(&info));
@@ -1297,14 +1298,15 @@ TEST(ScopePositions) {
         i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::CompilationInfoWithZone info(script);
-    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                     isolate->heap()->HashSeed(), isolate->unicode_cache());
+    i::Zone zone;
+    i::ParseInfo info(&zone);
+    info.InitializeFromScript(script);
+    i::Parser parser(&info);
     parser.set_allow_lazy(true);
     parser.set_allow_harmony_scoping(true);
     parser.set_allow_harmony_arrow_functions(true);
-    info.MarkAsGlobal();
-    info.SetLanguageMode(source_data[i].language_mode);
+    info.set_global();
+    info.set_language_mode(source_data[i].language_mode);
     parser.Parse(&info);
     CHECK(info.function() != NULL);
 
@@ -1456,11 +1458,12 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::FunctionLiteral* function;
   {
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::CompilationInfoWithZone info(script);
-    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                     isolate->heap()->HashSeed(), isolate->unicode_cache());
+    i::Zone zone;
+    i::ParseInfo info(&zone);
+    info.InitializeFromScript(script);
+    i::Parser parser(&info);
     SetParserFlags(&parser, flags);
-    info.MarkAsGlobal();
+    info.set_global();
     parser.Parse(&info);
     function = info.function();
     if (function) {
@@ -2544,10 +2547,14 @@ TEST(DontRegressPreParserDataSizes) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::CompilationInfoWithZone info(script);
+    i::Zone zone;
+    i::ParseInfo info(&zone);
+    info.InitializeFromScript(script);
     i::ScriptData* sd = NULL;
-    info.SetCachedData(&sd, v8::ScriptCompiler::kProduceParserCache);
-    i::Parser::ParseStatic(&info, true);
+    info.set_cached_data(&sd);
+    info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
+    info.set_allow_lazy_parsing();
+    i::Parser::ParseStatic(&info);
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
@@ -3367,10 +3374,10 @@ TEST(InnerAssignment) {
           printf("\n");
 
           i::Handle<i::Script> script = factory->NewScript(source);
-          i::CompilationInfoWithZone info(script);
-          i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                           isolate->heap()->HashSeed(),
-                           isolate->unicode_cache());
+          i::Zone zone;
+          i::ParseInfo info(&zone);
+          info.InitializeFromScript(script);
+          i::Parser parser(&info);
           parser.set_allow_harmony_scoping(true);
           CHECK(parser.Parse(&info));
           CHECK(i::Compiler::Analyze(&info));
@@ -5078,13 +5085,14 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::CompilationInfoWithZone info(script);
-      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                       isolate->heap()->HashSeed(), isolate->unicode_cache());
+      i::Zone zone;
+      i::ParseInfo info(&zone);
+      info.InitializeFromScript(script);
+      i::Parser parser(&info);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
-      info.MarkAsModule();
+      info.set_module();
       if (!parser.Parse(&info)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
@@ -5106,13 +5114,14 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::CompilationInfoWithZone info(script);
-      i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                       isolate->heap()->HashSeed(), isolate->unicode_cache());
+      i::Zone zone;
+      i::ParseInfo info(&zone);
+      info.InitializeFromScript(script);
+      i::Parser parser(&info);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
       parser.set_allow_harmony_scoping(true);
-      info.MarkAsGlobal();
+      info.set_global();
       CHECK(!parser.Parse(&info));
     }
   }
@@ -5197,13 +5206,14 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::CompilationInfoWithZone info(script);
-    i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                     isolate->heap()->HashSeed(), isolate->unicode_cache());
+    i::Zone zone;
+    i::ParseInfo info(&zone);
+    info.InitializeFromScript(script);
+    i::Parser parser(&info);
     parser.set_allow_harmony_classes(true);
     parser.set_allow_harmony_modules(true);
     parser.set_allow_harmony_scoping(true);
-    info.MarkAsModule();
+    info.set_module();
     CHECK(!parser.Parse(&info));
   }
 }
@@ -5225,14 +5235,14 @@ TEST(ModuleParsingInternals) {
       "import n from 'n.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::CompilationInfoWithZone info(script);
-  i::Zone* zone = info.zone();
-  i::AstValueFactory avf(zone, isolate->heap()->HashSeed());
-  i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                   isolate->heap()->HashSeed(), isolate->unicode_cache());
+  i::Zone zone;
+  i::ParseInfo info(&zone);
+  info.InitializeFromScript(script);
+  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
+  i::Parser parser(&info);
   parser.set_allow_harmony_modules(true);
   parser.set_allow_harmony_scoping(true);
-  info.MarkAsModule();
+  info.set_module();
   CHECK(parser.Parse(&info));
   i::FunctionLiteral* func = info.function();
   CHECK_EQ(i::MODULE_SCOPE, func->scope()->scope_type());
@@ -5241,7 +5251,7 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(1, descriptor->Length());
   const i::AstRawString* export_name = avf.GetOneByteString("y");
   const i::AstRawString* local_name =
-      descriptor->LookupLocalExport(export_name, zone);
+      descriptor->LookupLocalExport(export_name, &zone);
   CHECK_NOT_NULL(local_name);
   CHECK(local_name->IsOneByteEqualTo("x"));
   i::ZoneList<i::Declaration*>* declarations = func->scope()->declarations();
@@ -5341,11 +5351,12 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::CompilationInfoWithZone info(script);
-  i::Parser parser(&info, isolate->stack_guard()->real_climit(),
-                   isolate->heap()->HashSeed(), isolate->unicode_cache());
+  i::Zone zone;
+  i::ParseInfo info(&zone);
+  info.InitializeFromScript(script);
+  i::Parser parser(&info);
   parser.set_allow_strong_mode(true);
-  info.MarkAsGlobal();
+  info.set_global();
   parser.Parse(&info);
   CHECK(info.function() != NULL);
   CHECK_EQ(expected_language_mode, info.function()->language_mode());

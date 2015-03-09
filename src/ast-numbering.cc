@@ -6,7 +6,6 @@
 
 #include "src/ast.h"
 #include "src/ast-numbering.h"
-#include "src/compiler.h"
 #include "src/scopes.h"
 
 namespace v8 {

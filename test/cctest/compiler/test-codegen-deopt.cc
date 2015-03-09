@@ -44,11 +44,12 @@ class DeoptCodegenTester {
   explicit DeoptCodegenTester(HandleAndZoneScope* scope, const char* src)
       : scope_(scope),
         function(NewFunction(src)),
-        info(function, scope->main_zone()),
+        parse_info(scope->main_zone()),
+        info(parse_info.InitializeFromJSFunction(function)),
         bailout_id(-1) {
-    CHECK(Parser::ParseStatic(&info));
+    CHECK(Parser::ParseStatic(&parse_info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Compiler::Analyze(&parse_info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     DCHECK(info.shared_info()->has_deoptimization_support());
@@ -76,6 +77,7 @@ class DeoptCodegenTester {
 
   HandleAndZoneScope* scope_;
   Handle<JSFunction> function;
+  ParseInfo parse_info;
   CompilationInfo info;
   BailoutId bailout_id;
   Handle<Code> result_code;

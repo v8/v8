@@ -155,7 +155,7 @@ class FunctionTester : public InitializedHandleScope {
 #if V8_TURBOFAN_TARGET
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::ParseStatic(&info));
+    CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
@@ -166,7 +166,7 @@ class FunctionTester : public InitializedHandleScope {
     if (flags_ & CompilationInfo::kTypingEnabled) {
       info.MarkAsTypingEnabled();
     }
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
@@ -211,10 +211,10 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Pipeline::SupportedTarget());
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::ParseStatic(&info));
+    CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

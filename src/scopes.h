@@ -12,8 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
-
+class ParseInfo;
 
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public ZoneHashMap {
@@ -79,7 +78,7 @@ class Scope: public ZoneObject {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static bool Analyze(CompilationInfo* info);
+  static bool Analyze(ParseInfo* info);
 
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                       Context* context, Scope* script_scope);
@@ -666,11 +665,10 @@ class Scope: public ZoneObject {
   Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
                             AstNodeFactory* factory);
   MUST_USE_RESULT
-  bool ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
+  bool ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                        AstNodeFactory* factory);
   MUST_USE_RESULT
-  bool ResolveVariablesRecursively(CompilationInfo* info,
-                                   AstNodeFactory* factory);
+  bool ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
 
   bool CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var);
 
@@ -705,7 +703,7 @@ class Scope: public ZoneObject {
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
   MUST_USE_RESULT
-  bool AllocateVariables(CompilationInfo* info, AstNodeFactory* factory);
+  bool AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
 
  private:
   // Construct a scope based on the scope info.
