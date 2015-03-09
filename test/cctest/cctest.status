@@ -95,6 +95,9 @@
   'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
   'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
 
+  # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
+  'test-js-typed-lowering/OrderCompareEffects': [SKIP],
+
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
 

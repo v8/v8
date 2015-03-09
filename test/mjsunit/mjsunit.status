@@ -68,6 +68,7 @@
   'compare-known-objects-slow': [PASS, NO_VARIANTS],
   'elements-kind': [PASS, NO_VARIANTS],
   'opt-elements-kind': [PASS, NO_VARIANTS],
+  'smi-representation': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
   'big-object-literal': [PASS, NO_VARIANTS],
