@@ -2181,7 +2181,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "slow stub");
   }
   DCHECK(!stub.is_null());
-  set_target(*stub);
+  if (!AddressIsDeoptimizedCode()) {
+    set_target(*stub);
+  }
   TRACE_IC("StoreIC", key);
 
   return store_handle;
