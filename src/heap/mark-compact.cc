@@ -99,6 +99,7 @@ static void VerifyMarking(Heap* heap, Address bottom, Address top) {
   for (Address current = bottom; current < top; current += kPointerSize) {
     object = HeapObject::FromAddress(current);
     if (MarkCompactCollector::IsMarked(object)) {
+      CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
