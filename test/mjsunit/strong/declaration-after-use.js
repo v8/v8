@@ -110,13 +110,70 @@ function assertThrowsHelper(code, error) {
           "static a() { return 'A'; } [C.a()]() { return 'B'; } }; }",
       ReferenceError);
 
-  // TODO(marja, rossberg): More tests related to computed property names in
-  // classes + recognize more errors. This one is not recognized as an error
-  // yet:
-  // let C = class C2 {
-  //  static a() { return 'A'; }
-  //  [C2.a()]() { return 'B'; } << C2 should not be allowed here
-  // };
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "static a() { return 'A'; } [C2.a()]() { return 'B'; } }; }",
+       ReferenceError);
+
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[(function() { C; return 'A';})()]() { return 'B'; } }; }",
+      ReferenceError);
+
+  // The reference to C or C2 is inside a function, but not a method.
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[(function() { C2; return 'A';})()]() { return 'B'; } }; }",
+      ReferenceError);
+
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[(function() { C; return 'A';})()]() { return 'B'; } }; }",
+      ReferenceError);
+
+  // The reference to C or C2 is inside a method, but it's not a method of the
+  // relevant class (C2).
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[(new (class D { m() { C2; return 'A'; } })).m()]() " +
+          "{ return 'B'; } } }",
+      ReferenceError);
+
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[(new (class D { m() { C; return 'A'; } })).m()]() " +
+          "{ return 'B'; } } }",
+      ReferenceError);
+
+  // Methods inside object literals are not sufficiently distinguished from
+  // methods inside classes.
+  // https://code.google.com/p/v8/issues/detail?id=3948
+  // assertThrowsHelper(
+  //     "'use strong'; if (false) { let C = class C2 { " +
+  //         "[({m() { C2; return 'A'; }}).m()]() " +
+  //         "{ return 'B'; } } }",
+  //     ReferenceError);
+
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[({m() { C; return 'A'; }}).m()]() " +
+          "{ return 'B'; } } }",
+      ReferenceError);
+
+  // assertThrowsHelper(
+  //     "'use strong';\n" +
+  //         "if (false) {\n" +
+  //         "  class COuter {\n" +
+  //         "    m() {\n" +
+  //         "      class CInner {\n" +
+  //         "        [({ m() { CInner; return 'A'; } }).m()]() {\n" +
+  //         "            return 'B';\n" +
+  //         "        }\n" +
+  //         "      }\n" +
+  //         "    }\n" +
+  //         "  }\n" +
+  //         "}",
+  //     ReferenceError);
 })();
 
 
@@ -180,10 +237,33 @@ function assertThrowsHelper(code, error) {
     eval("var7;");
   })();
 
-  // https://code.google.com/p/v8/issues/detail?id=3927
-  // class C1 { constructor() { C1; } }; new C1();
-  // let C2 = class C3 { constructor() { C3; } }; new C2();
 
-  // class C4 { method() { C4; method; } }; new C4();
-  // let C5 = class C6 { method() { C6; method; } }; new C5();
+  class C1 { constructor() { C1; } }; new C1();
+  let C2 = class C3 { constructor() { C3; } }; new C2();
+
+  class C4 { method() { C4; } }; new C4();
+  let C5 = class C6 { method() { C6; } }; new C5();
+
+  class C7 { static method() { C7; } }; new C7();
+  let C8 = class C9 { static method() { C9; } }; new C8();
+
+  class C10 { get x() { C10; } }; new C10();
+  let C11 = class C12 { get x() { C12; } }; new C11();
+
+  // Regression test for unnamed classes.
+  let C12 = class { m() { var1; } };
+
+  class COuter {
+    m() {
+      class CInner {
+        // Here we can refer to COuter but not to CInner (see corresponding
+        // assertion test):
+        [({ m() { COuter; return 'A'; } }).m()]() { return 'B'; }
+        // And here we can refer to both:
+        n() { COuter; CInner; }
+      }
+      return new CInner();
+    }
+  }
+  (new COuter()).m().n();
 })();

@@ -4100,7 +4100,11 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     return NULL;
   }
 
+  // Create a block scope which is additionally tagged as class scope; this is
+  // important for resolving variable references to the class name in the strong
+  // mode.
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+  block_scope->tag_as_class_scope();
   BlockState block_state(&scope_, block_scope);
   scope_->SetLanguageMode(
       static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
@@ -4164,12 +4168,14 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   }
 
   block_scope->set_end_position(end_pos);
-  block_scope = block_scope->FinalizeBlockScope();
 
   if (name != NULL) {
     DCHECK_NOT_NULL(proxy);
-    DCHECK_NOT_NULL(block_scope);
     proxy->var()->set_initializer_position(end_pos);
+  } else {
+    // Unnamed classes should not have scopes (the scope will be empty).
+    DCHECK_EQ(block_scope->num_var_or_const(), 0);
+    block_scope = nullptr;
   }
 
   return factory()->NewClassLiteral(name, block_scope, proxy, extends,

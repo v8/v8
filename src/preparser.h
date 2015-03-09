@@ -317,10 +317,9 @@ class ParserBase : public Traits {
     DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
     DCHECK((scope_type == FUNCTION_SCOPE && IsValidFunctionKind(kind)) ||
            kind == kNormalFunction);
-    Scope* result =
-        new (zone()) Scope(zone(), parent, scope_type, ast_value_factory());
-    bool uninitialized_this = IsSubclassConstructor(kind);
-    result->Initialize(uninitialized_this);
+    Scope* result = new (zone())
+        Scope(zone(), parent, scope_type, ast_value_factory(), kind);
+    result->Initialize();
     return result;
   }
 

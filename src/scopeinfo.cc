@@ -64,7 +64,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
-              IsSimpleParameterListField::encode(simple_parameter_list);
+              IsSimpleParameterListField::encode(simple_parameter_list) |
+              BlockScopeIsClassScopeField::encode(scope->is_class_scope()) |
+              FunctionKindField::encode(scope->function_kind());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -370,6 +372,16 @@ int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
     }
   }
   return -1;
+}
+
+
+bool ScopeInfo::block_scope_is_class_scope() {
+  return BlockScopeIsClassScopeField::decode(Flags());
+}
+
+
+FunctionKind ScopeInfo::function_kind() {
+  return FunctionKindField::decode(Flags());
 }
 
 

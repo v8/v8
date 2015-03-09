@@ -66,7 +66,7 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // Implementation of Scope
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-             AstValueFactory* ast_value_factory)
+             AstValueFactory* ast_value_factory, FunctionKind function_kind)
     : inner_scopes_(4, zone),
       variables_(zone),
       internals_(4, zone),
@@ -79,7 +79,8 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone) {
-  SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null());
+  SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null(),
+              function_kind);
   // The outermost scope must be a script scope.
   DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != NULL);
   DCHECK(!HasIllegalRedeclaration());
@@ -138,11 +139,13 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
 }
 
 
-void Scope::SetDefaults(ScopeType scope_type,
-                        Scope* outer_scope,
-                        Handle<ScopeInfo> scope_info) {
+void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
+                        Handle<ScopeInfo> scope_info,
+                        FunctionKind function_kind) {
   outer_scope_ = outer_scope;
   scope_type_ = scope_type;
+  function_kind_ = function_kind;
+  block_scope_is_class_scope_ = false;
   scope_name_ = ast_value_factory_->empty_string();
   dynamics_ = NULL;
   receiver_ = NULL;
@@ -181,6 +184,8 @@ void Scope::SetDefaults(ScopeType scope_type,
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
+    block_scope_is_class_scope_ = scope_info->block_scope_is_class_scope();
+    function_kind_ = scope_info->function_kind();
   }
 }
 
@@ -284,7 +289,8 @@ bool Scope::Analyze(CompilationInfo* info) {
 }
 
 
-void Scope::Initialize(bool subclass_constructor) {
+void Scope::Initialize() {
+  bool subclass_constructor = IsSubclassConstructor(function_kind_);
   DCHECK(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
@@ -1070,29 +1076,7 @@ bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
     case BOUND:
       // We found a variable binding.
       if (is_strong(language_mode())) {
-        // Check for declaration-after use (for variables) in strong mode. Note
-        // that we can only do this in the case where we have seen the
-        // declaration. And we always allow referencing functions (for now).
-
-        // If both the use and the declaration are inside an eval scope
-        // (possibly indirectly), or one of them is, we need to check whether
-        // they are inside the same eval scope or different
-        // ones.
-
-        // TODO(marja,rossberg): Detect errors across different evals (depends
-        // on the future of eval in strong mode).
-        const Scope* eval_for_use = NearestOuterEvalScope();
-        const Scope* eval_for_declaration =
-            var->scope()->NearestOuterEvalScope();
-
-        if (proxy->position() != RelocInfo::kNoPosition &&
-            proxy->position() < var->initializer_position() &&
-            !var->is_function() && eval_for_use == eval_for_declaration) {
-          DCHECK(proxy->end_position() != RelocInfo::kNoPosition);
-          ReportMessage(proxy->position(), proxy->end_position(),
-                        "strong_use_before_declaration", proxy->raw_name());
-          return false;
-        }
+        if (!CheckStrongModeDeclaration(proxy, var)) return false;
       }
       break;
 
@@ -1134,6 +1118,56 @@ bool Scope::ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
   proxy->BindTo(var);
 
   return true;
+}
+
+
+bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
+  // Check for declaration-after use (for variables) in strong mode. Note that
+  // we can only do this in the case where we have seen the declaration. And we
+  // always allow referencing functions (for now).
+
+  // Allow referencing the class name from methods of that class, even though
+  // the initializer position for class names is only after the body.
+  Scope* scope = this;
+  while (scope) {
+    if (scope->ClassVariableForMethod() == var) return true;
+    scope = scope->outer_scope();
+  }
+
+  // If both the use and the declaration are inside an eval scope (possibly
+  // indirectly), or one of them is, we need to check whether they are inside
+  // the same eval scope or different ones.
+
+  // TODO(marja,rossberg): Detect errors across different evals (depends on the
+  // future of eval in strong mode).
+  const Scope* eval_for_use = NearestOuterEvalScope();
+  const Scope* eval_for_declaration = var->scope()->NearestOuterEvalScope();
+
+  if (proxy->position() != RelocInfo::kNoPosition &&
+      proxy->position() < var->initializer_position() && !var->is_function() &&
+      eval_for_use == eval_for_declaration) {
+    DCHECK(proxy->end_position() != RelocInfo::kNoPosition);
+    ReportMessage(proxy->position(), proxy->end_position(),
+                  "strong_use_before_declaration", proxy->raw_name());
+    return false;
+  }
+  return true;
+}
+
+
+Variable* Scope::ClassVariableForMethod() const {
+  if (!is_function_scope()) return nullptr;
+  if (!IsConciseMethod(function_kind_) && !IsConstructor(function_kind_) &&
+      !IsAccessorFunction(function_kind_)) {
+    return nullptr;
+  }
+  DCHECK_NOT_NULL(outer_scope_);
+  DCHECK(outer_scope_->is_class_scope());
+  // The class scope contains at most one variable, the class name.
+  DCHECK(outer_scope_->variables_.occupancy() <= 1);
+  if (outer_scope_->variables_.occupancy() == 0) return nullptr;
+  VariableMap::Entry* p = outer_scope_->variables_.Start();
+  return reinterpret_cast<Variable*>(p->value);
 }
 
 
@@ -1430,5 +1464,4 @@ int Scope::ContextLocalCount() const {
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
       (function_ != NULL && function_->proxy()->var()->IsContextSlot() ? 1 : 0);
 }
-
 } }  // namespace v8::internal
