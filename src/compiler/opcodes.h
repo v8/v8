@@ -131,7 +131,8 @@
   V(JSCallFunction)         \
   V(JSCallRuntime)          \
   V(JSYield)                \
-  V(JSDebugger)
+  V(JSDebugger)             \
+  V(JSStackCheck)
 
 #define JS_OP_LIST(V)     \
   JS_SIMPLE_BINOP_LIST(V) \
@@ -304,7 +305,7 @@ class IrOpcode {
 
   // Returns true if opcode for JavaScript operator.
   static bool IsJsOpcode(Value value) {
-    return kJSEqual <= value && value <= kJSDebugger;
+    return kJSEqual <= value && value <= kJSStackCheck;
   }
 
   // Returns true if opcode for constant operator.

@@ -508,7 +508,7 @@ void AstGraphBuilder::CreateGraphBody() {
   VisitDeclarations(scope->declarations());
 
   // Build a stack-check before the body.
-  Node* node = BuildStackCheck();
+  Node* node = NewNode(javascript()->StackCheck());
   PrepareFrameState(node, BailoutId::FunctionEntry());
 
   // Visit statements in the function body.
@@ -2962,21 +2962,6 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
       js_op = NULL;
   }
   return NewNode(js_op, left, right);
-}
-
-
-Node* AstGraphBuilder::BuildStackCheck() {
-  IfBuilder stack_check(this);
-  Node* limit = BuildLoadExternal(
-      ExternalReference::address_of_stack_limit(isolate()), kMachPtr);
-  Node* stack = NewNode(jsgraph()->machine()->LoadStackPointer());
-  Node* tag = NewNode(jsgraph()->machine()->UintLessThan(), limit, stack);
-  stack_check.If(tag, BranchHint::kTrue);
-  stack_check.Then();
-  stack_check.Else();
-  Node* guard = NewNode(javascript()->CallRuntime(Runtime::kStackGuard, 0));
-  stack_check.End();
-  return guard;
 }
 
 

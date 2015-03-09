@@ -260,9 +260,6 @@ class AstGraphBuilder : public AstVisitor {
   // Builders for binary operations.
   Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
 
-  // Builder for stack-check guards.
-  Node* BuildStackCheck();
-
   // Check if the given statement is an OSR entry.
   // If so, record the stack height into the compilation and return {true}.
   bool CheckOsrEntry(IterationStatement* stmt);

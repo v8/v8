@@ -550,6 +550,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Any());
       break;
 
+    case IrOpcode::kJSStackCheck:
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
+
     // Simplified operators
     // -------------------------------
     case IrOpcode::kAnyToBoolean:

@@ -254,6 +254,8 @@ class JSOperatorBuilder FINAL : public ZoneObject {
   const Operator* InstanceOf();
   const Operator* Debugger();
 
+  const Operator* StackCheck();
+
   // TODO(titzer): nail down the static parts of each of these context flavors.
   const Operator* CreateFunctionContext();
   const Operator* CreateCatchContext(const Unique<String>& name);

@@ -1519,6 +1519,12 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSDebugger(Node* node) {
+  UNREACHABLE();
+  return Bounds();
+}
+
+
+Bounds Typer::Visitor::TypeJSStackCheck(Node* node) {
   return Bounds::Unbounded(zone());
 }
 

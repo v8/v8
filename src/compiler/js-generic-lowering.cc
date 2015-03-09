@@ -480,6 +480,40 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
+
+void JSGenericLowering::LowerJSStackCheck(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Node* limit = graph()->NewNode(
+      machine()->Load(kMachPtr),
+      jsgraph()->ExternalConstant(
+          ExternalReference::address_of_stack_limit(isolate())),
+      jsgraph()->IntPtrConstant(0), effect, control);
+  Node* pointer = graph()->NewNode(machine()->LoadStackPointer());
+
+  Node* check = graph()->NewNode(machine()->UintLessThan(), limit, pointer);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  NodeProperties::ReplaceControlInput(node, if_false);
+  Node* efalse = node;
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
+
+  // Relax controls of {node}, i.e. make it free floating.
+  NodeProperties::ReplaceWithValue(node, node, ephi, merge);
+  NodeProperties::ReplaceEffectInput(ephi, efalse, 1);
+
+  // Turn the stack check into a runtime call.
+  ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

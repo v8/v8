@@ -72,6 +72,9 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToName:
 
+    // Misc operations
+    case IrOpcode::kJSStackCheck:
+
     // Properties
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSLoadProperty:
