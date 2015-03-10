@@ -2598,7 +2598,7 @@ class FunctionLiteral FINAL : public Expression {
   class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 6, 7> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 8> {};
 };
 
 

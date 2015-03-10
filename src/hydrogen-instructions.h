@@ -7580,11 +7580,11 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
 
   bool IsDeletable() const OVERRIDE { return true; }
 
-  class FunctionKindField : public BitField<FunctionKind, 0, 6> {};
-  class PretenureField : public BitField<bool, 6, 1> {};
-  class HasNoLiteralsField : public BitField<bool, 7, 1> {};
+  class FunctionKindField : public BitField<FunctionKind, 0, 8> {};
+  class PretenureField : public BitField<bool, 8, 1> {};
+  class HasNoLiteralsField : public BitField<bool, 9, 1> {};
   STATIC_ASSERT(LANGUAGE_END == 3);
-  class LanguageModeField : public BitField<LanguageMode, 8, 2> {};
+  class LanguageModeField : public BitField<LanguageMode, 10, 2> {};
 
   Handle<SharedFunctionInfo> shared_info_;
   uint32_t bit_field_;

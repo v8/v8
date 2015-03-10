@@ -106,6 +106,11 @@ function assertThrowsHelper(code, error) {
       ReferenceError);
 
   assertThrowsHelper(
+      "'use strong'; if (false) { " +
+      "let C = class C2 { *generator_method() { C; } } }",
+      ReferenceError);
+
+  assertThrowsHelper(
       "'use strong'; if (false) { let C = class C2 { " +
           "static a() { return 'A'; } [C.a()]() { return 'B'; } }; }",
       ReferenceError);
@@ -145,14 +150,11 @@ function assertThrowsHelper(code, error) {
           "{ return 'B'; } } }",
       ReferenceError);
 
-  // Methods inside object literals are not sufficiently distinguished from
-  // methods inside classes.
-  // https://code.google.com/p/v8/issues/detail?id=3948
-  // assertThrowsHelper(
-  //     "'use strong'; if (false) { let C = class C2 { " +
-  //         "[({m() { C2; return 'A'; }}).m()]() " +
-  //         "{ return 'B'; } } }",
-  //     ReferenceError);
+  assertThrowsHelper(
+      "'use strong'; if (false) { let C = class C2 { " +
+          "[({m() { C2; return 'A'; }}).m()]() " +
+          "{ return 'B'; } } }",
+      ReferenceError);
 
   assertThrowsHelper(
       "'use strong'; if (false) { let C = class C2 { " +
@@ -160,20 +162,20 @@ function assertThrowsHelper(code, error) {
           "{ return 'B'; } } }",
       ReferenceError);
 
-  // assertThrowsHelper(
-  //     "'use strong';\n" +
-  //         "if (false) {\n" +
-  //         "  class COuter {\n" +
-  //         "    m() {\n" +
-  //         "      class CInner {\n" +
-  //         "        [({ m() { CInner; return 'A'; } }).m()]() {\n" +
-  //         "            return 'B';\n" +
-  //         "        }\n" +
-  //         "      }\n" +
-  //         "    }\n" +
-  //         "  }\n" +
-  //         "}",
-  //     ReferenceError);
+  assertThrowsHelper(
+      "'use strong';\n" +
+          "if (false) {\n" +
+          "  class COuter {\n" +
+          "    m() {\n" +
+          "      class CInner {\n" +
+          "        [({ m() { CInner; return 'A'; } }).m()]() {\n" +
+          "            return 'B';\n" +
+          "        }\n" +
+          "      }\n" +
+          "    }\n" +
+          "  }\n" +
+          "}",
+      ReferenceError);
 })();
 
 
@@ -241,8 +243,8 @@ function assertThrowsHelper(code, error) {
   class C1 { constructor() { C1; } }; new C1();
   let C2 = class C3 { constructor() { C3; } }; new C2();
 
-  class C4 { method() { C4; } }; new C4();
-  let C5 = class C6 { method() { C6; } }; new C5();
+  class C4 { method() { C4; } *generator_method() { C4; } }; new C4();
+  let C5 = class C6 { method() { C6; } *generator_method() { C6; } }; new C5();
 
   class C7 { static method() { C7; } }; new C7();
   let C8 = class C9 { static method() { C9; } }; new C8();
@@ -251,7 +253,7 @@ function assertThrowsHelper(code, error) {
   let C11 = class C12 { get x() { C12; } }; new C11();
 
   // Regression test for unnamed classes.
-  let C12 = class { m() { var1; } };
+  let C13 = class { m() { var1; } };
 
   class COuter {
     m() {
@@ -266,4 +268,8 @@ function assertThrowsHelper(code, error) {
     }
   }
   (new COuter()).m().n();
+
+  // Making sure the check which is supposed to prevent "object literal inside
+  // computed property name references the class name" is not too generic:
+  class C14 { m() { let obj = { n() { C14 } }; obj.n(); } }; (new C14()).m();
 })();

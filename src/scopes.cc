@@ -1157,6 +1157,7 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
 
 Variable* Scope::ClassVariableForMethod() const {
   if (!is_function_scope()) return nullptr;
+  if (IsInObjectLiteral(function_kind_)) return nullptr;
   if (!IsConciseMethod(function_kind_) && !IsConstructor(function_kind_) &&
       !IsAccessorFunction(function_kind_)) {
     return nullptr;

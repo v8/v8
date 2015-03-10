@@ -4378,7 +4378,7 @@ class ScopeInfo : public FixedArray {
   class BlockScopeIsClassScopeField
       : public BitField<bool, IsSimpleParameterListField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, BlockScopeIsClassScopeField::kNext, 7> {};
+      : public BitField<FunctionKind, BlockScopeIsClassScopeField::kNext, 8> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -7181,6 +7181,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsDefaultConstructor,
     kIsSubclassConstructor,
     kIsBaseConstructor,
+    kInClassLiteral,
     kIsAsmFunction,
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
@@ -7188,7 +7189,7 @@ class SharedFunctionInfo: public HeapObject {
   // Add hints for other modes when they're added.
   STATIC_ASSERT(LANGUAGE_END == 3);
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 7> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 8> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

@@ -2148,6 +2148,8 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
                          : FunctionKind::kBaseConstructor;
     }
 
+    if (!in_class) kind = WithObjectLiteralBit(kind);
+
     value = this->ParseFunctionLiteral(
         name, scanner()->location(),
         false,  // reserved words are allowed here
@@ -2179,11 +2181,12 @@ ParserBase<Traits>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
+    FunctionKind kind = FunctionKind::kAccessorFunction;
+    if (!in_class) kind = WithObjectLiteralBit(kind);
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
         name, scanner()->location(),
         false,  // reserved words are allowed here
-        FunctionKind::kAccessorFunction, RelocInfo::kNoPosition,
-        FunctionLiteral::ANONYMOUS_EXPRESSION,
+        kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
