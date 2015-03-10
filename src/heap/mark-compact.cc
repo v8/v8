@@ -3008,19 +3008,15 @@ void PointersUpdatingVisitor::CheckLayoutDescriptorAndDie(Heap* heap,
 
 
 static void UpdatePointer(HeapObject** address, HeapObject* object) {
-  Address new_addr = Memory::Address_at(object->address());
-
-  // The new space sweep will overwrite the map word of dead objects
-  // with NULL. In this case we do not need to transfer this entry to
-  // the store buffer which we are rebuilding.
-  // We perform the pointer update with a no barrier compare-and-swap. The
-  // compare and swap may fail in the case where the pointer update tries to
-  // update garbage memory which was concurrently accessed by the sweeper.
-  if (new_addr != NULL) {
-    base::NoBarrier_CompareAndSwap(
-        reinterpret_cast<base::AtomicWord*>(address),
-        reinterpret_cast<base::AtomicWord>(object),
-        reinterpret_cast<base::AtomicWord>(HeapObject::FromAddress(new_addr)));
+  MapWord map_word = object->map_word();
+  // The store buffer can still contain stale pointers in dead large objects.
+  // Ignore these pointers here.
+  DCHECK(map_word.IsForwardingAddress() ||
+         object->GetHeap()->lo_space()->FindPage(
+             reinterpret_cast<Address>(address)) != NULL);
+  if (map_word.IsForwardingAddress()) {
+    // Update the corresponding slot.
+    *address = map_word.ToForwardingAddress();
   }
 }
 
@@ -3652,8 +3648,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                              GCTracer::Scope::MC_UPDATE_OLD_TO_NEW_POINTERS);
     StoreBufferRebuildScope scope(heap_, heap_->store_buffer(),
                                   &Heap::ScavengeStoreBufferCallback);
-    heap_->store_buffer()->IteratePointersToNewSpaceAndClearMaps(
-        &UpdatePointer);
+    heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
 
   {

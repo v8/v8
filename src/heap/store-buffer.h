@@ -20,8 +20,7 @@ class StoreBuffer;
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
 typedef void (StoreBuffer::*RegionCallback)(Address start, Address end,
-                                            ObjectSlotCallback slot_callback,
-                                            bool clear_maps);
+                                            ObjectSlotCallback slot_callback);
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
@@ -59,10 +58,6 @@ class StoreBuffer {
   // delete the store buffer as it starts so the callback should reenter
   // surviving old-to-new pointers into the store buffer to rebuild it.
   void IteratePointersToNewSpace(ObjectSlotCallback callback);
-
-  // Same as IteratePointersToNewSpace but additonally clears maps in objects
-  // referenced from the store buffer that do not contain a forwarding pointer.
-  void IteratePointersToNewSpaceAndClearMaps(ObjectSlotCallback callback);
 
   static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
@@ -152,17 +147,11 @@ class StoreBuffer {
   void Uniq();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
-  // Set the map field of the object to NULL if contains a map.
-  inline void ClearDeadObject(HeapObject* object);
-
   void ProcessOldToNewSlot(Address slot_address,
-                           ObjectSlotCallback slot_callback, bool clear_maps);
-
-  void IteratePointersToNewSpace(ObjectSlotCallback callback, bool clear_maps);
+                           ObjectSlotCallback slot_callback);
 
   void FindPointersToNewSpaceInRegion(Address start, Address end,
-                                      ObjectSlotCallback slot_callback,
-                                      bool clear_maps);
+                                      ObjectSlotCallback slot_callback);
 
   // For each region of pointers on a page in use from an old space call
   // visit_pointer_region callback.
@@ -173,8 +162,7 @@ class StoreBuffer {
                              RegionCallback region_callback,
                              ObjectSlotCallback slot_callback);
 
-  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
-                                    bool clear_maps);
+  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback);
 
 #ifdef VERIFY_HEAP
   void VerifyPointers(LargeObjectSpace* space);

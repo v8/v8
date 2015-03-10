@@ -379,8 +379,7 @@ void StoreBuffer::GCEpilogue() {
 
 
 void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
-                                      ObjectSlotCallback slot_callback,
-                                      bool clear_maps) {
+                                      ObjectSlotCallback slot_callback) {
   Object** slot = reinterpret_cast<Object**>(slot_address);
   Object* object = reinterpret_cast<Object*>(
       base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
@@ -390,9 +389,6 @@ void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
   if (heap_->InFromSpace(object)) {
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
     DCHECK(heap_object->IsHeapObject());
-    // The new space object was not promoted if it still contains a map
-    // pointer. Clear the map field now lazily (during full GC).
-    if (clear_maps) ClearDeadObject(heap_object);
     slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
     object = reinterpret_cast<Object*>(
         base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
@@ -408,17 +404,16 @@ void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
 
 
 void StoreBuffer::FindPointersToNewSpaceInRegion(
-    Address start, Address end, ObjectSlotCallback slot_callback,
-    bool clear_maps) {
+    Address start, Address end, ObjectSlotCallback slot_callback) {
   for (Address slot_address = start; slot_address < end;
        slot_address += kPointerSize) {
-    ProcessOldToNewSlot(slot_address, slot_callback, clear_maps);
+    ProcessOldToNewSlot(slot_address, slot_callback);
   }
 }
 
 
-void StoreBuffer::IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
-                                               bool clear_maps) {
+void StoreBuffer::IteratePointersInStoreBuffer(
+    ObjectSlotCallback slot_callback) {
   Address* limit = old_top_;
   old_top_ = old_start_;
   {
@@ -427,7 +422,7 @@ void StoreBuffer::IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
 #ifdef DEBUG
       Address* saved_top = old_top_;
 #endif
-      ProcessOldToNewSlot(*current, slot_callback, clear_maps);
+      ProcessOldToNewSlot(*current, slot_callback);
       DCHECK(old_top_ == saved_top + 1 || old_top_ == saved_top);
     }
   }
@@ -478,18 +473,6 @@ void StoreBuffer::VerifyValidStoreBufferEntries() {
 
 
 void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
-  IteratePointersToNewSpace(slot_callback, false);
-}
-
-
-void StoreBuffer::IteratePointersToNewSpaceAndClearMaps(
-    ObjectSlotCallback slot_callback) {
-  IteratePointersToNewSpace(slot_callback, true);
-}
-
-
-void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
-                                            bool clear_maps) {
   // We do not sort or remove duplicated entries from the store buffer because
   // we expect that callback will rebuild the store buffer thus removing
   // all duplicates and pointers to old space.
@@ -498,7 +481,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
   // TODO(gc): we want to skip slots on evacuation candidates
   // but we can't simply figure that out from slot address
   // because slot can belong to a large object.
-  IteratePointersInStoreBuffer(slot_callback, clear_maps);
+  IteratePointersInStoreBuffer(slot_callback);
 
   // We are done scanning all the pointers that were in the store buffer, but
   // there may be some pages marked scan_on_scavenge that have pointers to new
@@ -527,7 +510,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
           DCHECK(array->IsFixedArray());
           Address start = array->address();
           Address end = start + array->Size();
-          FindPointersToNewSpaceInRegion(start, end, slot_callback, clear_maps);
+          FindPointersToNewSpaceInRegion(start, end, slot_callback);
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
@@ -542,7 +525,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                 FindPointersToNewSpaceInRegion(
                     heap_object->address() + Map::kPointerFieldsBeginOffset,
                     heap_object->address() + Map::kPointerFieldsEndOffset,
-                    slot_callback, clear_maps);
+                    slot_callback);
               }
             }
           } else {
@@ -577,8 +560,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                                         &end_of_region_offset)) {
                       FindPointersToNewSpaceInRegion(
                           obj_address + offset,
-                          obj_address + end_of_region_offset, slot_callback,
-                          clear_maps);
+                          obj_address + end_of_region_offset, slot_callback);
                     }
                     offset = end_of_region_offset;
                   }
@@ -588,7 +570,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
                   Address end_address = obj_address + end_offset;
                   // Object has only tagged fields.
                   FindPointersToNewSpaceInRegion(start_address, end_address,
-                                                 slot_callback, clear_maps);
+                                                 slot_callback);
 #if V8_DOUBLE_FIELDS_UNBOXING
                 }
 #endif
