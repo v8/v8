@@ -1316,6 +1316,8 @@ class Heap {
   // Returns the current sweep generation.
   int sweep_generation() { return sweep_generation_; }
 
+  bool concurrent_sweeping_enabled() { return concurrent_sweeping_enabled_; }
+
   inline Isolate* isolate();
 
   void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
@@ -2130,6 +2132,8 @@ class Heap {
   int gc_callbacks_depth_;
 
   bool deserialization_complete_;
+
+  bool concurrent_sweeping_enabled_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;

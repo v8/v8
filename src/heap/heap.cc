@@ -142,7 +142,8 @@ Heap::Heap()
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
       gc_callbacks_depth_(0),
-      deserialization_complete_(false) {
+      deserialization_complete_(false),
+      concurrent_sweeping_enabled_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -5446,6 +5447,9 @@ bool Heap::SetUp() {
   if (!configured_) {
     if (!ConfigureHeapDefault()) return false;
   }
+
+  concurrent_sweeping_enabled_ =
+      FLAG_concurrent_sweeping && isolate_->max_available_threads() > 1;
 
   base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
