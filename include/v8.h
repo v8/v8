@@ -2878,9 +2878,9 @@ class V8_EXPORT Object : public Value {
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
-  Local<Value> CallAsFunction(Handle<Value> recv,
-                              int argc,
-                              Handle<Value> argv[]);
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Value> CallAsFunction(Handle<Value> recv, int argc,
+                                                Handle<Value> argv[]));
   MaybeLocal<Value> CallAsFunction(Local<Context> context, Handle<Value> recv,
                                    int argc, Handle<Value> argv[]);
 
@@ -2889,7 +2889,9 @@ class V8_EXPORT Object : public Value {
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * Note: This method behaves like the Function::NewInstance method.
    */
-  Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Value> CallAsConstructor(int argc,
+                                                   Handle<Value> argv[]));
   MaybeLocal<Value> CallAsConstructor(Local<Context> context, int argc,
                                       Local<Value> argv[]);
 
@@ -3066,9 +3068,23 @@ class V8_EXPORT Function : public Object {
                              Local<Value> data = Local<Value>(),
                              int length = 0);
 
-  Local<Object> NewInstance() const;
-  Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
-  Local<Value> Call(Handle<Value> recv, int argc, Handle<Value> argv[]);
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Object> NewInstance(int argc,
+                                              Handle<Value> argv[])) const;
+  MaybeLocal<Object> NewInstance(Local<Context> context, int argc,
+                                 Handle<Value> argv[]) const;
+
+  V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance()) const;
+  MaybeLocal<Object> NewInstance(Local<Context> context) const {
+    return NewInstance(context, 0, nullptr);
+  }
+
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Value> Call(Handle<Value> recv, int argc,
+                                      Handle<Value> argv[]));
+  MaybeLocal<Value> Call(Local<Context> context, Handle<Value> recv, int argc,
+                         Handle<Value> argv[]);
+
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
 
@@ -3134,7 +3150,9 @@ class V8_EXPORT Promise : public Object {
     /**
      * Create a new resolver, along with an associated promise in pending state.
      */
-    static Local<Resolver> New(Isolate* isolate);
+    static V8_DEPRECATE_SOON("Use maybe version",
+                             Local<Resolver> New(Isolate* isolate));
+    static MaybeLocal<Resolver> New(Local<Context> context);
 
     /**
      * Extract the associated promise.
@@ -3145,8 +3163,11 @@ class V8_EXPORT Promise : public Object {
      * Resolve/reject the associated promise with a given value.
      * Ignored if the promise is no longer pending.
      */
-    void Resolve(Handle<Value> value);
-    void Reject(Handle<Value> value);
+    V8_DEPRECATE_SOON("Use maybe version", void Resolve(Handle<Value> value));
+    Maybe<bool> Resolve(Local<Context> context, Handle<Value> value);
+
+    V8_DEPRECATE_SOON("Use maybe version", void Reject(Handle<Value> value));
+    Maybe<bool> Reject(Local<Context> context, Handle<Value> value);
 
     V8_INLINE static Resolver* Cast(Value* obj);
 
@@ -3161,9 +3182,17 @@ class V8_EXPORT Promise : public Object {
    * an argument. If the promise is already resolved/rejected, the handler is
    * invoked at the end of turn.
    */
-  Local<Promise> Chain(Handle<Function> handler);
-  Local<Promise> Catch(Handle<Function> handler);
-  Local<Promise> Then(Handle<Function> handler);
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Promise> Chain(Handle<Function> handler));
+  MaybeLocal<Promise> Chain(Local<Context> context, Handle<Function> handler);
+
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Promise> Catch(Handle<Function> handler));
+  MaybeLocal<Promise> Catch(Local<Context> context, Handle<Function> handler);
+
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Promise> Then(Handle<Function> handler));
+  MaybeLocal<Promise> Then(Local<Context> context, Handle<Function> handler);
 
   /**
    * Returns true if the promise has at least one derived promise, and
