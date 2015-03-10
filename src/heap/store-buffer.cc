@@ -452,6 +452,15 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   }
   old_top_ = new_top;
   ClearFilteringHashSets();
+
+  // Don't scan on scavenge dead large objects.
+  LargeObjectIterator it(heap_->lo_space());
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    if (chunk->scan_on_scavenge() && !Marking::MarkBitFrom(object).Get()) {
+      chunk->set_scan_on_scavenge(false);
+    }
+  }
 }
 
 
