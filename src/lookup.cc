@@ -120,9 +120,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
   if (state_ == TRANSITION) return;
-  DCHECK(state_ != LookupIterator::ACCESSOR);
+  DCHECK_NE(LookupIterator::ACCESSOR, state_);
+  DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
-  DCHECK(!IsSpecialNumericIndex());
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
@@ -333,25 +333,23 @@ Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
 }
 
 
-bool LookupIterator::IsSpecialNumericIndex() const {
-  if (GetStoreTarget()->IsJSTypedArray() && name()->IsString()) {
+bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
+  DCHECK(exotic_index_state_ != ExoticIndexState::kNoIndex);
+  // Currently typed arrays are the only such objects.
+  if (!holder->IsJSTypedArray()) return false;
+  if (exotic_index_state_ == ExoticIndexState::kIndex) return true;
+  DCHECK(exotic_index_state_ == ExoticIndexState::kUninitialized);
+  bool result = false;
+  // Compute and cache result.
+  if (name()->IsString()) {
     Handle<String> name_string = Handle<String>::cast(name());
-    if (name_string->length() > 0) {
-      double d =
-          StringToDouble(isolate()->unicode_cache(), name_string, NO_FLAGS);
-      if (!std::isnan(d)) {
-        if (String::Equals(isolate()->factory()->minus_zero_string(),
-                           name_string))
-          return true;
-
-        Factory* factory = isolate()->factory();
-        Handle<Object> num = factory->NewNumber(d);
-        Handle<String> roundtrip_string = factory->NumberToString(num);
-        if (String::Equals(name_string, roundtrip_string)) return true;
-      }
+    if (name_string->length() != 0) {
+      result = IsNonArrayIndexInteger(*name_string);
     }
   }
-  return false;
+  exotic_index_state_ =
+      result ? ExoticIndexState::kIndex : ExoticIndexState::kNoIndex;
+  return result;
 }
 
 

@@ -31,6 +31,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
 
   enum State {
     ACCESS_CHECK,
+    INTEGER_INDEXED_EXOTIC,
     INTERCEPTOR,
     JSPROXY,
     NOT_FOUND,
@@ -46,6 +47,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
+        exotic_index_state_(ExoticIndexState::kUninitialized),
         property_details_(NONE, v8::internal::DATA, 0),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -61,6 +63,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
+        exotic_index_state_(ExoticIndexState::kUninitialized),
         property_details_(NONE, v8::internal::DATA, 0),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -140,11 +143,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   // Usually returns the value that was passed in, but may perform
   // non-observable modifications on it, such as internalize strings.
   Handle<Object> WriteDataValue(Handle<Object> value);
-
-  // Checks whether the receiver is an indexed exotic object
-  // and name is a special numeric index.
-  bool IsSpecialNumericIndex() const;
-
   void InternalizeName();
 
  private:
@@ -185,11 +183,15 @@ class LookupIterator FINAL BASE_EMBEDDED {
     }
   }
 
+  enum class ExoticIndexState { kUninitialized, kNoIndex, kIndex };
+  bool IsIntegerIndexedExotic(JSReceiver* holder);
+
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
   Configuration configuration_;
   State state_;
   bool has_property_;
+  ExoticIndexState exotic_index_state_;
   PropertyDetails property_details_;
   Isolate* isolate_;
   Handle<Name> name_;

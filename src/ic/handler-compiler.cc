@@ -280,6 +280,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
       break;
     case LookupIterator::DATA:
       inline_followup =
@@ -346,6 +347,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::TRANSITION:
       UNREACHABLE();
     case LookupIterator::DATA: {

@@ -133,6 +133,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
                                        it->GetHolder<JSObject>(),
                                        it->GetAccessors());
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return it->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
     }
@@ -167,6 +169,8 @@ Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
         // ExecutableAccessorInfo, since clients don't need it. Update once
         // relevant.
         it->NotFound();
+        return it->isolate()->factory()->undefined_value();
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
@@ -3130,6 +3134,10 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
                                        it->GetHolder<JSObject>(),
                                        it->GetAccessors(), language_mode);
 
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        done = true;
+        break;
+
       case LookupIterator::DATA:
         if (it->property_details().IsReadOnly()) {
           return WriteToReadOnlyProperty(it, value, language_mode);
@@ -3191,6 +3199,9 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
     case LookupIterator::NOT_FOUND:
       return JSObject::AddDataProperty(&own_lookup, value, NONE, language_mode,
                                        store_mode);
+
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      return result;
 
     case LookupIterator::DATA: {
       PropertyDetails details = own_lookup.property_details();
@@ -3321,15 +3332,13 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     return WriteToReadOnlyProperty(it, value, language_mode);
   }
 
+  if (it->state() == LookupIterator::INTEGER_INDEXED_EXOTIC) return value;
+
   Handle<JSObject> receiver = it->GetStoreTarget();
 
   // If the receiver is a JSGlobalProxy, store on the prototype (JSGlobalObject)
   // instead. If the prototype is Null, the proxy is detached.
   if (receiver->IsJSGlobalProxy()) return value;
-
-  // If the receiver is Indexed Exotic object (currently only typed arrays),
-  // disallow adding properties with numeric names.
-  if (it->IsSpecialNumericIndex()) return value;
 
   // Possibly migrate to the most up-to-date map that will be able to store
   // |value| under it->name() with |attributes|.
@@ -4158,6 +4167,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
                      !it.isolate()->IsInternallyUsedPropertyName(name);
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY:
       case LookupIterator::NOT_FOUND:
@@ -4336,6 +4346,8 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
       case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess()) break;
         return JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return Just(ABSENT);
       case LookupIterator::ACCESSOR:
       case LookupIterator::DATA:
         return Just(it->property_details().attributes());
@@ -5337,6 +5349,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         if (it.isolate()->has_pending_exception()) return maybe_result;
         break;
       }
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return it.isolate()->factory()->true_value();
       case LookupIterator::DATA:
         if (is_observed) {
           old_value = it.GetDataValue();
@@ -6764,6 +6778,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
         case LookupIterator::JSPROXY:
           return isolate->factory()->undefined_value();
 
+        case LookupIterator::INTEGER_INDEXED_EXOTIC:
+          return isolate->factory()->undefined_value();
         case LookupIterator::DATA:
           continue;
         case LookupIterator::ACCESSOR: {

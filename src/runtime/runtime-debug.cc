@@ -72,6 +72,7 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
       case LookupIterator::ACCESS_CHECK:
         // Ignore access checks.
         break;
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY:
         return it->isolate()->factory()->undefined_value();

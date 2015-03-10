@@ -44,6 +44,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
       }
     // Fall through.
     case ACCESS_CHECK:
+      if (exotic_index_state_ != ExoticIndexState::kNoIndex &&
+          IsIntegerIndexedExotic(holder)) {
+        return INTEGER_INDEXED_EXOTIC;
+      }
       if (check_interceptor() && map->has_named_interceptor()) {
         return INTERCEPTOR;
       }
@@ -75,6 +79,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
     case ACCESSOR:
     case DATA:
       return NOT_FOUND;
+    case INTEGER_INDEXED_EXOTIC:
     case JSPROXY:
     case TRANSITION:
       UNREACHABLE();
