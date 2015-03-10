@@ -1399,11 +1399,10 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // For the JSEntry handler, we must preserve r0-r4, r5-r6 are available.
   // We will build up the handler from the bottom by pushing on the stack.
@@ -1413,13 +1412,12 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
       StackHandler::KindField::encode(kind);
   mov(r6, Operand(state));
 
-  // Push the frame pointer, context, and state.
+  // Push the context and state.
   if (kind == StackHandler::JS_ENTRY) {
     mov(cp, Operand(Smi::FromInt(0)));  // Indicates no context.
-    mov(ip, Operand::Zero());  // NULL frame pointer.
-    stm(db_w, sp, r6.bit() | cp.bit() | ip.bit());
+    stm(db_w, sp, r6.bit() | cp.bit());
   } else {
-    stm(db_w, sp, r6.bit() | cp.bit() | fp.bit());
+    stm(db_w, sp, r6.bit() | cp.bit());
   }
 
   // Link the current handler as the next handler.

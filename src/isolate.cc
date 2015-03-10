@@ -1093,7 +1093,7 @@ Object* Isolate::FindHandler() {
       context = handler->context();
       offset = Smi::cast(code->handler_table()->get(handler->index()))->value();
       handler_sp = handler->address() + StackHandlerConstants::kSize;
-      handler_fp = handler->frame_pointer();
+      handler_fp = frame->fp();
       break;
     }
 

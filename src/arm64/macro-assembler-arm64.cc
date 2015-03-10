@@ -3042,11 +3042,10 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   DCHECK(jssp.Is(StackPointer()));
   // Adjust this code if the asserts don't hold.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // For the JSEntry handler, we must preserve the live registers x0-x4.
   // (See JSEntryStub::GenerateBody().)
@@ -3058,12 +3057,12 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   // Set up the state for pushing.
   Mov(x11, state);
 
-  // Push the frame pointer, context, and state.
+  // Push the context and state.
   if (kind == StackHandler::JS_ENTRY) {
     DCHECK(Smi::FromInt(0) == 0);
-    Push(xzr, xzr, x11);
+    Push(xzr, x11);
   } else {
-    Push(fp, cp, x11);
+    Push(cp, x11);
   }
 
   // Link the current handler as the next handler.

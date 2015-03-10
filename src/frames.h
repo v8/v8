@@ -76,9 +76,8 @@ class StackHandlerConstants : public AllStatic {
   static const int kStateIntOffset = kStateOffset + kIntSize;
 #endif
   static const int kContextOffset  = 2 * kPointerSize;
-  static const int kFPOffset       = 3 * kPointerSize;
 
-  static const int kSize = kFPOffset + kFPOnStackSize;
+  static const int kSize = kContextOffset + kPointerSize;
   static const int kSlotCount = kSize >> kPointerSizeLog2;
 };
 
@@ -117,7 +116,6 @@ class StackHandler BASE_EMBEDDED {
   inline Context* context() const;
   inline Kind kind() const;
   inline unsigned index() const;
-  inline Address frame_pointer() const;
 
   // Testers.
   inline bool is_js_entry() const;
@@ -131,7 +129,6 @@ class StackHandler BASE_EMBEDDED {
 
  private:
   inline Object** context_address() const;
-  inline void SetFp(Address slot, Address fp);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };

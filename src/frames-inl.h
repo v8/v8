@@ -94,12 +94,6 @@ inline unsigned StackHandler::index() const {
 }
 
 
-inline Address StackHandler::frame_pointer() const {
-  const int offset = StackHandlerConstants::kFPOffset;
-  return Memory::Address_at(address() + offset);
-}
-
-
 inline Object** StackHandler::context_address() const {
   const int offset = StackHandlerConstants::kContextOffset;
   return reinterpret_cast<Object**>(address() + offset);
