@@ -1194,7 +1194,9 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   // Bind value and do loop body.
   VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
   VisitIterationBody(stmt, &for_loop);
+  index = environment()->Peek(0);
   for_loop.EndBody();
+
   // Inc counter and continue.
   Node* index_inc =
       NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
