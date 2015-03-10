@@ -351,6 +351,7 @@ InstallFunctions($Math, DONT_ENUM, $Array(
 ));
 
 %SetInlineBuiltinFlag(MathCeil);
+%SetInlineBuiltinFlag(MathFloor);
 %SetInlineBuiltinFlag(MathRandom);
 
 // Keep reference to original values of some global properties.  This
