@@ -623,6 +623,8 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 
 Node* AstGraphBuilder::Environment::Checkpoint(
     BailoutId ast_id, OutputFrameStateCombine combine) {
+  if (!FLAG_turbo_deoptimization) return nullptr;
+
   UpdateStateValues(&parameters_node_, 0, parameters_count());
   UpdateStateValues(&locals_node_, parameters_count(), locals_count());
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
