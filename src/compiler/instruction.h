@@ -737,7 +737,7 @@ class Constant FINAL {
     kRpoNumber
   };
 
-  explicit Constant(int32_t v) : type_(kInt32), value_(v) {}
+  explicit Constant(int32_t v);
   explicit Constant(int64_t v) : type_(kInt64), value_(v) {}
   explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
   explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}

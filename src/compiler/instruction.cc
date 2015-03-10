@@ -337,6 +337,9 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
+Constant::Constant(int32_t v) : type_(kInt32), value_(v) {}
+
+
 std::ostream& operator<<(std::ostream& os, const Constant& constant) {
   switch (constant.type()) {
     case Constant::kInt32:
