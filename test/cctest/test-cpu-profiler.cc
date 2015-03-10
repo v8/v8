@@ -438,8 +438,7 @@ static v8::CpuProfile* RunProfiler(
 static bool ContainsString(v8::Handle<v8::String> string,
                            const Vector<v8::Handle<v8::String> >& vector) {
   for (int i = 0; i < vector.length(); i++) {
-    if (string->Equals(vector[i]))
-      return true;
+    if (string->Equals(vector[i])) return true;
   }
   return false;
 }
@@ -450,11 +449,25 @@ static void CheckChildrenNames(const v8::CpuProfileNode* node,
   int count = node->GetChildrenCount();
   for (int i = 0; i < count; i++) {
     v8::Handle<v8::String> name = node->GetChild(i)->GetFunctionName();
-    CHECK(ContainsString(name, names));
+    if (!ContainsString(name, names)) {
+      char buffer[100];
+      i::SNPrintF(Vector<char>(buffer, arraysize(buffer)),
+                  "Unexpected child '%s' found in '%s'",
+                  *v8::String::Utf8Value(name),
+                  *v8::String::Utf8Value(node->GetFunctionName()));
+      FATAL(buffer);
+    }
     // Check that there are no duplicates.
     for (int j = 0; j < count; j++) {
       if (j == i) continue;
-      CHECK(!name->Equals(node->GetChild(j)->GetFunctionName()));
+      if (name->Equals(node->GetChild(j)->GetFunctionName())) {
+        char buffer[100];
+        i::SNPrintF(Vector<char>(buffer, arraysize(buffer)),
+                    "Second child with the same name '%s' found in '%s'",
+                    *v8::String::Utf8Value(name),
+                    *v8::String::Utf8Value(node->GetFunctionName()));
+        FATAL(buffer);
+      }
     }
   }
 }
@@ -1074,10 +1087,10 @@ TEST(TickLines) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
   ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
-      &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100));
+  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
+      &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, processor);
+  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
@@ -1087,7 +1100,7 @@ TEST(TickLines) {
                            *str, line, column);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, code_address);
+  EnqueueTickSampleEvent(processor.get(), code_address);
 
   processor->StopSynchronously();
 
