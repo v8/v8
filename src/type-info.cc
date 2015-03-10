@@ -313,7 +313,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
 
 
 void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
-                                               Handle<String> name,
+                                               Handle<Name> name,
                                                SmallMapList* receiver_types) {
   receiver_types->Clear();
   Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
@@ -343,7 +343,7 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
 
 
 void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorICSlot slot,
-                                               Handle<String> name,
+                                               Handle<Name> name,
                                                SmallMapList* receiver_types) {
   receiver_types->Clear();
   LoadICNexus nexus(feedback_vector_, slot);
@@ -363,8 +363,9 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
 }
 
 
-void TypeFeedbackOracle::AssignmentReceiverTypes(
-    TypeFeedbackId id, Handle<String> name, SmallMapList* receiver_types) {
+void TypeFeedbackOracle::AssignmentReceiverTypes(TypeFeedbackId id,
+                                                 Handle<Name> name,
+                                                 SmallMapList* receiver_types) {
   receiver_types->Clear();
   Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
   CollectReceiverTypes(id, name, flags, receiver_types);
@@ -388,7 +389,7 @@ void TypeFeedbackOracle::CountReceiverTypes(TypeFeedbackId id,
 
 
 void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
-                                              Handle<String> name,
+                                              Handle<Name> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
@@ -401,7 +402,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
 
 
 template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<String> name,
+void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<Name> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
