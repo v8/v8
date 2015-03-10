@@ -3059,7 +3059,8 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
 bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot) {
   // This function does not support large objects right now.
-  if (p->owner() == NULL) return true;
+  Space* owner = p->owner();
+  if (owner == heap_->lo_space() || owner == NULL) return true;
 
   uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
   unsigned int start_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
@@ -3121,7 +3122,8 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot) {
 
 bool MarkCompactCollector::IsSlotInBlackObjectSlow(Page* p, Address slot) {
   // This function does not support large objects right now.
-  if (p->owner() == NULL) return true;
+  Space* owner = p->owner();
+  if (owner == heap_->lo_space() || owner == NULL) return true;
 
   for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
     Address cell_base = it.CurrentCellBase();
