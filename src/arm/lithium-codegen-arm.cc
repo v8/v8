@@ -346,54 +346,38 @@ bool LCodeGen::GenerateJumpTable() {
 
       if (table_entry->needs_frame) {
         DCHECK(!info()->saves_caller_doubles());
-        if (needs_frame.is_bound()) {
-          __ b(&needs_frame);
-        } else {
-          __ bind(&needs_frame);
-          Comment(";;; call deopt with frame");
-          __ PushFixedFrame();
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          DCHECK(info()->IsStub());
-          __ mov(ip, Operand(Smi::FromInt(StackFrame::STUB)));
-          __ push(ip);
-          __ add(fp, sp,
-                 Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-          __ bind(&call_deopt_entry);
-          // Add the base address to the offset previously loaded in
-          // entry_offset.
-          __ add(entry_offset, entry_offset,
-                 Operand(ExternalReference::ForDeoptEntry(base)));
-          __ blx(entry_offset);
-        }
-
-        masm()->CheckConstPool(false, false);
+        Comment(";;; call deopt with frame");
+        __ PushFixedFrame();
+        __ bl(&needs_frame);
       } else {
-        // The last entry can fall through into `call_deopt_entry`, avoiding a
-        // branch.
-        bool need_branch = ((i + 1) != length) || call_deopt_entry.is_bound();
-
-        if (need_branch) __ b(&call_deopt_entry);
-
-        masm()->CheckConstPool(false, !need_branch);
+        __ bl(&call_deopt_entry);
       }
+      masm()->CheckConstPool(false, false);
     }
 
-    if (!call_deopt_entry.is_bound()) {
-      Comment(";;; call deopt");
-      __ bind(&call_deopt_entry);
-
-      if (info()->saves_caller_doubles()) {
-        DCHECK(info()->IsStub());
-        RestoreCallerDoubles();
-      }
-
-      // Add the base address to the offset previously loaded in entry_offset.
-      __ add(entry_offset, entry_offset,
-             Operand(ExternalReference::ForDeoptEntry(base)));
-      __ blx(entry_offset);
+    if (needs_frame.is_linked()) {
+      __ bind(&needs_frame);
+      // This variant of deopt can only be used with stubs. Since we don't
+      // have a function pointer to install in the stack frame that we're
+      // building, install a special marker there instead.
+      DCHECK(info()->IsStub());
+      __ mov(ip, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ push(ip);
+      __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
+
+    Comment(";;; call deopt");
+    __ bind(&call_deopt_entry);
+
+    if (info()->saves_caller_doubles()) {
+      DCHECK(info()->IsStub());
+      RestoreCallerDoubles();
+    }
+
+    // Add the base address to the offset previously loaded in entry_offset.
+    __ add(entry_offset, entry_offset,
+           Operand(ExternalReference::ForDeoptEntry(base)));
+    __ bx(entry_offset);
   }
 
   // Force constant pool emission at the end of the deopt jump table to make
