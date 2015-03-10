@@ -350,8 +350,7 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
         // When we are not in GC the Heap::InNewSpace() predicate
         // checks that pointers which satisfy predicate point into
         // the active semispace.
-        Object* object = reinterpret_cast<Object*>(
-            base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+        Object* object = *slot;
         heap_->InNewSpace(object);
         slot_address += kPointerSize;
       }
@@ -381,8 +380,7 @@ void StoreBuffer::GCEpilogue() {
 void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
                                       ObjectSlotCallback slot_callback) {
   Object** slot = reinterpret_cast<Object**>(slot_address);
-  Object* object = reinterpret_cast<Object*>(
-      base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+  Object* object = *slot;
 
   // If the object is not in from space, it must be a duplicate store buffer
   // entry and the slot was already updated.
@@ -390,8 +388,7 @@ void StoreBuffer::ProcessOldToNewSlot(Address slot_address,
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
     DCHECK(heap_object->IsHeapObject());
     slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-    object = reinterpret_cast<Object*>(
-        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    object = *slot;
     // If the object was in from space before and is after executing the
     // callback in to space, the object is still live.
     // Unfortunately, we do not know about the slot. It could be in a
@@ -435,6 +432,8 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   for (Address* current = old_start_; current < old_top_; current++) {
     Address addr = *current;
     Object** slot = reinterpret_cast<Object**>(*current);
+    // Use a NoBarrier_Load here since the slot can be in a dead object
+    // which may be touched by the concurrent sweeper thread.
     Object* object = reinterpret_cast<Object*>(
         base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
     if (heap_->InNewSpace(object)) {
@@ -462,8 +461,7 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
 void StoreBuffer::VerifyValidStoreBufferEntries() {
   for (Address* current = old_start_; current < old_top_; current++) {
     Object** slot = reinterpret_cast<Object**>(*current);
-    Object* object = reinterpret_cast<Object*>(
-        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    Object* object = *slot;
     CHECK(heap_->InNewSpace(object));
     heap_->mark_compact_collector()->VerifyIsSlotInLiveObject(
         reinterpret_cast<HeapObject**>(slot),
