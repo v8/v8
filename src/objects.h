@@ -7179,8 +7179,8 @@ class SharedFunctionInfo: public HeapObject {
     kIsConciseMethod,
     kIsAccessorFunction,
     kIsDefaultConstructor,
-    kIsBaseConstructor,
     kIsSubclassConstructor,
+    kIsBaseConstructor,
     kIsAsmFunction,
     kDeserialized,
     kCompilerHintsCount  // Pseudo entry
