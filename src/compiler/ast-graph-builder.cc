@@ -1404,6 +1404,17 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     VisitForValue(property->key());
     environment()->Push(
         BuildToName(environment()->Pop(), expr->GetIdForProperty(i)));
+
+    // The static prototype property is read only. We handle the non computed
+    // property name case in the parser. Since this is the only case where we
+    // need to check for an own read only property we special case this so we do
+    // not need to do this for every property.
+    if (property->is_static() && property->is_computed_name()) {
+      Node* name = environment()->Pop();
+      environment()->Push(
+          BuildThrowIfStaticPrototype(name, expr->GetIdForProperty(i)));
+    }
+
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -2580,6 +2591,28 @@ Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
   hole_check.Else();
   environment()->Push(not_hole);
   hole_check.End();
+  return environment()->Pop();
+}
+
+
+Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
+                                                   BailoutId bailout_id) {
+  IfBuilder prototype_check(this);
+  Node* prototype_string =
+      jsgraph()->Constant(isolate()->factory()->prototype_string());
+  Node* check = NewNode(javascript()->StrictEqual(), name, prototype_string);
+  prototype_check.If(check);
+  prototype_check.Then();
+  {
+    const Operator* op =
+        javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError, 0);
+    Node* call = NewNode(op);
+    PrepareFrameState(call, bailout_id);
+    environment()->Push(call);
+  }
+  prototype_check.Else();
+  environment()->Push(name);
+  prototype_check.End();
   return environment()->Pop();
 }
 

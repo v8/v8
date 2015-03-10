@@ -56,6 +56,30 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
 }
 
 
+static Object* ThrowStaticPrototypeError(Isolate* isolate) {
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError("static_prototype", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return ThrowStaticPrototypeError(isolate);
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowIfStaticPrototype) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
+  if (Name::Equals(name, isolate->factory()->prototype_string())) {
+    return ThrowStaticPrototypeError(isolate);
+  }
+  return *name;
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

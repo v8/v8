@@ -312,41 +312,74 @@ function assertIteratorResult(value, done, result) {
 
 
 (function TestPrototype() {
-  // Normally a static prototype property is not allowed.
-  class C {
-    static ['prototype']() {
-      return 1;
+  assertThrows(function() {
+    class C {
+      static ['prototype']() {
+        return 1;
+      }
     }
-  }
-  assertEquals(1, C.prototype());
+  }, TypeError);
 
-  class C2 {
-    static get ['prototype']() {
-      return 2;
+  assertThrows(function() {
+    class C2 {
+      static get ['prototype']() {
+        return 2;
+      }
     }
-  }
-  assertEquals(2, C2.prototype);
+  }, TypeError);
 
-  var calls = 0;
-  class C3 {
-    static set ['prototype'](x) {
-      assertEquals(3, x);
-      calls++;
+  assertThrows(function() {
+    class C3 {
+      static set ['prototype'](x) {
+        assertEquals(3, x);
+      }
     }
-  }
-  C3.prototype = 3;
-  assertEquals(1, calls);
+  }, TypeError);
 
-  class C4 {
-    static *['prototype']() {
-      yield 1;
-      yield 2;
+  assertThrows(function() {
+    class C4 {
+      static *['prototype']() {
+        yield 1;
+        yield 2;
+      }
     }
-  }
-  var iter = C4.prototype();
-  assertIteratorResult(1, false, iter.next());
-  assertIteratorResult(2, false, iter.next());
-  assertIteratorResult(undefined, true, iter.next());
+  }, TypeError);
+})();
+
+
+(function TestPrototypeConcat() {
+  assertThrows(function() {
+    class C {
+      static ['pro' + 'tot' + 'ype']() {
+        return 1;
+      }
+    }
+  }, TypeError);
+
+  assertThrows(function() {
+    class C2 {
+      static get ['pro' + 'tot' + 'ype']() {
+        return 2;
+      }
+    }
+  }, TypeError);
+
+  assertThrows(function() {
+    class C3 {
+      static set ['pro' + 'tot' + 'ype'](x) {
+        assertEquals(3, x);
+      }
+    }
+  }, TypeError);
+
+  assertThrows(function() {
+    class C4 {
+      static *['pro' + 'tot' + 'ype']() {
+        yield 1;
+        yield 2;
+      }
+    }
+  }, TypeError);
 })();
 
 
