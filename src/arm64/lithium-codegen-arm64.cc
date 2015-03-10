@@ -842,7 +842,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateJumpTable() {
-  Label needs_frame, restore_caller_doubles, call_deopt_entry;
+  Label needs_frame, call_deopt_entry;
 
   if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
@@ -866,22 +866,18 @@ bool LCodeGen::GenerateJumpTable() {
 
       if (table_entry->needs_frame) {
         DCHECK(!info()->saves_caller_doubles());
+        Comment(";;; call deopt with frame");
         // Save lr before Bl, fp will be adjusted in the needs_frame code.
-        __ Push(lr, fp, cp);
+        __ Push(lr, fp);
         // Reuse the existing needs_frame code.
         __ Bl(&needs_frame);
-      } else if (info()->saves_caller_doubles()) {
-        DCHECK(info()->IsStub());
-        // Reuse the existing restore_caller_doubles code.
-        __ Bl(&restore_caller_doubles);
       } else {
         // There is nothing special to do, so just continue to the second-level
         // table.
         __ Bl(&call_deopt_entry);
       }
 
-      bool last_entry = (i + 1) == length;
-      masm()->CheckConstPool(false, last_entry);
+      masm()->CheckConstPool(false, false);
     }
 
     if (needs_frame.is_linked()) {
@@ -890,25 +886,24 @@ bool LCodeGen::GenerateJumpTable() {
       // building, install a special marker there instead.
       DCHECK(info()->IsStub());
 
+      Comment(";;; needs_frame common code");
       UseScratchRegisterScope temps(masm());
       Register stub_marker = temps.AcquireX();
       __ Bind(&needs_frame);
       __ Mov(stub_marker, Smi::FromInt(StackFrame::STUB));
-      __ Push(stub_marker);
+      __ Push(cp, stub_marker);
       __ Add(fp, __ StackPointer(), 2 * kPointerSize);
-      if (restore_caller_doubles.is_linked()) {
-        __ B(&call_deopt_entry);
-      }
-    }
-
-    if (restore_caller_doubles.is_linked()) {
-      __ Bind(&restore_caller_doubles);
-      RestoreCallerDoubles();
     }
 
     // Generate common code for calling the second-level deopt table.
-    Register deopt_entry = temps.AcquireX();
     __ Bind(&call_deopt_entry);
+
+    if (info()->saves_caller_doubles()) {
+      DCHECK(info()->IsStub());
+      RestoreCallerDoubles();
+    }
+
+    Register deopt_entry = temps.AcquireX();
     __ Mov(deopt_entry, Operand(reinterpret_cast<uint64_t>(base),
                                 RelocInfo::RUNTIME_ENTRY));
     __ Add(deopt_entry, deopt_entry, entry_offset);
