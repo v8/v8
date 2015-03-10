@@ -538,6 +538,7 @@ class ParserBase : public Traits {
   }
 
   void ReportUnexpectedToken(Token::Value token);
+  void ReportUnexpectedTokenAt(Scanner::Location location, Token::Value token);
 
   // Recursive descent functions:
 
@@ -1681,7 +1682,13 @@ ParserBase<Traits>::FunctionState::~FunctionState() {
 
 template<class Traits>
 void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
-  Scanner::Location source_location = scanner()->location();
+  return ReportUnexpectedTokenAt(scanner_->location(), token);
+}
+
+
+template<class Traits>
+void ParserBase<Traits>::ReportUnexpectedTokenAt(
+    Scanner::Location source_location, Token::Value token) {
 
   // Four of the tokens are treated specially
   switch (token) {
@@ -2849,6 +2856,15 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
                                               ExpressionT params_ast,
                                               bool* ok) {
+  if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
+    // ASI inserts `;` after arrow parameters if a line terminator is found.
+    // `=> ...` is never a valid expression, so report as syntax error.
+    // If next token is not `=>`, it's a syntax error anyways.
+    ReportUnexpectedTokenAt(scanner_->peek_location(), Token::ARROW);
+    *ok = false;
+    return this->EmptyExpression();
+  }
+
   Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
   typename Traits::Type::StatementList body;
   int num_parameters = -1;

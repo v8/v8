@@ -5564,3 +5564,21 @@ TEST(StrongForIn) {
   RunParserSyncTest(strong_context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
+
+
+TEST(ArrowFunctionASIErrors) {
+  const char* context_data[][2] = {{"'use strict';", ""}, {"", ""},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "(a\n=> a)(1)",
+      "(a/*\n*/=> a)(1)",
+      "((a)\n=> a)(1)",
+      "((a)/*\n*/=> a)(1)",
+      "((a, b)\n=> a + b)(1, 2)",
+      "((a, b)/*\n*/=> a + b)(1, 2)",
+      NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyArrowFunctions};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
