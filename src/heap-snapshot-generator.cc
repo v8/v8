@@ -178,12 +178,8 @@ template <> struct SnapshotSizeConstants<8> {
 }  // namespace
 
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
-                           const char* title,
-                           unsigned uid)
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler)
     : profiler_(profiler),
-      title_(title),
-      uid_(uid),
       root_index_(HeapEntry::kNoEntry),
       gc_roots_index_(HeapEntry::kNoEntry),
       max_snapshot_js_object_id_(0) {
@@ -2883,12 +2879,7 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
 
 
 void HeapSnapshotJSONSerializer::SerializeSnapshot() {
-  writer_->AddString("\"title\":\"");
-  writer_->AddString(snapshot_->title());
-  writer_->AddString("\"");
-  writer_->AddString(",\"uid\":");
-  writer_->AddNumber(snapshot_->uid());
-  writer_->AddString(",\"meta\":");
+  writer_->AddString("\"meta\":");
   // The object describing node serialization layout.
   // We use a set of macros to improve readability.
 #define JSON_A(s) "[" s "]"

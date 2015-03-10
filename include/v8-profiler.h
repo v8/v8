@@ -313,12 +313,6 @@ class V8_EXPORT HeapSnapshot {
     kJSON = 0  // See format description near 'Serialize' method.
   };
 
-  /** Returns heap snapshot UID (assigned by the profiler.) */
-  unsigned GetUid() const;
-
-  /** Returns heap snapshot title. */
-  Handle<String> GetTitle() const;
-
   /** Returns the root node of the heap graph. */
   const HeapGraphNode* GetRoot() const;
 
@@ -367,7 +361,8 @@ class V8_EXPORT HeapSnapshot {
    * Nodes reference strings, other nodes, and edges by their indexes
    * in corresponding arrays.
    */
-  void Serialize(OutputStream* stream, SerializationFormat format) const;
+  void Serialize(OutputStream* stream,
+                 SerializationFormat format = kJSON) const;
 };
 
 
@@ -452,10 +447,16 @@ class V8_EXPORT HeapProfiler {
   };
 
   /**
-   * Takes a heap snapshot and returns it. Title may be an empty string.
+   * Takes a heap snapshot and returns it. Title parameter is deprecated and
+   * should be an empty string.
+   * TODO: deprecate this method.
    */
   const HeapSnapshot* TakeHeapSnapshot(
       Handle<String> title,
+      ActivityControl* control = NULL,
+      ObjectNameResolver* global_object_name_resolver = NULL);
+
+  const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control = NULL,
       ObjectNameResolver* global_object_name_resolver = NULL);
 

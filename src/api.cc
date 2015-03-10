@@ -7620,18 +7620,6 @@ void HeapSnapshot::Delete() {
 }
 
 
-unsigned HeapSnapshot::GetUid() const {
-  return ToInternal(this)->uid();
-}
-
-
-Handle<String> HeapSnapshot::GetTitle() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  return ToApiHandle<String>(
-      isolate->factory()->InternalizeUtf8String(ToInternal(this)->title()));
-}
-
-
 const HeapGraphNode* HeapSnapshot::GetRoot() const {
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->root());
 }
@@ -7711,9 +7699,15 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
     Handle<String> title,
     ActivityControl* control,
     ObjectNameResolver* resolver) {
+  return TakeHeapSnapshot(control, resolver);
+}
+
+
+const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
+    ActivityControl* control, ObjectNameResolver* resolver) {
   return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(
-          *Utils::OpenHandle(*title), control, resolver));
+      reinterpret_cast<i::HeapProfiler*>(this)
+          ->TakeSnapshot(control, resolver));
 }
 
 

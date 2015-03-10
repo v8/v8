@@ -22,11 +22,6 @@ class HeapProfiler {
   size_t GetMemorySizeUsedByProfiler();
 
   HeapSnapshot* TakeSnapshot(
-      const char* name,
-      v8::ActivityControl* control,
-      v8::HeapProfiler::ObjectNameResolver* resolver);
-  HeapSnapshot* TakeSnapshot(
-      String* name,
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 
@@ -73,7 +68,6 @@ class HeapProfiler {
   SmartPointer<HeapObjectsMap> ids_;
   List<HeapSnapshot*> snapshots_;
   SmartPointer<StringsStorage> names_;
-  unsigned next_snapshot_uid_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   SmartPointer<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;

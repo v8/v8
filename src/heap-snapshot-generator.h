@@ -141,14 +141,10 @@ class HeapEntry BASE_EMBEDDED {
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
-  HeapSnapshot(HeapProfiler* profiler,
-               const char* title,
-               unsigned uid);
+  explicit HeapSnapshot(HeapProfiler* profiler);
   void Delete();
 
   HeapProfiler* profiler() { return profiler_; }
-  const char* title() { return title_; }
-  unsigned uid() { return uid_; }
   size_t RawSnapshotSize() const;
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
@@ -181,8 +177,6 @@ class HeapSnapshot {
   HeapEntry* AddGcSubrootEntry(int tag, SnapshotObjectId id);
 
   HeapProfiler* profiler_;
-  const char* title_;
-  unsigned uid_;
   int root_index_;
   int gc_roots_index_;
   int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
