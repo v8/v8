@@ -2933,6 +2933,14 @@ void v8::Function::CheckCast(Value* that) {
 }
 
 
+void v8::Boolean::CheckCast(v8::Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsBoolean(),
+                  "v8::Boolean::Cast()",
+                  "Could not convert to boolean");
+}
+
+
 void v8::Name::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsName(),

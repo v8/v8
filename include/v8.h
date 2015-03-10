@@ -2007,7 +2007,10 @@ class V8_EXPORT Primitive : public Value { };
 class V8_EXPORT Boolean : public Primitive {
  public:
   bool Value() const;
+  V8_INLINE static Boolean* Cast(v8::Value* obj);
   V8_INLINE static Handle<Boolean> New(Isolate* isolate, bool value);
+ private:
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -7312,6 +7315,14 @@ Local<Uint32> Value::ToUint32() const {
 
 
 Local<Int32> Value::ToInt32() const { return ToInt32(Isolate::GetCurrent()); }
+
+
+Boolean* Boolean::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Boolean*>(value);
+}
 
 
 Name* Name::Cast(v8::Value* value) {
