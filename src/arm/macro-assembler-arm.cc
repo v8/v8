@@ -1399,29 +1399,27 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // For the JSEntry handler, we must preserve r0-r4, r5-r6 are available.
   // We will build up the handler from the bottom by pushing on the stack.
-  // Set up the code object (r5) and the state (r6) for pushing.
+  // Set up the the state (r6) for pushing.
   unsigned state =
       StackHandler::IndexField::encode(handler_index) |
       StackHandler::KindField::encode(kind);
-  mov(r5, Operand(CodeObject()));
   mov(r6, Operand(state));
 
-  // Push the frame pointer, context, state, and code object.
+  // Push the frame pointer, context, and state.
   if (kind == StackHandler::JS_ENTRY) {
     mov(cp, Operand(Smi::FromInt(0)));  // Indicates no context.
     mov(ip, Operand::Zero());  // NULL frame pointer.
-    stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | ip.bit());
+    stm(db_w, sp, r6.bit() | cp.bit() | ip.bit());
   } else {
-    stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | fp.bit());
+    stm(db_w, sp, r6.bit() | cp.bit() | fp.bit());
   }
 
   // Link the current handler as the next handler.

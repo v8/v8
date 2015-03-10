@@ -1534,7 +1534,7 @@ void StackHandler::Unwind(Isolate* isolate,
                           FixedArray* array,
                           int offset,
                           int previous_handler_offset) const {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 4);
   DCHECK_LE(0, offset);
   DCHECK_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
   // Unwinding a stack handler into an array chains it in the opposite
@@ -1542,10 +1542,9 @@ void StackHandler::Unwind(Isolate* isolate,
   // handlers can be later re-wound in the correct order.  Decode the "state"
   // slot into "index" and "kind" and store them separately, using the fp slot.
   array->set(offset, Smi::FromInt(previous_handler_offset));        // next
-  array->set(offset + 1, *code_address());                          // code
-  array->set(offset + 2, Smi::FromInt(static_cast<int>(index())));  // state
-  array->set(offset + 3, *context_address());                       // context
-  array->set(offset + 4, Smi::FromInt(static_cast<int>(kind())));   // fp
+  array->set(offset + 1, Smi::FromInt(static_cast<int>(index())));  // state
+  array->set(offset + 2, *context_address());                       // context
+  array->set(offset + 3, Smi::FromInt(static_cast<int>(kind())));   // fp
 
   *isolate->handler_address() = next()->address();
 }
@@ -1555,21 +1554,19 @@ int StackHandler::Rewind(Isolate* isolate,
                          FixedArray* array,
                          int offset,
                          Address fp) {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
+  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 4);
   DCHECK_LE(0, offset);
   DCHECK_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
   Smi* prev_handler_offset = Smi::cast(array->get(offset));
-  Code* code = Code::cast(array->get(offset + 1));
-  Smi* smi_index = Smi::cast(array->get(offset + 2));
-  Object* context = array->get(offset + 3);
-  Smi* smi_kind = Smi::cast(array->get(offset + 4));
+  Smi* smi_index = Smi::cast(array->get(offset + 1));
+  Object* context = array->get(offset + 2);
+  Smi* smi_kind = Smi::cast(array->get(offset + 3));
 
   unsigned state = KindField::encode(static_cast<Kind>(smi_kind->value())) |
       IndexField::encode(static_cast<unsigned>(smi_index->value()));
 
   Memory::Address_at(address() + StackHandlerConstants::kNextOffset) =
       *isolate->handler_address();
-  Memory::Object_at(address() + StackHandlerConstants::kCodeOffset) = code;
   Memory::uintptr_at(address() + StackHandlerConstants::kStateOffset) = state;
   Memory::Object_at(address() + StackHandlerConstants::kContextOffset) =
       context;

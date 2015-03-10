@@ -53,7 +53,6 @@ inline bool StackHandler::includes(Address address) const {
 
 inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
   v->VisitPointer(context_address());
-  v->VisitPointer(code_address());
 }
 
 
@@ -83,12 +82,6 @@ inline Context* StackHandler::context() const {
 }
 
 
-inline Code* StackHandler::code() const {
-  const int offset = StackHandlerConstants::kCodeOffset;
-  return Code::cast(Memory::Object_at(address() + offset));
-}
-
-
 inline StackHandler::Kind StackHandler::kind() const {
   const int offset = StackHandlerConstants::kStateIntOffset;
   return KindField::decode(Memory::unsigned_at(address() + offset));
@@ -109,12 +102,6 @@ inline Address StackHandler::frame_pointer() const {
 
 inline Object** StackHandler::context_address() const {
   const int offset = StackHandlerConstants::kContextOffset;
-  return reinterpret_cast<Object**>(address() + offset);
-}
-
-
-inline Object** StackHandler::code_address() const {
-  const int offset = StackHandlerConstants::kCodeOffset;
   return reinterpret_cast<Object**>(address() + offset);
 }
 

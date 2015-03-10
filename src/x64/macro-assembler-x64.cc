@@ -2982,13 +2982,12 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize +
+  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize +
                                                 kFPOnStackSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // We will build up the handler from the bottom by pushing on the stack.
   // First push the frame pointer and context.
@@ -3003,12 +3002,11 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
     Push(rsi);
   }
 
-  // Push the state and the code object.
+  // Push the state.
   unsigned state =
       StackHandler::IndexField::encode(handler_index) |
       StackHandler::KindField::encode(kind);
   Push(Immediate(state));
-  Push(CodeObject());
 
   // Link the current handler as the next handler.
   ExternalReference handler_address(Isolate::kHandlerAddress, isolate());

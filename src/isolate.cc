@@ -1076,7 +1076,7 @@ Object* Isolate::FindHandler() {
       thread_local_top()->handler_ = handler->next()->address();
 
       // Gather information from the handler.
-      code = handler->code();
+      code = frame->LookupCode();
       handler_sp = handler->address() + StackHandlerConstants::kSize;
       offset = Smi::cast(code->handler_table()->get(0))->value();
       break;
@@ -1091,7 +1091,7 @@ Object* Isolate::FindHandler() {
       thread_local_top()->handler_ = handler->next()->address();
 
       // Gather information from the handler.
-      code = handler->code();
+      code = frame->LookupCode();
       context = handler->context();
       offset = Smi::cast(code->handler_table()->get(handler->index()))->value();
       handler_sp = handler->address() + StackHandlerConstants::kSize;
