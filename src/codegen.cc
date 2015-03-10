@@ -183,12 +183,14 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     const char* debug_name;
+    SmartArrayPointer<char> debug_name_holder;
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
       debug_name = CodeStub::MajorName(major_key, false);
     } else {
-      debug_name =
-          info->parse_info()->function()->debug_name()->ToCString().get();
+      debug_name_holder =
+          info->parse_info()->function()->debug_name()->ToCString();
+      debug_name = debug_name_holder.get();
     }
 
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
