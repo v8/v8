@@ -4811,13 +4811,13 @@ static double kValues[] = {0.1,
                            -two_52 + 1 - 0.7};
 
 
-TEST(RunFloat64Floor) {
+TEST(RunFloat64RoundDown1) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Floor()) return;
+  if (!m.machine()->HasFloat64RoundDown()) return;
   m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Floor(m.LoadFromPointer(&input, kMachFloat64)));
+                   m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i];
@@ -4828,13 +4828,16 @@ TEST(RunFloat64Floor) {
 }
 
 
-TEST(RunFloat64Ceil) {
+TEST(RunFloat64RoundDown2) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Ceil()) return;
+  if (!m.machine()->HasFloat64RoundDown()) return;
   m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Ceil(m.LoadFromPointer(&input, kMachFloat64)));
+                   m.Float64Sub(m.Float64Constant(-0.0),
+                                m.Float64RoundDown(m.Float64Sub(
+                                    m.Float64Constant(-0.0),
+                                    m.LoadFromPointer(&input, kMachFloat64)))));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i];
@@ -4849,7 +4852,7 @@ TEST(RunFloat64RoundTruncate) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Ceil()) return;
+  if (!m.machine()->HasFloat64RoundTruncate()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));

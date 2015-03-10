@@ -844,6 +844,19 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X64OperandGenerator g(this);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
+      CanCover(m.node(), m.right().node())) {
+    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+        CanCover(m.right().node(), m.right().InputAt(0))) {
+      Float64BinopMatcher mright0(m.right().InputAt(0));
+      if (mright0.left().IsMinusZero()) {
+        Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
+             g.DefineAsRegister(node), g.UseRegister(mright0.right().node()));
+        return;
+      }
+    }
+  }
   if (IsSupported(AVX)) {
     Emit(kAVXFloat64Sub, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
@@ -895,7 +908,7 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 namespace {
 
-void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
+void VisitRRFloat64(InstructionSelector* selector, InstructionCode opcode,
                     Node* node) {
   X64OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -905,21 +918,14 @@ void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
 }  // namespace
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64Floor, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64Ceil, node);
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRRFloat64(this, kSSEFloat64Round | MiscField::encode(kRoundDown), node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64RoundTruncate, node);
+  VisitRRFloat64(this, kSSEFloat64Round | MiscField::encode(kRoundToZero),
+                 node);
 }
 
 
@@ -1445,8 +1451,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe;
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    flags |= MachineOperatorBuilder::kFloat64Floor |
-             MachineOperatorBuilder::kFloat64Ceil |
+    flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundTruncate;
   }
   return flags;

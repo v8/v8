@@ -1510,6 +1510,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleHi:
       return Bounds(Type::None(zone()), Type::Signed32());
     case Runtime::kInlineConstructDouble:
+    case Runtime::kInlineMathFloor:
       return Bounds(Type::None(zone()), Type::Number());
     default:
       break;
@@ -2085,13 +2086,7 @@ Bounds Typer::Visitor::TypeFloat64LessThanOrEqual(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeFloat64Floor(Node* node) {
-  // TODO(sigurds): We could have a tighter bound here.
-  return Bounds(Type::Number());
-}
-
-
-Bounds Typer::Visitor::TypeFloat64Ceil(Node* node) {
+Bounds Typer::Visitor::TypeFloat64RoundDown(Node* node) {
   // TODO(sigurds): We could have a tighter bound here.
   return Bounds(Type::Number());
 }

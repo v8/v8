@@ -3251,8 +3251,7 @@ void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::roundsd(XMMRegister dst, XMMRegister src,
-                        Assembler::RoundingMode mode) {
+void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   emit(0x66);

@@ -3766,7 +3766,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       __ subq(output_reg, Immediate(1));
       DeoptimizeIf(overflow, instr, Deoptimizer::kMinusZero);
     }
-    __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
+    __ roundsd(xmm_scratch, input_reg, kRoundDown);
     __ cvttsd2si(output_reg, xmm_scratch);
     __ cmpl(output_reg, Immediate(0x1));
     DeoptimizeIf(overflow, instr, Deoptimizer::kOverflow);

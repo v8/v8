@@ -32,7 +32,6 @@ class JSBuiltinReducer FINAL : public Reducer {
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathFround(Node* node);
   Reduction ReduceMathFloor(Node* node);
-  Reduction ReduceMathCeil(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Graph* graph() const;

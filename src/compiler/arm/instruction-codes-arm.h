@@ -53,10 +53,10 @@ namespace compiler {
   V(ArmVmodF64)                    \
   V(ArmVnegF64)                    \
   V(ArmVsqrtF64)                   \
-  V(ArmVfloorF64)                  \
-  V(ArmVceilF64)                   \
-  V(ArmVroundTruncateF64)          \
-  V(ArmVroundTiesAwayF64)          \
+  V(ArmVrintmF64)                  \
+  V(ArmVrintpF64)                  \
+  V(ArmVrintzF64)                  \
+  V(ArmVrintaF64)                  \
   V(ArmVcvtF32F64)                 \
   V(ArmVcvtF64F32)                 \
   V(ArmVcvtF64S32)                 \

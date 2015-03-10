@@ -40,6 +40,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineDoubleHi(node);
     case Runtime::kInlineIsRegExp:
       return ReduceInlineIsInstanceType(node, JS_REGEXP_TYPE);
+    case Runtime::kInlineMathFloor:
+      return ReduceInlineMathFloor(node);
     case Runtime::kInlineValueOf:
       return ReduceInlineValueOf(node);
     default:
@@ -159,6 +161,12 @@ Reduction JSIntrinsicLowering::ReduceInlineIsInstanceType(
 
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(type, 2), vtrue, vfalse, merge);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineMathFloor(Node* node) {
+  if (!machine()->HasFloat64RoundDown()) return NoChange();
+  return Change(node, machine()->Float64RoundDown());
 }
 
 

@@ -956,6 +956,18 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   ArmOperandGenerator g(this);
   Float64BinopMatcher m(node);
   if (m.left().IsMinusZero()) {
+    if (m.right().IsFloat64RoundDown() &&
+        CanCover(m.node(), m.right().node())) {
+      if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+          CanCover(m.right().node(), m.right().InputAt(0))) {
+        Float64BinopMatcher mright0(m.right().InputAt(0));
+        if (mright0.left().IsMinusZero()) {
+          Emit(kArmVrintpF64, g.DefineAsRegister(node),
+               g.UseRegister(mright0.right().node()));
+          return;
+        }
+      }
+    }
     Emit(kArmVnegF64, g.DefineAsRegister(node),
          g.UseRegister(m.right().node()));
     return;
@@ -994,27 +1006,18 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(ARMv8));
-  VisitRRFloat64(this, kArmVfloorF64, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(ARMv8));
-  VisitRRFloat64(this, kArmVceilF64, node);
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRRFloat64(this, kArmVrintmF64, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(ARMv8));
-  VisitRRFloat64(this, kArmVroundTruncateF64, node);
+  VisitRRFloat64(this, kArmVrintzF64, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(ARMv8));
-  VisitRRFloat64(this, kArmVroundTiesAwayF64, node);
+  VisitRRFloat64(this, kArmVrintaF64, node);
 }
 
 
@@ -1448,8 +1451,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kUint32DivIsSafe;
 
   if (CpuFeatures::IsSupported(ARMv8)) {
-    flags |= MachineOperatorBuilder::kFloat64Floor |
-             MachineOperatorBuilder::kFloat64Ceil |
+    flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesAway;
   }

@@ -11,7 +11,7 @@ import sys
 FILENAME = "src/runtime/runtime.h"
 LISTHEAD = re.compile(r"#define\s+(\w+LIST\w*)\((\w+)\)")
 LISTBODY = re.compile(r".*\\$")
-BLACKLIST = ['INLINE_FUNCTION_LIST']
+BLACKLIST = ['INLINE_FUNCTION_LIST', 'INLINE_OPTIMIZED_FUNCTION_LIST']
 
 
 class Function(object):

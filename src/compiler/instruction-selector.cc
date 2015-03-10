@@ -690,8 +690,7 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Sqrt:
-    case IrOpcode::kFloat64Floor:
-    case IrOpcode::kFloat64Ceil:
+    case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:
     case IrOpcode::kFloat64RoundTiesAway:
       return kMachFloat64;
@@ -901,10 +900,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat64LessThan(node);
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
-    case IrOpcode::kFloat64Floor:
-      return MarkAsDouble(node), VisitFloat64Floor(node);
-    case IrOpcode::kFloat64Ceil:
-      return MarkAsDouble(node), VisitFloat64Ceil(node);
+    case IrOpcode::kFloat64RoundDown:
+      return MarkAsDouble(node), VisitFloat64RoundDown(node);
     case IrOpcode::kFloat64RoundTruncate:
       return MarkAsDouble(node), VisitFloat64RoundTruncate(node);
     case IrOpcode::kFloat64RoundTiesAway:

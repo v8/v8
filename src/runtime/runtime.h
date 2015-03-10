@@ -148,7 +148,6 @@ namespace internal {
   F(MathAcos, 1, 1)                            \
   F(MathAsin, 1, 1)                            \
   F(MathAtan, 1, 1)                            \
-  F(MathFloorRT, 1, 1)                         \
   F(MathAtan2, 2, 1)                           \
   F(MathExpRT, 1, 1)                           \
   F(RoundNumber, 1, 1)                         \
@@ -717,6 +716,7 @@ namespace internal {
   F(ConstructDouble, 2, 1)                \
   F(DoubleHi, 1, 1)                       \
   F(DoubleLo, 1, 1)                       \
+  F(MathFloor, 1, 1)                      \
   F(MathSqrtRT, 1, 1)                     \
   F(MathLogRT, 1, 1)                      \
   /* ES6 Collections */                   \

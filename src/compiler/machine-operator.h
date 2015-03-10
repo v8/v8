@@ -74,13 +74,12 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   // for operations that are unsupported by some back-ends.
   enum Flag {
     kNoFlags = 0u,
-    kFloat64Floor = 1u << 0,
-    kFloat64Ceil = 1u << 1,
-    kFloat64RoundTruncate = 1u << 2,
-    kFloat64RoundTiesAway = 1u << 3,
-    kInt32DivIsSafe = 1u << 4,
-    kUint32DivIsSafe = 1u << 5,
-    kWord32ShiftIsSafe = 1u << 6
+    kFloat64RoundDown = 1u << 0,
+    kFloat64RoundTruncate = 1u << 1,
+    kFloat64RoundTiesAway = 1u << 2,
+    kInt32DivIsSafe = 1u << 3,
+    kUint32DivIsSafe = 1u << 4,
+    kWord32ShiftIsSafe = 1u << 5
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -168,12 +167,10 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Float64LessThanOrEqual();
 
   // Floating point rounding.
-  const Operator* Float64Floor();
-  const Operator* Float64Ceil();
+  const Operator* Float64RoundDown();
   const Operator* Float64RoundTruncate();
   const Operator* Float64RoundTiesAway();
-  bool HasFloat64Floor() { return flags_ & kFloat64Floor; }
-  bool HasFloat64Ceil() { return flags_ & kFloat64Ceil; }
+  bool HasFloat64RoundDown() { return flags_ & kFloat64RoundDown; }
   bool HasFloat64RoundTruncate() { return flags_ & kFloat64RoundTruncate; }
   bool HasFloat64RoundTiesAway() { return flags_ & kFloat64RoundTiesAway; }
 

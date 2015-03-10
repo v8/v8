@@ -186,24 +186,11 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
 
 // ES6 draft 10-14-14, section 20.2.2.16.
 Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
-  if (!machine()->HasFloat64Floor()) return NoChange();
+  if (!machine()->HasFloat64RoundDown()) return NoChange();
   JSCallReduction r(node);
   if (r.InputsMatchOne(Type::Number())) {
-    // Math.floor(a:number) -> Float64Floor(a)
-    Node* value = graph()->NewNode(machine()->Float64Floor(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-
-// ES6 draft 10-14-14, section 20.2.2.10.
-Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
-  if (!machine()->HasFloat64Ceil()) return NoChange();
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.ceil(a:number) -> Float64Ceil(a)
-    Node* value = graph()->NewNode(machine()->Float64Ceil(), r.left());
+    // Math.floor(a:number) -> Float64RoundDown(a)
+    Node* value = graph()->NewNode(machine()->Float64RoundDown(), r.left());
     return Replace(value);
   }
   return NoChange();
@@ -228,8 +215,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReplaceWithPureReduction(node, ReduceMathFround(node));
     case kMathFloor:
       return ReplaceWithPureReduction(node, ReduceMathFloor(node));
-    case kMathCeil:
-      return ReplaceWithPureReduction(node, ReduceMathCeil(node));
     default:
       break;
   }

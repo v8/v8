@@ -793,8 +793,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Sqrt:
-    case IrOpcode::kFloat64Floor:
-    case IrOpcode::kFloat64Ceil:
+    case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:
     case IrOpcode::kFloat64RoundTiesAway:
     case IrOpcode::kFloat64Equal:

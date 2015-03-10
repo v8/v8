@@ -123,8 +123,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Ceil, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Floor, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)                       \
   V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1)                   \
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1)                   \
   V(Float64Equal, Operator::kCommutative, 2, 0, 1)                            \

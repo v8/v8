@@ -390,8 +390,9 @@ class RawMachineAssembler : public GraphBuilder {
   Node* TruncateInt64ToInt32(Node* a) {
     return NewNode(machine()->TruncateInt64ToInt32(), a);
   }
-  Node* Float64Floor(Node* a) { return NewNode(machine()->Float64Floor(), a); }
-  Node* Float64Ceil(Node* a) { return NewNode(machine()->Float64Ceil(), a); }
+  Node* Float64RoundDown(Node* a) {
+    return NewNode(machine()->Float64RoundDown(), a);
+  }
   Node* Float64RoundTruncate(Node* a) {
     return NewNode(machine()->Float64RoundTruncate(), a);
   }

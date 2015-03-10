@@ -1030,8 +1030,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64Mod:
         return VisitFloat64Binop(node);
       case IrOpcode::kFloat64Sqrt:
-      case IrOpcode::kFloat64Floor:
-      case IrOpcode::kFloat64Ceil:
+      case IrOpcode::kFloat64RoundDown:
       case IrOpcode::kFloat64RoundTruncate:
       case IrOpcode::kFloat64RoundTiesAway:
         return VisitUnop(node, kMachFloat64, kMachFloat64);

@@ -205,9 +205,8 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Mod, 2, 0, 1), PURE(Float64Sqrt, 1, 0, 1),
     PURE(Float64Equal, 2, 0, 1), PURE(Float64LessThan, 2, 0, 1),
     PURE(Float64LessThanOrEqual, 2, 0, 1), PURE(LoadStackPointer, 0, 0, 1),
-    PURE(Float64Floor, 1, 0, 1), PURE(Float64Ceil, 1, 0, 1),
-    PURE(Float64RoundTruncate, 1, 0, 1), PURE(Float64RoundTiesAway, 1, 0, 1),
-    PURE(Float64ExtractLowWord32, 1, 0, 1),
+    PURE(Float64RoundDown, 1, 0, 1), PURE(Float64RoundTruncate, 1, 0, 1),
+    PURE(Float64RoundTiesAway, 1, 0, 1), PURE(Float64ExtractLowWord32, 1, 0, 1),
     PURE(Float64ExtractHighWord32, 1, 0, 1),
     PURE(Float64InsertLowWord32, 2, 0, 1),
     PURE(Float64InsertHighWord32, 2, 0, 1)

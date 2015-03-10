@@ -280,6 +280,14 @@ inline Condition CommuteCondition(Condition cc) {
 }
 
 
+enum RoundingMode {
+  kRoundToNearest = 0x0,
+  kRoundDown = 0x1,
+  kRoundUp = 0x2,
+  kRoundToZero = 0x3
+};
+
+
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -1002,13 +1010,6 @@ class Assembler : public AssemblerBase {
 
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, const Operand& src);
-
-  enum RoundingMode {
-    kRoundToNearest = 0x0,
-    kRoundDown      = 0x1,
-    kRoundUp        = 0x2,
-    kRoundToZero    = 0x3
-  };
 
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
