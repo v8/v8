@@ -3238,11 +3238,10 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // For the JSEntry handler, we must preserve a0-a3 and s0.
   // t1-t3 are available. We will build up the handler from the bottom by
@@ -3253,15 +3252,14 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
       StackHandler::KindField::encode(kind);
   li(t2, Operand(state));
 
-  // Push the frame pointer, context, and state.
+  // Push the context and state.
   if (kind == StackHandler::JS_ENTRY) {
-    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
-    // The second zero_reg indicates no context.
-    // The first zero_reg is the NULL frame pointer.
+    DCHECK(Smi::FromInt(0) == 0);
+    // The zero_reg indicates no context.
     // The operands are reversed to match the order of MultiPush/Pop.
-    Push(zero_reg, zero_reg, t2);
+    Push(zero_reg, t2);
   } else {
-    MultiPush(t2.bit() | cp.bit() | fp.bit());
+    MultiPush(t2.bit() | cp.bit());
   }
 
   // Link the current handler as the next handler.
