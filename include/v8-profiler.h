@@ -168,20 +168,11 @@ class V8_EXPORT CpuProfiler {
    */
   void StartProfiling(Handle<String> title, bool record_samples = false);
 
-  /** Deprecated. Use StartProfiling instead. */
-  V8_DEPRECATED("Use StartProfiling",
-      void StartCpuProfiling(Handle<String> title,
-                             bool record_samples = false));
-
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
   CpuProfile* StopProfiling(Handle<String> title);
-
-  /** Deprecated. Use StopProfiling instead. */
-  V8_DEPRECATED("Use StopProfiling",
-      const CpuProfile* StopCpuProfiling(Handle<String> title));
 
   /**
    * Tells the profiler whether the embedder is idle.
@@ -270,10 +261,6 @@ class V8_EXPORT HeapGraphNode {
    * across all snapshots.
    */
   SnapshotObjectId GetId() const;
-
-  /** Returns node's own size, in bytes. */
-  V8_DEPRECATED("Use GetShallowSize instead",
-                int GetSelfSize() const);
 
   /** Returns node's own size, in bytes. */
   size_t GetShallowSize() const;

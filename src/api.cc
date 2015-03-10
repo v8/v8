@@ -7502,20 +7502,10 @@ void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
 }
 
 
-void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
-  StartProfiling(title, record_samples);
-}
-
-
 CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
   return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
-}
-
-
-const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
-  return StopProfiling(title);
 }
 
 
@@ -7596,13 +7586,6 @@ Handle<String> HeapGraphNode::GetName() const {
 
 SnapshotObjectId HeapGraphNode::GetId() const {
   return ToInternal(this)->id();
-}
-
-
-int HeapGraphNode::GetSelfSize() const {
-  size_t size = ToInternal(this)->self_size();
-  CHECK(size <= static_cast<size_t>(internal::kMaxInt));
-  return static_cast<int>(size);
 }
 
 
