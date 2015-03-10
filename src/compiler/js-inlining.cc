@@ -9,6 +9,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -99,7 +100,7 @@ class Inlinee {
 
   // Inline this graph at {call}, use {jsgraph} and its zone to create
   // any new nodes.
-  Reduction InlineAtCall(JSGraph* jsgraph, Node* call, Node* context);
+  Reduction InlineAtCall(JSGraph* jsgraph, Node* call);
 
   // Ensure that only a single return reaches the end node.
   static void UnifyReturn(JSGraph* jsgraph);
@@ -212,7 +213,7 @@ class CopyVisitor {
 };
 
 
-Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call, Node* context) {
+Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
@@ -235,9 +236,9 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call, Node* context) {
           // projection but not the context, so rewire the input.
           NodeProperties::ReplaceWithValue(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
-          // This is the context projection, rewire it to the context from the
-          // JSFunction object.
-          NodeProperties::ReplaceWithValue(use, context);
+          // TODO(turbofan): We always context specialize inlinees currently, so
+          // we should never get here.
+          UNREACHABLE();
         } else if (index < inlinee_context_index) {
           // Call has fewer arguments than required, fill with undefined.
           NodeProperties::ReplaceWithValue(use, jsgraph->UndefinedConstant());
@@ -341,8 +342,16 @@ Reduction JSInliner::Reduce(Node* node) {
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
                   jsgraph_->javascript(), jsgraph_->machine());
 
+  // The inlinee specializes to the context from the JSFunction object.
+  // TODO(turbofan): We might want to load the context from the JSFunction at
+  // runtime in case we only know the SharedFunctionInfo once we have dynamic
+  // type feedback in the compiler.
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
-  graph_builder.CreateGraph(false, false);
+  graph_builder.CreateGraph(true, false);
+  JSContextSpecializer context_specializer(&jsgraph);
+  GraphReducer graph_reducer(&graph, local_zone_);
+  graph_reducer.AddReducer(&context_specializer);
+  graph_reducer.ReduceGraph();
   Inlinee::UnifyReturn(&jsgraph);
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
@@ -367,13 +376,7 @@ Reduction JSInliner::Reduce(Node* node) {
     }
   }
 
-  // The inlinee uses the context from the JSFunction object.
-  // TODO(turbofan): We might want to load the context from the JSFunction at
-  // runtime in case we only know the SharedFunctionInfo once we have dynamic
-  // type feedback in the compiler.
-  Node* context = jsgraph_->HeapConstant(handle(function->context()));
-
-  return inlinee.InlineAtCall(jsgraph_, node, context);
+  return inlinee.InlineAtCall(jsgraph_, node);
 }
 
 }  // namespace compiler

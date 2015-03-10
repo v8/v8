@@ -508,4 +508,22 @@ TEST(InlineBuiltin) {
   T.CheckCall(T.true_value());
 }
 
+
+TEST(InlineNestedBuiltin) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s,t,u) { AssertInlineCount(3); return true; }"
+      "  function baz(s,t,u) { return foo(s,t,u); }"
+      "  function bar() { return baz(); };"
+      "  %SetInlineBuiltinFlag(foo);"
+      "  %SetInlineBuiltinFlag(baz);"
+      "  return bar;"
+      "})();",
+      kBuiltinInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value());
+}
+
 #endif  // V8_TURBOFAN_TARGET
