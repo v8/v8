@@ -1771,8 +1771,12 @@ TEST(CollectDeoptEvents) {
   }
   {
     const char* branch[] = {"", "opt_function1", "opt_function1"};
-    CHECK_EQ(reason(i::Deoptimizer::kNaN),
-             GetBranchDeoptReason(iprofile, branch, arraysize(branch)));
+    const char* deopt_reason =
+        GetBranchDeoptReason(iprofile, branch, arraysize(branch));
+    if (deopt_reason != reason(i::Deoptimizer::kNaN) &&
+        deopt_reason != reason(i::Deoptimizer::kLostPrecisionOrNaN)) {
+      FATAL(deopt_reason);
+    }
   }
   {
     const char* branch[] = {"", "opt_function2", "opt_function2"};

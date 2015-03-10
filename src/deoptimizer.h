@@ -132,7 +132,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kNotAHeapNumberUndefined, "not a heap number/undefined")                   \
   V(kNotAJavaScriptObject, "not a JavaScript object")                          \
   V(kNotASmi, "not a Smi")                                                     \
-  V(kNotHeapNumber, "not heap number")                                         \
   V(kNull, "null")                                                             \
   V(kOutOfBounds, "out of bounds")                                             \
   V(kOutsideOfRange, "Outside of range")                                       \
