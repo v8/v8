@@ -2162,81 +2162,74 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     return function_state()->compilation_info()->language_mode();
   }
 
-#define FOR_EACH_HYDROGEN_INTRINSIC(F)    \
-  F(IsSmi)                                \
-  F(IsNonNegativeSmi)                     \
-  F(IsArray)                              \
-  F(IsRegExp)                             \
-  F(IsJSProxy)                            \
-  F(IsConstructCall)                      \
-  F(CallFunction)                         \
-  F(DefaultConstructorCallSuper)          \
-  F(ArgumentsLength)                      \
-  F(Arguments)                            \
-  F(ValueOf)                              \
-  F(SetValueOf)                           \
-  F(DateField)                            \
-  F(StringCharFromCode)                   \
-  F(StringCharAt)                         \
-  F(OneByteSeqStringSetChar)              \
-  F(TwoByteSeqStringSetChar)              \
-  F(ObjectEquals)                         \
-  F(IsObject)                             \
-  F(IsFunction)                           \
-  F(IsUndetectableObject)                 \
-  F(IsSpecObject)                         \
-  F(IsStringWrapperSafeForDefaultValueOf) \
-  F(MathPow)                              \
-  F(IsMinusZero)                          \
-  F(HasCachedArrayIndex)                  \
-  F(GetCachedArrayIndex)                  \
-  F(FastOneByteArrayJoin)                 \
-  F(GeneratorNext)                        \
-  F(GeneratorThrow)                       \
-  F(DebugBreakInOptimizedCode)            \
-  F(ClassOf)                              \
-  F(StringCharCodeAt)                     \
-  F(StringAdd)                            \
-  F(SubString)                            \
-  F(StringCompare)                        \
-  F(RegExpExec)                           \
-  F(RegExpConstructResult)                \
-  F(GetFromCache)                         \
-  F(NumberToString)                       \
-  F(DebugIsActive)                        \
-  /* Typed Arrays */                      \
-  F(TypedArrayInitialize)                 \
-  F(DataViewInitialize)                   \
-  F(MaxSmi)                               \
-  F(TypedArrayMaxSizeInHeap)              \
-  F(ArrayBufferViewGetByteLength)         \
-  F(ArrayBufferViewGetByteOffset)         \
-  F(TypedArrayGetLength)                  \
-  /* ArrayBuffer */                       \
-  F(ArrayBufferGetByteLength)             \
-  /* Maths */                             \
-  F(ConstructDouble)                      \
-  F(DoubleHi)                             \
-  F(DoubleLo)                             \
-  F(MathFloor)                            \
-  F(MathSqrtRT)                           \
-  F(MathLogRT)                            \
-  /* ES6 Collections */                   \
-  F(MapClear)                             \
-  F(MapDelete)                            \
-  F(MapGet)                               \
-  F(MapGetSize)                           \
-  F(MapHas)                               \
-  F(MapInitialize)                        \
-  F(MapSet)                               \
-  F(SetAdd)                               \
-  F(SetClear)                             \
-  F(SetDelete)                            \
-  F(SetGetSize)                           \
-  F(SetHas)                               \
-  F(SetInitialize)                        \
-  /* Arrays */                            \
-  F(HasFastPackedElements)                \
+#define FOR_EACH_HYDROGEN_INTRINSIC(F) \
+  F(IsSmi)                             \
+  F(IsArray)                           \
+  F(IsRegExp)                          \
+  F(IsJSProxy)                         \
+  F(IsConstructCall)                   \
+  F(CallFunction)                      \
+  F(ArgumentsLength)                   \
+  F(Arguments)                         \
+  F(ValueOf)                           \
+  F(SetValueOf)                        \
+  F(DateField)                         \
+  F(StringCharFromCode)                \
+  F(StringCharAt)                      \
+  F(OneByteSeqStringSetChar)           \
+  F(TwoByteSeqStringSetChar)           \
+  F(ObjectEquals)                      \
+  F(IsObject)                          \
+  F(IsFunction)                        \
+  F(IsUndetectableObject)              \
+  F(IsSpecObject)                      \
+  F(MathPow)                           \
+  F(IsMinusZero)                       \
+  F(HasCachedArrayIndex)               \
+  F(GetCachedArrayIndex)               \
+  F(DebugBreakInOptimizedCode)         \
+  F(StringCharCodeAt)                  \
+  F(StringAdd)                         \
+  F(SubString)                         \
+  F(StringCompare)                     \
+  F(RegExpExec)                        \
+  F(RegExpConstructResult)             \
+  F(GetFromCache)                      \
+  F(NumberToString)                    \
+  F(DebugIsActive)                     \
+  /* Typed Arrays */                   \
+  F(TypedArrayInitialize)              \
+  F(DataViewInitialize)                \
+  F(MaxSmi)                            \
+  F(TypedArrayMaxSizeInHeap)           \
+  F(ArrayBufferViewGetByteLength)      \
+  F(ArrayBufferViewGetByteOffset)      \
+  F(TypedArrayGetLength)               \
+  /* ArrayBuffer */                    \
+  F(ArrayBufferGetByteLength)          \
+  /* Maths */                          \
+  F(ConstructDouble)                   \
+  F(DoubleHi)                          \
+  F(DoubleLo)                          \
+  F(MathFloor)                         \
+  F(MathSqrtRT)                        \
+  F(MathLogRT)                         \
+  /* ES6 Collections */                \
+  F(MapClear)                          \
+  F(MapDelete)                         \
+  F(MapGet)                            \
+  F(MapGetSize)                        \
+  F(MapHas)                            \
+  F(MapInitialize)                     \
+  F(MapSet)                            \
+  F(SetAdd)                            \
+  F(SetClear)                          \
+  F(SetDelete)                         \
+  F(SetGetSize)                        \
+  F(SetHas)                            \
+  F(SetInitialize)                     \
+  /* Arrays */                         \
+  F(HasFastPackedElements)             \
   F(GetPrototype)
 
 #define GENERATOR_DECLARATION(Name) void Generate##Name(CallRuntime* call);

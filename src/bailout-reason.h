@@ -116,19 +116,8 @@ namespace internal {
     "Improper object on prototype chain for store")                            \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
-  V(kInlinedRuntimeFunctionClassOf, "Inlined runtime function: ClassOf")       \
-  V(kInlinedRuntimeFunctionFastOneByteArrayJoin,                               \
-    "Inlined runtime function: FastOneByteArrayJoin")                          \
-  V(kInlinedRuntimeFunctionGeneratorNext,                                      \
-    "Inlined runtime function: GeneratorNext")                                 \
-  V(kInlinedRuntimeFunctionGeneratorThrow,                                     \
-    "Inlined runtime function: GeneratorThrow")                                \
   V(kInlinedRuntimeFunctionGetFromCache,                                       \
     "Inlined runtime function: GetFromCache")                                  \
-  V(kInlinedRuntimeFunctionIsNonNegativeSmi,                                   \
-    "Inlined runtime function: IsNonNegativeSmi")                              \
-  V(kInlinedRuntimeFunctionIsStringWrapperSafeForDefaultValueOf,               \
-    "Inlined runtime function: IsStringWrapperSafeForDefaultValueOf")          \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \
