@@ -573,16 +573,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
-    case kMipsFloat64Floor: {
+    case kMipsFloat64RoundDown: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
-      break;
-    }
-    case kMipsFloat64Ceil: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
     case kMipsFloat64RoundTruncate: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(trunc_l_d, Truncate);
+      break;
+    }
+    case kMipsFloat64RoundUp: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
     case kMipsSqrtD: {

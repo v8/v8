@@ -402,6 +402,20 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
+  MipsOperandGenerator g(this);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
+      CanCover(m.node(), m.right().node())) {
+    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+        CanCover(m.right().node(), m.right().InputAt(0))) {
+      Float64BinopMatcher mright0(m.right().InputAt(0));
+      if (mright0.left().IsMinusZero()) {
+        Emit(kMipsFloat64RoundUp, g.DefineAsRegister(node),
+             g.UseRegister(mright0.right().node()));
+        return;
+      }
+    }
+  }
   VisitRRR(this, kMipsSubD, node);
 }
 
@@ -429,13 +443,8 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
-  VisitRR(this, kMipsFloat64Floor, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  VisitRR(this, kMipsFloat64Ceil, node);
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRR(this, kMipsFloat64RoundDown, node);
 }
 
 
@@ -921,8 +930,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    return MachineOperatorBuilder::kFloat64Floor |
-           MachineOperatorBuilder::kFloat64Ceil |
+    return MachineOperatorBuilder::kFloat64RoundDown |
            MachineOperatorBuilder::kFloat64RoundTruncate;
   }
   return MachineOperatorBuilder::kNoFlags;
