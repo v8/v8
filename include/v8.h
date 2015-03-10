@@ -6089,8 +6089,6 @@ class V8_EXPORT TryCatch {
   void* message_obj_;
   void* message_script_;
   void* js_stack_comparable_address_;
-  int message_start_pos_;
-  int message_end_pos_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;

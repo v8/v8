@@ -286,8 +286,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   bool rethrowing_message_;
   Object* pending_message_obj_;
   Object* pending_message_script_;
-  int pending_message_start_pos_;
-  int pending_message_end_pos_;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to

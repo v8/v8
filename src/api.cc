@@ -2144,8 +2144,6 @@ void v8::TryCatch::ResetInternal() {
   exception_ = the_hole;
   message_obj_ = the_hole;
   message_script_ = the_hole;
-  message_start_pos_ = 0;
-  message_end_pos_ = 0;
 }
 
 
