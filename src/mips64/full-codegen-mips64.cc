@@ -5338,24 +5338,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ ld(a1, MemOperand(at));
   __ SmiTag(a1);
   __ push(a1);
-
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ li(at, Operand(pending_message_script));
-  __ ld(a1, MemOperand(at));
-  __ push(a1);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(a1));
   // Restore pending message from stack.
-  __ pop(a1);
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ li(at, Operand(pending_message_script));
-  __ sd(a1, MemOperand(at));
-
   __ pop(a1);
   __ SmiUntag(a1);
   ExternalReference has_pending_message =
