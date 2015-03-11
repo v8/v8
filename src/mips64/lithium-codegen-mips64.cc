@@ -303,7 +303,7 @@ bool LCodeGen::GenerateJumpTable() {
     Comment(";;; -------------------- Jump table --------------------");
   }
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-  Label table_start;
+  Label table_start, call_deopt_entry;
   __ bind(&table_start);
   Label needs_frame;
   for (int i = 0; i < jump_table_.length(); i++) {
@@ -314,29 +314,33 @@ bool LCodeGen::GenerateJumpTable() {
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
     if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
-      if (needs_frame.is_bound()) {
-        __ Branch(&needs_frame);
-      } else {
-        __ bind(&needs_frame);
-        __ MultiPush(cp.bit() | fp.bit() | ra.bit());
-        // This variant of deopt can only be used with stubs. Since we don't
-        // have a function pointer to install in the stack frame that we're
-        // building, install a special marker there instead.
-        DCHECK(info()->IsStub());
-        __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-        __ push(scratch0());
-        __ Daddu(fp, sp,
-            Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-        __ Call(t9);
-      }
+      Comment(";;; call deopt with frame");
+      __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+      __ Call(&needs_frame);
     } else {
-      if (info()->saves_caller_doubles()) {
-        DCHECK(info()->IsStub());
-        RestoreCallerDoubles();
-      }
-      __ Call(t9);
+      __ Call(&call_deopt_entry);
     }
   }
+  if (needs_frame.is_linked()) {
+    __ bind(&needs_frame);
+    // This variant of deopt can only be used with stubs. Since we don't
+    // have a function pointer to install in the stack frame that we're
+    // building, install a special marker there instead.
+    DCHECK(info()->IsStub());
+    __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
+    __ push(at);
+    __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  }
+
+  Comment(";;; call deopt");
+  __ bind(&call_deopt_entry);
+
+  if (info()->saves_caller_doubles()) {
+    DCHECK(info()->IsStub());
+    RestoreCallerDoubles();
+  }
+  __ Jump(t9);
+
   __ RecordComment("]");
 
   // The deoptimization jump table is the last part of the instruction
