@@ -285,7 +285,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   bool has_pending_message_;
   bool rethrowing_message_;
   Object* pending_message_obj_;
-  Object* pending_message_script_;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
@@ -608,7 +607,6 @@ class Isolate {
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
-    thread_local_top_.pending_message_script_ = heap_.the_hole_value();
   }
   v8::TryCatch* try_catch_handler() {
     return thread_local_top_.try_catch_handler();
@@ -630,11 +628,6 @@ class Isolate {
 
   Address has_pending_message_address() {
     return reinterpret_cast<Address>(&thread_local_top_.has_pending_message_);
-  }
-
-  Address pending_message_script_address() {
-    return reinterpret_cast<Address>(
-        &thread_local_top_.pending_message_script_);
   }
 
   Object* scheduled_exception() {

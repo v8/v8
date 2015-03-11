@@ -5254,22 +5254,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ mov(edx, Operand::StaticVariable(has_pending_message));
   __ SmiTag(edx);
   __ push(edx);
-
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ mov(edx, Operand::StaticVariable(pending_message_script));
-  __ push(edx);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(edx));
   // Restore pending message from stack.
-  __ pop(edx);
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ mov(Operand::StaticVariable(pending_message_script), edx);
-
   __ pop(edx);
   __ SmiUntag(edx);
   ExternalReference has_pending_message =

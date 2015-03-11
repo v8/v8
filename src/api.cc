@@ -2136,7 +2136,6 @@ void v8::TryCatch::ResetInternal() {
   i::Object* the_hole = isolate_->heap()->the_hole_value();
   exception_ = the_hole;
   message_obj_ = the_hole;
-  message_script_ = the_hole;
 }
 
 

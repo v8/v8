@@ -6098,7 +6098,6 @@ class V8_EXPORT TryCatch {
   v8::TryCatch* next_;
   void* exception_;
   void* message_obj_;
-  void* message_script_;
   void* js_stack_comparable_address_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
