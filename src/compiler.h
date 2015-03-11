@@ -86,17 +86,19 @@ class SourcePosition {
 std::ostream& operator<<(std::ostream& os, const SourcePosition& p);
 
 
-class InlinedFunctionInfo {
- public:
-  explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
-      : shared_(shared), start_position_(shared->start_position()) {}
+struct InlinedFunctionInfo {
+  InlinedFunctionInfo(int parent_id, SourcePosition inline_position,
+                      int script_id, int start_position)
+      : parent_id(parent_id),
+        inline_position(inline_position),
+        script_id(script_id),
+        start_position(start_position) {}
+  int parent_id;
+  SourcePosition inline_position;
+  int script_id;
+  int start_position;
 
-  Handle<SharedFunctionInfo> shared() const { return shared_; }
-  int start_position() const { return start_position_; }
-
- private:
-  Handle<SharedFunctionInfo> shared_;
-  int start_position_;
+  static const int kNoParentId = -1;
 };
 
 
@@ -338,11 +340,8 @@ class CompilationInfo {
   List<InlinedFunctionInfo>* inlined_function_infos() {
     return inlined_function_infos_;
   }
-  List<int>* inlining_id_to_function_id() {
-    return inlining_id_to_function_id_;
-  }
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position);
+                           SourcePosition position, int pareint_id);
 
   Handle<Foreign> object_wrapper() {
     if (object_wrapper_.is_null()) {
@@ -450,7 +449,6 @@ class CompilationInfo {
 
   List<OffsetRange>* no_frame_ranges_;
   List<InlinedFunctionInfo>* inlined_function_infos_;
-  List<int>* inlining_id_to_function_id_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.

@@ -3452,8 +3452,8 @@ HGraph::HGraph(CompilationInfo* info)
         HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {
     if (FLAG_hydrogen_track_positions) {
-      info->TraceInlinedFunction(info->shared_info(),
-                                 SourcePosition::Unknown());
+      info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown(),
+                                 InlinedFunctionInfo::kNoParentId);
     }
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
@@ -3487,9 +3487,8 @@ int HGraph::SourcePositionToScriptPosition(SourcePosition pos) {
     return pos.raw();
   }
 
-  const int id = info()->inlining_id_to_function_id()->at(pos.inlining_id());
-  return info()->inlined_function_infos()->at(id).start_position() +
-         pos.position();
+  return info()->inlined_function_infos()->at(pos.inlining_id())
+      .start_position + pos.position();
 }
 
 
@@ -7922,8 +7921,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   int function_id = 0;
   if (FLAG_hydrogen_track_positions) {
-    function_id =
-        top_info()->TraceInlinedFunction(target_shared, source_position());
+    function_id = top_info()->TraceInlinedFunction(
+        target_shared, source_position(), function_state()->inlining_id());
   }
 
   // Save the pending call context. Set up new one for the inlined function.
