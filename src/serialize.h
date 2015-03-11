@@ -734,6 +734,8 @@ class Serializer : public SerializerDeserializer {
     return max_chunk_size_[space];
   }
 
+  SnapshotByteSink* sink() const { return sink_; }
+
   Isolate* isolate_;
 
   SnapshotByteSink* sink_;
@@ -742,8 +744,9 @@ class Serializer : public SerializerDeserializer {
   BackReferenceMap back_reference_map_;
   RootIndexMap root_index_map_;
 
-  friend class ObjectSerializer;
   friend class Deserializer;
+  friend class ObjectSerializer;
+  friend class SnapshotData;
 
  private:
   CodeAddressMap* code_address_map_;
@@ -897,7 +900,7 @@ class CodeSerializer : public Serializer {
 class SnapshotData : public SerializedData {
  public:
   // Used when producing.
-  SnapshotData(const SnapshotByteSink& sink, const Serializer& ser);
+  explicit SnapshotData(const Serializer& ser);
 
   // Used when consuming.
   explicit SnapshotData(const Vector<const byte> snapshot)

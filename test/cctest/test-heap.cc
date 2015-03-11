@@ -5093,3 +5093,25 @@ TEST(PathTracer) {
   CcTest::i_isolate()->heap()->TracePathToObject(*o);
 }
 #endif  // DEBUG
+
+
+TEST(FirstPageFitsStartup) {
+  // Test that the first page sizes provided by the default snapshot are large
+  // enough to fit everything right after startup and creating one context.
+  // If this test fails, we are allocating too much aside from deserialization.
+  if (!Snapshot::HaveASnapshotToStartFrom()) return;
+  if (Snapshot::EmbedsScript()) return;
+  CcTest::InitializeVM();
+  LocalContext env;
+  PagedSpaces spaces(CcTest::heap());
+  for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
+    uint32_t default_size = s->AreaSize();
+    uint32_t reduced_size = Snapshot::SizeOfFirstPage(s->identity());
+    if (reduced_size == default_size) continue;
+    int counter = 0;
+    Page* page = NULL;
+    for (PageIterator it(s); it.has_next(); page = it.next()) counter++;
+    CHECK_LE(counter, 1);
+    CHECK(static_cast<uint32_t>(page->area_size()) == reduced_size);
+  }
+}

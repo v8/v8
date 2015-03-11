@@ -133,7 +133,7 @@ static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   SnapshotByteSink sink;
   StartupSerializer ser(isolate, &sink);
   ser.Serialize();
-  SnapshotData snapshot_data(sink, ser);
+  SnapshotData snapshot_data(ser);
   WritePayload(snapshot_data.RawData(), snapshot_file);
   return true;
 }
@@ -376,8 +376,8 @@ UNINITIALIZED_TEST(PartialSerialization) {
 
       startup_serializer.SerializeWeakReferences();
 
-      SnapshotData startup_snapshot(startup_sink, startup_serializer);
-      SnapshotData partial_snapshot(partial_sink, partial_serializer);
+      SnapshotData startup_snapshot(startup_serializer);
+      SnapshotData partial_snapshot(partial_serializer);
 
       WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
       WritePayload(startup_snapshot.RawData(), startup_name.start());
@@ -494,8 +494,8 @@ UNINITIALIZED_TEST(ContextSerialization) {
       partial_serializer.Serialize(&raw_context);
       startup_serializer.SerializeWeakReferences();
 
-      SnapshotData startup_snapshot(startup_sink, startup_serializer);
-      SnapshotData partial_snapshot(partial_sink, partial_serializer);
+      SnapshotData startup_snapshot(startup_serializer);
+      SnapshotData partial_snapshot(partial_serializer);
 
       WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
       WritePayload(startup_snapshot.RawData(), startup_name.start());
@@ -630,8 +630,8 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
       partial_serializer.Serialize(&raw_context);
       startup_serializer.SerializeWeakReferences();
 
-      SnapshotData startup_snapshot(startup_sink, startup_serializer);
-      SnapshotData partial_snapshot(partial_sink, partial_serializer);
+      SnapshotData startup_snapshot(startup_serializer);
+      SnapshotData partial_snapshot(partial_serializer);
 
       WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
       WritePayload(startup_snapshot.RawData(), startup_name.start());
