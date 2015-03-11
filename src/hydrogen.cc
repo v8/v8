@@ -12677,6 +12677,16 @@ void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateFastOneByteArrayJoin(CallRuntime* call) {
+  // Simply returning undefined here would be semantically correct and even
+  // avoid the bailout. Nevertheless, some ancient benchmarks like SunSpider's
+  // string-fasta would tank, because fullcode contains an optimized version.
+  // Obviously the fullcode => Crankshaft => bailout => fullcode dance is
+  // faster... *sigh*
+  return Bailout(kInlinedRuntimeFunctionFastOneByteArrayJoin);
+}
+
+
 void HOptimizedGraphBuilder::GenerateDebugBreakInOptimizedCode(
     CallRuntime* call) {
   Add<HDebugBreak>();

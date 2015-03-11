@@ -454,7 +454,7 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 
 
 RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
-  UNREACHABLE();
+  UNIMPLEMENTED();
   return nullptr;
 }
 }

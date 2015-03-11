@@ -116,6 +116,8 @@ namespace internal {
     "Improper object on prototype chain for store")                            \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
+  V(kInlinedRuntimeFunctionFastOneByteArrayJoin,                               \
+    "Inlined runtime function: FastOneByteArrayJoin")                          \
   V(kInlinedRuntimeFunctionGetFromCache,                                       \
     "Inlined runtime function: GetFromCache")                                  \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
