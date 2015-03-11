@@ -510,7 +510,7 @@ namespace internal {
   F(MathPowRT, 2, 1)
 
 
-#define RUNTIME_FUNCTION_LIST_RETURN_PAIR(F)              \
+#define FOR_EACH_INTRINSIC_RETURN_PAIR(F)                 \
   F(LoadLookupSlot, 2, 2)                                 \
   F(LoadLookupSlotNoReferenceError, 2, 2)                 \
   F(ResolvePossiblyDirectEval, 6, 2)                      \
@@ -626,23 +626,6 @@ namespace internal {
 #endif
 
 
-#define RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F) \
-  RUNTIME_FUNCTION_LIST_ALWAYS_1(F)            \
-  RUNTIME_FUNCTION_LIST_ALWAYS_2(F)            \
-  RUNTIME_FUNCTION_LIST_ALWAYS_3(F)            \
-  RUNTIME_FUNCTION_LIST_DEBUGGER(F)            \
-  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
-
-
-// RUNTIME_FUNCTION_LIST_ defines the intrinsics typically implemented only
-// as runtime functions. These come in 2 flavors, either returning an object or
-// returning a pair.
-// Entries have the form F(name, number of arguments, number of return values).
-#define RUNTIME_FUNCTION_LIST(F)         \
-  RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F) \
-  RUNTIME_FUNCTION_LIST_RETURN_PAIR(F)
-
-
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines the intrinsics typically handled specially by
 // the various compilers.
@@ -732,10 +715,23 @@ namespace internal {
   F(GetPrototype, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC(F) \
-  RUNTIME_FUNCTION_LIST(F)    \
-  INLINE_FUNCTION_LIST(F)     \
+#define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_1(F)         \
+  RUNTIME_FUNCTION_LIST_ALWAYS_2(F)         \
+  RUNTIME_FUNCTION_LIST_ALWAYS_3(F)         \
+  RUNTIME_FUNCTION_LIST_DEBUGGER(F)         \
+  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)     \
+  INLINE_FUNCTION_LIST(F)                   \
   INLINE_OPTIMIZED_FUNCTION_LIST(F)
+
+
+// FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
+// either returning an object or a pair.
+// Entries have the form F(name, number of arguments, number of values).
+#define FOR_EACH_INTRINSIC(F)       \
+  FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
+  FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
+
 
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
