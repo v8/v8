@@ -98,6 +98,23 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
       context_snapshot.Reservations();
   int startup_index = 0;
   int context_index = 0;
+
+  if (FLAG_profile_deserialization) {
+    int startup_total = 0;
+    int context_total = 0;
+    for (auto& reservation : startup_reservations) {
+      startup_total += reservation.chunk_size();
+    }
+    for (auto& reservation : context_reservations) {
+      context_total += reservation.chunk_size();
+    }
+    PrintF(
+        "Deserialization will reserve:\n"
+        "%*d bytes for startup\n"
+        "%*d bytes per context\n",
+        10, startup_total, 10, context_total);
+  }
+
   for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
     bool single_chunk = true;
     while (!startup_reservations[startup_index].is_last()) {
@@ -166,6 +183,14 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   memcpy(data + kStartupDataOffset, startup_data.begin(), startup_length);
   memcpy(data + context_offset, context_data.begin(), context_length);
   v8::StartupData result = {data, length};
+
+  if (FLAG_profile_deserialization) {
+    PrintF(
+        "Snapshot blob consists of:\n"
+        "%*d bytes for startup\n"
+        "%*d bytes for context\n",
+        10, startup_length, 10, context_length);
+  }
   return result;
 }
 

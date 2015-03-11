@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
 // This file relies on the fact that the following declarations have been made
 // in runtime.js:
 // var $Object = global.Object;
 
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
-function MathConstructor() {}
-var $Math = new MathConstructor();
 
 var rngstate;  // Initialized to a Uint32Array during genesis.
 
@@ -24,6 +20,8 @@ var $min;
 // -------------------------------------------------------------------
 
 (function() {
+
+"use strict";
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
@@ -297,14 +295,18 @@ function CubeRoot(x) {
 
 %CheckIsBootstrapping();
 
-%InternalSetPrototype($Math, $Object.prototype);
-%AddNamedProperty(global, "Math", $Math, DONT_ENUM);
+function MathConstructor() {}
+
+var Math = new MathConstructor();
+
+%InternalSetPrototype(Math, $Object.prototype);
+%AddNamedProperty(global, "Math", Math, DONT_ENUM);
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
-%AddNamedProperty($Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-InstallConstants($Math, $Array(
+InstallConstants(Math, $Array(
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -321,7 +323,7 @@ InstallConstants($Math, $Array(
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-InstallFunctions($Math, DONT_ENUM, $Array(
+InstallFunctions(Math, DONT_ENUM, $Array(
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,
@@ -354,9 +356,7 @@ InstallFunctions($Math, DONT_ENUM, $Array(
 %SetInlineBuiltinFlag(MathFloor);
 %SetInlineBuiltinFlag(MathRandom);
 
-// Keep reference to original values of some global properties.  This
-// has the added benefit that the code in this file is isolated from
-// changes to these properties.
+// Expose to the global scope.
 $abs = MathAbs;
 $exp = MathExp;
 $floor = MathFloor;

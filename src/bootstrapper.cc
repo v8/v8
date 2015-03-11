@@ -1538,7 +1538,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 
 void Genesis::InstallNativeFunctions() {
   HandleScope scope(isolate());
-  INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
+  INSTALL_NATIVE(JSFunction, "$createDate", create_date_fun);
 
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);

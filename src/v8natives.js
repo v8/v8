@@ -32,6 +32,17 @@ function InstallFunctions(object, attributes, functions) {
 }
 
 
+function OverrideFunction(object, name, f) {
+  ObjectDefineProperty(object, name, { value: f,
+                                       writeable: true,
+                                       configurable: true,
+                                       enumerable: false });
+  %FunctionSetName(f, name);
+  %FunctionRemovePrototype(f);
+  %SetNativeFlag(f);
+}
+
+
 // Helper function to install a getter-only accessor property.
 function InstallGetter(object, name, getter) {
   %FunctionSetName(getter, name);

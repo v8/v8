@@ -23,12 +23,12 @@
 // rempio2result is used as a container for return values of %RemPiO2. It is
 // initialized to a two-element Float64Array during genesis.
 
-"use strict";
-
 var kMath;
 var rempio2result;
 
 (function() {
+  
+"use strict";
 
 const INVPIO2 = kMath[0];
 const PIO2_1  = kMath[1];
@@ -1004,7 +1004,11 @@ function MathLog2(x) {
   return t1 + t2;
 }
 
-InstallFunctions($Math, DONT_ENUM, $Array(
+//-------------------------------------------------------------------
+
+%CheckIsBootstrapping();
+
+InstallFunctions(global.Math, DONT_ENUM, $Array(
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,

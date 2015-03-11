@@ -2,19 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
 // ECMAScript 402 API implementation.
 
 /**
  * Intl object is a single object that has some named properties,
  * all of which are constructors.
  */
-$Object.defineProperty(global, "Intl", { enumerable: false, value: (function() {
+(function() {
+
+"use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalDate = global.Date;
+
+var undefined = global.undefined;
 
 var Intl = {};
 
-var undefined = global.undefined;
+%AddNamedProperty(global, "Intl", Intl, DONT_ENUM);
 
 var AVAILABLE_SERVICES = ['collator',
                           'numberformat',
@@ -1658,7 +1664,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
 function formatDate(formatter, dateValue) {
   var dateMs;
   if (dateValue === undefined) {
-    dateMs = $Date.now();
+    dateMs = GlobalDate.now();
   } else {
     dateMs = $Number(dateValue);
   }
@@ -1668,7 +1674,7 @@ function formatDate(formatter, dateValue) {
   }
 
   return %InternalDateFormat(%GetImplFromInitializedIntlObject(formatter),
-                             new $Date(dateMs));
+                             new GlobalDate(dateMs));
 }
 
 
@@ -1924,8 +1930,7 @@ function cachedOrNewService(service, locales, options, defaults) {
  * Compares this and that, and returns less than 0, 0 or greater than 0 value.
  * Overrides the built-in method.
  */
-ObjectDefineProperty($String.prototype, 'localeCompare', {
-  value: function(that) {
+OverrideFunction($String.prototype, 'localeCompare', function(that) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1938,14 +1943,8 @@ ObjectDefineProperty($String.prototype, 'localeCompare', {
     var options = %_Arguments(2);
     var collator = cachedOrNewService('collator', locales, options);
     return compare(collator, this, that);
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($String.prototype.localeCompare, 'localeCompare');
-%FunctionRemovePrototype($String.prototype.localeCompare);
-%SetNativeFlag($String.prototype.localeCompare);
+  }
+);
 
 
 /**
@@ -1955,8 +1954,7 @@ ObjectDefineProperty($String.prototype, 'localeCompare', {
  * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
  * a RangeError Exception.
  */
-ObjectDefineProperty($String.prototype, 'normalize', {
-  value: function(that) {
+OverrideFunction($String.prototype, 'normalize', function(that) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1972,22 +1970,15 @@ ObjectDefineProperty($String.prototype, 'normalize', {
     }
 
     return %StringNormalize(this, normalizationForm);
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($String.prototype.normalize, 'normalize');
-%FunctionRemovePrototype($String.prototype.normalize);
-%SetNativeFlag($String.prototype.normalize);
+  }
+);
 
 
 /**
  * Formats a Number object (this) using locale and options values.
  * If locale or options are omitted, defaults are used.
  */
-ObjectDefineProperty($Number.prototype, 'toLocaleString', {
-  value: function() {
+OverrideFunction($Number.prototype, 'toLocaleString', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -2000,21 +1991,15 @@ ObjectDefineProperty($Number.prototype, 'toLocaleString', {
     var options = %_Arguments(1);
     var numberFormat = cachedOrNewService('numberformat', locales, options);
     return formatNumber(numberFormat, this);
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($Number.prototype.toLocaleString, 'toLocaleString');
-%FunctionRemovePrototype($Number.prototype.toLocaleString);
-%SetNativeFlag($Number.prototype.toLocaleString);
+  }
+);
 
 
 /**
  * Returns actual formatted date or fails if date parameter is invalid.
  */
 function toLocaleDateTime(date, locales, options, required, defaults, service) {
-  if (!(date instanceof $Date)) {
+  if (!(date instanceof GlobalDate)) {
     throw new $TypeError('Method invoked on an object that is not Date.');
   }
 
@@ -2036,8 +2021,7 @@ function toLocaleDateTime(date, locales, options, required, defaults, service) {
  * If locale or options are omitted, defaults are used - both date and time are
  * present in the output.
  */
-ObjectDefineProperty($Date.prototype, 'toLocaleString', {
-  value: function() {
+OverrideFunction(GlobalDate.prototype, 'toLocaleString', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -2046,14 +2030,8 @@ ObjectDefineProperty($Date.prototype, 'toLocaleString', {
     var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'any', 'all', 'dateformatall');
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($Date.prototype.toLocaleString, 'toLocaleString');
-%FunctionRemovePrototype($Date.prototype.toLocaleString);
-%SetNativeFlag($Date.prototype.toLocaleString);
+  }
+);
 
 
 /**
@@ -2061,8 +2039,7 @@ ObjectDefineProperty($Date.prototype, 'toLocaleString', {
  * If locale or options are omitted, defaults are used - only date is present
  * in the output.
  */
-ObjectDefineProperty($Date.prototype, 'toLocaleDateString', {
-  value: function() {
+OverrideFunction(GlobalDate.prototype, 'toLocaleDateString', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -2071,14 +2048,8 @@ ObjectDefineProperty($Date.prototype, 'toLocaleDateString', {
     var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'date', 'date', 'dateformatdate');
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($Date.prototype.toLocaleDateString, 'toLocaleDateString');
-%FunctionRemovePrototype($Date.prototype.toLocaleDateString);
-%SetNativeFlag($Date.prototype.toLocaleDateString);
+  }
+);
 
 
 /**
@@ -2086,8 +2057,7 @@ ObjectDefineProperty($Date.prototype, 'toLocaleDateString', {
  * If locale or options are omitted, defaults are used - only time is present
  * in the output.
  */
-ObjectDefineProperty($Date.prototype, 'toLocaleTimeString', {
-  value: function() {
+OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -2096,14 +2066,7 @@ ObjectDefineProperty($Date.prototype, 'toLocaleTimeString', {
     var options = %_Arguments(1);
     return toLocaleDateTime(
         this, locales, options, 'time', 'time', 'dateformattime');
-  },
-  writable: true,
-  configurable: true,
-  enumerable: false
-});
-%FunctionSetName($Date.prototype.toLocaleTimeString, 'toLocaleTimeString');
-%FunctionRemovePrototype($Date.prototype.toLocaleTimeString);
-%SetNativeFlag($Date.prototype.toLocaleTimeString);
+  }
+);
 
-return Intl;
-}())});
+})();

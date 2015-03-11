@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
 // This file relies on the fact that the following declarations have been made
 // in v8natives.js:
 // var $isFinite = GlobalIsFinite;
 
-var $Date = global.Date;
+var $createDate;
 
 // -------------------------------------------------------------------
+
+(function() {
+
+"use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalDate = global.Date;
 
 // This file contains date support implemented in JavaScript.
 
@@ -18,7 +24,6 @@ var $Date = global.Date;
 function ThrowDateTypeError() {
   throw new $TypeError('this is not a Date object.');
 }
-
 
 var timezone_cache_time = NAN;
 var timezone_cache_timezone;
@@ -121,7 +126,7 @@ var Date_cache = {
 function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   if (!%_IsConstructCall()) {
     // ECMA 262 - 15.9.2
-    return (new $Date()).toString();
+    return (new GlobalDate()).toString();
   }
 
   // ECMA 262 - 15.9.3
@@ -749,79 +754,78 @@ function CheckDateCacheCurrent() {
 
 
 function CreateDate(time) {
-  var date = new $Date();
+  var date = new GlobalDate();
   date.setTime(time);
   return date;
 }
 
 // -------------------------------------------------------------------
 
-function SetUpDate() {
-  %CheckIsBootstrapping();
+%SetCode(GlobalDate, DateConstructor);
+%FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
 
-  %SetCode($Date, DateConstructor);
-  %FunctionSetPrototype($Date, new $Date(NAN));
+// Set up non-enumerable properties of the Date object itself.
+InstallFunctions(GlobalDate, DONT_ENUM, $Array(
+  "UTC", DateUTC,
+  "parse", DateParse,
+  "now", DateNow
+));
 
-  // Set up non-enumerable properties of the Date object itself.
-  InstallFunctions($Date, DONT_ENUM, $Array(
-    "UTC", DateUTC,
-    "parse", DateParse,
-    "now", DateNow
-  ));
+// Set up non-enumerable constructor property of the Date prototype object.
+%AddNamedProperty(GlobalDate.prototype, "constructor", GlobalDate, DONT_ENUM);
 
-  // Set up non-enumerable constructor property of the Date prototype object.
-  %AddNamedProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
+// Set up non-enumerable functions of the Date prototype object and
+// set their names.
+InstallFunctions(GlobalDate.prototype, DONT_ENUM, $Array(
+  "toString", DateToString,
+  "toDateString", DateToDateString,
+  "toTimeString", DateToTimeString,
+  "toLocaleString", DateToLocaleString,
+  "toLocaleDateString", DateToLocaleDateString,
+  "toLocaleTimeString", DateToLocaleTimeString,
+  "valueOf", DateValueOf,
+  "getTime", DateGetTime,
+  "getFullYear", DateGetFullYear,
+  "getUTCFullYear", DateGetUTCFullYear,
+  "getMonth", DateGetMonth,
+  "getUTCMonth", DateGetUTCMonth,
+  "getDate", DateGetDate,
+  "getUTCDate", DateGetUTCDate,
+  "getDay", DateGetDay,
+  "getUTCDay", DateGetUTCDay,
+  "getHours", DateGetHours,
+  "getUTCHours", DateGetUTCHours,
+  "getMinutes", DateGetMinutes,
+  "getUTCMinutes", DateGetUTCMinutes,
+  "getSeconds", DateGetSeconds,
+  "getUTCSeconds", DateGetUTCSeconds,
+  "getMilliseconds", DateGetMilliseconds,
+  "getUTCMilliseconds", DateGetUTCMilliseconds,
+  "getTimezoneOffset", DateGetTimezoneOffset,
+  "setTime", DateSetTime,
+  "setMilliseconds", DateSetMilliseconds,
+  "setUTCMilliseconds", DateSetUTCMilliseconds,
+  "setSeconds", DateSetSeconds,
+  "setUTCSeconds", DateSetUTCSeconds,
+  "setMinutes", DateSetMinutes,
+  "setUTCMinutes", DateSetUTCMinutes,
+  "setHours", DateSetHours,
+  "setUTCHours", DateSetUTCHours,
+  "setDate", DateSetDate,
+  "setUTCDate", DateSetUTCDate,
+  "setMonth", DateSetMonth,
+  "setUTCMonth", DateSetUTCMonth,
+  "setFullYear", DateSetFullYear,
+  "setUTCFullYear", DateSetUTCFullYear,
+  "toGMTString", DateToGMTString,
+  "toUTCString", DateToUTCString,
+  "getYear", DateGetYear,
+  "setYear", DateSetYear,
+  "toISOString", DateToISOString,
+  "toJSON", DateToJSON
+));
 
-  // Set up non-enumerable functions of the Date prototype object and
-  // set their names.
-  InstallFunctions($Date.prototype, DONT_ENUM, $Array(
-    "toString", DateToString,
-    "toDateString", DateToDateString,
-    "toTimeString", DateToTimeString,
-    "toLocaleString", DateToLocaleString,
-    "toLocaleDateString", DateToLocaleDateString,
-    "toLocaleTimeString", DateToLocaleTimeString,
-    "valueOf", DateValueOf,
-    "getTime", DateGetTime,
-    "getFullYear", DateGetFullYear,
-    "getUTCFullYear", DateGetUTCFullYear,
-    "getMonth", DateGetMonth,
-    "getUTCMonth", DateGetUTCMonth,
-    "getDate", DateGetDate,
-    "getUTCDate", DateGetUTCDate,
-    "getDay", DateGetDay,
-    "getUTCDay", DateGetUTCDay,
-    "getHours", DateGetHours,
-    "getUTCHours", DateGetUTCHours,
-    "getMinutes", DateGetMinutes,
-    "getUTCMinutes", DateGetUTCMinutes,
-    "getSeconds", DateGetSeconds,
-    "getUTCSeconds", DateGetUTCSeconds,
-    "getMilliseconds", DateGetMilliseconds,
-    "getUTCMilliseconds", DateGetUTCMilliseconds,
-    "getTimezoneOffset", DateGetTimezoneOffset,
-    "setTime", DateSetTime,
-    "setMilliseconds", DateSetMilliseconds,
-    "setUTCMilliseconds", DateSetUTCMilliseconds,
-    "setSeconds", DateSetSeconds,
-    "setUTCSeconds", DateSetUTCSeconds,
-    "setMinutes", DateSetMinutes,
-    "setUTCMinutes", DateSetUTCMinutes,
-    "setHours", DateSetHours,
-    "setUTCHours", DateSetUTCHours,
-    "setDate", DateSetDate,
-    "setUTCDate", DateSetUTCDate,
-    "setMonth", DateSetMonth,
-    "setUTCMonth", DateSetUTCMonth,
-    "setFullYear", DateSetFullYear,
-    "setUTCFullYear", DateSetUTCFullYear,
-    "toGMTString", DateToGMTString,
-    "toUTCString", DateToUTCString,
-    "getYear", DateGetYear,
-    "setYear", DateSetYear,
-    "toISOString", DateToISOString,
-    "toJSON", DateToJSON
-  ));
-}
+// Expose to the global scope.
+$createDate = CreateDate;
 
-SetUpDate();
+})();
