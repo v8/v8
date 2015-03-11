@@ -18,9 +18,27 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
+
+# TODO(GYP): We should be just target_cpu and not need v8_target_arch.
 v8_target_arch = current_cpu
+
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
+
+# The snapshot needs to be compiled for the host, but compiled with
+# a toolchain that matches the bit-width of the target.
+#
+# TODO(GYP): For now we only support 32-bit little-endian target builds from
+# an x86/x64 Linux host. Eventually we need to support all of the
+# host/target configurations v8 runs on.
+if (target_os == "android" || target_os == "chromeos") {
+  assert(host_os == "linux" &&
+         (host_cpu == "x86" || host_cpu == "x64") &&
+         (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86"))
+  snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+} else {
+  snapshot_toolchain = default_toolchain
+}
 
 ###############################################################################
 # Configurations
@@ -322,7 +340,7 @@ action("run_mksnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":mksnapshot($host_toolchain)",
+    ":mksnapshot($snapshot_toolchain)",
   ]
 
   script = "tools/run.py"
@@ -332,7 +350,7 @@ action("run_mksnapshot") {
   ]
 
   args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($host_toolchain)",
+    "./" + rebase_path(get_label_info(":mksnapshot($snapshot_toolchain)",
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--log-snapshot-positions",
@@ -1428,7 +1446,7 @@ source_set("v8_libplatform") {
 # Executables
 #
 
-if (current_toolchain == host_toolchain) {
+if (current_toolchain == snapshot_toolchain) {
   executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
