@@ -1790,8 +1790,14 @@ void SetupArrayBufferView(i::Isolate* isolate,
 
   obj->set_buffer(*buffer);
 
-  obj->set_weak_next(buffer->weak_first_view());
-  buffer->set_weak_first_view(*obj);
+  Heap* heap = isolate->heap();
+  if (heap->InNewSpace(*obj)) {
+    obj->set_weak_next(heap->new_array_buffer_views_list());
+    heap->set_new_array_buffer_views_list(*obj);
+  } else {
+    obj->set_weak_next(buffer->weak_first_view());
+    buffer->set_weak_first_view(*obj);
+  }
 
   i::Handle<i::Object> byte_offset_object =
       isolate->factory()->NewNumberFromSize(byte_offset);
