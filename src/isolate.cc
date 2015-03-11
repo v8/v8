@@ -82,7 +82,6 @@ void ThreadLocalTop::InitializeInternal() {
   external_caught_exception_ = false;
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
-  catcher_ = NULL;
   promise_on_stack_ = NULL;
 
   // These members are re-initialized later after deserialization
@@ -252,7 +251,6 @@ void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
 void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
   DCHECK(thread_local_top()->try_catch_handler() == that);
   thread_local_top()->set_try_catch_handler(that->next_);
-  thread_local_top()->catcher_ = NULL;
 }
 
 
@@ -1005,11 +1003,6 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   // Save the message for reporting if the the exception remains uncaught.
   thread_local_top()->has_pending_message_ = report_exception;
 
-  // Do not forget to clean catcher_ if currently thrown exception cannot
-  // be caught.  If necessary, ReThrow will update the catcher.
-  thread_local_top()->catcher_ =
-      can_be_caught_externally ? try_catch_handler() : NULL;
-
   // Set the exception being thrown.
   set_pending_exception(*exception_handle);
   return heap()->exception();
@@ -1017,12 +1010,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
 
 
 Object* Isolate::ReThrow(Object* exception) {
-  bool can_be_caught_externally = false;
-  bool catchable_by_javascript = is_catchable_by_javascript(exception);
-  ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
-
-  thread_local_top()->catcher_ = can_be_caught_externally ?
-      try_catch_handler() : NULL;
+  DCHECK(!has_pending_exception());
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
@@ -1384,14 +1372,6 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
   return MessageHandler::MakeMessageObject(this, "uncaught_exception", location,
                                            HandleVector<Object>(&exception, 1),
                                            stack_trace_object);
-}
-
-
-bool Isolate::HasExternalTryCatch() {
-  DCHECK(has_pending_exception());
-
-  return (thread_local_top()->catcher_ != NULL) &&
-      (try_catch_handler() == thread_local_top()->catcher_);
 }
 
 
@@ -1954,22 +1934,23 @@ void Isolate::InitializeThreadLocal() {
 
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
-  DCHECK(has_pending_exception());
+  Object* exception = pending_exception();
 
-  bool has_external_try_catch = HasExternalTryCatch();
-  if (!has_external_try_catch) {
+  bool can_be_caught_externally = false;
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+  if (!can_be_caught_externally) {
     thread_local_top_.external_caught_exception_ = false;
     return true;
   }
 
-  bool catchable_by_js = is_catchable_by_javascript(pending_exception());
-  if (catchable_by_js && IsFinallyOnTop()) {
+  if (catchable_by_javascript && IsFinallyOnTop()) {
     thread_local_top_.external_caught_exception_ = false;
     return false;
   }
 
   thread_local_top_.external_caught_exception_ = true;
-  if (thread_local_top_.pending_exception_ == heap()->termination_exception()) {
+  if (!catchable_by_javascript) {
     try_catch_handler()->can_continue_ = false;
     try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();
