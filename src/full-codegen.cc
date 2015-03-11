@@ -882,40 +882,6 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 }
 
 
-// Lookup table for code generators for  special runtime calls which are
-// generated inline.
-#define INLINE_FUNCTION_GENERATOR_ADDRESS(Name, argc, ressize)          \
-    &FullCodeGenerator::Emit##Name,
-
-const FullCodeGenerator::InlineFunctionGenerator
-  FullCodeGenerator::kInlineFunctionGenerators[] = {
-    INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-  };
-#undef INLINE_FUNCTION_GENERATOR_ADDRESS
-
-
-FullCodeGenerator::InlineFunctionGenerator
-FullCodeGenerator::FindInlineFunctionGenerator(CallRuntime* expr) {
-  const Runtime::Function* function = expr->function();
-  if (function == nullptr || function->intrinsic_type != Runtime::INLINE) {
-    return nullptr;
-  }
-  Runtime::FunctionId id = function->function_id;
-  if (id < Runtime::kFirstInlineFunction || Runtime::kLastInlineFunction < id) {
-    return nullptr;
-  }
-  return kInlineFunctionGenerators[static_cast<int>(id) -
-                                   static_cast<int>(
-                                       Runtime::kFirstInlineFunction)];
-}
-
-
-void FullCodeGenerator::EmitInlineRuntimeCall(
-    CallRuntime* expr, InlineFunctionGenerator generator) {
-  ((*this).*(generator))(expr);
-}
-
-
 void FullCodeGenerator::EmitGeneratorNext(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);

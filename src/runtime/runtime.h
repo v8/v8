@@ -15,10 +15,6 @@ namespace internal {
 // The interface to C++ runtime functions.
 
 // ----------------------------------------------------------------------------
-// RUNTIME_FUNCTION_LIST_ALWAYS defines runtime calls available in both
-// release and debug mode.
-// This macro should only be used by the macro RUNTIME_FUNCTION_LIST.
-
 // WARNING: RUNTIME_FUNCTION_LIST_ALWAYS_* is a very large macro that caused
 // MSVC Intellisense to crash.  It was broken into two macros to work around
 // this problem. Please avoid large recursive macros whenever possible.
@@ -630,12 +626,6 @@ namespace internal {
 #endif
 
 
-// ----------------------------------------------------------------------------
-// RUNTIME_FUNCTION_LIST defines all runtime functions accessed
-// either directly by id (via the code generator), or indirectly
-// via a native call by name (from within JS code).
-// Entries have the form F(name, number of arguments, number of return values).
-
 #define RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F)            \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F)            \
@@ -644,13 +634,18 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
 
+// RUNTIME_FUNCTION_LIST_ defines the intrinsics typically implemented only
+// as runtime functions. These come in 2 flavors, either returning an object or
+// returning a pair.
+// Entries have the form F(name, number of arguments, number of return values).
 #define RUNTIME_FUNCTION_LIST(F)         \
   RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F) \
   RUNTIME_FUNCTION_LIST_RETURN_PAIR(F)
 
+
 // ----------------------------------------------------------------------------
-// INLINE_FUNCTION_LIST defines all inlined functions accessed
-// with a native call of the form %_name from within JS code.
+// INLINE_FUNCTION_LIST defines the intrinsics typically handled specially by
+// the various compilers.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_FUNCTION_LIST(F)                             \
   F(IsSmi, 1, 1)                                            \
@@ -697,11 +692,8 @@ namespace internal {
 
 
 // ----------------------------------------------------------------------------
-// INLINE_OPTIMIZED_FUNCTION_LIST defines all inlined functions accessed
-// with a native call of the form %_name from within JS code that also have
-// a corresponding runtime function, that is called from non-optimized code.
-// For the benefit of (fuzz) tests, the runtime version can also be called
-// directly as %name (i.e. without the leading underscore).
+// INLINE_OPTIMIZED_FUNCTION_LIST defines the intrinsics typically handled
+// specially by Crankshaft.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
   /* Typed Arrays */                      \
@@ -740,6 +732,11 @@ namespace internal {
   F(GetPrototype, 1, 1)
 
 
+#define FOR_EACH_INTRINSIC(F) \
+  RUNTIME_FUNCTION_LIST(F)    \
+  INLINE_FUNCTION_LIST(F)     \
+  INLINE_OPTIMIZED_FUNCTION_LIST(F)
+
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
@@ -772,15 +769,10 @@ class Runtime : public AllStatic {
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
-    RUNTIME_FUNCTION_LIST(F) INLINE_FUNCTION_LIST(F)
-        INLINE_OPTIMIZED_FUNCTION_LIST(F) RUNTIME_FUNCTION_LIST(I)
-            INLINE_FUNCTION_LIST(I) INLINE_OPTIMIZED_FUNCTION_LIST(I)
+    FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC(I)
 #undef I
 #undef F
-                kNumFunctions,
-    // TODO(svenpanne) The values below are cruel hacks, remove them!
-    kFirstInlineFunction = kInlineIsSmi,
-    kLastInlineFunction = kInlineDebugIsActive
+        kNumFunctions,
   };
 
   enum IntrinsicType { RUNTIME, INLINE };

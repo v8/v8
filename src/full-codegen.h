@@ -291,11 +291,6 @@ class FullCodeGenerator: public AstVisitor {
     }
   };
 
-  // Type of a member function that generates inline code for a native function.
-  typedef void (FullCodeGenerator::*InlineFunctionGenerator)(CallRuntime* expr);
-
-  static const InlineFunctionGenerator kInlineFunctionGenerators[];
-
   // A platform-specific utility to overwrite the accumulator register
   // with a GC-safe value.
   void ClearAccumulator();
@@ -495,16 +490,52 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
   void EmitKeyedSuperCallWithLoadIC(Call* expr);
 
-  // Platform-specific code for inline runtime calls.
-  InlineFunctionGenerator FindInlineFunctionGenerator(CallRuntime* expr);
+#define FOR_EACH_FULL_CODE_INTRINSIC(F)   \
+  F(IsSmi)                                \
+  F(IsNonNegativeSmi)                     \
+  F(IsArray)                              \
+  F(IsRegExp)                             \
+  F(IsJSProxy)                            \
+  F(IsConstructCall)                      \
+  F(CallFunction)                         \
+  F(DefaultConstructorCallSuper)          \
+  F(ArgumentsLength)                      \
+  F(Arguments)                            \
+  F(ValueOf)                              \
+  F(SetValueOf)                           \
+  F(DateField)                            \
+  F(StringCharFromCode)                   \
+  F(StringCharAt)                         \
+  F(OneByteSeqStringSetChar)              \
+  F(TwoByteSeqStringSetChar)              \
+  F(ObjectEquals)                         \
+  F(IsObject)                             \
+  F(IsFunction)                           \
+  F(IsUndetectableObject)                 \
+  F(IsSpecObject)                         \
+  F(IsStringWrapperSafeForDefaultValueOf) \
+  F(MathPow)                              \
+  F(IsMinusZero)                          \
+  F(HasCachedArrayIndex)                  \
+  F(GetCachedArrayIndex)                  \
+  F(FastOneByteArrayJoin)                 \
+  F(GeneratorNext)                        \
+  F(GeneratorThrow)                       \
+  F(DebugBreakInOptimizedCode)            \
+  F(ClassOf)                              \
+  F(StringCharCodeAt)                     \
+  F(StringAdd)                            \
+  F(SubString)                            \
+  F(StringCompare)                        \
+  F(RegExpExec)                           \
+  F(RegExpConstructResult)                \
+  F(GetFromCache)                         \
+  F(NumberToString)                       \
+  F(DebugIsActive)
 
-  void EmitInlineRuntimeCall(CallRuntime* expr,
-                             InlineFunctionGenerator generator);
-
-#define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
-  void Emit##name(CallRuntime* expr);
-  INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
-#undef EMIT_INLINE_RUNTIME_CALL
+#define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
+  FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)
+#undef GENERATOR_DECLARATION
 
   // Platform-specific code for resuming generators.
   void EmitGeneratorResume(Expression *generator,

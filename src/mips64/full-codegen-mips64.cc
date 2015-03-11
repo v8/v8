@@ -4626,18 +4626,11 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  InlineFunctionGenerator generator = FindInlineFunctionGenerator(expr);
-  if (generator != nullptr) {
-    Comment cmnt(masm_, "[ InlineRuntimeCall");
-    EmitInlineRuntimeCall(expr, generator);
-    return;
-  }
-
-  Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
   if (expr->is_jsruntime()) {
+    Comment cmnt(masm_, "[ CallRuntime");
     // Push the builtins object as the receiver.
     Register receiver = LoadDescriptor::ReceiverRegister();
     __ ld(receiver, GlobalObjectOperand());
@@ -4660,7 +4653,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ sd(v0, MemOperand(sp, kPointerSize));
 
     // Push the arguments ("left-to-right").
-    int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
@@ -4676,14 +4668,27 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
     context()->DropAndPlug(1, v0);
   } else {
-    // Push the arguments ("left-to-right").
-    for (int i = 0; i < arg_count; i++) {
-      VisitForStackValue(args->at(i));
-    }
+    const Runtime::Function* function = expr->function();
+    switch (function->function_id) {
+#define CALL_INTRINSIC_GENERATOR(Name)     \
+  case Runtime::kInline##Name: {           \
+    Comment cmnt(masm_, "[ Inline" #Name); \
+    return Emit##Name(expr);               \
+  }
+      FOR_EACH_FULL_CODE_INTRINSIC(CALL_INTRINSIC_GENERATOR)
+#undef CALL_INTRINSIC_GENERATOR
+      default: {
+        Comment cmnt(masm_, "[ CallRuntime for unhandled intrinsic");
+        // Push the arguments ("left-to-right").
+        for (int i = 0; i < arg_count; i++) {
+          VisitForStackValue(args->at(i));
+        }
 
-    // Call the C runtime function.
-    __ CallRuntime(expr->function(), arg_count);
-    context()->Plug(v0);
+        // Call the C runtime function.
+        __ CallRuntime(expr->function(), arg_count);
+        context()->Plug(v0);
+      }
+    }
   }
 }
 
