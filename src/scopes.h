@@ -692,7 +692,7 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocal(Isolate* isolate, Variable* var);
   void AllocateNonParameterLocals(Isolate* isolate);
   void AllocateVariablesRecursively(Isolate* isolate);
-  void AllocateModulesRecursively(Scope* host_scope);
+  void AllocateModules();
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been

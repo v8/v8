@@ -5220,6 +5220,8 @@ TEST(ImportExportParsingErrors) {
 
 
 TEST(ModuleParsingInternals) {
+  i::FLAG_harmony_modules = true;
+
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope handles(CcTest::isolate());
@@ -5244,9 +5246,19 @@ TEST(ModuleParsingInternals) {
   parser.set_allow_harmony_scoping(true);
   info.set_module();
   CHECK(parser.Parse(&info));
+  CHECK(i::Compiler::Analyze(&info));
+
   i::FunctionLiteral* func = info.function();
-  CHECK_EQ(i::MODULE_SCOPE, func->scope()->scope_type());
-  i::ModuleDescriptor* descriptor = func->scope()->module();
+  i::Scope* module_scope = func->scope();
+  i::Scope* outer_scope = module_scope->outer_scope();
+  CHECK(outer_scope->is_script_scope());
+  CHECK_NULL(outer_scope->outer_scope());
+  CHECK_EQ(1, outer_scope->num_modules());
+  CHECK(module_scope->is_module_scope());
+  CHECK_NOT_NULL(module_scope->module_var());
+  CHECK_EQ(i::INTERNAL, module_scope->module_var()->mode());
+
+  i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
   CHECK_EQ(1, descriptor->Length());
   const i::AstRawString* export_name = avf.GetOneByteString("y");
@@ -5254,7 +5266,7 @@ TEST(ModuleParsingInternals) {
       descriptor->LookupLocalExport(export_name, &zone);
   CHECK_NOT_NULL(local_name);
   CHECK(local_name->IsOneByteEqualTo("x"));
-  i::ZoneList<i::Declaration*>* declarations = func->scope()->declarations();
+  i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
   CHECK_EQ(3, declarations->length());
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
   i::ImportDeclaration* import_decl =
