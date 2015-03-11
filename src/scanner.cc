@@ -1000,7 +1000,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     // Parse decimal digits and allow trailing fractional part.
     if (kind == DECIMAL) {
       if (at_start) {
-        int value = 0;
+        uint64_t value = 0;
         while (IsDecimalDigit(c0_)) {
           value = 10 * value + (c0_ - '0');
 
@@ -1009,9 +1009,9 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
           AddLiteralChar(first_char);
         }
 
-        if (next_.literal_chars->one_byte_literal().length() < 10 &&
-            c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
-          smi_value_ = value;
+        if (next_.literal_chars->one_byte_literal().length() <= 10 &&
+            value <= Smi::kMaxValue && c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
+          smi_value_ = static_cast<int>(value);
           literal.Complete();
           HandleLeadSurrogate();
 
@@ -1425,11 +1425,6 @@ double Scanner::DoubleValue() {
       unicode_cache_,
       literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
-}
-
-
-int Scanner::FindNumber(DuplicateFinder* finder, int value) {
-  return finder->AddNumber(literal_one_byte_string(), value);
 }
 
 
