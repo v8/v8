@@ -2926,7 +2926,9 @@ class V8_EXPORT Array : public Object {
    * Clones an element at index |index|.  Returns an empty
    * handle if cloning fails (for any reason).
    */
-  Local<Object> CloneElementAt(uint32_t index);
+  V8_DEPRECATE_SOON("Use maybe version",
+                    Local<Object> CloneElementAt(uint32_t index));
+  MaybeLocal<Object> CloneElementAt(Local<Context> context, uint32_t index);
 
   /**
    * Creates a JavaScript array with the given length. If the length
@@ -3682,7 +3684,11 @@ class V8_EXPORT RegExp : public Object {
    *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
    * is equivalent to evaluating "/foo/gm".
    */
-  static Local<RegExp> New(Handle<String> pattern, Flags flags);
+  static V8_DEPRECATE_SOON("Use maybe version",
+                           Local<RegExp> New(Handle<String> pattern,
+                                             Flags flags));
+  static MaybeLocal<RegExp> New(Local<Context> context, Handle<String> pattern,
+                                Flags flags);
 
   /**
    * Returns the value of the source property: a string representing
@@ -4066,7 +4072,8 @@ class V8_EXPORT FunctionTemplate : public Template {
       int length = 0);
 
   /** Returns the unique function instance in the current execution context.*/
-  Local<Function> GetFunction();
+  V8_DEPRECATE_SOON("Use maybe version", Local<Function> GetFunction());
+  MaybeLocal<Function> GetFunction(Local<Context> context);
 
   /**
    * Set the call-handler callback for a FunctionTemplate.  This
@@ -4209,7 +4216,8 @@ class V8_EXPORT ObjectTemplate : public Template {
   static V8_DEPRECATE_SOON("Use isolate version", Local<ObjectTemplate> New());
 
   /** Creates a new instance of this template.*/
-  Local<Object> NewInstance();
+  V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance());
+  MaybeLocal<Object> NewInstance(Local<Context> context);
 
   /**
    * Sets an accessor on the object template.
