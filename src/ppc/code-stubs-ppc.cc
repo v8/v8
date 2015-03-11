@@ -995,6 +995,60 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
+static void ThrowPendingException(MacroAssembler* masm) {
+  Isolate* isolate = masm->isolate();
+
+  ExternalReference pending_handler_context_address(
+      Isolate::kPendingHandlerContextAddress, isolate);
+  ExternalReference pending_handler_code_address(
+      Isolate::kPendingHandlerCodeAddress, isolate);
+  ExternalReference pending_handler_offset_address(
+      Isolate::kPendingHandlerOffsetAddress, isolate);
+  ExternalReference pending_handler_fp_address(
+      Isolate::kPendingHandlerFPAddress, isolate);
+  ExternalReference pending_handler_sp_address(
+      Isolate::kPendingHandlerSPAddress, isolate);
+
+  // Ask the runtime for help to determine the handler. This will set r3 to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(3, 0, r3);
+    __ li(r3, Operand::Zero());
+    __ li(r4, Operand::Zero());
+    __ mov(r5, Operand(ExternalReference::isolate_address(isolate)));
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ mov(cp, Operand(pending_handler_context_address));
+  __ LoadP(cp, MemOperand(cp));
+  __ mov(sp, Operand(pending_handler_sp_address));
+  __ LoadP(sp, MemOperand(sp));
+  __ mov(fp, Operand(pending_handler_fp_address));
+  __ LoadP(fp, MemOperand(fp));
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
+  // or cp.
+  Label skip;
+  __ cmpi(cp, Operand::Zero());
+  __ beq(&skip);
+  __ StoreP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ bind(&skip);
+
+  // Compute the handler entry address and jump to it.
+  __ mov(r4, Operand(pending_handler_code_address));
+  __ LoadP(r4, MemOperand(r4));
+  __ mov(r5, Operand(pending_handler_offset_address));
+  __ LoadP(r5, MemOperand(r5));
+  __ addi(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
+  __ add(ip, r4, r5);
+  __ Jump(ip);
+}
+
+
 void CEntryStub::Generate(MacroAssembler* masm) {
   // Called from JavaScript; parameters are on stack as if calling JS function.
   // r3: number of arguments including receiver
@@ -1070,11 +1124,22 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // know where the return address is. The CEntryStub is unmovable, so
   // we can store the address on the stack to be able to find it again and
   // we never have to restore it, because it will not change.
-  Label after_call;
-  __ mov_label_addr(r0, &after_call);
-  __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-  __ Call(target);
-  __ bind(&after_call);
+  // Compute the return address in lr to return to after the jump below. Pc is
+  // already at '+ 8' from the current instruction but return is after three
+  // instructions so add another 4 to pc to get the return address.
+  {
+    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
+    Label here;
+    __ b(&here, SetLK);
+    __ bind(&here);
+    __ mflr(r8);
+
+    // Constant used below is dependent on size of Call() macro instructions
+    __ addi(r0, r8, Operand(20));
+
+    __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+    __ Call(target);
+  }
 
 #if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
   // If return value is on the stack, pop it to registers.
@@ -1099,13 +1164,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r3, Heap::kExceptionRootIndex);
   __ beq(&exception_returned);
 
-  ExternalReference pending_exception_address(Isolate::kPendingExceptionAddress,
-                                              isolate());
-
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     Label okay;
+    ExternalReference pending_exception_address(
+        Isolate::kPendingExceptionAddress, isolate());
+
     __ mov(r5, Operand(pending_exception_address));
     __ LoadP(r5, MemOperand(r5));
     __ CompareRoot(r5, Heap::kTheHoleValueRootIndex);
@@ -1126,25 +1191,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Handling of exception.
   __ bind(&exception_returned);
 
-  // Retrieve the pending exception.
-  __ mov(r5, Operand(pending_exception_address));
-  __ LoadP(r3, MemOperand(r5));
-
-  // Clear the pending exception.
-  __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
-  __ StoreP(r6, MemOperand(r5));
-
-  // Special handling of termination exceptions which are uncatchable
-  // by javascript code.
-  Label throw_termination_exception;
-  __ CompareRoot(r3, Heap::kTerminationExceptionRootIndex);
-  __ beq(&throw_termination_exception);
-
-  // Handle normal exception.
-  __ Throw(r3);
-
-  __ bind(&throw_termination_exception);
-  __ ThrowUncatchable(r3);
+  ThrowPendingException(masm);
 }
 
 
@@ -2364,18 +2411,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmp(r3, r4);
   __ beq(&runtime);
 
-  __ StoreP(r4, MemOperand(r5, 0));  // Clear pending exception.
-
-  // Check if the exception is a termination. If so, throw as uncatchable.
-  __ CompareRoot(r3, Heap::kTerminationExceptionRootIndex);
-
-  Label termination_exception;
-  __ beq(&termination_exception);
-
-  __ Throw(r3);
-
-  __ bind(&termination_exception);
-  __ ThrowUncatchable(r3);
+  // For exception, throw the exception again.
+  __ EnterExitFrame(false);
+  ThrowPendingException(masm);
 
   __ bind(&failure);
   // For failure and exception return null.
@@ -2843,6 +2881,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ bne(&miss);
 
   __ mr(r5, r7);
+  __ mr(r6, r4);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -4822,6 +4861,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- r3 : argc (only if argument_count() == ANY)
   //  -- r4 : constructor
   //  -- r5 : AllocationSite or undefined
+  //  -- r6 : original constructor
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
@@ -4842,6 +4882,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(r5, r7);
   }
 
+  Label subclassing;
+  __ cmp(r6, r4);
+  __ bne(&subclassing);
+
   Label no_info;
   // Get the elements kind and case on that.
   __ CompareRoot(r5, Heap::kUndefinedValueRootIndex);
@@ -4855,6 +4899,27 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
+
+  __ bind(&subclassing);
+  __ push(r4);
+  __ push(r6);
+
+  // Adjust argc.
+  switch (argument_count()) {
+    case ANY:
+    case MORE_THAN_ONE:
+      __ addi(r3, r3, Operand(2));
+      break;
+    case NONE:
+      __ li(r3, Operand(2));
+      break;
+    case ONE:
+      __ li(r3, Operand(3));
+      break;
+  }
+
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
 }
 
 
@@ -5017,7 +5082,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   }
 
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label return_value_loaded;
@@ -5039,15 +5103,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ cmp(r15, r0);
   __ bne(&delete_allocated_handles);
 
-  // Check if the function scheduled an exception.
+  // Leave the API exit frame.
   __ bind(&leave_exit_frame);
-  __ LoadRoot(r14, Heap::kTheHoleValueRootIndex);
-  __ mov(r15, Operand(ExternalReference::scheduled_exception_address(isolate)));
-  __ LoadP(r15, MemOperand(r15));
-  __ cmp(r14, r15);
-  __ bne(&promote_scheduled_exception);
-  __ bind(&exception_handled);
-
   bool restore_context = context_restore_operand != NULL;
   if (restore_context) {
     __ LoadP(cp, *context_restore_operand);
@@ -5059,15 +5116,19 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ mov(r14, Operand(stack_space));
   }
   __ LeaveExitFrame(false, r14, !restore_context, stack_space_operand != NULL);
+
+  // Check if the function scheduled an exception.
+  __ LoadRoot(r14, Heap::kTheHoleValueRootIndex);
+  __ mov(r15, Operand(ExternalReference::scheduled_exception_address(isolate)));
+  __ LoadP(r15, MemOperand(r15));
+  __ cmp(r14, r15);
+  __ bne(&promote_scheduled_exception);
+
   __ blr();
 
+  // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate), 0);
-  }
-  __ jmp(&exception_handled);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);

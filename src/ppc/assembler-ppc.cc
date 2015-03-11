@@ -217,11 +217,12 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   trampoline_emitted_ = FLAG_force_long_branches;
   unbound_labels_count_ = 0;
   ClearRecordedAstId();
+  relocations_.reserve(128);
 }
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  reloc_info_writer.Finish();
+  EmitRelocations();
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -378,8 +379,9 @@ const int kEndOfChain = -4;
 // Dummy opcodes for unbound label mov instructions or jump table entries.
 enum {
   kUnboundMovLabelOffsetOpcode = 0 << 26,
-  kUnboundMovLabelAddrOpcode = 1 << 26,
-  kUnboundJumpTableEntryOpcode = 2 << 26
+  kUnboundAddLabelOffsetOpcode = 1 << 26,
+  kUnboundMovLabelAddrOpcode = 2 << 26,
+  kUnboundJumpTableEntryOpcode = 3 << 26
 };
 
 
@@ -398,6 +400,7 @@ int Assembler::target_at(int pos) {
       link &= ~(kAAMask | kLKMask);  // discard AA|LK bits if present
       break;
     case kUnboundMovLabelOffsetOpcode:
+    case kUnboundAddLabelOffsetOpcode:
     case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       link = SIGN_EXT_IMM26(instr & kImm26Mask);
@@ -454,22 +457,31 @@ void Assembler::target_at_put(int pos, int target_pos) {
       patcher.masm()->bitwise_mov32(dst, offset);
       break;
     }
+    case kUnboundAddLabelOffsetOpcode: {
+      // dst = base + position + immediate
+      Instr operands = instr_at(pos + kInstrSize);
+      Register dst = Register::from_code((operands >> 21) & 0x1f);
+      Register base = Register::from_code((operands >> 16) & 0x1f);
+      int32_t offset = target_pos + SIGN_EXT_IMM16(operands & kImm16Mask);
+      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+                          CodePatcher::DONT_FLUSH);
+      patcher.masm()->bitwise_add32(dst, base, offset);
+      break;
+    }
     case kUnboundMovLabelAddrOpcode: {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + target_pos);
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
                           kMovInstructions, CodePatcher::DONT_FLUSH);
-      AddBoundInternalReferenceLoad(pos);
-      patcher.masm()->bitwise_mov(dst, addr);
+      // Keep internal references relative until EmitRelocations.
+      patcher.masm()->bitwise_mov(dst, target_pos);
       break;
     }
     case kUnboundJumpTableEntryOpcode: {
-      intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + target_pos);
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
                           kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
-      AddBoundInternalReference(pos);
-      patcher.masm()->emit_ptr(addr);
+      // Keep internal references relative until EmitRelocations.
+      patcher.masm()->emit_ptr(target_pos);
       break;
     }
     default:
@@ -490,6 +502,7 @@ int Assembler::max_reach_from(int pos) {
     case BCX:
       return 16;
     case kUnboundMovLabelOffsetOpcode:
+    case kUnboundAddLabelOffsetOpcode:
     case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       return 0;  // no limit on reach
@@ -1487,37 +1500,6 @@ void Assembler::function_descriptor() {
 }
 
 
-void Assembler::RelocateInternalReference(Address pc, intptr_t delta,
-                                          Address code_start,
-                                          RelocInfo::Mode rmode,
-                                          ICacheFlushMode icache_flush_mode) {
-  if (RelocInfo::IsInternalReference(rmode)) {
-    // Jump table entry
-    DCHECK(delta || code_start);
-    uintptr_t* entry = reinterpret_cast<uintptr_t*>(pc);
-    if (delta) {
-      *entry += delta;
-    } else {
-      // remove when serializer properly supports internal references
-      *entry = reinterpret_cast<uintptr_t>(code_start) + 3 * kPointerSize;
-    }
-  } else {
-    // mov sequence
-    DCHECK(delta || code_start);
-    DCHECK(RelocInfo::IsInternalReferenceEncoded(rmode));
-    ConstantPoolArray* constant_pool = NULL;
-    Address addr;
-    if (delta) {
-      addr = target_address_at(pc, constant_pool) + delta;
-    } else {
-      // remove when serializer properly supports internal references
-      addr = code_start;
-    }
-    set_target_address_at(pc, constant_pool, addr, icache_flush_mode);
-  }
-}
-
-
 void Assembler::EnsureSpaceFor(int space_needed) {
   if (buffer_space() <= (kGap + space_needed)) {
     GrowBuffer(space_needed);
@@ -1544,11 +1526,11 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 // and only use the generic version when we require a fixed sequence
 void Assembler::mov(Register dst, const Operand& src) {
   intptr_t value = src.immediate();
+  bool relocatable = src.must_output_reloc_info(this);
   bool canOptimize;
-  RelocInfo rinfo(pc_, src.rmode_, value, NULL);
 
-  canOptimize = !(src.must_output_reloc_info(this) ||
-                  (is_trampoline_pool_blocked() && !is_int16(value)));
+  canOptimize =
+      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
 
   if (canOptimize) {
     if (is_int16(value)) {
@@ -1586,8 +1568,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   }
 
   DCHECK(!canOptimize);
-  if (src.must_output_reloc_info(this)) {
-    RecordRelocInfo(rinfo);
+  if (relocatable) {
+    RecordRelocInfo(src.rmode_);
   }
   bitwise_mov(dst, value);
 }
@@ -1625,6 +1607,21 @@ void Assembler::bitwise_mov32(Register dst, int32_t value) {
 }
 
 
+void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (is_int16(value)) {
+    addi(dst, src, Operand(value));
+    nop();
+  } else {
+    int hi_word = static_cast<int>(value >> 16);
+    int lo_word = static_cast<int>(value & 0xffff);
+    if (lo_word & 0x8000) hi_word++;
+    addis(dst, src, Operand(SIGN_EXT_IMM16(hi_word)));
+    addic(dst, dst, Operand(SIGN_EXT_IMM16(lo_word)));
+  }
+}
+
+
 void Assembler::mov_label_offset(Register dst, Label* label) {
   int position = link(label);
   if (label->is_bound()) {
@@ -1652,18 +1649,37 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
 }
 
 
+void Assembler::add_label_offset(Register dst, Register base, Label* label,
+                                 int delta) {
+  int position = link(label);
+  if (label->is_bound()) {
+    // dst = base + position + delta
+    position += delta;
+    bitwise_add32(dst, base, position);
+  } else {
+    // Encode internal reference to unbound label. We use a dummy opcode
+    // such that it won't collide with any opcode that might appear in the
+    // label's chain.  Encode the operands in the 2nd instruction.
+    int link = position - pc_offset();
+    DCHECK_EQ(0, link & 3);
+    link >>= 2;
+    DCHECK(is_int26(link));
+    DCHECK(is_int16(delta));
+
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    emit(kUnboundAddLabelOffsetOpcode | (link & kImm26Mask));
+    emit(dst.code() * B21 | base.code() * B16 | (delta & kImm16Mask));
+  }
+}
+
+
 void Assembler::mov_label_addr(Register dst, Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   int position = link(label);
   if (label->is_bound()) {
-    // CheckBuffer() is called too frequently. This will pre-grow
-    // the buffer if needed to avoid spliting the relocation and instructions
-    EnsureSpaceFor(kMovInstructions * kInstrSize);
-
-    intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
-    AddBoundInternalReferenceLoad(pc_offset());
-    bitwise_mov(dst, addr);
+    // Keep internal references relative until EmitRelocations.
+    bitwise_mov(dst, position);
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -1692,13 +1708,8 @@ void Assembler::emit_label_addr(Label* label) {
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
   int position = link(label);
   if (label->is_bound()) {
-    // CheckBuffer() is called too frequently. This will pre-grow
-    // the buffer if needed to avoid spliting the relocation and entry.
-    EnsureSpaceFor(kPointerSize);
-
-    intptr_t addr = reinterpret_cast<uintptr_t>(buffer_ + position);
-    AddBoundInternalReference(pc_offset());
-    emit_ptr(addr);
+    // Keep internal references relative until EmitRelocations.
+    emit_ptr(position);
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -2218,15 +2229,9 @@ void Assembler::GrowBuffer(int needed) {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // Relocate internal references
-  for (int pos : internal_reference_positions_) {
-    RelocateInternalReference(buffer_ + pos, pc_delta, 0,
-                              RelocInfo::INTERNAL_REFERENCE);
-  }
-  for (int pos : internal_reference_load_positions_) {
-    RelocateInternalReference(buffer_ + pos, pc_delta, 0,
-                              RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  }
+  // Nothing else to do here since we keep all internal references and
+  // deferred relocation entries relative to the buffer (until
+  // EmitRelocations).
 }
 
 
@@ -2251,13 +2256,20 @@ void Assembler::emit_ptr(intptr_t data) {
 }
 
 
+void Assembler::emit_double(double value) {
+  CheckBuffer();
+  *reinterpret_cast<double*>(pc_) = value;
+  pc_ += sizeof(double);
+}
+
+
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  RelocInfo rinfo(pc_, rmode, data, NULL);
+  DeferredRelocInfo rinfo(pc_offset(), rmode, data);
   RecordRelocInfo(rinfo);
 }
 
 
-void Assembler::RecordRelocInfo(const RelocInfo& rinfo) {
+void Assembler::RecordRelocInfo(const DeferredRelocInfo& rinfo) {
   if (rinfo.rmode() >= RelocInfo::JS_RETURN &&
       rinfo.rmode() <= RelocInfo::DEBUG_BREAK_SLOT) {
     // Adjust code for new modes.
@@ -2273,16 +2285,38 @@ void Assembler::RecordRelocInfo(const RelocInfo& rinfo) {
         return;
       }
     }
-    DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(rinfo.pc(), rinfo.rmode(),
-                                       RecordedAstId().ToInt(), NULL);
+      DeferredRelocInfo reloc_info_with_ast_id(rinfo.position(), rinfo.rmode(),
+                                               RecordedAstId().ToInt());
       ClearRecordedAstId();
-      reloc_info_writer.Write(&reloc_info_with_ast_id);
+      relocations_.push_back(reloc_info_with_ast_id);
     } else {
-      reloc_info_writer.Write(&rinfo);
+      relocations_.push_back(rinfo);
     }
   }
+}
+
+
+void Assembler::EmitRelocations() {
+  EnsureSpaceFor(relocations_.size() * kMaxRelocSize);
+
+  for (std::vector<DeferredRelocInfo>::iterator it = relocations_.begin();
+       it != relocations_.end(); it++) {
+    RelocInfo::Mode rmode = it->rmode();
+    RelocInfo rinfo(buffer_ + it->position(), rmode, it->data(), NULL);
+
+    // Fix up internal references now that they are guaranteed to be bound.
+    if (RelocInfo::IsInternalReference(rmode) ||
+        RelocInfo::IsInternalReferenceEncoded(rmode)) {
+      intptr_t pos =
+          reinterpret_cast<intptr_t>(rinfo.target_internal_reference());
+      rinfo.set_target_internal_reference(buffer_ + pos);
+    }
+
+    reloc_info_writer.Write(&rinfo);
+  }
+
+  reloc_info_writer.Finish();
 }
 
 

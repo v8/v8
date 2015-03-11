@@ -377,8 +377,9 @@ class MacroAssembler : public Assembler {
   void Prologue(bool code_pre_aging, int prologue_offset = 0);
 
   // Enter exit frame.
-  // stack_space - extra stack space, used for alignment before call to C.
-  void EnterExitFrame(bool save_doubles, int stack_space = 0);
+  // stack_space - extra stack space, used for parameters before call to C.
+  // At least one slot (for the return address) should be provided.
+  void EnterExitFrame(bool save_doubles, int stack_space = 1);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
@@ -462,6 +463,8 @@ class MacroAssembler : public Assembler {
   void MovInt64ComponentsToDouble(DoubleRegister dst, Register src_hi,
                                   Register src_lo, Register scratch);
 #endif
+  void InsertDoubleLow(DoubleRegister dst, Register src, Register scratch);
+  void InsertDoubleHigh(DoubleRegister dst, Register src, Register scratch);
   void MovDoubleLowToInt(Register dst, DoubleRegister src);
   void MovDoubleHighToInt(Register dst, DoubleRegister src);
   void MovDoubleToInt64(
@@ -547,13 +550,6 @@ class MacroAssembler : public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   // Must preserve the result register.
   void PopTryHandler();
-
-  // Passes thrown value to the handler of top of the try handler chain.
-  void Throw(Register value);
-
-  // Propagates an uncatchable exception to the top of the current JS stack's
-  // handler chain.
-  void ThrowUncatchable(Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -1483,10 +1479,6 @@ class MacroAssembler : public Assembler {
   // the position of the first bit.  Leaves addr_reg unchanged.
   inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
                           Register mask_reg);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry();
 
   static const RegList kSafepointSavedRegisters;
   static const int kNumSafepointSavedRegisters;

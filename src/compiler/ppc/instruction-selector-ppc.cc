@@ -925,6 +925,21 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   // TODO(mbrandy): detect multiply-subtract
+  PPCOperandGenerator g(this);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
+      CanCover(m.node(), m.right().node())) {
+    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+        CanCover(m.right().node(), m.right().InputAt(0))) {
+      Float64BinopMatcher mright0(m.right().InputAt(0));
+      if (mright0.left().IsMinusZero()) {
+        // -floor(-x) = ceil(x)
+        Emit(kPPC_CeilFloat64, g.DefineAsRegister(node),
+             g.UseRegister(mright0.right().node()));
+        return;
+      }
+    }
+  }
   VisitRRRFloat64(this, node, kPPC_SubFloat64);
 }
 
@@ -953,13 +968,8 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
   VisitRRFloat64(this, kPPC_FloorFloat64, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  VisitRRFloat64(this, kPPC_CeilFloat64, node);
 }
 
 
@@ -1111,19 +1121,9 @@ static void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
         return VisitWord32Compare(selector, value, cont);
 #if V8_TARGET_ARCH_PPC64
-      case IrOpcode::kWord64Equal: {
-        // Combine with comparisons against 0 by simply inverting the
-        // continuation.
-        Int64BinopMatcher m(value);
-        if (m.right().Is(0)) {
-          user = value;
-          value = m.left().node();
-          cont->Negate();
-          continue;
-        }
+      case IrOpcode::kWord64Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitWord64Compare(selector, value, cont);
-      }
       case IrOpcode::kInt64LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord64Compare(selector, value, cont);
@@ -1436,11 +1436,56 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 }
 
 
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Float64ExtractLowWord32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Float64ExtractHighWord32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
+  PPCOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
+      CanCover(node, left)) {
+    left = left->InputAt(1);
+    Emit(kPPC_Float64Construct, g.DefineAsRegister(node), g.UseRegister(left),
+         g.UseRegister(right));
+    return;
+  }
+  Emit(kPPC_Float64InsertLowWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
+}
+
+
+void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
+  PPCOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
+      CanCover(node, left)) {
+    left = left->InputAt(1);
+    Emit(kPPC_Float64Construct, g.DefineAsRegister(node), g.UseRegister(right),
+         g.UseRegister(left));
+    return;
+  }
+  Emit(kPPC_Float64InsertHighWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
+}
+
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat64Floor |
-         MachineOperatorBuilder::kFloat64Ceil |
+  return MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway;
   // We omit kWord32ShiftIsSafe as s[rl]w use 0x3f as a mask rather than 0x1f.

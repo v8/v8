@@ -84,6 +84,11 @@ namespace compiler {
   V(PPC_Float64ToInt32)            \
   V(PPC_Float64ToUint32)           \
   V(PPC_Float64ToFloat32)          \
+  V(PPC_Float64ExtractLowWord32)   \
+  V(PPC_Float64ExtractHighWord32)  \
+  V(PPC_Float64InsertLowWord32)    \
+  V(PPC_Float64InsertHighWord32)   \
+  V(PPC_Float64Construct)          \
   V(PPC_LoadWordS8)                \
   V(PPC_LoadWordU8)                \
   V(PPC_LoadWordS16)               \

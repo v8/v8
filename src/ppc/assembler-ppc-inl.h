@@ -51,10 +51,41 @@ bool CpuFeatures::SupportsCrankshaft() { return true; }
 
 
 void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
-  if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
-    // absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(pc_, delta, 0, rmode_,
-                                         icache_flush_mode);
+  // absolute code pointer inside code object moves with the code object.
+  if (IsInternalReference(rmode_)) {
+    // Jump table entry
+    Address target = Memory::Address_at(pc_);
+    Memory::Address_at(pc_) = target + delta;
+  } else {
+    // mov sequence
+    DCHECK(IsInternalReferenceEncoded(rmode_));
+    Address target = Assembler::target_address_at(pc_, host_);
+    Assembler::set_target_address_at(pc_, host_, target + delta,
+                                     icache_flush_mode);
+  }
+}
+
+
+Address RelocInfo::target_internal_reference() {
+  if (IsInternalReference(rmode_)) {
+    // Jump table entry
+    return Memory::Address_at(pc_);
+  } else {
+    // mov sequence
+    DCHECK(IsInternalReferenceEncoded(rmode_));
+    return Assembler::target_address_at(pc_, host_);
+  }
+}
+
+
+void RelocInfo::set_target_internal_reference(Address target) {
+  if (IsInternalReference(rmode_)) {
+    // Jump table entry
+    Memory::Address_at(pc_) = target;
+  } else {
+    // mov sequence
+    DCHECK(IsInternalReferenceEncoded(rmode_));
+    Assembler::set_target_address_at(pc_, host_, target, SKIP_ICACHE_FLUSH);
   }
 }
 
@@ -157,18 +188,6 @@ void RelocInfo::set_target_object(Object* target,
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
-}
-
-
-Address RelocInfo::target_internal_reference() {
-  DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory::Address_at(pc_);
-}
-
-
-void RelocInfo::set_target_internal_reference(Address target) {
-  DCHECK(rmode_ == INTERNAL_REFERENCE);
-  Memory::Address_at(pc_) = target;
 }
 
 

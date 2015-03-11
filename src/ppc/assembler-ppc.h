@@ -518,6 +518,23 @@ class MemOperand BASE_EMBEDDED {
 };
 
 
+class DeferredRelocInfo {
+ public:
+  DeferredRelocInfo() {}
+  DeferredRelocInfo(int position, RelocInfo::Mode rmode, intptr_t data)
+      : position_(position), rmode_(rmode), data_(data) {}
+
+  int position() const { return position_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
+  intptr_t data() const { return data_; }
+
+ private:
+  int position_;
+  RelocInfo::Mode rmode_;
+  intptr_t data_;
+};
+
+
 class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -990,10 +1007,15 @@ class Assembler : public AssemblerBase {
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
   void bitwise_mov32(Register dst, int32_t value);
+  void bitwise_add32(Register dst, Register src, int32_t value);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
   void mov_label_offset(Register dst, Label* label);
+
+  // dst = base + label position + delta
+  void add_label_offset(Register dst, Register base, Label* label,
+                        int delta = 0);
 
   // Load the address of the label in a register and associate with an
   // internal reference relocation.
@@ -1212,6 +1234,7 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
   void emit_ptr(intptr_t data);
+  void emit_double(double data);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
@@ -1260,9 +1283,6 @@ class Assembler : public AssemblerBase {
   // The code currently calls CheckBuffer() too often. This has the side
   // effect of randomly growing the buffer in the middle of multi-instruction
   // sequences.
-  // MacroAssembler::LoadConstantPoolPointerRegister() includes a relocation
-  // and multiple instructions. We cannot grow the buffer until the
-  // relocation and all of the instructions are written.
   //
   // This function allows outside callers to check and grow the buffer
   void EnsureSpaceFor(int space_needed);
@@ -1273,17 +1293,7 @@ class Assembler : public AssemblerBase {
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
-  static void RelocateInternalReference(
-      Address pc, intptr_t delta, Address code_start, RelocInfo::Mode rmode,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  void AddBoundInternalReference(int position) {
-    internal_reference_positions_.push_back(position);
-  }
-
-  void AddBoundInternalReferenceLoad(int position) {
-    internal_reference_load_positions_.push_back(position);
-  }
+  void EmitRelocations();
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1301,7 +1311,7 @@ class Assembler : public AssemblerBase {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  void RecordRelocInfo(const RelocInfo& rinfo);
+  void RecordRelocInfo(const DeferredRelocInfo& rinfo);
 
   // Block the emission of the trampoline pool before pc_offset.
   void BlockTrampolinePoolBefore(int pc_offset) {
@@ -1340,12 +1350,7 @@ class Assembler : public AssemblerBase {
   // Each relocation is encoded as a variable size value
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
-
-  // Internal reference positions, required for (potential) patching in
-  // GrowBuffer(); contains only those internal references whose labels
-  // are already bound.
-  std::deque<int> internal_reference_positions_;
-  std::deque<int> internal_reference_load_positions_;
+  std::vector<DeferredRelocInfo> relocations_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;

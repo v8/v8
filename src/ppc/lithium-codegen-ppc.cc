@@ -337,49 +337,37 @@ bool LCodeGen::GenerateJumpTable() {
 
       if (table_entry->needs_frame) {
         DCHECK(!info()->saves_caller_doubles());
-        if (needs_frame.is_bound()) {
-          __ b(&needs_frame);
-        } else {
-          __ bind(&needs_frame);
-          Comment(";;; call deopt with frame");
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          DCHECK(info()->IsStub());
-          __ LoadSmiLiteral(ip, Smi::FromInt(StackFrame::STUB));
-          __ PushFixedFrame(ip);
-          __ addi(fp, sp,
-                  Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-          __ bind(&call_deopt_entry);
-          // Add the base address to the offset previously loaded in
-          // entry_offset.
-          __ mov(ip, Operand(ExternalReference::ForDeoptEntry(base)));
-          __ add(ip, entry_offset, ip);
-          __ Call(ip);
-        }
+        Comment(";;; call deopt with frame");
+        __ PushFixedFrame();
+        __ b(&needs_frame, SetLK);
       } else {
-        // The last entry can fall through into `call_deopt_entry`, avoiding a
-        // branch.
-        bool need_branch = ((i + 1) != length) || call_deopt_entry.is_bound();
-
-        if (need_branch) __ b(&call_deopt_entry);
+        __ b(&call_deopt_entry, SetLK);
       }
     }
 
-    if (!call_deopt_entry.is_bound()) {
-      Comment(";;; call deopt");
-      __ bind(&call_deopt_entry);
-
-      if (info()->saves_caller_doubles()) {
-        DCHECK(info()->IsStub());
-        RestoreCallerDoubles();
-      }
-
-      // Add the base address to the offset previously loaded in entry_offset.
-      __ mov(ip, Operand(ExternalReference::ForDeoptEntry(base)));
-      __ add(ip, entry_offset, ip);
-      __ Call(ip);
+    if (needs_frame.is_linked()) {
+      __ bind(&needs_frame);
+      // This variant of deopt can only be used with stubs. Since we don't
+      // have a function pointer to install in the stack frame that we're
+      // building, install a special marker there instead.
+      DCHECK(info()->IsStub());
+      __ LoadSmiLiteral(ip, Smi::FromInt(StackFrame::STUB));
+      __ push(ip);
+      __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
+
+    Comment(";;; call deopt");
+    __ bind(&call_deopt_entry);
+
+    if (info()->saves_caller_doubles()) {
+      DCHECK(info()->IsStub());
+      RestoreCallerDoubles();
+    }
+
+    // Add the base address to the offset previously loaded in entry_offset.
+    __ mov(ip, Operand(ExternalReference::ForDeoptEntry(base)));
+    __ add(ip, entry_offset, ip);
+    __ Jump(ip);
   }
 
   // The deoptimization jump table is the last part of the instruction

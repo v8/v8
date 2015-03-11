@@ -1482,7 +1482,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         __ mov(VectorLoadICDescriptor::SlotRegister(),
                Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
       }
-      CallLoadIC(CONTEXTUAL);
+      CallGlobalLoadIC(var->name());
       context()->Plug(r3);
       break;
     }
@@ -2566,6 +2566,16 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
     __ push(scratch);
     EmitPropertyKey(property, lit->GetIdForProperty(i));
+
+    // The static prototype property is read only. We handle the non computed
+    // property name case in the parser. Since this is the only case where we
+    // need to check for an own read only property we special case this so we do
+    // not need to do this for every property.
+    if (property->is_static() && property->is_computed_name()) {
+      __ CallRuntime(Runtime::kThrowIfStaticPrototype, 1);
+      __ push(r3);
+    }
+
     VisitForStackValue(value);
     EmitSetHomeObjectIfNeeded(value, 2);
 
@@ -2709,25 +2719,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
     __ LoadP(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
     CallStoreIC();
 
-  } else if (op == Token::INIT_CONST_LEGACY) {
-    // Const initializers need a write barrier.
-    DCHECK(!var->IsParameter());  // No const parameters.
-    if (var->IsLookupSlot()) {
-      __ push(r3);
-      __ mov(r3, Operand(var->name()));
-      __ Push(cp, r3);  // Context and name.
-      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
-    } else {
-      DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-      Label skip;
-      MemOperand location = VarOperand(var, r4);
-      __ LoadP(r5, location);
-      __ CompareRoot(r5, Heap::kTheHoleValueRootIndex);
-      __ bne(&skip);
-      EmitStoreToStackLocalOrContextSlot(var, location);
-      __ bind(&skip);
-    }
-
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     DCHECK(!var->IsLookupSlot());
@@ -2743,6 +2734,21 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
     // Perform the assignment.
     __ bind(&assign);
     EmitStoreToStackLocalOrContextSlot(var, location);
+
+  } else if (var->mode() == CONST && op != Token::INIT_CONST) {
+    // Assignment to const variable needs a write barrier.
+    DCHECK(!var->IsLookupSlot());
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    Label const_error;
+    MemOperand location = VarOperand(var, r4);
+    __ LoadP(r6, location);
+    __ CompareRoot(r6, Heap::kTheHoleValueRootIndex);
+    __ bne(&const_error);
+    __ mov(r6, Operand(var->name()));
+    __ push(r6);
+    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ bind(&const_error);
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
     if (var->IsLookupSlot()) {
@@ -2765,8 +2771,32 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
-  } else if (IsSignallingAssignmentToConst(var, op, language_mode())) {
-    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+  } else if (op == Token::INIT_CONST_LEGACY) {
+    // Const initializers need a write barrier.
+    DCHECK(var->mode() == CONST_LEGACY);
+    DCHECK(!var->IsParameter());  // No const parameters.
+    if (var->IsLookupSlot()) {
+      __ push(r3);
+      __ mov(r3, Operand(var->name()));
+      __ Push(cp, r3);  // Context and name.
+      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
+    } else {
+      DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+      Label skip;
+      MemOperand location = VarOperand(var, r4);
+      __ LoadP(r5, location);
+      __ CompareRoot(r5, Heap::kTheHoleValueRootIndex);
+      __ bne(&skip);
+      EmitStoreToStackLocalOrContextSlot(var, location);
+      __ bind(&skip);
+    }
+
+  } else {
+    DCHECK(var->mode() == CONST_LEGACY && op != Token::INIT_CONST_LEGACY);
+    if (is_strict(language_mode())) {
+      __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+    }
+    // Silently ignore store in sloppy mode.
   }
 }
 
@@ -2893,7 +2923,8 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
     }
     // Push undefined as receiver. This is patched in the method prologue if it
     // is a sloppy mode method.
-    __ Push(isolate()->factory()->undefined_value());
+    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+    __ push(r0);
   } else {
     // Load the function from the receiver.
     DCHECK(callee->IsProperty());
@@ -2902,8 +2933,8 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
     EmitNamedPropertyLoad(callee->AsProperty());
     PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
     // Push the target function under the receiver.
-    __ LoadP(ip, MemOperand(sp, 0));
-    __ push(ip);
+    __ LoadP(r0, MemOperand(sp, 0));
+    __ push(r0);
     __ StoreP(r3, MemOperand(sp, kPointerSize));
   }
 
@@ -4218,6 +4249,8 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   }
 
   __ bind(&args_set_up);
+  __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
 

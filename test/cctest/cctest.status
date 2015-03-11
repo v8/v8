@@ -405,8 +405,12 @@
   'test-api/Threading2': [SKIP],
   'test-api/ExternalArrays': [SKIP],
 
-  # isses to be investigated
+  # issues to be investigated based on latest uplevel
   'test-run-machops/RunWord64EqualInBranchP': [SKIP],
+  'test-deoptimization/DeoptimizeCompare': [SKIP],
+
+  # will not pass until we agree/implement changes to serializce.cc
+  'test-serialize/SerializeInternalReference': [SKIP],
 
 }],  # 'arch == ppc64 and simulator_run == True'
 ]

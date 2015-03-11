@@ -903,6 +903,32 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Move(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_Float64ExtractLowWord32:
+      __ MovDoubleLowToInt(i.OutputRegister(), i.InputDoubleRegister(0));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kPPC_Float64ExtractHighWord32:
+      __ MovDoubleHighToInt(i.OutputRegister(), i.InputDoubleRegister(0));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kPPC_Float64InsertLowWord32:
+      __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1), r0);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kPPC_Float64InsertHighWord32:
+      __ InsertDoubleHigh(i.OutputDoubleRegister(), i.InputRegister(1), r0);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kPPC_Float64Construct:
+#if V8_TARGET_ARCH_PPC64
+      __ MovInt64ComponentsToDouble(i.OutputDoubleRegister(),
+                                    i.InputRegister(0), i.InputRegister(1), r0);
+#else
+      __ MovInt64ToDouble(i.OutputDoubleRegister(), i.InputRegister(0),
+                          i.InputRegister(1));
+#endif
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
       break;

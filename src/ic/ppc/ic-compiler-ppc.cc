@@ -74,11 +74,14 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(MapHandleList* maps,
       number_of_handled_maps++;
       Handle<WeakCell> cell = Map::WeakCellForMap(map);
       __ CmpWeakValue(map_reg, cell, scratch2());
+      Label next;
+      __ bne(&next);
       if (map->instance_type() == HEAP_NUMBER_TYPE) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
       }
-      __ Jump(handlers->at(current), RelocInfo::CODE_TARGET, eq);
+      __ Jump(handlers->at(current), RelocInfo::CODE_TARGET);
+      __ bind(&next);
     }
   }
   DCHECK(number_of_handled_maps != 0);
