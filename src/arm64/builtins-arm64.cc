@@ -126,6 +126,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
+  __ Mov(x3, x1);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }

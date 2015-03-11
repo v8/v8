@@ -191,6 +191,7 @@ namespace internal {
   F(LoadFromSuper, 3, 1)                                   \
   F(LoadKeyedFromSuper, 3, 1)                              \
   F(ThrowConstructorNonCallableError, 0, 1)                \
+  F(ThrowArrayNotSubclassableError, 0, 1)                  \
   F(ThrowNonMethodError, 0, 1)                             \
   F(ThrowUnsupportedSuperError, 0, 1)                      \
   F(HandleStepInForDerivedConstructors, 1, 1)              \

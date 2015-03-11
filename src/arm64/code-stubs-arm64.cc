@@ -3071,6 +3071,9 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 
   Register allocation_site = feedback_vector;
   __ Mov(allocation_site, scratch);
+
+  Register original_constructor = x3;
+  __ Mov(original_constructor, function);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -5006,11 +5009,13 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- x0 : argc (only if argument_count() == ANY)
   //  -- x1 : constructor
   //  -- x2 : AllocationSite or undefined
+  //  -- x3 : original constructor
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
   Register constructor = x1;
   Register allocation_site = x2;
+  Register original_constructor = x3;
 
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
@@ -5032,6 +5037,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(allocation_site, x10);
   }
 
+  Label subclassing;
+  __ Cmp(original_constructor, constructor);
+  __ B(ne, &subclassing);
+
   Register kind = x3;
   Label no_info;
   // Get the elements kind and case on that.
@@ -5045,6 +5054,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ Bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
+
+  __ Bind(&subclassing);
+  __ TailCallRuntime(Runtime::kThrowArrayNotSubclassableError, 0, 1);
 }
 
 

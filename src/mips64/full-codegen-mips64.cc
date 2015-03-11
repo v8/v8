@@ -4234,6 +4234,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ dsll(at, a0, kPointerSizeLog2);
   __ Daddu(at, at, Operand(sp));
   __ ld(a1, MemOperand(at, 0));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
 
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);

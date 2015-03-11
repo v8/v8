@@ -47,6 +47,15 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("array_not_subclassable", HandleVector<Object>(NULL, 0)));
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

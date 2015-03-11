@@ -4124,7 +4124,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ bind(&args_set_up);
 
   __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
-
+  __ mov(ebx, Immediate(isolate()->factory()->undefined_value()));
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
 
