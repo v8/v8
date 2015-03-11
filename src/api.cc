@@ -6113,23 +6113,17 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 
 
 bool Value::IsPromise() const {
-  i::Handle<i::Object> val = Utils::OpenHandle(this);
-  if (!val->IsJSObject()) return false;
-  i::Handle<i::JSObject> obj = i::Handle<i::JSObject>::cast(val);
-  i::Isolate* isolate = obj->GetIsolate();
-  LOG_API(isolate, "IsPromise");
-  ENTER_V8(isolate);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> argv[] = { obj };
-  i::Handle<i::Object> b;
-  has_pending_exception = !i::Execution::Call(
-      isolate,
-      isolate->is_promise(),
-      isolate->factory()->undefined_value(),
-      arraysize(argv), argv,
-      false).ToHandle(&b);
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return b->BooleanValue();
+  auto self = Utils::OpenHandle(this);
+  if (!self->IsJSObject()) return false;
+  auto js_object = i::Handle<i::JSObject>::cast(self);
+  // Promises can't have access checks.
+  if (js_object->map()->is_access_check_needed()) return false;
+  auto isolate = js_object->GetIsolate();
+  // TODO(dcarney): this should just be read from the symbol registry so as not
+  // to be context dependent.
+  auto key = isolate->promise_status();
+  // Shouldn't be possible to throw here.
+  return i::JSObject::HasRealNamedProperty(js_object, key).FromJust();
 }
 
 

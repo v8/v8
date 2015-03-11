@@ -155,7 +155,7 @@ enum BindingFlags {
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                                  \
+  V(PROMISE_STATUS_INDEX, Symbol, promise_status)                              \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                          \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                        \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                          \
@@ -390,7 +390,7 @@ class Context: public FixedArray {
     ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
     RUN_MICROTASKS_INDEX,
     ENQUEUE_MICROTASK_INDEX,
-    IS_PROMISE_INDEX,
+    PROMISE_STATUS_INDEX,
     PROMISE_CREATE_INDEX,
     PROMISE_RESOLVE_INDEX,
     PROMISE_REJECT_INDEX,
