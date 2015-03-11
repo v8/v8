@@ -407,7 +407,6 @@
 
   # issues to be investigated based on latest uplevel
   'test-run-machops/RunWord64EqualInBranchP': [SKIP],
-  'test-deoptimization/DeoptimizeCompare': [SKIP],
 
   # will not pass until we agree/implement changes to serializce.cc
   'test-serialize/SerializeInternalReference': [SKIP],

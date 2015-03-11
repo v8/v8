@@ -3563,8 +3563,8 @@ void StringHelper::GenerateCompareFlatOneByteStrings(
   // Conditionally update the result based either on length_delta or
   // the last comparion performed in the loop above.
   if (CpuFeatures::IsSupported(ISELECT)) {
-    __ li(r4, Operand(GREATER));
-    __ li(r5, Operand(LESS));
+    __ LoadSmiLiteral(r4, Smi::FromInt(GREATER));
+    __ LoadSmiLiteral(r5, Smi::FromInt(LESS));
     __ isel(eq, r3, r0, r4);
     __ isel(lt, r3, r5, r3);
     __ Ret();
