@@ -5345,15 +5345,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Mov(x10, pending_message_obj);
   __ Ldr(x10, MemOperand(x10));
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
-  __ Mov(x11, has_pending_message);
-  __ Ldrb(x11, MemOperand(x11));
-  __ SmiTag(x11);
-
-  __ Push(x10, x11);
+  __ Push(x10);
 }
 
 
@@ -5362,18 +5354,11 @@ void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(x10));
 
   // Restore pending message from stack.
-  __ Pop(x10, x11);
-  __ SmiUntag(x10);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Mov(x13, has_pending_message);
-  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
-  __ Strb(x10, MemOperand(x13));
-
+  __ Pop(x10);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Mov(x13, pending_message_obj);
-  __ Str(x11, MemOperand(x13));
+  __ Str(x10, MemOperand(x13));
 
   // Restore result register and cooked return address from the stack.
   __ Pop(x10, result_register());

@@ -282,7 +282,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address pending_handler_sp_;
 
   // Communication channel between Isolate::Throw and message consumers.
-  bool has_pending_message_;
   bool rethrowing_message_;
   Object* pending_message_obj_;
 
@@ -604,7 +603,6 @@ class Isolate {
   THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
 
   void clear_pending_message() {
-    thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
   }
   v8::TryCatch* try_catch_handler() {
@@ -621,10 +619,6 @@ class Isolate {
 
   Address pending_message_obj_address() {
     return reinterpret_cast<Address>(&thread_local_top_.pending_message_obj_);
-  }
-
-  Address has_pending_message_address() {
-    return reinterpret_cast<Address>(&thread_local_top_.has_pending_message_);
   }
 
   Object* scheduled_exception() {

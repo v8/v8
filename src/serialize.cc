@@ -102,8 +102,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "date_cache_stamp");
   Add(ExternalReference::address_of_pending_message_obj(isolate).address(),
       "address_of_pending_message_obj");
-  Add(ExternalReference::address_of_has_pending_message(isolate).address(),
-      "address_of_has_pending_message");
   Add(ExternalReference::get_make_code_young_function(isolate).address(),
       "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");

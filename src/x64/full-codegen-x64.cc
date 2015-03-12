@@ -5272,12 +5272,6 @@ void FullCodeGenerator::EnterFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Load(rdx, pending_message_obj);
   __ Push(rdx);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Load(rdx, has_pending_message);
-  __ Integer32ToSmi(rdx, rdx);
-  __ Push(rdx);
 }
 
 
@@ -5285,12 +5279,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(rdx));
   DCHECK(!result_register().is(rcx));
   // Restore pending message from stack.
-  __ Pop(rdx);
-  __ SmiToInteger32(rdx, rdx);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Store(has_pending_message, rdx);
-
   __ Pop(rdx);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());

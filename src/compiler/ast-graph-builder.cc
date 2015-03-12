@@ -1264,8 +1264,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   ExternalReference message_object =
       ExternalReference::address_of_pending_message_obj(isolate());
-  ExternalReference message_present =
-      ExternalReference::address_of_has_pending_message(isolate());
 
   // We keep a record of all paths that enter the finally-block to be able to
   // dispatch to the correct continuation point after the statements in the
@@ -1302,7 +1300,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   environment()->Push(token);  // TODO(mstarzinger): Cook token!
   environment()->Push(result);
   environment()->Push(BuildLoadExternal(message_object, kMachAnyTagged));
-  environment()->Push(BuildLoadExternal(message_present, kMachBool));
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
@@ -1310,7 +1307,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // The result value, dispatch token and message is restored from the operand
   // stack (this is in sync with FullCodeGenerator::ExitFinallyBlock).
-  BuildStoreExternal(message_present, kMachBool, environment()->Pop());
   BuildStoreExternal(message_object, kMachAnyTagged, environment()->Pop());
   result = environment()->Pop();
   token = environment()->Pop();  // TODO(mstarzinger): Uncook token!

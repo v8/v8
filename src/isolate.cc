@@ -87,7 +87,6 @@ void ThreadLocalTop::InitializeInternal() {
   // These members are re-initialized later after deserialization
   // is complete.
   pending_exception_ = NULL;
-  has_pending_message_ = false;
   rethrowing_message_ = false;
   pending_message_obj_ = NULL;
   scheduled_exception_ = NULL;
@@ -1000,9 +999,6 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
     }
   }
 
-  // Save the message for reporting if the the exception remains uncaught.
-  thread_local_top()->has_pending_message_ = report_exception;
-
   // Set the exception being thrown.
   set_pending_exception(*exception_handle);
   return heap()->exception();
@@ -1405,30 +1401,38 @@ bool Isolate::IsFinallyOnTop() {
 
 
 void Isolate::ReportPendingMessages() {
-  DCHECK(has_pending_exception());
-  bool can_clear_message = PropagatePendingExceptionToExternalTryCatch();
+  Object* exception = pending_exception();
 
-  HandleScope scope(this);
-  if (thread_local_top_.pending_exception_ == heap()->termination_exception()) {
+  // Try to propagate the exception to an external v8::TryCatch handler. If
+  // propagation was unsuccessful, then we will get another chance at reporting
+  // the pending message if the exception is re-thrown.
+  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
+  if (!has_been_propagated) return;
+
+  // Clear the pending message object early to avoid endless recursion.
+  Object* message_obj = thread_local_top_.pending_message_obj_;
+  clear_pending_message();
+
+  bool can_be_caught_externally = false;
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  bool should_report_exception =
+      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+
+  if (!catchable_by_javascript) {
     // Do nothing: if needed, the exception has been already propagated to
     // v8::TryCatch.
   } else {
-    if (thread_local_top_.has_pending_message_) {
-      thread_local_top_.has_pending_message_ = false;
-      if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
-        HandleScope scope(this);
-        Handle<JSMessageObject> message_obj(
-            JSMessageObject::cast(thread_local_top_.pending_message_obj_));
-        Handle<JSValue> script_wrapper(JSValue::cast(message_obj->script()));
-        Handle<Script> script(Script::cast(script_wrapper->value()));
-        int start_pos = message_obj->start_position();
-        int end_pos = message_obj->end_position();
-        MessageLocation location(script, start_pos, end_pos);
-        MessageHandler::ReportMessage(this, &location, message_obj);
-      }
+    if (!message_obj->IsTheHole() && should_report_exception) {
+      HandleScope scope(this);
+      Handle<JSMessageObject> message(JSMessageObject::cast(message_obj));
+      Handle<JSValue> script_wrapper(JSValue::cast(message->script()));
+      Handle<Script> script(Script::cast(script_wrapper->value()));
+      int start_pos = message->start_position();
+      int end_pos = message->end_position();
+      MessageLocation location(script, start_pos, end_pos);
+      MessageHandler::ReportMessage(this, &location, message);
     }
   }
-  if (can_clear_message) clear_pending_message();
 }
 
 
@@ -1436,7 +1440,6 @@ MessageLocation Isolate::GetMessageLocation() {
   DCHECK(has_pending_exception());
 
   if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
-      thread_local_top_.has_pending_message_ &&
       !thread_local_top_.pending_message_obj_->IsTheHole()) {
     Handle<JSMessageObject> message_obj(
         JSMessageObject::cast(thread_local_top_.pending_message_obj_));
