@@ -532,8 +532,11 @@ class Scanner {
   }
 
   inline void StartRawLiteral() {
-    raw_literal_buffer_.Reset();
-    next_.raw_literal_chars = &raw_literal_buffer_;
+    LiteralBuffer* free_buffer =
+        (current_.raw_literal_chars == &raw_literal_buffer1_) ?
+            &raw_literal_buffer2_ : &raw_literal_buffer1_;
+    free_buffer->Reset();
+    next_.raw_literal_chars = free_buffer;
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
@@ -716,7 +719,8 @@ class Scanner {
   LiteralBuffer source_mapping_url_;
 
   // Buffer to store raw string values
-  LiteralBuffer raw_literal_buffer_;
+  LiteralBuffer raw_literal_buffer1_;
+  LiteralBuffer raw_literal_buffer2_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)

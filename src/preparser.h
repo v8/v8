@@ -2653,23 +2653,6 @@ ParserBase<Traits>::ParseLeftHandSideExpression(bool* ok) {
         break;
       }
 
-      case Token::TEMPLATE_SPAN:
-      case Token::TEMPLATE_TAIL: {
-        int pos;
-        if (scanner()->current_token() == Token::IDENTIFIER) {
-          pos = position();
-        } else {
-          pos = peek_position();
-          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
-            // If the tag function looks like an IIFE, set_parenthesized() to
-            // force eager compilation.
-            result->AsFunctionLiteral()->set_parenthesized();
-          }
-        }
-        result = ParseTemplateLiteral(result, pos, CHECK_OK);
-        break;
-      }
-
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         int pos = position();
@@ -2740,7 +2723,7 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseMemberExpression(bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral | ClassLiteral)
-  //     ('[' Expression ']' | '.' Identifier | Arguments)*
+  //     ('[' Expression ']' | '.' Identifier | Arguments | TemplateLiteral)*
 
   // The '[' Expression ']' and '.' Identifier parts are parsed by
   // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
@@ -2817,7 +2800,7 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
                                                       bool* ok) {
   // Parses this part of MemberExpression:
-  // ('[' Expression ']' | '.' Identifier)*
+  // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
@@ -2840,6 +2823,22 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
         if (fni_ != NULL) {
           this->PushLiteralName(fni_, name);
         }
+        break;
+      }
+      case Token::TEMPLATE_SPAN:
+      case Token::TEMPLATE_TAIL: {
+        int pos;
+        if (scanner()->current_token() == Token::IDENTIFIER) {
+          pos = position();
+        } else {
+          pos = peek_position();
+          if (expression->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+            // If the tag function looks like an IIFE, set_parenthesized() to
+            // force eager compilation.
+            expression->AsFunctionLiteral()->set_parenthesized();
+          }
+        }
+        expression = ParseTemplateLiteral(expression, pos, CHECK_OK);
         break;
       }
       default:

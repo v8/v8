@@ -423,10 +423,12 @@ var obj = {
   Object.defineProperty(Array.prototype, 0, {
     set: function() {
       assertUnreachable();
-    }
+    },
+    configurable: true
   });
   function tag(){}
   tag`a${1}b`;
+  delete Array.prototype[0];
 })();
 
 
@@ -517,4 +519,70 @@ var obj = {
   // Disallowed in strict expression
   assertThrows("`${(function() { \"use strict\"; return \"\\07\"; })()}`",
                SyntaxError);
+})();
+
+
+var global = this;
+(function testCallNew() {
+  "use strict";
+  var called = false;
+  var calledWith;
+  global.log = function(x) { called = true; calledWith = x; }
+
+  assertInstanceof(new Function`log("test")`, Object);
+  assertTrue(called);
+  assertSame("test", calledWith);
+  delete global.log;
+})();
+
+
+(function testCallNew2() {
+  "use strict";
+  var log = [];
+  function tag(x) {
+    log.push(x);
+    if (!(this instanceof tag)) {
+      return tag;
+    }
+    this.x = x === void 0 ? null : x;
+    return this;
+  }
+  // No arguments passed to constructor
+  var instance = new tag`x``y``z`;
+  assertInstanceof(instance, tag);
+  assertSame(tag.prototype, Object.getPrototypeOf(instance));
+  assertEquals({ x: null }, instance);
+  assertEquals([["x"], ["y"], ["z"], undefined], log);
+
+  // Arguments passed to constructor
+  log.length = 0;
+  instance = new tag`x2` `y2` `z2` (`test`);
+  assertInstanceof(instance, tag);
+  assertSame(tag.prototype, Object.getPrototypeOf(instance));
+  assertEquals({ x: "test" }, instance);
+  assertEquals([["x2"], ["y2"], ["z2"], "test"], log);
+})();
+
+
+(function testCallResultOfTagFn() {
+  "use strict";
+  var i = 0;
+  var raw = [];
+  function tag(cs) {
+    var args = Array.prototype.slice.call(arguments);
+    var text = String.raw.apply(null, args);
+    if (i++ < 2) {
+      raw.push("tag;" + text);
+      return tag;
+    }
+
+    raw.push("raw;" + text);
+    return text;
+  }
+  assertEquals("test3", tag`test1``test2``test3`);
+  assertEquals([
+    "tag;test1",
+    "tag;test2",
+    "raw;test3"
+  ], raw);
 })();
