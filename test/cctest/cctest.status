@@ -87,6 +87,9 @@
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
+  # Fails sometimes.
+  'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
+
   ##############################################################################
   # TurboFan compiler failures.
 
