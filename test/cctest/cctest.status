@@ -405,9 +405,6 @@
   'test-api/Threading2': [SKIP],
   'test-api/ExternalArrays': [SKIP],
 
-  # issues to be investigated based on latest uplevel
-  'test-run-machops/RunWord64EqualInBranchP': [SKIP],
-
   # will not pass until we agree/implement changes to serializce.cc
   'test-serialize/SerializeInternalReference': [SKIP],
 

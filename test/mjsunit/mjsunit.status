@@ -595,7 +595,6 @@
   'asm/embenchen/box2d': [SKIP],
 
   # issues to be investigated based on latest uplevel
-  'es6/collections': [SKIP],
   'debug-references': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 ]
