@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --strong-mode --harmony_rest_parameters --harmony_arrow_functions --harmony_classes --harmony-computed-property-names
+// Flags: --strong-mode --harmony_rest_parameters --harmony_arrow_functions --harmony_classes --harmony_computed-property_names --harmony_templates
 
 // Note that it's essential for these tests that the reference is inside dead
 // code (because we already produce ReferenceErrors for run-time unresolved
@@ -13,169 +13,149 @@
 // In addition, assertThrows will call eval and that changes variable binding
 // types (see e.g., UNBOUND_EVAL_SHADOWED). We can avoid unwanted side effects
 // by wrapping the code to be tested inside an outer function.
-function assertThrowsHelper(code, error) {
+function assertThrowsHelper(code) {
   "use strict";
-  let prologue = "(function outer() { ";
-  let epilogue = " })();";
-  assertThrows(prologue + code + epilogue, error);
+  let prologue = "(function outer() { if (false) { ";
+  let epilogue = " } })();";
+
+  assertThrows("'use strong'; " + prologue + code + epilogue, ReferenceError);
+
+  // Make sure the error happens only in strong mode (note that we need strict
+  // mode here because of let).
+  assertDoesNotThrow("'use strict'; " + prologue + code + epilogue);
 }
 
 (function DeclarationAfterUse() {
   // Note that these tests only test cases where the declaration is found but is
   // after the use. In particular, we cannot yet detect cases where the use can
   // possibly bind to a global variable.
-  assertThrowsHelper("'use strong'; if (false) { x; let x = 0; }",
-                     ReferenceError);
-  assertThrowsHelper(
-      "function f() { 'use strong'; if (false) { x; let x = 0; } } f();",
-      ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; function f() { if (false) { x; } } let x = 0; f();",
-      ReferenceError);
+  assertThrowsHelper("x; let x = 0;");
+  assertThrowsHelper("function f() { x; let x = 0; }");
+  assertThrowsHelper("function f() { x; } let x = 0;");
 
-  assertThrowsHelper(
-      "function f() { 'use strong'; if (false) { x; } } var x = 0; f();",
+  // These tests needs to be done a bit more manually, since var is not allowed
+  // in strong mode:
+  assertThrows(
+      `(function outer() {
+        function f() { 'use strong'; if (false) { x; } } var x = 0; f();
+      })()`,
       ReferenceError);
-  assertThrowsHelper(
-      "function f() { 'use strong'; if (false) { x; } } var x; f();",
+  assertDoesNotThrow(
+      "(function outer() {\n" +
+      "  function f() { if (false) { x; } } var x = 0; f(); \n" +
+      "})()");
+
+  assertThrows(
+      "(function outer() {\n" +
+      "  function f() { 'use strong'; if (false) { x; } } var x; f(); \n" +
+      "})()",
       ReferenceError);
+  assertDoesNotThrow(
+      "(function outer() {\n" +
+      "  function f() { if (false) { x; } } var x; f(); \n" +
+      "})()");
+
   // Errors are also detected when the declaration and the use are in the same
   // eval scope.
-  assertThrowsHelper("'use strong'; eval('x; let x = 0;')", ReferenceError);
+  assertThrows("'use strong'; eval('if (false) { x; let x = 0;}')",
+               ReferenceError);
+  assertDoesNotThrow("'use strict'; eval('if (false) { x; let x = 0; }')");
 
   // Use occurring in the initializer of the declaration:
-  assertThrowsHelper("'use strong'; if (false) { let x = x + 1; }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { let x = x; }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { let x = y, y = 4; }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { let x = function() { x; } }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { let x = a => { x; } }",
-                     ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { function f() {}; let x = f(x); }",
-      ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { const x = x; }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { const x = function() { x; } }",
-                     ReferenceError);
-  assertThrowsHelper("'use strong'; if (false) { const x = a => { x; } }",
-                     ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { function f() {}; const x = f(x); }",
-      ReferenceError);
+  assertThrowsHelper("let x = x + 1;");
+  assertThrowsHelper("let x = x;");
+  assertThrowsHelper("let x = y, y = 4;");
+  assertThrowsHelper("let x = function() { x; }");
+  assertThrowsHelper("let x = a => { x; }");
+  assertThrowsHelper("function f(x) { return x; }; let x = f(x);");
+  assertThrowsHelper("const x = x;");
+  assertThrowsHelper("const x = function() { x; }");
+  assertThrowsHelper("const x = a => { x; }");
+  assertThrowsHelper("function f(x) {return x}; const x = f(x);");
 
-  assertThrowsHelper(
-      "'use strong'; if (false) { for (let x = x; ; ) { } }",
-      ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { for (const x = x; ; ) { } }",
-      ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { for (let x = y, y; ; ) { } }",
-      ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { for (const x = y, y = 0; ; ) { } }",
-      ReferenceError);
+  assertThrowsHelper("for (let x = x; ; ) { }");
+  assertThrowsHelper("for (const x = x; ; ) { }");
+  assertThrowsHelper("for (let x = y, y; ; ) { }");
+  assertThrowsHelper("for (const x = y, y = 0; ; ) { }");
 
   // Computed property names
-  assertThrowsHelper(
-      "'use strong'; if (false) { let o = { 'a': 'b', [o.a]: 'c'}; }",
-      ReferenceError);
+  assertThrowsHelper("let o = { 'a': 'b', [o.a]: 'c'};");
 })();
 
 
 (function DeclarationAfterUseInClasses() {
-  assertThrowsHelper("'use strong'; if (false) { class C extends C { } }",
-                     ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 extends C { } }",
-      ReferenceError);
-  assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 extends C2 { } }",
-      ReferenceError);
+  assertThrowsHelper("class C extends C { }");
+  assertThrowsHelper("let C = class C2 extends C { }");
+  assertThrowsHelper("let C = class C2 extends C2 { }");
+
+  assertThrowsHelper("let C = class C2 { constructor() { C; } }");
+  assertThrowsHelper("let C = class C2 { method() { C; } }");
+  assertThrowsHelper("let C = class C2 { *generator_method() { C; } }");
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { constructor() { C; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        static a() { return 'A'; }
+        [C.a()]() { return 'B'; }
+      };`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { method() { C; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        static a() { return 'A'; }
+        [C2.a()]() { return 'B'; }
+      };`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { " +
-      "let C = class C2 { *generator_method() { C; } } }",
-      ReferenceError);
-
-  assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "static a() { return 'A'; } [C.a()]() { return 'B'; } }; }",
-      ReferenceError);
-
-  assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "static a() { return 'A'; } [C2.a()]() { return 'B'; } }; }",
-       ReferenceError);
-
-  assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[(function() { C; return 'A';})()]() { return 'B'; } }; }",
-      ReferenceError);
+      `let C = class C2 {
+        [(function() { C; return 'A';})()]() { return 'B'; }
+      };`);
 
   // The reference to C or C2 is inside a function, but not a method.
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[(function() { C2; return 'A';})()]() { return 'B'; } }; }",
-      ReferenceError);
+      `let C = class C2 {
+        [(function() { C2; return 'A';})()]() { return 'B'; }
+      };`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[(function() { C; return 'A';})()]() { return 'B'; } }; }",
-      ReferenceError);
+      `let C = class C2 {
+        [(function() { C; return 'A';})()]() { return 'B'; }
+      };`);
 
   // The reference to C or C2 is inside a method, but it's not a method of the
   // relevant class (C2).
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[(new (class D { m() { C2; return 'A'; } })).m()]() " +
-          "{ return 'B'; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        [(new (class D { m() { C2; return 'A'; } })).m()]() {
+          return 'B';
+        }
+      }`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[(new (class D { m() { C; return 'A'; } })).m()]() " +
-          "{ return 'B'; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        [(new (class D { m() { C; return 'A'; } })).m()]() {
+          return 'B';
+        }
+      }`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[({m() { C2; return 'A'; }}).m()]() " +
-          "{ return 'B'; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        [({m() { C2; return 'A'; }}).m()]() { return 'B'; }
+      }`);
 
   assertThrowsHelper(
-      "'use strong'; if (false) { let C = class C2 { " +
-          "[({m() { C; return 'A'; }}).m()]() " +
-          "{ return 'B'; } } }",
-      ReferenceError);
+      `let C = class C2 {
+        [({m() { C; return 'A'; }}).m()]() { return 'B'; }
+      }`);
 
   assertThrowsHelper(
-      "'use strong';\n" +
-          "if (false) {\n" +
-          "  class COuter {\n" +
-          "    m() {\n" +
-          "      class CInner {\n" +
-          "        [({ m() { CInner; return 'A'; } }).m()]() {\n" +
-          "            return 'B';\n" +
-          "        }\n" +
-          "      }\n" +
-          "    }\n" +
-          "  }\n" +
-          "}",
-      ReferenceError);
+      `class COuter {
+        m() {
+          class CInner {
+            [({ m() { CInner; return 'A'; } }).m()]() {
+                return 'B';
+            }
+          }
+        }
+      }`);
 })();
 
 
