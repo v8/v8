@@ -224,6 +224,15 @@ class AstGraphBuilder : public AstVisitor {
                           const VectorSlotPair& feedback,
                           ContextualMode mode = CONTEXTUAL);
 
+  // Builders for property loads and stores.
+  Node* BuildKeyedLoad(Node* receiver, Node* key,
+                       const VectorSlotPair& feedback);
+  Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
+                       const VectorSlotPair& feedback,
+                       ContextualMode mode = NOT_CONTEXTUAL);
+  Node* BuildKeyedStore(Node* receiver, Node* key, Node* value);
+  Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value);
+
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
   Node* BuildLoadGlobalObject();
