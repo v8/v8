@@ -25,10 +25,10 @@ class Target;
 // A container for the inputs, configuration options, and outputs of parsing.
 class ParseInfo {
  public:
-  explicit ParseInfo(Zone* zone) {
-    memset(this, 0, sizeof(ParseInfo));
-    zone_ = zone;
-  }
+  explicit ParseInfo(Zone* zone);
+  ParseInfo(Zone* zone, Handle<JSFunction> function);
+  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
+  ParseInfo(Zone* zone, Handle<Script> script);
 
   ~ParseInfo() {
     if (ast_value_factory_owned()) {
@@ -37,11 +37,6 @@ class ParseInfo {
     }
     ast_value_factory_ = nullptr;
   }
-
-  ParseInfo* InitializeFromJSFunction(Handle<JSFunction> function);
-  ParseInfo* InitializeFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> shared);
-  ParseInfo* InitializeFromScript(Handle<Script> script);
 
   Zone* zone() { return zone_; }
 

@@ -29,8 +29,7 @@ struct TestHelper : public HandleAndZoneScope {
 
   void CheckLoopAssignedCount(int expected, const char* var_name) {
     // TODO(titzer): don't scope analyze every single time.
-    ParseInfo parse_info(main_zone());
-    parse_info.InitializeFromJSFunction(function);
+    ParseInfo parse_info(main_zone(), function);
     CompilationInfo info(&parse_info);
 
     CHECK(Parser::ParseStatic(&parse_info));

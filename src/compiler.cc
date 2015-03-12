@@ -1570,18 +1570,16 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
 
 
 CompilationInfoWithZone::CompilationInfoWithZone(Handle<Script> script)
-    : CompilationInfo((new ParseInfo(&zone_))->InitializeFromScript(script)) {}
+    : CompilationInfo(new ParseInfo(&zone_, script)) {}
 
 
 CompilationInfoWithZone::CompilationInfoWithZone(Handle<JSFunction> function)
-    : CompilationInfo(
-          (new ParseInfo(&zone_))->InitializeFromJSFunction(function)) {}
+    : CompilationInfo(new ParseInfo(&zone_, function)) {}
 
 
 CompilationInfoWithZone::CompilationInfoWithZone(
     Handle<SharedFunctionInfo> shared_info)
-    : CompilationInfo((new ParseInfo(&zone_))
-                          ->InitializeFromSharedFunctionInfo(shared_info)) {}
+    : CompilationInfo(new ParseInfo(&zone_, shared_info)) {}
 
 
 CompilationInfoWithZone::~CompilationInfoWithZone() {

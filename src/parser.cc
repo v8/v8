@@ -35,17 +35,32 @@ ScriptData::ScriptData(const byte* data, int length)
 }
 
 
-ParseInfo* ParseInfo::InitializeFromJSFunction(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  InitializeFromSharedFunctionInfo(shared);
+ParseInfo::ParseInfo(Zone* zone)
+    : zone_(zone),
+      flags_(0),
+      source_stream_(nullptr),
+      source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
+      extension_(nullptr),
+      compile_options_(ScriptCompiler::kNoCompileOptions),
+      script_scope_(nullptr),
+      unicode_cache_(nullptr),
+      stack_limit_(0),
+      hash_seed_(0),
+      cached_data_(nullptr),
+      ast_value_factory_(nullptr),
+      literal_(nullptr),
+      scope_(nullptr) {}
+
+
+ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
+    : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {
   set_closure(function);
   set_context(Handle<Context>(function->context()));
-  return this;
 }
 
 
-ParseInfo* ParseInfo::InitializeFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> shared) {
+ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
+    : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();
 
   set_lazy();
@@ -61,11 +76,10 @@ ParseInfo* ParseInfo::InitializeFromSharedFunctionInfo(
   if (!script.is_null() && script->type()->value() == Script::TYPE_NATIVE) {
     set_native();
   }
-  return this;
 }
 
 
-ParseInfo* ParseInfo::InitializeFromScript(Handle<Script> script) {
+ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   isolate_ = script->GetIsolate();
 
   set_this_has_uses();
@@ -77,7 +91,6 @@ ParseInfo* ParseInfo::InitializeFromScript(Handle<Script> script) {
   if (script->type()->value() == Script::TYPE_NATIVE) {
     set_native();
   }
-  return this;
 }
 
 

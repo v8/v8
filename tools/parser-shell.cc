@@ -89,8 +89,7 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   // First round of parsing (produce data to cache).
   {
     Zone zone;
-    ParseInfo info(&zone);
-    info.InitializeFromScript(script);
+    ParseInfo info(&zone, script);
     info.set_global();
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
@@ -108,8 +107,7 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   // Second round of parsing (consume cached data).
   {
     Zone zone;
-    ParseInfo info(&zone);
-    info.InitializeFromScript(script);
+    ParseInfo info(&zone, script);
     info.set_global();
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kConsumeParserCache);

@@ -1201,11 +1201,10 @@ class ScopeIterator {
       // Check whether we are in global, eval or function code.
       Handle<ScopeInfo> scope_info(shared_info->scope_info());
       Zone zone;
-      ParseInfo info(&zone);
       if (scope_info->scope_type() != FUNCTION_SCOPE &&
           scope_info->scope_type() != ARROW_SCOPE) {
         // Global or eval code.
-        info.InitializeFromScript(script);
+        ParseInfo info(&zone, script);
         if (scope_info->scope_type() == SCRIPT_SCOPE) {
           info.set_global();
         } else {
@@ -1219,7 +1218,7 @@ class ScopeIterator {
         RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
-        info.InitializeFromSharedFunctionInfo(shared_info);
+        ParseInfo info(&zone, shared_info);
         if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }

@@ -179,19 +179,16 @@ RUNTIME_FUNCTION(Runtime_RenderCallSite) {
   if (location.start_pos() == -1) return isolate->heap()->empty_string();
 
   Zone zone;
-  ParseInfo info(&zone);
-  if (location.function()->shared()->is_function()) {
-    info.InitializeFromJSFunction(location.function());
-  } else {
-    info.InitializeFromScript(location.script());
-  }
+  SmartPointer<ParseInfo> info(location.function()->shared()->is_function()
+                                   ? new ParseInfo(&zone, location.function())
+                                   : new ParseInfo(&zone, location.script()));
 
-  if (!Parser::ParseStatic(&info)) {
+  if (!Parser::ParseStatic(info.get())) {
     isolate->clear_pending_exception();
     return isolate->heap()->empty_string();
   }
   CallPrinter printer(isolate, &zone);
-  const char* string = printer.Print(info.function(), location.start_pos());
+  const char* string = printer.Print(info->function(), location.start_pos());
   return *isolate->factory()->NewStringFromAsciiChecked(string);
 }
 

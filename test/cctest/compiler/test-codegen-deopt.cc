@@ -44,8 +44,8 @@ class DeoptCodegenTester {
   explicit DeoptCodegenTester(HandleAndZoneScope* scope, const char* src)
       : scope_(scope),
         function(NewFunction(src)),
-        parse_info(scope->main_zone()),
-        info(parse_info.InitializeFromJSFunction(function)),
+        parse_info(scope->main_zone(), function),
+        info(&parse_info),
         bailout_id(-1) {
     CHECK(Parser::ParseStatic(&parse_info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
