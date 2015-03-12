@@ -110,9 +110,9 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
     }
     PrintF(
         "Deserialization will reserve:\n"
-        "%*d bytes for startup\n"
-        "%*d bytes per context\n",
-        10, startup_total, 10, context_total);
+        "%10d bytes for startup\n"
+        "%10d bytes per context\n",
+        startup_total, context_total);
   }
 
   for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
@@ -187,9 +187,9 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   if (FLAG_profile_deserialization) {
     PrintF(
         "Snapshot blob consists of:\n"
-        "%*d bytes for startup\n"
-        "%*d bytes for context\n",
-        10, startup_length, 10, context_length);
+        "%10d bytes for startup\n"
+        "%10d bytes for context\n",
+        startup_length, context_length);
   }
   return result;
 }

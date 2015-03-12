@@ -15,6 +15,8 @@
 %CheckIsBootstrapping();
 
 var GlobalDate = global.Date;
+var GlobalRegExp = global.RegExp;
+var GlobalString = global.String;
 
 var undefined = global.undefined;
 
@@ -54,7 +56,7 @@ var UNICODE_EXTENSION_RE = undefined;
 
 function GetUnicodeExtensionRE() {
   if (UNICODE_EXTENSION_RE === undefined) {
-    UNICODE_EXTENSION_RE = new $RegExp('-u(-[a-z0-9]{2,8})+', 'g');
+    UNICODE_EXTENSION_RE = new GlobalRegExp('-u(-[a-z0-9]{2,8})+', 'g');
   }
   return UNICODE_EXTENSION_RE;
 }
@@ -66,7 +68,7 @@ var ANY_EXTENSION_RE = undefined;
 
 function GetAnyExtensionRE() {
   if (ANY_EXTENSION_RE === undefined) {
-    ANY_EXTENSION_RE = new $RegExp('-[a-z0-9]{1}-.*', 'g');
+    ANY_EXTENSION_RE = new GlobalRegExp('-[a-z0-9]{1}-.*', 'g');
   }
   return ANY_EXTENSION_RE;
 }
@@ -78,7 +80,7 @@ var QUOTED_STRING_RE = undefined;
 
 function GetQuotedStringRE() {
   if (QUOTED_STRING_RE === undefined) {
-    QUOTED_STRING_RE = new $RegExp("'[^']+'", 'g');
+    QUOTED_STRING_RE = new GlobalRegExp("'[^']+'", 'g');
   }
   return QUOTED_STRING_RE;
 }
@@ -91,7 +93,7 @@ var SERVICE_RE = undefined;
 function GetServiceRE() {
   if (SERVICE_RE === undefined) {
     SERVICE_RE =
-        new $RegExp('^(collator|numberformat|dateformat|breakiterator)$');
+        new GlobalRegExp('^(collator|numberformat|dateformat|breakiterator)$');
   }
   return SERVICE_RE;
 }
@@ -141,7 +143,7 @@ var TIMEZONE_NAME_CHECK_RE = undefined;
 function GetTimezoneNameCheckRE() {
   if (TIMEZONE_NAME_CHECK_RE === undefined) {
     TIMEZONE_NAME_CHECK_RE =
-        new $RegExp('^([A-Za-z]+)/([A-Za-z]+)(?:_([A-Za-z]+))*$');
+        new GlobalRegExp('^([A-Za-z]+)/([A-Za-z]+)(?:_([A-Za-z]+))*$');
   }
   return TIMEZONE_NAME_CHECK_RE;
 }
@@ -289,7 +291,7 @@ function supportedLocalesOf(service, locales, options) {
 
   var matcher = options.localeMatcher;
   if (matcher !== undefined) {
-    matcher = $String(matcher);
+    matcher = GlobalString(matcher);
     if (matcher !== 'lookup' && matcher !== 'best fit') {
       throw new $RangeError('Illegal value for localeMatcher:' + matcher);
     }
@@ -375,7 +377,7 @@ function getGetOption(options, caller) {
           value = $Boolean(value);
           break;
         case 'string':
-          value = $String(value);
+          value = GlobalString(value);
           break;
         case 'number':
           value = $Number(value);
@@ -531,7 +533,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   var extension = '';
 
   var updateExtension = function updateExtension(key, value) {
-    return '-' + key + '-' + $String(value);
+    return '-' + key + '-' + GlobalString(value);
   }
 
   var updateProperty = function updateProperty(property, type, value) {
@@ -620,7 +622,7 @@ function getOptimalLanguageTag(original, resolved) {
   }
 
   // Preserve extensions of resolved locale, but swap base tags with original.
-  var resolvedBase = new $RegExp('^' + locales[1].base);
+  var resolvedBase = new GlobalRegExp('^' + locales[1].base);
   return resolved.replace(resolvedBase, locales[0].base);
 }
 
@@ -710,7 +712,7 @@ function canonicalizeLanguageTag(localeID) {
     throw new $TypeError('Language ID should be string or object.');
   }
 
-  var localeString = $String(localeID);
+  var localeString = GlobalString(localeID);
 
   if (isValidLanguageTag(localeString) === false) {
     throw new $RangeError('Invalid language tag: ' + localeString);
@@ -839,12 +841,12 @@ function BuildLanguageTagREs() {
   var privateUse = '(x(-' + alphanum + '{1,8})+)';
 
   var singleton = '(' + digit + '|[A-WY-Za-wy-z])';
-  LANGUAGE_SINGLETON_RE = new $RegExp('^' + singleton + '$', 'i');
+  LANGUAGE_SINGLETON_RE = new GlobalRegExp('^' + singleton + '$', 'i');
 
   var extension = '(' + singleton + '(-' + alphanum + '{2,8})+)';
 
   var variant = '(' + alphanum + '{5,8}|(' + digit + alphanum + '{3}))';
-  LANGUAGE_VARIANT_RE = new $RegExp('^' + variant + '$', 'i');
+  LANGUAGE_VARIANT_RE = new GlobalRegExp('^' + variant + '$', 'i');
 
   var region = '(' + alpha + '{2}|' + digit + '{3})';
   var script = '(' + alpha + '{4})';
@@ -856,7 +858,7 @@ function BuildLanguageTagREs() {
 
   var languageTag =
       '^(' + langTag + '|' + privateUse + '|' + grandfathered + ')$';
-  LANGUAGE_TAG_RE = new $RegExp(languageTag, 'i');
+  LANGUAGE_TAG_RE = new GlobalRegExp(languageTag, 'i');
 }
 
 /**
@@ -1029,7 +1031,7 @@ function initializeCollator(collator, locales, options) {
  */
 function compare(collator, x, y) {
   return %InternalCompare(%GetImplFromInitializedIntlObject(collator),
-                          $String(x), $String(y));
+                          GlobalString(x), GlobalString(y));
 };
 
 
@@ -1282,7 +1284,7 @@ function formatNumber(formatter, value) {
  */
 function parseNumber(formatter, value) {
   return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
-                              $String(value));
+                              GlobalString(value));
 }
 
 
@@ -1686,7 +1688,7 @@ function formatDate(formatter, dateValue) {
  */
 function parseDate(formatter, value) {
   return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
-                            $String(value));
+                            GlobalString(value));
 }
 
 
@@ -1847,7 +1849,7 @@ function initializeBreakIterator(iterator, locales, options) {
  */
 function adoptText(iterator, text) {
   %BreakIteratorAdoptText(%GetImplFromInitializedIntlObject(iterator),
-                          $String(text));
+                          GlobalString(text));
 }
 
 
@@ -1930,7 +1932,7 @@ function cachedOrNewService(service, locales, options, defaults) {
  * Compares this and that, and returns less than 0, 0 or greater than 0 value.
  * Overrides the built-in method.
  */
-OverrideFunction($String.prototype, 'localeCompare', function(that) {
+OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1954,14 +1956,14 @@ OverrideFunction($String.prototype, 'localeCompare', function(that) {
  * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
  * a RangeError Exception.
  */
-OverrideFunction($String.prototype, 'normalize', function(that) {
+OverrideFunction(GlobalString.prototype, 'normalize', function(that) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
-    var form = $String(%_Arguments(0) || 'NFC');
+    var form = GlobalString(%_Arguments(0) || 'NFC');
 
     var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
     if (normalizationForm === -1) {

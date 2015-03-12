@@ -328,6 +328,8 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 
 bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
   // Run custom script if provided.
+  base::ElapsedTimer timer;
+  timer.Start();
   TryCatch try_catch;
   Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
   if (try_catch.HasCaught()) return false;
@@ -336,6 +338,11 @@ bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
   Local<Script> script = ScriptCompiler::Compile(isolate, &source);
   if (try_catch.HasCaught()) return false;
   script->Run();
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("Executing custom snapshot script took %0.3f ms\n",
+              timer.Elapsed().InMillisecondsF());
+  }
+  timer.Stop();
   return !try_catch.HasCaught();
 }
 
@@ -345,6 +352,8 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   StartupData result = {NULL, 0};
   {
+    base::ElapsedTimer timer;
+    timer.Start();
     Isolate::Scope isolate_scope(isolate);
     internal_isolate->Init(NULL);
     Persistent<Context> context;
@@ -384,6 +393,11 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
 
       result = i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
     }
+    if (i::FLAG_profile_deserialization) {
+      i::PrintF("Creating snapshot took %0.3f ms\n",
+                timer.Elapsed().InMillisecondsF());
+    }
+    timer.Stop();
   }
   isolate->Dispose();
   return result;

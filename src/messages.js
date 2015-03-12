@@ -442,7 +442,7 @@ function ScriptLocationFromPosition(position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') {
+  if (end > 0 && %_CallFunction(this.source, end - 1, $stringCharAt) == '\r') {
     end--;
   }
   var column = position - start;
@@ -565,7 +565,7 @@ function ScriptSourceLine(opt_line) {
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  return %_CallFunction(this.source, start, end, StringSubstring);
+  return %_CallFunction(this.source, start, end, $stringSubstring);
 }
 
 
@@ -707,7 +707,7 @@ function SourceLocationSourceText() {
   return %_CallFunction(this.script.source,
                         this.start,
                         this.end,
-                        StringSubstring);
+                        $stringSubstring);
 }
 
 
@@ -755,7 +755,7 @@ function SourceSliceSourceText() {
   return %_CallFunction(this.script.source,
                         this.from_position,
                         this.to_position,
-                        StringSubstring);
+                        $stringSubstring);
 }
 
 SetUpLockedPrototype(SourceSlice,
@@ -969,12 +969,12 @@ function CallSiteToString() {
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
-          %_CallFunction(functionName, typeName, StringIndexOfJS) != 0) {
+          %_CallFunction(functionName, typeName, $stringIndexOf) != 0) {
         line += typeName + ".";
       }
       line += functionName;
       if (methodName &&
-          (%_CallFunction(functionName, "." + methodName, StringIndexOfJS) !=
+          (%_CallFunction(functionName, "." + methodName, $stringIndexOf) !=
            functionName.length - methodName.length - 1)) {
         line += " [as " + methodName + "]";
       }

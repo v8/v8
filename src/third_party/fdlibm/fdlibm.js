@@ -30,6 +30,13 @@ var rempio2result;
   
 "use strict";
 
+%CheckIsBootstrapping();
+
+var GlobalMath = global.Math;
+var GlobalArray = global.Array;
+
+//-------------------------------------------------------------------
+
 const INVPIO2 = kMath[0];
 const PIO2_1  = kMath[1];
 const PIO2_1T = kMath[2];
@@ -1006,9 +1013,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-%CheckIsBootstrapping();
-
-InstallFunctions(global.Math, DONT_ENUM, $Array(
+InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,

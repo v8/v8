@@ -1843,7 +1843,7 @@ function NewFunctionFromString(arguments, function_token) {
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (%_CallFunction(p, ')', StringIndexOfJS) != -1) {
+    if (%_CallFunction(p, ')', $stringIndexOf) != -1) {
       throw MakeSyntaxError('paren_in_arg_string', []);
     }
     // If the formal parameters include an unbalanced block comment, the

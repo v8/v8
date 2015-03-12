@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Object = global.Object;
-
-// Instance class name can only be set on functions. That is the only
-// purpose for MathConstructor.
-
 var rngstate;  // Initialized to a Uint32Array during genesis.
 
 var $abs;
@@ -17,11 +10,16 @@ var $floor;
 var $max;
 var $min;
 
-// -------------------------------------------------------------------
-
 (function() {
 
 "use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalObject = global.Object;
+var GlobalArray = global.Array;
+
+//-------------------------------------------------------------------
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
@@ -293,20 +291,20 @@ function CubeRoot(x) {
 
 // -------------------------------------------------------------------
 
-%CheckIsBootstrapping();
-
+// Instance class name can only be set on functions. That is the only
+// purpose for MathConstructor.
 function MathConstructor() {}
 
 var Math = new MathConstructor();
 
-%InternalSetPrototype(Math, $Object.prototype);
+%InternalSetPrototype(Math, GlobalObject.prototype);
 %AddNamedProperty(global, "Math", Math, DONT_ENUM);
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
 %AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-InstallConstants(Math, $Array(
+InstallConstants(Math, GlobalArray(
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -323,7 +321,7 @@ InstallConstants(Math, $Array(
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-InstallFunctions(Math, DONT_ENUM, $Array(
+InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,
