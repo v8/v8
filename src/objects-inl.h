@@ -51,12 +51,6 @@ Smi* PropertyDetails::AsSmi() const {
 }
 
 
-PropertyDetails PropertyDetails::AsDeleted() const {
-  Smi* smi = Smi::FromInt(value_ | DeletedField::encode(1));
-  return PropertyDetails(smi);
-}
-
-
 int PropertyDetails::field_width_in_words() const {
   DCHECK(location() == kField);
   if (!FLAG_unbox_double_fields) return 1;
@@ -7004,9 +6998,7 @@ void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
                                                Handle<Object> key,
                                                Handle<Object> value,
                                                PropertyDetails details) {
-  DCHECK(!key->IsName() ||
-         details.IsDeleted() ||
-         details.dictionary_index() > 0);
+  DCHECK(!key->IsName() || details.dictionary_index() > 0);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);

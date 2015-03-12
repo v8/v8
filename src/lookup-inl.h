@@ -57,12 +57,11 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         number_ = dict->FindEntry(name_);
         if (number_ == NameDictionary::kNotFound) return NOT_FOUND;
-        property_details_ = dict->DetailsAt(number_);
         if (holder->IsGlobalObject()) {
-          if (property_details_.IsDeleted()) return NOT_FOUND;
           PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
           if (cell->value()->IsTheHole()) return NOT_FOUND;
         }
+        property_details_ = dict->DetailsAt(number_);
       } else {
         DescriptorArray* descriptors = map->instance_descriptors();
         number_ = descriptors->SearchWithCache(*name_, map);

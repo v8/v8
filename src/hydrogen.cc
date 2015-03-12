@@ -1751,8 +1751,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
     details_index->ClearFlag(HValue::kCanOverflow);
     HValue* details =
         Add<HLoadKeyed>(elements, details_index, nullptr, FAST_ELEMENTS);
-    int details_mask = PropertyDetails::TypeField::kMask |
-                       PropertyDetails::DeletedField::kMask;
+    int details_mask = PropertyDetails::TypeField::kMask;
     details = AddUncasted<HBitwise>(Token::BIT_AND, details,
                                     Add<HConstant>(details_mask));
     IfBuilder details_compare(this);

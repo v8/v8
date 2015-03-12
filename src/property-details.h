@@ -267,8 +267,6 @@ class PropertyDetails BASE_EMBEDDED {
 
   inline int field_width_in_words() const;
 
-  inline PropertyDetails AsDeleted() const;
-
   static bool IsValidIndex(int index) {
     return DictionaryStorageField::is_valid(index);
   }
@@ -276,7 +274,6 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
   bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
-  bool IsDeleted() const { return DeletedField::decode(value_) != 0; }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
@@ -285,8 +282,7 @@ class PropertyDetails BASE_EMBEDDED {
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
-  class DeletedField : public BitField<uint32_t, 5, 1> {};
-  class DictionaryStorageField : public BitField<uint32_t, 6, 24> {};
+  class DictionaryStorageField : public BitField<uint32_t, 5, 24> {};
 
   // Bit fields for fast objects.
   class RepresentationField : public BitField<uint32_t, 5, 4> {};
