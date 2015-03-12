@@ -1154,14 +1154,14 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 
 void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kMips64FmoveLowUwD, g.DefineAsRegister(node),
+  Emit(kMips64Float64ExtractLowWord32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kMips64FmoveHighUwD, g.DefineAsRegister(node),
+  Emit(kMips64Float64ExtractHighWord32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -1170,8 +1170,8 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Mips64OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  Emit(kMips64FmoveLowDUw, g.DefineSameAsFirst(node), g.UseRegister(left),
-       g.UseRegister(right));
+  Emit(kMips64Float64InsertLowWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
 }
 
 
@@ -1179,8 +1179,8 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   Mips64OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  Emit(kMips64FmoveHighDUw, g.DefineSameAsFirst(node), g.UseRegister(left),
-       g.UseRegister(right));
+  Emit(kMips64Float64InsertHighWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
 }
 
 

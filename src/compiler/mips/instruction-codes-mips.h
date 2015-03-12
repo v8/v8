@@ -61,10 +61,10 @@ namespace compiler {
   V(MipsSwc1)                      \
   V(MipsLdc1)                      \
   V(MipsSdc1)                      \
-  V(MipsFmoveLowUwD)               \
-  V(MipsFmoveLowDUw)               \
-  V(MipsFmoveHighUwD)              \
-  V(MipsFmoveHighDUw)              \
+  V(MipsFloat64ExtractLowWord32)   \
+  V(MipsFloat64ExtractHighWord32)  \
+  V(MipsFloat64InsertLowWord32)    \
+  V(MipsFloat64InsertHighWord32)   \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
   V(MipsStackClaim)                \

@@ -685,16 +685,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
-    case kMips64FmoveLowUwD:
+    case kMips64Float64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64FmoveLowDUw:
-      __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
-      break;
-    case kMips64FmoveHighUwD:
+    case kMips64Float64ExtractHighWord32:
       __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64FmoveHighDUw:
+    case kMips64Float64InsertLowWord32:
+      __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
+    case kMips64Float64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
     // ... more basic instructions ...
