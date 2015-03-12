@@ -2066,6 +2066,16 @@ Bounds Typer::Visitor::TypeFloat64Mod(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat64Max(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
 Bounds Typer::Visitor::TypeFloat64Sqrt(Node* node) {
   return Bounds(Type::Number());
 }

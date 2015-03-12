@@ -442,6 +442,10 @@ TEST(DisasmIa320) {
     __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ divsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ minsd(xmm1, xmm0);
+    __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ maxsd(xmm1, xmm0);
+    __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
 
@@ -499,6 +503,10 @@ TEST(DisasmIa320) {
       __ vsubsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vdivsd(xmm0, xmm1, xmm2);
       __ vdivsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminsd(xmm0, xmm1, xmm2);
+      __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxsd(xmm0, xmm1, xmm2);
+      __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
     }
   }
 

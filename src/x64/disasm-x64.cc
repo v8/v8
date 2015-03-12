@@ -956,8 +956,18 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x5d:
+        AppendToBuffer("vminsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x5e:
         AppendToBuffer("vdivsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5f:
+        AppendToBuffer("vmaxsd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -1543,10 +1553,14 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "mulsd";
     case 0x5A:  // F2 prefix.
       return "cvtsd2ss";
+    case 0x5D:  // F2 prefix.
+      return "minsd";
     case 0x5C:  // F2 prefix.
       return "subsd";
     case 0x5E:  // F2 prefix.
       return "divsd";
+    case 0x5F:  // F2 prefix.
+      return "maxsd";
     case 0xA2:
       return "cpuid";
     case 0xA5:

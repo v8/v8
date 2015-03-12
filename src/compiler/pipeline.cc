@@ -494,7 +494,7 @@ struct TypedLoweringPhase {
     JSTypedLowering typed_lowering(data->jsgraph(), temp_zone);
     JSIntrinsicLowering intrinsic_lowering(data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
-    CommonOperatorReducer common_reducer;
+    CommonOperatorReducer common_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &builtin_reducer);
@@ -520,7 +520,7 @@ struct SimplifiedLoweringPhase {
     ValueNumberingReducer vn_reducer(temp_zone);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
-    CommonOperatorReducer common_reducer;
+    CommonOperatorReducer common_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &simple_reducer);
@@ -553,7 +553,7 @@ struct ChangeLoweringPhase {
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
-    CommonOperatorReducer common_reducer;
+    CommonOperatorReducer common_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &simple_reducer);

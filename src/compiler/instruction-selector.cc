@@ -689,6 +689,8 @@ MachineType InstructionSelector::GetMachineType(Node* node) {
     case IrOpcode::kFloat64Mul:
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
+    case IrOpcode::kFloat64Max:
+    case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:
@@ -892,6 +894,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64Div(node);
     case IrOpcode::kFloat64Mod:
       return MarkAsDouble(node), VisitFloat64Mod(node);
+    case IrOpcode::kFloat64Min:
+      return MarkAsDouble(node), VisitFloat64Min(node);
+    case IrOpcode::kFloat64Max:
+      return MarkAsDouble(node), VisitFloat64Max(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsDouble(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:

@@ -436,6 +436,10 @@ TEST(DisasmX64) {
     __ subsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ divsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ minsd(xmm1, xmm0);
+    __ minsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ maxsd(xmm1, xmm0);
+    __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
@@ -493,7 +497,11 @@ TEST(DisasmX64) {
       __ vsubsd(xmm0, xmm1, xmm2);
       __ vsubsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vdivsd(xmm0, xmm1, xmm2);
-      __ vdivsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vdivsd(xmm0, xmm1, Operand(rbx, rcx, times_2, 10000));
+      __ vminsd(xmm8, xmm1, xmm2);
+      __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
+      __ vmaxsd(xmm8, xmm1, xmm2);
+      __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
     }
   }
 

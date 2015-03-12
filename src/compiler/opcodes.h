@@ -248,6 +248,8 @@
   V(Float64Mul)                 \
   V(Float64Div)                 \
   V(Float64Mod)                 \
+  V(Float64Max)                 \
+  V(Float64Min)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float64RoundTruncate)       \

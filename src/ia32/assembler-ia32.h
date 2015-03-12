@@ -1022,6 +1022,11 @@ class Assembler : public AssemblerBase {
   void punpckldq(XMMRegister dst, XMMRegister src);
   void punpckhdq(XMMRegister dst, XMMRegister src);
 
+  void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
+  void maxsd(XMMRegister dst, const Operand& src);
+  void minsd(XMMRegister dst, XMMRegister src) { minsd(dst, Operand(src)); }
+  void minsd(XMMRegister dst, const Operand& src);
+
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqu(XMMRegister dst, const Operand& src);
@@ -1245,6 +1250,18 @@ class Assembler : public AssemblerBase {
   }
   void vdivsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x5e, dst, src1, src2);
+  }
+  void vmaxsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmaxsd(dst, src1, Operand(src2));
+  }
+  void vmaxsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5f, dst, src1, src2);
+  }
+  void vminsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vminsd(dst, src1, Operand(src2));
+  }
+  void vminsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5d, dst, src1, src2);
   }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 

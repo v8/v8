@@ -741,6 +741,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ addq(rsp, Immediate(kDoubleSize));
       break;
     }
+    case kSSEFloat64Max:
+      ASSEMBLE_DOUBLE_BINOP(maxsd);
+      break;
+    case kSSEFloat64Min:
+      ASSEMBLE_DOUBLE_BINOP(minsd);
+      break;
     case kSSEFloat64Sqrt:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ sqrtsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
@@ -846,6 +852,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kAVXFloat64Div:
       ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
+      break;
+    case kAVXFloat64Max:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vmaxsd);
+      break;
+    case kAVXFloat64Min:
+      ASSEMBLE_AVX_DOUBLE_BINOP(vminsd);
       break;
     case kX64Movsxbl:
       ASSEMBLE_MOVX(movsxbl);

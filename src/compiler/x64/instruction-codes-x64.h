@@ -54,6 +54,8 @@ namespace compiler {
   V(SSEFloat64Mod)                 \
   V(SSEFloat64Sqrt)                \
   V(SSEFloat64Round)               \
+  V(SSEFloat64Max)                 \
+  V(SSEFloat64Min)                 \
   V(SSECvtss2sd)                   \
   V(SSECvtsd2ss)                   \
   V(SSEFloat64ToInt32)             \
@@ -69,6 +71,8 @@ namespace compiler {
   V(AVXFloat64Sub)                 \
   V(AVXFloat64Mul)                 \
   V(AVXFloat64Div)                 \
+  V(AVXFloat64Max)                 \
+  V(AVXFloat64Min)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
   V(X64Movb)                       \

@@ -74,12 +74,14 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   // for operations that are unsupported by some back-ends.
   enum Flag {
     kNoFlags = 0u,
-    kFloat64RoundDown = 1u << 0,
-    kFloat64RoundTruncate = 1u << 1,
-    kFloat64RoundTiesAway = 1u << 2,
-    kInt32DivIsSafe = 1u << 3,
-    kUint32DivIsSafe = 1u << 4,
-    kWord32ShiftIsSafe = 1u << 5
+    kFloat64Max = 1u << 0,
+    kFloat64Min = 1u << 1,
+    kFloat64RoundDown = 1u << 2,
+    kFloat64RoundTruncate = 1u << 3,
+    kFloat64RoundTiesAway = 1u << 4,
+    kInt32DivIsSafe = 1u << 5,
+    kUint32DivIsSafe = 1u << 6,
+    kWord32ShiftIsSafe = 1u << 7
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -165,6 +167,12 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Float64Equal();
   const Operator* Float64LessThan();
   const Operator* Float64LessThanOrEqual();
+
+  // Floating point min/max complying to IEEE 754.
+  const Operator* Float64Max();
+  const Operator* Float64Min();
+  bool HasFloat64Max() { return flags_ & kFloat64Max; }
+  bool HasFloat64Min() { return flags_ & kFloat64Min; }
 
   // Floating point rounding.
   const Operator* Float64RoundDown();

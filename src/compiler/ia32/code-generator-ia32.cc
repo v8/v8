@@ -462,6 +462,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Div:
       __ divsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
+    case kSSEFloat64Max:
+      __ maxsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat64Min:
+      __ minsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
     case kSSEFloat64Mod: {
       // TODO(dcarney): alignment is wrong.
       __ sub(esp, Immediate(kDoubleSize));
@@ -564,6 +570,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kAVXFloat64Div: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vdivsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Max: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmaxsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Min: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vminsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                 i.InputOperand(1));
       break;
     }

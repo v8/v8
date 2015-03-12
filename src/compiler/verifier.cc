@@ -792,6 +792,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Mul:
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
+    case IrOpcode::kFloat64Max:
+    case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:
