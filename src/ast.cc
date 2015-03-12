@@ -90,6 +90,35 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
+void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                                           ICSlotCache* cache) {
+  variable_feedback_slot_ = slot;
+  if (var()->IsUnallocated()) {
+    cache->Add(VariableICSlotPair(var(), slot));
+  }
+}
+
+
+FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  if (UsesVariableFeedbackSlot()) {
+    // VariableProxies that point to the same Variable within a function can
+    // make their loads from the same IC slot.
+    if (var()->IsUnallocated()) {
+      for (int i = 0; i < cache->length(); i++) {
+        VariableICSlotPair& pair = cache->at(i);
+        if (pair.variable() == var()) {
+          variable_feedback_slot_ = pair.slot();
+          return FeedbackVectorRequirements(0, 0);
+        }
+      }
+    }
+    return FeedbackVectorRequirements(0, 1);
+  }
+  return FeedbackVectorRequirements(0, 0);
+}
+
+
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(zone, pos),
@@ -564,7 +593,8 @@ bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
 }
 
 
-FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
+FeedbackVectorRequirements Call::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
   int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
   int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
   // A Call uses either a slot or an IC slot.

@@ -165,6 +165,25 @@ class FeedbackVectorRequirements {
 };
 
 
+class VariableICSlotPair FINAL {
+ public:
+  VariableICSlotPair(Variable* variable, FeedbackVectorICSlot slot)
+      : variable_(variable), slot_(slot) {}
+  VariableICSlotPair()
+      : variable_(NULL), slot_(FeedbackVectorICSlot::Invalid()) {}
+
+  Variable* variable() const { return variable_; }
+  FeedbackVectorICSlot slot() const { return slot_; }
+
+ private:
+  Variable* variable_;
+  FeedbackVectorICSlot slot_;
+};
+
+
+typedef List<VariableICSlotPair> ICSlotCache;
+
+
 class AstProperties FINAL BASE_EMBEDDED {
  public:
   class Flags : public EnumSet<AstPropertiesFlag, int> {};
@@ -229,11 +248,12 @@ class AstNode: public ZoneObject {
   // not really nice, but multiple inheritance would introduce yet another
   // vtable entry per node, something we don't want for space reasons.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) {
+      Isolate* isolate, const ICSlotCache* cache) {
     return FeedbackVectorRequirements(0, 0);
   }
   virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) { UNREACHABLE(); }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) {
+  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                                      ICSlotCache* cache) {
     UNREACHABLE();
   }
   // Each ICSlot stores a kind of IC which the participating node should know.
@@ -884,7 +904,7 @@ class ForInStatement FINAL : public ForEachStatement {
 
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(1, 0);
   }
   void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
@@ -1646,13 +1666,10 @@ class VariableProxy FINAL : public Expression {
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
-    return FeedbackVectorRequirements(0, UsesVariableFeedbackSlot() ? 1 : 0);
-  }
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE;
 
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
-    variable_feedback_slot_ = slot;
-  }
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE;
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE { return Code::LOAD_IC; }
   FeedbackVectorICSlot VariableFeedbackSlot() {
     DCHECK(!UsesVariableFeedbackSlot() || !variable_feedback_slot_.IsInvalid());
@@ -1734,10 +1751,11 @@ class Property FINAL : public Expression {
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE {
     property_feedback_slot_ = slot;
   }
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
@@ -1784,8 +1802,9 @@ class Call FINAL : public Expression {
 
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE;
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE {
     ic_slot_or_slot_ = slot.ToInt();
   }
   void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
@@ -1907,7 +1926,7 @@ class CallNew FINAL : public Expression {
 
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(FLAG_pretenuring_call_new ? 2 : 1, 0);
   }
   void SetFirstFeedbackSlot(FeedbackVectorSlot slot) OVERRIDE {
@@ -1981,10 +2000,11 @@ class CallRuntime FINAL : public Expression {
     return FLAG_vector_ics && is_jsruntime();
   }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(0, HasCallRuntimeFeedbackSlot() ? 1 : 0);
   }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE {
     callruntime_feedback_slot_ = slot;
   }
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE { return Code::LOAD_IC; }
@@ -2354,10 +2374,11 @@ class Yield FINAL : public Expression {
     return FLAG_vector_ics && (yield_kind() == kDelegating);
   }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(0, HasFeedbackSlots() ? 3 : 0);
   }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE {
     yield_first_feedback_slot_ = slot;
   }
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE {
@@ -2695,10 +2716,11 @@ class SuperReference FINAL : public Expression {
 
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate) OVERRIDE {
+      Isolate* isolate, const ICSlotCache* cache) OVERRIDE {
     return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
   }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot) OVERRIDE {
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) OVERRIDE {
     homeobject_feedback_slot_ = slot;
   }
   Code::Kind FeedbackICSlotKind(int index) OVERRIDE { return Code::LOAD_IC; }

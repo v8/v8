@@ -307,6 +307,34 @@ TEST(VectorLoadICStates) {
 }
 
 
+TEST(VectorLoadICSlotSharing) {
+  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Function f has 3 LoadICs, one for each o, but the ICs share the same
+  // feedback vector IC slot.
+  CompileRun(
+      "var o = 10;"
+      "function f() {"
+      "  var x = o + 10;"
+      "  return o + x + o;"
+      "}"
+      "f();");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  // There should be one IC slot.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(1, feedback_vector->ICSlots());
+  FeedbackVectorICSlot slot(0);
+  LoadICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+
 TEST(VectorLoadICOnSmi) {
   if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
   CcTest::InitializeVM();

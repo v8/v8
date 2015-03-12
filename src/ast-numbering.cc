@@ -17,6 +17,7 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   explicit AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
+        ic_slot_cache_(FLAG_vector_ics ? 4 : 0),
         dont_optimize_reason_(kNoReason) {
     InitializeAstVisitor(isolate, zone);
   }
@@ -59,14 +60,15 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
     FeedbackVectorRequirements reqs =
-        node->ComputeFeedbackRequirements(isolate());
+        node->ComputeFeedbackRequirements(isolate(), &ic_slot_cache_);
     if (reqs.slots() > 0) {
       node->SetFirstFeedbackSlot(FeedbackVectorSlot(properties_.slots()));
       properties_.increase_slots(reqs.slots());
     }
     if (reqs.ic_slots() > 0) {
       int ic_slots = properties_.ic_slots();
-      node->SetFirstFeedbackICSlot(FeedbackVectorICSlot(ic_slots));
+      node->SetFirstFeedbackICSlot(FeedbackVectorICSlot(ic_slots),
+                                   &ic_slot_cache_);
       properties_.increase_ic_slots(reqs.ic_slots());
       if (FLAG_vector_ics) {
         for (int i = 0; i < reqs.ic_slots(); i++) {
@@ -80,6 +82,9 @@ class AstNumberingVisitor FINAL : public AstVisitor {
 
   int next_id_;
   AstProperties properties_;
+  // The slot cache allows us to reuse certain vector IC slots. It's only used
+  // if FLAG_vector_ics is true.
+  ICSlotCache ic_slot_cache_;
   BailoutReason dont_optimize_reason_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
