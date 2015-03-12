@@ -238,6 +238,8 @@
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
+
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/Deserialize': [SKIP],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
@@ -260,6 +262,8 @@
 
 ##############################################################################
 ['arch == mips64el', {
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
+
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
