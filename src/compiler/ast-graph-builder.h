@@ -194,11 +194,35 @@ class AstGraphBuilder : public AstVisitor {
   // Helper to indicate a node exits the function body.
   void UpdateControlDependencyToLeaveFunction(Node* exit);
 
-  //
+  // Builds deoptimization for a given node.
+  void PrepareFrameState(
+      Node* node, BailoutId ast_id,
+      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
+  void PrepareFrameStateAfterAndBefore(Node* node, BailoutId ast_id,
+                                       OutputFrameStateCombine combine,
+                                       Node* frame_state_before);
+
+  BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
+
+  // Check if the given statement is an OSR entry.
+  // If so, record the stack height into the compilation and return {true}.
+  bool CheckOsrEntry(IterationStatement* stmt);
+
+  // Helper to wrap a Handle<T> into a Unique<T>.
+  template <class T>
+  Unique<T> MakeUnique(Handle<T> object) {
+    return Unique<T>::CreateUninitialized(object);
+  }
+
+  Node** EnsureInputBufferSize(int size);
+
+  // Named and keyed loads require a VectorSlotPair for successful lowering.
+  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
+
+  // ===========================================================================
   // The following build methods all generate graph fragments and return one
   // resulting node. The operand stack height remains the same, variables and
   // other dependencies tracked by the environment might be mutated though.
-  //
 
   // Builder to create a receiver check for sloppy mode.
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
@@ -272,24 +296,16 @@ class AstGraphBuilder : public AstVisitor {
   // Builders for binary operations.
   Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
 
-  // Check if the given statement is an OSR entry.
-  // If so, record the stack height into the compilation and return {true}.
-  bool CheckOsrEntry(IterationStatement* stmt);
-
-  // Helper to wrap a Handle<T> into a Unique<T>.
-  template <class T>
-  Unique<T> MakeUnique(Handle<T> object) {
-    return Unique<T>::CreateUninitialized(object);
-  }
-
-  Node** EnsureInputBufferSize(int size);
-
-  // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
-
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
   Node* ProcessArguments(const Operator* op, int arity);
+
+  // ===========================================================================
+  // The following visitation methods all recursively visit a subtree of the
+  // underlying AST and extent the graph. The operand stack is mutated in a way
+  // consistent with other compilers:
+  //  - Expressions pop operands and push result, depending on {AstContext}.
+  //  - Statements keep the operand stack balanced.
 
   // Visit statements.
   void VisitIfNotNull(Statement* stmt);
@@ -327,16 +343,6 @@ class AstGraphBuilder : public AstVisitor {
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);
-
-  // Builds deoptimization for a given node.
-  void PrepareFrameState(
-      Node* node, BailoutId ast_id,
-      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-  void PrepareFrameStateAfterAndBefore(Node* node, BailoutId ast_id,
-                                       OutputFrameStateCombine combine,
-                                       Node* frame_state_before);
-
-  BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
