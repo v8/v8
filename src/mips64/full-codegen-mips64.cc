@@ -5331,26 +5331,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ li(at, Operand(pending_message_obj));
   __ ld(a1, MemOperand(at));
   __ push(a1);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ li(at, Operand(has_pending_message));
-  __ ld(a1, MemOperand(at));
-  __ SmiTag(a1);
-  __ push(a1);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(a1));
   // Restore pending message from stack.
-  __ pop(a1);
-  __ SmiUntag(a1);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ li(at, Operand(has_pending_message));
-  __ sd(a1, MemOperand(at));
-
   __ pop(a1);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
