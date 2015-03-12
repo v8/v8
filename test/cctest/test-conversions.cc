@@ -374,6 +374,7 @@ static void CheckNonArrayIndex(bool expected, const char* chars) {
 TEST(NonArrayIndexParsing) {
   auto isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
+  CheckNonArrayIndex(false, "");
   CheckNonArrayIndex(false, "-");
   CheckNonArrayIndex(false, "0");
   CheckNonArrayIndex(false, "01");

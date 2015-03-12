@@ -509,7 +509,7 @@ bool IsNonArrayIndexInteger(String* string) {
   uint16_t buffer[kBufferSize];
   int offset = 0;
   const int length = string->length();
-  DCHECK_NE(0, length);
+  if (length == 0) return false;
   // First iteration, check for minus, 0 followed by anything else, etc.
   int to = std::min(offset + kUint32MaxChars, length);
   {
