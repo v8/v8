@@ -6,6 +6,8 @@ var $regexpExec;
 var $regexpExecNoTests;
 var $regexpLastMatchInfo;
 var $regexpLastMatchInfoOverride;
+var harmony_regexps = false;
+var harmony_unicode_regexps = false;
 
 (function() {
 

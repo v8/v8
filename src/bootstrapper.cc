@@ -1706,10 +1706,9 @@ void Genesis::InitializeGlobal_harmony_regexps() {
 
   Handle<HeapObject> flag(FLAG_harmony_regexps ? heap()->true_value()
                                                : heap()->false_value());
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
-                                flag, attributes).Assert();
+  Runtime::SetObjectProperty(isolate(), builtins,
+                             factory()->harmony_regexps_string(), flag,
+                             STRICT).Assert();
 }
 
 
@@ -1718,11 +1717,9 @@ void Genesis::InitializeGlobal_harmony_unicode_regexps() {
 
   Handle<HeapObject> flag(FLAG_harmony_unicode_regexps ? heap()->true_value()
                                                        : heap()->false_value());
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  Runtime::DefineObjectProperty(builtins,
-                                factory()->harmony_unicode_regexps_string(),
-                                flag, attributes).Assert();
+  Runtime::SetObjectProperty(isolate(), builtins,
+                             factory()->harmony_unicode_regexps_string(), flag,
+                             STRICT).Assert();
 }
 
 
@@ -2890,9 +2887,10 @@ Genesis::Genesis(Isolate* isolate,
   // Install experimental natives. Do not include them into the snapshot as we
   // should be able to turn them off at runtime. Re-installing them after
   // they have already been deserialized would also fail.
-  if (!isolate->serializer_enabled() && !InstallExperimentalNatives()) return;
-
-  InitializeExperimentalGlobal();
+  if (!isolate->serializer_enabled()) {
+    InitializeExperimentalGlobal();
+    if (!InstallExperimentalNatives()) return;
+  }
 
   // The serializer cannot serialize typed arrays. Reset those typed arrays
   // for each new context.
