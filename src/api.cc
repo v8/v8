@@ -2973,6 +2973,18 @@ void v8::Integer::CheckCast(v8::Value* that) {
 }
 
 
+void v8::Int32::CheckCast(v8::Value* that) {
+  Utils::ApiCheck(that->IsInt32(), "v8::Int32::Cast()",
+                  "Could not convert to 32-bit signed integer");
+}
+
+
+void v8::Uint32::CheckCast(v8::Value* that) {
+  Utils::ApiCheck(that->IsUint32(), "v8::Uint32::Cast()",
+                  "Could not convert to 32-bit unsigned integer");
+}
+
+
 void v8::Array::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSArray(),

@@ -2465,8 +2465,11 @@ class V8_EXPORT Integer : public Number {
 class V8_EXPORT Int32 : public Integer {
  public:
   int32_t Value() const;
+  V8_INLINE static Int32* Cast(v8::Value* obj);
+
  private:
   Int32();
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -2476,8 +2479,11 @@ class V8_EXPORT Int32 : public Integer {
 class V8_EXPORT Uint32 : public Integer {
  public:
   uint32_t Value() const;
+  V8_INLINE static Uint32* Cast(v8::Value* obj);
+
  private:
   Uint32();
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -7361,6 +7367,22 @@ Integer* Integer::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Integer*>(value);
+}
+
+
+Int32* Int32::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int32*>(value);
+}
+
+
+Uint32* Uint32::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint32*>(value);
 }
 
 
