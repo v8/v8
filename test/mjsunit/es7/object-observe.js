@@ -1824,3 +1824,16 @@ for (var b1 = 0; b1 < 2; ++b1)
     { object: fun, type: 'add', name: 'name' },
   ]);
 })();
+
+
+(function TestObserveInvalidAcceptMessage() {
+  var ex;
+  try {
+    Object.observe({}, function(){}, "not an object");
+  } catch (e) {
+    ex = e;
+  }
+  assertInstanceof(ex, TypeError);
+  assertEquals("Third argument to Object.observe must be an array of strings.",
+               ex.message);
+})()
