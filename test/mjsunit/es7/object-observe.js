@@ -1143,7 +1143,8 @@ function blacklisted(obj, prop) {
   return (obj instanceof Int32Array && prop == 1) ||
          (obj instanceof Int32Array && prop === "length") ||
          (obj instanceof ArrayBuffer && prop == 1) ||
-         (obj instanceof Function && prop === "name");  // Has its own test.
+         (obj instanceof Function && prop === "name") ||  // Has its own test.
+         (obj instanceof Function && prop === "length");  // Has its own test.
 }
 
 for (var i in objects) for (var j in properties) {
@@ -1822,6 +1823,31 @@ for (var b1 = 0; b1 < 2; ++b1)
     { object: fun, type: 'update', name: 'name', oldValue: 'a' },
     { object: fun, type: 'delete', name: 'name', oldValue: 'b' },
     { object: fun, type: 'add', name: 'name' },
+  ]);
+})();
+
+
+(function TestFunctionLength() {
+  reset();
+
+  function fun(x) {}
+  Object.observe(fun, observer.callback);
+  fun.length = 'x';  // No change. Not writable.
+  Object.defineProperty(fun, 'length', {value: 'a'});
+  Object.defineProperty(fun, 'length', {writable: true});
+  fun.length = 'b';
+  delete fun.length;
+  fun.length = 'x';  // No change. Function.prototype.length is non writable
+  Object.defineProperty(Function.prototype, 'length', {writable: true});
+  fun.length = 'c';
+  fun.length = 'c';  // Same, no update.
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: fun, type: 'update', name: 'length', oldValue: 1 },
+    { object: fun, type: 'reconfigure', name: 'length'},
+    { object: fun, type: 'update', name: 'length', oldValue: 'a' },
+    { object: fun, type: 'delete', name: 'length', oldValue: 'b' },
+    { object: fun, type: 'add', name: 'length' },
   ]);
 })();
 

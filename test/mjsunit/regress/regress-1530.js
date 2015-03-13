@@ -82,7 +82,8 @@ assertThrows("Object.defineProperty(f, 'prototype', { value: {} })");
 
 // Verify that non-configurability of other properties is respected, but
 // non-writability is ignored by Object.defineProperty().
+// name and length are configurable in ES6
 Object.defineProperty(f, 'name', { value: {} });
-assertThrows("Object.defineProperty(f, 'length', { value: {} })");
+Object.defineProperty(f, 'length', { value: {} });
 assertThrows("Object.defineProperty(f, 'caller', { value: {} })");
 assertThrows("Object.defineProperty(f, 'arguments', { value: {} })");

@@ -388,10 +388,10 @@ void Genesis::SetFunctionInstanceDescriptor(
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   Handle<AccessorInfo> length =
-      Accessors::FunctionLengthInfo(isolate(), ro_attribs);
+      Accessors::FunctionLengthInfo(isolate(), roc_attribs);
   {  // Add length.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, ro_attribs);
+                                 length, roc_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
@@ -555,9 +555,9 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
            function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
            function_mode == FUNCTION_WITHOUT_PROTOTYPE);
     Handle<AccessorInfo> length =
-        Accessors::FunctionLengthInfo(isolate(), ro_attribs);
+        Accessors::FunctionLengthInfo(isolate(), roc_attribs);
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, ro_attribs);
+                                 length, roc_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =

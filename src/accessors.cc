@@ -1095,12 +1095,52 @@ void Accessors::FunctionLengthGetter(
 }
 
 
+MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+    Isolate* isolate, Handle<JSObject> object, Handle<Name> name,
+    Handle<Object> value, bool is_observed, Handle<Object> old_value) {
+  LookupIterator it(object, name);
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+  DCHECK(it.HolderIsReceiverOrHiddenPrototype());
+  it.ReconfigureDataProperty(value, it.property_details().attributes());
+  value = it.WriteDataValue(value);
+
+  if (is_observed && !old_value->SameValue(*value)) {
+    return JSObject::EnqueueChangeRecord(object, "update", name, old_value);
+  }
+
+  return value;
+}
+
+
+MUST_USE_RESULT static MaybeHandle<Object> SetFunctionLength(
+    Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
+  Handle<Object> old_value;
+  bool is_observed = function->map()->is_observed();
+  if (is_observed) {
+    old_value = handle(Smi::FromInt(function->shared()->length()), isolate);
+  }
+
+  return ReplaceAccessorWithDataProperty(isolate, function,
+                                         isolate->factory()->length_string(),
+                                         value, is_observed, old_value);
+}
+
+
 void Accessors::FunctionLengthSetter(
     v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Function length is non writable, non configurable.
-  UNREACHABLE();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> value = Utils::OpenHandle(*val);
+
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
+
+  Handle<JSFunction> object =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  if (SetFunctionLength(isolate, object, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
 }
 
 
@@ -1139,18 +1179,9 @@ MUST_USE_RESULT static MaybeHandle<Object> SetFunctionName(
     old_value = handle(function->shared()->name(), isolate);
   }
 
-  Handle<Name> name = isolate->factory()->name_string();
-  LookupIterator it(function, name);
-  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-  DCHECK(it.HolderIsReceiverOrHiddenPrototype());
-  it.ReconfigureDataProperty(value, it.property_details().attributes());
-  value = it.WriteDataValue(value);
-
-  if (is_observed && !old_value->SameValue(*value)) {
-    return JSObject::EnqueueChangeRecord(function, "update", name, old_value);
-  }
-
-  return value;
+  return ReplaceAccessorWithDataProperty(isolate, function,
+                                         isolate->factory()->name_string(),
+                                         value, is_observed, old_value);
 }
 
 
