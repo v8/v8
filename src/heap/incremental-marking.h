@@ -189,6 +189,10 @@ class IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
+  INLINE(static void MarkObject(Heap* heap, Object* object));
+
+  Heap* heap() const { return heap_; }
+
  private:
   int64_t SpaceLeftInOldSpace();
 

@@ -251,13 +251,7 @@ class IncrementalMarkingMarkingVisitor
 
   // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
-    HeapObject* heap_object = HeapObject::cast(obj);
-    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-    if (mark_bit.data_only()) {
-      MarkBlackOrKeepGrey(heap_object, mark_bit, heap_object->Size());
-    } else if (Marking::IsWhite(mark_bit)) {
-      heap->incremental_marking()->WhiteToGreyAndPush(heap_object, mark_bit);
-    }
+    IncrementalMarking::MarkObject(heap, obj);
   }
 
   // Marks the object black without pushing it on the marking stack.
@@ -280,7 +274,7 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
  public:
   explicit IncrementalMarkingRootMarkingVisitor(
       IncrementalMarking* incremental_marking)
-      : incremental_marking_(incremental_marking) {}
+      : heap_(incremental_marking->heap()) {}
 
   void VisitPointer(Object** p) { MarkObjectByPointer(p); }
 
@@ -293,18 +287,10 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
-    HeapObject* heap_object = HeapObject::cast(obj);
-    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-    if (mark_bit.data_only()) {
-      MarkBlackOrKeepGrey(heap_object, mark_bit, heap_object->Size());
-    } else {
-      if (Marking::IsWhite(mark_bit)) {
-        incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
-      }
-    }
+    IncrementalMarking::MarkObject(heap_, obj);
   }
 
-  IncrementalMarking* incremental_marking_;
+  Heap* heap_;
 };
 
 
@@ -636,6 +622,17 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
                Marking::IsBlack(mark_bit)));
 #endif
   MarkBlackOrKeepBlack(obj, mark_bit, size);
+}
+
+
+void IncrementalMarking::MarkObject(Heap* heap, Object* obj) {
+  HeapObject* heap_object = HeapObject::cast(obj);
+  MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+  if (mark_bit.data_only()) {
+    MarkBlackOrKeepGrey(heap_object, mark_bit, heap_object->Size());
+  } else if (Marking::IsWhite(mark_bit)) {
+    heap->incremental_marking()->WhiteToGreyAndPush(heap_object, mark_bit);
+  }
 }
 
 
