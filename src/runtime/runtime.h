@@ -694,7 +694,7 @@ namespace internal {
   F(DoubleHi, 1, 1)                       \
   F(DoubleLo, 1, 1)                       \
   F(MathFloor, 1, 1)                      \
-  F(MathSqrtRT, 1, 1)                     \
+  F(MathSqrt, 1, 1)                       \
   F(MathLogRT, 1, 1)                      \
   /* ES6 Collections */                   \
   F(MapClear, 1, 1)                       \

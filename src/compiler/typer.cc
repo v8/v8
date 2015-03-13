@@ -1511,6 +1511,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Bounds(Type::None(zone()), Type::Signed32());
     case Runtime::kInlineConstructDouble:
     case Runtime::kInlineMathFloor:
+    case Runtime::kInlineMathSqrt:
       return Bounds(Type::None(zone()), Type::Number());
     default:
       break;

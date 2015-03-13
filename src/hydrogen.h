@@ -2213,7 +2213,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(DoubleHi)                          \
   F(DoubleLo)                          \
   F(MathFloor)                         \
-  F(MathSqrtRT)                        \
+  F(MathSqrt)                          \
   F(MathLogRT)                         \
   /* ES6 Collections */                \
   F(MapClear)                          \

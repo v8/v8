@@ -100,38 +100,6 @@ JSBuiltinReducer::JSBuiltinReducer(JSGraph* jsgraph)
     : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
 
 
-// ECMA-262, section 15.8.2.1.
-Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Unsigned32())) {
-    // Math.abs(a:uint32) -> a
-    return Replace(r.left());
-  }
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.abs(a:number) -> (a > 0 ? a : 0 - a)
-    Node* const value = r.left();
-    Node* const zero = jsgraph()->ZeroConstant();
-    return Replace(graph()->NewNode(
-        common()->Select(kMachNone),
-        graph()->NewNode(simplified()->NumberLessThan(), zero, value), value,
-        graph()->NewNode(simplified()->NumberSubtract(), zero, value)));
-  }
-  return NoChange();
-}
-
-
-// ECMA-262, section 15.8.2.17.
-Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.sqrt(a:number) -> Float64Sqrt(a)
-    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-
 // ECMA-262, section 15.8.2.11.
 Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   JSCallReduction r(node);
@@ -190,10 +158,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
-    case kMathAbs:
-      return ReplaceWithPureReduction(node, ReduceMathAbs(node));
-    case kMathSqrt:
-      return ReplaceWithPureReduction(node, ReduceMathSqrt(node));
     case kMathMax:
       return ReplaceWithPureReduction(node, ReduceMathMax(node));
     case kMathImul:

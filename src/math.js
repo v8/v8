@@ -23,10 +23,9 @@ var GlobalArray = global.Array;
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
-  if (%_IsSmi(x)) return x >= 0 ? x : -x;
-  x = TO_NUMBER_INLINE(x);
-  if (x === 0) return 0;  // To handle -0.
-  return x > 0 ? x : -x;
+  x = +x;
+  if (x > 0) return x;
+  return 0 - x;
 }
 
 // ECMA 262 - 15.8.2.2
@@ -148,7 +147,7 @@ function MathRound(x) {
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
-  return %_MathSqrtRT(TO_NUMBER_INLINE(x));
+  return %_MathSqrt(+x);
 }
 
 // Non-standard extension.
@@ -191,9 +190,9 @@ function MathAsinh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   // Idempotent for NaN, +/-0 and +/-Infinity.
   if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  if (x > 0) return MathLog(x + MathSqrt(x * x + 1));
+  if (x > 0) return MathLog(x + %_MathSqrt(x * x + 1));
   // This is to prevent numerical errors caused by large negative x.
-  return -MathLog(-x + MathSqrt(x * x + 1));
+  return -MathLog(-x + %_MathSqrt(x * x + 1));
 }
 
 // ES6 draft 09-27-13, section 20.2.2.3.
@@ -202,7 +201,7 @@ function MathAcosh(x) {
   if (x < 1) return NAN;
   // Idempotent for NaN and +Infinity.
   if (!NUMBER_IS_FINITE(x)) return x;
-  return MathLog(x + MathSqrt(x + 1) * MathSqrt(x - 1));
+  return MathLog(x + %_MathSqrt(x + 1) * %_MathSqrt(x - 1));
 }
 
 // ES6 draft 09-27-13, section 20.2.2.7.
@@ -244,7 +243,7 @@ function MathHypot(x, y) {  // Function length is 2.
     compensation = (preliminary - sum) - summand;
     sum = preliminary;
   }
-  return MathSqrt(sum) * max;
+  return %_MathSqrt(sum) * max;
 }
 
 // ES6 draft 09-27-13, section 20.2.2.16.
@@ -350,9 +349,11 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "cbrt", MathCbrt
 ));
 
+%SetInlineBuiltinFlag(MathAbs);
 %SetInlineBuiltinFlag(MathCeil);
 %SetInlineBuiltinFlag(MathFloor);
 %SetInlineBuiltinFlag(MathRandom);
+%SetInlineBuiltinFlag(MathSqrt);
 
 // Expose to the global scope.
 $abs = MathAbs;

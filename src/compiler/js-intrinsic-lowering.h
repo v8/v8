@@ -35,6 +35,7 @@ class JSIntrinsicLowering FINAL : public Reducer {
   Reduction ReduceInlineDoubleLo(Node* node);
   Reduction ReduceInlineDoubleHi(Node* node);
   Reduction ReduceInlineMathFloor(Node* node);
+  Reduction ReduceInlineMathSqrt(Node* node);
   Reduction ReduceInlineValueOf(Node* node);
 
   Reduction Change(Node* node, const Operator* op);

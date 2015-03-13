@@ -26,8 +26,6 @@ class JSBuiltinReducer FINAL : public Reducer {
   Reduction Reduce(Node* node) FINAL;
 
  private:
-  Reduction ReduceMathAbs(Node* node);
-  Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathFround(Node* node);

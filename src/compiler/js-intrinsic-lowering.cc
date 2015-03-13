@@ -42,6 +42,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineMathFloor:
       return ReduceInlineMathFloor(node);
+    case Runtime::kInlineMathSqrt:
+      return ReduceInlineMathSqrt(node);
     case Runtime::kInlineValueOf:
       return ReduceInlineValueOf(node);
     default:
@@ -167,6 +169,11 @@ Reduction JSIntrinsicLowering::ReduceInlineIsInstanceType(
 Reduction JSIntrinsicLowering::ReduceInlineMathFloor(Node* node) {
   if (!machine()->HasFloat64RoundDown()) return NoChange();
   return Change(node, machine()->Float64RoundDown());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineMathSqrt(Node* node) {
+  return Change(node, machine()->Float64Sqrt());
 }
 
 

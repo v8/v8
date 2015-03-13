@@ -4104,7 +4104,7 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
 
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ push(temp_result);
-    __ CallRuntimeSaveDoubles(Runtime::kMathSqrtRT);
+    __ CallRuntimeSaveDoubles(Runtime::kMathSqrt);
     RecordSafepointWithRegisters(instr->pointer_map(), 1,
                                  Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(temp_result, eax);
