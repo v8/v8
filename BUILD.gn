@@ -32,9 +32,8 @@ v8_toolset_for_d8 = "host"
 # TODO(GYP): For now we only support 32-bit little-endian target builds from an
 # x64 Linux host. Eventually we need to support all of the host/target
 # configurations v8 runs on.
-if (host_cpu == "x64" &&
+if (host_cpu == "x64" && host_os == "linux" &&
     (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86")) {
-  assert(host_os == "linux")
   snapshot_toolchain = "//build/toolchain/linux:clang_x86"
 } else {
   snapshot_toolchain = default_toolchain
