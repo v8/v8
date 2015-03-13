@@ -7646,7 +7646,6 @@ static void DebugHarmonyScopingListener(
 
 
 TEST(DebugBreakInLexicalScopes) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   DebugLocalContext env;

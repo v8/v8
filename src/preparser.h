@@ -100,7 +100,6 @@ class ParserBase : public Traits {
     return allow_harmony_arrow_functions_;
   }
   bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
-  bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
   bool allow_harmony_numeric_literals() const {
     return scanner()->HarmonyNumericLiterals();
   }
@@ -129,9 +128,6 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_modules(bool allow) {
     scanner()->SetHarmonyModules(allow);
-  }
-  void set_allow_harmony_scoping(bool allow) {
-    scanner()->SetHarmonyScoping(allow);
   }
   void set_allow_harmony_numeric_literals(bool allow) {
     scanner()->SetHarmonyNumericLiterals(allow);
@@ -2942,10 +2938,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(start_pos, scanner()->location().end_pos,
                               CHECK_OK);
-    }
-
-    if (allow_harmony_scoping() && is_strict(language_mode()))
       this->CheckConflictingVarDeclarations(scope, CHECK_OK);
+    }
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(

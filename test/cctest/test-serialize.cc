@@ -1388,7 +1388,6 @@ TEST(SerializeToplevelBitFlip) {
 
 TEST(SerializeWithHarmonyScoping) {
   FLAG_serialize_toplevel = true;
-  FLAG_harmony_scoping = true;
 
   const char* source1 = "'use strict'; let x = 'X'";
   const char* source2 = "'use strict'; let y = 'Y'";

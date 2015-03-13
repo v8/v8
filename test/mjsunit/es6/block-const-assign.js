@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --harmony-computed-property-names
+// Flags: --harmony-computed-property-names
 
 // Test that we throw early syntax errors in harmony mode
 // when using an immutable binding in an assigment or with

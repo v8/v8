@@ -174,7 +174,6 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
     case Token::CONST:
       return ParseVariableStatement(kStatementListItem, ok);
     case Token::LET:
-      DCHECK(allow_harmony_scoping());
       if (is_strict(language_mode())) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
@@ -383,7 +382,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
-    if (allow_harmony_scoping() && is_strict(language_mode())) {
+    if (is_strict(language_mode())) {
       ParseStatementListItem(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
@@ -456,12 +455,6 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     Consume(Token::CONST);
     if (is_strict(language_mode())) {
       DCHECK(var_context != kStatement);
-      if (!allow_harmony_scoping()) {
-        Scanner::Location location = scanner()->peek_location();
-        ReportMessageAt(location, "strict_const");
-        *ok = false;
-        return Statement::Default();
-      }
       is_strict_const = true;
       require_initializer = var_context != kForStatement;
     }

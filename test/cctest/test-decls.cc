@@ -637,7 +637,6 @@ TEST(CrossScriptReferences) {
 
 
 TEST(CrossScriptReferences_Simple) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_use_strict = true;
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -652,7 +651,6 @@ TEST(CrossScriptReferences_Simple) {
 
 
 TEST(CrossScriptReferences_Simple2) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_use_strict = true;
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -675,8 +673,6 @@ TEST(CrossScriptReferences_Simple2) {
 
 
 TEST(CrossScriptReferencesHarmony) {
-  i::FLAG_harmony_scoping = true;
-
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 
@@ -819,7 +815,6 @@ TEST(CrossScriptReferencesHarmony) {
 
 
 TEST(CrossScriptReferencesHarmonyRegress) {
-  i::FLAG_harmony_scoping = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   SimpleContext context;
@@ -840,7 +835,6 @@ TEST(CrossScriptReferencesHarmonyRegress) {
 
 TEST(GlobalLexicalOSR) {
   i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -864,7 +858,6 @@ TEST(GlobalLexicalOSR) {
 
 TEST(CrossScriptConflicts) {
   i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
 
   HandleScope scope(CcTest::isolate());
 
@@ -900,8 +893,6 @@ TEST(CrossScriptConflicts) {
 
 
 TEST(CrossScriptDynamicLookup) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
 
   {
@@ -933,8 +924,6 @@ TEST(CrossScriptDynamicLookup) {
 
 
 TEST(CrossScriptGlobal) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
   {
     SimpleContext context;
@@ -977,8 +966,6 @@ TEST(CrossScriptGlobal) {
 
 
 TEST(CrossScriptStaticLookupUndeclared) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
 
   {
@@ -1011,7 +998,6 @@ TEST(CrossScriptStaticLookupUndeclared) {
 
 
 TEST(CrossScriptLoadICs) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1067,7 +1053,6 @@ TEST(CrossScriptLoadICs) {
 
 
 TEST(CrossScriptStoreICs) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1145,7 +1130,6 @@ TEST(CrossScriptStoreICs) {
 
 
 TEST(CrossScriptAssignmentToConst) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1168,7 +1152,6 @@ TEST(CrossScriptAssignmentToConst) {
 
 
 TEST(Regress425510) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1186,7 +1169,6 @@ TEST(Regress425510) {
 
 
 TEST(Regress3941) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1228,7 +1210,6 @@ TEST(Regress3941) {
 
 
 TEST(Regress3941_Reads) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());

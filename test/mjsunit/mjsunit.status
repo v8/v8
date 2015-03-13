@@ -110,7 +110,7 @@
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
   'es6/debug-stepin-microtasks': [PASS, NO_VARIANTS],
   'es6/debug-stepnext-for': [PASS, NO_VARIANTS],
-  'harmony/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
+  'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
 
   ##############################################################################
@@ -208,7 +208,7 @@
   'fast-prototype': [SKIP],
   'field-type-tracking': [SKIP],
   'getters-on-elements': [SKIP],
-  'harmony/block-let-crankshaft': [SKIP],
+  'es6/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'regress/regress-crbug-137689': [SKIP],

@@ -182,17 +182,17 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                           \
-  V(harmony_modules, "harmony modules (implies block scoping)")         \
-  V(harmony_arrays, "harmony array methods")                            \
-  V(harmony_array_includes, "harmony Array.prototype.includes")         \
-  V(harmony_regexps, "harmony regular expression extensions")           \
-  V(harmony_arrow_functions, "harmony arrow functions")                 \
-  V(harmony_proxies, "harmony proxies")                                 \
-  V(harmony_sloppy, "harmony features in sloppy mode")                  \
-  V(harmony_unicode, "harmony unicode escapes")                         \
-  V(harmony_unicode_regexps, "harmony unicode regexps")                 \
-  V(harmony_rest_parameters, "harmony rest parameters")                 \
+#define HARMONY_INPROGRESS(V)                                   \
+  V(harmony_modules, "harmony modules")                         \
+  V(harmony_arrays, "harmony array methods")                    \
+  V(harmony_array_includes, "harmony Array.prototype.includes") \
+  V(harmony_regexps, "harmony regular expression extensions")   \
+  V(harmony_arrow_functions, "harmony arrow functions")         \
+  V(harmony_proxies, "harmony proxies")                         \
+  V(harmony_sloppy, "harmony features in sloppy mode")          \
+  V(harmony_unicode, "harmony unicode escapes")                 \
+  V(harmony_unicode_regexps, "harmony unicode regexps")         \
+  V(harmony_rest_parameters, "harmony rest parameters")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
@@ -200,14 +200,12 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_tostring, "harmony toString")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                               \
-  V(harmony_numeric_literals, "harmony numeric literals")                 \
-  V(harmony_strings, "harmony string methods")                            \
-  V(harmony_scoping, "harmony block scoping")                             \
-  V(harmony_templates, "harmony template literals")                       \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
+#define HARMONY_SHIPPING(V)                                                \
+  V(harmony_numeric_literals, "harmony numeric literals")                  \
+  V(harmony_strings, "harmony string methods")                             \
+  V(harmony_templates, "harmony template literals")                        \
+  V(harmony_classes, "harmony classes (implies object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -234,8 +232,6 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 
 
 // Feature dependencies.
-DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
-DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 DEFINE_IMPLICATION(harmony_unicode_regexps, harmony_unicode)
 

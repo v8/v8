@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,12 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping
+function CheckException(e) {
+  var string = e.toString();
+  assertInstanceof(e, SyntaxError);
+}
 
-"use strict";
+function Check(str) {
+  try {
+    eval("(function () { " + str + " })");
+    assertUnreachable();
+  } catch (e) {
+    CheckException(e);
+  }
+  try {
+    eval("(function () { { " + str + " } })");
+    assertUnreachable();
+  } catch (e) {
+    CheckException(e);
+  }
+}
 
-assertThrows("'use strict'; for (let x in x);", ReferenceError);
-
-let s;
-for (let pppp in {}) {};
-assertThrows(function() { pppp = true }, ReferenceError);
+// Check for early syntax errors when using let
+// declarations outside of strict mode.
+Check("let x;");
+Check("let x = 1;");
+Check("let x, y;");

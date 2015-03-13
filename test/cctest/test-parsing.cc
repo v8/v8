@@ -72,7 +72,6 @@ TEST(ScanKeywords) {
       i::Utf8ToUtf16CharacterStream stream(keyword, length);
       i::Scanner scanner(&unicode_cache);
       // The scanner should parse Harmony keywords for this test.
-      scanner.SetHarmonyScoping(true);
       scanner.SetHarmonyModules(true);
       scanner.SetHarmonyClasses(true);
       scanner.Initialize(&stream);
@@ -1051,7 +1050,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
       parser.set_allow_harmony_arrow_functions(true);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_object_literals(true);
-      parser.set_allow_harmony_scoping(true);
       parser.set_allow_harmony_sloppy(true);
       info.set_global();
       CHECK(parser.Parse(&info));
@@ -1086,8 +1084,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
 
 
 TEST(ScopePositions) {
-  v8::internal::FLAG_harmony_scoping = true;
-
   // Test the parser for correctly setting the start and end positions
   // of a scope. We check the scope positions of exactly one scope
   // nested in the global scope of a program. 'inner source' is the
@@ -1301,7 +1297,6 @@ TEST(ScopePositions) {
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     parser.set_allow_lazy(true);
-    parser.set_allow_harmony_scoping(true);
     parser.set_allow_harmony_arrow_functions(true);
     info.set_global();
     info.set_language_mode(source_data[i].language_mode);
@@ -1377,7 +1372,6 @@ i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyScoping,
   kAllowHarmonyModules,
   kAllowHarmonyNumericLiterals,
   kAllowHarmonyArrowFunctions,
@@ -1403,7 +1397,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
                     i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives(flags.Contains(kAllowNatives));
-  parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
   parser->set_allow_harmony_modules(flags.Contains(kAllowHarmonyModules));
   parser->set_allow_harmony_numeric_literals(
       flags.Contains(kAllowHarmonyNumericLiterals));
@@ -1973,8 +1966,8 @@ TEST(NoErrorsFutureStrictReservedWords) {
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 
-  static const ParserFlag classes_flags[] = {
-      kAllowHarmonyArrowFunctions, kAllowHarmonyClasses, kAllowHarmonyScoping};
+  static const ParserFlag classes_flags[] = {kAllowHarmonyArrowFunctions,
+                                             kAllowHarmonyClasses};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     classes_flags, arraysize(classes_flags));
 }
@@ -3373,7 +3366,6 @@ TEST(InnerAssignment) {
           i::Zone zone;
           i::ParseInfo info(&zone, script);
           i::Parser parser(&info);
-          parser.set_allow_harmony_scoping(true);
           CHECK(parser.Parse(&info));
           CHECK(i::Compiler::Analyze(&info));
           CHECK(info.function() != NULL);
@@ -3521,7 +3513,7 @@ TEST(ErrorsArrowFunctions) {
   };
 
   // The test is quite slow, so run it with a reduced set of flags.
-  static const ParserFlag flags[] = {kAllowLazy, kAllowHarmonyScoping};
+  static const ParserFlag flags[] = {kAllowLazy};
   static const ParserFlag always_flags[] = { kAllowHarmonyArrowFunctions };
   RunParserSyncTest(context_data, statement_data, kError, flags,
                     arraysize(flags), always_flags, arraysize(always_flags));
@@ -4049,8 +4041,7 @@ TEST(ClassDeclarationNoErrors) {
     "class name extends class base {} {}",
     NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyClasses, kAllowHarmonyScoping};
+  static const ParserFlag always_flags[] = {kAllowHarmonyClasses};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -4569,9 +4560,7 @@ TEST(ConstParsingInForIn) {
       "for(const x in [1,2,3]) {}",
       "for(const x of [1,2,3]) {}",
       NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyScoping};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0);
 }
 
 
@@ -4591,9 +4580,7 @@ TEST(ConstParsingInForInError) {
       "for(const x = 1, y = 2 of []) {}",
       "for(const x,y of []) {}",
       NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyScoping};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0);
 }
 
 
@@ -4948,8 +4935,7 @@ TEST(LexicalScopingSloppyMode) {
     "(class C {})",
     "(class C extends D {})",
     NULL};
-  static const ParserFlag always_true_flags[] = {
-      kAllowHarmonyScoping, kAllowHarmonyClasses};
+  static const ParserFlag always_true_flags[] = {kAllowHarmonyClasses};
   static const ParserFlag always_false_flags[] = {kAllowHarmonySloppy};
   RunParserSyncTest(context_data, bad_data, kError, NULL, 0,
                     always_true_flags, arraysize(always_true_flags),
@@ -5085,7 +5071,6 @@ TEST(BasicImportExportParsing) {
       i::Parser parser(&info);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
-      parser.set_allow_harmony_scoping(true);
       info.set_module();
       if (!parser.Parse(&info)) {
         i::Handle<i::JSObject> exception_handle(
@@ -5113,7 +5098,6 @@ TEST(BasicImportExportParsing) {
       i::Parser parser(&info);
       parser.set_allow_harmony_classes(true);
       parser.set_allow_harmony_modules(true);
-      parser.set_allow_harmony_scoping(true);
       info.set_global();
       CHECK(!parser.Parse(&info));
     }
@@ -5204,7 +5188,6 @@ TEST(ImportExportParsingErrors) {
     i::Parser parser(&info);
     parser.set_allow_harmony_classes(true);
     parser.set_allow_harmony_modules(true);
-    parser.set_allow_harmony_scoping(true);
     info.set_module();
     CHECK(!parser.Parse(&info));
   }
@@ -5234,7 +5217,6 @@ TEST(ModuleParsingInternals) {
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   i::Parser parser(&info);
   parser.set_allow_harmony_modules(true);
-  parser.set_allow_harmony_scoping(true);
   info.set_module();
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
@@ -5335,8 +5317,8 @@ TEST(DeclarationsError) {
     "class C {}",
     NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyClasses, kAllowHarmonyScoping, kAllowStrongMode};
+  static const ParserFlag always_flags[] = {kAllowHarmonyClasses,
+                                            kAllowStrongMode};
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -5421,8 +5403,7 @@ TEST(PropertyNameEvalArguments) {
       NULL};
 
   static const ParserFlag always_flags[] = {
-      kAllowHarmonyClasses, kAllowHarmonyObjectLiterals, kAllowHarmonyScoping,
-      kAllowStrongMode};
+      kAllowHarmonyClasses, kAllowHarmonyObjectLiterals, kAllowStrongMode};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -5494,8 +5475,7 @@ TEST(VarForbiddenInStrongMode) {
     "const x = 0;",
     NULL};
 
-  static const ParserFlag always_flags[] = {kAllowStrongMode,
-                                            kAllowHarmonyScoping};
+  static const ParserFlag always_flags[] = {kAllowStrongMode};
   RunParserSyncTest(strong_context_data, var_declarations, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(strong_context_data, let_declarations, kSuccess, NULL, 0,
@@ -5535,7 +5515,7 @@ TEST(StrongEmptySubStatements) {
       NULL};
 
   static const ParserFlag always_flags[] = {
-      kAllowStrongMode, kAllowHarmonyScoping
+      kAllowStrongMode,
   };
   RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
@@ -5557,7 +5537,7 @@ TEST(StrongForIn) {
       NULL};
 
   static const ParserFlag always_flags[] = {
-      kAllowStrongMode, kAllowHarmonyScoping
+      kAllowStrongMode,
   };
   RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
