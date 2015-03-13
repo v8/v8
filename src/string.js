@@ -22,7 +22,7 @@ function StringConstructor(x) {
     %_SetValueOf(this, TO_STRING_INLINE(x));
   } else {
     return IS_SYMBOL(x) ?
-        %_CallFunction(x, SymbolToString) : TO_STRING_INLINE(x);
+        %_CallFunction(x, $symbolToString) : TO_STRING_INLINE(x);
   }
 }
 
