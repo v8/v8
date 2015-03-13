@@ -832,6 +832,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "external reference";
     case RelocInfo::INTERNAL_REFERENCE:
       return "internal reference";
+    case RelocInfo::INTERNAL_REFERENCE_ENCODED:
+      return "encoded internal reference";
     case RelocInfo::DEOPT_REASON:
       return "deopt reason";
     case RelocInfo::CONST_POOL:
@@ -919,6 +921,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
     case INTERNAL_REFERENCE:
+    case INTERNAL_REFERENCE_ENCODED:
     case DEOPT_REASON:
     case CONST_POOL:
     case VENEER_POOL:

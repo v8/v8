@@ -379,6 +379,9 @@ class RelocInfo {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
+    // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
+    INTERNAL_REFERENCE_ENCODED,
+
     // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
     CONST_POOL,
@@ -393,10 +396,6 @@ class RelocInfo {
     NONE64,             // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
-
-    // Encoded internal reference, used only on MIPS and MIPS64.
-    // Re-uses previous ARM-only encoding, to fit in RealRelocMode space.
-    INTERNAL_REFERENCE_ENCODED = CONST_POOL,
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
