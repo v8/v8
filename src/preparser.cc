@@ -674,7 +674,7 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     while (token != Token::CASE &&
            token != Token::DEFAULT &&
            token != Token::RBRACE) {
-      ParseStatement(CHECK_OK);
+      ParseStatementListItem(CHECK_OK);
       token = peek();
     }
   }

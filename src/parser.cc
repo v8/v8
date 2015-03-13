@@ -2777,8 +2777,8 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
 
 CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   // CaseClause ::
-  //   'case' Expression ':' Statement*
-  //   'default' ':' Statement*
+  //   'case' Expression ':' StatementList
+  //   'default' ':' StatementList
 
   Expression* label = NULL;  // NULL expression indicates default case
   if (peek() == Token::CASE) {
@@ -2800,7 +2800,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   while (peek() != Token::CASE &&
          peek() != Token::DEFAULT &&
          peek() != Token::RBRACE) {
-    Statement* stat = ParseStatement(NULL, CHECK_OK);
+    Statement* stat = ParseStatementListItem(CHECK_OK);
     statements->Add(stat, zone());
   }
 

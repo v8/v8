@@ -68,8 +68,8 @@ TestLocalThrows("do let x; while (false)", SyntaxError);
 TestLocalThrows("while (false) let x;", SyntaxError);
 TestLocalThrows("label: let x;", SyntaxError);
 TestLocalThrows("for (;false;) let x;", SyntaxError);
-TestLocalThrows("switch (true) { case true: let x; }", SyntaxError);
-TestLocalThrows("switch (true) { default: let x; }", SyntaxError);
+TestLocalDoesNotThrow("switch (true) { case true: let x; }");
+TestLocalDoesNotThrow("switch (true) { default: let x; }");
 
 // Test const declarations with initialisers in statement positions.
 TestLocalThrows("if (true) const x = 1;", SyntaxError);
@@ -78,8 +78,8 @@ TestLocalThrows("do const x = 1; while (false)", SyntaxError);
 TestLocalThrows("while (false) const x = 1;", SyntaxError);
 TestLocalThrows("label: const x = 1;", SyntaxError);
 TestLocalThrows("for (;false;) const x = 1;", SyntaxError);
-TestLocalThrows("switch (true) { case true: const x = 1; }", SyntaxError);
-TestLocalThrows("switch (true) { default: const x = 1; }", SyntaxError);
+TestLocalDoesNotThrow("switch (true) { case true: const x = 1; }");
+TestLocalDoesNotThrow("switch (true) { default: const x = 1; }");
 
 // Test const declarations without initialisers.
 TestLocalThrows("const x;", SyntaxError);
@@ -147,11 +147,11 @@ function f() {
 f();
 
 // Test function declarations in statement position in strict mode.
-TestLocalThrows("function f() { if (true) function g() {}", SyntaxError);
-TestLocalThrows("function f() { if (true) {} else function g() {}", SyntaxError);
-TestLocalThrows("function f() { do function g() {} while (false)", SyntaxError);
-TestLocalThrows("function f() { while (false) function g() {}", SyntaxError);
-TestLocalThrows("function f() { label: function g() {}", SyntaxError);
-TestLocalThrows("function f() { for (;false;) function g() {}", SyntaxError);
-TestLocalThrows("function f() { switch (true) { case true: function g() {} }", SyntaxError);
-TestLocalThrows("function f() { switch (true) { default: function g() {} }", SyntaxError);
+TestLocalThrows("function f() { if (true) function g() {} }", SyntaxError);
+TestLocalThrows("function f() { if (true) {} else function g() {} }", SyntaxError);
+TestLocalThrows("function f() { do function g() {} while (false) }", SyntaxError);
+TestLocalThrows("function f() { while (false) function g() {} }", SyntaxError);
+TestLocalThrows("function f() { label: function g() {} }", SyntaxError);
+TestLocalThrows("function f() { for (;false;) function g() {} }", SyntaxError);
+TestLocalDoesNotThrow("function f() { switch (true) { case true: function g() {} } }");
+TestLocalDoesNotThrow("function f() { switch (true) { default: function g() {} } }");
