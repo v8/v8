@@ -1558,6 +1558,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
         return TypeError("const_assign", object, name);
       }
 
+      Handle<Object> previous_value =
+          FixedArray::get(script_context, lookup_result.slot_index);
+
+      if (*previous_value == *isolate()->factory()->the_hole_value()) {
+        // Do not install stubs and stay pre-monomorphic for
+        // uninitialized accesses.
+        return ReferenceError("not_defined", name);
+      }
+
       if (FLAG_use_ic &&
           StoreScriptContextFieldStub::Accepted(&lookup_result)) {
         StoreScriptContextFieldStub stub(isolate(), &lookup_result);

@@ -1183,3 +1183,87 @@ TEST(Regress425510) {
     }
   }
 }
+
+
+TEST(Regress3941) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Train ICs.
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f(); x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    }
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Optimize.
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f(); x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f); f(); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 1));
+
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+}
+
+
+TEST(Regress3941_Reads) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Train ICs.
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f()", EXPECT_EXCEPTION);
+    }
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Optimize.
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f()", EXPECT_EXCEPTION);
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f);", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+}
