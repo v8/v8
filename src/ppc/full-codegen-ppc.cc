@@ -5330,26 +5330,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ mov(ip, Operand(pending_message_obj));
   __ LoadP(r4, MemOperand(ip));
   __ push(r4);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ mov(ip, Operand(has_pending_message));
-  __ lbz(r4, MemOperand(ip));
-  __ SmiTag(r4);
-  __ push(r4);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(r4));
   // Restore pending message from stack.
-  __ pop(r4);
-  __ SmiUntag(r4);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ mov(ip, Operand(has_pending_message));
-  __ stb(r4, MemOperand(ip));
-
   __ pop(r4);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
