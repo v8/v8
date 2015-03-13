@@ -994,8 +994,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
       if (!(*scope)->is_script_scope() || is_strict(info->language_mode())) {
         *scope = NewScope(*scope, EVAL_SCOPE);
       }
-    } else if (info->is_global()) {
-      *scope = NewScope(*scope, SCRIPT_SCOPE);
     } else if (info->is_module()) {
       *scope = NewScope(*scope, MODULE_SCOPE);
     }
