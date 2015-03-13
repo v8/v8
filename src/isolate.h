@@ -311,9 +311,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   ExternalCallbackScope* external_callback_scope_;
   StateTag current_vm_state_;
 
-  // Generated code scratch locations.
-  int32_t formal_count_;
-
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
@@ -608,9 +605,6 @@ class Isolate {
   v8::TryCatch* try_catch_handler() {
     return thread_local_top_.try_catch_handler();
   }
-  Address try_catch_handler_address() {
-    return thread_local_top_.try_catch_handler_address();
-  }
   bool* external_caught_exception_address() {
     return &thread_local_top_.external_caught_exception_;
   }
@@ -663,9 +657,6 @@ class Isolate {
   inline Address* js_entry_sp_address() {
     return &thread_local_top_.js_entry_sp_;
   }
-
-  // Generated code scratch locations.
-  void* formal_count_address() { return &thread_local_top_.formal_count_; }
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
