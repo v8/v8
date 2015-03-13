@@ -776,9 +776,7 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
       CallGCPrologueCallbacks(kGCTypeMarkSweepCompact, kNoGCCallbackFlags);
     }
   }
-  mark_compact_collector()->OverApproximateWeakClosure();
-  incremental_marking()->set_should_hurry(false);
-  incremental_marking()->set_weak_closure_was_overapproximated(true);
+  incremental_marking()->MarkObjectGroups();
   {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {

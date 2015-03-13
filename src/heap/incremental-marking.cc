@@ -251,7 +251,7 @@ class IncrementalMarkingMarkingVisitor
 
   // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
-    IncrementalMarking::MarkObject(heap, obj);
+    IncrementalMarking::MarkObject(heap, HeapObject::cast(obj));
   }
 
   // Marks the object black without pushing it on the marking stack.
@@ -287,7 +287,7 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
-    IncrementalMarking::MarkObject(heap_, obj);
+    IncrementalMarking::MarkObject(heap_, HeapObject::cast(obj));
   }
 
   Heap* heap_;
@@ -545,6 +545,26 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
 }
 
 
+void IncrementalMarking::MarkObjectGroups() {
+  DCHECK(FLAG_overapproximate_weak_closure);
+  DCHECK(!weak_closure_was_overapproximated_);
+
+  GCTracer::Scope gc_scope(heap_->tracer(),
+                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
+
+  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkObject);
+
+  IncrementalMarkingRootMarkingVisitor visitor(this);
+  heap_->isolate()->global_handles()->IterateObjectGroups(
+      &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
+
+  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
+  heap_->isolate()->global_handles()->RemoveObjectGroups();
+
+  weak_closure_was_overapproximated_ = true;
+}
+
+
 void IncrementalMarking::PrepareForScavenge() {
   if (!IsMarking()) return;
   NewSpacePageIterator it(heap_->new_space()->FromSpaceStart(),
@@ -625,13 +645,12 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
 }
 
 
-void IncrementalMarking::MarkObject(Heap* heap, Object* obj) {
-  HeapObject* heap_object = HeapObject::cast(obj);
-  MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+void IncrementalMarking::MarkObject(Heap* heap, HeapObject* obj) {
+  MarkBit mark_bit = Marking::MarkBitFrom(obj);
   if (mark_bit.data_only()) {
-    MarkBlackOrKeepGrey(heap_object, mark_bit, heap_object->Size());
+    MarkBlackOrKeepGrey(obj, mark_bit, obj->Size());
   } else if (Marking::IsWhite(mark_bit)) {
-    heap->incremental_marking()->WhiteToGreyAndPush(heap_object, mark_bit);
+    heap->incremental_marking()->WhiteToGreyAndPush(obj, mark_bit);
   }
 }
 
@@ -774,7 +793,6 @@ void IncrementalMarking::OverApproximateWeakClosure() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] requesting weak closure overapproximation.\n");
   }
-  set_should_hurry(true);
   request_type_ = OVERAPPROXIMATION;
   heap_->isolate()->stack_guard()->RequestGC();
 }

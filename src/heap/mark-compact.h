@@ -16,6 +16,9 @@ namespace internal {
 // to the first live object in the page (only used for old and map objects).
 typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
+// Callback function to mark an object in a given heap.
+typedef void (*MarkObjectFunction)(Heap* heap, HeapObject* object);
+
 // Forward declarations.
 class CodeFlusher;
 class MarkCompactCollector;
@@ -550,6 +553,7 @@ class MarkCompactCollector {
   static const uint32_t kMultiFreeEncoding = 1;
 
   static inline bool IsMarked(Object* obj);
+  static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 
   inline Heap* heap() const { return heap_; }
   inline Isolate* isolate() const;
@@ -663,6 +667,10 @@ class MarkCompactCollector {
   // to artificially keep AllocationSites alive for a time.
   void MarkAllocationSite(AllocationSite* site);
 
+  // Mark objects in implicit references groups if their parent object
+  // is marked.
+  void MarkImplicitRefGroups(MarkObjectFunction mark_object);
+
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
   void EnsureMarkingDequeIsCommittedAndInitialize();
@@ -670,8 +678,6 @@ class MarkCompactCollector {
   void InitializeMarkingDeque();
 
   void UncommitMarkingDeque();
-
-  void OverApproximateWeakClosure();
 
   // The following four methods can just be called after marking, when the
   // whole transitive closure is known. They must be called before sweeping
@@ -776,10 +782,6 @@ class MarkCompactCollector {
   // the string table are weak.
   void MarkStringTable(RootMarkingVisitor* visitor);
 
-  // Mark objects in implicit references groups if their parent object
-  // is marked.
-  void MarkImplicitRefGroups();
-
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
   void ProcessMarkingDeque();
@@ -816,7 +818,6 @@ class MarkCompactCollector {
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
-  static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.

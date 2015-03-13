@@ -1985,7 +1985,8 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 }
 
 
-void MarkCompactCollector::MarkImplicitRefGroups() {
+void MarkCompactCollector::MarkImplicitRefGroups(
+    MarkObjectFunction mark_object) {
   List<ImplicitRefGroup*>* ref_groups =
       isolate()->global_handles()->implicit_ref_groups();
 
@@ -2003,9 +2004,7 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
     // A parent object is marked, so mark all child heap objects.
     for (size_t j = 0; j < entry->length; ++j) {
       if ((*children[j])->IsHeapObject()) {
-        HeapObject* child = HeapObject::cast(*children[j]);
-        MarkBit mark = Marking::MarkBitFrom(child);
-        MarkObject(child, mark);
+        mark_object(heap(), HeapObject::cast(*children[j]));
       }
     }
 
@@ -2104,7 +2103,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
           visitor, &IsUnmarkedHeapObjectWithHeap);
-      MarkImplicitRefGroups();
+      MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
     }
     ProcessWeakCollections();
     work_to_do = !marking_deque_.IsEmpty();
@@ -2221,21 +2220,6 @@ void MarkCompactCollector::UncommitMarkingDeque() {
     CHECK(success);
     marking_deque_memory_committed_ = false;
   }
-}
-
-
-void MarkCompactCollector::OverApproximateWeakClosure() {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
-
-  RootMarkingVisitor root_visitor(heap());
-  isolate()->global_handles()->IterateObjectGroups(
-      &root_visitor, &IsUnmarkedHeapObjectWithHeap);
-  MarkImplicitRefGroups();
-
-  // Remove object groups after marking phase.
-  heap()->isolate()->global_handles()->RemoveObjectGroups();
-  heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
 }
 
 

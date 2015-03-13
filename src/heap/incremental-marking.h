@@ -67,6 +67,8 @@ class IncrementalMarking {
 
   void Stop();
 
+  void MarkObjectGroups();
+
   void PrepareForScavenge();
 
   void UpdateMarkingDequeAfterScavenge();
@@ -189,7 +191,7 @@ class IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
-  INLINE(static void MarkObject(Heap* heap, Object* object));
+  INLINE(static void MarkObject(Heap* heap, HeapObject* object));
 
   Heap* heap() const { return heap_; }
 
