@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/android/config.gni")
+import("//build/config/arm.gni")
+import("//build/config/mips.gni")
+
 # Because standalone V8 builds are not supported, assume this is part of a
 # Chromium build.
 import("//build/module_args/v8.gni")
@@ -18,23 +22,19 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-
-# TODO(GYP): We should be just target_cpu and not need v8_target_arch.
-v8_target_arch = current_cpu
-
+v8_target_arch = target_cpu
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
 
 # The snapshot needs to be compiled for the host, but compiled with
 # a toolchain that matches the bit-width of the target.
 #
-# TODO(GYP): For now we only support 32-bit little-endian target builds from
-# an x86/x64 Linux host. Eventually we need to support all of the
-# host/target configurations v8 runs on.
-if (target_os == "android" || target_os == "chromeos") {
-  assert(host_os == "linux" &&
-         (host_cpu == "x86" || host_cpu == "x64") &&
-         (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86"))
+# TODO(GYP): For now we only support 32-bit little-endian target builds from an
+# x64 Linux host. Eventually we need to support all of the host/target
+# configurations v8 runs on.
+if (host_cpu == "x64" &&
+    (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86")) {
+  assert(host_os == "linux")
   snapshot_toolchain = "//build/toolchain/linux:clang_x86"
 } else {
   snapshot_toolchain = default_toolchain
@@ -118,29 +118,36 @@ config("toolchain") {
 
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
-    if (arm_version == 7) {
-      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
-    }
-    if (arm_fpu == "vfpv3-d16") {
-      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
-    }
-    if (arm_fpu == "vfpv3") {
+    if (current_cpu == "arm") {
+      if (arm_version == 7) {
+        defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+      }
+      if (arm_fpu == "vfpv3-d16") {
+        defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+      }
+      if (arm_fpu == "vfpv3") {
+        defines += [
+          "CAN_USE_VFP3_INSTRUCTIONS",
+          "CAN_USE_VFP32DREGS",
+        ]
+      }
+      if (arm_fpu == "neon") {
+        defines += [
+          "CAN_USE_VFP3_INSTRUCTIONS",
+          "CAN_USE_VFP32DREGS",
+          "CAN_USE_NEON",
+        ]
+      }
+    } else {
       defines += [
+        "CAN_USE_ARMV7_INSTRUCTIONS",
         "CAN_USE_VFP3_INSTRUCTIONS",
         "CAN_USE_VFP32DREGS",
-      ]
-    }
-    if (arm_fpu == "neon") {
-      defines += [
-        "CAN_USE_VFP3_INSTRUCTIONS",
-        "CAN_USE_VFP32DREGS",
-        "CAN_USE_NEON",
+        "USE_EABI_HARDFLOAT=0",
       ]
     }
 
     # TODO(jochen): Add support for arm_test_noprobe.
-
-    # TODO(jochen): Add support for cpu_arch != v8_target_arch/
   }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
