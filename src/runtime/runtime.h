@@ -564,6 +564,7 @@ namespace internal {
   F(DebugDisassembleFunction, 1, 1)                 \
   F(DebugDisassembleConstructor, 1, 1)              \
   F(FunctionGetInferredName, 1, 1)                  \
+  F(FunctionGetDebugName, 1, 1)                     \
   F(LiveEditFindSharedFunctionInfosForScript, 1, 1) \
   F(LiveEditGatherCompileInfo, 2, 1)                \
   F(LiveEditReplaceScript, 3, 1)                    \

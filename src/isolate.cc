@@ -483,8 +483,6 @@ class CaptureStackTraceHelper {
     if (options & StackTrace::kFunctionName) {
       function_key_ = factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("functionName"));
-      name_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("name"));
     }
     if (options & StackTrace::kIsEval) {
       eval_key_ =
@@ -546,9 +544,7 @@ class CaptureStackTraceHelper {
     }
 
     if (!function_key_.is_null()) {
-      Handle<Object> fun_name = JSObject::GetDataProperty(fun, name_key_);
-      if (!fun_name->IsString())
-        fun_name = Handle<Object>(fun->shared()->DebugName(), isolate_);
+      Handle<Object> fun_name = JSFunction::GetDebugName(fun);
       JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
     }
 
@@ -579,7 +575,6 @@ class CaptureStackTraceHelper {
   Handle<String> function_key_;
   Handle<String> eval_key_;
   Handle<String> constructor_key_;
-  Handle<String> name_key_;
 };
 
 

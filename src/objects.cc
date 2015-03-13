@@ -10327,6 +10327,15 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 }
 
 
+Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<Object> name =
+      JSObject::GetDataProperty(function, isolate->factory()->name_string());
+  if (name->IsString()) return Handle<String>::cast(name);
+  return handle(function->shared()->DebugName(), isolate);
+}
+
+
 void Oddball::Initialize(Isolate* isolate,
                          Handle<Oddball> oddball,
                          const char* to_string,

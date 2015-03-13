@@ -7605,6 +7605,10 @@ class JSFunction: public JSObject {
   // Used for flags such as --hydrogen-filter.
   bool PassesFilter(const char* raw_filter);
 
+  // The function's name if it is configured, otherwise shared function info
+  // debug name.
+  static Handle<String> GetDebugName(Handle<JSFunction> function);
+
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
   static const int kCodeEntryOffset = JSObject::kHeaderSize;

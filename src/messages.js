@@ -833,16 +833,13 @@ function CallSiteGetFunction() {
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
-  var name = GET_PRIVATE(this, CallSiteFunctionKey).name;
-  if (name) {
-    return name;
-  }
-  name = %FunctionGetInferredName(GET_PRIVATE(this, CallSiteFunctionKey));
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var name = %FunctionGetDebugName(fun);
   if (name) {
     return name;
   }
   // Maybe this is an evaluation?
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
+  var script = %FunctionGetScript(fun);
   if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
     return "eval";
   }
