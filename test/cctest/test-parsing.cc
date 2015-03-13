@@ -5548,6 +5548,36 @@ TEST(StrongForIn) {
 }
 
 
+TEST(StrongSuperCalls) {
+  const char* sloppy_context_data[][2] = {{"", ""}, {NULL}};
+  const char* strict_context_data[][2] = {{"'use strict';", ""}, {NULL}};
+  const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
+
+  const char* data[] = {
+      "class C extends Object { constructor() {} }",
+      "class C extends Object { constructor() { (super()); } }",
+      "class C extends Object { constructor() { (() => super())(); } }",
+      "class C extends Object { constructor() { { super(); } } }",
+      "class C extends Object { constructor() { if (1) super(); } }",
+      "class C extends Object { constructor() { super(), super(); } }",
+      "class C extends Object { constructor() { super(); super(); } }",
+      "class C extends Object { constructor() { super(); (super()); } }",
+      "class C extends Object { constructor() { super(); { super() } } }",
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowStrongMode, kAllowHarmonyClasses, kAllowHarmonyObjectLiterals,
+      kAllowHarmonyArrowFunctions
+  };
+  RunParserSyncTest(sloppy_context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(ArrowFunctionASIErrors) {
   const char* context_data[][2] = {{"'use strict';", ""}, {"", ""},
                                    {NULL, NULL}};

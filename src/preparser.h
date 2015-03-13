@@ -217,6 +217,13 @@ class ParserBase : public Traits {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
+    Scanner::Location super_call_location() const {
+      return super_call_location_;
+    }
+    void set_super_call_location(Scanner::Location location) {
+      super_call_location_ = location;
+    }
+
     bool is_generator() const { return IsGeneratorFunction(kind_); }
 
     FunctionKind kind() const { return kind_; }
@@ -246,6 +253,9 @@ class ParserBase : public Traits {
 
     // Properties count estimation.
     int expected_property_count_;
+
+    // Location of call to the "super" constructor (invalid if none).
+    Scanner::Location super_call_location_;
 
     FunctionKind kind_;
     // For generators, this variable may hold the generator object. It variable
@@ -1657,6 +1667,7 @@ ParserBase<Traits>::FunctionState::FunctionState(
     : next_materialized_literal_index_(0),
       next_handler_index_(0),
       expected_property_count_(0),
+      super_call_location_(Scanner::Location::invalid()),
       kind_(kind),
       generator_object_variable_(NULL),
       function_state_stack_(function_state_stack),
@@ -2781,6 +2792,13 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
     // new super() is never allowed.
     // super() is only allowed in derived constructor
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
+      if (is_strong(language_mode()) &&
+          function_state->super_call_location().IsValid()) {
+        ReportMessageAt(scanner()->location(), "strong_super_call_duplicate");
+        *ok = false;
+        return this->EmptyExpression();
+      }
+      function_state->set_super_call_location(scanner()->location());
       return this->SuperReference(scope_, factory());
     }
   }
@@ -2866,6 +2884,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   int handler_count = 0;
+  Scanner::Location super_loc;
 
   {
     typename Traits::Type::Factory function_factory(ast_value_factory());
@@ -2921,6 +2940,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
     }
+    super_loc = function_state.super_call_location();
 
     scope->set_start_position(start_pos);
     scope->set_end_position(scanner()->location().end_pos);
@@ -2951,6 +2971,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
       start_pos);
 
   function_literal->set_function_token_position(start_pos);
+  if (super_loc.IsValid()) function_state_->set_super_call_location(super_loc);
 
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 

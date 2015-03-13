@@ -1192,8 +1192,27 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
       directive_prologue = false;
     }
 
+    Token::Value token = peek();
     Scanner::Location token_loc = scanner()->peek_location();
+    Scanner::Location old_super_loc = function_state_->super_call_location();
     Statement* stat = ParseStatementListItem(CHECK_OK);
+    Scanner::Location super_loc = function_state_->super_call_location();
+
+    if (is_strong(language_mode()) &&
+        i::IsConstructor(function_state_->kind()) &&
+        !old_super_loc.IsValid() && super_loc.IsValid() &&
+        token != Token::SUPER) {
+      // TODO(rossberg): This is more permissive than spec'ed, it allows e.g.
+      //   super(), 1;
+      //   super() + "";
+      //   super() = 0;
+      // That should still be safe, though, thanks to left-to-right evaluation.
+      // The proper check would be difficult to implement in the preparser.
+      ReportMessageAt(super_loc, "strong_super_call_nested");
+      *ok = false;
+      return NULL;
+    }
+
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -3915,6 +3934,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     if (is_strict(language_mode())) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
+    }
+    if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
+      if (!function_state.super_call_location().IsValid()) {
+        ReportMessageAt(function_name_location, "strong_super_call_missing",
+                        kReferenceError);
+        *ok = false;
+        return nullptr;
+      }
     }
   }
 
