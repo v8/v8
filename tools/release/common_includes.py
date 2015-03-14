@@ -511,12 +511,12 @@ class Step(GitRecipesMixin):
     answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
-  def DeleteBranch(self, name):
-    for line in self.GitBranch().splitlines():
+  def DeleteBranch(self, name, cwd=None):
+    for line in self.GitBranch(cwd=cwd).splitlines():
       if re.match(r"\*?\s*%s$" % re.escape(name), line):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
-          self.GitDeleteBranch(name)
+          self.GitDeleteBranch(name, cwd=cwd)
           print "Branch %s deleted." % name
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
