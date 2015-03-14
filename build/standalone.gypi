@@ -201,6 +201,9 @@
         # things when their commandline changes). Nothing should ever read this
         # define.
         'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
+        'cflags+': [
+          '-Wno-format-pedantic',
+        ],
       }],
     ],
     'target_conditions': [
