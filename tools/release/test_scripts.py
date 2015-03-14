@@ -437,7 +437,7 @@ class ScriptTest(unittest.TestCase):
   def testCommonPrepareDefault(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("Y"),
@@ -445,24 +445,22 @@ class ScriptTest(unittest.TestCase):
     ])
     self.MakeStep().CommonPrepare()
     self.MakeStep().PrepareBranch()
-    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareNoConfirm(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("n"),
     ])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testCommonPrepareDeleteBranchFailure(self):
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"]),
       RL("Y"),
@@ -470,7 +468,6 @@ class ScriptTest(unittest.TestCase):
     ])
     self.MakeStep().CommonPrepare()
     self.assertRaises(Exception, self.MakeStep().PrepareBranch)
-    self.assertEquals("some_branch", self._state["current_branch"])
 
   def testInitialEnvironmentChecks(self):
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
@@ -774,7 +771,7 @@ Performance and stability improvements on all platforms."""
       expectations.append(Cmd("which vi", "/usr/bin/vi"))
     expectations += [
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git branch", "  branch1\n* branch2\n"),
@@ -828,7 +825,7 @@ Performance and stability improvements on all platforms."""
           " origin/candidates", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
       Cmd("git push origin 3.22.5", ""),
-      Cmd("git checkout -f some_branch", ""),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git branch -D %s" % TEST_CONFIG["CANDIDATESBRANCH"], ""),
     ]
@@ -1189,7 +1186,7 @@ LOG=N
 
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git new-branch %s --upstream refs/remotes/origin/candidates" %
@@ -1263,7 +1260,7 @@ LOG=N
           "hsh_to_tag"),
       Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
       Cmd("git push origin 3.22.5.1", ""),
-      Cmd("git checkout -f some_branch", ""),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
 
@@ -1350,7 +1347,7 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
 
     self.Expect([
       Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
       Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], ""),
@@ -1443,7 +1440,7 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], "", cwd=chrome_dir),
-      Cmd("git checkout -f some_branch", ""),
+      Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
 
