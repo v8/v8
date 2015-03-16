@@ -1522,7 +1522,7 @@ function NumberConstructor(x) {
 
 
 // ECMA-262 section 15.7.4.2.
-function NumberToString(radix) {
+function NumberToStringJS(radix) {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   var number = this;
@@ -1550,7 +1550,7 @@ function NumberToString(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  return %_CallFunction(this, NumberToString);
+  return %_CallFunction(this, NumberToStringJS);
 }
 
 
@@ -1702,7 +1702,7 @@ function SetUpNumber() {
 
   // Set up non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(
-    "toString", NumberToString,
+    "toString", NumberToStringJS,
     "toLocaleString", NumberToLocaleString,
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixedJS,

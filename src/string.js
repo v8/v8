@@ -46,7 +46,7 @@ function StringValueOf() {
 
 
 // ECMA-262, section 15.5.4.4
-function StringCharAt(pos) {
+function StringCharAtJS(pos) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.charAt");
 
   var result = %_StringCharAt(this, pos);
@@ -58,7 +58,7 @@ function StringCharAt(pos) {
 
 
 // ECMA-262 section 15.5.4.5
-function StringCharCodeAt(pos) {
+function StringCharCodeAtJS(pos) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.charCodeAt");
 
   var result = %_StringCharCodeAt(this, pos);
@@ -950,8 +950,8 @@ InstallFunctions(GlobalString, DONT_ENUM, GlobalArray(
 InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
   "valueOf", StringValueOf,
   "toString", StringToString,
-  "charAt", StringCharAt,
-  "charCodeAt", StringCharCodeAt,
+  "charAt", StringCharAtJS,
+  "charCodeAt", StringCharCodeAtJS,
   "concat", StringConcat,
   "indexOf", StringIndexOfJS,
   "lastIndexOf", StringLastIndexOfJS,
@@ -986,7 +986,7 @@ InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
   "sup", StringSup
 ));
 
-$stringCharAt = StringCharAt;
+$stringCharAt = StringCharAtJS;
 $stringIndexOf = StringIndexOfJS;
 $stringSubstring = StringSubstring;
 

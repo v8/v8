@@ -145,7 +145,7 @@ function RegExpExecNoTests(regexp, string, start) {
 }
 
 
-function RegExpExec(string) {
+function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.exec', this]);
@@ -365,7 +365,7 @@ function RegExpMakeCaptureGetter(n) {
 %SetCode(GlobalRegExp, RegExpConstructor);
 
 InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, GlobalArray(
-  "exec", RegExpExec,
+  "exec", RegExpExecJS,
   "test", RegExpTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS

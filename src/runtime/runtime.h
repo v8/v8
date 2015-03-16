@@ -427,7 +427,6 @@ namespace internal {
   /* String and Regexp */                                    \
   F(NumberToStringRT, 1, 1)                                  \
   F(RegExpConstructResultRT, 3, 1)                           \
-  F(RegExpExecRT, 4, 1)                                      \
   F(StringAddRT, 2, 1)                                       \
   F(SubStringRT, 3, 1)                                       \
   F(InternalizeString, 1, 1)                                 \

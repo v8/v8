@@ -61,7 +61,7 @@ function MathExp(x) {
 }
 
 // ECMA 262 - 15.8.2.9
-function MathFloor(x) {
+function MathFloorJS(x) {
   return %_MathFloor(+x);
 }
 
@@ -125,7 +125,7 @@ function MathMin(arg1, arg2) {  // length == 2
 }
 
 // ECMA 262 - 15.8.2.13
-function MathPow(x, y) {
+function MathPowJS(x, y) {
   return %_MathPow(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
 
@@ -146,7 +146,7 @@ function MathRound(x) {
 }
 
 // ECMA 262 - 15.8.2.17
-function MathSqrt(x) {
+function MathSqrtJS(x) {
   return %_MathSqrt(+x);
 }
 
@@ -167,7 +167,7 @@ function MathSign(x) {
 // ES6 draft 09-27-13, section 20.2.2.34.
 function MathTrunc(x) {
   x = TO_NUMBER_INLINE(x);
-  if (x > 0) return MathFloor(x);
+  if (x > 0) return MathFloorJS(x);
   if (x < 0) return MathCeil(x);
   // -0, 0 or NaN.
   return x;
@@ -280,7 +280,7 @@ macro NEWTON_ITERATION_CBRT(x, approx)
 endmacro
 
 function CubeRoot(x) {
-  var approx_hi = MathFloor(%_DoubleHi(x) / 3) + 0x2A9F7893;
+  var approx_hi = MathFloorJS(%_DoubleHi(x) / 3) + 0x2A9F7893;
   var approx = %_ConstructDouble(approx_hi, 0);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);
@@ -328,12 +328,12 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "atan", MathAtanJS,
   "ceil", MathCeil,
   "exp", MathExp,
-  "floor", MathFloor,
+  "floor", MathFloorJS,
   "log", MathLog,
   "round", MathRound,
-  "sqrt", MathSqrt,
+  "sqrt", MathSqrtJS,
   "atan2", MathAtan2JS,
-  "pow", MathPow,
+  "pow", MathPowJS,
   "max", MathMax,
   "min", MathMin,
   "imul", MathImul,
@@ -351,14 +351,14 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
 
 %SetInlineBuiltinFlag(MathAbs);
 %SetInlineBuiltinFlag(MathCeil);
-%SetInlineBuiltinFlag(MathFloor);
+%SetInlineBuiltinFlag(MathFloorJS);
 %SetInlineBuiltinFlag(MathRandom);
-%SetInlineBuiltinFlag(MathSqrt);
+%SetInlineBuiltinFlag(MathSqrtJS);
 
 // Expose to the global scope.
 $abs = MathAbs;
 $exp = MathExp;
-$floor = MathFloor;
+$floor = MathFloorJS;
 $max = MathMax;
 $min = MathMin;
 
