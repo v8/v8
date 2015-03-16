@@ -2608,8 +2608,8 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (new_length == 0) {
     heap()->set_detached_contexts(heap()->empty_fixed_array());
   } else if (new_length < length) {
-    heap()->RightTrimFixedArray<Heap::FROM_GC>(*detached_contexts,
-                                               length - new_length);
+    heap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(*detached_contexts,
+                                                    length - new_length);
   }
 }
 
