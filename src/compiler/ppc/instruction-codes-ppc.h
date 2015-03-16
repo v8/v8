@@ -67,6 +67,8 @@ namespace compiler {
   V(PPC_CeilFloat64)               \
   V(PPC_TruncateFloat64)           \
   V(PPC_RoundFloat64)              \
+  V(PPC_MaxFloat64)                \
+  V(PPC_MinFloat64)                \
   V(PPC_Cmp32)                     \
   V(PPC_Cmp64)                     \
   V(PPC_CmpFloat64)                \
