@@ -7,6 +7,7 @@
 
 #include "src/ast.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -96,6 +97,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
+
+  // Cache for StateValues nodes for frame states.
+  StateValuesCache state_values_cache_;
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -490,6 +494,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   explicit Environment(const Environment* copy);
   Environment* Copy() { return new (zone()) Environment(this); }
   void UpdateStateValues(Node** state_values, int offset, int count);
+  void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   AstGraphBuilder* builder() const { return builder_; }

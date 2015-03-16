@@ -538,6 +538,8 @@
         '../../src/compiler/simplified-operator.h',
         '../../src/compiler/source-position.cc',
         '../../src/compiler/source-position.h',
+        '../../src/compiler/state-values-utils.cc',
+        '../../src/compiler/state-values-utils.h',
         '../../src/compiler/typer.cc',
         '../../src/compiler/typer.h',
         '../../src/compiler/value-numbering-reducer.cc',

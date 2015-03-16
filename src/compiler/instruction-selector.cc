@@ -11,6 +11,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1144,17 +1145,6 @@ void InstructionSelector::VisitThrow(Node* value) {
 }
 
 
-void InstructionSelector::FillTypeVectorFromStateValues(
-    ZoneVector<MachineType>* types, Node* state_values) {
-  DCHECK(state_values->opcode() == IrOpcode::kStateValues);
-  int count = state_values->InputCount();
-  types->reserve(static_cast<size_t>(count));
-  for (int i = 0; i < count; i++) {
-    types->push_back(GetMachineType(state_values->InputAt(i)));
-  }
-}
-
-
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
@@ -1164,9 +1154,10 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
   DCHECK_EQ(IrOpcode::kStateValues, state->InputAt(2)->opcode());
   FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
 
-  int parameters = state->InputAt(0)->InputCount();
-  int locals = state->InputAt(1)->InputCount();
-  int stack = state->InputAt(2)->InputCount();
+  int parameters =
+      static_cast<int>(StateValuesAccess(state->InputAt(0)).size());
+  int locals = static_cast<int>(StateValuesAccess(state->InputAt(1)).size());
+  int stack = static_cast<int>(StateValuesAccess(state->InputAt(2)).size());
 
   FrameStateDescriptor* outer_state = NULL;
   Node* outer_node = state->InputAt(4);
@@ -1210,18 +1201,17 @@ void InstructionSelector::AddFrameStateInputs(
   DCHECK_EQ(IrOpcode::kStateValues, locals->op()->opcode());
   DCHECK_EQ(IrOpcode::kStateValues, stack->op()->opcode());
 
-  DCHECK_EQ(static_cast<int>(descriptor->parameters_count()),
-            parameters->InputCount());
-  DCHECK_EQ(static_cast<int>(descriptor->locals_count()), locals->InputCount());
-  DCHECK_EQ(static_cast<int>(descriptor->stack_count()), stack->InputCount());
+  DCHECK_EQ(descriptor->parameters_count(),
+            StateValuesAccess(parameters).size());
+  DCHECK_EQ(descriptor->locals_count(), StateValuesAccess(locals).size());
+  DCHECK_EQ(descriptor->stack_count(), StateValuesAccess(stack).size());
 
   ZoneVector<MachineType> types(instruction_zone());
   types.reserve(descriptor->GetSize());
 
   OperandGenerator g(this);
   size_t value_index = 0;
-  for (int i = 0; i < static_cast<int>(descriptor->parameters_count()); i++) {
-    Node* input_node = parameters->InputAt(i);
+  for (Node* input_node : StateValuesAccess(parameters)) {
     inputs->push_back(UseOrImmediate(&g, input_node));
     descriptor->SetType(value_index++, GetMachineType(input_node));
   }
@@ -1229,13 +1219,11 @@ void InstructionSelector::AddFrameStateInputs(
     inputs->push_back(UseOrImmediate(&g, context));
     descriptor->SetType(value_index++, kMachAnyTagged);
   }
-  for (int i = 0; i < static_cast<int>(descriptor->locals_count()); i++) {
-    Node* input_node = locals->InputAt(i);
+  for (Node* input_node : StateValuesAccess(locals)) {
     inputs->push_back(UseOrImmediate(&g, input_node));
     descriptor->SetType(value_index++, GetMachineType(input_node));
   }
-  for (int i = 0; i < static_cast<int>(descriptor->stack_count()); i++) {
-    Node* input_node = stack->InputAt(i);
+  for (Node* input_node : StateValuesAccess(stack)) {
     inputs->push_back(UseOrImmediate(&g, input_node));
     descriptor->SetType(value_index++, GetMachineType(input_node));
   }

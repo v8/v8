@@ -12,6 +12,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/scopes.h"
@@ -392,7 +393,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_control_(nullptr),
-      loop_assignment_analysis_(loop) {
+      loop_assignment_analysis_(loop),
+      state_values_cache_(jsgraph) {
   InitializeAstVisitor(info->isolate(), local_zone);
 }
 
@@ -602,7 +604,7 @@ AstGraphBuilder::Environment::Environment(
 void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
                                                      int offset, int count) {
   bool should_update = false;
-  Node** env_values = (count == 0) ? NULL : &values()->at(offset);
+  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
   if (*state_values == NULL || (*state_values)->InputCount() != count) {
     should_update = true;
   } else {
@@ -621,12 +623,20 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 }
 
 
+void AstGraphBuilder::Environment::UpdateStateValuesWithCache(
+    Node** state_values, int offset, int count) {
+  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
+  *state_values = builder_->state_values_cache_.GetNodeForValues(
+      env_values, static_cast<size_t>(count));
+}
+
+
 Node* AstGraphBuilder::Environment::Checkpoint(
     BailoutId ast_id, OutputFrameStateCombine combine) {
   if (!FLAG_turbo_deoptimization) return nullptr;
 
   UpdateStateValues(&parameters_node_, 0, parameters_count());
-  UpdateStateValues(&locals_node_, parameters_count(), locals_count());
+  UpdateStateValuesWithCache(&locals_node_, parameters_count(), locals_count());
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
                     stack_height());
 
