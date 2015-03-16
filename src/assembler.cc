@@ -292,11 +292,6 @@ int Label::pos() const {
 //               (Bits 6..31 of pc delta, with leading zeroes
 //                dropped, and last non-zero chunk tagged with 1.)
 
-
-#ifdef DEBUG
-const int kMaxStandardNonCompactModes = 14;
-#endif
-
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
 const int kExtraTagBits = 4;
@@ -452,8 +447,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
   DCHECK(rinfo->pc() - last_pc_ >= 0);
-  DCHECK(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM - RelocInfo::LAST_COMPACT_ENUM
-         <= kMaxStandardNonCompactModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
 
@@ -511,10 +504,14 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
                                                              : kVeneerPoolTag);
   } else {
     DCHECK(rmode > RelocInfo::LAST_COMPACT_ENUM);
+    DCHECK(rmode <= RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM);
+    STATIC_ASSERT(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM -
+                      RelocInfo::LAST_COMPACT_ENUM <=
+                  kPoolExtraTag);
     int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM - 1;
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
-    DCHECK(saved_mode < kPoolExtraTag);
+    DCHECK(0 <= saved_mode && saved_mode < kPoolExtraTag);
     WriteExtraTaggedPC(pc_delta, saved_mode);
   }
   last_pc_ = rinfo->pc();
