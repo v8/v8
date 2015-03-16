@@ -128,6 +128,22 @@ struct ParameterTraits<T*> {
   static uintptr_t Cast(void* r) { return reinterpret_cast<uintptr_t>(r); }
 };
 
+#if V8_TARGET_ARCH_MIPS64
+// Additional template specialization required for mips64 to sign-extend
+// parameters defined by calling convention.
+template <>
+struct ParameterTraits<int32_t> {
+  static int64_t Cast(int32_t r) { return static_cast<int64_t>(r); }
+};
+
+template <>
+struct ParameterTraits<uint32_t> {
+  static int64_t Cast(uint32_t r) {
+    return static_cast<int64_t>(static_cast<int32_t>(r));
+  }
+};
+#endif
+
 class CallHelper {
  public:
   explicit CallHelper(Isolate* isolate, MachineSignature* machine_sig)
@@ -213,6 +229,7 @@ class CallHelper {
     Simulator* simulator = Simulator::current(isolate_);
     return static_cast<uintptr_t>(simulator->Call(f, 4, p1, p2, p3, p4));
   }
+
 
   template <typename R, typename F>
   R DoCall(F* f) {

@@ -57,35 +57,6 @@ class Mips64OperandGenerator FINAL : public OperandGenerator {
     }
   }
 
-
-  bool CanBeImmediate(Node* node, InstructionCode opcode,
-                      FlagsContinuation* cont) {
-    int64_t value;
-    if (node->opcode() == IrOpcode::kInt32Constant)
-      value = OpParameter<int32_t>(node);
-    else if (node->opcode() == IrOpcode::kInt64Constant)
-      value = OpParameter<int64_t>(node);
-    else
-      return false;
-    switch (ArchOpcodeField::decode(opcode)) {
-      case kMips64Cmp32:
-        switch (cont->condition()) {
-          case kUnsignedLessThan:
-          case kUnsignedGreaterThanOrEqual:
-          case kUnsignedLessThanOrEqual:
-          case kUnsignedGreaterThan:
-            // Immediate operands for unsigned 32-bit compare operations
-            // should not be sign-extended.
-            return is_uint15(value);
-          default:
-            return false;
-        }
-      default:
-        return is_int16(value);
-    }
-  }
-
-
  private:
   bool ImmediateFitsAddrMode1Instruction(int32_t imm) const {
     TRACE_UNIMPL();
@@ -830,10 +801,10 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* right = node->InputAt(1);
 
   // Match immediates on left or right side of comparison.
-  if (g.CanBeImmediate(right, opcode, cont)) {
+  if (g.CanBeImmediate(right, opcode)) {
     VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
                  cont);
-  } else if (g.CanBeImmediate(left, opcode, cont)) {
+  } else if (g.CanBeImmediate(left, opcode)) {
     if (!commutative) cont->Commute();
     VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
                  cont);
@@ -846,7 +817,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
-  VisitWordCompare(selector, node, kMips64Cmp32, cont, false);
+  VisitWordCompare(selector, node, kMips64Cmp, cont, false);
 }
 
 
@@ -858,10 +829,10 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
 }  // namespace
 
 
-void EmitWordCompareZero(InstructionSelector* selector, InstructionCode opcode,
-                         Node* value, FlagsContinuation* cont) {
+void EmitWordCompareZero(InstructionSelector* selector, Node* value,
+                         FlagsContinuation* cont) {
   Mips64OperandGenerator g(selector);
-  opcode = cont->Encode(opcode);
+  InstructionCode opcode = cont->Encode(kMips64Cmp);
   InstructionOperand const value_operand = g.UseRegister(value);
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
@@ -877,13 +848,7 @@ void EmitWordCompareZero(InstructionSelector* selector, InstructionCode opcode,
 // Shared routine for word comparisons against zero.
 void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                           Node* value, FlagsContinuation* cont) {
-  // Initially set comparison against 0 to be 64-bit variant for branches that
-  // cannot combine.
-  InstructionCode opcode = kMips64Cmp;
   while (selector->CanCover(user, value)) {
-    if (user->opcode() == IrOpcode::kWord32Equal) {
-      opcode = kMips64Cmp32;
-    }
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal: {
         // Combine with comparisons against 0 by simply inverting the
@@ -893,7 +858,6 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
           user = value;
           value = m.left().node();
           cont->Negate();
-          opcode = kMips64Cmp32;
           continue;
         }
         cont->OverwriteAndNegateIfEqual(kEqual);
@@ -968,7 +932,6 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         }
         break;
       case IrOpcode::kWord32And:
-        return VisitWordCompare(selector, value, kMips64Tst32, cont, true);
       case IrOpcode::kWord64And:
         return VisitWordCompare(selector, value, kMips64Tst, cont, true);
       default:
@@ -978,7 +941,7 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   }
 
   // Continuation could not be combined with a compare, emit compare against 0.
-  EmitWordCompareZero(selector, opcode, value, cont);
+  EmitWordCompareZero(selector, value, cont);
 }
 
 
