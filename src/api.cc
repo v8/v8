@@ -7715,14 +7715,6 @@ void HeapProfiler::ClearObjectIds() {
 
 
 const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
-    Handle<String> title,
-    ActivityControl* control,
-    ObjectNameResolver* resolver) {
-  return TakeHeapSnapshot(control, resolver);
-}
-
-
-const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
     ActivityControl* control, ObjectNameResolver* resolver) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)

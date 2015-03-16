@@ -447,15 +447,8 @@ class V8_EXPORT HeapProfiler {
   };
 
   /**
-   * Takes a heap snapshot and returns it. Title parameter is deprecated and
-   * should be an empty string.
-   * TODO: deprecate this method.
+   * Takes a heap snapshot and returns it.
    */
-  const HeapSnapshot* TakeHeapSnapshot(
-      Handle<String> title,
-      ActivityControl* control = NULL,
-      ObjectNameResolver* global_object_name_resolver = NULL);
-
   const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control = NULL,
       ObjectNameResolver* global_object_name_resolver = NULL);
