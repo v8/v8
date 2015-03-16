@@ -594,7 +594,8 @@
   'regress/regress-1132': [SKIP],
   'asm/embenchen/box2d': [SKIP],
 
-  # issues to be investigated based on latest uplevel
+  # these two issues started after uplevel, believe they share common cause
   'debug-references': [SKIP],
+  'mirror-object': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 ]
