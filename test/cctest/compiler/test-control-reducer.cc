@@ -1189,11 +1189,25 @@ TEST(CNestedDiamonds_xyz) {
 }
 
 
-TEST(CDeadDiamond) {
+TEST(CUnusedDiamond1) {
   ControlReducerTester R;
   // if (p0) { } else { }
-  Diamond d(R, R.p0);
-  R.ReduceMergeIterative(R.start, d.merge);
+  Node* branch = R.graph.NewNode(R.common.Branch(), R.p0, R.start);
+  Node* if_true = R.graph.NewNode(R.common.IfTrue(), branch);
+  Node* if_false = R.graph.NewNode(R.common.IfFalse(), branch);
+  Node* merge = R.graph.NewNode(R.common.Merge(2), if_true, if_false);
+  R.ReduceMergeIterative(R.start, merge);
+}
+
+
+TEST(CUnusedDiamond2) {
+  ControlReducerTester R;
+  // if (p0) { } else { }
+  Node* branch = R.graph.NewNode(R.common.Branch(), R.p0, R.start);
+  Node* if_true = R.graph.NewNode(R.common.IfTrue(), branch);
+  Node* if_false = R.graph.NewNode(R.common.IfFalse(), branch);
+  Node* merge = R.graph.NewNode(R.common.Merge(2), if_false, if_true);
+  R.ReduceMergeIterative(R.start, merge);
 }
 
 

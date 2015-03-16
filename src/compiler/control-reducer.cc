@@ -547,8 +547,8 @@ class ControlReducerImpl {
       Node* node1 = node->InputAt(1);
       if (((node0->opcode() == IrOpcode::kIfTrue &&
             node1->opcode() == IrOpcode::kIfFalse) ||
-           (node0->opcode() == IrOpcode::kIfTrue &&
-            node1->opcode() == IrOpcode::kIfFalse)) &&
+           (node1->opcode() == IrOpcode::kIfTrue &&
+            node0->opcode() == IrOpcode::kIfFalse)) &&
           node0->OwnedBy(node) && node1->OwnedBy(node)) {
         Node* branch0 = NodeProperties::GetControlInput(node0);
         Node* branch1 = NodeProperties::GetControlInput(node1);
