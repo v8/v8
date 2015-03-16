@@ -168,6 +168,8 @@ class CompilationInfo {
     parameter_count_ = parameter_count;
   }
 
+  bool is_tracking_positions() const { return track_positions_; }
+
   bool is_calling() const {
     return GetFlag(kDeferredCalling) || GetFlag(kNonDeferredCalling);
   }
@@ -449,6 +451,7 @@ class CompilationInfo {
 
   List<OffsetRange>* no_frame_ranges_;
   std::vector<InlinedFunctionInfo>* inlined_function_infos_;
+  bool track_positions_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.

@@ -3345,7 +3345,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // to know it's the initial state.
   function_state_ = &initial_function_state_;
   InitializeAstVisitor(info->isolate(), info->zone());
-  if (FLAG_hydrogen_track_positions) {
+  if (top_info()->is_tracking_positions()) {
     SetSourcePosition(info->shared_info()->start_position());
   }
 }
@@ -3450,7 +3450,7 @@ HGraph::HGraph(CompilationInfo* info)
     start_environment_ = new (zone_)
         HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {
-    if (FLAG_hydrogen_track_positions) {
+    if (info->is_tracking_positions()) {
       info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown(),
                                  InlinedFunctionInfo::kNoParentId);
     }
@@ -3911,7 +3911,7 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
   // Push on the state stack.
   owner->set_function_state(this);
 
-  if (FLAG_hydrogen_track_positions) {
+  if (compilation_info_->is_tracking_positions()) {
     outer_source_position_ = owner->source_position();
     owner->EnterInlinedSource(
       info->shared_info()->start_position(),
@@ -3925,7 +3925,7 @@ FunctionState::~FunctionState() {
   delete test_context_;
   owner_->set_function_state(outer_);
 
-  if (FLAG_hydrogen_track_positions) {
+  if (compilation_info_->is_tracking_positions()) {
     owner_->set_source_position(outer_source_position_);
     owner_->EnterInlinedSource(
       outer_->compilation_info()->shared_info()->start_position(),
@@ -6805,7 +6805,7 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   CHECK_ALIVE(VisitForValue(expr->exception()));
 
   HValue* value = environment()->Pop();
-  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+  if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
   Add<HPushArguments>(value);
   Add<HCallRuntime>(isolate()->factory()->empty_string(),
                     Runtime::FunctionForId(Runtime::kThrow), 1);
@@ -7926,17 +7926,17 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   DCHECK(target_shared->has_deoptimization_support());
   AstTyper::Run(&target_info);
 
-  int function_id = 0;
-  if (FLAG_hydrogen_track_positions) {
-    function_id = top_info()->TraceInlinedFunction(
+  int inlining_id = 0;
+  if (top_info()->is_tracking_positions()) {
+    inlining_id = top_info()->TraceInlinedFunction(
         target_shared, source_position(), function_state()->inlining_id());
   }
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
   // in two different places.
-  FunctionState* target_state = new FunctionState(
-      this, &target_info, inlining_kind, function_id);
+  FunctionState* target_state =
+      new FunctionState(this, &target_info, inlining_kind, inlining_id);
 
   HConstant* undefined = graph()->GetConstantUndefined();
 
@@ -9425,7 +9425,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+  if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
   int argument_count = expr->arguments()->length() + 1;  // Plus constructor.
   Factory* factory = isolate()->factory();
 
@@ -10104,7 +10104,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+  if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
   Expression* target = expr->expression();
   VariableProxy* proxy = target->AsVariableProxy();
   Property* prop = target->AsProperty();
@@ -10760,7 +10760,7 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
       BuildBinaryOperation(expr, left, right,
           ast_context()->IsEffect() ? NO_PUSH_BEFORE_SIMULATE
                                     : PUSH_BEFORE_SIMULATE);
-  if (FLAG_hydrogen_track_positions && result->IsBinaryOperation()) {
+  if (top_info()->is_tracking_positions() && result->IsBinaryOperation()) {
     HBinaryOperation::cast(result)->SetOperandPositions(
         zone(),
         ScriptPositionToSourcePosition(expr->left()->position()),
@@ -10798,7 +10798,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
 
-  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+  if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
 
   // Check for a few fast cases. The AST visiting behavior must be in sync
   // with the full codegen: We don't push both left and right values onto
@@ -10940,7 +10940,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
-        if (FLAG_hydrogen_track_positions) {
+        if (top_info()->is_tracking_positions()) {
           result->set_operand_position(zone(), 0, left_position);
           result->set_operand_position(zone(), 1, right_position);
         }
@@ -11006,7 +11006,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HCompareNumericAndBranch* result =
           New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
-      if (FLAG_hydrogen_track_positions) {
+      if (top_info()->is_tracking_positions()) {
         result->SetOperandPositions(zone(), left_position, right_position);
       }
       return result;
@@ -11022,7 +11022,7 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   DCHECK(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
-  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
+  if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
   CHECK_ALIVE(VisitForValue(sub_expr));
   HValue* value = Pop();
   if (expr->op() == Token::EQ_STRICT) {
@@ -13183,9 +13183,8 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         PrintIndent();
         std::ostringstream os;
         os << "0 " << uses << " " << NameOf(instruction) << " " << *instruction;
-        if (FLAG_hydrogen_track_positions &&
-            instruction->has_position() &&
-            instruction->position().raw() != 0) {
+        if (graph->info()->is_tracking_positions() &&
+            instruction->has_position() && instruction->position().raw() != 0) {
           const SourcePosition pos = instruction->position();
           os << " pos:";
           if (pos.inlining_id() != 0) os << pos.inlining_id() << "_";

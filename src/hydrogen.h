@@ -1874,7 +1874,7 @@ class HGraphBuilder {
   }
 
   void EnterInlinedSource(int start_position, int id) {
-    if (FLAG_hydrogen_track_positions) {
+    if (top_info()->is_tracking_positions()) {
       start_position_ = start_position;
       position_.set_inlining_id(id);
     }

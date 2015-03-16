@@ -118,8 +118,10 @@ void CompilationInfo::Initialize(Isolate* isolate,
                    ? new List<OffsetRange>(2) : NULL;
   if (FLAG_hydrogen_track_positions) {
     inlined_function_infos_ = new std::vector<InlinedFunctionInfo>();
+    track_positions_ = true;
   } else {
     inlined_function_infos_ = NULL;
+    track_positions_ = false;
   }
 
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
@@ -276,7 +278,7 @@ bool CompilationInfo::is_simple_parameter_list() {
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position,
                                           int parent_id) {
-  DCHECK(FLAG_hydrogen_track_positions);
+  DCHECK(track_positions_);
   DCHECK(inlined_function_infos_);
 
   int inline_id = static_cast<int>(inlined_function_infos_->size());
@@ -286,7 +288,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
     Handle<Script> script(Script::cast(shared->script()));
     info.script_id = script->id()->value();
 
-    if (!script->source()->IsUndefined()) {
+    if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
       CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
       OFStream os(tracing_scope.file());
       os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
@@ -308,7 +310,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
 
   inlined_function_infos_->push_back(info);
 
-  if (inline_id != 0) {
+  if (FLAG_hydrogen_track_positions && inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
@@ -480,9 +482,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
         info()->shared_info()->disable_optimization_reason());
   }
 
-  graph_builder_ = (FLAG_hydrogen_track_positions || FLAG_trace_ic)
-      ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
-      : new(info()->zone()) HOptimizedGraphBuilder(info());
+  graph_builder_ = (info()->is_tracking_positions() || FLAG_trace_ic)
+                       ? new (info()->zone())
+                             HOptimizedGraphBuilderWithPositions(info())
+                       : new (info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
   // TODO(titzer): ParseInfo::this_has_uses is only used by Crankshaft. Move.
