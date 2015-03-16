@@ -797,14 +797,16 @@ void IncrementalMarking::Finalize() {
 }
 
 
-void IncrementalMarking::OverApproximateWeakClosure() {
+void IncrementalMarking::OverApproximateWeakClosure(CompletionAction action) {
   DCHECK(FLAG_overapproximate_weak_closure);
   DCHECK(!weak_closure_was_overapproximated_);
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] requesting weak closure overapproximation.\n");
   }
   request_type_ = OVERAPPROXIMATION;
-  heap_->isolate()->stack_guard()->RequestGC();
+  if (action == GC_VIA_STACK_GUARD) {
+    heap_->isolate()->stack_guard()->RequestGC();
+  }
 }
 
 
@@ -819,8 +821,8 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
+  request_type_ = COMPLETE_MARKING;
   if (action == GC_VIA_STACK_GUARD) {
-    request_type_ = COMPLETE_MARKING;
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
@@ -974,9 +976,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {
           if (FLAG_overapproximate_weak_closure &&
-              !weak_closure_was_overapproximated_ &&
-              action == GC_VIA_STACK_GUARD) {
-            OverApproximateWeakClosure();
+              !weak_closure_was_overapproximated_) {
+            OverApproximateWeakClosure(action);
           } else {
             MarkingComplete(action);
           }

@@ -135,6 +135,8 @@ class GCIdleTimeHandler {
   // Incremental marking step time.
   static const size_t kIncrementalMarkingStepTimeInMs = 1;
 
+  static const size_t kMinTimeForOverApproximatingWeakClosureInMs;
+
   class HeapState {
    public:
     void Print();
@@ -191,6 +193,8 @@ class GCIdleTimeHandler {
   static bool ShouldDoFinalIncrementalMarkCompact(
       size_t idle_time_in_ms, size_t size_of_objects,
       size_t final_incremental_mark_compact_speed_in_bytes_per_ms);
+
+  static bool ShouldDoOverApproximateWeakClosure(size_t idle_time_in_ms);
 
   static bool ShouldDoScavenge(
       size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,

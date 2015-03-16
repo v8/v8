@@ -16,6 +16,7 @@ const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
 const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
+const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
 
 
 void GCIdleTimeAction::Print() {
@@ -173,6 +174,13 @@ bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
          EstimateFinalIncrementalMarkCompactTime(
              size_of_objects,
              final_incremental_mark_compact_speed_in_bytes_per_ms);
+}
+
+
+bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
+    size_t idle_time_in_ms) {
+  // TODO(jochen): Estimate the time it will take to build the object groups.
+  return idle_time_in_ms >= kMinTimeForOverApproximatingWeakClosureInMs;
 }
 
 

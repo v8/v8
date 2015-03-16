@@ -50,6 +50,10 @@ class IncrementalMarking {
 
   inline bool IsComplete() { return state() == COMPLETE; }
 
+  inline bool IsReadyToOverApproximateWeakClosure() const {
+    return request_type_ == OVERAPPROXIMATION;
+  }
+
   GCRequestType request_type() const { return request_type_; }
 
   bool WorthActivating();
@@ -76,7 +80,7 @@ class IncrementalMarking {
 
   void Abort();
 
-  void OverApproximateWeakClosure();
+  void OverApproximateWeakClosure(CompletionAction action);
 
   void MarkingComplete(CompletionAction action);
 
