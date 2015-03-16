@@ -27,9 +27,9 @@ namespace compiler {
 
 FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
                             const char* suffix, const char* mode) {
-  EmbeddedVector<char, 256> filename;
+  EmbeddedVector<char, 256> filename(0);
   SmartArrayPointer<char> function_name;
-  if (!info->shared_info().is_null()) {
+  if (info->has_shared_info()) {
     function_name = info->shared_info()->DebugName()->ToCString();
     if (strlen(function_name.get()) > 0) {
       SNPrintF(filename, "turbo-%s", function_name.get());

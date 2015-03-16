@@ -291,20 +291,17 @@ static void TraceSchedule(Schedule* schedule) {
 
 
 static SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
-  SmartArrayPointer<char> name;
-  if (info->IsStub()) {
-    if (info->code_stub() != NULL) {
-      CodeStub::Major major_key = info->code_stub()->MajorKey();
-      const char* major_name = CodeStub::MajorName(major_key, false);
-      size_t len = strlen(major_name);
-      name.Reset(new char[len]);
-      memcpy(name.get(), major_name, len);
-    }
+  if (info->code_stub() != NULL) {
+    CodeStub::Major major_key = info->code_stub()->MajorKey();
+    const char* major_name = CodeStub::MajorName(major_key, false);
+    size_t len = strlen(major_name) + 1;
+    SmartArrayPointer<char> name(new char[len]);
+    memcpy(name.get(), major_name, len);
+    return name;
   } else {
     AllowHandleDereference allow_deref;
-    name = info->function()->debug_name()->ToCString();
+    return info->function()->debug_name()->ToCString();
   }
-  return name;
 }
 
 
