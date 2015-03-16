@@ -2324,13 +2324,17 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
       *ok = false;
       return this->NullExpressionList();
     }
-    done = (peek() == Token::RPAREN);
+    done = (peek() != Token::COMMA);
     if (!done) {
-      // Need {} because of the CHECK_OK_CUSTOM macro.
-      Expect(Token::COMMA, CHECK_OK_CUSTOM(NullExpressionList));
+      Next();
     }
   }
-  Expect(Token::RPAREN, CHECK_OK_CUSTOM(NullExpressionList));
+  Scanner::Location location = scanner_->location();
+  if (Token::RPAREN != Next()) {
+    ReportMessageAt(location, "unterminated_arg_list");
+    *ok = false;
+    return this->NullExpressionList();
+  }
   return result;
 }
 

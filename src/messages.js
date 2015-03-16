@@ -25,6 +25,7 @@ var kMessages = {
   unterminated_regexp:           ["Invalid regular expression: missing /"],
   unterminated_template:         ["Unterminated template literal"],
   unterminated_template_expr:    ["Missing } in template expression"],
+  unterminated_arg_list:         ["missing ) after argument list"],
   regexp_flags:                  ["Cannot supply flags when constructing one RegExp from another"],
   incompatible_method_receiver:  ["Method ", "%0", " called on incompatible receiver ", "%1"],
   multiple_defaults_in_switch:   ["More than one default clause in switch statement"],
