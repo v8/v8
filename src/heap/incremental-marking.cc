@@ -30,6 +30,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       unscanned_bytes_of_large_object_(0),
       was_activated_(false),
       weak_closure_was_overapproximated_(false),
+      weak_closure_approximation_rounds_(0),
       request_type_(COMPLETE_MARKING) {}
 
 
@@ -549,8 +550,8 @@ void IncrementalMarking::MarkObjectGroups() {
   DCHECK(FLAG_overapproximate_weak_closure);
   DCHECK(!weak_closure_was_overapproximated_);
 
-  GCTracer::Scope gc_scope(heap_->tracer(),
-                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
+  int old_marking_deque_top =
+      heap_->mark_compact_collector()->marking_deque()->top();
 
   heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkObject);
 
@@ -558,10 +559,19 @@ void IncrementalMarking::MarkObjectGroups() {
   heap_->isolate()->global_handles()->IterateObjectGroups(
       &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
 
+  int marking_progress =
+      abs(old_marking_deque_top -
+          heap_->mark_compact_collector()->marking_deque()->top());
+
+  ++weak_closure_approximation_rounds_;
+  if ((weak_closure_approximation_rounds_ >=
+       FLAG_max_object_groups_marking_rounds) ||
+      (marking_progress < FLAG_min_progress_during_object_groups_marking)) {
+    weak_closure_was_overapproximated_ = true;
+  }
+
   heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
   heap_->isolate()->global_handles()->RemoveObjectGroups();
-
-  weak_closure_was_overapproximated_ = true;
 }
 
 
@@ -819,6 +829,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
 void IncrementalMarking::Epilogue() {
   was_activated_ = false;
   weak_closure_was_overapproximated_ = false;
+  weak_closure_approximation_rounds_ = 0;
 }
 
 

@@ -613,6 +613,11 @@ DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_BOOL(overapproximate_weak_closure, false,
             "overapproximate weak closer to reduce atomic pause time")
+DEFINE_INT(min_progress_during_object_groups_marking, 128,
+           "keep overapproximating the weak closure as long as we discover at "
+           "least this many unmarked objects")
+DEFINE_INT(max_object_groups_marking_rounds, 3,
+           "at most try this many times to over approximate the weak closure")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")

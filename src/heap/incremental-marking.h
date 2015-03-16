@@ -41,9 +41,6 @@ class IncrementalMarking {
   bool weak_closure_was_overapproximated() const {
     return weak_closure_was_overapproximated_;
   }
-  void set_weak_closure_was_overapproximated(bool val) {
-    weak_closure_was_overapproximated_ = val;
-  }
 
   inline bool IsStopped() { return state() == STOPPED; }
 
@@ -248,6 +245,8 @@ class IncrementalMarking {
   bool was_activated_;
 
   bool weak_closure_was_overapproximated_;
+
+  int weak_closure_approximation_rounds_;
 
   GCRequestType request_type_;
 

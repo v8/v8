@@ -766,6 +766,10 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
     PrintF("[IncrementalMarking] Overapproximate weak closure (%s).\n",
            gc_reason);
   }
+
+  GCTracer::Scope gc_scope(tracer(),
+                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
+
   {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
