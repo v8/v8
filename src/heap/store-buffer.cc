@@ -6,7 +6,6 @@
 
 #include "src/v8.h"
 
-#include "src/base/atomicops.h"
 #include "src/counters.h"
 #include "src/heap/store-buffer-inl.h"
 
@@ -363,10 +362,7 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   for (Address* current = old_start_; current < old_top_; current++) {
     Address addr = *current;
     Object** slot = reinterpret_cast<Object**>(*current);
-    // Use a NoBarrier_Load here since the slot can be in a dead object
-    // which may be touched by the concurrent sweeper thread.
-    Object* object = reinterpret_cast<Object*>(
-        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+    Object* object = *slot;
     if (heap_->InNewSpace(object)) {
       if (heap_->mark_compact_collector()->IsSlotInLiveObject(
               reinterpret_cast<HeapObject**>(slot),
