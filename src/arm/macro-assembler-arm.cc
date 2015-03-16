@@ -1406,10 +1406,13 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 
   // For the JSEntry handler, we must preserve r0-r4, r5-r6 are available.
   // We will build up the handler from the bottom by pushing on the stack.
-  // Set up the the index (r6) for pushing.
-  mov(r6, Operand(handler_index));
+  // Set up the the state (r6) for pushing.
+  unsigned state =
+      StackHandler::IndexField::encode(handler_index) |
+      StackHandler::KindField::encode(kind);
+  mov(r6, Operand(state));
 
-  // Push the context and index.
+  // Push the context and state.
   if (kind == StackHandler::JS_ENTRY) {
     mov(cp, Operand(Smi::FromInt(0)));  // Indicates no context.
     stm(db_w, sp, r6.bit() | cp.bit());

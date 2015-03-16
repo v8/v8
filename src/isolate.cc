@@ -929,34 +929,39 @@ void ReportBootstrappingException(Handle<Object> exception,
 }
 
 
+namespace {
+
+// Only use by Isolate::Throw for --abort-on-uncaught-exception.
+int fatal_exception_depth = 0;
+
+}  // namespace
+
+
 Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
   HandleScope scope(this);
   Handle<Object> exception_handle(exception, this);
 
-  // Determine whether a message needs to be created for the given exception
-  // depending on the following criteria:
-  // 1) External v8::TryCatch missing: Always create a message because any
-  //    JavaScript handler for a finally-block might re-throw to top-level.
-  // 2) External v8::TryCatch exists: Only create a message if the handler
-  //    captures messages or is verbose (which reports despite the catch).
-  // 3) ReThrow from v8::TryCatch: The message from a previous throw still
-  //    exists and we preserve it instead of creating a new message.
-  bool requires_message = try_catch_handler() == nullptr ||
-                          try_catch_handler()->is_verbose_ ||
-                          try_catch_handler()->capture_message_;
+  // Determine reporting and whether the exception is caught externally.
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  bool can_be_caught_externally = false;
+  bool should_report_exception =
+      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+  bool report_exception = catchable_by_javascript && should_report_exception;
+  bool try_catch_needs_message =
+      can_be_caught_externally && try_catch_handler()->capture_message_;
   bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;
 
   // Notify debugger of exception.
-  if (is_catchable_by_javascript(exception)) {
-    debug()->OnThrow(exception_handle);
+  if (catchable_by_javascript) {
+    debug()->OnThrow(exception_handle, report_exception);
   }
 
   // Generate the message if required.
-  if (requires_message && !rethrowing_message) {
+  if (!rethrowing_message && (report_exception || try_catch_needs_message)) {
     MessageLocation potential_computed_location;
     if (location == NULL) {
       // If no location was specified we use a computed one instead.
@@ -971,15 +976,16 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
       ReportBootstrappingException(exception_handle, location);
     } else {
       Handle<Object> message_obj = CreateMessage(exception_handle, location);
+
       thread_local_top()->pending_message_obj_ = *message_obj;
 
       // If the abort-on-uncaught-exception flag is specified, abort on any
       // exception not caught by JavaScript, even when an external handler is
       // present.  This flag is intended for use by JavaScript developers, so
       // print a user-friendly stack trace (not an internal one).
-      if (FLAG_abort_on_uncaught_exception &&
-          !PredictWhetherExceptionIsCaught(*exception_handle)) {
-        FLAG_abort_on_uncaught_exception = false;  // Prevent endless recursion.
+      if (fatal_exception_depth == 0 && FLAG_abort_on_uncaught_exception &&
+          (report_exception || can_be_caught_externally)) {
+        fatal_exception_depth++;
         PrintF(stderr, "%s\n\nFROM\n",
                MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
@@ -1036,6 +1042,7 @@ Object* Isolate::FindHandler() {
     // For JSEntryStub frames we always have a handler.
     if (frame->is_entry() || frame->is_entry_construct()) {
       StackHandler* handler = frame->top_handler();
+      DCHECK_EQ(StackHandler::JS_ENTRY, handler->kind());
       DCHECK_EQ(0, handler->index());
 
       // Restore the next handler.
@@ -1051,6 +1058,7 @@ Object* Isolate::FindHandler() {
     // For JavaScript frames which have a handler, we use the handler.
     if (frame->is_java_script() && catchable_by_js && frame->HasHandler()) {
       StackHandler* handler = frame->top_handler();
+      DCHECK_NE(StackHandler::JS_ENTRY, handler->kind());
 
       // Restore the next handler.
       thread_local_top()->handler_ = handler->next()->address();
@@ -1103,39 +1111,9 @@ Object* Isolate::FindHandler() {
 }
 
 
-// TODO(mstarzinger): We shouldn't need the exception object here.
-bool Isolate::PredictWhetherExceptionIsCaught(Object* exception) {
-  if (IsExternalHandlerOnTop(exception)) return true;
-
-  // Search for a JavaScript handler by performing a full walk over the stack
-  // and dispatching according to the frame type.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
-    StackFrame* frame = iter.frame();
-
-    // For JavaScript frames which have a handler, we use the handler.
-    if (frame->is_java_script() && frame->HasHandler()) {
-      return true;
-    }
-
-    // For optimized frames we perform a lookup in the handler table.
-    if (frame->is_optimized()) {
-      Code* frame_code = frame->LookupCode();
-      DCHECK(frame_code->is_optimized_code());
-      int pc_offset = static_cast<int>(frame->pc() - frame_code->entry());
-      int handler_offset = LookupInHandlerTable(frame_code, pc_offset);
-      if (handler_offset < 0) continue;
-      return true;
-    }
-  }
-
-  // Handler not found.
-  return false;
-}
-
-
 Object* Isolate::ThrowIllegalOperation() {
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
-  return Throw(heap()->illegal_access_string());
+  return Throw(heap_.illegal_access_string());
 }
 
 
@@ -1286,6 +1264,37 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 }
 
 
+bool Isolate::ShouldReportException(bool* can_be_caught_externally,
+                                    bool catchable_by_javascript) {
+  // Find the top-most try-catch handler.
+  StackHandler* handler =
+      StackHandler::FromAddress(Isolate::handler(thread_local_top()));
+  while (handler != NULL && !handler->is_catch()) {
+    handler = handler->next();
+  }
+
+  // Get the address of the external handler so we can compare the address to
+  // determine which one is closer to the top of the stack.
+  Address external_handler_address =
+      thread_local_top()->try_catch_handler_address();
+
+  // The exception has been externally caught if and only if there is
+  // an external handler which is on top of the top-most try-catch
+  // handler.
+  *can_be_caught_externally = external_handler_address != NULL &&
+      (handler == NULL || handler->address() > external_handler_address ||
+       !catchable_by_javascript);
+
+  if (*can_be_caught_externally) {
+    // Only report the exception if the external handler is verbose.
+    return try_catch_handler()->is_verbose_;
+  } else {
+    // Report the exception if it isn't caught by JavaScript code.
+    return handler == NULL;
+  }
+}
+
+
 // Traverse prototype chain to find out whether the object is derived from
 // the Error object.
 bool Isolate::IsErrorObject(Handle<Object> obj) {
@@ -1357,53 +1366,32 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
 }
 
 
-bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
-  DCHECK_NE(heap()->the_hole_value(), exception);
-
-  // For uncatchable exceptions, the JavaScript handler cannot be on top.
-  if (!is_catchable_by_javascript(exception)) return false;
-
-  // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-  Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == nullptr) return false;
-
+bool Isolate::IsFinallyOnTop() {
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
-  Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == nullptr) return true;
+  Address external_handler_address =
+      thread_local_top()->try_catch_handler_address();
+  DCHECK(external_handler_address != NULL);
 
-  // The exception has been externally caught if and only if there is an
-  // external handler which is on top of the top-most JS_ENTRY handler.
+  // The exception has been externally caught if and only if there is
+  // an external handler which is on top of the top-most try-finally
+  // handler.
+  // There should be no try-catch blocks as they would prohibit us from
+  // finding external catcher in the first place (see catcher_ check above).
   //
-  // Note, that finally clauses would re-throw an exception unless it's aborted
-  // by jumps in control flow (like return, break, etc.) and we'll have another
-  // chance to set proper v8::TryCatch later.
-  return (entry_handler < external_handler);
-}
+  // Note, that finally clause would rethrow an exception unless it's
+  // aborted by jumps in control flow like return, break, etc. and we'll
+  // have another chances to set proper v8::TryCatch.
+  StackHandler* handler =
+      StackHandler::FromAddress(Isolate::handler(thread_local_top()));
+  while (handler != NULL && handler->address() < external_handler_address) {
+    DCHECK(!handler->is_catch());
+    if (handler->is_finally()) return true;
 
+    handler = handler->next();
+  }
 
-bool Isolate::IsExternalHandlerOnTop(Object* exception) {
-  DCHECK_NE(heap()->the_hole_value(), exception);
-
-  // Get the address of the external handler so we can compare the address to
-  // determine which one is closer to the top of the stack.
-  Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == nullptr) return false;
-
-  // For uncatchable exceptions, the external handler is always on top.
-  if (!is_catchable_by_javascript(exception)) return true;
-
-  // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-  Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == nullptr) return true;
-
-  // The exception has been externally caught if and only if there is an
-  // external handler which is on top of the top-most JS_ENTRY handler.
-  //
-  // Note, that finally clauses would re-throw an exception unless it's aborted
-  // by jumps in control flow (like return, break, etc.) and we'll have another
-  // chance to set proper v8::TryCatch later.
-  return (entry_handler > external_handler);
+  return false;
 }
 
 
@@ -1420,32 +1408,25 @@ void Isolate::ReportPendingMessages() {
   Object* message_obj = thread_local_top_.pending_message_obj_;
   clear_pending_message();
 
-  // For uncatchable exceptions we do nothing. If needed, the exception and the
-  // message have already been propagated to v8::TryCatch.
-  if (!is_catchable_by_javascript(exception)) return;
+  bool can_be_caught_externally = false;
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  bool should_report_exception =
+      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
 
-  // Determine whether the message needs to be reported to all message handlers
-  // depending on whether and external v8::TryCatch or an internal JavaScript
-  // handler is on top.
-  bool should_report_exception;
-  if (IsExternalHandlerOnTop(exception)) {
-    // Only report the exception if the external handler is verbose.
-    should_report_exception = try_catch_handler()->is_verbose_;
+  if (!catchable_by_javascript) {
+    // Do nothing: if needed, the exception has been already propagated to
+    // v8::TryCatch.
   } else {
-    // Report the exception if it isn't caught by JavaScript code.
-    should_report_exception = !IsJavaScriptHandlerOnTop(exception);
-  }
-
-  // Actually report the pending message to all message handlers.
-  if (!message_obj->IsTheHole() && should_report_exception) {
-    HandleScope scope(this);
-    Handle<JSMessageObject> message(JSMessageObject::cast(message_obj));
-    Handle<JSValue> script_wrapper(JSValue::cast(message->script()));
-    Handle<Script> script(Script::cast(script_wrapper->value()));
-    int start_pos = message->start_position();
-    int end_pos = message->end_position();
-    MessageLocation location(script, start_pos, end_pos);
-    MessageHandler::ReportMessage(this, &location, message);
+    if (!message_obj->IsTheHole() && should_report_exception) {
+      HandleScope scope(this);
+      Handle<JSMessageObject> message(JSMessageObject::cast(message_obj));
+      Handle<JSValue> script_wrapper(JSValue::cast(message->script()));
+      Handle<Script> script(Script::cast(script_wrapper->value()));
+      int start_pos = message->start_position();
+      int end_pos = message->end_position();
+      MessageLocation location(script, start_pos, end_pos);
+      MessageHandler::ReportMessage(this, &location, message);
+    }
   }
 }
 
@@ -1953,18 +1934,21 @@ void Isolate::InitializeThreadLocal() {
 bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   Object* exception = pending_exception();
 
-  if (IsJavaScriptHandlerOnTop(exception)) {
-    thread_local_top_.external_caught_exception_ = false;
-    return false;
-  }
-
-  if (!IsExternalHandlerOnTop(exception)) {
+  bool can_be_caught_externally = false;
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+  if (!can_be_caught_externally) {
     thread_local_top_.external_caught_exception_ = false;
     return true;
   }
 
+  if (catchable_by_javascript && IsFinallyOnTop()) {
+    thread_local_top_.external_caught_exception_ = false;
+    return false;
+  }
+
   thread_local_top_.external_caught_exception_ = true;
-  if (!is_catchable_by_javascript(exception)) {
+  if (!catchable_by_javascript) {
     try_catch_handler()->can_continue_ = false;
     try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();

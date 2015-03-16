@@ -3050,8 +3050,12 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   // For the JSEntry handler, we must preserve the live registers x0-x4.
   // (See JSEntryStub::GenerateBody().)
 
-  // Set up the index for pushing.
-  Mov(x11, handler_index);
+  unsigned state =
+      StackHandler::IndexField::encode(handler_index) |
+      StackHandler::KindField::encode(kind);
+
+  // Set up the state for pushing.
+  Mov(x11, state);
 
   // Push the context and state.
   if (kind == StackHandler::JS_ENTRY) {

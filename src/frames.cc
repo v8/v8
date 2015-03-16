@@ -1338,6 +1338,7 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   StackHandlerIterator it(this, top_handler());
   DCHECK(!it.done());
   StackHandler* handler = it.handler();
+  DCHECK(handler->is_js_entry());
   handler->Iterate(v, LookupCode());
 #ifdef DEBUG
   // Make sure that the entry frame does not contain more than one
