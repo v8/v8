@@ -363,9 +363,6 @@ class SlotsBuffer {
                     SlotsBuffer** buffer_address, SlotType type, Address addr,
                     AdditionMode mode);
 
-  // Removes all occurrences of given slot from the chain of slots buffers.
-  static void RemoveSlot(SlotsBuffer* buffer, ObjectSlot slot_to_remove);
-
   static const int kNumberOfElements = 1021;
 
  private:
