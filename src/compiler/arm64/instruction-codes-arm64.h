@@ -70,6 +70,7 @@ namespace compiler {
   V(Arm64Sxtw)                     \
   V(Arm64Ubfx)                     \
   V(Arm64Ubfx32)                   \
+  V(Arm64Bfi)                      \
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \
   V(Arm64CompareAndBranch32)       \
@@ -98,6 +99,7 @@ namespace compiler {
   V(Arm64Float64ExtractHighWord32) \
   V(Arm64Float64InsertLowWord32)   \
   V(Arm64Float64InsertHighWord32)  \
+  V(Arm64Float64MoveU64)           \
   V(Arm64LdrS)                     \
   V(Arm64StrS)                     \
   V(Arm64LdrD)                     \
