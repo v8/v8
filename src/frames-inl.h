@@ -61,36 +61,15 @@ inline StackHandler* StackHandler::FromAddress(Address address) {
 }
 
 
-inline bool StackHandler::is_js_entry() const {
-  return kind() == JS_ENTRY;
-}
-
-
-inline bool StackHandler::is_catch() const {
-  return kind() == CATCH;
-}
-
-
-inline bool StackHandler::is_finally() const {
-  return kind() == FINALLY;
-}
-
-
 inline Context* StackHandler::context() const {
   const int offset = StackHandlerConstants::kContextOffset;
   return Context::cast(Memory::Object_at(address() + offset));
 }
 
 
-inline StackHandler::Kind StackHandler::kind() const {
+inline int StackHandler::index() const {
   const int offset = StackHandlerConstants::kStateIntOffset;
-  return KindField::decode(Memory::unsigned_at(address() + offset));
-}
-
-
-inline unsigned StackHandler::index() const {
-  const int offset = StackHandlerConstants::kStateIntOffset;
-  return IndexField::decode(Memory::unsigned_at(address() + offset));
+  return Memory::int_at(address() + offset);
 }
 
 

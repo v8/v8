@@ -2456,7 +2456,7 @@ MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
 }
 
 
-void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
+void Debug::OnThrow(Handle<Object> exception) {
   if (in_debug_scope() || ignore_events()) return;
   // Temporarily clear any scheduled_exception to allow evaluating
   // JavaScript from the debug event handler.
@@ -2466,7 +2466,7 @@ void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
     scheduled_exception = handle(isolate_->scheduled_exception(), isolate_);
     isolate_->clear_scheduled_exception();
   }
-  OnException(exception, uncaught, isolate_->GetPromiseOnStackOnThrow());
+  OnException(exception, isolate_->GetPromiseOnStackOnThrow());
   if (!scheduled_exception.is_null()) {
     isolate_->thread_local_top()->scheduled_exception_ = *scheduled_exception;
   }
@@ -2479,7 +2479,7 @@ void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
   // Check whether the promise has been marked as having triggered a message.
   Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
   if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
-    OnException(value, false, promise);
+    OnException(value, promise);
   }
 }
 
@@ -2494,8 +2494,8 @@ MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
 }
 
 
-void Debug::OnException(Handle<Object> exception, bool uncaught,
-                        Handle<Object> promise) {
+void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
+  bool uncaught = !isolate_->PredictWhetherExceptionIsCaught(*exception);
   if (!uncaught && promise->IsJSObject()) {
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.

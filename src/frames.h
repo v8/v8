@@ -88,14 +88,7 @@ class StackHandler BASE_EMBEDDED {
     JS_ENTRY,
     CATCH,
     FINALLY,
-    LAST_KIND = FINALLY
   };
-
-  static const int kKindWidth = 2;
-  STATIC_ASSERT(LAST_KIND < (1 << kKindWidth));
-  static const int kIndexWidth = 32 - kKindWidth;
-  class KindField: public BitField<StackHandler::Kind, 0, kKindWidth> {};
-  class IndexField: public BitField<unsigned, kKindWidth, kIndexWidth> {};
 
   // Get the address of this stack handler.
   inline Address address() const;
@@ -114,13 +107,7 @@ class StackHandler BASE_EMBEDDED {
 
   // Accessors.
   inline Context* context() const;
-  inline Kind kind() const;
-  inline unsigned index() const;
-
-  // Testers.
-  inline bool is_js_entry() const;
-  inline bool is_catch() const;
-  inline bool is_finally() const;
+  inline int index() const;
 
   // Generator support to preserve stack handlers.
   void Unwind(Isolate* isolate, FixedArray* array, int offset,
