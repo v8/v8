@@ -117,7 +117,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
   if (FLAG_hydrogen_track_positions) {
-    inlined_function_infos_ = new List<InlinedFunctionInfo>(5);
+    inlined_function_infos_ = new std::vector<InlinedFunctionInfo>();
   } else {
     inlined_function_infos_ = NULL;
   }
@@ -279,7 +279,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
   DCHECK(FLAG_hydrogen_track_positions);
   DCHECK(inlined_function_infos_);
 
-  int inline_id = inlined_function_infos_->length();
+  int inline_id = static_cast<int>(inlined_function_infos_->size());
   InlinedFunctionInfo info(parent_id, position, UnboundScript::kNoScriptId,
       shared->start_position());
   if (!shared->script()->IsUndefined()) {
@@ -306,7 +306,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
     }
   }
 
-  inlined_function_infos_->Add(info);
+  inlined_function_infos_->push_back(info);
 
   if (inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
