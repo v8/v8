@@ -83,20 +83,10 @@ class StoreBuffer {
   bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
   bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
 
-  // Goes through the store buffer removing pointers to things that have
-  // been promoted.  Rebuilds the store buffer completely if it overflowed.
-  void SortUniq();
-
   void EnsureSpace(intptr_t space_needed);
   void Verify();
 
   bool PrepareForIteration();
-
-#ifdef DEBUG
-  void Clean();
-  // Slow, for asserts only.
-  bool CellIsInStoreBuffer(Address cell);
-#endif
 
   void Filter(int flag);
 
@@ -144,7 +134,6 @@ class StoreBuffer {
   void ClearFilteringHashSets();
 
   bool SpaceAvailable(intptr_t space_needed);
-  void Uniq();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
   void ProcessOldToNewSlot(Address slot_address,

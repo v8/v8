@@ -108,26 +108,6 @@ void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
 }
 
 
-void StoreBuffer::Uniq() {
-  // Remove adjacent duplicates and cells that do not point at new space.
-  Address previous = NULL;
-  Address* write = old_start_;
-  DCHECK(may_move_store_buffer_entries_);
-  for (Address* read = old_start_; read < old_top_; read++) {
-    Address current = *read;
-    if (current != previous) {
-      Object* object = reinterpret_cast<Object*>(
-          base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(current)));
-      if (heap_->InNewSpace(object)) {
-        *write++ = current;
-      }
-    }
-    previous = current;
-  }
-  old_top_ = write;
-}
-
-
 bool StoreBuffer::SpaceAvailable(intptr_t space_needed) {
   return old_limit_ - old_top_ >= space_needed;
 }
@@ -247,20 +227,6 @@ void StoreBuffer::Filter(int flag) {
 }
 
 
-void StoreBuffer::SortUniq() {
-  Compact();
-  if (old_buffer_is_sorted_) return;
-  std::sort(old_start_, old_top_);
-  Uniq();
-
-  old_buffer_is_sorted_ = true;
-
-  // Filtering hash sets are inconsistent with the store buffer after this
-  // operation.
-  ClearFilteringHashSets();
-}
-
-
 bool StoreBuffer::PrepareForIteration() {
   Compact();
   PointerChunkIterator it(heap_);
@@ -283,41 +249,6 @@ bool StoreBuffer::PrepareForIteration() {
 
   return page_has_scan_on_scavenge_flag;
 }
-
-
-#ifdef DEBUG
-void StoreBuffer::Clean() {
-  ClearFilteringHashSets();
-  Uniq();  // Also removes things that no longer point to new space.
-  EnsureSpace(kStoreBufferSize / 2);
-}
-
-
-static Address* in_store_buffer_1_element_cache = NULL;
-
-
-bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
-  if (!FLAG_enable_slow_asserts) return true;
-  if (in_store_buffer_1_element_cache != NULL &&
-      *in_store_buffer_1_element_cache == cell_address) {
-    return true;
-  }
-  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
-  for (Address* current = top - 1; current >= start_; current--) {
-    if (*current == cell_address) {
-      in_store_buffer_1_element_cache = current;
-      return true;
-    }
-  }
-  for (Address* current = old_top_ - 1; current >= old_start_; current--) {
-    if (*current == cell_address) {
-      in_store_buffer_1_element_cache = current;
-      return true;
-    }
-  }
-  return false;
-}
-#endif
 
 
 void StoreBuffer::ClearFilteringHashSets() {
