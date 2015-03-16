@@ -123,14 +123,12 @@ config("toolchain") {
       }
       if (arm_fpu == "vfpv3-d16") {
         defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
-      }
-      if (arm_fpu == "vfpv3") {
+      } else if (arm_fpu == "vfpv3") {
         defines += [
           "CAN_USE_VFP3_INSTRUCTIONS",
           "CAN_USE_VFP32DREGS",
         ]
-      }
-      if (arm_fpu == "neon") {
+      } else if (arm_fpu == "neon") {
         defines += [
           "CAN_USE_VFP3_INSTRUCTIONS",
           "CAN_USE_VFP32DREGS",
@@ -138,6 +136,7 @@ config("toolchain") {
         ]
       }
     } else {
+      # These defines ares used for the ARM simulator.
       defines += [
         "CAN_USE_ARMV7_INSTRUCTIONS",
         "CAN_USE_VFP3_INSTRUCTIONS",
