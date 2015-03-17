@@ -1395,9 +1395,10 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // The result value, dispatch token and message is expected on the operand
   // stack (this is in sync with FullCodeGenerator::EnterFinallyBlock).
+  Node* message = BuildLoadExternal(message_object, kMachAnyTagged);
   environment()->Push(token);  // TODO(mstarzinger): Cook token!
   environment()->Push(result);
-  environment()->Push(BuildLoadExternal(message_object, kMachAnyTagged));
+  environment()->Push(message);
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
@@ -1405,9 +1406,10 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // The result value, dispatch token and message is restored from the operand
   // stack (this is in sync with FullCodeGenerator::ExitFinallyBlock).
-  BuildStoreExternal(message_object, kMachAnyTagged, environment()->Pop());
+  message = environment()->Pop();
   result = environment()->Pop();
   token = environment()->Pop();  // TODO(mstarzinger): Uncook token!
+  BuildStoreExternal(message_object, kMachAnyTagged, message);
 
   // Dynamic dispatch after the finally-block.
   commands->ApplyDeferredCommands(token, result);
@@ -1739,8 +1741,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
     environment()->Push(literal);  // Duplicate receiver.
     VisitForValue(property->key());
-    environment()->Push(BuildToName(environment()->Pop(),
-                                    expr->GetIdForProperty(property_index)));
+    Node* name = BuildToName(environment()->Pop(),
+                             expr->GetIdForProperty(property_index));
+    environment()->Push(name);
     // TODO(mstarzinger): For ObjectLiteral::Property::PROTOTYPE the key should
     // not be on the operand stack while the value is being evaluated. Come up
     // with a repro for this and fix it. Also find a nice way to do so. :)
@@ -2564,7 +2567,8 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   Node* check = NewNode(javascript()->StrictEqual(), receiver, undefined);
   receiver_check.If(check);
   receiver_check.Then();
-  environment()->Push(BuildLoadGlobalProxy());
+  Node* proxy = BuildLoadGlobalProxy();
+  environment()->Push(proxy);
   receiver_check.Else();
   environment()->Push(receiver);
   receiver_check.End();
@@ -2663,7 +2667,8 @@ Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
   Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
   hole_check.If(check);
   hole_check.Then();
-  environment()->Push(BuildThrowReferenceError(variable, bailout_id));
+  Node* error = BuildThrowReferenceError(variable, bailout_id);
+  environment()->Push(error);
   hole_check.Else();
   environment()->Push(not_hole);
   hole_check.End();
