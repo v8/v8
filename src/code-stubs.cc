@@ -620,26 +620,6 @@ CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor() {
 }
 
 
-static void InitializeVectorLoadStub(Isolate* isolate,
-                                     CodeStubDescriptor* descriptor,
-                                     Address deoptimization_handler) {
-  DCHECK(FLAG_vector_ics);
-  descriptor->Initialize(deoptimization_handler);
-}
-
-
-void VectorLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  InitializeVectorLoadStub(isolate(), descriptor,
-                           FUNCTION_ADDR(LoadIC_MissFromStubFailure));
-}
-
-
-void VectorKeyedLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  InitializeVectorLoadStub(isolate(), descriptor,
-                           FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
-}
-
-
 void MegamorphicLoadStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 

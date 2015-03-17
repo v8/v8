@@ -85,8 +85,8 @@ namespace internal {
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
-  V(VectorKeyedLoad)                        \
-  V(VectorLoad)                             \
+  V(VectorRawKeyedLoad)                     \
+  V(VectorRawLoad)                          \
   /* IC Handler stubs */                    \
   V(LoadConstant)                           \
   V(LoadField)                              \
@@ -2062,38 +2062,49 @@ class MegamorphicLoadStub : public HydrogenCodeStub {
 };
 
 
-class VectorLoadStub : public HydrogenCodeStub {
+class VectorRawLoadStub : public PlatformCodeStub {
  public:
-  explicit VectorLoadStub(Isolate* isolate, const LoadICState& state)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(state.GetExtraICState());
+  explicit VectorRawLoadStub(Isolate* isolate, const LoadICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
   }
 
-  Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
+  void GenerateForTrampoline(MacroAssembler* masm);
 
-  InlineCacheState GetICState() const FINAL { return DEFAULT; }
+  virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
 
-  ExtraICState GetExtraICState() const FINAL {
-    return static_cast<ExtraICState>(sub_minor_key());
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
+
+  virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
+    return static_cast<ExtraICState>(minor_key_);
   }
-
- private:
-  LoadICState state() const { return LoadICState(GetExtraICState()); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_HYDROGEN_CODE_STUB(VectorLoad, HydrogenCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(VectorRawLoad, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 
-class VectorKeyedLoadStub : public VectorLoadStub {
+class VectorRawKeyedLoadStub : public PlatformCodeStub {
  public:
-  explicit VectorKeyedLoadStub(Isolate* isolate)
-      : VectorLoadStub(isolate, LoadICState(0)) {}
+  explicit VectorRawKeyedLoadStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
-  Code::Kind GetCodeKind() const OVERRIDE { return Code::KEYED_LOAD_IC; }
+  void GenerateForTrampoline(MacroAssembler* masm);
+
+  virtual Code::Kind GetCodeKind() const OVERRIDE {
+    return Code::KEYED_LOAD_IC;
+  }
+
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_HYDROGEN_CODE_STUB(VectorKeyedLoad, VectorLoadStub);
+  DEFINE_PLATFORM_CODE_STUB(VectorRawKeyedLoad, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 

@@ -71,8 +71,8 @@ TEST(VectorStructure) {
   CHECK_EQ(index,
            TypeFeedbackVector::kReservedIndexCount + metadata_length + 3);
   CHECK(FeedbackVectorICSlot(0) == vector->ToICSlot(index));
-
-  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3 + 5,
+  CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3 +
+               5 * TypeFeedbackVector::elements_per_ic_slot(),
            vector->length());
 }
 

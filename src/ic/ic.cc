@@ -988,7 +988,7 @@ Handle<Code> LoadIC::load_global(Isolate* isolate, Handle<GlobalObject> global,
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state, State initialization_state) {
   if (FLAG_vector_ics) {
-    return VectorLoadStub(isolate, LoadICState(extra_state)).GetCode();
+    return VectorRawLoadStub(isolate, LoadICState(extra_state)).GetCode();
   }
   return PropertyICCompiler::ComputeLoad(isolate, initialization_state,
                                          extra_state);
@@ -1007,7 +1007,7 @@ Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, State initialization_state) {
   if (FLAG_vector_ics) {
-    return VectorKeyedLoadStub(isolate).GetCode();
+    return VectorRawKeyedLoadStub(isolate).GetCode();
   }
   switch (initialization_state) {
     case UNINITIALIZED:
